@@ -1,15 +1,16 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { SessionLogForm } from "@/components/session-log-form";
 import { SessionHistory } from "@/components/session-history";
 import { getSessions } from "@/lib/storage";
 import { JudoSession } from "@/lib/types";
-import { LayoutDashboard, PlusCircle, History, Info, Github, Trophy } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Info, Trophy } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -107,7 +108,7 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="flex-1 flex flex-col bg-background/50 overflow-hidden">
-          <header className="h-16 border-b flex items-center px-6 justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+          <header className="h-16 border-b flex items-center px-6 justify-between bg-white/80 dark:bg-card/80 backdrop-blur-md sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="text-xl font-bold tracking-tight text-primary">
@@ -117,6 +118,7 @@ export default function Home() {
               </h2>
             </div>
             <div className="flex items-center gap-3">
+               <ModeToggle />
                <div className="hidden sm:flex flex-col items-end mr-2">
                  <span className="text-sm font-bold">Judoka User</span>
                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">White Belt (Demo)</span>
