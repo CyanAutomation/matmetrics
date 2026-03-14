@@ -29,7 +29,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [description, setDescription] = useState("");
   const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
-  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 0);
+  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 1);
   const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
 
@@ -122,7 +122,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       setTechniques([]);
       setDescription("");
       setNotes("");
-      setEffort(0);
+      setEffort(1);
     }
     
     onSuccess();
@@ -167,7 +167,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
                 className="flex gap-4 p-2 bg-secondary/50 rounded-lg border border-input h-10 items-center px-4"
               >
-                {[0, 1, 2].map((val) => (
+                {[0, 1, 2, 3].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
                     <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-sm">

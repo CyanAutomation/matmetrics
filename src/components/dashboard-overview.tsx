@@ -81,7 +81,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.avgEffort}</div>
-            <p className="text-xs text-muted-foreground">Intensity level (0-2 scale)</p>
+            <p className="text-xs text-muted-foreground">Intensity level (0-3 scale)</p>
           </CardContent>
         </Card>
         <Card>
@@ -126,15 +126,16 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
               <BarChart data={stats.recentEfforts}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="date" />
-                <YAxis ticks={[0, 1, 2]} />
+                <YAxis ticks={[0, 1, 2, 3]} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="effort" radius={[4, 4, 0, 0]}>
-                   {stats.recentEfforts.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.effort === 0 ? "hsl(var(--primary) / 0.4)" : entry.effort === 1 ? "hsl(var(--primary) / 0.7)" : "hsl(var(--primary))"} 
-                    />
-                  ))}
+                   {stats.recentEfforts.map((entry, index) => {
+                    let fill = "hsl(var(--primary))";
+                    if (entry.effort === 0) fill = "hsl(var(--primary) / 0.3)";
+                    else if (entry.effort === 1) fill = "hsl(var(--primary) / 0.5)";
+                    else if (entry.effort === 2) fill = "hsl(var(--primary) / 0.8)";
+                    return <Cell key={`cell-${index}`} fill={fill} />;
+                  })}
                 </Bar>
               </BarChart>
             </ChartContainer>
