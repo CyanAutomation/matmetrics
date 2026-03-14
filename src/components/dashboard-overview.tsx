@@ -15,6 +15,7 @@ import {
   Cell
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { cn } from "@/lib/utils";
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];

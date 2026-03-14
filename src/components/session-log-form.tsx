@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const { toast } = useToast();
   const isEditing = !!sessionToEdit;
 
-  const [date, setDate] = useState(sessionToEdit?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(sessionToEdit?.date || "");
   const [description, setDescription] = useState("");
   const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
@@ -34,6 +34,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [category, setCategory] = useState<SessionCategory>(sessionToEdit?.category || "Technical");
   const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
+
+  // Avoid hydration mismatch by setting the default date on client-side mount
+  useEffect(() => {
+    if (!date && !isEditing) {
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [date, isEditing]);
 
   const handleAddTech = (e?: React.FormEvent) => {
     e?.preventDefault();
