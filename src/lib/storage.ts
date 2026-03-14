@@ -22,6 +22,12 @@ export function saveSession(session: JudoSession) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
 
+export function updateSession(session: JudoSession) {
+  const sessions = getSessions();
+  const updated = sessions.map(s => s.id === session.id ? session : s);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
+
 export function deleteSession(id: string) {
   const sessions = getSessions();
   const updated = sessions.filter(s => s.id !== id);

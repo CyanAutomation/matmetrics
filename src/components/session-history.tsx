@@ -1,14 +1,16 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { JudoSession, EFFORT_LABELS, EFFORT_COLORS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar, Clock } from "lucide-react";
+import { Trash2, Calendar, Clock, Edit2 } from "lucide-react";
 import { format } from "date-fns";
 import { deleteSession } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { SessionLogForm } from "@/components/session-log-form";
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -17,6 +19,7 @@ interface SessionHistoryProps {
 
 export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
   const { toast } = useToast();
+  const [editingSession, setEditingSession] = useState<JudoSession | null>(null);
 
   const handleDelete = (id: string) => {
     deleteSession(id);
@@ -25,6 +28,11 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
       title: "Session deleted",
       description: "The training session has been removed from your history.",
     });
+  };
+
+  const handleEditSuccess = () => {
+    setEditingSession(null);
+    onRefresh();
   };
 
   if (sessions.length === 0) {
@@ -52,7 +60,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                     </h4>
                     <div className="flex items-center text-xs text-muted-foreground gap-1">
                       <Clock className="h-3 w-3" />
-                      Logged at {format(new Date(session.date), "p")}
+                      Logged {format(new Date(session.date), "p")}
                     </div>
                   </div>
                 </div>
@@ -66,22 +74,32 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0">
-                <div className="flex flex-col items-end">
+              <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0">
+                <div className="flex flex-col items-end mr-4">
                   <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Effort</span>
                   <Badge className={EFFORT_COLORS[session.effort]}>
                     {EFFORT_LABELS[session.effort]}
                   </Badge>
                 </div>
                 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                  onClick={() => handleDelete(session.id)}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/5"
+                    onClick={() => setEditingSession(session)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                    onClick={() => handleDelete(session.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             
@@ -95,6 +113,24 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
           </CardContent>
         </Card>
       ))}
+
+      <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Practice Session</DialogTitle>
+            <DialogDescription>
+              Update your techniques, effort, or notes for this training session.
+            </DialogDescription>
+          </DialogHeader>
+          {editingSession && (
+            <SessionLogForm 
+              sessionToEdit={editingSession} 
+              onSuccess={handleEditSuccess}
+              onCancel={() => setEditingSession(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

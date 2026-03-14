@@ -8,24 +8,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, X, Sparkles, Loader2, Save } from "lucide-react";
-import { EffortLevel, EFFORT_LABELS } from "@/lib/types";
-import { saveSession } from "@/lib/storage";
+import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2 } from "lucide-react";
+import { EffortLevel, EFFORT_LABELS, JudoSession } from "@/lib/types";
+import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
 import { useToast } from "@/hooks/use-toast";
 
 interface SessionLogFormProps {
   onSuccess: () => void;
+  sessionToEdit?: JudoSession;
+  onCancel?: () => void;
 }
 
-export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
+export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLogFormProps) {
   const { toast } = useToast();
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const isEditing = !!sessionToEdit;
+
+  const [date, setDate] = useState(sessionToEdit?.date || new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState("");
-  const [techniques, setTechniques] = useState<string[]>([]);
+  const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
-  const [effort, setEffort] = useState<EffortLevel>(0);
-  const [notes, setNotes] = useState("");
+  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 0);
+  const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
 
   const handleAddTech = (e?: React.FormEvent) => {
@@ -91,42 +95,56 @@ export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
       return;
     }
 
-    saveSession({
-      id: crypto.randomUUID(),
+    const sessionData: JudoSession = {
+      id: sessionToEdit?.id || crypto.randomUUID(),
       date,
       techniques,
       effort,
       notes,
-    });
+    };
 
-    toast({
-      title: "Session Saved!",
-      description: "Your training session has been successfully logged.",
-    });
+    if (isEditing) {
+      updateSession(sessionData);
+      toast({
+        title: "Session Updated!",
+        description: "Your training session has been successfully modified.",
+      });
+    } else {
+      saveSession(sessionData);
+      toast({
+        title: "Session Saved!",
+        description: "Your training session has been successfully logged.",
+      });
+    }
 
-    // Reset form
-    setTechniques([]);
-    setDescription("");
-    setNotes("");
-    setEffort(0);
+    // Reset form if not editing (if editing, the component usually unmounts from a dialog)
+    if (!isEditing) {
+      setTechniques([]);
+      setDescription("");
+      setNotes("");
+      setEffort(0);
+    }
+    
     onSuccess();
   };
 
   return (
-    <Card className="max-w-3xl mx-auto shadow-lg border-primary/10">
-      <CardHeader className="bg-primary/5 border-b">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary text-primary-foreground rounded-lg">
-            <Plus className="h-6 w-6" />
+    <Card className={`max-w-3xl mx-auto shadow-lg border-primary/10 ${isEditing ? 'border-0 shadow-none' : ''}`}>
+      {!isEditing && (
+        <CardHeader className="bg-primary/5 border-b">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary text-primary-foreground rounded-lg">
+              <Plus className="h-6 w-6" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl">Log Session</CardTitle>
+              <CardDescription>Track what you practiced and how hard you pushed yourself.</CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-2xl">Log Session</CardTitle>
-            <CardDescription>Track what you practiced and how hard you pushed yourself.</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
+      )}
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-8 p-6">
+        <CardContent className={`space-y-8 ${isEditing ? 'p-0' : 'p-6'}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
@@ -174,7 +192,7 @@ export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
             </div>
             <Textarea 
               id="description" 
-              placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills and spent the last 20 mins on Ne-waza transitions..." 
+              placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="min-h-[100px] bg-background/50 focus:bg-background transition-colors"
@@ -204,7 +222,12 @@ export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
                   placeholder="Manual tag (e.g. Randori)" 
                   value={newTech}
                   onChange={(e) => setNewTech(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddTech()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTech();
+                    }
+                  }}
                 />
                 <Button type="button" variant="secondary" onClick={() => handleAddTech()}>
                   Add
@@ -224,10 +247,16 @@ export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
             />
           </div>
         </CardContent>
-        <CardFooter className="bg-primary/5 border-t p-6 flex justify-end">
+        <CardFooter className={`bg-primary/5 border-t flex justify-end gap-3 ${isEditing ? 'p-4 mt-6' : 'p-6'}`}>
+          {isEditing && onCancel && (
+            <Button type="button" variant="ghost" onClick={onCancel} className="gap-2">
+              <Undo2 className="h-4 w-4" />
+              Cancel
+            </Button>
+          )}
           <Button type="submit" className="gap-2 px-8 py-6 text-lg font-bold shadow-lg transition-transform hover:scale-[1.02]">
             <Save className="h-5 w-5" />
-            Log Training Session
+            {isEditing ? "Update Session" : "Log Training Session"}
           </Button>
         </CardFooter>
       </form>
