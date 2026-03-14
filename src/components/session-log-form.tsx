@@ -13,6 +13,7 @@ import { EffortLevel, EFFORT_LABELS, JudoSession } from "@/lib/types";
 import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -117,7 +118,6 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       });
     }
 
-    // Reset form if not editing (if editing, the component usually unmounts from a dialog)
     if (!isEditing) {
       setTechniques([]);
       setDescription("");
@@ -129,7 +129,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   };
 
   return (
-    <Card className={`max-w-3xl mx-auto shadow-lg border-primary/10 ${isEditing ? 'border-0 shadow-none' : ''}`}>
+    <Card className={cn(
+      "max-w-3xl mx-auto shadow-lg border-primary/10",
+      isEditing && "shadow-none border-0 bg-transparent"
+    )}>
       {!isEditing && (
         <CardHeader className="bg-primary/5 border-b">
           <div className="flex items-center gap-3">
@@ -144,7 +147,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
         </CardHeader>
       )}
       <form onSubmit={handleSubmit}>
-        <CardContent className={`space-y-8 ${isEditing ? 'p-0' : 'p-6'}`}>
+        <CardContent className={cn("space-y-6", !isEditing ? "p-6" : "p-0")}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
@@ -154,6 +157,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
                 required
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -161,12 +165,12 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               <RadioGroup 
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex gap-4 p-2 bg-secondary/50 rounded-lg border border-input"
+                className="flex gap-4 p-2 bg-secondary/50 rounded-lg border border-input h-10 items-center px-4"
               >
                 {[0, 1, 2].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
-                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium">
+                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-sm">
                       {EFFORT_LABELS[val as EffortLevel]}
                     </Label>
                   </div>
@@ -195,12 +199,12 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[100px] bg-background/50 focus:bg-background transition-colors"
+              className="min-h-[100px] bg-background focus:bg-background transition-colors"
             />
             
             <div className="space-y-3">
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
-              <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-dashed border-primary/20 bg-secondary/20">
+              <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-dashed border-primary/20 bg-secondary/10">
                 {techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
                     <Brain className="h-4 w-4" />
@@ -228,6 +232,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                       handleAddTech();
                     }
                   }}
+                  className="bg-background"
                 />
                 <Button type="button" variant="secondary" onClick={() => handleAddTech()}>
                   Add
@@ -236,25 +241,31 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
             </div>
           </div>
 
-          <div className="space-y-2 pt-4">
+          <div className="space-y-2">
             <Label htmlFor="notes" className="text-sm font-semibold">Personal Notes (Optional)</Label>
             <Textarea 
               id="notes" 
               placeholder="How did you feel? Any injuries or specific focus for next time?" 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="bg-background/50 focus:bg-background transition-colors"
+              className="bg-background focus:bg-background transition-colors"
             />
           </div>
         </CardContent>
-        <CardFooter className={`bg-primary/5 border-t flex justify-end gap-3 ${isEditing ? 'p-4 mt-6' : 'p-6'}`}>
+        <CardFooter className={cn(
+          "flex justify-end gap-3",
+          !isEditing ? "bg-primary/5 border-t p-6" : "p-0 pt-6"
+        )}>
           {isEditing && onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel} className="gap-2">
               <Undo2 className="h-4 w-4" />
               Cancel
             </Button>
           )}
-          <Button type="submit" className="gap-2 px-8 py-6 text-lg font-bold shadow-lg transition-transform hover:scale-[1.02]">
+          <Button type="submit" className={cn(
+            "gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]",
+            !isEditing ? "px-8 py-6 text-lg" : "px-6 py-4"
+          )}>
             <Save className="h-5 w-5" />
             {isEditing ? "Update Session" : "Log Training Session"}
           </Button>

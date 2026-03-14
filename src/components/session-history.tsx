@@ -115,19 +115,21 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
       ))}
 
       <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Practice Session</DialogTitle>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-2xl font-bold">Edit Practice Session</DialogTitle>
             <DialogDescription>
               Update your techniques, effort, or notes for this training session.
             </DialogDescription>
           </DialogHeader>
           {editingSession && (
-            <SessionLogForm 
-              sessionToEdit={editingSession} 
-              onSuccess={handleEditSuccess}
-              onCancel={() => setEditingSession(null)}
-            />
+            <div className="py-2">
+              <SessionLogForm 
+                sessionToEdit={editingSession} 
+                onSuccess={handleEditSuccess}
+                onCancel={() => setEditingSession(null)}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
