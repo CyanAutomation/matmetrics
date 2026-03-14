@@ -1,0 +1,236 @@
+"use client"
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Brain, Plus, X, Sparkles, Loader2, Save } from "lucide-react";
+import { EffortLevel, EFFORT_LABELS } from "@/lib/types";
+import { saveSession } from "@/lib/storage";
+import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
+import { useToast } from "@/hooks/use-toast";
+
+interface SessionLogFormProps {
+  onSuccess: () => void;
+}
+
+export function SessionLogForm({ onSuccess }: SessionLogFormProps) {
+  const { toast } = useToast();
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [description, setDescription] = useState("");
+  const [techniques, setTechniques] = useState<string[]>([]);
+  const [newTech, setNewTech] = useState("");
+  const [effort, setEffort] = useState<EffortLevel>(0);
+  const [notes, setNotes] = useState("");
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const handleAddTech = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (newTech.trim() && !techniques.includes(newTech.trim())) {
+      setTechniques([...techniques, newTech.trim()]);
+      setNewTech("");
+    }
+  };
+
+  const removeTech = (tech: string) => {
+    setTechniques(techniques.filter(t => t !== tech));
+  };
+
+  const handleSuggest = async () => {
+    if (!description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Missing description",
+        description: "Please write what you practiced to get suggestions.",
+      });
+      return;
+    }
+
+    setIsSuggesting(true);
+    try {
+      const suggestions = await suggestTechniqueTags({ description });
+      const uniqueNew = suggestions.filter(s => !techniques.includes(s));
+      if (uniqueNew.length > 0) {
+        setTechniques([...techniques, ...uniqueNew]);
+        toast({
+          title: "AI Suggestions Added",
+          description: `Identified ${uniqueNew.length} techniques from your description.`,
+        });
+      } else if (suggestions.length > 0) {
+        toast({
+          description: "All suggested techniques are already tagged.",
+        });
+      } else {
+        toast({
+          description: "AI couldn't identify specific techniques. Try being more descriptive.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "AI Suggestion Failed",
+        description: "There was an error connecting to the AI helper.",
+      });
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (techniques.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete log",
+        description: "Please add at least one technique tag.",
+      });
+      return;
+    }
+
+    saveSession({
+      id: crypto.randomUUID(),
+      date,
+      techniques,
+      effort,
+      notes,
+    });
+
+    toast({
+      title: "Session Saved!",
+      description: "Your training session has been successfully logged.",
+    });
+
+    // Reset form
+    setTechniques([]);
+    setDescription("");
+    setNotes("");
+    setEffort(0);
+    onSuccess();
+  };
+
+  return (
+    <Card className="max-w-3xl mx-auto shadow-lg border-primary/10">
+      <CardHeader className="bg-primary/5 border-b">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary text-primary-foreground rounded-lg">
+            <Plus className="h-6 w-6" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl">Log Session</CardTitle>
+            <CardDescription>Track what you practiced and how hard you pushed yourself.</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-8 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
+              <Input 
+                id="date" 
+                type="date" 
+                value={date} 
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Effort Level</Label>
+              <RadioGroup 
+                value={effort.toString()} 
+                onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
+                className="flex gap-4 p-2 bg-secondary/50 rounded-lg border border-input"
+              >
+                {[0, 1, 2].map((val) => (
+                  <div key={val} className="flex items-center space-x-2">
+                    <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
+                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium">
+                      {EFFORT_LABELS[val as EffortLevel]}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSuggest}
+                disabled={isSuggesting || !description}
+                className="gap-2 text-primary hover:text-primary border-primary/20 hover:bg-primary/5 transition-all"
+              >
+                {isSuggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                AI Tag Suggestion
+              </Button>
+            </div>
+            <Textarea 
+              id="description" 
+              placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills and spent the last 20 mins on Ne-waza transitions..." 
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="min-h-[100px] bg-background/50 focus:bg-background transition-colors"
+            />
+            
+            <div className="space-y-3">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
+              <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-dashed border-primary/20 bg-secondary/20">
+                {techniques.length === 0 && (
+                  <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
+                    <Brain className="h-4 w-4" />
+                    Tags will appear here...
+                  </span>
+                )}
+                {techniques.map((tech) => (
+                  <Badge key={tech} className="gap-1 bg-primary text-white py-1 px-3">
+                    {tech}
+                    <button type="button" onClick={() => removeTech(tech)} className="hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Manual tag (e.g. Randori)" 
+                  value={newTech}
+                  onChange={(e) => setNewTech(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTech()}
+                />
+                <Button type="button" variant="secondary" onClick={() => handleAddTech()}>
+                  Add
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-4">
+            <Label htmlFor="notes" className="text-sm font-semibold">Personal Notes (Optional)</Label>
+            <Textarea 
+              id="notes" 
+              placeholder="How did you feel? Any injuries or specific focus for next time?" 
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-background/50 focus:bg-background transition-colors"
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="bg-primary/5 border-t p-6 flex justify-end">
+          <Button type="submit" className="gap-2 px-8 py-6 text-lg font-bold shadow-lg transition-transform hover:scale-[1.02]">
+            <Save className="h-5 w-5" />
+            Log Training Session
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
