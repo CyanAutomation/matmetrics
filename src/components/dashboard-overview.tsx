@@ -2,8 +2,8 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { JudoSession, EFFORT_LABELS } from "@/lib/types";
-import { TrendingUp, Award, Calendar, Zap } from "lucide-react";
+import { JudoSession, EFFORT_LABELS, SessionCategory } from "@/lib/types";
+import { TrendingUp, Award, Calendar, Zap, Target } from "lucide-react";
 import { 
   BarChart, 
   Bar, 
@@ -27,10 +27,19 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
     const avgEffort = sessions.reduce((acc, s) => acc + s.effort, 0) / sessions.length;
     
     const techniqueCount: Record<string, number> = {};
+    const categoryCount: Record<string, number> = {
+      Technical: 0,
+      Randori: 0,
+      Shiai: 0
+    };
+
     sessions.forEach(s => {
       s.techniques.forEach(t => {
         techniqueCount[t] = (techniqueCount[t] || 0) + 1;
       });
+      if (s.category) {
+        categoryCount[s.category] = (categoryCount[s.category] || 0) + 1;
+      }
     });
 
     const topTechniques = Object.entries(techniqueCount)
@@ -38,15 +47,21 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }));
 
+    const categoryStats = Object.entries(categoryCount).map(([name, count]) => ({ name, count }));
+
     const recentEfforts = sessions.slice(0, 7).reverse().map(s => ({
       date: new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       effort: s.effort
     }));
 
+    const topCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0][0];
+
     return {
       totalSessions: sessions.length,
       avgEffort: avgEffort.toFixed(1),
       topTechniques,
+      categoryStats,
+      topCategory,
       recentEfforts
     };
   }, [sessions]);
@@ -76,12 +91,12 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Effort</CardTitle>
-            <Zap className="h-4 w-4 text-accent" />
+            <CardTitle className="text-sm font-medium">Focus Area</CardTitle>
+            <Target className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.avgEffort}</div>
-            <p className="text-xs text-muted-foreground">Intensity level (0-3 scale)</p>
+            <div className="text-2xl font-bold">{stats.topCategory}</div>
+            <p className="text-xs text-muted-foreground">Primary training type</p>
           </CardContent>
         </Card>
         <Card>
@@ -98,12 +113,12 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Consistency</CardTitle>
-            <TrendingUp className="h-4 w-4 text-accent" />
+            <CardTitle className="text-sm font-medium">Avg. Effort</CardTitle>
+            <Zap className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Active</div>
-            <p className="text-xs text-muted-foreground">Training regularly</p>
+            <div className="text-2xl font-bold">{stats.avgEffort}</div>
+            <p className="text-xs text-muted-foreground">Intensity level (0-3 scale)</p>
           </CardContent>
         </Card>
       </div>
@@ -144,24 +159,50 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
 
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Top Techniques</CardTitle>
+            <CardTitle>Training Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {stats.topTechniques.map((tech, idx) => (
-                <div key={idx} className="flex items-center">
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">{tech.name}</p>
-                    <div className="flex h-2 w-full rounded-full bg-secondary">
-                      <div 
-                        className="h-full rounded-full bg-accent" 
-                        style={{ width: `${(tech.count / stats.totalSessions) * 100}%` }}
-                      />
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session Types</p>
+                {stats.categoryStats.map((cat, idx) => (
+                  <div key={idx} className="flex items-center">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="text-sm font-medium leading-none">{cat.name}</p>
+                        <span className="text-xs font-bold text-muted-foreground">{cat.count}</span>
+                      </div>
+                      <div className="flex h-2 w-full rounded-full bg-secondary">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            cat.name === 'Technical' ? "bg-sky-500" : cat.name === 'Randori' ? "bg-indigo-500" : "bg-rose-500"
+                          )} 
+                          style={{ width: `${(cat.count / stats.totalSessions) * 100}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="ml-4 text-sm font-medium">{tech.count}x</div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Top Techniques</p>
+                {stats.topTechniques.map((tech, idx) => (
+                  <div key={idx} className="flex items-center">
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">{tech.name}</p>
+                      <div className="flex h-2 w-full rounded-full bg-secondary">
+                        <div 
+                          className="h-full rounded-full bg-primary/60" 
+                          style={{ width: `${(tech.count / stats.totalSessions) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="ml-4 text-sm font-medium">{tech.count}x</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

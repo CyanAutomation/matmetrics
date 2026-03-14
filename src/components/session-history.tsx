@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useState } from 'react';
-import { JudoSession, EFFORT_LABELS, EFFORT_COLORS } from "@/lib/types";
+import { JudoSession, EFFORT_LABELS, EFFORT_COLORS, CATEGORY_COLORS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar, Clock, Edit2 } from "lucide-react";
+import { Trash2, Calendar, Clock, Edit2, Target } from "lucide-react";
 import { format } from "date-fns";
 import { deleteSession } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
@@ -55,9 +55,14 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                     <Calendar className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg">
-                      {format(new Date(session.date), "EEEE, MMMM do")}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-lg">
+                        {format(new Date(session.date), "EEEE, MMMM do")}
+                      </h4>
+                      <Badge variant="outline" className={CATEGORY_COLORS[session.category || 'Technical']}>
+                        {session.category || 'Technical'}
+                      </Badge>
+                    </div>
                     <div className="flex items-center text-xs text-muted-foreground gap-1">
                       <Clock className="h-3 w-3" />
                       Logged {format(new Date(session.date), "p")}

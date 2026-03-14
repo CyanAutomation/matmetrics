@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2 } from "lucide-react";
-import { EffortLevel, EFFORT_LABELS, JudoSession } from "@/lib/types";
+import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2, Target } from "lucide-react";
+import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
 import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -30,6 +31,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
   const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 1);
+  const [category, setCategory] = useState<SessionCategory>(sessionToEdit?.category || "Technical");
   const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
 
@@ -101,6 +103,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       date,
       techniques,
       effort,
+      category,
       notes,
     };
 
@@ -123,6 +126,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       setDescription("");
       setNotes("");
       setEffort(1);
+      setCategory("Technical");
     }
     
     onSuccess();
@@ -148,7 +152,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       )}
       <form onSubmit={handleSubmit}>
         <CardContent className={cn("space-y-6", !isEditing ? "p-6" : "p-0")}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
               <Input 
@@ -161,6 +165,19 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
+              <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
+                <SelectTrigger id="category" className="bg-background">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Technical">Technical</SelectItem>
+                  <SelectItem value="Randori">Randori</SelectItem>
+                  <SelectItem value="Shiai">Shiai</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label className="text-sm font-semibold">Effort Level</Label>
               <RadioGroup 
                 value={effort.toString()} 
@@ -170,8 +187,8 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 {[0, 1, 2, 3].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
-                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-sm">
-                      {EFFORT_LABELS[val as EffortLevel]}
+                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs">
+                      {EFFORT_LABELS[val as EffortLevel].split(' ')[0]}
                     </Label>
                   </div>
                 ))}
