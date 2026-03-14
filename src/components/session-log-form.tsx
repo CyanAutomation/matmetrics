@@ -189,13 +189,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               <RadioGroup 
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex gap-4 p-2 bg-secondary/50 rounded-lg border border-input h-10 items-center px-4"
+                className="flex flex-wrap gap-x-4 gap-y-2 p-2 bg-secondary/50 rounded-lg border border-input min-h-10 items-center px-4"
               >
                 {[0, 1, 2, 3].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
-                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs">
-                      {EFFORT_LABELS[val as EffortLevel].split(' ')[0]}
+                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs whitespace-nowrap">
+                      {EFFORT_LABELS[val as EffortLevel]}
                     </Label>
                   </div>
                 ))}
