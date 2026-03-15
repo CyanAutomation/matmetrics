@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview An AI tool that transforms informal Judo practice descriptions into structured, professional summaries.
+ * @fileOverview An AI tool that transforms informal Judo practice descriptions into structured, personal training diary entries.
  *
  * - transformPracticeDescription - A function that handles the transformation of Judo practice notes.
  * - TransformPracticeInput - The input type for the transformPracticeDescription function.
@@ -20,7 +20,7 @@ export type TransformPracticeInput = z.infer<typeof TransformPracticeInputSchema
 const TransformPracticeOutputSchema = z.object({
   transformedDescription: z
     .string()
-    .describe('A professionally written, well-structured, and terminologically accurate summary of the Judo practice.'),
+    .describe('A well-structured, terminologically accurate training diary entry with a personal and encouraging tone.'),
 });
 export type TransformPracticeOutput = z.infer<typeof TransformPracticeOutputSchema>;
 
@@ -34,16 +34,16 @@ const transformPracticePrompt = ai.definePrompt({
   name: 'transformPracticePrompt',
   input: {schema: TransformPracticeInputSchema},
   output: {schema: TransformPracticeOutputSchema},
-  prompt: `You are an expert Judo coach and technical writer. 
+  prompt: `You are an experienced Judo practitioner helping a student write their training diary.
 
-Your task is to take the following raw, informal description of a Judo practice session and transform it into a professionally written, well-structured, and terminologically accurate summary.
+Your task is to take the following raw, informal notes from a Judo practice session and transform them into a well-structured, clear, and terminologically accurate diary entry.
 
 Guidelines:
-- Maintain the original meaning and specific details provided by the user.
-- Use standard, official Judo terminology (e.g., ensure throw names like "Osoto Gari" or "Uchi Mata" are correctly spelled and capitalized).
-- Improve the flow and grammar while keeping it concise.
-- Use a professional yet encouraging tone suitable for a training log.
-- If the input is very short or list-like, expand it into clear, readable sentences or a well-organized summary.
+- **Tone**: Use an informal, personal, and encouraging tone. It should feel like a student reflecting on their own progress in a diary, not a scientific or clinical report.
+- **Terminology**: Use standard, official Judo terminology (e.g., "Osoto Gari", "Uchi Mata", "Kuzushi"). Ensure correct spelling and capitalization.
+- **Content**: Maintain all specific details and meaning provided by the user.
+- **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
+- **Focus**: Emphasize what was learned and the effort put in.
 
 Description to transform: {{{description}}}`,
 });
