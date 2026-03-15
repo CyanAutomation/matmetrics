@@ -131,15 +131,6 @@ export default function Home() {
               </h2>
             </div>
             <div className="flex items-center gap-3">
-               <Button 
-                variant="default" 
-                size="sm" 
-                className="hidden sm:flex items-center gap-2 font-bold shadow-sm"
-                onClick={() => setActiveTab("log")}
-               >
-                 <PlusCircle className="h-4 w-4" />
-                 Log Session
-               </Button>
                <ModeToggle />
                <div className="hidden sm:flex flex-col items-end mr-2">
                  <span className="text-sm font-bold">Judoka User</span>
