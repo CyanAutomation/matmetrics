@@ -243,7 +243,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 size="sm" 
                 onClick={handleTransform}
                 disabled={isTransforming || !description}
-                className="h-8 gap-2 text-accent hover:text-accent border-accent/20 hover:bg-accent/5 transition-all text-xs"
+                className="h-8 gap-2 text-primary hover:text-primary border-primary/20 hover:bg-primary/5 transition-all text-xs"
               >
                 {isTransforming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
                 AI Transform
