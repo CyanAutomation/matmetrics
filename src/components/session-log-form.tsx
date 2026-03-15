@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2, Target } from "lucide-react";
+import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2 } from "lucide-react";
 import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
 import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
@@ -204,20 +204,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSuggest}
-                disabled={isSuggesting || !description}
-                className="gap-2 text-primary hover:text-primary border-primary/20 hover:bg-primary/5 transition-all"
-              >
-                {isSuggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                AI Tag Suggestion
-              </Button>
-            </div>
+            <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
             <Textarea 
               id="description" 
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills..." 
@@ -227,7 +214,20 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
             />
             
             <div className="space-y-3">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSuggest}
+                  disabled={isSuggesting || !description}
+                  className="h-8 gap-2 text-primary hover:text-primary border-primary/20 hover:bg-primary/5 transition-all text-xs"
+                >
+                  {isSuggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  AI Tag Suggestion
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-dashed border-primary/20 bg-secondary/10">
                 {techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
