@@ -172,7 +172,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
 
   return (
     <Card className={cn(
-      "max-w-3xl mx-auto shadow-lg border-primary/10",
+      "max-w-4xl mx-auto shadow-lg border-primary/10",
       isEditing && "shadow-none border-0 bg-transparent"
     )}>
       {!isEditing && (
@@ -189,9 +189,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
         </CardHeader>
       )}
       <form onSubmit={handleSubmit}>
-        <CardContent className={cn("space-y-6", !isEditing ? "p-6" : "p-0")}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
+        <CardContent className={cn("space-y-8", !isEditing ? "p-8" : "p-0")}>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+            <div className="md:col-span-3 space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
               <Input 
                 id="date" 
@@ -199,13 +199,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="bg-background"
+                className="bg-background h-10"
               />
             </div>
-            <div className="space-y-2">
+            <div className="md:col-span-3 space-y-2">
               <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
               <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id="category" className="bg-background">
+                <SelectTrigger id="category" className="bg-background h-10">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,17 +215,17 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="md:col-span-6 space-y-2">
               <Label className="text-sm font-semibold">Effort Level</Label>
               <RadioGroup 
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex flex-wrap gap-x-4 gap-y-2 p-2 bg-secondary/50 rounded-lg border border-input min-h-10 items-center px-4"
+                className="flex items-center justify-between h-10 px-4 bg-secondary/30 rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
-                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs whitespace-nowrap">
+                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs">
                       {EFFORT_LABELS[val as EffortLevel]}
                     </Label>
                   </div>
@@ -254,10 +254,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon-seoi-nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[120px] bg-background focus:bg-background transition-colors"
+              className="min-h-[140px] bg-background focus:bg-background transition-colors text-base"
             />
             
-            <div className="space-y-3">
+            <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
                 <Button 
@@ -272,18 +272,18 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                   AI Tag Suggestion
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg border border-dashed border-primary/20 bg-secondary/10">
+              <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg border border-dashed border-primary/20 bg-secondary/5">
                 {techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
                     <Brain className="h-4 w-4" />
-                    Tags will appear here...
+                    Tags will appear here after AI suggestion or manual entry...
                   </span>
                 )}
                 {techniques.map((tech) => (
-                  <Badge key={tech} className="gap-1 bg-primary text-white py-1 px-3">
+                  <Badge key={tech} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
                     {tech}
-                    <button type="button" onClick={() => removeTech(tech)} className="hover:text-destructive">
-                      <X className="h-3 w-3" />
+                    <button type="button" onClick={() => removeTech(tech)} className="ml-1 hover:text-destructive transition-colors">
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </Badge>
                 ))}
@@ -300,17 +300,17 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                       handleAddTech();
                     }
                   }}
-                  className="bg-background"
+                  className="bg-background h-10"
                 />
-                <Button type="button" variant="secondary" onClick={() => handleAddTech()}>
-                  Add
+                <Button type="button" variant="secondary" onClick={() => handleAddTech()} className="h-10 px-6">
+                  Add Tag
                 </Button>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-semibold">Personal Notes (Optional)</Label>
+            <Label htmlFor="notes" className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
             <Textarea 
               id="notes" 
               placeholder="How did you feel? Any injuries or specific focus for next time?" 
@@ -322,17 +322,17 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
         </CardContent>
         <CardFooter className={cn(
           "flex justify-end gap-3",
-          !isEditing ? "bg-primary/5 border-t p-6" : "p-0 pt-6"
+          !isEditing ? "bg-primary/5 border-t p-8" : "p-0 pt-6"
         )}>
           {isEditing && onCancel && (
-            <Button type="button" variant="ghost" onClick={onCancel} className="gap-2">
+            <Button type="button" variant="ghost" onClick={onCancel} className="gap-2 h-11 px-6">
               <Undo2 className="h-4 w-4" />
               Cancel
             </Button>
           )}
           <Button type="submit" className={cn(
             "gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]",
-            !isEditing ? "px-8 py-6 text-lg" : "px-6 py-4"
+            !isEditing ? "px-10 py-6 text-lg h-14" : "px-8 py-5 h-12"
           )}>
             <Save className="h-5 w-5" />
             {isEditing ? "Update Session" : "Log Training Session"}
