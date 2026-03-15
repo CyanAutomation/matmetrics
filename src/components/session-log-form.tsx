@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2 } from "lucide-react";
+import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2, Wand2 } from "lucide-react";
 import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
 import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
+import { transformPracticeDescription } from "@/ai/flows/practice-description-transformer";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +35,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [category, setCategory] = useState<SessionCategory>(sessionToEdit?.category || "Technical");
   const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isTransforming, setIsTransforming] = useState(false);
 
   // Avoid hydration mismatch by setting the default date on client-side mount
   useEffect(() => {
@@ -52,6 +54,35 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
 
   const removeTech = (tech: string) => {
     setTechniques(techniques.filter(t => t !== tech));
+  };
+
+  const handleTransform = async () => {
+    if (!description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Nothing to transform",
+        description: "Please write a draft of what you practiced first.",
+      });
+      return;
+    }
+
+    setIsTransforming(true);
+    try {
+      const result = await transformPracticeDescription({ description });
+      setDescription(result.transformedDescription);
+      toast({
+        title: "Description Refined",
+        description: "AI has polished your training notes with better structure and terminology.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Transformation Failed",
+        description: "There was an error refining your description.",
+      });
+    } finally {
+      setIsTransforming(false);
+    }
   };
 
   const handleSuggest = async () => {
@@ -173,7 +204,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
             </div>
             <div className="space-y-2">
               <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
-              <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
+              <刻Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
                 <SelectTrigger id="category" className="bg-background">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -182,7 +213,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                   <SelectItem value="Randori">Randori</SelectItem>
                   <SelectItem value="Shiai">Shiai</SelectItem>
                 </SelectContent>
-              </Select>
+              </刻Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Effort Level</Label>
@@ -204,13 +235,26 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
           </div>
 
           <div className="space-y-4">
-            <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={handleTransform}
+                disabled={isTransforming || !description}
+                className="h-8 gap-2 text-accent hover:text-accent border-accent/20 hover:bg-accent/5 transition-all text-xs"
+              >
+                {isTransforming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                AI Transform
+              </Button>
+            </div>
             <Textarea 
               id="description" 
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[100px] bg-background focus:bg-background transition-colors"
+              className="min-h-[120px] bg-background focus:bg-background transition-colors"
             />
             
             <div className="space-y-3">
