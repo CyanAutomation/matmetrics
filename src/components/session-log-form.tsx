@@ -204,7 +204,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
             </div>
             <div className="space-y-2">
               <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
-              <刻Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
+              <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
                 <SelectTrigger id="category" className="bg-background">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -213,7 +213,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                   <SelectItem value="Randori">Randori</SelectItem>
                   <SelectItem value="Shiai">Shiai</SelectItem>
                 </SelectContent>
-              </刻Select>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Effort Level</Label>
