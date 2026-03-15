@@ -37,7 +37,6 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
 
-  // Avoid hydration mismatch by setting the default date on client-side mount
   useEffect(() => {
     if (!date && !isEditing) {
       setDate(new Date().toISOString().split('T')[0]);
@@ -190,7 +189,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       )}
       <form onSubmit={handleSubmit}>
         <CardContent className={cn("space-y-8", !isEditing ? "p-8" : "p-0")}>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
               <Input 
@@ -199,13 +198,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="bg-background h-10"
+                className="bg-background h-11"
               />
             </div>
             <div className="md:col-span-3 space-y-2">
               <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
               <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id="category" className="bg-background h-10">
+                <SelectTrigger id="category" className="bg-background h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,7 +219,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               <RadioGroup 
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex items-center justify-between h-10 px-4 bg-secondary/30 rounded-md border border-input"
+                className="flex items-center justify-between h-11 px-4 bg-secondary/30 rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
