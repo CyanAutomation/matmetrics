@@ -40,7 +40,7 @@ Your task is to take the following raw, informal notes from a Judo practice sess
 
 Guidelines:
 - **Tone**: Use an informal, personal, and reflective tone. It should feel like a student writing in their own training diary. Avoid being overly optimistic, buoyant, or exaggerated; maintain a neutral and realistic perspective on the session.
-- **Terminology**: Use standard, official Judo terminology (e.g., "Osoto Gari", "Uchi Mata", "Kuzushi"). Ensure correct spelling and capitalization.
+- **Terminology**: Use official Kodokan Judo terminology. Crucially, all techniques MUST be correctly hyphenated (e.g., "O-soto-gari", "Ippon-seoi-nage", "Uchi-mata", "Kuzushi"). Ensure correct spelling and capitalization according to Kodokan standards.
 - **Content**: Maintain all specific details and meaning provided by the user.
 - **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
 - **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.

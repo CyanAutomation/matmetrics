@@ -251,7 +251,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
             </div>
             <Textarea 
               id="description" 
-              placeholder="e.g., Practiced basic kuzushi, then moved into Ippon Seoi Nage drills..." 
+              placeholder="e.g., Practiced basic kuzushi, then moved into Ippon-seoi-nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="min-h-[120px] bg-background focus:bg-background transition-colors"
@@ -291,7 +291,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
               
               <div className="flex gap-2">
                 <Input 
-                  placeholder="Manual tag (e.g. Randori)" 
+                  placeholder="Manual tag (e.g. O-soto-gari)" 
                   value={newTech}
                   onChange={(e) => setNewTech(e.target.value)}
                   onKeyDown={(e) => {

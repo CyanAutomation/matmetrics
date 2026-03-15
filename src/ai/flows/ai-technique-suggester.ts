@@ -34,7 +34,9 @@ const suggestTechniqueTagsPrompt = ai.definePrompt({
   output: {schema: SuggestTechniqueTagsOutputSchema},
   prompt: `You are an expert in Judo techniques. Analyze the following free-text description of a Judo session and identify all official Judo techniques that are mentioned or clearly implied. Return these techniques as a JSON array of strings.
 
-Ensure that the suggested techniques are widely recognized and standard Judo terms.
+Ensure that the suggested techniques follow the official Kodokan naming standards. 
+
+Crucially, all techniques MUST be correctly hyphenated (e.g., use "O-soto-gari" instead of "Osoto Gari", "Ippon-seoi-nage" instead of "Ippon Seoi Nage", "Uchi-mata" instead of "Uchimata").
 
 If the description does not mention any specific Judo techniques, return an empty array.
 
