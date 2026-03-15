@@ -20,7 +20,7 @@ export type TransformPracticeInput = z.infer<typeof TransformPracticeInputSchema
 const TransformPracticeOutputSchema = z.object({
   transformedDescription: z
     .string()
-    .describe('A well-structured, terminologically accurate training diary entry with a personal and encouraging tone.'),
+    .describe('A well-structured, terminologically accurate training diary entry with a personal and neutral tone.'),
 });
 export type TransformPracticeOutput = z.infer<typeof TransformPracticeOutputSchema>;
 
@@ -39,11 +39,11 @@ const transformPracticePrompt = ai.definePrompt({
 Your task is to take the following raw, informal notes from a Judo practice session and transform them into a well-structured, clear, and terminologically accurate diary entry.
 
 Guidelines:
-- **Tone**: Use an informal, personal, and encouraging tone. It should feel like a student reflecting on their own progress in a diary, not a scientific or clinical report.
+- **Tone**: Use an informal, personal, and reflective tone. It should feel like a student writing in their own training diary. Avoid being overly optimistic, buoyant, or exaggerated; maintain a neutral and realistic perspective on the session.
 - **Terminology**: Use standard, official Judo terminology (e.g., "Osoto Gari", "Uchi Mata", "Kuzushi"). Ensure correct spelling and capitalization.
 - **Content**: Maintain all specific details and meaning provided by the user.
 - **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
-- **Focus**: Emphasize what was learned and the effort put in.
+- **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.
 
 Description to transform: {{{description}}}`,
 });
