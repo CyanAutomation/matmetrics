@@ -1,8 +1,9 @@
+
 "use client"
 
 import { JudoSession } from "./types";
 
-const STORAGE_KEY = "judoflow_sessions";
+const STORAGE_KEY = "matmetrics_sessions";
 
 export function getSessions(): JudoSession[] {
   if (typeof window === "undefined") return [];

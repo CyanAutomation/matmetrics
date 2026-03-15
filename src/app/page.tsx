@@ -39,7 +39,7 @@ export default function Home() {
                 <Trophy className="h-6 w-6" />
               </div>
               <div className="font-headline font-black text-2xl tracking-tighter text-primary">
-                JudoFlow
+                MatMetrics
               </div>
             </div>
           </SidebarHeader>

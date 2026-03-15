@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: 'JudoFlow | Practice Tracker',
+  title: 'MatMetrics | Judo Practice Tracker',
   description: 'Log and analyze your Judo training sessions with AI assistance.',
 };
 
