@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -6,9 +5,10 @@ import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { SessionLogForm } from "@/components/session-log-form";
 import { SessionHistory } from "@/components/session-history";
+import { TagManager } from "@/components/tag-manager";
 import { getSessions } from "@/lib/storage";
 import { JudoSession } from "@/lib/types";
-import { LayoutDashboard, PlusCircle, History, Info, Trophy, Plus } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Info, Trophy, Plus, Tags } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,16 @@ export default function Home() {
                   <span className="text-base font-semibold">History</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  isActive={activeTab === "tags"} 
+                  onClick={() => setActiveTab("tags")}
+                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                >
+                  <Tags className="h-5 w-5" />
+                  <span className="text-base font-semibold">Tag Manager</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
             
             <Separator className="my-6 bg-primary/5" />
@@ -104,7 +114,7 @@ export default function Home() {
           <SidebarFooter className="p-4">
              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
                <Info className="h-3 w-3" />
-               <span>v1.0.0 Stable</span>
+               <span>v1.1.0 Stable</span>
              </div>
           </SidebarFooter>
         </Sidebar>
@@ -117,6 +127,7 @@ export default function Home() {
                 {activeTab === "dashboard" && "Training Overview"}
                 {activeTab === "log" && "Log Practice"}
                 {activeTab === "history" && "Session History"}
+                {activeTab === "tags" && "Manage Tags"}
               </h2>
             </div>
             <div className="flex items-center gap-3">
@@ -155,6 +166,9 @@ export default function Home() {
                   </div>
                   <SessionHistory sessions={sessions} onRefresh={refreshSessions} />
                 </div>
+              )}
+              {activeTab === "tags" && (
+                <TagManager onRefresh={refreshSessions} />
               )}
             </div>
           </main>
