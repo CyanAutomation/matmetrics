@@ -142,7 +142,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
               <BarChart data={stats.recentEfforts}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="date" />
-                <YAxis ticks={[1, 2, 3, 4, 5]} domain={[1, 5]} />
+                <YAxis ticks={[0, 1, 2, 3, 4, 5]} domain={[0, 5]} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="effort" radius={[4, 4, 0, 0]}>
                    {stats.recentEfforts.map((entry, index) => {
