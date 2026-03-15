@@ -1,4 +1,3 @@
-
 "use client"
 
 import { JudoSession } from "./types";
@@ -11,7 +10,7 @@ const SEED_DATA: JudoSession[] = [
     id: "seed-1",
     date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0], // 1 day ago
     techniques: ["O-soto-gari", "Kuzure-kesa-gatame"],
-    effort: 1,
+    effort: 3, // Normal
     category: "Technical",
     notes: "Focused on the transition from a standing throw to groundwork. The grip break on the entry felt solid, but I need to improve my weight distribution once on the mat."
   },
@@ -19,7 +18,7 @@ const SEED_DATA: JudoSession[] = [
     id: "seed-2",
     date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0], // 3 days ago
     techniques: ["Uchi-mata", "O-uchi-gari"],
-    effort: 2,
+    effort: 4, // Hard
     category: "Randori",
     notes: "High intensity randori session today. Chained O-uchi-gari into Uchi-mata several times. Cardio felt a bit taxed towards the end, but the technical execution remained sharp."
   },
@@ -27,7 +26,7 @@ const SEED_DATA: JudoSession[] = [
     id: "seed-3",
     date: new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0], // 7 days ago
     techniques: ["Ippon-seoi-nage", "Tai-otoshi"],
-    effort: 3,
+    effort: 5, // Intense
     category: "Shiai",
     notes: "Internal club matches. Managed to secure a waza-ari with a well-timed Tai-otoshi. I was caught on a counter during a Seoi-nage attempt, so I need to work on my recovery after a failed entry."
   },
@@ -35,7 +34,7 @@ const SEED_DATA: JudoSession[] = [
     id: "seed-4",
     date: new Date(Date.now() - 86400000 * 10).toISOString().split('T')[0], // 10 days ago
     techniques: ["De-ashi-barai", "Okuri-ashi-barai"],
-    effort: 1,
+    effort: 2, // Light
     category: "Technical",
     notes: "Dedicated foot sweep practice. Timing is everything here. I found that my Okuri-ashi-barai is more effective when I focus on the opponent's lateral movement rather than just their feet."
   }

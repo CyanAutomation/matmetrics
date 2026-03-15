@@ -31,7 +31,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   const [description, setDescription] = useState("");
   const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
-  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 1);
+  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 3);
   const [category, setCategory] = useState<SessionCategory>(sessionToEdit?.category || "Technical");
   const [notes, setNotes] = useState(sessionToEdit?.notes || "");
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -163,7 +163,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       setTechniques([]);
       setDescription("");
       setNotes("");
-      setEffort(1);
+      setEffort(3);
       setCategory("Technical");
     }
     
@@ -222,7 +222,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
                 className="flex flex-wrap gap-x-4 gap-y-2 p-2 bg-secondary/50 rounded-lg border border-input min-h-10 items-center px-4"
               >
-                {[0, 1, 2, 3].map((val) => (
+                {[1, 2, 3, 4, 5].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
                     <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs whitespace-nowrap">
