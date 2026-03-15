@@ -1,14 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Plus, X, Sparkles, Loader2, Save, Undo2, Wand2 } from "lucide-react";
+import { Brain, X, Sparkles, Loader2, Save, Undo2, Wand2 } from "lucide-react";
 import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
 import { saveSession, updateSession } from "@/lib/storage";
 import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
@@ -175,19 +175,6 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
       "max-w-3xl mx-auto shadow-lg border-primary/10",
       isEditing && "shadow-none border-0 bg-transparent"
     )}>
-      {!isEditing && (
-        <CardHeader className="bg-primary/5 border-b">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary text-primary-foreground rounded-lg">
-              <Plus className="h-6 w-6" />
-            </div>
-            <div>
-              <CardTitle className="text-2xl">Log Session</CardTitle>
-              <CardDescription>Track what you practiced and how hard you pushed yourself.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      )}
       <form onSubmit={handleSubmit}>
         <CardContent className={cn("space-y-6", !isEditing ? "p-6" : "p-0")}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
