@@ -1,13 +1,56 @@
+
 "use client"
 
 import { JudoSession } from "./types";
 
 const STORAGE_KEY = "matmetrics_sessions";
 
+// Pseudo test entries for initial testing and demonstration
+const SEED_DATA: JudoSession[] = [
+  {
+    id: "seed-1",
+    date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0], // 1 day ago
+    techniques: ["O-soto-gari", "Kuzure-kesa-gatame"],
+    effort: 1,
+    category: "Technical",
+    notes: "Focused on the transition from a standing throw to groundwork. The grip break on the entry felt solid, but I need to improve my weight distribution once on the mat."
+  },
+  {
+    id: "seed-2",
+    date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0], // 3 days ago
+    techniques: ["Uchi-mata", "O-uchi-gari"],
+    effort: 2,
+    category: "Randori",
+    notes: "High intensity randori session today. Chained O-uchi-gari into Uchi-mata several times. Cardio felt a bit taxed towards the end, but the technical execution remained sharp."
+  },
+  {
+    id: "seed-3",
+    date: new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0], // 7 days ago
+    techniques: ["Ippon-seoi-nage", "Tai-otoshi"],
+    effort: 3,
+    category: "Shiai",
+    notes: "Internal club matches. Managed to secure a waza-ari with a well-timed Tai-otoshi. I was caught on a counter during a Seoi-nage attempt, so I need to work on my recovery after a failed entry."
+  },
+  {
+    id: "seed-4",
+    date: new Date(Date.now() - 86400000 * 10).toISOString().split('T')[0], // 10 days ago
+    techniques: ["De-ashi-barai", "Okuri-ashi-barai"],
+    effort: 1,
+    category: "Technical",
+    notes: "Dedicated foot sweep practice. Timing is everything here. I found that my Okuri-ashi-barai is more effective when I focus on the opponent's lateral movement rather than just their feet."
+  }
+];
+
 export function getSessions(): JudoSession[] {
   if (typeof window === "undefined") return [];
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return [];
+  
+  if (!stored) {
+    // Seed the data if the storage is completely empty
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
+    return SEED_DATA;
+  }
+  
   try {
     return JSON.parse(stored);
   } catch (e) {
@@ -66,4 +109,14 @@ export function deleteTag(tagName: string) {
 
 export function mergeTags(sourceTag: string, targetTag: string) {
   renameTag(sourceTag, targetTag);
+}
+
+// Function to reset all data back to seed data (can be used later)
+export function resetToSeedData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
+}
+
+// Function to clear all data
+export function clearAllData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
 }
