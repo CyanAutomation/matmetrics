@@ -33,7 +33,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
   const shouldHideHeader = isEditing || hideHeader;
 
   const [date, setDate] = useState(sessionToEdit?.date || "");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(sessionToEdit?.description || "");
   const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
   const [newTech, setNewTech] = useState("");
   const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 3);
@@ -147,6 +147,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
       techniques,
       effort,
       category,
+      description,
       notes,
     };
 

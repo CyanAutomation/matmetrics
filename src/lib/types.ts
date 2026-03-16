@@ -4,6 +4,7 @@ export type SessionCategory = 'Technical' | 'Randori' | 'Shiai';
 export interface JudoSession {
   id: string;
   date: string;
+  description?: string;
   techniques: string[];
   effort: EffortLevel;
   category: SessionCategory;
