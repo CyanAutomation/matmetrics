@@ -213,33 +213,28 @@ export async function getNextCounter(date: string): Promise<number> {
 export async function listSessions(): Promise<JudoSession[]> {
   assertBlobStorageEnabled();
 
-  try {
-    const sessions: JudoSession[] = [];
-    const { blobs } = await blobStorageDeps.list({
-      prefix: BLOB_FOLDER,
-      limit: 10000, // Adjust if you have more sessions
-    });
+  const sessions: JudoSession[] = [];
+  const { blobs } = await blobStorageDeps.list({
+    prefix: BLOB_FOLDER,
+    limit: 10000, // Adjust if you have more sessions
+  });
 
-    for (const blob of blobs) {
-      if (!blob.pathname.endsWith('.md')) continue;
+  for (const blob of blobs) {
+    if (!blob.pathname.endsWith('.md')) continue;
 
-      try {
-        const response = await blobStorageDeps.fetch(blob.url);
-        const markdown = await response.text();
-        const session = markdownToSession(markdown);
-        sessions.push(session);
-      } catch (e) {
-        console.error(`Failed to parse session file ${blob.pathname}`, e);
-      }
+    try {
+      const response = await blobStorageDeps.fetch(blob.url);
+      const markdown = await response.text();
+      const session = markdownToSession(markdown);
+      sessions.push(session);
+    } catch (e) {
+      console.error(`Failed to parse session file ${blob.pathname}`, e);
     }
-
-    // Sort by date descending (newest first)
-    sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return sessions;
-  } catch (e) {
-    console.error('Error listing sessions from blob storage', e);
-    return [];
   }
+
+  // Sort by date descending (newest first)
+  sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sessions;
 }
 
 /**

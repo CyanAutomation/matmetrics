@@ -491,7 +491,10 @@ async function refreshSessionsFromAPI(): Promise<void> {
 
   try {
     const res = await fetch("/api/sessions/list");
-    if (!res.ok) throw new Error("Failed to fetch sessions");
+    if (!res.ok) {
+      console.warn(`Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`);
+      return;
+    }
 
     const sessions: JudoSession[] = await res.json();
     if (seq < latestAppliedSeq) {
