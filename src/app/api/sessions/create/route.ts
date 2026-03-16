@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession } from '@/lib/vercel-blob-storage';
+import { createSession, findSessionFileById } from '@/lib/vercel-blob-storage';
 import { createSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       ...(body.duration !== undefined && { duration: body.duration }),
     };
 
+    // Idempotency: if the session already exists, return success with the same session payload.
+    const existingSessionPath = await findSessionFileById(session.id);
+
     // Save to Vercel Blob (primary storage)
     await createSession(session);
 
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(session, { status: 201 });
+    return NextResponse.json(session, { status: existingSessionPath ? 200 : 201 });
   } catch (error) {
     console.error('Error creating session', error);
     return NextResponse.json(

@@ -3,7 +3,6 @@ import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const BLOB_FOLDER = 'sessions';
-const CREATE_SESSION_MAX_RETRIES = 5;
 
 function sanitizeSessionId(sessionId: string): string {
   if (sessionId.length > 100) {
@@ -138,39 +137,39 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
-  const markdown = sessionToMarkdown(session);
-
-  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
   if (!session.id || typeof session.id !== 'string') {
     throw new Error('Session ID is required and must be a non-empty string');
   }
 
-  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
-  for (let attempt = 0; attempt < CREATE_SESSION_MAX_RETRIES; attempt += 1) {
-    const sessionIdSuffix = attempt === 0
-      ? session.id
-      : `${session.id}-${String(attempt).padStart(2, '0')}`;
-    const blobPath = getSessionBlobPath(session.date, undefined, sessionIdSuffix);
-
-    try {
-      await put(blobPath, markdown, {
-        contentType: 'text/markdown',
-        access: 'public',
-        allowOverwrite: false,
-      });
-      return blobPath;
-    } catch (e) {
-      if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
-        continue;
-      }
-      console.error(`Failed to create session at ${blobPath}`, e);
-      throw e;
-    }
+  // Idempotency: if a session with this ID already exists, return it as success.
+  const existingPath = await findSessionFileById(session.id);
+  if (existingPath) {
+    return existingPath;
   }
 
-  throw new Error(
-    `Failed to allocate a unique blob path after ${CREATE_SESSION_MAX_RETRIES} attempts for session ${session.id}`
-  );
+  const markdown = sessionToMarkdown(session);
+
+  const blobPath = getSessionBlobPath(session.date, undefined, session.id);
+
+  try {
+    await put(blobPath, markdown, {
+      contentType: 'text/markdown',
+      access: 'public',
+      allowOverwrite: false,
+    });
+    return blobPath;
+  } catch (e) {
+    if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
+      // Another request wrote the same ID concurrently; treat this as idempotent success.
+      const concurrentPath = await findSessionFileById(session.id);
+      if (concurrentPath) {
+        return concurrentPath;
+      }
+    }
+
+    console.error(`Failed to create session at ${blobPath}`, e);
+    throw e;
+  }
 }
 
 /**
