@@ -3,17 +3,28 @@ import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const BLOB_FOLDER = 'sessions';
+const CREATE_SESSION_MAX_RETRIES = 5;
+
+function sanitizeSessionId(sessionId: string): string {
+  if (sessionId.length > 100) {
+    throw new Error('Session ID exceeds maximum allowed length of 100 characters');
+  }
+  return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+}
 
 /**
  * Get the blob path for a session based on its date
  * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics.md
- * If multiple sessions on same day, use counter: YYYYMMDD-matmetrics-01.md
+ * Preferred format includes session ID: YYYYMMDD-matmetrics-<sessionId>.md
+ * Legacy counter format remains supported: YYYYMMDD-matmetrics-01.md
  */
-export function getSessionBlobPath(date: string, counter?: number): string {
+export function getSessionBlobPath(date: string, counter?: number, sessionId?: string): string {
   const [year, month, day] = date.split('-');
-  const baseName = `${year}${month}${day}-matmetrics${
-    counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
-  }.md`;
+  const baseName = sessionId
+    ? `${year}${month}${day}-matmetrics-${sanitizeSessionId(sessionId)}.md`
+    : `${year}${month}${day}-matmetrics${
+        counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
+      }.md`;
   return `${BLOB_FOLDER}/${year}/${month}/${baseName}`;
 }
 
@@ -25,7 +36,7 @@ export function extractDateFromPath(blobPath: string): string | null {
   const match = blobPath.match(/(\d{4})\/(\d{2})\/(\d{8})/);
   if (!match) return null;
   const [, year, month, dayStr] = match;
-  const day = dayStr.slice(0, 2);
+  const day = dayStr.slice(6, 8);
   return `${year}-${month}-${day}`;
 }
 
@@ -121,25 +132,42 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
 
 /**
  * Create a new session file
- * Auto-increments counter if needed for multiple sessions on same day
+ * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
-  // Check if this is the first session on this day, or if we need a counter
-  const counter = await getNextCounter(session.date);
-  const blobPath = getSessionBlobPath(session.date, counter > 1 ? counter : undefined);
-
   const markdown = sessionToMarkdown(session);
 
-  try {
-    const result = await put(blobPath, markdown, {
-      contentType: 'text/markdown',
-      access: 'public',
-    });
-    return blobPath;
-  } catch (e) {
-    console.error(`Failed to create session at ${blobPath}`, e);
-    throw e;
+  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
+  if (!session.id || typeof session.id !== 'string') {
+    throw new Error('Session ID is required and must be a non-empty string');
   }
+
+  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
+  for (let attempt = 0; attempt < CREATE_SESSION_MAX_RETRIES; attempt += 1) {
+    const sessionIdSuffix = attempt === 0
+      ? session.id
+      : `${session.id}-${String(attempt).padStart(2, '0')}`;
+    const blobPath = getSessionBlobPath(session.date, undefined, sessionIdSuffix);
+
+    try {
+      await put(blobPath, markdown, {
+        contentType: 'text/markdown',
+        access: 'public',
+        allowOverwrite: false,
+      });
+      return blobPath;
+    } catch (e) {
+      if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
+        continue;
+      }
+      console.error(`Failed to create session at ${blobPath}`, e);
+      throw e;
+    }
+  }
+
+  throw new Error(
+    `Failed to allocate a unique blob path after ${CREATE_SESSION_MAX_RETRIES} attempts for session ${session.id}`
+  );
 }
 
 /**
