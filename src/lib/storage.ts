@@ -645,7 +645,10 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
 
             if (await isBlobStorageDisabledResponse(updateResponse)) {
               setCloudPersistencePaused(true, "blob-disabled");
+              const remainingOperations = queue.slice(index);
+              setQueue(remainingOperations, queue);
               return;
+            }
             }
 
             if (!updateResponse.ok) throw new Error("Failed to update session");
