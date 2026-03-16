@@ -135,6 +135,11 @@ export async function createSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   // Prefer ID-based filenames to avoid counter contention in concurrent creates.
+  if (!session.id || typeof session.id !== 'string') {
+    throw new Error('Session ID is required and must be a non-empty string');
+  }
+
+  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
   for (let attempt = 0; attempt < CREATE_SESSION_MAX_RETRIES; attempt += 1) {
     const sessionIdSuffix = attempt === 0
       ? session.id
