@@ -46,14 +46,18 @@ async function loadSessionPathIndex(): Promise<Record<string, string>> {
     }
 
     const indexText = await response.text();
-    const parsed = JSON.parse(indexText) as unknown;
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      sessionPathIndexCache = Object.fromEntries(
-        Object.entries(parsed).filter(
-          ([key, value]) => typeof key === 'string' && typeof value === 'string'
-        )
-      );
-      return sessionPathIndexCache;
+    try {
+      const parsed = JSON.parse(indexText) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        sessionPathIndexCache = Object.fromEntries(
+          Object.entries(parsed).filter(
+            ([key, value]) => typeof key === 'string' && typeof value === 'string'
+          )
+        );
+        return sessionPathIndexCache;
+      }
+    } catch (parseError) {
+      console.error('Failed parsing session path index JSON', parseError);
     }
   } catch (e) {
     if ((e as any).code !== 'BLOB_NOT_FOUND') {
