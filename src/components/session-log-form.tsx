@@ -21,11 +21,13 @@ interface SessionLogFormProps {
   onSuccess: () => void;
   sessionToEdit?: JudoSession;
   onCancel?: () => void;
+  hideHeader?: boolean;
 }
 
-export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLogFormProps) {
+export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader = false }: SessionLogFormProps) {
   const { toast } = useToast();
   const isEditing = !!sessionToEdit;
+  const shouldHideHeader = isEditing || hideHeader;
 
   const [date, setDate] = useState(sessionToEdit?.date || "");
   const [description, setDescription] = useState("");
@@ -172,9 +174,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
   return (
     <Card className={cn(
       "max-w-4xl mx-auto shadow-lg border-primary/10",
-      isEditing && "shadow-none border-0 bg-transparent"
+      shouldHideHeader && "shadow-none border-0 bg-transparent"
     )}>
-      {!isEditing && (
+      {!shouldHideHeader && (
         <CardHeader className="bg-primary/5 border-b">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary text-primary-foreground rounded-lg">
@@ -188,7 +190,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
         </CardHeader>
       )}
       <form onSubmit={handleSubmit}>
-        <CardContent className={cn("space-y-8", !isEditing ? "p-8" : "p-0")}>
+        <CardContent className={cn("space-y-8", !shouldHideHeader ? "p-8" : "p-0")}>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
@@ -321,9 +323,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
         </CardContent>
         <CardFooter className={cn(
           "flex justify-end gap-3",
-          !isEditing ? "bg-primary/5 border-t p-8" : "p-0 pt-6"
+          !shouldHideHeader ? "bg-primary/5 border-t p-8" : "p-0 pt-6"
         )}>
-          {isEditing && onCancel && (
+          {onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel} className="gap-2 h-11 px-6">
               <Undo2 className="h-4 w-4" />
               Cancel
@@ -331,7 +333,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
           )}
           <Button type="submit" className={cn(
             "gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]",
-            !isEditing ? "px-10 py-6 text-lg h-14" : "px-8 py-5 h-12"
+            !shouldHideHeader ? "px-10 py-6 text-lg h-14" : "px-8 py-5 h-12"
           )}>
             <Save className="h-5 w-5" />
             {isEditing ? "Update Session" : "Log Training Session"}

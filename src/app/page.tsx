@@ -13,10 +13,12 @@ import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sessions, setSessions] = useState<JudoSession[]>([]);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   useEffect(() => {
     refreshSessions();
@@ -28,7 +30,10 @@ export default function Home() {
 
   const handleSessionAdded = () => {
     refreshSessions();
-    setActiveTab("history");
+    setIsLogModalOpen(false);
+    if (activeTab !== "history") {
+      setActiveTab("history");
+    }
   };
 
   return (
@@ -131,6 +136,24 @@ export default function Home() {
               </h2>
             </div>
             <div className="flex items-center gap-3">
+               <TooltipProvider>
+                 <Tooltip>
+                   <TooltipTrigger asChild>
+                     <Button 
+                       variant="outline" 
+                       size="icon" 
+                       className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/5"
+                       onClick={() => setIsLogModalOpen(true)}
+                     >
+                       <Plus className="h-5 w-5" />
+                     </Button>
+                   </TooltipTrigger>
+                   <TooltipContent>
+                     <p>Log New Session</p>
+                   </TooltipContent>
+                 </Tooltip>
+               </TooltipProvider>
+
                <ModeToggle />
                <div className="hidden sm:flex flex-col items-end mr-2">
                  <span className="text-sm font-bold">Judoka User</span>
@@ -148,7 +171,7 @@ export default function Home() {
                 <DashboardOverview sessions={sessions} />
               )}
               {activeTab === "log" && (
-                <SessionLogForm onSuccess={handleSessionAdded} />
+                <SessionLogForm onSuccess={refreshSessions} />
               )}
               {activeTab === "history" && (
                 <div className="max-w-4xl mx-auto">
@@ -164,29 +187,46 @@ export default function Home() {
             </div>
           </main>
 
-          {/* Mobile FAB - Only visible when not on the Log tab */}
-          {activeTab !== "log" && (
-            <div className="fixed bottom-6 right-6 md:hidden z-50">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      size="icon" 
-                      className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform"
-                      onClick={() => setActiveTab("log")}
-                    >
-                      <Plus className="h-6 w-6" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Log new session</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+          {/* Mobile FAB */}
+          <div className="fixed bottom-6 right-6 md:hidden z-50">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="icon" 
+                    className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform"
+                    onClick={() => setIsLogModalOpen(true)}
+                  >
+                    <Plus className="h-6 w-6" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Log new session</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </SidebarInset>
       </div>
+
+      {/* Quick Log Modal */}
+      <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-2xl font-bold">Log Practice Session</DialogTitle>
+            <DialogDescription>
+              Record your techniques, effort, and reflections from today's training.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <SessionLogForm 
+              onSuccess={handleSessionAdded}
+              onCancel={() => setIsLogModalOpen(false)}
+              hideHeader={true}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
