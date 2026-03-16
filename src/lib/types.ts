@@ -33,3 +33,27 @@ export const CATEGORY_COLORS: Record<SessionCategory, string> = {
   Randori: "bg-indigo-100 text-indigo-700 border-indigo-200",
   Shiai: "bg-rose-100 text-rose-700 border-rose-200",
 };
+
+/**
+ * GitHub configuration for syncing sessions
+ */
+export interface GitHubConfig {
+  owner: string; // GitHub username/org
+  repo: string; // Repository name
+}
+
+/**
+ * GitHub sync status
+ */
+export type GitHubSyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
+/**
+ * GitHub settings stored in localStorage
+ */
+export interface GitHubSettings {
+  config?: GitHubConfig;
+  enabled: boolean;
+  migrationDone: boolean;
+  lastSyncTime?: string;
+  syncStatus: GitHubSyncStatus;
+}

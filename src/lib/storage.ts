@@ -1,6 +1,6 @@
 "use client"
 
-import { JudoSession } from "./types";
+import { JudoSession, GitHubConfig, GitHubSettings } from "./types";
 import {
   queueOperation,
   getQueue,
@@ -13,6 +13,7 @@ import {
 const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
 const MIGRATION_DONE_KEY = "matmetrics_migration_done";
+const GITHUB_CONFIG_KEY = "matmetrics_github_config";
 
 const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
 
@@ -97,11 +98,17 @@ export function saveSession(session: JudoSession): void {
   updateLocalStorageCache(sessionCache);
 
   if (isOnline) {
-    // Send to API
+    // Send to API with GitHub config if available
+    const gitHubConfig = getGitHubConfig();
+    const requestBody: any = { ...session };
+    if (gitHubConfig && isGitHubEnabled()) {
+      requestBody.gitHubConfig = gitHubConfig;
+    }
+
     fetch("/api/sessions/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(session),
+      body: JSON.stringify(requestBody),
     })
       .then(res => {
         if (!res.ok) throw new Error("Failed to save session");
@@ -131,11 +138,17 @@ export function updateSession(session: JudoSession): void {
   updateLocalStorageCache(sessionCache);
 
   if (isOnline) {
-    // Send to API
+    // Send to API with GitHub config if available
+    const gitHubConfig = getGitHubConfig();
+    const requestBody: any = { ...session };
+    if (gitHubConfig && isGitHubEnabled()) {
+      requestBody.gitHubConfig = gitHubConfig;
+    }
+
     fetch(`/api/sessions/${session.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(session),
+      body: JSON.stringify(requestBody),
     })
       .then(res => {
         if (!res.ok) throw new Error("Failed to update session");
@@ -162,9 +175,17 @@ export function deleteSession(id: string): void {
   updateLocalStorageCache(sessionCache);
 
   if (isOnline) {
-    // Send to API
+    // Send to API with GitHub config if available
+    const gitHubConfig = getGitHubConfig();
+    const requestBody: any = {};
+    if (gitHubConfig && isGitHubEnabled()) {
+      requestBody.gitHubConfig = gitHubConfig;
+    }
+
     fetch(`/api/sessions/${id}`, {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
     })
       .then(res => {
         if (!res.ok) throw new Error("Failed to delete session");
@@ -254,6 +275,105 @@ export function resetTransformerPrompt(): void {
   localStorage.setItem(PROMPT_KEY, DEFAULT_TRANSFORMER_PROMPT);
 }
 
+// GitHub Settings Persistence
+export function getGitHubSettings(): GitHubSettings {
+  if (typeof window === "undefined") {
+    return {
+      enabled: false,
+      migrationDone: false,
+      syncStatus: 'idle',
+    };
+  }
+
+  try {
+    const stored = localStorage.getItem(GITHUB_CONFIG_KEY);
+    if (!stored) {
+      return {
+        enabled: false,
+        migrationDone: false,
+        syncStatus: 'idle',
+      };
+    }
+
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error("Failed to parse GitHub settings", e);
+    return {
+      enabled: false,
+      migrationDone: false,
+      syncStatus: 'idle',
+    };
+  }
+}
+
+export function getGitHubConfig(): GitHubConfig | null {
+  const settings = getGitHubSettings();
+  return settings.config || null;
+}
+
+export function isGitHubEnabled(): boolean {
+  return getGitHubSettings().enabled;
+}
+
+export function isGitHubMigrationDone(): boolean {
+  return getGitHubSettings().migrationDone;
+}
+
+export function saveGitHubConfig(config: GitHubConfig): void {
+  if (typeof window === "undefined") return;
+
+  const settings: GitHubSettings = {
+    config,
+    enabled: true,
+    migrationDone: false,
+    syncStatus: 'idle',
+  };
+
+  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+}
+
+export function enableGitHub(): void {
+  if (typeof window === "undefined") return;
+
+  const settings = getGitHubSettings();
+  settings.enabled = true;
+  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+}
+
+export function disableGitHub(): void {
+  if (typeof window === "undefined") return;
+
+  const settings = getGitHubSettings();
+  settings.enabled = false;
+  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+}
+
+export function clearGitHubConfig(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(GITHUB_CONFIG_KEY);
+}
+
+export function setGitHubMigrationDone(): void {
+  if (typeof window === "undefined") return;
+
+  const settings = getGitHubSettings();
+  settings.migrationDone = true;
+  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+}
+
+export function setGitHubSyncStatus(status: 'idle' | 'syncing' | 'success' | 'error'): void {
+  if (typeof window === "undefined") return;
+
+  const settings = getGitHubSettings();
+  settings.syncStatus = status;
+  settings.lastSyncTime = new Date().toISOString();
+  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+}
+
+export function getGitHubSyncStatus(): 'idle' | 'syncing' | 'success' | 'error' {
+  return getGitHubSettings().syncStatus;
+}
+
 export function clearAllData(): void {
   if (typeof window === "undefined") return;
   updateLocalStorageCache([]);
@@ -337,34 +457,50 @@ async function syncPendingOperations(): Promise<void> {
 
   try {
     const queue = getQueue();
+    const gitHubConfig = getGitHubConfig();
+    const gitHubEnabled = isGitHubEnabled();
     let lastSuccessfulIndex = -1;
 
     for (const [index, operation] of queue.entries()) {
       try {
         switch (operation.type) {
           case "CREATE":
+            const createBody: any = { ...operation.session };
+            if (gitHubConfig && gitHubEnabled) {
+              createBody.gitHubConfig = gitHubConfig;
+            }
             await fetch("/api/sessions/create", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(operation.session),
+              body: JSON.stringify(createBody),
             }).then(res => {
               if (!res.ok) throw new Error("Failed to create session");
             });
             break;
 
           case "UPDATE":
+            const updateBody: any = { ...operation.session };
+            if (gitHubConfig && gitHubEnabled) {
+              updateBody.gitHubConfig = gitHubConfig;
+            }
             await fetch(`/api/sessions/${operation.session.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(operation.session),
+              body: JSON.stringify(updateBody),
             }).then(res => {
               if (!res.ok) throw new Error("Failed to update session");
             });
             break;
 
           case "DELETE":
+            const deleteBody: any = {};
+            if (gitHubConfig && gitHubEnabled) {
+              deleteBody.gitHubConfig = gitHubConfig;
+            }
             await fetch(`/api/sessions/${operation.id}`, {
               method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: Object.keys(deleteBody).length > 0 ? JSON.stringify(deleteBody) : undefined,
             }).then(res => {
               if (!res.ok) throw new Error("Failed to delete session");
             });
