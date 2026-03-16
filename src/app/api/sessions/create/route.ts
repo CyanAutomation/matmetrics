@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, createSession } from '@/lib/vercel-blob-storage';
 import { createSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
+
+function isBlobStorageDisabledError(error: unknown): boolean {
+  return error instanceof BlobStorageDisabledError;
+}
+
+function blobStorageDisabledResponse() {
+  return NextResponse.json(
+    {
+      error: 'Cloud persistence is temporarily unavailable',
+      code: 'BLOB_STORAGE_DISABLED',
+    },
+    { status: 503 }
+  );
+}
 
 /**
  * POST /api/sessions/create
@@ -75,6 +89,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
+    if (isBlobStorageDisabledError(error)) {
+      return blobStorageDisabledResponse();
+    }
+
     console.error('Error creating session', error);
     return NextResponse.json(
       { error: 'Failed to create session' },
