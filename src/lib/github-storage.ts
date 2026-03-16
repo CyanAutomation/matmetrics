@@ -62,10 +62,19 @@ function getActionableGitHubErrorMessage(action: string, error: unknown): string
   return `${action} failed due to an unknown error`;
 }
 
-function sanitizeSessionId(sessionId: string): string {
+function validateSessionIdLength(sessionId: string): void {
   if (sessionId.length > 100) {
     throw new Error('Session ID exceeds maximum allowed length of 100 characters');
   }
+}
+
+function encodeSessionId(sessionId: string): string {
+  validateSessionIdLength(sessionId);
+  return encodeURIComponent(sessionId);
+}
+
+function sanitizeSessionIdLegacy(sessionId: string): string {
+  validateSessionIdLength(sessionId);
 
   return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
@@ -76,7 +85,7 @@ function sanitizeSessionId(sessionId: string): string {
  */
 export function getGitHubSessionPath(session: JudoSession): string {
   const [year, month, day] = session.date.split('-');
-  const fileName = `${year}${month}${day}-matmetrics-${sanitizeSessionId(session.id)}.md`;
+  const fileName = `${year}${month}${day}-matmetrics-${encodeSessionId(session.id)}.md`;
   return `sessions/${year}/${month}/${fileName}`;
 }
 
@@ -216,7 +225,8 @@ export async function findSessionPathOnGitHubById(
   config: GitHubConfig
 ): Promise<string | null> {
   const branch = await resolveBranch(config);
-  const fileSuffix = `-matmetrics-${sanitizeSessionId(sessionId)}.md`;
+  const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
+  const legacySuffix = `-matmetrics-${sanitizeSessionIdLegacy(sessionId)}.md`;
   const years = await listDirectoryContents(config.owner, config.repo, 'sessions', branch);
   const yearPaths: string[] = [];
 
@@ -250,7 +260,9 @@ export async function findSessionPathOnGitHubById(
 
   for (const files of fileLists) {
     const match = files.find(
-      (file) => file.type === 'file' && file.name.endsWith(fileSuffix)
+      (file) =>
+        file.type === 'file' &&
+        (file.name.endsWith(encodedSuffix) || file.name.endsWith(legacySuffix))
     );
 
     if (match) {
@@ -327,9 +339,18 @@ export async function updateSessionOnGitHub(
 ): Promise<GitHubSyncResult> {
   try {
     const branch = await resolveBranch(config);
-    const filePath = getGitHubSessionPath(session);
+    const expectedPath = getGitHubSessionPath(session);
     const markdown = sessionToMarkdown(session);
-    const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+    let filePath = expectedPath;
+    let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+
+    if (!sha) {
+      const discoveredPath = await findSessionPathOnGitHubById(session.id, config);
+      if (discoveredPath) {
+        filePath = discoveredPath;
+        sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
+      }
+    }
 
     if (!sha) {
       // File doesn't exist yet; create the session file instead.
