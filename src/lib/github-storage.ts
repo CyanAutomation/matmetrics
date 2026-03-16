@@ -62,13 +62,21 @@ function getActionableGitHubErrorMessage(action: string, error: unknown): string
   return `${action} failed due to an unknown error`;
 }
 
+function sanitizeSessionId(sessionId: string): string {
+  if (sessionId.length > 100) {
+    throw new Error('Session ID exceeds maximum allowed length of 100 characters');
+  }
+
+  return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+}
+
 /**
  * Get the file path for a session in GitHub
  * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
  */
 export function getGitHubSessionPath(session: JudoSession): string {
   const [year, month, day] = session.date.split('-');
-  const fileName = `${year}${month}${day}-matmetrics-${session.id}.md`;
+  const fileName = `${year}${month}${day}-matmetrics-${sanitizeSessionId(session.id)}.md`;
   return `sessions/${year}/${month}/${fileName}`;
 }
 
@@ -208,7 +216,7 @@ export async function findSessionPathOnGitHubById(
   config: GitHubConfig
 ): Promise<string | null> {
   const branch = await resolveBranch(config);
-  const fileSuffix = `-matmetrics-${sessionId}.md`;
+  const fileSuffix = `-matmetrics-${sanitizeSessionId(sessionId)}.md`;
   const years = await listDirectoryContents(config.owner, config.repo, 'sessions', branch);
   const yearPaths: string[] = [];
 
