@@ -1,9 +1,17 @@
 "use client"
 
 import { JudoSession } from "./types";
+import {
+  queueOperation,
+  getQueue,
+  clearQueue,
+  getPendingOperationCount,
+  hasPendingOperations,
+} from "./sync-queue";
 
 const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
+const MIGRATION_DONE_KEY = "matmetrics_migration_done";
 
 const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
 
@@ -16,55 +24,164 @@ Guidelines:
 - **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
 - **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.`;
 
-// Pseudo test entries for initial testing and demonstration
-const SEED_DATA: JudoSession[] = [
-  {
-    id: "seed-1",
-    date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0], // 1 day ago
-    techniques: ["O-soto-gari", "Kuzure-kesa-gatame"],
-    effort: 3, // Normal
-    category: "Technical",
-    notes: "Focused on the transition from a standing throw to groundwork. The grip break on the entry felt solid, but I need to improve my weight distribution once on the mat."
-  },
-  {
-    id: "seed-2",
-    date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0], // 3 days ago
-    techniques: ["Uchi-mata", "O-uchi-gari"],
-    effort: 4, // Hard
-    category: "Randori",
-    notes: "High intensity randori session today. Chained O-uchi-gari into Uchi-mata several times. Cardio felt a bit taxed towards the end, but the technical execution remained sharp."
-  }
-];
+// Internal state
+let sessionCache: JudoSession[] | null = null;
+let isOnline = typeof window !== "undefined" ? navigator.onLine : true;
+let isSyncing = false;
+let migrationAttempted = false;
 
+/**
+ * Initialize storage: set up online/offline listeners and attempt migration
+ */
+export function initializeStorage(): void {
+  if (typeof window === "undefined") return;
+
+  // Set up online/offline detection
+  window.addEventListener("online", handleOnline);
+  window.addEventListener("offline", handleOffline);
+
+  // Attempt migration on first load
+  if (!migrationAttempted) {
+    migrationAttempted = true;
+    attemptMigration();
+  }
+
+  // Try to sync if we have pending operations
+  if (isOnline && hasPendingOperations()) {
+    syncPendingOperations();
+  }
+}
+
+/**
+ * Get all sessions from API (online) or cache (offline)
+ */
 export function getSessions(): JudoSession[] {
   if (typeof window === "undefined") return [];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
-    return SEED_DATA;
+
+  // If cache is populated, return it (even if online, we'll refresh in the background)
+  if (sessionCache !== null) {
+    // Refresh from API in the background if online
+    if (isOnline) {
+      refreshSessionsFromAPI();
+    }
+    return sessionCache;
   }
-  
-  try {
-    return JSON.parse(stored);
-  } catch (e) {
-    console.error("Failed to parse sessions", e);
-    return [];
+
+  // If offline, try to read from localStorage cache
+  if (!isOnline) {
+    const cached = getLocalStorageCache();
+    sessionCache = cached;
+    return cached;
+  }
+
+  // Online and no cache: fetch from API synchronously isn't possible here
+  // So load from cache if available, otherwise return empty and let the async refresh happen
+  const cached = getLocalStorageCache();
+  sessionCache = cached;
+
+  // Refresh from API in background
+  refreshSessionsFromAPI();
+
+  return cached;
+}
+
+/**
+ * Save a new session (online -> API, offline -> queue + cache)
+ */
+export function saveSession(session: JudoSession): void {
+  if (typeof window === "undefined") return;
+
+  // Update local cache immediately
+  sessionCache = sessionCache ? [session, ...sessionCache] : [session];
+  updateLocalStorageCache(sessionCache);
+
+  if (isOnline) {
+    // Send to API
+    fetch("/api/sessions/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(session),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to save session");
+        // Successfully saved to server
+      })
+      .catch(error => {
+        console.error("Error saving session to API", error);
+        // Queue it as fallback
+        queueOperation({ type: "CREATE", session });
+      });
+  } else {
+    // Offline: queue the operation
+    queueOperation({ type: "CREATE", session });
   }
 }
 
-export function saveSession(session: JudoSession) {
-  writeSessions(sessions => [session, ...sessions]);
+/**
+ * Update an existing session (online -> API, offline -> queue + cache)
+ */
+export function updateSession(session: JudoSession): void {
+  if (typeof window === "undefined") return;
+
+  // Update local cache immediately
+  sessionCache = sessionCache
+    ? sessionCache.map(s => (s.id === session.id ? session : s))
+    : [session];
+  updateLocalStorageCache(sessionCache);
+
+  if (isOnline) {
+    // Send to API
+    fetch(`/api/sessions/${session.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(session),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to update session");
+      })
+      .catch(error => {
+        console.error("Error updating session on API", error);
+        // Queue it as fallback
+        queueOperation({ type: "UPDATE", session });
+      });
+  } else {
+    // Offline: queue the operation
+    queueOperation({ type: "UPDATE", session });
+  }
 }
 
-export function updateSession(session: JudoSession) {
-  writeSessions(sessions => sessions.map(s => s.id === session.id ? session : s));
+/**
+ * Delete a session (online -> API, offline -> queue + cache)
+ */
+export function deleteSession(id: string): void {
+  if (typeof window === "undefined") return;
+
+  // Update local cache immediately
+  sessionCache = sessionCache ? sessionCache.filter(s => s.id !== id) : [];
+  updateLocalStorageCache(sessionCache);
+
+  if (isOnline) {
+    // Send to API
+    fetch(`/api/sessions/${id}`, {
+      method: "DELETE",
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to delete session");
+      })
+      .catch(error => {
+        console.error("Error deleting session on API", error);
+        // Queue it as fallback
+        queueOperation({ type: "DELETE", id });
+      });
+  } else {
+    // Offline: queue the operation
+    queueOperation({ type: "DELETE", id });
+  }
 }
 
-export function deleteSession(id: string) {
-  writeSessions(sessions => sessions.filter(s => s.id !== id));
-}
-
+/**
+ * Get all unique technique tags
+ */
 export function getAllTags(): string[] {
   const sessions = getSessions();
   const tags = new Set<string>();
@@ -72,80 +189,245 @@ export function getAllTags(): string[] {
   return Array.from(tags).sort();
 }
 
-export function renameTag(oldName: string, newName: string) {
-  writeSessions(sessions => sessions.map(session => {
+/**
+ * Rename a technique tag across all sessions (updates cache and API/queue)
+ */
+export function renameTag(oldName: string, newName: string): void {
+  const sessions = getSessions();
+  const updated = sessions.map(session => {
     if (session.techniques.includes(oldName)) {
-      const newTechniques = session.techniques.map(t => t === oldName ? newName : t);
+      const newTechniques = session.techniques.map(t =>
+        t === oldName ? newName : t
+      );
       return { ...session, techniques: Array.from(new Set(newTechniques)) };
     }
     return session;
-  }));
+  });
+
+  // Update each modified session
+  updated.forEach((session, idx) => {
+    if (sessions[idx].techniques.join(",") !== session.techniques.join(",")) {
+      updateSession(session);
+    }
+  });
 }
 
-export function deleteTag(tagName: string) {
-  writeSessions(sessions => sessions.map(session => ({
+/**
+ * Delete a technique tag from all sessions (updates cache and API/queue)
+ */
+export function deleteTag(tagName: string): void {
+  const sessions = getSessions();
+  const updated = sessions.map(session => ({
     ...session,
-    techniques: session.techniques.filter(t => t !== tagName)
-  })));
+    techniques: session.techniques.filter(t => t !== tagName),
+  }));
+
+  // Update each modified session
+  updated.forEach((session, idx) => {
+    if (sessions[idx].techniques.join(",") !== session.techniques.join(",")) {
+      updateSession(session);
+    }
+  });
 }
 
-export function mergeTags(sourceTag: string, targetTag: string) {
+/**
+ * Merge two technique tags (rename source to target)
+ */
+export function mergeTags(sourceTag: string, targetTag: string): void {
   renameTag(sourceTag, targetTag);
 }
 
-// AI Transformer Prompt Persistence
+// AI Transformer Prompt Persistence (stays in localStorage)
 export function getTransformerPrompt(): string {
   if (typeof window === "undefined") return DEFAULT_TRANSFORMER_PROMPT;
   return localStorage.getItem(PROMPT_KEY) || DEFAULT_TRANSFORMER_PROMPT;
 }
 
-export function saveTransformerPrompt(prompt: string) {
+export function saveTransformerPrompt(prompt: string): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(PROMPT_KEY, prompt);
 }
 
-export function resetTransformerPrompt() {
+export function resetTransformerPrompt(): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(PROMPT_KEY, DEFAULT_TRANSFORMER_PROMPT);
 }
 
-export function clearAllData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+export function clearAllData(): void {
+  if (typeof window === "undefined") return;
+  updateLocalStorageCache([]);
+  sessionCache = [];
 }
 
-type SessionsTransformer = (sessions: JudoSession[]) => JudoSession[];
+/**
+ * Get sync status for UI indicator
+ */
+export function getSyncStatus(): {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingCount: number;
+} {
+  return {
+    isOnline,
+    isSyncing,
+    pendingCount: getPendingOperationCount(),
+  };
+}
 
-const MAX_STORAGE_WRITE_RETRIES = 5;
+// ============================================================================
+// Private helper functions
+// ============================================================================
 
-function readSessionsForWrite(stored: string | null): JudoSession[] {
-  if (!stored) {
-    return SEED_DATA;
-  }
-
+function getLocalStorageCache(): JudoSession[] {
   try {
-    return JSON.parse(stored);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
   } catch (e) {
-    console.error("Failed to parse sessions", e);
+    console.error("Failed to parse localStorage cache", e);
     return [];
   }
 }
 
-function writeSessions(transformer: SessionsTransformer) {
-  if (typeof window === "undefined") return;
+function updateLocalStorageCache(sessions: JudoSession[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  } catch (e) {
+    console.error("Failed to update localStorage cache", e);
+  }
+}
 
-  for (let attempt = 0; attempt < MAX_STORAGE_WRITE_RETRIES; attempt += 1) {
-    const baseline = localStorage.getItem(STORAGE_KEY);
-    const sessions = readSessionsForWrite(baseline);
-    const updated = transformer(sessions);
+function handleOnline(): void {
+  isOnline = true;
+  // Sync pending operations when coming back online
+  if (hasPendingOperations()) {
+    syncPendingOperations();
+  }
+  // Also refresh sessions from API
+  refreshSessionsFromAPI();
+}
 
-    if (localStorage.getItem(STORAGE_KEY) !== baseline) {
-      continue;
+function handleOffline(): void {
+  isOnline = false;
+}
+
+function refreshSessionsFromAPI(): void {
+  if (typeof window === "undefined" || !isOnline) return;
+
+  fetch("/api/sessions/list")
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to fetch sessions");
+      return res.json();
+    })
+    .then((sessions: JudoSession[]) => {
+      sessionCache = sessions;
+      updateLocalStorageCache(sessions);
+      // Notify listeners (components) of the update
+      window.dispatchEvent(new CustomEvent("storageSync", { detail: { sessions } }));
+    })
+    .catch(error => {
+      console.error("Error refreshing sessions from API", error);
+    });
+}
+
+async function syncPendingOperations(): Promise<void> {
+  if (!isOnline || isSyncing) return;
+
+  isSyncing = true;
+
+  try {
+    const queue = getQueue();
+
+    for (const operation of queue) {
+      try {
+        switch (operation.type) {
+          case "CREATE":
+            await fetch("/api/sessions/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(operation.session),
+            }).then(res => {
+              if (!res.ok) throw new Error("Failed to create session");
+            });
+            break;
+
+          case "UPDATE":
+            await fetch(`/api/sessions/${operation.session.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(operation.session),
+            }).then(res => {
+              if (!res.ok) throw new Error("Failed to update session");
+            });
+            break;
+
+          case "DELETE":
+            await fetch(`/api/sessions/${operation.id}`, {
+              method: "DELETE",
+            }).then(res => {
+              if (!res.ok) throw new Error("Failed to delete session");
+            });
+            break;
+        }
+      } catch (error) {
+        console.error("Error syncing operation", error);
+        // Stop syncing on first error; will retry next time
+        break;
+      }
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    // If all operations succeeded, clear the queue
+    clearQueue();
+
+    // Refresh sessions from API to ensure cache is up-to-date
+    await refreshSessionsFromAPI();
+  } finally {
+    isSyncing = false;
+  }
+}
+
+async function attemptMigration(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const migrationDone = localStorage.getItem(MIGRATION_DONE_KEY);
+  if (migrationDone) {
+    // Already migrated
     return;
   }
 
-  // Fallback: apply to the latest visible value rather than dropping the mutation entirely.
-  const latest = localStorage.getItem(STORAGE_KEY);
-  const updated = transformer(readSessionsForWrite(latest));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) {
+    // No localStorage data to migrate
+    localStorage.setItem(MIGRATION_DONE_KEY, "true");
+    return;
+  }
+
+  try {
+    const sessions = JSON.parse(stored);
+    if (!Array.isArray(sessions) || sessions.length === 0) {
+      localStorage.setItem(MIGRATION_DONE_KEY, "true");
+      return;
+    }
+
+    // Attempt migration
+    const response = await fetch("/api/sessions/migrate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessions }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success || result.migrated > 0) {
+        console.log(`Migrated ${result.migrated} sessions to markdown files`);
+        // Clear localStorage after successful migration
+        localStorage.removeItem(STORAGE_KEY);
+        sessionCache = null; // Clear cache so it gets reloaded from API
+        localStorage.setItem(MIGRATION_DONE_KEY, "true");
+      }
+    } else {
+      console.error("Migration failed:", await response.json());
+    }
+  } catch (error) {
+    console.error("Migration error", error);
+  }
 }
