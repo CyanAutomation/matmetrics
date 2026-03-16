@@ -129,10 +129,19 @@ async function removeSessionPathIndexEntry(id: string): Promise<void> {
   await persistSessionPathIndex(rest);
 }
 
-function sanitizeSessionId(sessionId: string): string {
+function validateSessionIdLength(sessionId: string): void {
   if (sessionId.length > 100) {
     throw new Error('Session ID exceeds maximum allowed length of 100 characters');
   }
+}
+
+function encodeSessionId(sessionId: string): string {
+  validateSessionIdLength(sessionId);
+  return encodeURIComponent(sessionId);
+}
+
+function sanitizeSessionIdLegacy(sessionId: string): string {
+  validateSessionIdLength(sessionId);
   return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
 
@@ -145,7 +154,7 @@ function sanitizeSessionId(sessionId: string): string {
 export function getSessionBlobPath(date: string, counter?: number, sessionId?: string): string {
   const [year, month, day] = date.split('-');
   const baseName = sessionId
-    ? `${year}${month}${day}-matmetrics-${sanitizeSessionId(sessionId)}.md`
+    ? `${year}${month}${day}-matmetrics-${encodeSessionId(sessionId)}.md`
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
@@ -368,8 +377,8 @@ export async function findSessionFileById(id: string): Promise<string | null> {
   assertBlobStorageEnabled();
 
   try {
-    const sanitizedId = sanitizeSessionId(id);
-    const suffix = `-${sanitizedId}.md`;
+    const encodedSuffix = `-${encodeSessionId(id)}.md`;
+    const legacySuffix = `-${sanitizeSessionIdLegacy(id)}.md`;
 
     const index = await loadSessionPathIndex();
     const indexedPath = index[id];
@@ -397,7 +406,10 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         limit: 10000,
       });
 
-      const directMatch = blobs.find(blob => blob.pathname.endsWith(suffix));
+      const directMatch = blobs.find(
+        blob =>
+          blob.pathname.endsWith(encodedSuffix) || blob.pathname.endsWith(legacySuffix)
+      );
       if (directMatch) {
         try {
           await setSessionPathIndexEntry(id, directMatch.pathname);
