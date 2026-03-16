@@ -16,6 +16,26 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
+// Custom Judo Gi Icon for the brand logo
+const JudoGiIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M6 3h12l3 5v13H3V8l3-5z" />
+    <path d="M6 3l6 8" />
+    <path d="M18 3l-6 8" />
+    <path d="M3 14h18" />
+    <path d="M10 14l-1 4" />
+    <path d="M14 14l1 4" />
+  </svg>
+);
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sessions, setSessions] = useState<JudoSession[]>([]);
@@ -44,7 +64,7 @@ export default function Home() {
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                <Trophy className="h-6 w-6" />
+                <JudoGiIcon className="h-6 w-6" />
               </div>
               <div className="font-headline font-black text-2xl tracking-tighter text-primary">
                 MatMetrics
