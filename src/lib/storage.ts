@@ -3,6 +3,18 @@
 import { JudoSession } from "./types";
 
 const STORAGE_KEY = "matmetrics_sessions";
+const PROMPT_KEY = "matmetrics_transformer_prompt";
+
+const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
+
+Your task is to take the following raw, informal notes from a Judo practice session and transform them into a well-structured, clear, and terminologically accurate diary entry.
+
+Guidelines:
+- **Tone**: Use an informal, personal, and reflective tone. It should feel like a student writing in their own training diary. Avoid being overly optimistic, buoyant, or exaggerated; maintain a neutral and realistic perspective on the session.
+- **Terminology**: Use official Kodokan Judo terminology. Crucially, all techniques MUST be correctly hyphenated (e.g., "O-soto-gari", "Ippon-seoi-nage", "Uchi-mata", "Kuzushi"). Ensure correct spelling and capitalization according to Kodokan standards.
+- **Content**: Maintain all specific details and meaning provided by the user.
+- **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
+- **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.`;
 
 // Pseudo test entries for initial testing and demonstration
 const SEED_DATA: JudoSession[] = [
@@ -21,22 +33,6 @@ const SEED_DATA: JudoSession[] = [
     effort: 4, // Hard
     category: "Randori",
     notes: "High intensity randori session today. Chained O-uchi-gari into Uchi-mata several times. Cardio felt a bit taxed towards the end, but the technical execution remained sharp."
-  },
-  {
-    id: "seed-3",
-    date: new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0], // 7 days ago
-    techniques: ["Ippon-seoi-nage", "Tai-otoshi"],
-    effort: 5, // Intense
-    category: "Shiai",
-    notes: "Internal club matches. Managed to secure a waza-ari with a well-timed Tai-otoshi. I was caught on a counter during a Seoi-nage attempt, so I need to work on my recovery after a failed entry."
-  },
-  {
-    id: "seed-4",
-    date: new Date(Date.now() - 86400000 * 10).toISOString().split('T')[0], // 10 days ago
-    techniques: ["De-ashi-barai", "Okuri-ashi-barai"],
-    effort: 2, // Light
-    category: "Technical",
-    notes: "Dedicated foot sweep practice. Timing is everything here. I found that my Okuri-ashi-barai is more effective when I focus on the opponent's lateral movement rather than just their feet."
   }
 ];
 
@@ -45,7 +41,6 @@ export function getSessions(): JudoSession[] {
   const stored = localStorage.getItem(STORAGE_KEY);
   
   if (!stored) {
-    // Seed the data if the storage is completely empty
     localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
     return SEED_DATA;
   }
@@ -76,7 +71,6 @@ export function deleteSession(id: string) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
 
-// Tag Management functions
 export function getAllTags(): string[] {
   const sessions = getSessions();
   const tags = new Set<string>();
@@ -89,7 +83,6 @@ export function renameTag(oldName: string, newName: string) {
   const updated = sessions.map(session => {
     if (session.techniques.includes(oldName)) {
       const newTechniques = session.techniques.map(t => t === oldName ? newName : t);
-      // Remove duplicates if newName already existed
       return { ...session, techniques: Array.from(new Set(newTechniques)) };
     }
     return session;
@@ -110,12 +103,20 @@ export function mergeTags(sourceTag: string, targetTag: string) {
   renameTag(sourceTag, targetTag);
 }
 
-// Function to reset all data back to seed data (can be used later)
-export function resetToSeedData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DATA));
+// AI Transformer Prompt Persistence
+export function getTransformerPrompt(): string {
+  if (typeof window === "undefined") return DEFAULT_TRANSFORMER_PROMPT;
+  return localStorage.getItem(PROMPT_KEY) || DEFAULT_TRANSFORMER_PROMPT;
 }
 
-// Function to clear all data
+export function saveTransformerPrompt(prompt: string) {
+  localStorage.setItem(PROMPT_KEY, prompt);
+}
+
+export function resetTransformerPrompt() {
+  localStorage.setItem(PROMPT_KEY, DEFAULT_TRANSFORMER_PROMPT);
+}
+
 export function clearAllData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
 }

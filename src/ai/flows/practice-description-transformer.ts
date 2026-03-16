@@ -14,6 +14,10 @@ const TransformPracticeInputSchema = z.object({
   description: z
     .string()
     .describe('The raw, informal description of a Judo practice session.'),
+  customPrompt: z
+    .string()
+    .optional()
+    .describe('Optional custom instructions for the AI on how to style the transformed entry.'),
 });
 export type TransformPracticeInput = z.infer<typeof TransformPracticeInputSchema>;
 
@@ -34,16 +38,7 @@ const transformPracticePrompt = ai.definePrompt({
   name: 'transformPracticePrompt',
   input: {schema: TransformPracticeInputSchema},
   output: {schema: TransformPracticeOutputSchema},
-  prompt: `You are an experienced Judo practitioner helping a student write their training diary.
-
-Your task is to take the following raw, informal notes from a Judo practice session and transform them into a well-structured, clear, and terminologically accurate diary entry.
-
-Guidelines:
-- **Tone**: Use an informal, personal, and reflective tone. It should feel like a student writing in their own training diary. Avoid being overly optimistic, buoyant, or exaggerated; maintain a neutral and realistic perspective on the session.
-- **Terminology**: Use official Kodokan Judo terminology. Crucially, all techniques MUST be correctly hyphenated (e.g., "O-soto-gari", "Ippon-seoi-nage", "Uchi-mata", "Kuzushi"). Ensure correct spelling and capitalization according to Kodokan standards.
-- **Content**: Maintain all specific details and meaning provided by the user.
-- **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
-- **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.
+  prompt: `{{{customPrompt}}}
 
 Description to transform: {{{description}}}`,
 });
@@ -55,7 +50,14 @@ const transformPracticeDescriptionFlow = ai.defineFlow(
     outputSchema: TransformPracticeOutputSchema,
   },
   async input => {
-    const {output} = await transformPracticePrompt(input);
+    // Default fallback prompt if none provided
+    const instructions = input.customPrompt || `You are an experienced Judo practitioner helping a student write their training diary. 
+    Transform the input into a terminologically accurate diary entry.`;
+
+    const {output} = await transformPracticePrompt({
+      ...input,
+      customPrompt: instructions
+    });
     return output!;
   }
 );
