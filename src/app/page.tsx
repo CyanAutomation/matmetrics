@@ -7,9 +7,10 @@ import { SessionLogForm } from "@/components/session-log-form";
 import { SessionHistory } from "@/components/session-history";
 import { TagManager } from "@/components/tag-manager";
 import { PromptSettings } from "@/components/prompt-settings";
+import { GitHubSettings } from "@/components/github-settings";
 import { getSessions, initializeStorage, getSyncStatus } from "@/lib/storage";
 import { JudoSession } from "@/lib/types";
-import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit, Wifi, WifiOff, Loader2, CheckCircle } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit, Github, Wifi, WifiOff, Loader2, CheckCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,11 @@ export default function Home() {
                   <BrainCircuit className="h-5 w-5" /><span className="text-base font-semibold">Prompt Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive={activeTab === "github"} onClick={() => setActiveTab("github")} className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
+                  <Github className="h-5 w-5" /><span className="text-base font-semibold">GitHub Sync</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
             <Separator className="my-6 bg-primary/5" />
             <div className="px-4 py-2">
@@ -168,6 +174,7 @@ export default function Home() {
                 {activeTab === "history" && "Session History"}
                 {activeTab === "tags" && "Manage Tags"}
                 {activeTab === "prompt" && "AI Prompt Configuration"}
+                {activeTab === "github" && "GitHub Sync Configuration"}
               </h2>
             </div>
             <div className="flex items-center gap-3">
@@ -185,6 +192,7 @@ export default function Home() {
               {activeTab === "history" && <div className="max-w-4xl mx-auto"><SessionHistory sessions={sessions} onRefresh={refreshSessions} /></div>}
               {activeTab === "tags" && <TagManager onRefresh={refreshSessions} />}
               {activeTab === "prompt" && <PromptSettings />}
+              {activeTab === "github" && <GitHubSettings />}
             </div>
           </main>
           <div className="fixed bottom-6 right-6 md:hidden z-50"><Button size="icon" className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform" onClick={() => setIsLogModalOpen(true)}><Plus className="h-6 w-6" /></Button></div>
