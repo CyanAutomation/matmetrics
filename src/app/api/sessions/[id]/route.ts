@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
 import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
+
+
+function isBlobStorageDisabledError(error: unknown): boolean {
+  return error instanceof BlobStorageDisabledError;
+}
 
 function isSessionNotFoundError(error: unknown): boolean {
   if (error instanceof Error) {
@@ -48,6 +53,13 @@ export async function GET(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    if (isBlobStorageDisabledError(error)) {
+      return NextResponse.json(
+        { error: 'Blob storage disabled' },
+        { status: 503 }
+      );
+    }
+
     console.error('Error retrieving session', error);
     return NextResponse.json(
       { error: 'Failed to retrieve session' },
@@ -132,6 +144,13 @@ export async function PUT(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    if (isBlobStorageDisabledError(error)) {
+      return NextResponse.json(
+        { error: 'Blob storage disabled' },
+        { status: 503 }
+      );
+    }
+
     if (isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
@@ -186,6 +205,13 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
+    if (isBlobStorageDisabledError(error)) {
+      return NextResponse.json(
+        { error: 'Blob storage disabled' },
+        { status: 503 }
+      );
+    }
+
     if (isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
