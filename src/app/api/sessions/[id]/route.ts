@@ -8,6 +8,16 @@ function isBlobStorageDisabledError(error: unknown): boolean {
   return error instanceof BlobStorageDisabledError;
 }
 
+function blobStorageDisabledResponse() {
+  return NextResponse.json(
+    {
+      error: 'Cloud persistence is temporarily unavailable',
+      code: 'BLOB_STORAGE_DISABLED',
+    },
+    { status: 503 }
+  );
+}
+
 function isSessionNotFoundError(error: unknown): boolean {
   if (error instanceof Error) {
     return /Session with ID .* not found/.test(error.message);
@@ -54,10 +64,7 @@ export async function GET(
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
-      return NextResponse.json(
-        { error: 'Blob storage disabled' },
-        { status: 503 }
-      );
+      return blobStorageDisabledResponse();
     }
 
     console.error('Error retrieving session', error);
@@ -145,10 +152,7 @@ export async function PUT(
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
-      return NextResponse.json(
-        { error: 'Blob storage disabled' },
-        { status: 503 }
-      );
+      return blobStorageDisabledResponse();
     }
 
     if (isSessionNotFoundError(error)) {
@@ -206,10 +210,7 @@ export async function DELETE(
     );
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
-      return NextResponse.json(
-        { error: 'Blob storage disabled' },
-        { status: 503 }
-      );
+      return blobStorageDisabledResponse();
     }
 
     if (isSessionNotFoundError(error)) {

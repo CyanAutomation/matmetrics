@@ -15,6 +15,7 @@ const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
 const MIGRATION_DONE_KEY = "matmetrics_migration_done";
 const GITHUB_CONFIG_KEY = "matmetrics_github_config";
+const CLOUD_PERSISTENCE_STATUS_KEY = "matmetrics_cloud_persistence_status";
 
 function isStorageEventForKey(event: StorageEvent, key: string): boolean {
   return event.storageArea === localStorage && event.key === key;
@@ -39,12 +40,59 @@ let migrationAttempted = false;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
+let cloudPersistencePaused = false;
+
+type CloudPersistenceStatusDetail = {
+  paused: boolean;
+  reason?: "blob-disabled";
+};
+
+function readCloudPersistenceStatus(): CloudPersistenceStatusDetail {
+  if (typeof window === "undefined") {
+    return { paused: false };
+  }
+
+  try {
+    const raw = localStorage.getItem(CLOUD_PERSISTENCE_STATUS_KEY);
+    if (!raw) return { paused: false };
+    const parsed = JSON.parse(raw) as CloudPersistenceStatusDetail;
+    if (typeof parsed?.paused !== "boolean") {
+      return { paused: false };
+    }
+    return parsed;
+  } catch (error) {
+    console.warn("Failed to parse cloud persistence status", error);
+    return { paused: false };
+  }
+}
+
+function setCloudPersistencePaused(paused: boolean, reason?: "blob-disabled"): void {
+  if (typeof window === "undefined") return;
+
+  cloudPersistencePaused = paused;
+  const detail: CloudPersistenceStatusDetail = paused ? { paused, reason } : { paused };
+  localStorage.setItem(CLOUD_PERSISTENCE_STATUS_KEY, JSON.stringify(detail));
+  window.dispatchEvent(new CustomEvent("cloudPersistenceStatus", { detail }));
+}
+
+async function isBlobStorageDisabledResponse(res: Response): Promise<boolean> {
+  if (res.status !== 503) return false;
+
+  try {
+    const payload = await res.clone().json();
+    return payload?.code === "BLOB_STORAGE_DISABLED";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Initialize storage: set up online/offline listeners and attempt migration
  */
 export function initializeStorage(): void {
   if (typeof window === "undefined") return;
+
+  cloudPersistencePaused = readCloudPersistenceStatus().paused;
 
   // Set up online/offline detection exactly once
   if (!listenersInitialized) {
@@ -129,20 +177,28 @@ export function saveSession(session: JudoSession): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    fetch("/api/sessions/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    })
-      .then(res => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/sessions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (await isBlobStorageDisabledResponse(res)) {
+          setCloudPersistencePaused(true, "blob-disabled");
+          queueOperation({ type: "CREATE", session });
+          return;
+        }
+
         if (!res.ok) throw new Error("Failed to save session");
-        // Successfully saved to server
-      })
-      .catch(error => {
+
+        setCloudPersistencePaused(false);
+      } catch (error) {
         console.error("Error saving session to API", error);
-        // Queue it as fallback
         queueOperation({ type: "CREATE", session });
-      });
+      }
+    })();
   } else {
     // Offline: queue the operation
     queueOperation({ type: "CREATE", session });
@@ -177,19 +233,28 @@ export function updateSession(session: JudoSession): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    fetch(`/api/sessions/${session.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    })
-      .then(res => {
+    void (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${session.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (await isBlobStorageDisabledResponse(res)) {
+          setCloudPersistencePaused(true, "blob-disabled");
+          queueOperation({ type: "UPDATE", session });
+          return;
+        }
+
         if (!res.ok) throw new Error("Failed to update session");
-      })
-      .catch(error => {
+
+        setCloudPersistencePaused(false);
+      } catch (error) {
         console.error("Error updating session on API", error);
-        // Queue it as fallback
         queueOperation({ type: "UPDATE", session });
-      });
+      }
+    })();
   } else {
     // Offline: queue the operation
     queueOperation({ type: "UPDATE", session });
@@ -216,19 +281,28 @@ export function deleteSession(id: string): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    fetch(`/api/sessions/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
-    })
-      .then(res => {
+    void (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
+        });
+
+        if (await isBlobStorageDisabledResponse(res)) {
+          setCloudPersistencePaused(true, "blob-disabled");
+          queueOperation({ type: "DELETE", id });
+          return;
+        }
+
         if (!res.ok) throw new Error("Failed to delete session");
-      })
-      .catch(error => {
+
+        setCloudPersistencePaused(false);
+      } catch (error) {
         console.error("Error deleting session on API", error);
-        // Queue it as fallback
         queueOperation({ type: "DELETE", id });
-      });
+      }
+    })();
   } else {
     // Offline: queue the operation
     queueOperation({ type: "DELETE", id });
@@ -421,12 +495,19 @@ export function getSyncStatus(): {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  cloudPersistencePaused: boolean;
 } {
   return {
     isOnline,
     isSyncing,
     pendingCount: getPendingOperationCount(),
+    cloudPersistencePaused,
   };
+}
+
+export function retryCloudSync(): void {
+  if (typeof window === "undefined") return;
+  void syncPendingOperations({ allowWhenPaused: true });
 }
 
 // ============================================================================
@@ -457,7 +538,7 @@ function handleOnline(): void {
   // Sync pending operations when coming back online.
   // The sync flow already refreshes sessions after queue flush.
   if (hasPendingOperations()) {
-    void syncPendingOperations();
+    void syncPendingOperations({ allowWhenPaused: true });
     return;
   }
 
@@ -479,7 +560,12 @@ function handleStorageEvent(event: StorageEvent): void {
     return;
   }
 
-  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations()) {
+  if (isStorageEventForKey(event, CLOUD_PERSISTENCE_STATUS_KEY)) {
+    cloudPersistencePaused = readCloudPersistenceStatus().paused;
+    return;
+  }
+
+  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations() && !cloudPersistencePaused) {
     void syncPendingOperations();
   }
 }
@@ -511,8 +597,9 @@ async function refreshSessionsFromAPI(): Promise<void> {
   }
 }
 
-async function syncPendingOperations(): Promise<void> {
+async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): Promise<void> {
   if (!isOnline || isSyncing) return;
+  if (cloudPersistencePaused && !options?.allowWhenPaused) return;
 
   isSyncing = true;
 
@@ -520,8 +607,6 @@ async function syncPendingOperations(): Promise<void> {
     const queue = getQueue();
     const gitHubConfig = getGitHubConfig();
     const gitHubEnabled = isGitHubEnabled();
-    let lastSuccessfulIndex = -1;
-
     for (const [index, operation] of queue.entries()) {
       try {
         switch (operation.type) {
@@ -530,13 +615,21 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               createBody.gitHubConfig = gitHubConfig;
             }
-            await fetch("/api/sessions/create", {
+            const createResponse = await fetch("/api/sessions/create", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(createBody),
-            }).then(res => {
-              if (!res.ok) throw new Error("Failed to create session");
             });
+
+            if (await isBlobStorageDisabledResponse(createResponse)) {
+              setCloudPersistencePaused(true, "blob-disabled");
+              const remainingOperations = queue.slice(index);
+              setQueue(remainingOperations, queue);
+              return;
+            }
+            }
+
+            if (!createResponse.ok) throw new Error("Failed to create session");
             break;
 
           case "UPDATE":
@@ -544,13 +637,21 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               updateBody.gitHubConfig = gitHubConfig;
             }
-            await fetch(`/api/sessions/${operation.session.id}`, {
+            const updateResponse = await fetch(`/api/sessions/${operation.session.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(updateBody),
-            }).then(res => {
-              if (!res.ok) throw new Error("Failed to update session");
             });
+
+            if (await isBlobStorageDisabledResponse(updateResponse)) {
+              setCloudPersistencePaused(true, "blob-disabled");
+              const remainingOperations = queue.slice(index);
+              setQueue(remainingOperations, queue);
+              return;
+            }
+            }
+
+            if (!updateResponse.ok) throw new Error("Failed to update session");
             break;
 
           case "DELETE":
@@ -558,17 +659,24 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               deleteBody.gitHubConfig = gitHubConfig;
             }
-            await fetch(`/api/sessions/${operation.id}`, {
+            const deleteResponse = await fetch(`/api/sessions/${operation.id}`, {
               method: "DELETE",
               headers: { "Content-Type": "application/json" },
               body: Object.keys(deleteBody).length > 0 ? JSON.stringify(deleteBody) : undefined,
-            }).then(res => {
-              if (!res.ok) throw new Error("Failed to delete session");
             });
+
+            if (await isBlobStorageDisabledResponse(deleteResponse)) {
+              setCloudPersistencePaused(true, "blob-disabled");
+              const remainingOperations = queue.slice(index);
+              setQueue(remainingOperations, queue);
+              return;
+            }
+            }
+
+            if (!deleteResponse.ok) throw new Error("Failed to delete session");
             break;
         }
 
-        lastSuccessfulIndex = index;
       } catch (error) {
         console.error("Error syncing operation", error);
         // Stop syncing on first error; retries must include the failed operation to avoid data loss.
@@ -580,6 +688,7 @@ async function syncPendingOperations(): Promise<void> {
 
     // If all operations succeeded, clear the queue
     clearQueue(queue);
+    setCloudPersistencePaused(false);
 
     // Refresh sessions from API to ensure cache is up-to-date
     await refreshSessionsFromAPI();

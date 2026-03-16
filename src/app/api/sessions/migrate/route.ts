@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession, hasAnySessions } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, createSession, hasAnySessions } from '@/lib/vercel-blob-storage';
 import { JudoSession } from '@/lib/types';
+
+function isBlobStorageDisabledError(error: unknown): boolean {
+  return error instanceof BlobStorageDisabledError;
+}
+
+function blobStorageDisabledResponse() {
+  return NextResponse.json(
+    {
+      error: 'Cloud persistence is temporarily unavailable',
+      code: 'BLOB_STORAGE_DISABLED',
+    },
+    { status: 503 }
+  );
+}
 
 /**
  * POST /api/sessions/migrate
@@ -45,6 +59,10 @@ export async function POST(request: NextRequest) {
         await createSession(session);
         migratedCount++;
       } catch (error) {
+        if (isBlobStorageDisabledError(error)) {
+          throw error;
+        }
+
         errors.push(`Failed to migrate session ${session.id}: ${(error as Error).message}`);
       }
     }
@@ -59,6 +77,10 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    if (isBlobStorageDisabledError(error)) {
+      return blobStorageDisabledResponse();
+    }
+
     console.error('Error during migration', error);
     return NextResponse.json(
       { error: 'Failed to migrate sessions' },
