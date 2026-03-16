@@ -623,7 +623,10 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
 
             if (await isBlobStorageDisabledResponse(createResponse)) {
               setCloudPersistencePaused(true, "blob-disabled");
+              const remainingOperations = queue.slice(index);
+              setQueue(remainingOperations, queue);
               return;
+            }
             }
 
             if (!createResponse.ok) throw new Error("Failed to create session");
