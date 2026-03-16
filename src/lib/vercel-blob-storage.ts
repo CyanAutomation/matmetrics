@@ -3,6 +3,7 @@ import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const BLOB_FOLDER = 'sessions';
+const SESSION_ID_INDEX_PATH = `${BLOB_FOLDER}/_index/session-id-paths.json`;
 
 type BlobStorageDeps = {
   put: typeof put;
@@ -20,12 +21,85 @@ let blobStorageDeps: BlobStorageDeps = {
   fetch,
 };
 
+let sessionPathIndexCache: Record<string, string> | null = null;
+
 export function __setBlobStorageDepsForTests(overrides: Partial<BlobStorageDeps>): void {
   blobStorageDeps = { ...blobStorageDeps, ...overrides };
 }
 
 export function __resetBlobStorageDepsForTests(): void {
   blobStorageDeps = { put, del, list, head, fetch };
+  sessionPathIndexCache = null;
+}
+
+async function loadSessionPathIndex(): Promise<Record<string, string>> {
+  if (sessionPathIndexCache) {
+    return sessionPathIndexCache;
+  }
+
+  try {
+    const blob = await blobStorageDeps.head(SESSION_ID_INDEX_PATH);
+    const response = await blobStorageDeps.fetch(blob.url);
+    if (!response.ok) {
+      sessionPathIndexCache = {};
+      return sessionPathIndexCache;
+    }
+
+    const indexText = await response.text();
+    try {
+      const parsed = JSON.parse(indexText) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        sessionPathIndexCache = Object.fromEntries(
+          Object.entries(parsed).filter(
+            ([key, value]) => typeof key === 'string' && typeof value === 'string'
+          )
+        );
+        return sessionPathIndexCache;
+      }
+    } catch (parseError) {
+      console.error('Failed parsing session path index JSON', parseError);
+    }
+  } catch (e) {
+    if ((e as any).code !== 'BLOB_NOT_FOUND') {
+      console.error('Failed loading session path index', e);
+    }
+  }
+
+  sessionPathIndexCache = {};
+  return sessionPathIndexCache;
+}
+
+async function persistSessionPathIndex(index: Record<string, string>): Promise<void> {
+  sessionPathIndexCache = index;
+
+  try {
+    await blobStorageDeps.put(SESSION_ID_INDEX_PATH, JSON.stringify(index), {
+      contentType: 'application/json',
+      access: 'private',
+      allowOverwrite: true,
+    });
+  } catch (e) {
+    console.error('Failed persisting session path index', e);
+  }
+}
+
+async function setSessionPathIndexEntry(id: string, pathname: string): Promise<void> {
+  const index = await loadSessionPathIndex();
+  if (index[id] === pathname) {
+    return;
+  }
+
+  await persistSessionPathIndex({ ...index, [id]: pathname });
+}
+
+async function removeSessionPathIndexEntry(id: string): Promise<void> {
+  const index = await loadSessionPathIndex();
+  if (!(id in index)) {
+    return;
+  }
+
+  const { [id]: _removed, ...rest } = index;
+  await persistSessionPathIndex(rest);
 }
 
 function sanitizeSessionId(sessionId: string): string {
@@ -180,10 +254,12 @@ export async function createSession(session: JudoSession): Promise<string> {
       access: 'public',
       allowOverwrite: false,
     });
+    await setSessionPathIndexEntry(session.id, blobPath);
     return blobPath;
   } catch (e) {
     if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
       // Another request wrote the same ID concurrently; treat this as idempotent success.
+      await setSessionPathIndexEntry(session.id, blobPath);
       return blobPath;
     }
 
@@ -222,6 +298,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
       contentType: 'text/markdown',
       access: 'public',
     });
+    await setSessionPathIndexEntry(session.id, blobPath);
     return blobPath;
   } catch (e) {
     console.error(`Failed to update session at ${blobPath}`, e);
@@ -240,6 +317,7 @@ export async function deleteSession(id: string): Promise<void> {
 
   try {
     await blobStorageDeps.del(blobPath);
+    await removeSessionPathIndexEntry(id);
   } catch (e) {
     console.error(`Failed to delete session at ${blobPath}`, e);
     throw e;
@@ -255,6 +333,21 @@ export async function findSessionFileById(id: string): Promise<string | null> {
     const sanitizedId = sanitizeSessionId(id);
     const suffix = `-${sanitizedId}.md`;
 
+    const index = await loadSessionPathIndex();
+    const indexedPath = index[id];
+    if (indexedPath) {
+      try {
+        await blobStorageDeps.head(indexedPath);
+        return indexedPath;
+      } catch (e) {
+        if ((e as any).code === 'BLOB_NOT_FOUND') {
+          await removeSessionPathIndexEntry(id);
+        } else {
+          console.error(`Error validating indexed path for session ${id}`, e);
+        }
+      }
+    }
+
     try {
       const { blobs } = await blobStorageDeps.list({
         prefix: `${BLOB_FOLDER}/`,
@@ -263,6 +356,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
 
       const directMatch = blobs.find(blob => blob.pathname.endsWith(suffix));
       if (directMatch) {
+        await setSessionPathIndexEntry(id, directMatch.pathname);
         return directMatch.pathname;
       }
 
@@ -274,6 +368,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
           const markdown = await response.text();
           const parsedSession = markdownToSession(markdown);
           if (parsedSession.id === id) {
+            await setSessionPathIndexEntry(id, blob.pathname);
             return blob.pathname;
           }
         } catch (e) {
