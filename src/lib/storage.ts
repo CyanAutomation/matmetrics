@@ -7,6 +7,7 @@ import {
   clearQueue,
   getPendingOperationCount,
   hasPendingOperations,
+  setQueue,
 } from "./sync-queue";
 
 const STORAGE_KEY = "matmetrics_sessions";
@@ -336,8 +337,9 @@ async function syncPendingOperations(): Promise<void> {
 
   try {
     const queue = getQueue();
+    let lastSuccessfulIndex = -1;
 
-    for (const operation of queue) {
+    for (const [index, operation] of queue.entries()) {
       try {
         switch (operation.type) {
           case "CREATE":
@@ -368,10 +370,14 @@ async function syncPendingOperations(): Promise<void> {
             });
             break;
         }
+
+        lastSuccessfulIndex = index;
       } catch (error) {
         console.error("Error syncing operation", error);
-        // Stop syncing on first error; will retry next time
-        break;
+        // Stop syncing on first error; will retry remaining operations next time
+        const remainingOperations = queue.slice(lastSuccessfulIndex + 1);
+        setQueue(remainingOperations);
+        return;
       }
     }
 
