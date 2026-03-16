@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -16,8 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-// Custom Judo Gi Icon for the brand logo
-const JudoGiIcon = ({ className }: { className?: string }) => (
+// Custom Judo Belt Icon for the brand logo
+const JudoBeltIcon = ({ className }: { className?: string }) => (
   <svg 
     viewBox="0 0 24 24" 
     fill="none" 
@@ -27,12 +26,10 @@ const JudoGiIcon = ({ className }: { className?: string }) => (
     strokeLinejoin="round" 
     className={className}
   >
-    <path d="M6 3h12l3 5v13H3V8l3-5z" />
-    <path d="M6 3l6 8" />
-    <path d="M18 3l-6 8" />
-    <path d="M3 14h18" />
-    <path d="M10 14l-1 4" />
-    <path d="M14 14l1 4" />
+    <path d="M2 10h20v4H2z" />
+    <path d="M10 10c0-2 4-2 4 0v4c0 2-4 2-4 0v-4z" />
+    <path d="M10 14l-2 6" />
+    <path d="M14 14l2 6" />
   </svg>
 );
 
@@ -64,7 +61,7 @@ export default function Home() {
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                <JudoGiIcon className="h-6 w-6" />
+                <JudoBeltIcon className="h-6 w-6" />
               </div>
               <div className="font-headline font-black text-2xl tracking-tighter text-primary">
                 MatMetrics
