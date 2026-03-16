@@ -497,7 +497,7 @@ export async function acquireMigrationLock(ttlMs = 30000): Promise<string | null
   assertBlobStorageEnabled();
 
   const now = Date.now();
-  const lockToken = `${now}-${Math.random().toString(36).slice(2)}`;
+  const lockToken = `${now}-${crypto.randomUUID()}`;
   const nextExpiry = now + ttlMs;
 
   const writeLock = async () => {
