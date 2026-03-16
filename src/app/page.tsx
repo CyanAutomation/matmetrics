@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -212,19 +213,23 @@ export default function Home() {
       {/* Quick Log Modal */}
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-2xl font-bold">Log Practice Session</DialogTitle>
-            <DialogDescription>
-              Record your techniques, effort, and reflections from today's training.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <SessionLogForm 
-              onSuccess={handleSessionAdded}
-              onCancel={() => setIsLogModalOpen(false)}
-              hideHeader={true}
-            />
-          </div>
+          {isLogModalOpen && (
+            <>
+              <DialogHeader className="mb-4">
+                <DialogTitle className="text-2xl font-bold">Log Practice Session</DialogTitle>
+                <DialogDescription>
+                  Record your techniques, effort, and reflections from today's training.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-2">
+                <SessionLogForm 
+                  onSuccess={handleSessionAdded}
+                  onCancel={() => setIsLogModalOpen(false)}
+                  hideHeader={true}
+                />
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </SidebarProvider>
