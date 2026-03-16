@@ -160,9 +160,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   } catch (e) {
     if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
       // Another request wrote the same ID concurrently; treat this as idempotent success.
-      if (await sessionBlobExists(blobPath)) {
-        return blobPath;
-      }
+      return blobPath;
     }
 
     console.error(`Failed to create session at ${blobPath}`, e);
