@@ -435,8 +435,22 @@ export async function bulkPushSessions(
       }
     }
 
+    // Caller order must not affect stats; derive latest session date from all entries.
+    const latestDate = sessions
+      .map((session) => {
+        const timestamp = Date.parse(session.date);
+        return Number.isNaN(timestamp) ? null : { date: session.date, timestamp };
+      })
+      .filter((session): session is { date: string; timestamp: number } => session !== null)
+      .reduce<{ date: string; timestamp: number } | undefined>((max, session) => {
+        if (!max || session.timestamp > max.timestamp) {
+          return session;
+        }
+
+        return max;
+      }, undefined)?.date;
+
     // Update README with stats
-    const latestDate = sessions[0]?.date;
     await createGitHubReadme(config, sessions.length, latestDate);
 
     return {
