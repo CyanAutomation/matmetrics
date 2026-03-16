@@ -96,7 +96,8 @@ async function runRegression() {
 
     await deleteSession(sessionA.id);
     assert.equal(await findSessionFileById(sessionA.id), null);
-    assert.equal(blobs.size, 0);
+    assert.equal(blobs.size, 1);
+    assert.ok(blobs.has('sessions/_index/session-id-paths.json'));
   } finally {
     __resetBlobStorageDepsForTests();
   }
