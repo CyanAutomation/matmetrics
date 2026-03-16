@@ -231,10 +231,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
                 name="sessionEffort"
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex items-center justify-between h-11 px-3 bg-background rounded-md border border-input"
+                className="flex items-center justify-around h-11 px-2 bg-background rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
-                  <div key={fid(`effort-${val}`)} className="flex items-center space-x-1.5">
+                  <div key={fid(`effort-${val}`)} className="flex items-center space-x-1">
                     <RadioGroupItem value={val.toString()} id={fid(`effort-radio-${val}`)} />
                     <Label htmlFor={fid(`effort-radio-${val}`)} className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap">
                       {EFFORT_LABELS[val as EffortLevel]}
