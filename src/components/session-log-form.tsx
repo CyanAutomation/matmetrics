@@ -27,9 +27,9 @@ interface SessionLogFormProps {
 
 export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader = false }: SessionLogFormProps) {
   const { toast } = useToast();
-  // Sanitizing useId to ensure alphanumeric-only IDs for compatibility with all tracking/previewer scripts
-  const baseId = useId().replace(/:/g, "id");
-  const instanceId = `form-${baseId}-`;
+  // Using a unique instance prefix to prevent ID collisions in the DOM
+  const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, "id");
+  const fid = (suffix: string) => `judo-log-${uniquePrefix}-${suffix}`;
   
   const isEditing = !!sessionToEdit;
   const shouldHideHeader = isEditing || hideHeader;
@@ -200,10 +200,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
           {/* Harmonized Training Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2.5">
-              <Label htmlFor={`${instanceId}date`} className="text-sm font-semibold block h-5">Session Date</Label>
+              <Label htmlFor={fid('date')} className="text-sm font-semibold block h-5">Session Date</Label>
               <Input 
-                id={`${instanceId}date`} 
-                name={`${instanceId}date`}
+                id={fid('date')} 
+                name="sessionDate"
                 type="date" 
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
@@ -213,9 +213,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               />
             </div>
             <div className="md:col-span-3 space-y-2.5">
-              <Label htmlFor={`${instanceId}category`} className="text-sm font-semibold block h-5">Session Type</Label>
-              <Select name={`${instanceId}category`} value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id={`${instanceId}category`} className="bg-background h-11">
+              <Label htmlFor={fid('category')} className="text-sm font-semibold block h-5">Session Type</Label>
+              <Select name="sessionCategory" value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
+                <SelectTrigger id={fid('category')} className="bg-background h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,15 +228,15 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             <div className="md:col-span-6 space-y-2.5">
               <Label className="text-sm font-semibold block h-5">Effort Level</Label>
               <RadioGroup 
-                name={`${instanceId}effort`}
+                name="sessionEffort"
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
                 className="flex items-center justify-between h-11 px-3 bg-background rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
-                  <div key={`${instanceId}effort_${val}`} className="flex items-center space-x-1.5">
-                    <RadioGroupItem value={val.toString()} id={`${instanceId}effort_radio_${val}`} />
-                    <Label htmlFor={`${instanceId}effort_radio_${val}`} className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap">
+                  <div key={fid(`effort-${val}`)} className="flex items-center space-x-1.5">
+                    <RadioGroupItem value={val.toString()} id={fid(`effort-radio-${val}`)} />
+                    <Label htmlFor={fid(`effort-radio-${val}`)} className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap">
                       {EFFORT_LABELS[val as EffortLevel]}
                     </Label>
                   </div>
@@ -247,7 +247,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor={`${instanceId}description`} className="text-sm font-semibold">What did you practice?</Label>
+              <Label htmlFor={fid('description')} className="text-sm font-semibold">What did you practice?</Label>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -261,8 +261,8 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               </Button>
             </div>
             <Textarea 
-              id={`${instanceId}description`} 
-              name={`${instanceId}description`}
+              id={fid('description')} 
+              name="practiceDescription"
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon-seoi-nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -293,7 +293,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
                   </span>
                 )}
                 {techniques.map((tech) => (
-                  <Badge key={`${instanceId}tech_${tech}`} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
+                  <Badge key={fid(`tech-badge-${tech}`)} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
                     {tech}
                     <button type="button" onClick={() => removeTech(tech)} className="ml-1 hover:text-destructive transition-colors">
                       <X className="h-3.5 w-3.5" />
@@ -304,8 +304,8 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               
               <div className="flex gap-2">
                 <Input 
-                  id={`${instanceId}manual_tag`}
-                  name={`${instanceId}manual_tag`}
+                  id={fid('manual-tag')}
+                  name="manualTagEntry"
                   placeholder="Manual tag (e.g. O-soto-gari)" 
                   value={newTech}
                   onChange={(e) => setNewTech(e.target.value)}
@@ -326,10 +326,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={`${instanceId}notes`} className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
+            <Label htmlFor={fid('notes')} className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
             <Textarea 
-              id={`${instanceId}notes`} 
-              name={`${instanceId}notes`}
+              id={fid('notes')} 
+              name="personalNotes"
               placeholder="How did you feel? Any injuries or specific focus for next time?" 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
