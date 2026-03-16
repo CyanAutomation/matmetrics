@@ -31,6 +31,15 @@ export default function Home() {
 
   useEffect(() => {
     refreshSessions();
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "matmetrics_sessions") {
+        refreshSessions();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const refreshSessions = () => {
