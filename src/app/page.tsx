@@ -52,11 +52,6 @@ export default function Home() {
       }
     };
 
-    // Listen for sync status changes
-    const handleSyncStatusChange = () => {
-      setSyncStatus(getSyncStatus());
-    };
-
     window.addEventListener("storageSync", handleStorageSync);
     window.addEventListener("storage", handleStorageChange);
     
