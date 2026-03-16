@@ -209,7 +209,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             <div className="md:col-span-3 space-y-2">
               <Label htmlFor={`${instanceId}-category`} className="text-sm font-semibold">Session Type</Label>
               <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id={`${instanceId}-category`} name={`category-${instanceId}`} className="bg-background h-11">
+                <SelectTrigger id={`${instanceId}-category`} className="bg-background h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,7 +228,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
                 className="flex items-center justify-between h-11 px-4 bg-secondary/30 rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
-                  <div key={val} className="flex items-center space-x-2">
+                  <div key={`${instanceId}-effort-${val}`} className="flex items-center space-x-2">
                     <RadioGroupItem value={val.toString()} id={`${instanceId}-effort-${val}`} />
                     <Label htmlFor={`${instanceId}-effort-${val}`} className="cursor-pointer font-medium text-xs whitespace-nowrap">
                       {EFFORT_LABELS[val as EffortLevel]}
@@ -286,7 +286,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
                   </span>
                 )}
                 {techniques.map((tech) => (
-                  <Badge key={tech} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
+                  <Badge key={`${instanceId}-tag-${tech}`} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
                     {tech}
                     <button type="button" onClick={() => removeTech(tech)} className="ml-1 hover:text-destructive transition-colors">
                       <X className="h-3.5 w-3.5" />

@@ -137,23 +137,14 @@ export default function Home() {
               </h2>
             </div>
             <div className="flex items-center gap-3">
-               <TooltipProvider>
-                 <Tooltip>
-                   <TooltipTrigger asChild>
-                     <Button 
-                       variant="outline" 
-                       size="icon" 
-                       className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/5"
-                       onClick={() => setIsLogModalOpen(true)}
-                     >
-                       <Plus className="h-5 w-5" />
-                     </Button>
-                   </TooltipTrigger>
-                   <TooltipContent>
-                     <p>Log New Session</p>
-                   </TooltipContent>
-                 </Tooltip>
-               </TooltipProvider>
+               <Button 
+                 variant="outline" 
+                 size="icon" 
+                 className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/5"
+                 onClick={() => setIsLogModalOpen(true)}
+               >
+                 <Plus className="h-5 w-5" />
+               </Button>
 
                <ModeToggle />
                <div className="hidden sm:flex flex-col items-end mr-2">
@@ -190,22 +181,13 @@ export default function Home() {
 
           {/* Mobile FAB */}
           <div className="fixed bottom-6 right-6 md:hidden z-50">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="icon" 
-                    className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform"
-                    onClick={() => setIsLogModalOpen(true)}
-                  >
-                    <Plus className="h-6 w-6" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  <p>Log new session</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Button 
+              size="icon" 
+              className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform"
+              onClick={() => setIsLogModalOpen(true)}
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
           </div>
         </SidebarInset>
       </div>
@@ -223,6 +205,7 @@ export default function Home() {
               </DialogHeader>
               <div className="py-2">
                 <SessionLogForm 
+                  key="quick-log-instance"
                   onSuccess={handleSessionAdded}
                   onCancel={() => setIsLogModalOpen(false)}
                   hideHeader={true}
