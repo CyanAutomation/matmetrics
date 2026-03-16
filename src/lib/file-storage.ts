@@ -23,8 +23,6 @@ export function getSessionFilePath(date: string, counter?: number): string {
  * Reverse of getSessionFilePath
  */
 export function extractDateFromPath(filePath: string): string | null {
-  const match = filePath.match(/(\d{4})\/(\d{2})\/\d{8}/);
-  if (!match) return null;
   const [, year, month, dayMatch] = filePath.match(
     /(\d{4})\/(\d{2})\/(\d{8})/
   ) || [];
