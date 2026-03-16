@@ -113,23 +113,39 @@ export function clearAllData() {
 
 type SessionsTransformer = (sessions: JudoSession[]) => JudoSession[];
 
+const MAX_STORAGE_WRITE_RETRIES = 5;
+
+function readSessionsForWrite(stored: string | null): JudoSession[] {
+  if (!stored) {
+    return SEED_DATA;
+  }
+
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error("Failed to parse sessions", e);
+    return [];
+  }
+}
+
 function writeSessions(transformer: SessionsTransformer) {
   if (typeof window === "undefined") return;
 
-  const stored = localStorage.getItem(STORAGE_KEY);
-  let sessions: JudoSession[];
+  for (let attempt = 0; attempt < MAX_STORAGE_WRITE_RETRIES; attempt += 1) {
+    const baseline = localStorage.getItem(STORAGE_KEY);
+    const sessions = readSessionsForWrite(baseline);
+    const updated = transformer(sessions);
 
-  if (!stored) {
-    sessions = SEED_DATA;
-  } else {
-    try {
-      sessions = JSON.parse(stored);
-    } catch (e) {
-      console.error("Failed to parse sessions", e);
-      sessions = [];
+    if (localStorage.getItem(STORAGE_KEY) !== baseline) {
+      continue;
     }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    return;
   }
 
-  const updated = transformer(sessions);
+  // Fallback: apply to the latest visible value rather than dropping the mutation entirely.
+  const latest = localStorage.getItem(STORAGE_KEY);
+  const updated = transformer(readSessionsForWrite(latest));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { SessionLogForm } from "@/components/session-log-form";
@@ -29,11 +29,11 @@ export default function Home() {
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-useEffect(() => {
-    const refreshSessions = () => {
-      setSessions(getSessions());
-    };
+  const refreshSessions = useCallback(() => {
+    setSessions(getSessions());
+  }, []);
 
+  useEffect(() => {
     refreshSessions();
 
     const handleStorageChange = (event: StorageEvent) => {
@@ -44,11 +44,7 @@ useEffect(() => {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  const refreshSessions = () => {
-    setSessions(getSessions());
-  };
+  }, [refreshSessions]);
 
   const handleSessionAdded = () => {
     refreshSessions();
