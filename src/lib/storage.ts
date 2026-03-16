@@ -31,6 +31,7 @@ let sessionCache: JudoSession[] | null = null;
 let isOnline = typeof window !== "undefined" ? navigator.onLine : true;
 let isSyncing = false;
 let migrationAttempted = false;
+let listenersInitialized = false;
 
 /**
  * Initialize storage: set up online/offline listeners and attempt migration
@@ -38,20 +39,34 @@ let migrationAttempted = false;
 export function initializeStorage(): void {
   if (typeof window === "undefined") return;
 
-  // Set up online/offline detection
-  window.addEventListener("online", handleOnline);
-  window.addEventListener("offline", handleOffline);
+  // Set up online/offline detection exactly once
+  if (!listenersInitialized) {
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    listenersInitialized = true;
+  }
 
   // Attempt migration on first load
   if (!migrationAttempted) {
     migrationAttempted = true;
-    attemptMigration();
+    void attemptMigration();
   }
 
   // Try to sync if we have pending operations
   if (isOnline && hasPendingOperations()) {
-    syncPendingOperations();
+    void syncPendingOperations();
   }
+}
+
+/**
+ * Optional teardown for tests or unmount flows.
+ */
+export function teardownStorageListeners(): void {
+  if (typeof window === "undefined" || !listenersInitialized) return;
+
+  window.removeEventListener("online", handleOnline);
+  window.removeEventListener("offline", handleOffline);
+  listenersInitialized = false;
 }
 
 /**
