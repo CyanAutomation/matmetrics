@@ -30,6 +30,34 @@ class GitHubApiError extends Error {
   }
 }
 
+function getActionableGitHubErrorMessage(action: string, error: unknown): string {
+  if (error instanceof GitHubApiError) {
+    if (error.status === 401) {
+      return `${action} failed: GitHub authentication failed (401). Verify GITHUB_TOKEN is valid and has repository access.`;
+    }
+
+    if (error.status === 403) {
+      return `${action} failed: GitHub access is forbidden (403). Check token permissions and repository visibility.`;
+    }
+
+    if (error.status === 429) {
+      return `${action} failed: GitHub API rate limit exceeded (429). Retry later or use a higher quota token.`;
+    }
+
+    if (error.status >= 500) {
+      return `${action} failed: GitHub service error (${error.status}). Retry in a few minutes.`;
+    }
+
+    return `${action} failed: ${error.message}`;
+  }
+
+  if (error instanceof Error) {
+    return `${action} failed: ${error.message}`;
+  }
+
+  return `${action} failed due to an unknown error`;
+}
+
 /**
  * Get the file path for a session in GitHub
  * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
@@ -104,8 +132,12 @@ async function getFileSha(
     );
     return data.sha;
   } catch (error) {
-    // File doesn't exist, return null
-    return null;
+    if (error instanceof GitHubApiError && error.status === 404) {
+      // File doesn't exist, return null
+      return null;
+    }
+
+    throw error;
   }
 }
 
@@ -277,18 +309,35 @@ export async function updateSessionOnGitHub(
   session: JudoSession,
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
-  const branch = await resolveBranch(config);
-  const filePath = getGitHubSessionPath(session);
-  const markdown = sessionToMarkdown(session);
-  const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+  try {
+    const branch = await resolveBranch(config);
+    const filePath = getGitHubSessionPath(session);
+    const markdown = sessionToMarkdown(session);
+    const sha = await getFileSha(config.owner, config.repo, filePath, branch);
 
-  if (!sha) {
-    // File doesn't exist, create it
-    return createSessionOnGitHub(session, config);
+    if (!sha) {
+      // File doesn't exist, return result directly to preserve error context
+      const result = await createSessionOnGitHub(session, config);
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message.replace('GitHub sync failed', 'GitHub session update'),
+        };
+      }
+      return result;
+    }
+
+    const message = `Update session: ${session.date}`;
+    return putFile(config, filePath, markdown, message, sha);
+  } catch (error) {
+    return {
+      success: false,
+      message: getActionableGitHubErrorMessage(
+        `GitHub session update for ${session.id}`,
+        error
+      ),
+    };
   }
-
-  const message = `Update session: ${session.date}`;
-  return putFile(config, filePath, markdown, message, sha);
 }
 
 /**
@@ -336,10 +385,12 @@ export async function deleteSessionOnGitHub(
       branch,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
-      message: `GitHub delete failed: ${errorMessage}`,
+      message: getActionableGitHubErrorMessage(
+        `GitHub session delete for ${session.id}`,
+        error
+      ),
     };
   }
 }
@@ -387,10 +438,12 @@ export async function deleteSessionOnGitHubById(
       branch,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
-      message: `GitHub delete failed: ${errorMessage}`,
+      message: getActionableGitHubErrorMessage(
+        `GitHub session delete for ${sessionId}`,
+        error
+      ),
     };
   }
 }
@@ -439,10 +492,9 @@ Each session includes:
       sha
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
-      message: `Failed to create README: ${errorMessage}`,
+      message: getActionableGitHubErrorMessage('GitHub README update', error),
     };
   }
 }
