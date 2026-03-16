@@ -4,17 +4,25 @@ import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
+const CREATE_SESSION_MAX_RETRIES = 5;
+
+function sanitizeSessionId(sessionId: string): string {
+  return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+}
 
 /**
  * Get the file path for a session based on its date
  * Format: data/YYYY/MM/YYYYMMDD-matmetrics.md
- * If multiple sessions on same day, use counter: YYYYMMDD-matmetrics-01.md
+ * Preferred format includes session ID: YYYYMMDD-matmetrics-<sessionId>.md
+ * Legacy counter format remains supported: YYYYMMDD-matmetrics-01.md
  */
-export function getSessionFilePath(date: string, counter?: number): string {
+export function getSessionFilePath(date: string, counter?: number, sessionId?: string): string {
   const [year, month, day] = date.split('-');
-  const baseName = `${year}${month}${day}-matmetrics${
-    counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
-  }.md`;
+  const baseName = sessionId
+    ? `${year}${month}${day}-matmetrics-${sanitizeSessionId(sessionId)}.md`
+    : `${year}${month}${day}-matmetrics${
+        counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
+      }.md`;
   return path.join(DATA_DIR, year, month, baseName);
 }
 
@@ -132,7 +140,7 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
 
 /**
  * Create a new session file
- * Auto-increments counter if needed for multiple sessions on same day
+ * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
   const dirPath = path.join(DATA_DIR, session.date.slice(0, 4), session.date.slice(5, 7));
@@ -140,14 +148,29 @@ export async function createSession(session: JudoSession): Promise<string> {
   // Ensure directory exists
   await fs.mkdir(dirPath, { recursive: true });
 
-  // Check if this is the first session on this day, or if we need a counter
-  const counter = await getNextCounter(session.date);
-  const filePath = getSessionFilePath(session.date, counter > 1 ? counter : undefined);
-
   const markdown = sessionToMarkdown(session);
-  await fs.writeFile(filePath, markdown, 'utf-8');
 
-  return filePath;
+  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
+  for (let attempt = 0; attempt < CREATE_SESSION_MAX_RETRIES; attempt += 1) {
+    const sessionIdSuffix = attempt === 0
+      ? session.id
+      : `${session.id}-${String(attempt).padStart(2, '0')}`;
+    const filePath = getSessionFilePath(session.date, undefined, sessionIdSuffix);
+
+    try {
+      await fs.writeFile(filePath, markdown, { encoding: 'utf-8', flag: 'wx' });
+      return filePath;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw new Error(
+    `Failed to allocate a unique session file path after ${CREATE_SESSION_MAX_RETRIES} attempts for session ${session.id}`
+  );
 }
 
 /**
