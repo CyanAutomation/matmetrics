@@ -216,6 +216,7 @@ Finishes at file end with Z`;
 
   const parsedNoTrailingNewline = markdownToSession(baseMarkdown);
   if (
+    parsedNoTrailingNewline.techniques.length === 0 ||
     parsedNoTrailingNewline.techniques[0] !== 'O soto gari' ||
     parsedNoTrailingNewline.description !== 'Includes the letter Z in the middle of content.' ||
     parsedNoTrailingNewline.notes !== 'Finishes at file end with Z'
