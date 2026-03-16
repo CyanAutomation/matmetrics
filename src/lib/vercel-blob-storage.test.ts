@@ -187,8 +187,46 @@ async function runRegression() {
   }
 }
 
+async function runConcurrentIndexMutationRegression() {
+  const { deps, blobs } = createInMemoryBlobDeps();
+  __setBlobStorageDepsForTests(deps as any);
+
+  try {
+    const firstSession: JudoSession = {
+      id: 'parallel-a',
+      date: '2025-04-01',
+      duration: 45,
+      effort: 2,
+      category: 'Technical',
+      notes: 'first parallel write',
+      techniques: [],
+    };
+    const secondSession: JudoSession = {
+      id: 'parallel-b',
+      date: '2025-04-02',
+      duration: 50,
+      effort: 3,
+      category: 'Technical',
+      notes: 'second parallel write',
+      techniques: [],
+    };
+
+    await Promise.all([createSession(firstSession), createSession(secondSession)]);
+
+    const indexBlob = blobs.get('sessions/_index/session-id-paths.json');
+    assert.ok(indexBlob, 'index blob should exist after parallel session writes');
+
+    const parsedIndex = JSON.parse(indexBlob.body) as Record<string, string>;
+    assert.equal(parsedIndex[firstSession.id], getSessionBlobPath(firstSession.date, undefined, firstSession.id));
+    assert.equal(parsedIndex[secondSession.id], getSessionBlobPath(secondSession.date, undefined, secondSession.id));
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 runDisabledGuardChecks()
   .then(() => runRegression())
+  .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
   .catch((err) => {
     console.error('Regression test failed:', err);
