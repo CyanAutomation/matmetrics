@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSessions } from '@/lib/file-storage';
+import { listSessions } from '@/lib/vercel-blob-storage';
 
 /**
  * GET /api/sessions/list
