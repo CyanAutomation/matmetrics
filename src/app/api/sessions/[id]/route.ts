@@ -4,6 +4,18 @@ import { markdownToSession, sessionToMarkdown } from '@/lib/markdown-serializer'
 import { updateSessionOnGitHub, deleteSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
+function isSessionNotFoundError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return /Session with ID .* not found/.test(error.message);
+  }
+
+  if (typeof error === 'string') {
+    return /Session with ID .* not found/.test(error);
+  }
+
+  return false;
+}
+
 /**
  * GET /api/sessions/[id]
  * Retrieve a specific session by ID
@@ -121,6 +133,13 @@ export async function PUT(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    if (isSessionNotFoundError(error)) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
     console.error('Error updating session', error);
     return NextResponse.json(
       { error: 'Failed to update session' },
@@ -168,6 +187,13 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
+    if (isSessionNotFoundError(error)) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
     console.error('Error deleting session', error);
     return NextResponse.json(
       { error: 'Failed to delete session' },
