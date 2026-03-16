@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession, findSessionFileById } from '@/lib/vercel-blob-storage';
+import { createSession } from '@/lib/vercel-blob-storage';
 import { createSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
@@ -58,13 +58,8 @@ export async function POST(request: NextRequest) {
       ...(body.duration !== undefined && { duration: body.duration }),
     };
 
-    // Idempotency: if the session already exists, return success with the same session payload.
-    const existingSessionPath = await findSessionFileById(session.id);
-    if (existingSessionPath) {
-      return NextResponse.json(session, { status: 200 });
-    }
-
     // Save to Vercel Blob (primary storage)
+    // Duplicate IDs are handled idempotently inside createSession.
     await createSession(session);
 
     // Attempt GitHub sync (best-effort, don't fail if error)
