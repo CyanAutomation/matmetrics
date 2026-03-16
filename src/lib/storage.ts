@@ -88,7 +88,7 @@ export function getSessions(): JudoSession[] {
   if (sessionCache !== null) {
     // Refresh from API in the background if online
     if (isOnline) {
-      refreshSessionsFromAPI();
+      void refreshSessionsFromAPI();
     }
     return sessionCache;
   }
@@ -106,7 +106,7 @@ export function getSessions(): JudoSession[] {
   sessionCache = cached;
 
   // Refresh from API in background
-  refreshSessionsFromAPI();
+  void refreshSessionsFromAPI();
 
   return cached;
 }
@@ -453,12 +453,16 @@ function updateLocalStorageCache(sessions: JudoSession[]): void {
 
 function handleOnline(): void {
   isOnline = true;
-  // Sync pending operations when coming back online
+
+  // Sync pending operations when coming back online.
+  // The sync flow already refreshes sessions after queue flush.
   if (hasPendingOperations()) {
-    syncPendingOperations();
+    void syncPendingOperations();
+    return;
   }
-  // Also refresh sessions from API
-  refreshSessionsFromAPI();
+
+  // No pending operations, so refresh immediately.
+  void refreshSessionsFromAPI();
 }
 
 function handleOffline(): void {
@@ -480,30 +484,28 @@ function handleStorageEvent(event: StorageEvent): void {
   }
 }
 
-function refreshSessionsFromAPI(): void {
+async function refreshSessionsFromAPI(): Promise<void> {
   if (typeof window === "undefined" || !isOnline) return;
 
   const seq = ++refreshSeq;
 
-  fetch("/api/sessions/list")
-    .then(res => {
-      if (!res.ok) throw new Error("Failed to fetch sessions");
-      return res.json();
-    })
-    .then((sessions: JudoSession[]) => {
-      if (seq < latestAppliedSeq) {
-        return;
-      }
+  try {
+    const res = await fetch("/api/sessions/list");
+    if (!res.ok) throw new Error("Failed to fetch sessions");
 
-      latestAppliedSeq = seq;
-      sessionCache = sessions;
-      updateLocalStorageCache(sessions);
-      // Notify listeners (components) of the update
-      window.dispatchEvent(new CustomEvent("storageSync", { detail: { sessions } }));
-    })
-    .catch(error => {
-      console.error("Error refreshing sessions from API", error);
-    });
+    const sessions: JudoSession[] = await res.json();
+    if (seq < latestAppliedSeq) {
+      return;
+    }
+
+    latestAppliedSeq = seq;
+    sessionCache = sessions;
+    updateLocalStorageCache(sessions);
+    // Notify listeners (components) of the update
+    window.dispatchEvent(new CustomEvent("storageSync", { detail: { sessions } }));
+  } catch (error) {
+    console.error("Error refreshing sessions from API", error);
+  }
 }
 
 async function syncPendingOperations(): Promise<void> {
