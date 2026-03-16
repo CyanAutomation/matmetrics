@@ -316,8 +316,15 @@ export async function updateSessionOnGitHub(
     const sha = await getFileSha(config.owner, config.repo, filePath, branch);
 
     if (!sha) {
-      // File doesn't exist, create it
-      return createSessionOnGitHub(session, config);
+      // File doesn't exist, return result directly to preserve error context
+      const result = await createSessionOnGitHub(session, config);
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message.replace('GitHub sync failed', 'GitHub session update'),
+        };
+      }
+      return result;
     }
 
     const message = `Update session: ${session.date}`;
