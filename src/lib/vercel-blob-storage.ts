@@ -23,6 +23,30 @@ let blobStorageDeps: BlobStorageDeps = {
 
 let sessionPathIndexCache: Record<string, string> | null = null;
 
+export class BlobStorageDisabledError extends Error {
+  readonly code = 'BLOB_STORAGE_DISABLED';
+
+  constructor(message = 'Vercel Blob storage is disabled') {
+    super(message);
+    this.name = 'BlobStorageDisabledError';
+  }
+}
+
+export function isBlobStorageEnabled(): boolean {
+  const rawValue = process.env.ENABLE_VERCEL_BLOB;
+  if (!rawValue) {
+    return true;
+  }
+
+  return !['0', 'false', 'off', 'no'].includes(rawValue.trim().toLowerCase());
+}
+
+function assertBlobStorageEnabled(): void {
+  if (!isBlobStorageEnabled()) {
+    throw new BlobStorageDisabledError();
+  }
+}
+
 export function __setBlobStorageDepsForTests(overrides: Partial<BlobStorageDeps>): void {
   blobStorageDeps = { ...blobStorageDeps, ...overrides };
 }
@@ -148,6 +172,8 @@ export function extractDateFromPath(blobPath: string): string | null {
  * Used when creating multiple sessions on the same day
  */
 export async function getNextCounter(date: string): Promise<number> {
+  assertBlobStorageEnabled();
+
   const [year, month] = date.split('-');
   const prefix = `${BLOB_FOLDER}/${year}/${month}/${date.replace(/-/g, '')}`;
 
@@ -185,6 +211,8 @@ export async function getNextCounter(date: string): Promise<number> {
  * Returns sessions sorted by date (newest first)
  */
 export async function listSessions(): Promise<JudoSession[]> {
+  assertBlobStorageEnabled();
+
   try {
     const sessions: JudoSession[] = [];
     const { blobs } = await blobStorageDeps.list({
@@ -218,6 +246,8 @@ export async function listSessions(): Promise<JudoSession[]> {
  * Read a single session by date and optional counter
  */
 export async function readSession(date: string, counter?: number): Promise<JudoSession | null> {
+  assertBlobStorageEnabled();
+
   try {
     const blobPath = getSessionBlobPath(date, counter);
     const blob = await blobStorageDeps.head(blobPath);
@@ -238,6 +268,8 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
+  assertBlobStorageEnabled();
+
   if (!session.id || typeof session.id !== 'string') {
     throw new Error('Session ID is required and must be a non-empty string');
   }
@@ -272,6 +304,8 @@ export async function createSession(session: JudoSession): Promise<string> {
 }
 
 export async function sessionBlobExists(blobPath: string): Promise<boolean> {
+  assertBlobStorageEnabled();
+
   try {
     await blobStorageDeps.head(blobPath);
     return true;
@@ -288,6 +322,8 @@ export async function sessionBlobExists(blobPath: string): Promise<boolean> {
  * Returns the blob path where it was written
  */
 export async function updateSession(session: JudoSession): Promise<string> {
+  assertBlobStorageEnabled();
+
   // Find the session by ID
   const blobPath = await findSessionFileById(session.id);
   if (!blobPath) {
@@ -313,6 +349,8 @@ export async function updateSession(session: JudoSession): Promise<string> {
  * Delete a session by ID
  */
 export async function deleteSession(id: string): Promise<void> {
+  assertBlobStorageEnabled();
+
   const blobPath = await findSessionFileById(id);
   if (!blobPath) {
     throw new Error(`Session with ID ${id} not found`);
@@ -332,6 +370,8 @@ export async function deleteSession(id: string): Promise<void> {
  * Returns null if not found
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
+  assertBlobStorageEnabled();
+
   try {
     const sanitizedId = sanitizeSessionId(id);
     const suffix = `-${sanitizedId}.md`;
@@ -407,6 +447,8 @@ export async function findSessionFileById(id: string): Promise<string | null> {
  * Useful for determining if migration is needed
  */
 export async function hasAnySessions(): Promise<boolean> {
+  assertBlobStorageEnabled();
+
   try {
     const { blobs } = await blobStorageDeps.list({
       prefix: BLOB_FOLDER,
