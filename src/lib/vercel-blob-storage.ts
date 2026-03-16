@@ -71,7 +71,7 @@ async function persistSessionPathIndex(index: Record<string, string>): Promise<v
   try {
     await blobStorageDeps.put(SESSION_ID_INDEX_PATH, JSON.stringify(index), {
       contentType: 'application/json',
-      access: 'public',
+      access: 'private',
       allowOverwrite: true,
     });
   } catch (e) {
