@@ -8,12 +8,17 @@ import {
   getPendingOperationCount,
   hasPendingOperations,
   setQueue,
+  SYNC_QUEUE_KEY,
 } from "./sync-queue";
 
 const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
 const MIGRATION_DONE_KEY = "matmetrics_migration_done";
 const GITHUB_CONFIG_KEY = "matmetrics_github_config";
+
+function isStorageEventForKey(event: StorageEvent, key: string): boolean {
+  return event.storageArea === localStorage && event.key === key;
+}
 
 const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
 
@@ -43,6 +48,7 @@ export function initializeStorage(): void {
   if (!listenersInitialized) {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("storage", handleStorageEvent);
     listenersInitialized = true;
   }
 
@@ -66,6 +72,7 @@ export function teardownStorageListeners(): void {
 
   window.removeEventListener("online", handleOnline);
   window.removeEventListener("offline", handleOffline);
+  window.removeEventListener("storage", handleStorageEvent);
   listenersInitialized = false;
 }
 
@@ -446,6 +453,21 @@ function handleOffline(): void {
   isOnline = false;
 }
 
+function handleStorageEvent(event: StorageEvent): void {
+  if (typeof window === "undefined") return;
+
+  if (isStorageEventForKey(event, STORAGE_KEY)) {
+    const latestSessions = getLocalStorageCache();
+    sessionCache = latestSessions;
+    window.dispatchEvent(new CustomEvent("storageSync", { detail: { sessions: latestSessions } }));
+    return;
+  }
+
+  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations()) {
+    void syncPendingOperations();
+  }
+}
+
 function refreshSessionsFromAPI(): void {
   if (typeof window === "undefined" || !isOnline) return;
 
@@ -527,13 +549,13 @@ async function syncPendingOperations(): Promise<void> {
         console.error("Error syncing operation", error);
         // Stop syncing on first error; retries must include the failed operation to avoid data loss.
         const remainingOperations = queue.slice(index);
-        setQueue(remainingOperations);
+        setQueue(remainingOperations, queue);
         return;
       }
     }
 
     // If all operations succeeded, clear the queue
-    clearQueue();
+    clearQueue(queue);
 
     // Refresh sessions from API to ensure cache is up-to-date
     await refreshSessionsFromAPI();
