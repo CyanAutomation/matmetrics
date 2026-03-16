@@ -154,10 +154,18 @@ export function updateSession(session: JudoSession): void {
   if (typeof window === "undefined") return;
 
   // Update local cache immediately
-  sessionCache = sessionCache
-    ? sessionCache.map(s => (s.id === session.id ? session : s))
-    : [session];
-  updateLocalStorageCache(sessionCache);
+  const base = sessionCache ?? getLocalStorageCache();
+  const hasMatch = base.some(s => s.id === session.id);
+  const updated = hasMatch
+    ? base.map(s => (s.id === session.id ? session : s))
+    : base;
+
+  if (!hasMatch) {
+    console.warn(`Session ${session.id} not found in cache. Skipping local update.`);
+  }
+
+  updateLocalStorageCache(updated);
+  sessionCache = updated;
 
   if (isOnline) {
     // Send to API with GitHub config if available
