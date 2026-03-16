@@ -6,6 +6,9 @@ const BLOB_FOLDER = 'sessions';
 const CREATE_SESSION_MAX_RETRIES = 5;
 
 function sanitizeSessionId(sessionId: string): string {
+  if (sessionId.length > 100) {
+    throw new Error('Session ID exceeds maximum allowed length of 100 characters');
+  }
   return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
 
