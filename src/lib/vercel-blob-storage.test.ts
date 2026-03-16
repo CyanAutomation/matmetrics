@@ -1,0 +1,105 @@
+import assert from 'node:assert/strict';
+import {
+  __resetBlobStorageDepsForTests,
+  __setBlobStorageDepsForTests,
+  createSession,
+  deleteSession,
+  findSessionFileById,
+  getSessionBlobPath,
+  updateSession,
+} from './vercel-blob-storage';
+import type { JudoSession } from './types';
+
+type BlobRecord = {
+  pathname: string;
+  url: string;
+  body: string;
+};
+
+function createInMemoryBlobDeps() {
+  const blobs = new Map<string, BlobRecord>();
+
+  const toUrl = (pathname: string) => `https://blob.local/${pathname}`;
+
+  const deps = {
+    put: async (pathname: string, body: any, _opts: any) => {
+      blobs.set(pathname, { pathname, url: toUrl(pathname), body: String(body) });
+      return { url: toUrl(pathname), pathname, contentType: 'text/markdown' } as any;
+    },
+    del: async (pathname: string) => {
+      if (!blobs.has(pathname)) {
+        const err = new Error('not found') as Error & { code?: string };
+        err.code = 'BLOB_NOT_FOUND';
+        throw err;
+      }
+      blobs.delete(pathname);
+    },
+    list: async ({ prefix = '', limit = 10000 }: { prefix?: string; limit?: number }) => {
+      const result = [...blobs.values()]
+        .filter(blob => blob.pathname.startsWith(prefix))
+        .slice(0, limit)
+        .map(blob => ({ pathname: blob.pathname, url: blob.url }));
+      return { blobs: result } as any;
+    },
+    head: async (pathname: string) => {
+      const blob = blobs.get(pathname);
+      if (!blob) {
+        const err = new Error('not found') as Error & { code?: string };
+        err.code = 'BLOB_NOT_FOUND';
+        throw err;
+      }
+      return { url: blob.url } as any;
+    },
+    fetch: async (url: string | URL | Request): Promise<Response> => {
+      const urlText = String(url);
+      const blob = [...blobs.values()].find(value => value.url === urlText);
+      if (!blob) return new Response('', { status: 404 });
+      return new Response(blob.body, { status: 200 });
+    },
+  };
+
+  return { deps, blobs };
+}
+
+function makeSession(date: string): JudoSession {
+  return {
+    id: 'session-date-move',
+    date,
+    duration: 60,
+    effort: 3,
+    category: 'Technical',
+    notes: 'test',
+    techniques: [],
+  };
+}
+
+async function runRegression() {
+  const { deps, blobs } = createInMemoryBlobDeps();
+  __setBlobStorageDepsForTests(deps as any);
+
+  try {
+    const sessionA = makeSession('2025-01-10');
+    const pathA = await createSession(sessionA);
+    assert.equal(pathA, getSessionBlobPath('2025-01-10', undefined, sessionA.id));
+    assert.ok(blobs.has(pathA));
+
+    const sessionB = { ...sessionA, date: '2025-02-15' };
+    const updatedPathFirst = await updateSession(sessionB);
+    assert.equal(updatedPathFirst, pathA);
+
+    const foundAfterFirstDateChange = await findSessionFileById(sessionA.id);
+    assert.equal(foundAfterFirstDateChange, pathA);
+
+    const sessionC = { ...sessionB, date: '2025-03-20', notes: 'updated again' };
+    const updatedPathSecond = await updateSession(sessionC);
+    assert.equal(updatedPathSecond, pathA);
+
+    await deleteSession(sessionA.id);
+    assert.equal(await findSessionFileById(sessionA.id), null);
+    assert.equal(blobs.size, 0);
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
+runRegression();

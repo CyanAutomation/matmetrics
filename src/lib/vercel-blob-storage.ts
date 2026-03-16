@@ -4,6 +4,30 @@ import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const BLOB_FOLDER = 'sessions';
 
+type BlobStorageDeps = {
+  put: typeof put;
+  del: typeof del;
+  list: typeof list;
+  head: typeof head;
+  fetch: typeof fetch;
+};
+
+let blobStorageDeps: BlobStorageDeps = {
+  put,
+  del,
+  list,
+  head,
+  fetch,
+};
+
+export function __setBlobStorageDepsForTests(overrides: Partial<BlobStorageDeps>): void {
+  blobStorageDeps = { ...blobStorageDeps, ...overrides };
+}
+
+export function __resetBlobStorageDepsForTests(): void {
+  blobStorageDeps = { put, del, list, head, fetch };
+}
+
 function sanitizeSessionId(sessionId: string): string {
   if (sessionId.length > 100) {
     throw new Error('Session ID exceeds maximum allowed length of 100 characters');
@@ -51,7 +75,7 @@ export async function getNextCounter(date: string): Promise<number> {
   const prefix = `${BLOB_FOLDER}/${year}/${month}/${date.replace(/-/g, '')}`;
 
   try {
-    const { blobs } = await list({
+    const { blobs } = await blobStorageDeps.list({
       prefix,
       limit: 1000,
     });
@@ -86,7 +110,7 @@ export async function getNextCounter(date: string): Promise<number> {
 export async function listSessions(): Promise<JudoSession[]> {
   try {
     const sessions: JudoSession[] = [];
-    const { blobs } = await list({
+    const { blobs } = await blobStorageDeps.list({
       prefix: BLOB_FOLDER,
       limit: 10000, // Adjust if you have more sessions
     });
@@ -95,7 +119,7 @@ export async function listSessions(): Promise<JudoSession[]> {
       if (!blob.pathname.endsWith('.md')) continue;
 
       try {
-        const response = await fetch(blob.url);
+        const response = await blobStorageDeps.fetch(blob.url);
         const markdown = await response.text();
         const session = markdownToSession(markdown);
         sessions.push(session);
@@ -119,9 +143,9 @@ export async function listSessions(): Promise<JudoSession[]> {
 export async function readSession(date: string, counter?: number): Promise<JudoSession | null> {
   try {
     const blobPath = getSessionBlobPath(date, counter);
-    const blob = await head(blobPath);
+    const blob = await blobStorageDeps.head(blobPath);
 
-    const response = await fetch(blob.url);
+    const response = await blobStorageDeps.fetch(blob.url);
     const markdown = await response.text();
     return markdownToSession(markdown);
   } catch (e) {
@@ -151,7 +175,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   try {
-    await put(blobPath, markdown, {
+    await blobStorageDeps.put(blobPath, markdown, {
       contentType: 'text/markdown',
       access: 'public',
       allowOverwrite: false,
@@ -170,7 +194,7 @@ export async function createSession(session: JudoSession): Promise<string> {
 
 export async function sessionBlobExists(blobPath: string): Promise<boolean> {
   try {
-    await head(blobPath);
+    await blobStorageDeps.head(blobPath);
     return true;
   } catch (e) {
     if ((e as any).code === 'BLOB_NOT_FOUND') {
@@ -194,7 +218,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   try {
-    await put(blobPath, markdown, {
+    await blobStorageDeps.put(blobPath, markdown, {
       contentType: 'text/markdown',
       access: 'public',
     });
@@ -215,7 +239,7 @@ export async function deleteSession(id: string): Promise<void> {
   }
 
   try {
-    await del(blobPath);
+    await blobStorageDeps.del(blobPath);
   } catch (e) {
     console.error(`Failed to delete session at ${blobPath}`, e);
     throw e;
@@ -228,25 +252,25 @@ export async function deleteSession(id: string): Promise<void> {
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
   try {
-    const sessions = await listSessions();
-    const session = sessions.find(s => s.id === id);
-    if (!session) return null;
-
-    // Construct the likely blob path based on the session date
-    const [year, month] = session.date.split('-');
-    const prefix = `${BLOB_FOLDER}/${year}/${month}`;
+    const sanitizedId = sanitizeSessionId(id);
+    const suffix = `-${sanitizedId}.md`;
 
     try {
-      const { blobs } = await list({
-        prefix,
-        limit: 1000,
+      const { blobs } = await blobStorageDeps.list({
+        prefix: `${BLOB_FOLDER}/`,
+        limit: 10000,
       });
+
+      const directMatch = blobs.find(blob => blob.pathname.endsWith(suffix));
+      if (directMatch) {
+        return directMatch.pathname;
+      }
 
       for (const blob of blobs) {
         if (!blob.pathname.endsWith('.md')) continue;
 
         try {
-          const response = await fetch(blob.url);
+          const response = await blobStorageDeps.fetch(blob.url);
           const markdown = await response.text();
           const parsedSession = markdownToSession(markdown);
           if (parsedSession.id === id) {
@@ -257,7 +281,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         }
       }
     } catch (e) {
-      console.error(`Error listing blobs with prefix ${prefix}`, e);
+      console.error(`Error listing blobs with prefix ${BLOB_FOLDER}/`, e);
     }
 
     return null;
@@ -273,7 +297,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
  */
 export async function hasAnySessions(): Promise<boolean> {
   try {
-    const { blobs } = await list({
+    const { blobs } = await blobStorageDeps.list({
       prefix: BLOB_FOLDER,
       limit: 1,
     });
