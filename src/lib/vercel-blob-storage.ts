@@ -70,7 +70,8 @@ async function loadSessionPathIndex(): Promise<Record<string, string>> {
 }
 
 async function persistSessionPathIndex(index: Record<string, string>): Promise<void> {
-  sessionPathIndexCache = index;
+  const previousCache = sessionPathIndexCache;
+  sessionPathIndexCache = { ...index };
 
   try {
     await blobStorageDeps.put(SESSION_ID_INDEX_PATH, JSON.stringify(index), {
@@ -79,7 +80,9 @@ async function persistSessionPathIndex(index: Record<string, string>): Promise<v
       allowOverwrite: true,
     });
   } catch (e) {
+    sessionPathIndexCache = previousCache;
     console.error('Failed persisting session path index', e);
+    throw e;
   }
 }
 
@@ -341,7 +344,12 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         return indexedPath;
       } catch (e) {
         if ((e as any).code === 'BLOB_NOT_FOUND') {
-          await removeSessionPathIndexEntry(id);
+          delete index[id];
+          try {
+            await persistSessionPathIndex(index);
+          } catch (persistError) {
+            console.error(`Failed removing stale indexed path for session ${id}`, persistError);
+          }
         } else {
           console.error(`Error validating indexed path for session ${id}`, e);
         }
@@ -356,7 +364,11 @@ export async function findSessionFileById(id: string): Promise<string | null> {
 
       const directMatch = blobs.find(blob => blob.pathname.endsWith(suffix));
       if (directMatch) {
-        await setSessionPathIndexEntry(id, directMatch.pathname);
+        try {
+          await setSessionPathIndexEntry(id, directMatch.pathname);
+        } catch (indexError) {
+          console.error(`Failed caching indexed path for session ${id}`, indexError);
+        }
         return directMatch.pathname;
       }
 
@@ -368,7 +380,11 @@ export async function findSessionFileById(id: string): Promise<string | null> {
           const markdown = await response.text();
           const parsedSession = markdownToSession(markdown);
           if (parsedSession.id === id) {
-            await setSessionPathIndexEntry(id, blob.pathname);
+            try {
+              await setSessionPathIndexEntry(id, blob.pathname);
+            } catch (indexError) {
+              console.error(`Failed caching indexed path for session ${id}`, indexError);
+            }
             return blob.pathname;
           }
         } catch (e) {
