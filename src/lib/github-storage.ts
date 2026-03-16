@@ -117,14 +117,9 @@ async function listDirectoryContents(
 
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    if (
-      error instanceof GitHubApiError &&
-      (error.status === 401 || error.status === 403 || error.status !== 404)
-    ) {
+    if (error instanceof GitHubApiError && error.status !== 404) {
       throw error;
     }
-
-    return [];
 
     return [];
   }
@@ -139,13 +134,23 @@ export async function findSessionPathOnGitHubById(
 ): Promise<string | null> {
   const fileSuffix = `-matmetrics-${sessionId}.md`;
   const years = await listDirectoryContents(config.owner, config.repo, 'sessions');
+  const yearPaths: string[] = [];
+
+  for (const year of years) {
+    if (year.type === 'dir' && /^\d{4}$/.test(year.name)) {
+      yearPaths.push(year.path);
+    }
+  }
+
+  const monthContents = await Promise.all(
+    yearPaths.map((yearPath) =>
+      listDirectoryContents(config.owner, config.repo, yearPath)
+    )
+  );
 
   const monthPaths: string[] = [];
 
-  for (const year of years) {
-    if (year.type !== 'dir' || !/^\d{4}$/.test(year.name)) continue;
-
-    const months = await listDirectoryContents(config.owner, config.repo, year.path);
+  for (const months of monthContents) {
     for (const month of months) {
       if (month.type === 'dir' && /^\d{2}$/.test(month.name)) {
         monthPaths.push(month.path);
