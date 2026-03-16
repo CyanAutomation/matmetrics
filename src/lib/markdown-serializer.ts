@@ -118,12 +118,9 @@ export function markdownToSession(markdown: string): JudoSession {
  * Extract techniques list from markdown content (## Techniques Practiced section)
  */
 function extractTechniques(content: string): string[] {
-  const techniquesMatch = content.match(
-    /## Techniques Practiced\n([\s\S]*?)(?=## |\Z)/
-  );
-  if (!techniquesMatch) return [];
+  const techniqueText = extractSectionContent(content, 'Techniques Practiced');
+  if (!techniqueText) return [];
 
-  const techniqueText = techniquesMatch[1];
   const lines = techniqueText.split('\n');
   const techniques: string[] = [];
 
@@ -147,17 +144,25 @@ function extractTechniques(content: string): string[] {
 function extractContentSections(
   content: string
 ): { description: string | undefined; notes: string | undefined } {
-  const descriptionMatch = content.match(
-    /## Session Description\n\n([\s\S]*?)(?=## |\Z)/
-  );
-  const notesMatch = content.match(/## Notes\n\n([\s\S]*?)$/);
-
-  const description = descriptionMatch
-    ? descriptionMatch[1].trim()
-    : undefined;
-  const notes = notesMatch ? notesMatch[1].trim() : undefined;
+  const description = extractSectionContent(content, 'Session Description')?.trim();
+  const notes = extractSectionContent(content, 'Notes')?.trim();
 
   return { description, notes };
+}
+
+/**
+ * Extract section body content for a markdown heading.
+ * Handles optional blank line after heading and end-of-file boundaries
+ * with or without trailing newlines.
+ */
+function extractSectionContent(content: string, heading: string): string | undefined {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionRegex = new RegExp(
+    `## ${escapedHeading}\\n(?:\\n)?([\\s\\S]*?)(?=\\n## |\\s*$)`
+  );
+
+  const match = content.match(sectionRegex);
+  return match ? match[1].trimEnd() : undefined;
 }
 
 /**
@@ -183,6 +188,57 @@ export function validateRoundtrip(session: JudoSession): boolean {
   } catch (e) {
     return false;
   }
+}
+
+/**
+ * Local parser validation helper for edge cases that have broken in production.
+ */
+export function validateMarkdownParserEdgeCases(): boolean {
+  const baseMarkdown = `---
+id: "edge-1"
+date: "2026-03-16"
+effort: 3
+category: "Technical"
+---
+
+# March 16, 2026 – Judo Session
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+Includes the letter Z in the middle of content.
+
+## Notes
+
+Finishes at file end with Z`;
+
+  const parsedNoTrailingNewline = markdownToSession(baseMarkdown);
+  if (
+    parsedNoTrailingNewline.techniques[0] !== 'O soto gari' ||
+    parsedNoTrailingNewline.description !== 'Includes the letter Z in the middle of content.' ||
+    parsedNoTrailingNewline.notes !== 'Finishes at file end with Z'
+  ) {
+    return false;
+  }
+
+  const parsedWithTrailingNewline = markdownToSession(`${baseMarkdown}\n`);
+  if (parsedWithTrailingNewline.notes !== 'Finishes at file end with Z') {
+    return false;
+  }
+
+  const roundtripSession: JudoSession = {
+    id: 'edge-roundtrip',
+    date: '2026-03-17',
+    effort: 4,
+    category: 'Technical',
+    techniques: ['Uchi mata', 'Tai otoshi'],
+    description: 'Roundtrip description with Z marker',
+    notes: 'Roundtrip notes ending at file end Z',
+  };
+
+  return validateRoundtrip(roundtripSession);
 }
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
