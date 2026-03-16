@@ -19,6 +19,13 @@ interface GitHubContentItem {
   type: 'file' | 'dir' | 'symlink' | 'submodule';
 }
 
+class GitHubApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'GitHubApiError';
+  }
+}
+
 /**
  * Get the file path for a session in GitHub
  * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
@@ -62,9 +69,15 @@ async function githubApiRequest(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      `GitHub API error ${response.status}: ${errorData.message || response.statusText}`
+    const errorData = await response.json().catch(() => null);
+    const errorMessage =
+      errorData && typeof errorData.message === 'string'
+        ? errorData.message
+        : response.statusText;
+
+    throw new GitHubApiError(
+      `GitHub API error ${response.status}: ${errorMessage}`,
+      response.status
     );
   }
 
@@ -104,11 +117,16 @@ async function listDirectoryContents(
 
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    if (error instanceof Error && error.message.includes('rate limit')) {
+    if (
+      error instanceof GitHubApiError &&
+      (error.status === 401 || error.status === 403 || error.status !== 404)
+    ) {
       throw error;
     }
+
     return [];
-  }
+
+    return [];
   }
 }
 
@@ -122,21 +140,32 @@ export async function findSessionPathOnGitHubById(
   const fileSuffix = `-matmetrics-${sessionId}.md`;
   const years = await listDirectoryContents(config.owner, config.repo, 'sessions');
 
+  const monthPaths: string[] = [];
+
   for (const year of years) {
     if (year.type !== 'dir' || !/^\d{4}$/.test(year.name)) continue;
 
     const months = await listDirectoryContents(config.owner, config.repo, year.path);
     for (const month of months) {
-      if (month.type !== 'dir' || !/^\d{2}$/.test(month.name)) continue;
-
-      const files = await listDirectoryContents(config.owner, config.repo, month.path);
-      const match = files.find(
-        (file) => file.type === 'file' && file.name.endsWith(fileSuffix)
-      );
-
-      if (match) {
-        return match.path;
+      if (month.type === 'dir' && /^\d{2}$/.test(month.name)) {
+        monthPaths.push(month.path);
       }
+    }
+  }
+
+  const fileLists = await Promise.all(
+    monthPaths.map((monthPath) =>
+      listDirectoryContents(config.owner, config.repo, monthPath)
+    )
+  );
+
+  for (const files of fileLists) {
+    const match = files.find(
+      (file) => file.type === 'file' && file.name.endsWith(fileSuffix)
+    );
+
+    if (match) {
+      return match.path;
     }
   }
 
