@@ -40,6 +40,7 @@ export const CATEGORY_COLORS: Record<SessionCategory, string> = {
 export interface GitHubConfig {
   owner: string; // GitHub username/org
   repo: string; // Repository name
+  branch?: string; // Optional branch; defaults to repository default branch
 }
 
 /**

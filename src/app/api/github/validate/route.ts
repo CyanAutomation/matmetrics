@@ -17,14 +17,22 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const config: GitHubConfig = {
-      owner: body.owner,
-      repo: body.repo,
+      owner: typeof body.owner === 'string' ? body.owner.trim() : '',
+      repo: typeof body.repo === 'string' ? body.repo.trim() : '',
+      branch: typeof body.branch === 'string' ? body.branch.trim() : undefined,
     };
 
     // Validate config
     if (!config.owner || !config.repo) {
       return NextResponse.json(
         { success: false, message: 'Missing owner or repo' },
+        { status: 400 }
+      );
+    }
+
+    if (body.branch !== undefined && !config.branch) {
+      return NextResponse.json(
+        { success: false, message: 'Branch cannot be empty when provided' },
         { status: 400 }
       );
     }
