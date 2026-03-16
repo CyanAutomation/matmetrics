@@ -201,8 +201,10 @@ export function deleteSession(id: string): void {
   if (typeof window === "undefined") return;
 
   // Update local cache immediately
-  sessionCache = sessionCache ? sessionCache.filter(s => s.id !== id) : [];
-  updateLocalStorageCache(sessionCache);
+  const base = sessionCache ?? getLocalStorageCache();
+  const filtered = base.filter(s => s.id !== id);
+  sessionCache = filtered;
+  updateLocalStorageCache(filtered);
 
   if (isOnline) {
     // Send to API with GitHub config if available
