@@ -119,14 +119,12 @@ async function listDirectoryContents(
   } catch (error) {
     if (
       error instanceof GitHubApiError &&
-      (error.status === 401 || error.status === 403)
+      (error.status === 401 || error.status === 403 || error.status !== 404)
     ) {
       throw error;
     }
 
-    if (error instanceof GitHubApiError && error.status !== 404) {
-      throw error;
-    }
+    return [];
 
     return [];
   }
