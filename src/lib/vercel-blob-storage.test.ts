@@ -2,10 +2,17 @@ import assert from 'node:assert/strict';
 import {
   __resetBlobStorageDepsForTests,
   __setBlobStorageDepsForTests,
+  BlobStorageDisabledError,
   createSession,
   deleteSession,
   findSessionFileById,
+  getNextCounter,
   getSessionBlobPath,
+  hasAnySessions,
+  isBlobStorageEnabled,
+  listSessions,
+  readSession,
+  sessionBlobExists,
   updateSession,
 } from './vercel-blob-storage';
 import type { JudoSession } from './types';
@@ -73,6 +80,47 @@ function makeSession(date: string): JudoSession {
   };
 }
 
+
+async function runDisabledGuardChecks() {
+  const originalFlag = process.env.ENABLE_VERCEL_BLOB;
+  process.env.ENABLE_VERCEL_BLOB = 'false';
+
+  try {
+    assert.equal(isBlobStorageEnabled(), false);
+
+    const checks: Array<{
+      name: string;
+      run: () => Promise<unknown>;
+    }> = [
+      { name: 'listSessions', run: () => listSessions() },
+      { name: 'createSession', run: () => createSession(makeSession('2025-01-10')) },
+      { name: 'updateSession', run: () => updateSession(makeSession('2025-01-10')) },
+      { name: 'deleteSession', run: () => deleteSession('session-date-move') },
+      { name: 'findSessionFileById', run: () => findSessionFileById('session-date-move') },
+      { name: 'hasAnySessions', run: () => hasAnySessions() },
+      { name: 'readSession', run: () => readSession('2025-01-10') },
+      { name: 'sessionBlobExists', run: () => sessionBlobExists('sessions/2025/01/test.md') },
+      { name: 'getNextCounter', run: () => getNextCounter('2025-01-10') },
+    ];
+
+    for (const check of checks) {
+      await assert.rejects(
+        check.run,
+        (error: unknown) =>
+          error instanceof BlobStorageDisabledError &&
+          (error as BlobStorageDisabledError).code === 'BLOB_STORAGE_DISABLED',
+        `${check.name} should throw BlobStorageDisabledError when blob storage is disabled`
+      );
+    }
+  } finally {
+    if (originalFlag === undefined) {
+      delete process.env.ENABLE_VERCEL_BLOB;
+    } else {
+      process.env.ENABLE_VERCEL_BLOB = originalFlag;
+    }
+  }
+}
+
 async function runRegression() {
   const { deps, blobs } = createInMemoryBlobDeps();
   __setBlobStorageDepsForTests(deps as any);
@@ -103,7 +151,9 @@ async function runRegression() {
   }
 }
 
-runRegression().catch((err) => {
-  console.error('Regression test failed:', err);
-  process.exit(1);
-});
+runDisabledGuardChecks()
+  .then(() => runRegression())
+  .catch((err) => {
+    console.error('Regression test failed:', err);
+    process.exit(1);
+  });
