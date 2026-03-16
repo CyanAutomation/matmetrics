@@ -54,21 +54,15 @@ export function getSessions(): JudoSession[] {
 }
 
 export function saveSession(session: JudoSession) {
-  const sessions = getSessions();
-  const updated = [session, ...sessions];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  writeSessions(sessions => [session, ...sessions]);
 }
 
 export function updateSession(session: JudoSession) {
-  const sessions = getSessions();
-  const updated = sessions.map(s => s.id === session.id ? session : s);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  writeSessions(sessions => sessions.map(s => s.id === session.id ? session : s));
 }
 
 export function deleteSession(id: string) {
-  const sessions = getSessions();
-  const updated = sessions.filter(s => s.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  writeSessions(sessions => sessions.filter(s => s.id !== id));
 }
 
 export function getAllTags(): string[] {
@@ -79,24 +73,20 @@ export function getAllTags(): string[] {
 }
 
 export function renameTag(oldName: string, newName: string) {
-  const sessions = getSessions();
-  const updated = sessions.map(session => {
+  writeSessions(sessions => sessions.map(session => {
     if (session.techniques.includes(oldName)) {
       const newTechniques = session.techniques.map(t => t === oldName ? newName : t);
       return { ...session, techniques: Array.from(new Set(newTechniques)) };
     }
     return session;
-  });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  }));
 }
 
 export function deleteTag(tagName: string) {
-  const sessions = getSessions();
-  const updated = sessions.map(session => ({
+  writeSessions(sessions => sessions.map(session => ({
     ...session,
     techniques: session.techniques.filter(t => t !== tagName)
-  }));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  })));
 }
 
 export function mergeTags(sourceTag: string, targetTag: string) {
@@ -119,4 +109,27 @@ export function resetTransformerPrompt() {
 
 export function clearAllData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+}
+
+type SessionsTransformer = (sessions: JudoSession[]) => JudoSession[];
+
+function writeSessions(transformer: SessionsTransformer) {
+  if (typeof window === "undefined") return;
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  let sessions: JudoSession[];
+
+  if (!stored) {
+    sessions = SEED_DATA;
+  } else {
+    try {
+      sessions = JSON.parse(stored);
+    } catch (e) {
+      console.error("Failed to parse sessions", e);
+      sessions = [];
+    }
+  }
+
+  const updated = transformer(sessions);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
