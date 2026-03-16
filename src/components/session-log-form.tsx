@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ interface SessionLogFormProps {
 
 export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader = false }: SessionLogFormProps) {
   const { toast } = useToast();
+  const instanceId = useId();
   const isEditing = !!sessionToEdit;
   const shouldHideHeader = isEditing || hideHeader;
 
@@ -193,9 +194,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
         <CardContent className={cn("space-y-8", !shouldHideHeader ? "p-8" : "p-0")}>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2">
-              <Label htmlFor="date" className="text-sm font-semibold">Session Date</Label>
+              <Label htmlFor={`${instanceId}-date`} className="text-sm font-semibold">Session Date</Label>
               <Input 
-                id="date" 
+                id={`${instanceId}-date`} 
                 type="date" 
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
@@ -204,9 +205,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               />
             </div>
             <div className="md:col-span-3 space-y-2">
-              <Label htmlFor="category" className="text-sm font-semibold">Session Type</Label>
+              <Label htmlFor={`${instanceId}-category`} className="text-sm font-semibold">Session Type</Label>
               <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id="category" className="bg-background h-11">
+                <SelectTrigger id={`${instanceId}-category`} className="bg-background h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -225,8 +226,8 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               >
                 {[1, 2, 3, 4, 5].map((val) => (
                   <div key={val} className="flex items-center space-x-2">
-                    <RadioGroupItem value={val.toString()} id={`effort-${val}`} />
-                    <Label htmlFor={`effort-${val}`} className="cursor-pointer font-medium text-xs">
+                    <RadioGroupItem value={val.toString()} id={`${instanceId}-effort-${val}`} />
+                    <Label htmlFor={`${instanceId}-effort-${val}`} className="cursor-pointer font-medium text-xs">
                       {EFFORT_LABELS[val as EffortLevel]}
                     </Label>
                   </div>
@@ -237,7 +238,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="description" className="text-sm font-semibold">What did you practice?</Label>
+              <Label htmlFor={`${instanceId}-description`} className="text-sm font-semibold">What did you practice?</Label>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -251,7 +252,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               </Button>
             </div>
             <Textarea 
-              id="description" 
+              id={`${instanceId}-description`} 
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon-seoi-nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -311,9 +312,9 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
+            <Label htmlFor={`${instanceId}-notes`} className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
             <Textarea 
-              id="notes" 
+              id={`${instanceId}-notes`} 
               placeholder="How did you feel? Any injuries or specific focus for next time?" 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
