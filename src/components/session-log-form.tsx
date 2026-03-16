@@ -136,7 +136,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel }: SessionLo
     }
 
     const sessionData: JudoSession = {
-      id: sessionToEdit?.id || crypto.randomUUID(),
+      id: sessionToEdit?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)),
       date,
       techniques,
       effort,
