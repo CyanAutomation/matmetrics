@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findSessionFileById, updateSession, deleteSession } from '@/lib/file-storage';
+import { findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
 import { markdownToSession, sessionToMarkdown } from '@/lib/markdown-serializer';
-import { promises as fs } from 'fs';
 import { JudoSession } from '@/lib/types';
 
 /**
@@ -15,18 +14,25 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // Find the session file by ID
-    const filePath = await findSessionFileById(id);
-    if (!filePath) {
+    // Find the session by ID (this also reads the content)
+    const blobPath = await findSessionFileById(id);
+    if (!blobPath) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
       );
     }
 
-    // Read and parse the markdown file
-    const markdown = await fs.readFile(filePath, 'utf-8');
-    const session = markdownToSession(markdown);
+    // Get the session from the list since we have all sessions cached
+    const sessions = await listSessions();
+    const session = sessions.find(s => s.id === id);
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {

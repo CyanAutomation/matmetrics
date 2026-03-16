@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSession } from '@/lib/file-storage';
+import { createSession } from '@/lib/vercel-blob-storage';
 import { JudoSession } from '@/lib/types';
 
 /**

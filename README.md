@@ -19,7 +19,8 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 - **Framework**: [Next.js 15](https://nextjs.org/) with TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
-- **Backend**: [Firebase](https://firebase.google.com/) for authentication and data storage
+- **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
+- **Data Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) for persistent session files
 - **AI Integration**: [Google Genkit](https://github.com/firebase/genkit) with Google GenAI
 - **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
@@ -39,8 +40,8 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 ### Prerequisites
 
 - Node.js 18+ and npm/pnpm/yarn
-- Firebase project credentials
-- Google Genkit API access
+- Google Genkit API key (for AI-powered features)
+- Vercel account (for production deployment)
 
 ### Installation
 
@@ -59,15 +60,19 @@ npm install
 
 1. Set up environment variables:
 
-Create a `.env.local` file with your Firebase and Google Genkit credentials:
+Copy `.env.example` to `.env.local` and add your API keys:
+
+```bash
+cp .env.example .env.local
+```
+
+Then edit `.env.local` and add:
 
 ```dotenv
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+# Vercel Blob Storage - Get from Vercel dashboard
+VERCEL_BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+
+# Google Genai API - Get from https://ai.google.dev/
 GOOGLE_GENAI_API_KEY=your_genai_api_key
 ```
 
@@ -80,6 +85,36 @@ GOOGLE_GENAI_API_KEY=your_genai_api_key
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run ESLint
 - **`npm run typecheck`**: Run TypeScript type checking
+
+## Deployment
+
+### Vercel (Recommended)
+
+MatMetrics is optimized for deployment on Vercel with built-in support for Vercel Blob Storage.
+
+1. **Push to GitHub**: Ensure your code is on GitHub
+
+2. **Create Vercel Project**:
+   - Go to [vercel.com](https://vercel.com) and sign in
+   - Click "Add New" → "Project"
+   - Select your GitHub repository
+   - Click "Import"
+
+3. **Configure Environment Variables**:
+   - In the "Environment Variables" section, add:
+     - `VERCEL_BLOB_READ_WRITE_TOKEN`: Get this from your Vercel project's Storage settings
+     - `GOOGLE_GENAI_API_KEY`: Your Google Genai API key from [ai.google.dev](https://ai.google.dev/)
+
+4. **Deploy**:
+   - Click "Deploy"
+   - Vercel will automatically build and deploy your application
+
+5. **Enable Blob Storage**:
+   - Go to your project settings → Storage
+   - Click "Create" → "Blob"
+   - Copy the token to your environment variables if not already set
+
+**Data Storage**: Session data is stored in Vercel Blob Storage. Each session is saved as a markdown file and persists across deployments.
 
 ## Project Structure
 
