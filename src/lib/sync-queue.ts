@@ -38,6 +38,24 @@ export function getQueue(): SyncOperation[] {
 }
 
 /**
+ * Replace queue contents atomically (used to persist remaining operations after partial sync)
+ */
+export function setQueue(operations: SyncOperation[]): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (operations.length === 0) {
+      localStorage.removeItem(SYNC_QUEUE_KEY);
+      return;
+    }
+
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(operations));
+  } catch (e) {
+    console.error('Failed to set sync queue', e);
+  }
+}
+
+/**
  * Clear the entire sync queue (called after successful sync)
  */
 export function clearQueue(): void {
