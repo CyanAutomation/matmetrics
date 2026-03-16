@@ -22,6 +22,18 @@ let blobStorageDeps: BlobStorageDeps = {
 };
 
 let sessionPathIndexCache: Record<string, string> | null = null;
+let sessionPathIndexMutationQueue: Promise<void> = Promise.resolve();
+
+function withSessionPathIndexMutationLock<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  const runOperation = sessionPathIndexMutationQueue.then(operation, operation);
+  sessionPathIndexMutationQueue = runOperation.then(
+    () => undefined,
+    () => undefined
+  );
+  return runOperation;
+}
 
 export class BlobStorageDisabledError extends Error {
   readonly code = 'BLOB_STORAGE_DISABLED';
@@ -54,6 +66,7 @@ export function __setBlobStorageDepsForTests(overrides: Partial<BlobStorageDeps>
 export function __resetBlobStorageDepsForTests(): void {
   blobStorageDeps = { put, del, list, head, fetch };
   sessionPathIndexCache = null;
+  sessionPathIndexMutationQueue = Promise.resolve();
 }
 
 async function loadSessionPathIndex(): Promise<Record<string, string>> {
@@ -111,22 +124,26 @@ async function persistSessionPathIndex(index: Record<string, string>): Promise<v
 }
 
 async function setSessionPathIndexEntry(id: string, pathname: string): Promise<void> {
-  const index = await loadSessionPathIndex();
-  if (index[id] === pathname) {
-    return;
-  }
+  await withSessionPathIndexMutationLock(async () => {
+    const index = await loadSessionPathIndex();
+    if (index[id] === pathname) {
+      return;
+    }
 
-  await persistSessionPathIndex({ ...index, [id]: pathname });
+    await persistSessionPathIndex({ ...index, [id]: pathname });
+  });
 }
 
 async function removeSessionPathIndexEntry(id: string): Promise<void> {
-  const index = await loadSessionPathIndex();
-  if (!(id in index)) {
-    return;
-  }
+  await withSessionPathIndexMutationLock(async () => {
+    const index = await loadSessionPathIndex();
+    if (!(id in index)) {
+      return;
+    }
 
-  const { [id]: _removed, ...rest } = index;
-  await persistSessionPathIndex(rest);
+    const { [id]: _removed, ...rest } = index;
+    await persistSessionPathIndex(rest);
+  });
 }
 
 function validateSessionIdLength(sessionId: string): void {
@@ -388,9 +405,16 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         return indexedPath;
       } catch (e) {
         if ((e as any).code === 'BLOB_NOT_FOUND') {
-          delete index[id];
           try {
-            await persistSessionPathIndex(index);
+            await withSessionPathIndexMutationLock(async () => {
+              const latestIndex = await loadSessionPathIndex();
+              if (!(id in latestIndex)) {
+                return;
+              }
+
+              const { [id]: _removed, ...rest } = latestIndex;
+              await persistSessionPathIndex(rest);
+            });
           } catch (persistError) {
             console.error(`Failed removing stale indexed path for session ${id}`, persistError);
           }
