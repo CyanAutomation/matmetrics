@@ -336,7 +336,9 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         await blobStorageDeps.head(indexedPath);
         return indexedPath;
       } catch (e) {
-        if ((e as any).code !== 'BLOB_NOT_FOUND') {
+        if ((e as any).code === 'BLOB_NOT_FOUND') {
+          await removeSessionPathIndexEntry(id);
+        } else {
           console.error(`Error validating indexed path for session ${id}`, e);
         }
       }
