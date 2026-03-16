@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(session, { status: existingSessionPath ? 200 : 201 });
+    return NextResponse.json(session, { status: 201 });
   } catch (error) {
     console.error('Error creating session', error);
     return NextResponse.json(
