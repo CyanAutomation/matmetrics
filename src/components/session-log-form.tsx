@@ -27,9 +27,9 @@ interface SessionLogFormProps {
 
 export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader = false }: SessionLogFormProps) {
   const { toast } = useToast();
-  // Sanitize useId to avoid characters that might break previewer scripts and ensure uniqueness
-  const rawId = useId();
-  const instanceId = rawId.replace(/:/g, "id");
+  // Sanitizing useId to ensure alphanumeric-only IDs for compatibility with all tracking/previewer scripts
+  const baseId = useId().replace(/:/g, "id");
+  const instanceId = `form-${baseId}-`;
   
   const isEditing = !!sessionToEdit;
   const shouldHideHeader = isEditing || hideHeader;
@@ -197,12 +197,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
       )}
       <form onSubmit={handleSubmit} autoComplete="off">
         <CardContent className={cn("space-y-8", !shouldHideHeader ? "p-8" : "p-0")}>
+          {/* Harmonized Training Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2.5">
               <Label htmlFor={`${instanceId}date`} className="text-sm font-semibold block h-5">Session Date</Label>
               <Input 
                 id={`${instanceId}date`} 
-                name={`${instanceId}input_date`}
+                name={`${instanceId}date`}
                 type="date" 
                 value={date} 
                 onChange={(e) => setDate(e.target.value)}
@@ -213,7 +214,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             </div>
             <div className="md:col-span-3 space-y-2.5">
               <Label htmlFor={`${instanceId}category`} className="text-sm font-semibold block h-5">Session Type</Label>
-              <Select value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
+              <Select name={`${instanceId}category`} value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
                 <SelectTrigger id={`${instanceId}category`} className="bg-background h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -227,13 +228,13 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             <div className="md:col-span-6 space-y-2.5">
               <Label className="text-sm font-semibold block h-5">Effort Level</Label>
               <RadioGroup 
-                name={`${instanceId}input_effort`}
+                name={`${instanceId}effort`}
                 value={effort.toString()} 
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
                 className="flex items-center justify-between h-11 px-3 bg-background rounded-md border border-input"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
-                  <div key={`${instanceId}effort_item_${val}`} className="flex items-center space-x-1.5">
+                  <div key={`${instanceId}effort_${val}`} className="flex items-center space-x-1.5">
                     <RadioGroupItem value={val.toString()} id={`${instanceId}effort_radio_${val}`} />
                     <Label htmlFor={`${instanceId}effort_radio_${val}`} className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap">
                       {EFFORT_LABELS[val as EffortLevel]}
@@ -261,7 +262,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             </div>
             <Textarea 
               id={`${instanceId}description`} 
-              name={`${instanceId}input_description`}
+              name={`${instanceId}description`}
               placeholder="e.g., Practiced basic kuzushi, then moved into Ippon-seoi-nage drills..." 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -292,7 +293,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
                   </span>
                 )}
                 {techniques.map((tech) => (
-                  <Badge key={`${instanceId}badge_${tech}`} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
+                  <Badge key={`${instanceId}tech_${tech}`} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
                     {tech}
                     <button type="button" onClick={() => removeTech(tech)} className="ml-1 hover:text-destructive transition-colors">
                       <X className="h-3.5 w-3.5" />
@@ -304,7 +305,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               <div className="flex gap-2">
                 <Input 
                   id={`${instanceId}manual_tag`}
-                  name={`${instanceId}input_manual_tag`}
+                  name={`${instanceId}manual_tag`}
                   placeholder="Manual tag (e.g. O-soto-gari)" 
                   value={newTech}
                   onChange={(e) => setNewTech(e.target.value)}
@@ -328,7 +329,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             <Label htmlFor={`${instanceId}notes`} className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
             <Textarea 
               id={`${instanceId}notes`} 
-              name={`${instanceId}input_notes`}
+              name={`${instanceId}notes`}
               placeholder="How did you feel? Any injuries or specific focus for next time?" 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
