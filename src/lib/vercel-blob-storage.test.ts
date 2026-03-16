@@ -102,4 +102,7 @@ async function runRegression() {
   }
 }
 
-runRegression();
+runRegression().catch((err) => {
+  console.error('Regression test failed:', err);
+  process.exit(1);
+});
