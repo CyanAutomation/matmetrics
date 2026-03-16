@@ -36,6 +36,9 @@ export function extractDateFromPath(blobPath: string): string | null {
   const match = blobPath.match(/(\d{4})\/(\d{2})\/(\d{8})/);
   if (!match) return null;
   const [, year, month, dayStr] = match;
+  if (year.length !== 4 || month.length !== 2 || dayStr.length !== 8) {
+    return null;
+  }
   const day = dayStr.slice(6, 8);
   return `${year}-${month}-${day}`;
 }
