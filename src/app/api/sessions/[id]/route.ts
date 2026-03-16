@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
 import { markdownToSession, sessionToMarkdown } from '@/lib/markdown-serializer';
-import { JudoSession } from '@/lib/types';
+import { updateSessionOnGitHub, deleteSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
+import { JudoSession, GitHubConfig } from '@/lib/types';
 
 /**
  * GET /api/sessions/[id]
@@ -104,7 +105,19 @@ export async function PUT(
       ...(body.duration !== undefined && { duration: body.duration }),
     };
 
+    // Update in Vercel Blob (primary storage)
     await updateSession(session);
+
+    // Attempt GitHub sync (best-effort, don't fail if error)
+    const gitHubConfig = body.gitHubConfig as GitHubConfig | undefined;
+    if (gitHubConfig && isGitHubConfigured()) {
+      try {
+        await updateSessionOnGitHub(session, gitHubConfig);
+      } catch (error) {
+        // Log error but don't fail the request
+        console.warn('Failed to sync session update to GitHub:', error);
+      }
+    }
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
@@ -126,8 +139,29 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
 
+    // Delete from Vercel Blob (primary storage)
     await deleteSession(id);
+
+    // Attempt GitHub sync (best-effort, don't fail if error)
+    const gitHubConfig = body?.gitHubConfig as GitHubConfig | undefined;
+    if (gitHubConfig && isGitHubConfigured()) {
+      try {
+        // Create a minimal session object with just the ID for GitHub deletion
+        const session: JudoSession = {
+          id,
+          date: new Date().toISOString().split('T')[0],
+          effort: 3,
+          category: 'Technical',
+          techniques: [],
+        };
+        await deleteSessionOnGitHub(session, gitHubConfig);
+      } catch (error) {
+        // Log error but don't fail the request
+        console.warn('Failed to sync session deletion to GitHub:', error);
+      }
+    }
 
     return NextResponse.json(
       { message: 'Session deleted' },

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSession } from '@/lib/vercel-blob-storage';
-import { JudoSession } from '@/lib/types';
+import { createSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
+import { JudoSession, GitHubConfig } from '@/lib/types';
 
 /**
  * POST /api/sessions/create
  * Create a new session and save it as a markdown file
  * 
- * Request body: Partial JudoSession (id will be generated if not provided)
+ * Request body: Partial JudoSession (id will be generated if not provided) + optional gitHubConfig
  * Response: Created JudoSession with id
  */
 export async function POST(request: NextRequest) {
@@ -57,7 +58,19 @@ export async function POST(request: NextRequest) {
       ...(body.duration !== undefined && { duration: body.duration }),
     };
 
+    // Save to Vercel Blob (primary storage)
     await createSession(session);
+
+    // Attempt GitHub sync (best-effort, don't fail if error)
+    const gitHubConfig = body.gitHubConfig as GitHubConfig | undefined;
+    if (gitHubConfig && isGitHubConfigured()) {
+      try {
+        await createSessionOnGitHub(session, gitHubConfig);
+      } catch (error) {
+        // Log error but don't fail the request
+        console.warn('Failed to sync session to GitHub:', error);
+      }
+    }
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
