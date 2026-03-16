@@ -37,6 +37,8 @@ let isOnline = typeof window !== "undefined" ? navigator.onLine : true;
 let isSyncing = false;
 let migrationAttempted = false;
 let listenersInitialized = false;
+let refreshSeq = 0;
+let latestAppliedSeq = 0;
 
 /**
  * Initialize storage: set up online/offline listeners and attempt migration
@@ -481,12 +483,19 @@ function handleStorageEvent(event: StorageEvent): void {
 function refreshSessionsFromAPI(): void {
   if (typeof window === "undefined" || !isOnline) return;
 
+  const seq = ++refreshSeq;
+
   fetch("/api/sessions/list")
     .then(res => {
       if (!res.ok) throw new Error("Failed to fetch sessions");
       return res.json();
     })
     .then((sessions: JudoSession[]) => {
+      if (seq < latestAppliedSeq) {
+        return;
+      }
+
+      latestAppliedSeq = seq;
       sessionCache = sessions;
       updateLocalStorageCache(sessions);
       // Notify listeners (components) of the update
