@@ -72,9 +72,29 @@ Then edit `.env.local` and add:
 # Vercel Blob Storage - Get from Vercel dashboard
 VERCEL_BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 
+# Optional runtime flag for Blob access
+# Default (unset): true
+# Set to false to keep create/update/delete operations local/queued until Blob is re-enabled
+ENABLE_VERCEL_BLOB=true
+
 # Google Genai API - Get from https://ai.google.dev/
 GOOGLE_GENAI_API_KEY=your_genai_api_key
 ```
+
+### Environment variable behavior
+
+- `ENABLE_VERCEL_BLOB` controls whether server routes are allowed to read/write Vercel Blob.
+  - Unset or `true`: Blob-backed persistence is active.
+  - `false`: Blob-backed persistence is paused.
+- `VERCEL_BLOB_READ_WRITE_TOKEN` is required only when Blob is enabled. If `ENABLE_VERCEL_BLOB=false`, the app can run without a Blob token because Blob endpoints are intentionally short-circuited.
+- While Blob is disabled:
+  - `POST /api/sessions/create` returns `503` with code `BLOB_STORAGE_DISABLED`.
+  - `PUT /api/sessions/[id]` returns `503` with code `BLOB_STORAGE_DISABLED`.
+  - `DELETE /api/sessions/[id]` returns `503` with code `BLOB_STORAGE_DISABLED`.
+  - `GET /api/sessions/list` returns `503`.
+  - Clients keep local cache data, and pending create/update/delete operations remain in the sync queue.
+
+To re-enable Blob, set `ENABLE_VERCEL_BLOB=true` (or remove the variable) and ensure `VERCEL_BLOB_READ_WRITE_TOKEN` is configured. Once re-enabled, queued local operations are retried and expected to sync to Blob in order, after which the queue is cleared and sessions are refreshed from the API.
 
 ## Available Scripts
 
