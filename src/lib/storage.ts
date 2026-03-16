@@ -627,7 +627,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               setQueue(remainingOperations, queue);
               return;
             }
-            }
 
             if (!createResponse.ok) throw new Error("Failed to create session");
             break;
@@ -649,7 +648,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               setQueue(remainingOperations, queue);
               return;
             }
-            }
 
             if (!updateResponse.ok) throw new Error("Failed to update session");
             break;
@@ -670,7 +668,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               const remainingOperations = queue.slice(index);
               setQueue(remainingOperations, queue);
               return;
-            }
             }
 
             if (!deleteResponse.ok) throw new Error("Failed to delete session");
