@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
-import { markdownToSession, sessionToMarkdown } from '@/lib/markdown-serializer';
-import { updateSessionOnGitHub, deleteSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
+import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
 function isSessionNotFoundError(error: unknown): boolean {
@@ -160,6 +159,10 @@ export async function DELETE(
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
 
+    // Capture current session before deletion so GitHub path resolution can use real date/id.
+    const existingSessions = await listSessions();
+    const existingSession = existingSessions.find((session) => session.id === id);
+
     // Delete from Vercel Blob (primary storage)
     await deleteSession(id);
 
@@ -167,15 +170,11 @@ export async function DELETE(
     const gitHubConfig = body?.gitHubConfig as GitHubConfig | undefined;
     if (gitHubConfig && isGitHubConfigured()) {
       try {
-        // Create a minimal session object with just the ID for GitHub deletion
-        const session: JudoSession = {
-          id,
-          date: new Date().toISOString().split('T')[0],
-          effort: 3,
-          category: 'Technical',
-          techniques: [],
-        };
-        await deleteSessionOnGitHub(session, gitHubConfig);
+        if (existingSession) {
+          await deleteSessionOnGitHub(existingSession, gitHubConfig);
+        } else {
+          await deleteSessionOnGitHubById(id, gitHubConfig);
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.warn('Failed to sync session deletion to GitHub:', error);

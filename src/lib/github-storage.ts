@@ -13,6 +13,12 @@ export interface GitHubSyncResult {
   sha?: string;
 }
 
+interface GitHubContentItem {
+  name: string;
+  path: string;
+  type: 'file' | 'dir' | 'symlink' | 'submodule';
+}
+
 /**
  * Get the file path for a session in GitHub
  * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
@@ -83,6 +89,58 @@ async function getFileSha(
     // File doesn't exist, return null
     return null;
   }
+}
+
+async function listDirectoryContents(
+  owner: string,
+  repo: string,
+  path: string
+): Promise<GitHubContentItem[]> {
+  try {
+    const data = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/contents/${path}`
+    );
+
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('rate limit')) {
+      throw error;
+    }
+    return [];
+  }
+  }
+}
+
+/**
+ * Find a session file path in GitHub by session ID by scanning sessions/YYYY/MM folders.
+ */
+export async function findSessionPathOnGitHubById(
+  sessionId: string,
+  config: GitHubConfig
+): Promise<string | null> {
+  const fileSuffix = `-matmetrics-${sessionId}.md`;
+  const years = await listDirectoryContents(config.owner, config.repo, 'sessions');
+
+  for (const year of years) {
+    if (year.type !== 'dir' || !/^\d{4}$/.test(year.name)) continue;
+
+    const months = await listDirectoryContents(config.owner, config.repo, year.path);
+    for (const month of months) {
+      if (month.type !== 'dir' || !/^\d{2}$/.test(month.name)) continue;
+
+      const files = await listDirectoryContents(config.owner, config.repo, month.path);
+      const match = files.find(
+        (file) => file.type === 'file' && file.name.endsWith(fileSuffix)
+      );
+
+      if (match) {
+        return match.path;
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -169,8 +227,17 @@ export async function deleteSessionOnGitHub(
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
   try {
-    const filePath = getGitHubSessionPath(session);
-    const sha = await getFileSha(config.owner, config.repo, filePath);
+    const expectedPath = getGitHubSessionPath(session);
+    let filePath = expectedPath;
+    let sha = await getFileSha(config.owner, config.repo, expectedPath);
+
+    if (!sha) {
+      const discoveredPath = await findSessionPathOnGitHubById(session.id, config);
+      if (discoveredPath) {
+        filePath = discoveredPath;
+        sha = await getFileSha(config.owner, config.repo, discoveredPath);
+      }
+    }
 
     if (!sha) {
       return {
@@ -184,6 +251,55 @@ export async function deleteSessionOnGitHub(
       `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
       {
         message: `Delete session: ${session.date}`,
+        branch: 'main',
+        sha,
+      }
+    );
+
+    return {
+      success: true,
+      message: 'Session deleted from GitHub',
+      filePath,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      message: `GitHub delete failed: ${errorMessage}`,
+    };
+  }
+}
+
+/**
+ * Delete a session file from GitHub when only session ID is known.
+ */
+export async function deleteSessionOnGitHubById(
+  sessionId: string,
+  config: GitHubConfig
+): Promise<GitHubSyncResult> {
+  try {
+    const filePath = await findSessionPathOnGitHubById(sessionId, config);
+
+    if (!filePath) {
+      return {
+        success: true,
+        message: 'Session not found on GitHub (already deleted)',
+      };
+    }
+
+    const sha = await getFileSha(config.owner, config.repo, filePath);
+    if (!sha) {
+      return {
+        success: true,
+        message: 'Session not found on GitHub (already deleted)',
+      };
+    }
+
+    await githubApiRequest(
+      'DELETE',
+      `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
+      {
+        message: `Delete session by id: ${sessionId}`,
         branch: 'main',
         sha,
       }
