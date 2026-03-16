@@ -29,8 +29,21 @@ export default function Home() {
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+    const refreshSessions = () => {
+      setSessions(getSessions());
+    };
+
     refreshSessions();
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "matmetrics_sessions") {
+        refreshSessions();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const refreshSessions = () => {
