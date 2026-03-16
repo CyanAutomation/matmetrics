@@ -30,6 +30,10 @@ class GitHubApiError extends Error {
   }
 }
 
+function isGitHubApiError(error: unknown): error is GitHubApiError {
+  return error instanceof GitHubApiError;
+}
+
 function getActionableGitHubErrorMessage(action: string, error: unknown): string {
   if (error instanceof GitHubApiError) {
     if (error.status === 401) {
@@ -132,8 +136,12 @@ async function getFileSha(
     );
     return data.sha;
   } catch (error) {
-    if (error instanceof GitHubApiError && error.status === 404) {
-      // File doesn't exist, return null
+    if (!isGitHubApiError(error)) {
+      throw error;
+    }
+
+    if (error.status === 404) {
+      // File doesn't exist
       return null;
     }
 
@@ -316,12 +324,12 @@ export async function updateSessionOnGitHub(
     const sha = await getFileSha(config.owner, config.repo, filePath, branch);
 
     if (!sha) {
-      // File doesn't exist, return result directly to preserve error context
+      // File doesn't exist yet; create the session file instead.
       const result = await createSessionOnGitHub(session, config);
       if (!result.success) {
         return {
           success: false,
-          message: result.message.replace('GitHub sync failed', 'GitHub session update'),
+          message: `GitHub session update for ${session.id} failed while creating missing file: ${result.message}`,
         };
       }
       return result;
