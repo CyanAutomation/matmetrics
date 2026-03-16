@@ -375,7 +375,7 @@ async function syncPendingOperations(): Promise<void> {
       } catch (error) {
         console.error("Error syncing operation", error);
         // Stop syncing on first error; will retry remaining operations next time
-        const remainingOperations = queue.slice(lastSuccessfulIndex + 1);
+        const remainingOperations = queue.slice(index + 1);
         setQueue(remainingOperations);
         return;
       }
