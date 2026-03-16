@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BlobStorageDisabledError, createSession, hasAnySessions } from '@/lib/vercel-blob-storage';
+import {
+  acquireMigrationLock,
+  BlobStorageDisabledError,
+  createSession,
+  releaseMigrationLock,
+} from '@/lib/vercel-blob-storage';
 import { JudoSession } from '@/lib/types';
 
 function isBlobStorageDisabledError(error: unknown): boolean {
@@ -19,18 +24,30 @@ function blobStorageDisabledResponse() {
 /**
  * POST /api/sessions/migrate
  * Migrate sessions from localStorage to markdown files
- * 
+ *
  * Request body: { sessions: JudoSession[] }
- * Response: { success: boolean; migrated: number; errors: string[] }
+ * Response: {
+ *   success: boolean;
+ *   migrated: number;
+ *   duplicates: number;
+ *   invalid: number;
+ *   failed: number;
+ *   total: number;
+ *   errors: string[];
+ * }
  */
 export async function POST(request: NextRequest) {
+  let lockToken: string | null = null;
+
   try {
-    // Check if markdown files already exist
-    const hasExisting = await hasAnySessions();
-    if (hasExisting) {
+    lockToken = await acquireMigrationLock();
+    if (!lockToken) {
       return NextResponse.json(
-        { error: 'Markdown files already exist. Migration cancelled to prevent data loss.' },
-        { status: 400 }
+        {
+          error: 'A migration is already in progress. Please retry shortly.',
+          code: 'MIGRATION_LOCKED',
+        },
+        { status: 409 }
       );
     }
 
@@ -45,17 +62,28 @@ export async function POST(request: NextRequest) {
 
     const sessions = body.sessions as JudoSession[];
     const errors: string[] = [];
+    const seenSessionIds = new Set<string>();
+
     let migratedCount = 0;
+    let duplicateCount = 0;
+    let invalidCount = 0;
+    let failedCount = 0;
 
-    // Migrate each session
     for (const session of sessions) {
-      try {
-        // Ensure session has all required fields
-        if (!session.id || !session.date || typeof session.effort !== 'number' || !session.category) {
-          errors.push(`Skipped invalid session: missing required fields`);
-          continue;
-        }
+      if (!session.id || !session.date || typeof session.effort !== 'number' || !session.category) {
+        invalidCount++;
+        errors.push('Skipped invalid session: missing required fields');
+        continue;
+      }
 
+      if (seenSessionIds.has(session.id)) {
+        duplicateCount++;
+        continue;
+      }
+
+      seenSessionIds.add(session.id);
+
+      try {
         await createSession(session);
         migratedCount++;
       } catch (error) {
@@ -63,14 +91,18 @@ export async function POST(request: NextRequest) {
           throw error;
         }
 
+        failedCount++;
         errors.push(`Failed to migrate session ${session.id}: ${(error as Error).message}`);
       }
     }
 
     return NextResponse.json(
       {
-        success: errors.length === 0,
+        success: failedCount === 0,
         migrated: migratedCount,
+        duplicates: duplicateCount,
+        invalid: invalidCount,
+        failed: failedCount,
         total: sessions.length,
         errors,
       },
@@ -86,5 +118,9 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to migrate sessions' },
       { status: 500 }
     );
+  } finally {
+    if (lockToken) {
+      await releaseMigrationLock(lockToken);
+    }
   }
 }
