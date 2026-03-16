@@ -158,7 +158,7 @@ function extractContentSections(
 function extractSectionContent(content: string, heading: string): string | undefined {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const sectionRegex = new RegExp(
-    `## ${escapedHeading}\\n(?:\\n)?([\\s\\S]*?)(?=\\n## |\\s*$)`
+    `## ${escapedHeading}\\n\\n?([\\s\\S]*?)(?=\\n## |\\s*$)`
   );
 
   const match = content.match(sectionRegex);
