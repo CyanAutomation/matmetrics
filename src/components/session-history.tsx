@@ -108,11 +108,18 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
               </div>
             </div>
             
-            {session.notes && (
-              <div className="px-5 pb-5 pt-0">
-                 <p className="text-sm text-muted-foreground italic border-t pt-3">
-                  "{session.notes}"
-                </p>
+            {(session.description || session.notes) && (
+              <div className="px-5 pb-5 pt-0 space-y-3 border-t">
+                {session.description && (
+                  <p className="text-sm text-foreground/90 pt-3 whitespace-pre-wrap">
+                    {session.description}
+                  </p>
+                )}
+                {session.notes && (
+                  <p className="text-sm text-muted-foreground italic">
+                    "{session.notes}"
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -124,7 +131,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
           <DialogHeader className="mb-4">
             <DialogTitle className="text-2xl font-bold">Edit Practice Session</DialogTitle>
             <DialogDescription>
-              Update your techniques, effort, or notes for this training session.
+              Update your practice description, techniques, effort, or notes for this training session.
             </DialogDescription>
           </DialogHeader>
           {editingSession && (
