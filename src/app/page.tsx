@@ -29,7 +29,11 @@ export default function Home() {
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+    const refreshSessions = () => {
+      setSessions(getSessions());
+    };
+
     refreshSessions();
 
     const handleStorageChange = (event: StorageEvent) => {
