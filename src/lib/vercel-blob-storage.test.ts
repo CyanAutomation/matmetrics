@@ -81,6 +81,42 @@ function makeSession(date: string): JudoSession {
 }
 
 
+async function runEncodingAndLegacyLookupRegression() {
+  const { deps, blobs } = createInMemoryBlobDeps();
+  __setBlobStorageDepsForTests(deps as any);
+
+  try {
+    const collidingIdA = 'a/b';
+    const collidingIdB = 'a?b';
+    const pathA = getSessionBlobPath('2025-03-14', undefined, collidingIdA);
+    const pathB = getSessionBlobPath('2025-03-14', undefined, collidingIdB);
+
+    assert.notEqual(pathA, pathB);
+    assert.ok(pathA.endsWith('a%2Fb.md'));
+    assert.ok(pathB.endsWith('a%3Fb.md'));
+
+    const legacyPath = 'sessions/2025/03/20250314-matmetrics-a-b.md';
+    await deps.put(
+      legacyPath,
+      `---
+id: ${collidingIdA}
+date: 2025-03-14
+duration: 60
+effort: 3
+category: Technical
+techniques: []
+---
+legacy`,
+      {}
+    );
+
+    const foundLegacy = await findSessionFileById(collidingIdA);
+    assert.equal(foundLegacy, legacyPath);
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 async function runDisabledGuardChecks() {
   const originalFlag = process.env.ENABLE_VERCEL_BLOB;
   process.env.ENABLE_VERCEL_BLOB = 'false';
@@ -153,6 +189,7 @@ async function runRegression() {
 
 runDisabledGuardChecks()
   .then(() => runRegression())
+  .then(() => runEncodingAndLegacyLookupRegression())
   .catch((err) => {
     console.error('Regression test failed:', err);
     process.exit(1);
