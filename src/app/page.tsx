@@ -7,9 +7,9 @@ import { SessionLogForm } from "@/components/session-log-form";
 import { SessionHistory } from "@/components/session-history";
 import { TagManager } from "@/components/tag-manager";
 import { PromptSettings } from "@/components/prompt-settings";
-import { getSessions } from "@/lib/storage";
+import { getSessions, initializeStorage, getSyncStatus } from "@/lib/storage";
 import { JudoSession } from "@/lib/types";
-import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit, Wifi, WifiOff, Loader2, CheckCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -28,22 +28,48 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(getSyncStatus());
 
   const refreshSessions = useCallback(() => {
     setSessions(getSessions());
+    setSyncStatus(getSyncStatus());
   }, []);
 
   useEffect(() => {
+    // Initialize storage (migration, online/offline listeners)
+    initializeStorage();
     refreshSessions();
 
+    // Listen for storage sync events from the API
+    const handleStorageSync = (event: Event) => {
+      refreshSessions();
+    };
+
+    // Also listen for traditional storage events (for tab sync)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "matmetrics_sessions") {
         refreshSessions();
       }
     };
 
+    // Listen for sync status changes
+    const handleSyncStatusChange = () => {
+      setSyncStatus(getSyncStatus());
+    };
+
+    window.addEventListener("storageSync", handleStorageSync);
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    
+    // Poll sync status every 500ms to show real-time updates
+    const statusInterval = setInterval(() => {
+      setSyncStatus(getSyncStatus());
+    }, 500);
+
+    return () => {
+      window.removeEventListener("storageSync", handleStorageSync);
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(statusInterval);
+    };
   }, [refreshSessions]);
 
   const handleSessionAdded = () => {
@@ -99,7 +125,42 @@ export default function Home() {
                </div>
             </div>
           </SidebarContent>
-          <SidebarFooter className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs font-medium"><Info className="h-3 w-3" /><span>v1.2.0 Stable</span></div></SidebarFooter>
+          <SidebarFooter className="p-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+                <Info className="h-3 w-3" />
+                <span>v1.2.0 Stable</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
+                {!syncStatus.isOnline ? (
+                  <>
+                    <WifiOff className="h-3 w-3 text-amber-500" />
+                    <span className="text-amber-600 dark:text-amber-400">Offline</span>
+                    {syncStatus.pendingCount > 0 && (
+                      <span className="ml-auto text-amber-600 dark:text-amber-400">
+                        {syncStatus.pendingCount} pending
+                      </span>
+                    )}
+                  </>
+                ) : syncStatus.isSyncing ? (
+                  <>
+                    <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                    <span className="text-blue-600 dark:text-blue-400">Syncing...</span>
+                  </>
+                ) : syncStatus.pendingCount > 0 ? (
+                  <>
+                    <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                    <span className="text-blue-600 dark:text-blue-400">{syncStatus.pendingCount} syncing</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                    <span className="text-green-600 dark:text-green-400">Synced</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </SidebarFooter>
         </Sidebar>
 
         <SidebarInset className="flex-1 flex flex-col bg-background/50 overflow-hidden relative">
