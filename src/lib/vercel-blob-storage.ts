@@ -141,15 +141,14 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
 
+  const blobPath = getSessionBlobPath(session.date, undefined, session.id);
+
   // Idempotency: if a session with this ID already exists, return it as success.
-  const existingPath = await findSessionFileById(session.id);
-  if (existingPath) {
-    return existingPath;
+  if (await sessionBlobExists(blobPath)) {
+    return blobPath;
   }
 
   const markdown = sessionToMarkdown(session);
-
-  const blobPath = getSessionBlobPath(session.date, undefined, session.id);
 
   try {
     await put(blobPath, markdown, {
@@ -161,13 +160,24 @@ export async function createSession(session: JudoSession): Promise<string> {
   } catch (e) {
     if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
       // Another request wrote the same ID concurrently; treat this as idempotent success.
-      const concurrentPath = await findSessionFileById(session.id);
-      if (concurrentPath) {
-        return concurrentPath;
+      if (await sessionBlobExists(blobPath)) {
+        return blobPath;
       }
     }
 
     console.error(`Failed to create session at ${blobPath}`, e);
+    throw e;
+  }
+}
+
+export async function sessionBlobExists(blobPath: string): Promise<boolean> {
+  try {
+    await head(blobPath);
+    return true;
+  } catch (e) {
+    if ((e as any).code === 'BLOB_NOT_FOUND') {
+      return false;
+    }
     throw e;
   }
 }
