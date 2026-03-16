@@ -133,7 +133,6 @@ export async function createSession(session: JudoSession): Promise<string> {
   try {
     const result = await put(blobPath, markdown, {
       contentType: 'text/markdown',
-      access: 'private',
     });
     return blobPath;
   } catch (e) {
@@ -158,7 +157,6 @@ export async function updateSession(session: JudoSession): Promise<string> {
   try {
     await put(blobPath, markdown, {
       contentType: 'text/markdown',
-      access: 'private',
     });
     return blobPath;
   } catch (e) {
