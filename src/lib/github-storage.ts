@@ -103,8 +103,12 @@ async function listDirectoryContents(
     );
 
     return Array.isArray(data) ? data : [];
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('rate limit')) {
+      throw error;
+    }
     return [];
+  }
   }
 }
 
