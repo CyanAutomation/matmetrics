@@ -1,6 +1,6 @@
 # MatMetrics
 
-A modern, intelligent web application for tracking Judo practice sessions, analyzing training patterns, and leveraging AI to help athletes manage their techniques and training intensity.
+A simple web application for tracking Judo practice sessions, analyzing training patterns to help judoka manage their techniques and training intensity.
 
 ## Overview
 
