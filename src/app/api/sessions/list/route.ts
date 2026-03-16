@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSessions } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, listSessions } from '@/lib/vercel-blob-storage';
 
 /**
  * GET /api/sessions/list
@@ -10,6 +10,13 @@ export async function GET(request: NextRequest) {
     const sessions = await listSessions();
     return NextResponse.json(sessions, { status: 200 });
   } catch (error) {
+    if (error instanceof BlobStorageDisabledError) {
+      return NextResponse.json(
+        { error: 'Blob storage disabled' },
+        { status: 503 }
+      );
+    }
+
     console.error('Error listing sessions', error);
     return NextResponse.json(
       { error: 'Failed to list sessions' },
