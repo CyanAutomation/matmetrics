@@ -25,6 +25,7 @@ export function GitHubSettings() {
   const { toast } = useToast();
   const [owner, setOwner] = useState("");
   const [repo, setRepo] = useState("");
+  const [branch, setBranch] = useState("");
   const [isEnabled, setIsEnabled] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ 
@@ -42,6 +43,7 @@ export function GitHubSettings() {
     if (config) {
       setOwner(config.owner);
       setRepo(config.repo);
+      setBranch(config.branch ?? "");
     }
     setIsEnabled(enabled);
     setMigrationDone(migrationDone);
@@ -57,7 +59,8 @@ export function GitHubSettings() {
       return;
     }
 
-    const config: GitHubConfig = { owner, repo };
+    const normalizedBranch = branch.trim();
+    const config: GitHubConfig = { owner, repo, ...(normalizedBranch && { branch: normalizedBranch }) };
     saveGitHubConfig(config);
     setIsEnabled(true);
     enableGitHub();
@@ -83,7 +86,7 @@ export function GitHubSettings() {
       const response = await fetch("/api/github/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner, repo }),
+        body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
       });
 
       const result = await response.json();
@@ -132,7 +135,7 @@ export function GitHubSettings() {
       const response = await fetch("/api/github/sync-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner, repo }),
+        body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
       });
 
       const result = await response.json();
@@ -176,6 +179,7 @@ export function GitHubSettings() {
       clearGitHubConfig();
       setOwner("");
       setRepo("");
+      setBranch("");
       setIsEnabled(false);
       setTestResult(null);
       setMigrationDone(false);
@@ -223,7 +227,7 @@ export function GitHubSettings() {
 
           {/* Form */}
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="owner" className="text-sm font-semibold">
                   GitHub Owner/Username
@@ -251,13 +255,27 @@ export function GitHubSettings() {
                   className="border-blue-200 focus:border-blue-400"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch" className="text-sm font-semibold">
+                  Branch (optional)
+                </Label>
+                <Input
+                  id="branch"
+                  placeholder="e.g., main, master, sync"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  disabled={isEnabled && migrationDone}
+                  className="border-blue-200 focus:border-blue-400"
+                />
+              </div>
             </div>
 
             {/* Status */}
             {isEnabled && (
               <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg">
                 <CheckCircle2 className="h-4 w-4" />
-                Connected to <strong>{owner}/{repo}</strong>
+                Connected to <strong>{owner}/{repo}</strong>{branch.trim() ? <> on branch <strong>{branch.trim()}</strong></> : <> on repository default branch</>}
               </div>
             )}
 

@@ -4,6 +4,7 @@ import { sessionToMarkdown } from './markdown-serializer';
 export interface GitHubConfig {
   owner: string;
   repo: string;
+  branch?: string;
 }
 
 export interface GitHubSyncResult {
@@ -11,7 +12,10 @@ export interface GitHubSyncResult {
   message: string;
   filePath?: string;
   sha?: string;
+  branch?: string;
 }
+
+const defaultBranchCache = new Map<string, string>();
 
 interface GitHubContentItem {
   name: string;
@@ -90,12 +94,13 @@ async function githubApiRequest(
 async function getFileSha(
   owner: string,
   repo: string,
-  path: string
+  path: string,
+  branch: string
 ): Promise<string | null> {
   try {
     const data = await githubApiRequest(
       'GET',
-      `/repos/${owner}/${repo}/contents/${path}`
+      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`
     );
     return data.sha;
   } catch (error) {
@@ -107,12 +112,13 @@ async function getFileSha(
 async function listDirectoryContents(
   owner: string,
   repo: string,
-  path: string
+  path: string,
+  branch: string
 ): Promise<GitHubContentItem[]> {
   try {
     const data = await githubApiRequest(
       'GET',
-      `/repos/${owner}/${repo}/contents/${path}`
+      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`
     );
 
     return Array.isArray(data) ? data : [];
@@ -125,6 +131,35 @@ async function listDirectoryContents(
   }
 }
 
+async function resolveBranch(config: GitHubConfig): Promise<string> {
+  if (config.branch?.trim()) {
+    return config.branch.trim();
+  }
+
+  const cacheKey = `${config.owner}/${config.repo}`;
+  const cachedBranch = defaultBranchCache.get(cacheKey);
+  if (cachedBranch) {
+    return cachedBranch;
+  }
+
+  try {
+    const repoData = await githubApiRequest('GET', `/repos/${config.owner}/${config.repo}`);
+    const defaultBranch = repoData?.default_branch;
+
+    if (typeof defaultBranch !== 'string' || defaultBranch.trim() === '') {
+      throw new Error('Repository default branch is unavailable');
+    }
+
+    defaultBranchCache.set(cacheKey, defaultBranch);
+    return defaultBranch;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(
+      `Unable to resolve repository branch for ${config.owner}/${config.repo}: ${errorMessage}`
+    );
+  }
+}
+
 /**
  * Find a session file path in GitHub by session ID by scanning sessions/YYYY/MM folders.
  */
@@ -132,8 +167,9 @@ export async function findSessionPathOnGitHubById(
   sessionId: string,
   config: GitHubConfig
 ): Promise<string | null> {
+  const branch = await resolveBranch(config);
   const fileSuffix = `-matmetrics-${sessionId}.md`;
-  const years = await listDirectoryContents(config.owner, config.repo, 'sessions');
+  const years = await listDirectoryContents(config.owner, config.repo, 'sessions', branch);
   const yearPaths: string[] = [];
 
   for (const year of years) {
@@ -144,7 +180,7 @@ export async function findSessionPathOnGitHubById(
 
   const monthContents = await Promise.all(
     yearPaths.map((yearPath) =>
-      listDirectoryContents(config.owner, config.repo, yearPath)
+      listDirectoryContents(config.owner, config.repo, yearPath, branch)
     )
   );
 
@@ -160,7 +196,7 @@ export async function findSessionPathOnGitHubById(
 
   const fileLists = await Promise.all(
     monthPaths.map((monthPath) =>
-      listDirectoryContents(config.owner, config.repo, monthPath)
+      listDirectoryContents(config.owner, config.repo, monthPath, branch)
     )
   );
 
@@ -181,8 +217,7 @@ export async function findSessionPathOnGitHubById(
  * Create or update a file in GitHub
  */
 async function putFile(
-  owner: string,
-  repo: string,
+  config: GitHubConfig,
   path: string,
   content: string,
   message: string,
@@ -190,17 +225,18 @@ async function putFile(
 ): Promise<GitHubSyncResult> {
   try {
     const contentBase64 = Buffer.from(content).toString('base64');
+    const branch = await resolveBranch(config);
     
     const body = {
       message,
       content: contentBase64,
-      branch: 'main',
+      branch,
       ...(sha && { sha }),
     };
 
     const data = await githubApiRequest(
       'PUT',
-      `/repos/${owner}/${repo}/contents/${path}`,
+      `/repos/${config.owner}/${config.repo}/contents/${path}`,
       body
     );
 
@@ -209,6 +245,7 @@ async function putFile(
       message: sha ? 'Session updated on GitHub' : 'Session created on GitHub',
       filePath: path,
       sha: data.content?.sha || data.sha,
+      branch,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -230,7 +267,7 @@ export async function createSessionOnGitHub(
   const markdown = sessionToMarkdown(session);
   const message = `Add session: ${session.date}`;
 
-  return putFile(config.owner, config.repo, filePath, markdown, message);
+  return putFile(config, filePath, markdown, message);
 }
 
 /**
@@ -240,9 +277,10 @@ export async function updateSessionOnGitHub(
   session: JudoSession,
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
+  const branch = await resolveBranch(config);
   const filePath = getGitHubSessionPath(session);
   const markdown = sessionToMarkdown(session);
-  const sha = await getFileSha(config.owner, config.repo, filePath);
+  const sha = await getFileSha(config.owner, config.repo, filePath, branch);
 
   if (!sha) {
     // File doesn't exist, create it
@@ -250,7 +288,7 @@ export async function updateSessionOnGitHub(
   }
 
   const message = `Update session: ${session.date}`;
-  return putFile(config.owner, config.repo, filePath, markdown, message, sha);
+  return putFile(config, filePath, markdown, message, sha);
 }
 
 /**
@@ -261,15 +299,16 @@ export async function deleteSessionOnGitHub(
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
   try {
+    const branch = await resolveBranch(config);
     const expectedPath = getGitHubSessionPath(session);
     let filePath = expectedPath;
-    let sha = await getFileSha(config.owner, config.repo, expectedPath);
+    let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
 
     if (!sha) {
       const discoveredPath = await findSessionPathOnGitHubById(session.id, config);
       if (discoveredPath) {
         filePath = discoveredPath;
-        sha = await getFileSha(config.owner, config.repo, discoveredPath);
+        sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
       }
     }
 
@@ -285,7 +324,7 @@ export async function deleteSessionOnGitHub(
       `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
       {
         message: `Delete session: ${session.date}`,
-        branch: 'main',
+        branch,
         sha,
       }
     );
@@ -294,6 +333,7 @@ export async function deleteSessionOnGitHub(
       success: true,
       message: 'Session deleted from GitHub',
       filePath,
+      branch,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -312,6 +352,7 @@ export async function deleteSessionOnGitHubById(
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
   try {
+    const branch = await resolveBranch(config);
     const filePath = await findSessionPathOnGitHubById(sessionId, config);
 
     if (!filePath) {
@@ -321,7 +362,7 @@ export async function deleteSessionOnGitHubById(
       };
     }
 
-    const sha = await getFileSha(config.owner, config.repo, filePath);
+    const sha = await getFileSha(config.owner, config.repo, filePath, branch);
     if (!sha) {
       return {
         success: true,
@@ -334,7 +375,7 @@ export async function deleteSessionOnGitHubById(
       `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
       {
         message: `Delete session by id: ${sessionId}`,
-        branch: 'main',
+        branch,
         sha,
       }
     );
@@ -343,6 +384,7 @@ export async function deleteSessionOnGitHubById(
       success: true,
       message: 'Session deleted from GitHub',
       filePath,
+      branch,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -387,10 +429,10 @@ Each session includes:
 *This repository is automatically synced with matmetrics.*
 `;
 
-    const sha = await getFileSha(config.owner, config.repo, 'README.md');
+    const branch = await resolveBranch(config);
+    const sha = await getFileSha(config.owner, config.repo, 'README.md', branch);
     return putFile(
-      config.owner,
-      config.repo,
+      config,
       'README.md',
       readme,
       'Update README with session stats',
@@ -476,15 +518,25 @@ export async function validateGitHubCredentials(
 ): Promise<GitHubSyncResult> {
   try {
     await githubApiRequest('GET', `/repos/${config.owner}/${config.repo}`);
+    const branch = await resolveBranch(config);
+
+    if (config.branch?.trim()) {
+      await githubApiRequest(
+        'GET',
+        `/repos/${config.owner}/${config.repo}/branches/${encodeURIComponent(branch)}`
+      );
+    }
+
     return {
       success: true,
-      message: `Successfully connected to ${config.owner}/${config.repo}`,
+      message: `Successfully connected to ${config.owner}/${config.repo} on branch ${branch}`,
+      branch,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
-      message: `Connection failed: ${errorMessage}`,
+      message: `Connection failed (owner=${config.owner}, repo=${config.repo}, branch=${config.branch || 'default'}): ${errorMessage}`,
     };
   }
 }
