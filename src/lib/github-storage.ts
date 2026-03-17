@@ -171,44 +171,52 @@ async function getTreeEntriesForPath(
   branch: string,
   rootPath: string
 ): Promise<GitHubTreeEntry[]> {
-  const refData = await githubApiRequest(
-    'GET',
-    `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`
-  );
+  try {
+    const refData = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`
+    );
 
-  const commitSha = refData?.object?.sha;
-  if (typeof commitSha !== 'string' || commitSha.trim() === '') {
-    throw new Error('Branch reference does not include a commit SHA');
-  }
+    const commitSha = refData?.object?.sha;
+    if (typeof commitSha !== 'string' || commitSha.trim() === '') {
+      throw new Error('Branch reference does not include a commit SHA');
+    }
 
-  const commitData = await githubApiRequest(
-    'GET',
-    `/repos/${owner}/${repo}/git/commits/${commitSha}`
-  );
+    const commitData = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/git/commits/${commitSha}`
+    );
 
-  const treeSha = commitData?.tree?.sha;
-  if (typeof treeSha !== 'string' || treeSha.trim() === '') {
-    throw new Error('Commit does not include a tree SHA');
-  }
+    const treeSha = commitData?.tree?.sha;
+    if (typeof treeSha !== 'string' || treeSha.trim() === '') {
+      throw new Error('Commit does not include a tree SHA');
+    }
 
-  const treeData = await githubApiRequest(
-    'GET',
-    `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
-  );
+    const treeData = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
+    );
 
-  if (treeData?.truncated === true) {
-    return listTreeEntriesFromContentsApi(owner, repo, branch, rootPath);
-  }
+    if (treeData?.truncated === true) {
+      return listTreeEntriesFromContentsApi(owner, repo, branch, rootPath);
+    }
 
-  if (!Array.isArray(treeData?.tree)) {
+    if (!Array.isArray(treeData?.tree)) {
+      return [];
+    }
+
+    const prefix = `${rootPath.replace(/\/+$/, '')}/`;
+
+    return treeData.tree.filter((entry: GitHubTreeEntry) =>
+      typeof entry?.path === 'string' && entry.path.startsWith(prefix)
+    );
+  } catch (error) {
+    if (isGitHubApiError(error) && error.status !== 404) {
+      throw error;
+    }
+
     return [];
   }
-
-  const prefix = `${rootPath.replace(/\/+$/, '')}/`;
-
-  return treeData.tree.filter((entry: GitHubTreeEntry) =>
-    typeof entry?.path === 'string' && entry.path.startsWith(prefix)
-  );
 }
 
 interface GitHubContentsEntry {
