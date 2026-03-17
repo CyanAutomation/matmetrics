@@ -14,6 +14,7 @@ import {
 const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
 const MIGRATION_DONE_KEY = "matmetrics_migration_done";
+const MIGRATION_STATUS_KEY = "matmetrics_migration_status";
 const GITHUB_CONFIG_KEY = "matmetrics_github_config";
 const CLOUD_PERSISTENCE_STATUS_KEY = "matmetrics_cloud_persistence_status";
 
@@ -45,6 +46,18 @@ let cloudPersistencePaused = false;
 type CloudPersistenceStatusDetail = {
   paused: boolean;
   reason?: "blob-disabled";
+};
+
+type MigrationStatusRecord = {
+  success: boolean;
+  total: number;
+  migrated: number;
+  duplicates: number;
+  invalid: number;
+  failed: number;
+  errors: string[];
+  pendingSessions: number;
+  updatedAt: string;
 };
 
 function readCloudPersistenceStatus(): CloudPersistenceStatusDetail {
@@ -707,6 +720,7 @@ async function attemptMigration(): Promise<void> {
   if (!stored) {
     // No localStorage data to migrate
     localStorage.setItem(MIGRATION_DONE_KEY, "true");
+    localStorage.removeItem(MIGRATION_STATUS_KEY);
     return;
   }
 
@@ -714,6 +728,7 @@ async function attemptMigration(): Promise<void> {
     const sessions = JSON.parse(stored);
     if (!Array.isArray(sessions) || sessions.length === 0) {
       localStorage.setItem(MIGRATION_DONE_KEY, "true");
+      localStorage.removeItem(MIGRATION_STATUS_KEY);
       return;
     }
 
@@ -726,13 +741,35 @@ async function attemptMigration(): Promise<void> {
 
     if (response.ok) {
       const result = await response.json();
-      if (result.success || result.migrated > 0) {
+      const migrationSucceeded = result.success === true && result.failed === 0;
+
+      if (migrationSucceeded) {
         console.log(`Migrated ${result.migrated} sessions to markdown files`);
-        // Clear localStorage after successful migration
+        // Clear localStorage only after a fully successful migration
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(MIGRATION_STATUS_KEY);
         sessionCache = null; // Clear cache so it gets reloaded from API
         localStorage.setItem(MIGRATION_DONE_KEY, "true");
+        return;
       }
+
+      const statusRecord: MigrationStatusRecord = {
+        success: false,
+        total: typeof result.total === "number" ? result.total : sessions.length,
+        migrated: typeof result.migrated === "number" ? result.migrated : 0,
+        duplicates: typeof result.duplicates === "number" ? result.duplicates : 0,
+        invalid: typeof result.invalid === "number" ? result.invalid : 0,
+        failed: typeof result.failed === "number" ? result.failed : 0,
+        errors: Array.isArray(result.errors) ? result.errors : [],
+        pendingSessions: Math.max(
+          sessions.length - (typeof result.migrated === "number" ? result.migrated : 0),
+          0
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(MIGRATION_STATUS_KEY, JSON.stringify(statusRecord));
+      console.warn("Migration partially completed; keeping local sessions for retry", statusRecord);
     } else {
       console.error("Migration failed:", await response.json());
     }
