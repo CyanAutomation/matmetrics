@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, readSessionByPath, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
-import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, isGitHubConfigured } from '@/lib/github-storage';
+import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, getGitHubSessionPath, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
 
@@ -150,18 +150,34 @@ export async function PUT(
     // Update in Vercel Blob (primary storage)
     await updateSession(session);
 
+    let warning: string | undefined;
+
     // Attempt GitHub sync (best-effort, don't fail if error)
     const gitHubConfig = body.gitHubConfig as GitHubConfig | undefined;
     if (gitHubConfig && isGitHubConfigured()) {
       try {
-        await updateSessionOnGitHub(session, gitHubConfig);
+        const result = await updateSessionOnGitHub(session, gitHubConfig);
+        if (!result.success) {
+          warning = result.message;
+          console.warn('GitHub session update sync reported failure', {
+            sessionId: session.id,
+            filePath: result.filePath ?? getGitHubSessionPath(session),
+            message: result.message,
+          });
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.warn('Failed to sync session update to GitHub:', error);
       }
     }
 
-    return NextResponse.json(session, { status: 200 });
+    return NextResponse.json(
+      {
+        ...session,
+        ...(warning ? { warning } : {}),
+      },
+      { status: 200 }
+    );
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
       return blobStorageDisabledResponse();
@@ -201,14 +217,24 @@ export async function DELETE(
     // Delete from Vercel Blob (primary storage)
     await deleteSession(id);
 
+    let warning: string | undefined;
+
     // Attempt GitHub sync (best-effort, don't fail if error)
     const gitHubConfig = body?.gitHubConfig as GitHubConfig | undefined;
     if (gitHubConfig && isGitHubConfigured()) {
       try {
-        if (existingSession) {
-          await deleteSessionOnGitHub(existingSession, gitHubConfig);
-        } else {
-          await deleteSessionOnGitHubById(id, gitHubConfig);
+        const result = existingSession
+          ? await deleteSessionOnGitHub(existingSession, gitHubConfig)
+          : await deleteSessionOnGitHubById(id, gitHubConfig);
+
+        if (!result.success) {
+          warning = result.message;
+          console.warn('GitHub session delete sync reported failure', {
+            sessionId: id,
+            filePath:
+              result.filePath ?? (existingSession ? getGitHubSessionPath(existingSession) : undefined),
+            message: result.message,
+          });
         }
       } catch (error) {
         // Log error but don't fail the request
@@ -217,7 +243,10 @@ export async function DELETE(
     }
 
     return NextResponse.json(
-      { message: 'Session deleted' },
+      {
+        message: 'Session deleted',
+        ...(warning ? { warning } : {}),
+      },
       { status: 200 }
     );
   } catch (error) {
