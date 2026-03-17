@@ -655,13 +655,17 @@ export async function bulkPushSessions(
       }, undefined)?.date;
 
     // Update README with stats
-    await createGitHubReadme(config, sessions.length, latestDate);
+    const readmeResult = await createGitHubReadme(config, sessions.length, latestDate);
+
+    const readmeWarning = readmeResult.success
+      ? ''
+      : ` README update failed: ${readmeResult.message}`;
 
     return {
-      success: lastError === '',
+      success: lastError === '' && readmeResult.success,
       message: `Pushed ${successCount}/${sessions.length} sessions to GitHub${
         lastError ? `. Last error: ${lastError}` : ''
-      }`,
+      }.${readmeWarning}`,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
