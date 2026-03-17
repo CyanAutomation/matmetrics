@@ -11,12 +11,33 @@ import { JudoSession } from './types';
  */
 export const SYNC_QUEUE_KEY = 'matmetrics_sync_queue';
 
-export type SyncOperation =
+type SyncOperationPayload =
   | { type: 'CREATE'; session: JudoSession }
   | { type: 'UPDATE'; session: JudoSession }
   | { type: 'DELETE'; id: string };
 
-function getOperationIdentity(operation: SyncOperation): string {
+export type SyncOperation = SyncOperationPayload & { queuedAt: number };
+
+type SyncOperationInput = SyncOperationPayload | SyncOperation;
+
+let lastQueuedAt = 0;
+
+function getNextQueuedAt(): number {
+  const now = Date.now();
+  lastQueuedAt = Math.max(lastQueuedAt + 1, now);
+  return lastQueuedAt;
+}
+
+function withQueuedAt(operation: SyncOperationInput): SyncOperation {
+  return {
+    ...operation,
+    queuedAt: 'queuedAt' in operation && Number.isFinite(operation.queuedAt)
+      ? operation.queuedAt
+      : getNextQueuedAt(),
+  };
+}
+
+function getOperationIdentity(operation: SyncOperationInput): string {
   if (operation.type === 'DELETE') {
     return `${operation.type}:${operation.id}`;
   }
@@ -24,11 +45,17 @@ function getOperationIdentity(operation: SyncOperation): string {
   return `${operation.type}:${operation.session.id}`;
 }
 
-function dedupeOperations(operations: SyncOperation[]): SyncOperation[] {
+function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   const byIdentity = new Map<string, SyncOperation>();
 
   for (const operation of operations) {
-    byIdentity.set(getOperationIdentity(operation), operation);
+    const normalizedOperation = withQueuedAt(operation);
+    const identity = getOperationIdentity(normalizedOperation);
+    const existingOperation = byIdentity.get(identity);
+
+    if (!existingOperation || normalizedOperation.queuedAt >= existingOperation.queuedAt) {
+      byIdentity.set(identity, normalizedOperation);
+    }
   }
 
   return Array.from(byIdentity.values());
@@ -36,21 +63,37 @@ function dedupeOperations(operations: SyncOperation[]): SyncOperation[] {
 
 function readQueueFromStorage(): SyncOperation[] {
   const stored = localStorage.getItem(SYNC_QUEUE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  return stored ? dedupeOperations(JSON.parse(stored)) : [];
 }
 
-function writeQueueWithLatestMerge(nextQueue: SyncOperation[], baseQueue?: SyncOperation[]): void {
+function writeQueueWithLatestMerge(nextQueue: SyncOperationInput[], baseQueue?: SyncOperationInput[]): void {
   const latestQueue = readQueueFromStorage();
+  const normalizedNextQueue = dedupeOperations(nextQueue);
+  const normalizedBaseQueue = baseQueue ? dedupeOperations(baseQueue) : undefined;
 
-  const mergedQueue = baseQueue
+  const mergedQueue = normalizedBaseQueue
     ? (() => {
-      const baseIdentities = new Set(baseQueue.map(getOperationIdentity));
+      const baseLatestByIdentity = new Map<string, number>();
+
+      for (const operation of normalizedBaseQueue) {
+        const identity = getOperationIdentity(operation);
+        const existingQueuedAt = baseLatestByIdentity.get(identity) ?? Number.NEGATIVE_INFINITY;
+        if (operation.queuedAt > existingQueuedAt) {
+          baseLatestByIdentity.set(identity, operation.queuedAt);
+        }
+      }
+
+      const concurrentLatestOperations = latestQueue.filter((operation) => {
+        const baseQueuedAt = baseLatestByIdentity.get(getOperationIdentity(operation));
+        return baseQueuedAt === undefined || operation.queuedAt > baseQueuedAt;
+      });
+
       return dedupeOperations([
-        ...nextQueue,
-        ...latestQueue.filter(operation => !baseIdentities.has(getOperationIdentity(operation))),
+        ...normalizedNextQueue,
+        ...concurrentLatestOperations,
       ]);
     })()
-    : dedupeOperations(nextQueue);
+    : normalizedNextQueue;
 
   if (mergedQueue.length === 0) {
     localStorage.removeItem(SYNC_QUEUE_KEY);
@@ -63,7 +106,7 @@ function writeQueueWithLatestMerge(nextQueue: SyncOperation[], baseQueue?: SyncO
 /**
  * Add an operation to the sync queue (called when offline)
  */
-export function queueOperation(operation: SyncOperation): void {
+export function queueOperation(operation: SyncOperationInput): void {
   if (typeof window === 'undefined') return;
 
   try {
@@ -91,7 +134,7 @@ export function getQueue(): SyncOperation[] {
 /**
  * Replace queue contents atomically (used to persist remaining operations after partial sync)
  */
-export function setQueue(operations: SyncOperation[], baseQueue?: SyncOperation[]): void {
+export function setQueue(operations: SyncOperationInput[], baseQueue?: SyncOperationInput[]): void {
   if (typeof window === 'undefined') return;
 
   try {
@@ -104,7 +147,7 @@ export function setQueue(operations: SyncOperation[], baseQueue?: SyncOperation[
 /**
  * Clear the entire sync queue (called after successful sync)
  */
-export function clearQueue(baseQueue?: SyncOperation[]): void {
+export function clearQueue(baseQueue?: SyncOperationInput[]): void {
   if (typeof window === 'undefined') return;
 
   try {
