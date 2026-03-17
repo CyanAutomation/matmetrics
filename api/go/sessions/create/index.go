@@ -6,6 +6,7 @@ import (
 	"matmetrics/internal/githubapi"
 	"matmetrics/internal/httpapi"
 	"matmetrics/internal/model"
+	"matmetrics/internal/sessionapi"
 )
 
 type sessionRequest struct {
@@ -28,6 +29,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusBadRequest, "Missing owner or repo")
 		return
 	}
+	if err := sessionapi.ValidateSession(request.Session); err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, capitalizeFirst(err.Error()))
+		return
+	}
 
 	client, err := githubapi.NewClientFromEnv()
 	if err != nil {
@@ -42,4 +47,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpapi.WriteJSON(w, http.StatusCreated, session)
+}
+
+func capitalizeFirst(value string) string {
+	if value == "" {
+		return value
+	}
+	if value[0] >= 'a' && value[0] <= 'z' {
+		return string(value[0]-32) + value[1:]
+	}
+	return value
 }

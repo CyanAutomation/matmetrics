@@ -4,7 +4,7 @@
 
 - Session Logging: Users can easily log details for each Judo practice session, including the date, techniques covered as tags, and the perceived effort.
 - AI Technique Helper: An AI tool that suggests relevant, standard Judo techniques as the user types or categorizes technique descriptions, allowing them to easily add techniques as tags during session logging.
-- Effort Rating: A simple 0-2 scale to track perceived effort for each training session, where 0 is a normal/standard session, 1 is a hard session, and 2 is a very hard session.
+- Effort Rating: A simple 1-5 scale to track perceived effort for each training session, where 1 is easy, 3 is a normal/standard session, and 5 is intense.
 - Session History: View a list of all logged sessions, allowing users to quickly access past training details.
 - Dashboard Overview: A dashboard presenting an overview of recent sessions, including basic metrics like average effort and frequently practiced techniques.
 
