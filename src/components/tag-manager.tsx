@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,6 @@ import {
   Trash2, 
   Combine, 
   Search, 
-  X, 
-  Check, 
   AlertCircle 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -55,14 +53,14 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const [targetMergeTag, setTargetMergeTag] = useState<string>("");
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
 
-  useEffect(() => {
-    refreshTags();
-  }, []);
-
-  const refreshTags = () => {
+  const refreshTags = useCallback(() => {
     setTags(getAllTags());
     onRefresh();
-  };
+  }, [onRefresh]);
+
+  useEffect(() => {
+    refreshTags();
+  }, [refreshTags]);
 
   const handleRename = () => {
     if (!editingTag || !newTagName.trim()) return;

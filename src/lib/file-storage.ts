@@ -80,7 +80,7 @@ export async function getNextCounter(date: string): Promise<number> {
     }
 
     return maxCounter + 1;
-  } catch (e) {
+  } catch {
     // Directory doesn't exist yet, start from 1
     return 1;
   }
@@ -268,7 +268,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         if (parsedSession.id === id) {
           return filePath;
         }
-      } catch (e) {
+      } catch {
         // Skip files that can't be parsed
       }
     }

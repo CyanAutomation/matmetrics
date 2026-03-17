@@ -185,7 +185,7 @@ export function validateRoundtrip(session: JudoSession): boolean {
       recovered.description === session.description &&
       recovered.notes === session.notes
     );
-  } catch (e) {
+  } catch {
     return false;
   }
 }

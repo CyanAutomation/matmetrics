@@ -5,7 +5,7 @@ import { JudoSession, EFFORT_LABELS, EFFORT_COLORS, CATEGORY_COLORS } from "@/li
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar, Clock, Edit2, Target } from "lucide-react";
+import { Trash2, Calendar, Clock, Edit2 } from "lucide-react";
 import { format } from "date-fns";
 import { deleteSession } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
