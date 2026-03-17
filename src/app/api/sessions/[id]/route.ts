@@ -56,6 +56,15 @@ export async function GET(
     }
 
     const session = await readSessionByPath(blobPath);
+    
+    // Validate that the retrieved session matches the requested ID
+    if (session.id !== id) {
+      console.error(`Session ID mismatch: requested ${id}, found ${session.id} at ${blobPath}`);
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
