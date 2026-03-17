@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"matmetrics/go/internal/model"
+	"matmetrics/internal/model"
 )
 
 func TestRoundTripSessionMarkdown(t *testing.T) {

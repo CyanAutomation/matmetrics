@@ -6,6 +6,13 @@ import {
   readSessionByIdForConfig,
   updateSessionForConfig,
 } from '@/lib/session-storage';
+import {
+  buildGitHubDeleteBody,
+  buildGitHubSearchParams,
+  buildGitHubSessionBody,
+  proxyGoFunction,
+  shouldProxyGitHubRequests,
+} from '@/lib/go-function-proxy';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -92,6 +99,18 @@ export async function GET(
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
+
+    if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      return proxyGoFunction(request, {
+        path: '/api/go/sessions/get',
+        method: 'GET',
+        searchParams: new URLSearchParams({
+          id,
+          ...Object.fromEntries(buildGitHubSearchParams(gitHubConfig)),
+        }),
+      });
+    }
+
     const session = await readSessionByIdForConfig(id, gitHubConfig);
     if (!session) {
       return NextResponse.json(
@@ -180,6 +199,14 @@ export async function PUT(
     };
 
     const gitHubConfig = normalizeGitHubConfig(body.gitHubConfig as GitHubConfig | undefined);
+    if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      return proxyGoFunction(request, {
+        path: '/api/go/sessions/update',
+        method: 'PUT',
+        body: buildGitHubSessionBody(session, gitHubConfig),
+      });
+    }
+
     await updateSessionForConfig(session, gitHubConfig);
 
     return NextResponse.json(session, { status: 200 });
@@ -211,6 +238,14 @@ export async function DELETE(
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
     const gitHubConfig = normalizeGitHubConfig(body?.gitHubConfig as GitHubConfig | undefined);
+    if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      return proxyGoFunction(request, {
+        path: '/api/go/sessions/delete',
+        method: 'DELETE',
+        body: buildGitHubDeleteBody(id, gitHubConfig),
+      });
+    }
+
     await deleteSessionForConfig(id, gitHubConfig);
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });

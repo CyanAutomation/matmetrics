@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"matmetrics/go/internal/model"
+	"matmetrics/internal/model"
 )
 
 func SessionToMarkdown(session model.Session) (string, error) {

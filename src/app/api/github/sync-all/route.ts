@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSessions } from '@/lib/file-storage';
-import { bulkPushSessions, validateGitHubCredentials, isGitHubConfigured } from '@/lib/github-storage';
+import { isGitHubConfigured } from '@/lib/github-storage';
+import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { GitHubConfig } from '@/lib/types';
 
 /**
@@ -38,18 +38,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validation = await validateGitHubCredentials(config);
-    if (!validation.success) {
-      return NextResponse.json(validation, { status: 401 });
-    }
-
-    // Get all sessions from local markdown storage
-    const sessions = await listSessions();
-
-    // Push to GitHub
-    const result = await bulkPushSessions(sessions, config);
-
-    return NextResponse.json(result, { status: result.success ? 200 : 500 });
+    return proxyGoFunction(request, {
+      path: '/api/go/github/sync-all',
+      method: 'POST',
+      body: config,
+    });
   } catch (error) {
     console.error('Error in bulk sync', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

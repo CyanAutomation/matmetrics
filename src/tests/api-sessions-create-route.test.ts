@@ -55,8 +55,13 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
   const originalFetch = global.fetch;
 
   process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = async () =>
-    new Response(JSON.stringify({ message: 'simulated github outage' }), { status: 500 });
+  global.fetch = async (url: string | URL | Request) => {
+    const value = String(url);
+    if (value.includes('/api/go/sessions/create')) {
+      return new Response(JSON.stringify({ error: 'Failed to create session' }), { status: 500 });
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
 
   try {
     const response = await POST(

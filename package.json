@@ -16,8 +16,8 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && tsc --noEmit --incremental false",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "go:build": "cd go && GOCACHE=/tmp/matmetrics-go-cache go build ./cmd/matmetrics-cli",
-    "go:test": "cd go && GOCACHE=/tmp/matmetrics-go-cache go test ./..."
+    "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
+    "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/..."
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateGitHubCredentials, isGitHubConfigured } from '@/lib/github-storage';
+import { isGitHubConfigured } from '@/lib/github-storage';
+import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { GitHubConfig } from '@/lib/types';
 
 /**
@@ -37,10 +38,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Test credentials
-    const result = await validateGitHubCredentials(config);
-
-    return NextResponse.json(result, { status: result.success ? 200 : 401 });
+    return proxyGoFunction(request, {
+      path: '/api/go/github/validate',
+      method: 'POST',
+      body: config,
+    });
   } catch (error) {
     console.error('Error validating GitHub credentials', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

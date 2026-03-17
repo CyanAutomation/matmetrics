@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 import { createSessionForConfig, normalizeGitHubConfig } from '@/lib/session-storage';
+import {
+  buildGitHubSessionBody,
+  proxyGoFunction,
+  shouldProxyGitHubRequests,
+} from '@/lib/go-function-proxy';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -125,6 +130,14 @@ export async function POST(request: NextRequest) {
     };
 
     const gitHubConfig = normalizeGitHubConfig(body.gitHubConfig as GitHubConfig | undefined);
+    if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      return proxyGoFunction(request, {
+        path: '/api/go/sessions/create',
+        method: 'POST',
+        body: buildGitHubSessionBody(session, gitHubConfig),
+      });
+    }
+
     await createSessionForConfig(session, gitHubConfig);
 
     return NextResponse.json(session, { status: 201 });

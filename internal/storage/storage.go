@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"matmetrics/go/internal/markdown"
-	"matmetrics/go/internal/model"
+	"matmetrics/internal/markdown"
+	"matmetrics/internal/model"
 )
 
 func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
