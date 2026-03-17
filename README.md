@@ -20,7 +20,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Framework**: [Next.js 15](https://nextjs.org/) with TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
-- **Data Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) for persistent session files
+- **Data Storage**: GitHub-backed markdown files with local markdown fallback
 - **AI Integration**: [Google Genkit](https://github.com/firebase/genkit) with Google GenAI
 - **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
@@ -41,7 +41,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 - Node.js 18+ and npm/pnpm/yarn
 - Google Genkit API key (for AI-powered features)
-- Vercel account (for production deployment)
+- GitHub personal access token for GitHub-backed storage
 
 ### Installation
 
@@ -69,13 +69,8 @@ cp .env.example .env.local
 Then edit `.env.local` and add:
 
 ```dotenv
-# Vercel Blob Storage - Get from Vercel dashboard
-VERCEL_BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
-
-# Optional runtime flag for Blob access
-# Default (unset): true
-# Set to false to keep create/update/delete operations local/queued until Blob is re-enabled
-ENABLE_VERCEL_BLOB=true
+# GitHub token used by server-side GitHub sync/storage
+GITHUB_TOKEN=your_github_token
 
 # Google Genai API - Get from https://ai.google.dev/
 GOOGLE_GENAI_API_KEY=your_genai_api_key
@@ -83,18 +78,10 @@ GOOGLE_GENAI_API_KEY=your_genai_api_key
 
 ### Environment variable behavior
 
-- `ENABLE_VERCEL_BLOB` controls whether server routes are allowed to read/write Vercel Blob.
-  - Unset or `true`: Blob-backed persistence is active.
-  - `false`: Blob-backed persistence is paused.
-- `VERCEL_BLOB_READ_WRITE_TOKEN` is required only when Blob is enabled. If `ENABLE_VERCEL_BLOB=false`, the app can run without a Blob token because Blob endpoints are intentionally short-circuited.
-- While Blob is disabled:
-  - `POST /api/sessions/create` returns `503` with code `BLOB_STORAGE_DISABLED`.
-  - `PUT /api/sessions/[id]` returns `503` with code `BLOB_STORAGE_DISABLED`.
-  - `DELETE /api/sessions/[id]` returns `503` with code `BLOB_STORAGE_DISABLED`.
-  - `GET /api/sessions/list` returns `503`.
-  - Clients keep local cache data, and pending create/update/delete operations remain in the sync queue.
-
-To re-enable Blob, set `ENABLE_VERCEL_BLOB=true` (or remove the variable) and ensure `VERCEL_BLOB_READ_WRITE_TOKEN` is configured. Once re-enabled, queued local operations are retried and expected to sync to Blob in order, after which the queue is cleared and sessions are refreshed from the API.
+- `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
+- When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
+- When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
+- The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
 
 ## Available Scripts
 
@@ -110,7 +97,7 @@ To re-enable Blob, set `ENABLE_VERCEL_BLOB=true` (or remove the variable) and en
 
 ### Vercel (Recommended)
 
-MatMetrics is optimized for deployment on Vercel with built-in support for Vercel Blob Storage.
+MatMetrics works well on Vercel and stores sessions as markdown files, with GitHub as the preferred remote backend.
 
 1. **Push to GitHub**: Ensure your code is on GitHub
 
@@ -122,19 +109,14 @@ MatMetrics is optimized for deployment on Vercel with built-in support for Verce
 
 3. **Configure Environment Variables**:
    - In the "Environment Variables" section, add:
-     - `VERCEL_BLOB_READ_WRITE_TOKEN`: Get this from your Vercel project's Storage settings
+     - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
      - `GOOGLE_GENAI_API_KEY`: Your Google Genai API key from [ai.google.dev](https://ai.google.dev/)
 
 4. **Deploy**:
    - Click "Deploy"
    - Vercel will automatically build and deploy your application
 
-5. **Enable Blob Storage**:
-   - Go to your project settings → Storage
-   - Click "Create" → "Blob"
-   - Copy the token to your environment variables if not already set
-
-**Data Storage**: Session data is stored in Vercel Blob Storage. Each session is saved as a markdown file and persists across deployments.
+**Data Storage**: Sessions are stored as markdown files. Before GitHub is configured they are written to local markdown storage; after GitHub setup the configured repository becomes the primary backend.
 
 ## Project Structure
 

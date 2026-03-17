@@ -4,7 +4,6 @@ import {
   findSessionPathOnGitHubById,
   getGitHubSessionPath,
 } from './github-storage';
-import { getSessionBlobPath } from './vercel-blob-storage';
 import type { JudoSession } from './types';
 
 function makeSession(id: string): JudoSession {
@@ -25,11 +24,8 @@ function runPathEncodingRegression() {
 
   const githubPathA = getGitHubSessionPath(makeSession(idA));
   const githubPathB = getGitHubSessionPath(makeSession(idB));
-  const blobPathA = getSessionBlobPath('2025-03-14', undefined, idA);
-  const blobPathB = getSessionBlobPath('2025-03-14', undefined, idB);
 
   assert.notEqual(githubPathA, githubPathB);
-  assert.notEqual(blobPathA, blobPathB);
   assert.ok(githubPathA.endsWith('a%2Fb.md'));
   assert.ok(githubPathB.endsWith('a%3Fb.md'));
 

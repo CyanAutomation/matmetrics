@@ -3,7 +3,20 @@ import path from 'path';
 import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+let dataDir = path.join(process.cwd(), 'data');
+
+function getDataDir(): string {
+  return dataDir;
+}
+
+export function __setDataDirForTests(nextDataDir: string): void {
+  dataDir = nextDataDir;
+}
+
+export function __resetDataDirForTests(): void {
+  dataDir = path.join(process.cwd(), 'data');
+}
+
 function sanitizeSessionId(sessionId: string): string {
   if (sessionId.length > 100) {
     throw new Error('Session ID exceeds maximum allowed length of 100 characters');
@@ -24,7 +37,7 @@ export function getSessionFilePath(date: string, counter?: number, sessionId?: s
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
-  return path.join(DATA_DIR, year, month, baseName);
+  return path.join(getDataDir(), year, month, baseName);
 }
 
 /**
@@ -46,7 +59,7 @@ export function extractDateFromPath(filePath: string): string | null {
  */
 export async function getNextCounter(date: string): Promise<number> {
   const dirPath = path.join(
-    DATA_DIR,
+    getDataDir(),
     date.slice(0, 4),
     date.slice(5, 7)
   );
@@ -80,10 +93,10 @@ export async function getNextCounter(date: string): Promise<number> {
 export async function listSessions(): Promise<JudoSession[]> {
   try {
     const sessions: JudoSession[] = [];
-    const years = await fs.readdir(DATA_DIR);
+    const years = await fs.readdir(getDataDir());
 
     for (const year of years) {
-      const yearPath = path.join(DATA_DIR, year);
+      const yearPath = path.join(getDataDir(), year);
       const stat = await fs.stat(yearPath);
       if (!stat.isDirectory()) continue;
 
@@ -144,7 +157,7 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
-  const dirPath = path.join(DATA_DIR, session.date.slice(0, 4), session.date.slice(5, 7));
+  const dirPath = path.join(getDataDir(), session.date.slice(0, 4), session.date.slice(5, 7));
 
   // Ensure directory exists
   await fs.mkdir(dirPath, { recursive: true });
@@ -240,7 +253,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
 
     // Try to find the file
     const dirPath = path.join(
-      DATA_DIR,
+      getDataDir(),
       session.date.slice(0, 4),
       session.date.slice(5, 7)
     );
@@ -273,7 +286,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
  */
 export async function hasAnySessions(): Promise<boolean> {
   try {
-    const years = await fs.readdir(DATA_DIR);
+    const years = await fs.readdir(getDataDir());
     return years.length > 0;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
