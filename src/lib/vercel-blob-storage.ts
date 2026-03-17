@@ -602,10 +602,10 @@ export async function hasAnySessions(): Promise<boolean> {
 
       cursor = result.cursor;
 
-      if (!result.hasMore && !cursor) {
+      if (!result.hasMore || !result.cursor) {
         break;
       }
-    } while (true);
+    } while (cursor);
 
     return false;
   } catch (e) {
