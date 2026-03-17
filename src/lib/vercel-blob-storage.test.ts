@@ -19,6 +19,7 @@ import {
   updateSession,
 } from './vercel-blob-storage';
 import type { JudoSession } from './types';
+import { sessionToMarkdown } from './markdown-serializer';
 
 type BlobRecord = {
   pathname: string;
@@ -366,6 +367,75 @@ async function runConcurrentIndexMutationRegression() {
   }
 }
 
+async function runFindSessionFileByIdPaginatesDirectMatchChecks() {
+  const { deps } = createInMemoryBlobDeps();
+
+  const targetId = 'target-late-page';
+  const targetPath = getSessionBlobPath('2025-07-03', undefined, targetId);
+
+  await deps.put('sessions/2025/07/20250701-matmetrics-first.md', 'first', {});
+  await deps.put('sessions/2025/07/20250702-matmetrics-second.md', 'second', {});
+  await deps.put(targetPath, 'target', {});
+
+  let listCallCount = 0;
+
+  __setBlobStorageDepsForTests({
+    ...deps,
+    list: async (params: any) => {
+      listCallCount += 1;
+      return deps.list({ ...params, limit: 2 });
+    },
+  } as any);
+
+  try {
+    const found = await findSessionFileById(targetId);
+    assert.equal(found, targetPath, 'findSessionFileById should find direct filename match on later page');
+    assert.equal(listCallCount, 2, 'findSessionFileById should paginate to subsequent pages when needed');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
+async function runFindSessionFileByIdPaginatesContentFallbackChecks() {
+  const { deps } = createInMemoryBlobDeps();
+
+  const targetId = 'legacy-in-content';
+  await deps.put(
+    'sessions/2025/08/20250801-matmetrics-first.md',
+    sessionToMarkdown({ id: 'unrelated-first', date: '2025-08-01', duration: 60, effort: 3, category: 'Technical', notes: 'first', techniques: [] }),
+    {}
+  );
+  await deps.put(
+    'sessions/2025/08/20250802-matmetrics-second.md',
+    sessionToMarkdown({ id: 'unrelated-second', date: '2025-08-02', duration: 60, effort: 3, category: 'Technical', notes: 'second', techniques: [] }),
+    {}
+  );
+  const targetPath = 'sessions/2025/08/20250803-matmetrics-legacy-name.md';
+  await deps.put(
+    targetPath,
+    sessionToMarkdown({ id: targetId, date: '2025-08-03', duration: 60, effort: 3, category: 'Technical', notes: 'target', techniques: [] }),
+    {}
+  );
+
+  let listCallCount = 0;
+
+  __setBlobStorageDepsForTests({
+    ...deps,
+    list: async (params: any) => {
+      listCallCount += 1;
+      return deps.list({ ...params, limit: 2 });
+    },
+  } as any);
+
+  try {
+    const found = await findSessionFileById(targetId);
+    assert.equal(found, targetPath, 'findSessionFileById should fallback to markdown content on later page');
+    assert.equal(listCallCount, 2, 'findSessionFileById should continue paginating when direct match is absent');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 runDisabledGuardChecks()
   .then(() => runSessionLookupStorageErrorChecks())
   .then(() => runRegression())
@@ -375,6 +445,8 @@ runDisabledGuardChecks()
   .then(() => runHasAnySessionsFiltersMetadataChecks())
   .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
+  .then(() => runFindSessionFileByIdPaginatesDirectMatchChecks())
+  .then(() => runFindSessionFileByIdPaginatesContentFallbackChecks())
   .catch((err) => {
     console.error('Regression test failed:', err);
     process.exit(1);
