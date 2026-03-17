@@ -496,72 +496,90 @@ export async function findSessionFileById(id: string): Promise<string | null> {
     }
   }
 
-  let blobs: Array<{ pathname: string; url: string }> = [];
-  try {
-    const listed = await blobStorageDeps.list({
-      prefix: `${BLOB_FOLDER}/`,
-      limit: 10000,
-    });
-    blobs = listed.blobs;
-  } catch (e) {
-    throw new SessionLookupError('storage_error', `Failed listing session blobs for ${id}`, {
-      cause: e,
-    });
-  }
+  let cursor: string | undefined;
 
-  const directMatch = blobs.find(
-    blob => blob.pathname.endsWith(encodedSuffix) || blob.pathname.endsWith(legacySuffix)
-  );
-  if (directMatch) {
+  while (true) {
+    let page: {
+      blobs: Array<{ pathname: string; url: string }>;
+      cursor?: string;
+      hasMore?: boolean;
+    };
+
     try {
-      await setSessionPathIndexEntry(id, directMatch.pathname);
-    } catch (indexError) {
-      console.error(`Failed caching indexed path for session ${id}`, indexError);
+      page = (await blobStorageDeps.list({
+        prefix: `${BLOB_FOLDER}/`,
+        limit: 1000,
+        cursor,
+      } as any)) as {
+        blobs: Array<{ pathname: string; url: string }>;
+        cursor?: string;
+        hasMore?: boolean;
+      };
+    } catch (e) {
+      throw new SessionLookupError('storage_error', `Failed listing session blobs for ${id}`, {
+        cause: e,
+      });
     }
-    return directMatch.pathname;
-  }
 
-  for (const blob of blobs) {
-    if (!blob.pathname.endsWith('.md')) continue;
+    const directMatch = page.blobs.find(
+      blob => blob.pathname.endsWith(encodedSuffix) || blob.pathname.endsWith(legacySuffix)
+    );
+    if (directMatch) {
+      try {
+        await setSessionPathIndexEntry(id, directMatch.pathname);
+      } catch (indexError) {
+        console.error(`Failed caching indexed path for session ${id}`, indexError);
+      }
+      return directMatch.pathname;
+    }
 
-    let markdown: string;
-    try {
-      const response = await blobStorageDeps.fetch(blob.url);
-      if (!response.ok) {
-        if (response.status === 404) {
-          continue;
+    for (const blob of page.blobs) {
+      if (!blob.pathname.endsWith('.md')) continue;
+
+      let markdown: string;
+      try {
+        const response = await blobStorageDeps.fetch(blob.url);
+        if (!response.ok) {
+          if (response.status === 404) {
+            continue;
+          }
+
+          throw new SessionLookupError(
+            'storage_error',
+            `Failed fetching blob ${blob.pathname} while looking up session ${id}`
+          );
+        }
+        markdown = await response.text();
+      } catch (e) {
+        if (e instanceof SessionLookupError) {
+          throw e;
         }
 
         throw new SessionLookupError(
           'storage_error',
-          `Failed fetching blob ${blob.pathname} while looking up session ${id}`
+          `Failed fetching blob ${blob.pathname} while looking up session ${id}`,
+          { cause: e }
         );
       }
-      markdown = await response.text();
-    } catch (e) {
-      if (e instanceof SessionLookupError) {
-        throw e;
-      }
 
-      throw new SessionLookupError(
-        'storage_error',
-        `Failed fetching blob ${blob.pathname} while looking up session ${id}`,
-        { cause: e }
-      );
+      try {
+        const parsedSession = markdownToSession(markdown);
+        if (parsedSession.id === id) {
+          try {
+            await setSessionPathIndexEntry(id, blob.pathname);
+          } catch (indexError) {
+            console.error(`Failed caching indexed path for session ${id}`, indexError);
+          }
+          return blob.pathname;
+        }
+      } catch {
+        // Skip files that can't be parsed
+      }
     }
 
-    try {
-      const parsedSession = markdownToSession(markdown);
-      if (parsedSession.id === id) {
-        try {
-          await setSessionPathIndexEntry(id, blob.pathname);
-        } catch (indexError) {
-          console.error(`Failed caching indexed path for session ${id}`, indexError);
-        }
-        return blob.pathname;
-      }
-    } catch {
-      // Skip files that can't be parsed
+    cursor = page.cursor;
+    if (!page.hasMore || !page.cursor) {
+      break;
     }
   }
 
