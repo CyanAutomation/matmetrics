@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { isSameMonthAndYear } from "@/lib/utils";
 
 const JudoBeltIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -122,7 +123,7 @@ export default function Home() {
                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Training Stats</div>
                <div className="space-y-4">
                  <div className="flex items-center justify-between"><span className="text-sm font-medium">Sessions</span><span className="text-sm font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">{sessions.length}</span></div>
-                 <div className="flex items-center justify-between"><span className="text-sm font-medium">This Month</span><span className="text-sm font-bold bg-accent/10 text-accent-foreground px-2 py-0.5 rounded">{sessions.filter(s => { const date = new Date(s.date); const now = new Date(); return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); }).length}</span></div>
+                 <div className="flex items-center justify-between"><span className="text-sm font-medium">This Month</span><span className="text-sm font-bold bg-accent/10 text-accent-foreground px-2 py-0.5 rounded">{sessions.filter(s => isSameMonthAndYear(s.date, new Date())).length}</span></div>
                </div>
             </div>
           </SidebarContent>

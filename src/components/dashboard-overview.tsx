@@ -13,7 +13,7 @@ import {
   Cell
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { cn } from "@/lib/utils";
+import { cn, parseDateOnly } from "@/lib/utils";
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];
@@ -49,7 +49,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
     const categoryStats = Object.entries(categoryCount).map(([name, count]) => ({ name, count }));
 
     const recentEfforts = sessions.slice(0, 7).reverse().map(s => ({
-      date: new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      date: parseDateOnly(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       effort: s.effort
     }));
 

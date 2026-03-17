@@ -11,6 +11,7 @@ import { deleteSession } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SessionLogForm } from "@/components/session-log-form";
+import { parseDateOnly } from "@/lib/utils";
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -57,7 +58,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-lg">
-                        {format(new Date(session.date), "EEEE, MMMM do")}
+                        {format(parseDateOnly(session.date), "EEEE, MMMM do")}
                       </h4>
                       <Badge variant="outline" className={CATEGORY_COLORS[session.category || 'Technical']}>
                         {session.category || 'Technical'}
@@ -65,7 +66,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground gap-1">
                       <Clock className="h-3 w-3" />
-                      Logged {format(new Date(session.date), "p")}
+                      {format(parseDateOnly(session.date), "MMM d, yyyy")}
                     </div>
                   </div>
                 </div>

@@ -16,6 +16,7 @@ import {
 } from './github-storage';
 import { markdownToSession } from './markdown-serializer';
 import type { GitHubConfig, JudoSession } from './types';
+import { compareDateOnlyDesc } from './utils';
 
 function normalizeBranch(branch: string | undefined): string | undefined {
   const trimmed = branch?.trim();
@@ -149,7 +150,7 @@ export async function listSessionsFromGitHub(config: GitHubConfig): Promise<Judo
     markdownPaths.map(async (filePath) => markdownToSession(await readGitHubFileContent(config, filePath)))
   );
 
-  sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
   return sessions;
 }
 

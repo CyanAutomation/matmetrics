@@ -3,6 +3,7 @@ import {
   bulkPushSessions,
   findSessionPathOnGitHubById,
   getGitHubSessionPath,
+  updateSessionOnGitHub,
 } from './github-storage';
 import type { JudoSession } from './types';
 
@@ -284,6 +285,94 @@ async function runBulkPushReadmeFailureRegression() {
   }
 }
 
+async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+
+  const requests: Array<{ method: string; path: string; body?: any }> = [];
+
+  global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const parsed = new URL(String(url));
+    const path = parsed.pathname;
+    const method = init?.method ?? 'GET';
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    requests.push({ method, path, body });
+
+    if (path === '/repos/o/r/git/ref/heads/main') {
+      return new Response(JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/git/commits/commit-sha') {
+      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/git/trees/tree-sha') {
+      return new Response(JSON.stringify({
+        truncated: false,
+        tree: [
+          {
+            path: 'sessions/2025/01/20250110-matmetrics-session-1.md',
+            type: 'blob',
+          },
+        ],
+      }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/contents/sessions/2025/02/20250212-matmetrics-session-1.md' && method === 'GET') {
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    }
+
+    if (path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md' && method === 'GET') {
+      return new Response(JSON.stringify({ sha: 'old-sha' }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/contents/sessions/2025/02/20250212-matmetrics-session-1.md' && method === 'PUT') {
+      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md' && method === 'DELETE') {
+      assert.equal(body?.sha, 'old-sha');
+      return new Response(JSON.stringify({ content: { sha: 'deleted-sha' } }), { status: 200 });
+    }
+
+    return new Response(
+      JSON.stringify({ message: `Unexpected request: ${method} ${path}` }),
+      { status: 500 }
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await updateSessionOnGitHub(
+      {
+        id: 'session-1',
+        date: '2025-02-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      },
+      { owner: 'o', repo: 'r', branch: 'main' }
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(result.filePath, 'sessions/2025/02/20250212-matmetrics-session-1.md');
+    assert.ok(
+      requests.some(
+        (request) =>
+          request.method === 'DELETE' &&
+          request.path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md'
+      )
+    );
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
 async function main() {
   runPathEncodingRegression();
   await runGitHubLegacyLookupRegression();
@@ -291,6 +380,7 @@ async function main() {
   await runNon404TreeLookupErrorRegression();
   await runTruncatedTreeFallbackRegression();
   await runBulkPushReadmeFailureRegression();
+  await runGitHubUpdateMovesFileWhenDateChangesRegression();
 }
 
 main().catch((err) => {
