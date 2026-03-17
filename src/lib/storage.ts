@@ -13,10 +13,7 @@ import {
 
 const STORAGE_KEY = "matmetrics_sessions";
 const PROMPT_KEY = "matmetrics_transformer_prompt";
-const MIGRATION_DONE_KEY = "matmetrics_migration_done";
-const MIGRATION_STATUS_KEY = "matmetrics_migration_status";
 const GITHUB_CONFIG_KEY = "matmetrics_github_config";
-const CLOUD_PERSISTENCE_STATUS_KEY = "matmetrics_cloud_persistence_status";
 
 function isStorageEventForKey(event: StorageEvent, key: string): boolean {
   return event.storageArea === localStorage && event.key === key;
@@ -37,67 +34,9 @@ Guidelines:
 let sessionCache: JudoSession[] | null = null;
 let isOnline = typeof window !== "undefined" ? navigator.onLine : true;
 let isSyncing = false;
-let migrationAttempted = false;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
-let cloudPersistencePaused = false;
-
-type CloudPersistenceStatusDetail = {
-  paused: boolean;
-  reason?: "blob-disabled";
-};
-
-type MigrationStatusRecord = {
-  success: boolean;
-  total: number;
-  migrated: number;
-  duplicates: number;
-  invalid: number;
-  failed: number;
-  errors: string[];
-  pendingSessions: number;
-  updatedAt: string;
-};
-
-function readCloudPersistenceStatus(): CloudPersistenceStatusDetail {
-  if (typeof window === "undefined") {
-    return { paused: false };
-  }
-
-  try {
-    const raw = localStorage.getItem(CLOUD_PERSISTENCE_STATUS_KEY);
-    if (!raw) return { paused: false };
-    const parsed = JSON.parse(raw) as CloudPersistenceStatusDetail;
-    if (typeof parsed?.paused !== "boolean") {
-      return { paused: false };
-    }
-    return parsed;
-  } catch (error) {
-    console.warn("Failed to parse cloud persistence status", error);
-    return { paused: false };
-  }
-}
-
-function setCloudPersistencePaused(paused: boolean, reason?: "blob-disabled"): void {
-  if (typeof window === "undefined") return;
-
-  cloudPersistencePaused = paused;
-  const detail: CloudPersistenceStatusDetail = paused ? { paused, reason } : { paused };
-  localStorage.setItem(CLOUD_PERSISTENCE_STATUS_KEY, JSON.stringify(detail));
-  window.dispatchEvent(new CustomEvent("cloudPersistenceStatus", { detail }));
-}
-
-async function isBlobStorageDisabledResponse(res: Response): Promise<boolean> {
-  if (res.status !== 503) return false;
-
-  try {
-    const payload = await res.clone().json();
-    return payload?.code === "BLOB_STORAGE_DISABLED";
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Initialize storage: set up online/offline listeners and attempt migration
@@ -105,20 +44,12 @@ async function isBlobStorageDisabledResponse(res: Response): Promise<boolean> {
 export function initializeStorage(): void {
   if (typeof window === "undefined") return;
 
-  cloudPersistencePaused = readCloudPersistenceStatus().paused;
-
   // Set up online/offline detection exactly once
   if (!listenersInitialized) {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("storage", handleStorageEvent);
     listenersInitialized = true;
-  }
-
-  // Attempt migration on first load
-  if (!migrationAttempted) {
-    migrationAttempted = true;
-    void attemptMigration();
   }
 
   // Try to sync if we have pending operations
@@ -198,15 +129,7 @@ export function saveSession(session: JudoSession): void {
           body: JSON.stringify(requestBody),
         });
 
-        if (await isBlobStorageDisabledResponse(res)) {
-          setCloudPersistencePaused(true, "blob-disabled");
-          queueOperation({ type: "CREATE", session });
-          return;
-        }
-
         if (!res.ok) throw new Error("Failed to save session");
-
-        setCloudPersistencePaused(false);
       } catch (error) {
         console.error("Error saving session to API", error);
         queueOperation({ type: "CREATE", session });
@@ -254,15 +177,7 @@ export function updateSession(session: JudoSession): void {
           body: JSON.stringify(requestBody),
         });
 
-        if (await isBlobStorageDisabledResponse(res)) {
-          setCloudPersistencePaused(true, "blob-disabled");
-          queueOperation({ type: "UPDATE", session });
-          return;
-        }
-
         if (!res.ok) throw new Error("Failed to update session");
-
-        setCloudPersistencePaused(false);
       } catch (error) {
         console.error("Error updating session on API", error);
         queueOperation({ type: "UPDATE", session });
@@ -302,15 +217,7 @@ export function deleteSession(id: string): void {
           body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
         });
 
-        if (await isBlobStorageDisabledResponse(res)) {
-          setCloudPersistencePaused(true, "blob-disabled");
-          queueOperation({ type: "DELETE", id });
-          return;
-        }
-
         if (!res.ok) throw new Error("Failed to delete session");
-
-        setCloudPersistencePaused(false);
       } catch (error) {
         console.error("Error deleting session on API", error);
         queueOperation({ type: "DELETE", id });
@@ -508,19 +415,17 @@ export function getSyncStatus(): {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
-  cloudPersistencePaused: boolean;
 } {
   return {
     isOnline,
     isSyncing,
     pendingCount: getPendingOperationCount(),
-    cloudPersistencePaused,
   };
 }
 
 export function retryCloudSync(): void {
   if (typeof window === "undefined") return;
-  void syncPendingOperations({ allowWhenPaused: true });
+  void syncPendingOperations();
 }
 
 // ============================================================================
@@ -551,7 +456,7 @@ function handleOnline(): void {
   // Sync pending operations when coming back online.
   // The sync flow already refreshes sessions after queue flush.
   if (hasPendingOperations()) {
-    void syncPendingOperations({ allowWhenPaused: true });
+    void syncPendingOperations();
     return;
   }
 
@@ -573,12 +478,7 @@ function handleStorageEvent(event: StorageEvent): void {
     return;
   }
 
-  if (isStorageEventForKey(event, CLOUD_PERSISTENCE_STATUS_KEY)) {
-    cloudPersistencePaused = readCloudPersistenceStatus().paused;
-    return;
-  }
-
-  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations() && !cloudPersistencePaused) {
+  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations()) {
     void syncPendingOperations();
   }
 }
@@ -589,7 +489,17 @@ async function refreshSessionsFromAPI(): Promise<void> {
   const seq = ++refreshSeq;
 
   try {
-    const res = await fetch("/api/sessions/list");
+    const gitHubConfig = getGitHubConfig();
+    const url = new URL("/api/sessions/list", window.location.origin);
+    if (gitHubConfig && isGitHubEnabled()) {
+      url.searchParams.set("owner", gitHubConfig.owner);
+      url.searchParams.set("repo", gitHubConfig.repo);
+      if (gitHubConfig.branch) {
+        url.searchParams.set("branch", gitHubConfig.branch);
+      }
+    }
+
+    const res = await fetch(url.toString());
     if (!res.ok) {
       console.warn(`Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`);
       return;
@@ -610,9 +520,8 @@ async function refreshSessionsFromAPI(): Promise<void> {
   }
 }
 
-async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): Promise<void> {
+async function syncPendingOperations(): Promise<void> {
   if (!isOnline || isSyncing) return;
-  if (cloudPersistencePaused && !options?.allowWhenPaused) return;
 
   isSyncing = true;
 
@@ -634,13 +543,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               body: JSON.stringify(createBody),
             });
 
-            if (await isBlobStorageDisabledResponse(createResponse)) {
-              setCloudPersistencePaused(true, "blob-disabled");
-              const remainingOperations = queue.slice(index);
-              setQueue(remainingOperations, queue);
-              return;
-            }
-
             if (!createResponse.ok) throw new Error("Failed to create session");
             break;
 
@@ -655,13 +557,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               body: JSON.stringify(updateBody),
             });
 
-            if (await isBlobStorageDisabledResponse(updateResponse)) {
-              setCloudPersistencePaused(true, "blob-disabled");
-              const remainingOperations = queue.slice(index);
-              setQueue(remainingOperations, queue);
-              return;
-            }
-
             if (!updateResponse.ok) throw new Error("Failed to update session");
             break;
 
@@ -675,13 +570,6 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
               headers: { "Content-Type": "application/json" },
               body: Object.keys(deleteBody).length > 0 ? JSON.stringify(deleteBody) : undefined,
             });
-
-            if (await isBlobStorageDisabledResponse(deleteResponse)) {
-              setCloudPersistencePaused(true, "blob-disabled");
-              const remainingOperations = queue.slice(index);
-              setQueue(remainingOperations, queue);
-              return;
-            }
 
             if (!deleteResponse.ok) throw new Error("Failed to delete session");
             break;
@@ -698,82 +586,10 @@ async function syncPendingOperations(options?: { allowWhenPaused?: boolean }): P
 
     // If all operations succeeded, clear the queue
     clearQueue(queue);
-    setCloudPersistencePaused(false);
 
     // Refresh sessions from API to ensure cache is up-to-date
     await refreshSessionsFromAPI();
   } finally {
     isSyncing = false;
-  }
-}
-
-async function attemptMigration(): Promise<void> {
-  if (typeof window === "undefined") return;
-
-  const migrationDone = localStorage.getItem(MIGRATION_DONE_KEY);
-  if (migrationDone) {
-    // Already migrated
-    return;
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    // No localStorage data to migrate
-    localStorage.setItem(MIGRATION_DONE_KEY, "true");
-    localStorage.removeItem(MIGRATION_STATUS_KEY);
-    return;
-  }
-
-  try {
-    const sessions = JSON.parse(stored);
-    if (!Array.isArray(sessions) || sessions.length === 0) {
-      localStorage.setItem(MIGRATION_DONE_KEY, "true");
-      localStorage.removeItem(MIGRATION_STATUS_KEY);
-      return;
-    }
-
-    // Attempt migration
-    const response = await fetch("/api/sessions/migrate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessions }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      const migrationSucceeded = result.success === true && result.failed === 0;
-
-      if (migrationSucceeded) {
-        console.log(`Migrated ${result.migrated} sessions to markdown files`);
-        // Clear localStorage only after a fully successful migration
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(MIGRATION_STATUS_KEY);
-        sessionCache = null; // Clear cache so it gets reloaded from API
-        localStorage.setItem(MIGRATION_DONE_KEY, "true");
-        return;
-      }
-
-      const statusRecord: MigrationStatusRecord = {
-        success: false,
-        total: typeof result.total === "number" ? result.total : sessions.length,
-        migrated: typeof result.migrated === "number" ? result.migrated : 0,
-        duplicates: typeof result.duplicates === "number" ? result.duplicates : 0,
-        invalid: typeof result.invalid === "number" ? result.invalid : 0,
-        failed: typeof result.failed === "number" ? result.failed : 0,
-        errors: Array.isArray(result.errors) ? result.errors : [],
-        pendingSessions: Math.max(
-          sessions.length - (typeof result.migrated === "number" ? result.migrated : 0),
-          0
-        ),
-        updatedAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem(MIGRATION_STATUS_KEY, JSON.stringify(statusRecord));
-      console.warn("Migration partially completed; keeping local sessions for retry", statusRecord);
-    } else {
-      console.error("Migration failed:", await response.json());
-    }
-  } catch (error) {
-    console.error("Migration error", error);
   }
 }

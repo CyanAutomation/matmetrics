@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSessions } from '@/lib/vercel-blob-storage';
+import { listSessions } from '@/lib/file-storage';
 import { bulkPushSessions, validateGitHubCredentials, isGitHubConfigured } from '@/lib/github-storage';
 import { GitHubConfig } from '@/lib/types';
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(validation, { status: 401 });
     }
 
-    // Get all sessions from Vercel Blob
+    // Get all sessions from local markdown storage
     const sessions = await listSessions();
 
     // Push to GitHub

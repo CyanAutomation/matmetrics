@@ -1,84 +1,62 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 import { POST } from './route';
-import { __resetBlobStorageDepsForTests, __setBlobStorageDepsForTests } from '@/lib/vercel-blob-storage';
+import { __resetDataDirForTests, __setDataDirForTests, getSessionFilePath } from '@/lib/file-storage';
 
-type BlobRecord = {
-  pathname: string;
-  url: string;
-  body: string;
-};
+async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-create-route-'));
+  __setDataDirForTests(dataDir);
 
-function createInMemoryBlobDeps() {
-  const blobs = new Map<string, BlobRecord>();
-  const toUrl = (pathname: string) => `https://blob.local/${pathname}`;
-
-  return {
-    deps: {
-      put: async (pathname: string, body: any, options?: { allowOverwrite?: boolean }) => {
-        if (options?.allowOverwrite === false && blobs.has(pathname)) {
-          const error = new Error('already exists') as Error & { code?: string };
-          error.code = 'BLOB_ALREADY_EXISTS';
-          throw error;
-        }
-
-        blobs.set(pathname, {
-          pathname,
-          url: toUrl(pathname),
-          body: String(body),
-        });
-
-        return { pathname, url: toUrl(pathname) } as any;
-      },
-      head: async (pathname: string) => {
-        const blob = blobs.get(pathname);
-        if (!blob) {
-          const error = new Error('not found') as Error & { code?: string };
-          error.code = 'BLOB_NOT_FOUND';
-          throw error;
-        }
-
-        return { url: blob.url } as any;
-      },
-      list: async ({ prefix = '', limit = 10000 }: { prefix?: string; limit?: number }) => {
-        return {
-          blobs: [...blobs.values()]
-            .filter(blob => blob.pathname.startsWith(prefix))
-            .slice(0, limit)
-            .map(blob => ({ pathname: blob.pathname, url: blob.url })),
-        } as any;
-      },
-      fetch: async (url: string | URL | Request) => {
-        const value = String(url);
-        const blob = [...blobs.values()].find(entry => entry.url === value);
-        return blob ? new Response(blob.body, { status: 200 }) : new Response('', { status: 404 });
-      },
-    },
-  };
+  try {
+    await run(dataDir);
+  } finally {
+    __resetDataDirForTests();
+    await rm(dataDir, { recursive: true, force: true });
+  }
 }
 
-test('POST includes warning when GitHub create sync result reports success:false', async () => {
-  const { deps } = createInMemoryBlobDeps();
-  __setBlobStorageDepsForTests(deps as any);
+test('POST persists the session to local markdown storage when GitHub is not configured', async () => {
+  await withTempDataDir(async () => {
+    const response = await POST(
+      new NextRequest('http://localhost/api/sessions/create', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: 'create-local-id',
+          date: '2025-01-12',
+          effort: 3,
+          category: 'Technical',
+          techniques: ['osoto-gari'],
+        }),
+      })
+    );
 
+    assert.equal(response.status, 201);
+    assert.deepEqual(await response.json(), {
+      id: 'create-local-id',
+      date: '2025-01-12',
+      effort: 3,
+      category: 'Technical',
+      techniques: ['osoto-gari'],
+    });
+
+    const filePath = getSessionFilePath('2025-01-12', undefined, 'create-local-id');
+    const markdown = await readFile(filePath, 'utf8');
+    assert.match(markdown, /id: create-local-id/);
+  });
+});
+
+test('POST returns 500 when GitHub create fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
-  const originalWarn = console.warn;
-  const warns: unknown[][] = [];
 
   process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = async (url: string | URL | Request) => {
-    const text = String(url);
-    if (text.startsWith('https://api.github.com/')) {
-      return new Response(JSON.stringify({ message: 'simulated github outage' }), { status: 500 });
-    }
-
-    throw new Error(`Unexpected fetch URL: ${text}`);
-  };
-  console.warn = (...args: unknown[]) => {
-    warns.push(args);
-  };
+  global.fetch = async () =>
+    new Response(JSON.stringify({ message: 'simulated github outage' }), { status: 500 });
 
   try {
     const response = await POST(
@@ -86,7 +64,7 @@ test('POST includes warning when GitHub create sync result reports success:false
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          id: 'create-warning-id',
+          id: 'create-github-failure',
           date: '2025-01-12',
           effort: 3,
           category: 'Technical',
@@ -96,21 +74,13 @@ test('POST includes warning when GitHub create sync result reports success:false
       })
     );
 
-    assert.equal(response.status, 201);
-    const payload = await response.json();
-    assert.equal(payload.id, 'create-warning-id');
-    assert.equal(typeof payload.warning, 'string');
-    assert.match(payload.warning, /GitHub sync failed/);
-    assert.equal(warns.length, 1);
-    assert.equal(warns[0][0], 'GitHub session create sync reported failure');
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: 'Failed to create session' });
   } finally {
-    console.warn = originalWarn;
     global.fetch = originalFetch;
     process.env.GITHUB_TOKEN = originalToken;
-    __resetBlobStorageDepsForTests();
   }
 });
-
 
 test('POST returns 400 for invalid techniques element type', async () => {
   const response = await POST(

@@ -20,5 +20,5 @@ Open matmetrics and navigate to Settings
 Go to "GitHub Sync"
 Enter your GitHub username and repo name
 Click "Test Connection"
-Click "Sync All Sessions" to push existing entries
+Click "Sync All Sessions" to push existing local markdown entries
 Done! New sessions will sync automatically

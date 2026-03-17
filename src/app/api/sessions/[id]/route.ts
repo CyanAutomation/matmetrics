@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, readSessionByPath, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
-import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, getGitHubSessionPath, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
+import {
+  deleteSessionForConfig,
+  listSessionsForConfig,
+  normalizeGitHubConfig,
+  readSessionByIdForConfig,
+  updateSessionForConfig,
+} from '@/lib/session-storage';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-
-function isBlobStorageDisabledError(error: unknown): boolean {
-  return error instanceof BlobStorageDisabledError;
-}
-
-function blobStorageDisabledResponse() {
-  return NextResponse.json(
-    {
-      error: 'Cloud persistence is temporarily unavailable',
-      code: 'BLOB_STORAGE_DISABLED',
-    },
-    { status: 503 }
-  );
-}
-
 
 function validateDate(dateValue: unknown): { valid: true; date: string } | { valid: false; error: string } {
   if (typeof dateValue !== 'string') {
@@ -77,13 +66,9 @@ function validateTechniques(
   };
 }
 
-function isSessionLookupNotFoundError(error: unknown): boolean {
-  return error instanceof SessionLookupError && error.kind === 'not_found';
-}
-
 function isSessionNotFoundError(error: unknown): boolean {
   if (error instanceof Error) {
-    return /Session with ID .* not found/.test(error.message);
+    return /Session with ID .* not found/.test(error.message) || /GitHub session not found/.test(error.message);
   }
 
   if (typeof error === 'string') {
@@ -103,21 +88,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-
-    // Find the session by ID (this also reads the content)
-    const blobPath = await findSessionFileById(id);
-    if (!blobPath) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
-
-    const session = await readSessionByPath(blobPath);
-    
-    // Validate that the retrieved session matches the requested ID
-    if (session.id !== id) {
-      console.error(`Session ID mismatch: requested ${id}, found ${session.id} at ${blobPath}`);
+    const gitHubConfig = normalizeGitHubConfig({
+      owner: request.nextUrl.searchParams.get('owner') ?? undefined,
+      repo: request.nextUrl.searchParams.get('repo') ?? undefined,
+      branch: request.nextUrl.searchParams.get('branch') ?? undefined,
+    });
+    const session = await readSessionByIdForConfig(id, gitHubConfig);
+    if (!session) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -126,17 +103,6 @@ export async function GET(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
-    if (isBlobStorageDisabledError(error)) {
-      return blobStorageDisabledResponse();
-    }
-
-    if (isSessionLookupNotFoundError(error)) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
-
     console.error('Error retrieving session', error);
     return NextResponse.json(
       { error: 'Failed to retrieve session' },
@@ -214,43 +180,12 @@ export async function PUT(
       ...(body.duration !== undefined && { duration: body.duration }),
     };
 
-    // Update in Vercel Blob (primary storage)
-    await updateSession(session);
+    const gitHubConfig = normalizeGitHubConfig(body.gitHubConfig as GitHubConfig | undefined);
+    await updateSessionForConfig(session, gitHubConfig);
 
-    let warning: string | undefined;
-
-    // Attempt GitHub sync (best-effort, don't fail if error)
-    const gitHubConfig = body.gitHubConfig as GitHubConfig | undefined;
-    if (gitHubConfig && isGitHubConfigured()) {
-      try {
-        const result = await updateSessionOnGitHub(session, gitHubConfig);
-        if (!result.success) {
-          warning = result.message;
-          console.warn('GitHub session update sync reported failure', {
-            sessionId: session.id,
-            filePath: result.filePath ?? getGitHubSessionPath(session),
-            message: result.message,
-          });
-        }
-      } catch (error) {
-        // Log error but don't fail the request
-        console.warn('Failed to sync session update to GitHub:', error);
-      }
-    }
-
-    return NextResponse.json(
-      {
-        ...session,
-        ...(warning ? { warning } : {}),
-      },
-      { status: 200 }
-    );
+    return NextResponse.json(session, { status: 200 });
   } catch (error) {
-    if (isBlobStorageDisabledError(error)) {
-      return blobStorageDisabledResponse();
-    }
-
-    if (isSessionLookupNotFoundError(error) || isSessionNotFoundError(error)) {
+    if (isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -276,52 +211,12 @@ export async function DELETE(
   try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
+    const gitHubConfig = normalizeGitHubConfig(body?.gitHubConfig as GitHubConfig | undefined);
+    await deleteSessionForConfig(id, gitHubConfig);
 
-    // Capture current session before deletion so GitHub path resolution can use real date/id.
-    const existingSessions = await listSessions();
-    const existingSession = existingSessions.find((session) => session.id === id);
-
-    // Delete from Vercel Blob (primary storage)
-    await deleteSession(id);
-
-    let warning: string | undefined;
-
-    // Attempt GitHub sync (best-effort, don't fail if error)
-    const gitHubConfig = body?.gitHubConfig as GitHubConfig | undefined;
-    if (gitHubConfig && isGitHubConfigured()) {
-      try {
-        const result = existingSession
-          ? await deleteSessionOnGitHub(existingSession, gitHubConfig)
-          : await deleteSessionOnGitHubById(id, gitHubConfig);
-
-        if (!result.success) {
-          warning = result.message;
-          console.warn('GitHub session delete sync reported failure', {
-            sessionId: id,
-            filePath:
-              result.filePath ?? (existingSession ? getGitHubSessionPath(existingSession) : undefined),
-            message: result.message,
-          });
-        }
-      } catch (error) {
-        // Log error but don't fail the request
-        console.warn('Failed to sync session deletion to GitHub:', error);
-      }
-    }
-
-    return NextResponse.json(
-      {
-        message: 'Session deleted',
-        ...(warning ? { warning } : {}),
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
-    if (isBlobStorageDisabledError(error)) {
-      return blobStorageDisabledResponse();
-    }
-
-    if (isSessionLookupNotFoundError(error) || isSessionNotFoundError(error)) {
+    if (isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
