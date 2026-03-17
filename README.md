@@ -39,7 +39,8 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 ### Prerequisites
 
-- Node.js 18+ and npm/pnpm/yarn
+- Node.js 24.x
+- npm 11.x
 - Google Genkit API key (for AI-powered features)
 - GitHub personal access token for GitHub-backed storage
 
@@ -98,6 +99,8 @@ GOOGLE_GENAI_API_KEY=your_genai_api_key
 ### Vercel (Recommended)
 
 MatMetrics works well on Vercel and stores sessions as markdown files, with GitHub as the preferred remote backend.
+
+Use Node.js 24.x for local development and configure the deployment runtime to Node.js 24 as well.
 
 1. **Push to GitHub**: Ensure your code is on GitHub
 
