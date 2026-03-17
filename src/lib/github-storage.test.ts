@@ -116,8 +116,45 @@ async function runMissingBranchLookupRegression() {
 
   try {
     const config = { owner: 'o', repo: 'r', branch: 'missing' };
+    const found = await findSessionPathOnGitHubById('a/b', config);
+    assert.equal(found, null);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
+async function runNon404TreeLookupErrorRegression() {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+
+  global.fetch = (async (url: string | URL | Request) => {
+    const parsed = new URL(String(url));
+    const path = parsed.pathname;
+
+    if (path.includes('/git/ref/heads/')) {
+      return new Response(
+        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+        { status: 200 }
+      );
+    }
+
+    if (path.includes('/git/commits/')) {
+      return new Response(JSON.stringify({ message: 'Server error' }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ message: 'Unexpected path' }), { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const config = { owner: 'o', repo: 'r', branch: 'main' };
     await assert.rejects(findSessionPathOnGitHubById('a/b', config), {
-      message: /GitHub API error 404: Not Found/,
+      message: /GitHub API error 500: Server error/,
     });
   } finally {
     global.fetch = originalFetch;
@@ -201,6 +238,7 @@ async function main() {
   runPathEncodingRegression();
   await runGitHubLegacyLookupRegression();
   await runMissingBranchLookupRegression();
+  await runNon404TreeLookupErrorRegression();
   await runTruncatedTreeFallbackRegression();
 }
 
