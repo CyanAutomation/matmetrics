@@ -16,6 +16,9 @@ export interface GitHubSyncResult {
 }
 
 const defaultBranchCache = new Map<string, string>();
+const GITHUB_SESSION_ROOT = 'data';
+const LEGACY_GITHUB_SESSION_ROOT = 'sessions';
+const GITHUB_SESSION_ROOTS = [GITHUB_SESSION_ROOT, LEGACY_GITHUB_SESSION_ROOT] as const;
 
 interface GitHubTreeEntry {
   path: string;
@@ -80,12 +83,12 @@ function sanitizeSessionIdLegacy(sessionId: string): string {
 
 /**
  * Get the file path for a session in GitHub
- * Format: sessions/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
+ * Format: data/YYYY/MM/YYYYMMDD-matmetrics-{id}.md
  */
 export function getGitHubSessionPath(session: JudoSession): string {
   const [year, month, day] = session.date.split('-');
   const fileName = `${year}${month}${day}-matmetrics-${encodeSessionId(session.id)}.md`;
-  return `sessions/${year}/${month}/${fileName}`;
+  return `${GITHUB_SESSION_ROOT}/${year}/${month}/${fileName}`;
 }
 
 /**
@@ -307,7 +310,8 @@ async function resolveBranch(config: GitHubConfig): Promise<string> {
 }
 
 /**
- * Find a session file path in GitHub by session ID by scanning sessions/YYYY/MM folders.
+ * Find a session file path in GitHub by session ID by scanning data/YYYY/MM folders first,
+ * then the legacy sessions/YYYY/MM layout.
  */
 export async function findSessionPathOnGitHubById(
   sessionId: string,
@@ -316,30 +320,33 @@ export async function findSessionPathOnGitHubById(
   const branch = await resolveBranch(config);
   const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
   const legacySuffix = `-matmetrics-${sanitizeSessionIdLegacy(sessionId)}.md`;
-  const sessionEntries = await getTreeEntriesForPath(
-    config.owner,
-    config.repo,
-    branch,
-    'sessions'
-  );
 
-  for (const entry of sessionEntries) {
-    if (entry.type !== 'blob') {
-      continue;
-    }
+  for (const rootPath of GITHUB_SESSION_ROOTS) {
+    const sessionEntries = await getTreeEntriesForPath(
+      config.owner,
+      config.repo,
+      branch,
+      rootPath
+    );
 
-    const pathParts = entry.path.split('/');
-    if (pathParts.length !== 4) {
-      continue;
-    }
+    for (const entry of sessionEntries) {
+      if (entry.type !== 'blob') {
+        continue;
+      }
 
-    const [sessionsDir, year, month, fileName] = pathParts;
-    if (sessionsDir !== 'sessions' || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
-      continue;
-    }
+      const pathParts = entry.path.split('/');
+      if (pathParts.length !== 4) {
+        continue;
+      }
 
-    if (fileName.endsWith(encodedSuffix) || fileName.endsWith(legacySuffix)) {
-      return entry.path;
+      const [sessionsDir, year, month, fileName] = pathParts;
+      if (sessionsDir !== rootPath || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
+        continue;
+      }
+
+      if (fileName.endsWith(encodedSuffix) || fileName.endsWith(legacySuffix)) {
+        return entry.path;
+      }
     }
   }
 
@@ -609,7 +616,7 @@ ${latestDate ? `- **Latest Session**: ${latestDate}` : ''}
 
 ## Structure
 
-Sessions are organized by date in \`sessions/YYYY/MM/\` directories as markdown files.
+Sessions are organized by date in \`data/YYYY/MM/\` directories as markdown files.
 
 Each session includes:
 - Date and session type (Technical, Randori, or Shiai)

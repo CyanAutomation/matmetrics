@@ -64,7 +64,7 @@ Example:
 
 ## GitHub file layout
 
-- Relative path: `sessions/YYYY/MM/YYYYMMDD-matmetrics-<encoded-id>.md`
+- Relative path: `data/YYYY/MM/YYYYMMDD-matmetrics-<encoded-id>.md`
 - GitHub path encoding must match JavaScript `encodeURIComponent`.
 
 Examples:

@@ -27,3 +27,9 @@ Bulk sync local markdown sessions to GitHub:
 ```bash
 GITHUB_TOKEN=... go run ./go/cmd/matmetrics-cli github sync-all --data-dir data --owner <owner> --repo <repo> --branch <branch>
 ```
+
+Migrate legacy GitHub session paths from `sessions/YYYY/MM/...` to `data/YYYY/MM/...`:
+
+```bash
+GITHUB_TOKEN=... go run ./go/cmd/matmetrics-cli github migrate-layout --owner <owner> --repo <repo> --branch <branch>
+```
