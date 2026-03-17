@@ -576,11 +576,38 @@ export async function hasAnySessions(): Promise<boolean> {
   assertBlobStorageEnabled();
 
   try {
-    const { blobs } = await blobStorageDeps.list({
-      prefix: BLOB_FOLDER,
-      limit: 1,
-    });
-    return blobs.length > 0;
+    let cursor: string | undefined;
+
+    do {
+      const result = (await blobStorageDeps.list({
+        prefix: `${BLOB_FOLDER}/`,
+        limit: 1,
+        cursor,
+      } as any)) as {
+        blobs: Array<{ pathname: string }>;
+        cursor?: string;
+        hasMore?: boolean;
+      };
+
+      const hasSessionBlob = result.blobs.some(
+        blob =>
+          blob.pathname.endsWith('.md') &&
+          !blob.pathname.startsWith(`${BLOB_FOLDER}/_index/`) &&
+          !blob.pathname.startsWith(`${BLOB_FOLDER}/_locks/`)
+      );
+
+      if (hasSessionBlob) {
+        return true;
+      }
+
+      cursor = result.cursor;
+
+      if (!result.hasMore || !result.cursor) {
+        break;
+      }
+    } while (cursor);
+
+    return false;
   } catch (e) {
     console.error('Error checking for sessions', e);
     return false;
