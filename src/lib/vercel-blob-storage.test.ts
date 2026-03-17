@@ -213,6 +213,59 @@ async function runSessionLookupStorageErrorChecks() {
   }
 }
 
+
+async function runCreateSessionIndexPersistenceChecks() {
+  const { deps } = createInMemoryBlobDeps();
+  const INDEX_PATH = 'sessions/_index/session-id-paths.json';
+
+  let indexPersistCount = 0;
+
+  __setBlobStorageDepsForTests({
+    ...deps,
+    put: async (pathname: string, body: any, opts: any) => {
+      if (pathname === INDEX_PATH) {
+        indexPersistCount += 1;
+      }
+      return deps.put(pathname, body, opts);
+    },
+  } as any);
+
+  try {
+    await createSession(makeSession('2025-05-01'));
+    assert.equal(indexPersistCount, 1, 'createSession should persist the index once after successful put');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
+async function runCreateSessionAlreadyExistsBackfillChecks() {
+  const { deps } = createInMemoryBlobDeps();
+  const INDEX_PATH = 'sessions/_index/session-id-paths.json';
+
+  let indexPersistCount = 0;
+
+  __setBlobStorageDepsForTests({
+    ...deps,
+    put: async (pathname: string, body: any, opts: any) => {
+      if (pathname === INDEX_PATH) {
+        indexPersistCount += 1;
+        return deps.put(pathname, body, opts);
+      }
+
+      const error = new Error('already exists') as Error & { code?: string };
+      error.code = 'BLOB_ALREADY_EXISTS';
+      throw error;
+    },
+  } as any);
+
+  try {
+    await createSession(makeSession('2025-05-02'));
+    assert.equal(indexPersistCount, 1, 'createSession should backfill the index once on BLOB_ALREADY_EXISTS');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 async function runConcurrentIndexMutationRegression() {
   const { deps, blobs } = createInMemoryBlobDeps();
   __setBlobStorageDepsForTests(deps as any);
@@ -253,6 +306,8 @@ async function runConcurrentIndexMutationRegression() {
 runDisabledGuardChecks()
   .then(() => runSessionLookupStorageErrorChecks())
   .then(() => runRegression())
+  .then(() => runCreateSessionIndexPersistenceChecks())
+  .then(() => runCreateSessionAlreadyExistsBackfillChecks())
   .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
   .catch((err) => {
