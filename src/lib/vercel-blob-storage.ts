@@ -496,14 +496,12 @@ export async function hasAnySessions(): Promise<boolean> {
 export async function acquireMigrationLock(ttlMs = 30000): Promise<string | null> {
   assertBlobStorageEnabled();
 
-  const now = Date.now();
-  const lockToken = `${now}-${crypto.randomUUID()}`;
-  const nextExpiry = now + ttlMs;
+  const lockToken = `${Date.now()}-${crypto.randomUUID()}`;
 
-  const writeLock = async () => {
+  const writeLock = async (now: number) => {
     await blobStorageDeps.put(
       MIGRATION_LOCK_PATH,
-      JSON.stringify({ token: lockToken, expiresAt: nextExpiry }),
+      JSON.stringify({ token: lockToken, expiresAt: now + ttlMs }),
       {
         contentType: 'application/json',
         access: 'private',
@@ -512,50 +510,50 @@ export async function acquireMigrationLock(ttlMs = 30000): Promise<string | null
     );
   };
 
-  try {
-    await writeLock();
-    return lockToken;
-  } catch (e) {
-    if ((e as any).code !== 'BLOB_ALREADY_EXISTS') {
-      throw e;
+  const lockIsActive = async (now: number): Promise<boolean> => {
+    try {
+      const existingLock = await blobStorageDeps.head(MIGRATION_LOCK_PATH);
+      const response = await blobStorageDeps.fetch(existingLock.url);
+      if (!response.ok) {
+        return false;
+      }
+
+      const payload = (await response.json()) as { expiresAt?: number };
+      return typeof payload.expiresAt === 'number' && payload.expiresAt > now;
+    } catch (e) {
+      if ((e as any).code !== 'BLOB_NOT_FOUND') {
+        console.error('Failed reading migration lock metadata', e);
+      }
+      return false;
+    }
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const now = Date.now();
+
+    try {
+      await writeLock(now);
+      return lockToken;
+    } catch (e) {
+      if ((e as any).code !== 'BLOB_ALREADY_EXISTS') {
+        throw e;
+      }
+    }
+
+    if (await lockIsActive(now)) {
+      return null;
+    }
+
+    try {
+      await blobStorageDeps.del(MIGRATION_LOCK_PATH);
+    } catch (e) {
+      if ((e as any).code !== 'BLOB_NOT_FOUND') {
+        return null;
+      }
     }
   }
 
-  try {
-    const existingLock = await blobStorageDeps.head(MIGRATION_LOCK_PATH);
-    const response = await blobStorageDeps.fetch(existingLock.url);
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload = (await response.json()) as { expiresAt?: number };
-    if (typeof payload.expiresAt === 'number' && payload.expiresAt > now) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as any).code !== 'BLOB_NOT_FOUND') {
-      console.error('Failed reading migration lock metadata', e);
-      return null;
-    }
-  }
-
-  try {
-    await blobStorageDeps.del(MIGRATION_LOCK_PATH);
-  } catch (e) {
-    if ((e as any).code !== 'BLOB_NOT_FOUND') {
-      return null;
-    }
-  }
-
-  try {
-    await writeLock();
-    return lockToken;
-  } catch (e) {
-    if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
-      return null;
-    }
-    throw e;
-  }
+  return null;
 }
 
 export async function releaseMigrationLock(lockToken: string): Promise<void> {

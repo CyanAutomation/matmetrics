@@ -40,6 +40,15 @@ export async function POST(request: NextRequest) {
   let lockToken: string | null = null;
 
   try {
+    const body = await request.json();
+
+    if (!Array.isArray(body.sessions)) {
+      return NextResponse.json(
+        { error: 'Invalid request: sessions must be an array' },
+        { status: 400 }
+      );
+    }
+
     lockToken = await acquireMigrationLock();
     if (!lockToken) {
       return NextResponse.json(
@@ -48,15 +57,6 @@ export async function POST(request: NextRequest) {
           code: 'MIGRATION_LOCKED',
         },
         { status: 409 }
-      );
-    }
-
-    const body = await request.json();
-
-    if (!Array.isArray(body.sessions)) {
-      return NextResponse.json(
-        { error: 'Invalid request: sessions must be an array' },
-        { status: 400 }
       );
     }
 
