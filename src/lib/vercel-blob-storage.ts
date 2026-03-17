@@ -300,6 +300,62 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
 }
 
 /**
+ * Read and parse a session directly from a known blob path.
+ * Throws SessionLookupError(not_found) when the blob is missing and
+ * SessionLookupError(storage_error) for fetch/parse failures.
+ */
+export async function readSessionByPath(blobPath: string): Promise<JudoSession> {
+  assertBlobStorageEnabled();
+
+  try {
+    const blob = await blobStorageDeps.head(blobPath);
+    const response = await blobStorageDeps.fetch(blob.url);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new SessionLookupError('not_found', `Session blob not found at ${blobPath}`);
+      }
+
+      throw new SessionLookupError(
+        'storage_error',
+        `Failed fetching session blob at ${blobPath} (status ${response.status})`
+      );
+    }
+
+    const markdown = await response.text();
+    return markdownToSession(markdown);
+  } catch (e) {
+    if (e instanceof SessionLookupError) {
+      throw e;
+    }
+
+    if (isBlobNotFoundError(e)) {
+      throw new SessionLookupError('not_found', `Session blob not found at ${blobPath}`, {
+        cause: e,
+      });
+    }
+
+    throw new SessionLookupError('storage_error', `Failed reading session blob at ${blobPath}`, {
+      cause: e,
+    });
+  }
+}
+
+/**
+ * Read and parse one session by ID.
+ */
+export async function readSessionById(id: string): Promise<JudoSession> {
+  assertBlobStorageEnabled();
+
+  const blobPath = await findSessionFileById(id);
+  if (!blobPath) {
+    throw new SessionLookupError('not_found', `Session with ID ${id} not found`);
+  }
+
+  return readSessionByPath(blobPath);
+}
+
+/**
  * Create a new session file
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */

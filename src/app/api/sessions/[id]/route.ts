@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, readSessionByPath, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
 import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
@@ -55,16 +55,7 @@ export async function GET(
       );
     }
 
-    // Get the session from the list since we have all sessions cached
-    const sessions = await listSessions();
-    const session = sessions.find(s => s.id === id);
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
+    const session = await readSessionByPath(blobPath);
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
