@@ -44,12 +44,30 @@ function createInMemoryBlobDeps() {
       }
       blobs.delete(pathname);
     },
-    list: async ({ prefix = '', limit = 10000 }: { prefix?: string; limit?: number }) => {
-      const result = [...blobs.values()]
+    list: async ({
+      prefix = '',
+      limit = 10000,
+      cursor,
+    }: {
+      prefix?: string;
+      limit?: number;
+      cursor?: string;
+    }) => {
+      const filtered = [...blobs.values()]
         .filter(blob => blob.pathname.startsWith(prefix))
-        .slice(0, limit)
         .map(blob => ({ pathname: blob.pathname, url: blob.url }));
-      return { blobs: result } as any;
+
+      const startIndex = cursor ? Number.parseInt(cursor, 10) : 0;
+      const safeStartIndex = Number.isFinite(startIndex) ? startIndex : 0;
+      const result = filtered.slice(safeStartIndex, safeStartIndex + limit);
+      const nextIndex = safeStartIndex + result.length;
+      const hasMore = nextIndex < filtered.length;
+
+      return {
+        blobs: result,
+        cursor: hasMore ? String(nextIndex) : undefined,
+        hasMore,
+      } as any;
     },
     head: async (pathname: string) => {
       const blob = blobs.get(pathname);
@@ -290,6 +308,27 @@ async function runReadSessionByPathNotFoundChecks() {
 }
 
 
+async function runHasAnySessionsFiltersMetadataChecks() {
+  const { deps } = createInMemoryBlobDeps();
+
+  __setBlobStorageDepsForTests(deps as any);
+
+  try {
+    await deps.put('sessions/_index/session-id-paths.json', '{}', {});
+    await deps.put('sessions/_locks/migration.lock', '{"token":"x"}', {});
+    assert.equal(
+      await hasAnySessions(),
+      false,
+      'hasAnySessions should ignore index and lock metadata files'
+    );
+
+    await deps.put('sessions/2025/06/20250601-matmetrics-real-session.md', 'body', {});
+    assert.equal(await hasAnySessions(), true, 'hasAnySessions should detect real markdown session blobs');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 async function runConcurrentIndexMutationRegression() {
   const { deps, blobs } = createInMemoryBlobDeps();
   __setBlobStorageDepsForTests(deps as any);
@@ -333,6 +372,7 @@ runDisabledGuardChecks()
   .then(() => runCreateSessionIndexPersistenceChecks())
   .then(() => runCreateSessionAlreadyExistsBackfillChecks())
   .then(() => runReadSessionByPathNotFoundChecks())
+  .then(() => runHasAnySessionsFiltersMetadataChecks())
   .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
   .catch((err) => {
