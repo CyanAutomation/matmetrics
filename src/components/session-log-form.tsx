@@ -11,8 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, X, Sparkles, Loader2, Save, Undo2, Wand2, PlusCircle } from "lucide-react";
 import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
 import { saveSession, updateSession, getTransformerPrompt } from "@/lib/storage";
-import { suggestTechniqueTags } from "@/ai/flows/ai-technique-suggester";
-import { transformPracticeDescription } from "@/ai/flows/practice-description-transformer";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,10 +72,18 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
     setIsTransforming(true);
     try {
       const customPrompt = getTransformerPrompt();
-      const result = await transformPracticeDescription({ 
-        description,
-        customPrompt 
+      const response = await fetch("/api/ai/transform-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description,
+          customPrompt,
+        }),
       });
+      if (!response.ok) {
+        throw new Error("Failed to transform description");
+      }
+      const result = await response.json();
       setDescription(result.transformedDescription);
       toast({
         title: "Description Refined",
@@ -106,8 +112,19 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
     setIsSuggesting(true);
     try {
-      const suggestions = await suggestTechniqueTags({ description });
-      const uniqueNew = suggestions.filter(s => !techniques.includes(s));
+      const response = await fetch("/api/ai/suggest-techniques", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to suggest techniques");
+      }
+      const payload = await response.json();
+      const suggestions: string[] = Array.isArray(payload.suggestions)
+        ? payload.suggestions.filter((suggestion: unknown): suggestion is string => typeof suggestion === "string")
+        : [];
+      const uniqueNew = suggestions.filter((suggestion) => !techniques.includes(suggestion));
       if (uniqueNew.length > 0) {
         setTechniques([...techniques, ...uniqueNew]);
         toast({
