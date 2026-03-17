@@ -9,7 +9,7 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "typecheck": "tsc --noEmit --incremental false",
+    "typecheck": "next typegen && tsc --noEmit --incremental false",
     "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
