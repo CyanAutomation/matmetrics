@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"matmetrics/go/internal/model"
+	"matmetrics/internal/model"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

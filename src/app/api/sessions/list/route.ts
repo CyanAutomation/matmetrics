@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listSessionsForConfig, normalizeGitHubConfig } from '@/lib/session-storage';
+import {
+  buildGitHubSearchParams,
+  proxyGoFunction,
+  shouldProxyGitHubRequests,
+} from '@/lib/go-function-proxy';
 
 /**
  * GET /api/sessions/list
@@ -12,6 +17,15 @@ export async function GET(request: NextRequest) {
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
+
+    if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      return proxyGoFunction(request, {
+        path: '/api/go/sessions/list',
+        method: 'GET',
+        searchParams: buildGitHubSearchParams(gitHubConfig),
+      });
+    }
+
     const sessions = await listSessionsForConfig(gitHubConfig);
     return NextResponse.json(sessions, { status: 200 });
   } catch (error) {

@@ -102,10 +102,10 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
   process.env.GITHUB_TOKEN = 'test-token';
   global.fetch = async (url: string | URL | Request) => {
     const value = String(url);
-    if (value.includes('/repos/octocat/hello-world')) {
-      return new Response(JSON.stringify({ message: 'simulated github outage' }), { status: 500 });
+    if (value.includes('/api/go/sessions/update')) {
+      return new Response(JSON.stringify({ error: 'Failed to update session' }), { status: 500 });
     }
-    throw new Error(`Unexpected GitHub URL: ${value}`);
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
   };
 
   try {
@@ -157,8 +157,13 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
   const originalFetch = global.fetch;
 
   process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = async () =>
-    new Response(JSON.stringify({ message: 'simulated github outage' }), { status: 500 });
+  global.fetch = async (url: string | URL | Request) => {
+    const value = String(url);
+    if (value.includes('/api/go/sessions/delete')) {
+      return new Response(JSON.stringify({ error: 'Failed to delete session' }), { status: 500 });
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
 
   try {
     const response = await DELETE(

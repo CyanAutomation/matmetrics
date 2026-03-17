@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"matmetrics/go/internal/markdown"
-	"matmetrics/go/internal/model"
+	"matmetrics/internal/markdown"
+	"matmetrics/internal/model"
 )
 
 func TestGetSessionFilePathSanitizesID(t *testing.T) {

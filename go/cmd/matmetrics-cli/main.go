@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"matmetrics/go/internal/githubapi"
-	"matmetrics/go/internal/model"
-	"matmetrics/go/internal/storage"
+	"matmetrics/internal/githubapi"
+	"matmetrics/internal/model"
+	"matmetrics/internal/storage"
 )
 
 func main() {
