@@ -226,3 +226,47 @@ test('PUT returns 400 for invalid date string', async () => {
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: 'Invalid date: must be a real calendar date' });
 });
+
+test('PUT returns 400 for invalid duration type', async () => {
+  const sessionId = 'put-invalid-duration';
+  const response = await PUT(
+    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        duration: 12.5,
+      }),
+    }),
+    { params: Promise.resolve({ id: sessionId }) }
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid duration: expected a non-negative integer' });
+});
+
+test('PUT returns 400 for invalid notes type', async () => {
+  const sessionId = 'put-invalid-notes';
+  const response = await PUT(
+    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        notes: ['bad'],
+      }),
+    }),
+    { params: Promise.resolve({ id: sessionId }) }
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid notes: expected a string' });
+});

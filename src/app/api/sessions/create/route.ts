@@ -65,6 +65,35 @@ function validateTechniques(
   };
 }
 
+function validateOptionalString(
+  value: unknown,
+  fieldName: 'description' | 'notes'
+): { valid: true; value: string | undefined } | { valid: false; error: string } {
+  if (value === undefined) {
+    return { valid: true, value: undefined };
+  }
+
+  if (typeof value !== 'string') {
+    return { valid: false, error: `Invalid ${fieldName}: expected a string` };
+  }
+
+  return { valid: true, value };
+}
+
+function validateDuration(
+  value: unknown
+): { valid: true; duration: number | undefined } | { valid: false; error: string } {
+  if (value === undefined) {
+    return { valid: true, duration: undefined };
+  }
+
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    return { valid: false, error: 'Invalid duration: expected a non-negative integer' };
+  }
+
+  return { valid: true, duration: value as number };
+}
+
 /**
  * POST /api/sessions/create
  * Create a new session and save it as a markdown file
@@ -118,15 +147,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const descriptionValidation = validateOptionalString(body.description, 'description');
+    if (!descriptionValidation.valid) {
+      return NextResponse.json(
+        { error: descriptionValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const notesValidation = validateOptionalString(body.notes, 'notes');
+    if (!notesValidation.valid) {
+      return NextResponse.json(
+        { error: notesValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const durationValidation = validateDuration(body.duration);
+    if (!durationValidation.valid) {
+      return NextResponse.json(
+        { error: durationValidation.error },
+        { status: 400 }
+      );
+    }
+
     const session: JudoSession = {
       id,
       date: dateValidation.date,
       effort: body.effort,
       category: body.category,
       techniques: techniquesValidation.techniques,
-      ...(body.description && { description: body.description }),
-      ...(body.notes && { notes: body.notes }),
-      ...(body.duration !== undefined && { duration: body.duration }),
+      ...(descriptionValidation.value !== undefined && { description: descriptionValidation.value }),
+      ...(notesValidation.value !== undefined && { notes: notesValidation.value }),
+      ...(durationValidation.duration !== undefined && { duration: durationValidation.duration }),
     };
 
     const gitHubConfig = normalizeGitHubConfig(body.gitHubConfig as GitHubConfig | undefined);
