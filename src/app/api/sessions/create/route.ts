@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BlobStorageDisabledError, createSession } from '@/lib/vercel-blob-storage';
-import { createSessionOnGitHub, isGitHubConfigured } from '@/lib/github-storage';
+import { createSessionOnGitHub, getGitHubSessionPath, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
 function isBlobStorageDisabledError(error: unknown): boolean {
@@ -76,18 +76,34 @@ export async function POST(request: NextRequest) {
     // Duplicate IDs are handled idempotently inside createSession.
     await createSession(session);
 
+    let warning: string | undefined;
+
     // Attempt GitHub sync (best-effort, don't fail if error)
     const gitHubConfig = body.gitHubConfig as GitHubConfig | undefined;
     if (gitHubConfig && isGitHubConfigured()) {
       try {
-        await createSessionOnGitHub(session, gitHubConfig);
+        const result = await createSessionOnGitHub(session, gitHubConfig);
+        if (!result.success) {
+          warning = result.message;
+          console.warn('GitHub session create sync reported failure', {
+            sessionId: session.id,
+            filePath: result.filePath ?? getGitHubSessionPath(session),
+            message: result.message,
+          });
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.warn('Failed to sync session to GitHub:', error);
       }
     }
 
-    return NextResponse.json(session, { status: 201 });
+    return NextResponse.json(
+      {
+        ...session,
+        ...(warning ? { warning } : {}),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
       return blobStorageDisabledResponse();
