@@ -211,11 +211,14 @@ async function getTreeEntriesForPath(
       typeof entry?.path === 'string' && entry.path.startsWith(prefix)
     );
   } catch (error) {
-    if (isGitHubApiError(error) && error.status !== 404) {
+    if (isGitHubApiError(error)) {
+      if (error.status === 404) {
+        return [];
+      }
       throw error;
     }
-
-    return [];
+    
+    throw error;
   }
 }
 
