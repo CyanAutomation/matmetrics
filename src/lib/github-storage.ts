@@ -171,51 +171,99 @@ async function getTreeEntriesForPath(
   branch: string,
   rootPath: string
 ): Promise<GitHubTreeEntry[]> {
-  try {
-    const refData = await githubApiRequest(
-      'GET',
-      `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`
-    );
+  const refData = await githubApiRequest(
+    'GET',
+    `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`
+  );
 
-    const commitSha = refData?.object?.sha;
-    if (typeof commitSha !== 'string' || commitSha.trim() === '') {
-      throw new Error('Branch reference does not include a commit SHA');
+  const commitSha = refData?.object?.sha;
+  if (typeof commitSha !== 'string' || commitSha.trim() === '') {
+    throw new Error('Branch reference does not include a commit SHA');
+  }
+
+  const commitData = await githubApiRequest(
+    'GET',
+    `/repos/${owner}/${repo}/git/commits/${commitSha}`
+  );
+
+  const treeSha = commitData?.tree?.sha;
+  if (typeof treeSha !== 'string' || treeSha.trim() === '') {
+    throw new Error('Commit does not include a tree SHA');
+  }
+
+  const treeData = await githubApiRequest(
+    'GET',
+    `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
+  );
+
+  if (treeData?.truncated === true) {
+    return listTreeEntriesFromContentsApi(owner, repo, branch, rootPath);
+  }
+
+  if (!Array.isArray(treeData?.tree)) {
+    return [];
+  }
+
+  const prefix = `${rootPath.replace(/\/+$/, '')}/`;
+
+  return treeData.tree.filter((entry: GitHubTreeEntry) =>
+    typeof entry?.path === 'string' && entry.path.startsWith(prefix)
+  );
+}
+
+interface GitHubContentsEntry {
+  path: string;
+  type: 'file' | 'dir';
+}
+
+async function listTreeEntriesFromContentsApi(
+  owner: string,
+  repo: string,
+  branch: string,
+  rootPath: string
+): Promise<GitHubTreeEntry[]> {
+  const normalizedRootPath = rootPath.replace(/^\/+|\/+$/g, '');
+  const queue = [normalizedRootPath];
+  const treeEntries: GitHubTreeEntry[] = [];
+
+  while (queue.length > 0) {
+    const currentPath = queue.shift();
+    if (!currentPath) {
+      continue;
     }
 
-    const commitData = await githubApiRequest(
-      'GET',
-      `/repos/${owner}/${repo}/git/commits/${commitSha}`
-    );
-
-    const treeSha = commitData?.tree?.sha;
-    if (typeof treeSha !== 'string' || treeSha.trim() === '') {
-      throw new Error('Commit does not include a tree SHA');
-    }
-
-    const treeData = await githubApiRequest(
-      'GET',
-      `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
-    );
-
-    if (!Array.isArray(treeData?.tree)) {
-      return [];
-    }
-
-    const prefix = `${rootPath.replace(/\/+$/, '')}/`;
-
-    return treeData.tree.filter((entry: GitHubTreeEntry) =>
-      typeof entry?.path === 'string' && entry.path.startsWith(prefix)
-    );
-  } catch (error) {
-    if (error instanceof GitHubApiError && error.status !== 404) {
+    let contents: GitHubContentsEntry[];
+    try {
+      const data = await githubApiRequest(
+        'GET',
+        `/repos/${owner}/${repo}/contents/${currentPath}?ref=${encodeURIComponent(branch)}`
+      );
+      contents = Array.isArray(data) ? data : [];
+    } catch (error) {
+      if (isGitHubApiError(error) && error.status === 404 && currentPath === normalizedRootPath) {
+        return [];
+      }
       throw error;
     }
 
-    return [];
-    }
+    for (const item of contents) {
+      if (typeof item?.path !== 'string') {
+        continue;
+      }
 
-    throw error;
+      if (item.type === 'dir') {
+        queue.push(item.path);
+        treeEntries.push({ path: item.path, type: 'tree' });
+        continue;
+      }
+
+      if (item.type === 'file') {
+        treeEntries.push({ path: item.path, type: 'blob' });
+      }
+    }
   }
+
+  return treeEntries;
 }
 
 async function resolveBranch(config: GitHubConfig): Promise<string> {
