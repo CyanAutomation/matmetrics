@@ -3,6 +3,8 @@ import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, read
 import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, getGitHubSessionPath, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 
 function isBlobStorageDisabledError(error: unknown): boolean {
   return error instanceof BlobStorageDisabledError;
@@ -18,6 +20,62 @@ function blobStorageDisabledResponse() {
   );
 }
 
+
+function validateDate(dateValue: unknown): { valid: true; date: string } | { valid: false; error: string } {
+  if (typeof dateValue !== 'string') {
+    return { valid: false, error: 'Invalid date: expected YYYY-MM-DD format' };
+  }
+
+  const match = ISO_DATE_PATTERN.exec(dateValue);
+  if (!match) {
+    return { valid: false, error: 'Invalid date: expected YYYY-MM-DD format' };
+  }
+
+  const [, yearString, monthString, dayString] = match;
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  ) {
+    return { valid: false, error: 'Invalid date: must be a real calendar date' };
+  }
+
+  return { valid: true, date: dateValue };
+}
+
+function validateTechniques(
+  techniquesValue: unknown
+): { valid: true; techniques: string[] } | { valid: false; error: string } {
+  if (!Array.isArray(techniquesValue)) {
+    return { valid: false, error: 'Invalid techniques: expected an array of non-empty strings' };
+  }
+
+  const normalized: string[] = [];
+
+  for (let index = 0; index < techniquesValue.length; index += 1) {
+    const technique = techniquesValue[index];
+    if (typeof technique !== 'string') {
+      return { valid: false, error: `Invalid techniques[${index}]: expected a string` };
+    }
+
+    const trimmed = technique.trim();
+    if (!trimmed) {
+      return { valid: false, error: `Invalid techniques[${index}]: value cannot be empty` };
+    }
+
+    normalized.push(trimmed);
+  }
+
+  return {
+    valid: true,
+    techniques: [...new Set(normalized)],
+  };
+}
 
 function isSessionLookupNotFoundError(error: unknown): boolean {
   return error instanceof SessionLookupError && error.kind === 'not_found';
@@ -115,6 +173,14 @@ export async function PUT(
       );
     }
 
+    const dateValidation = validateDate(body.date);
+    if (!dateValidation.valid) {
+      return NextResponse.json(
+        { error: dateValidation.error },
+        { status: 400 }
+      );
+    }
+
     if (typeof body.effort !== 'number' || body.effort < 1 || body.effort > 5) {
       return NextResponse.json(
         { error: 'Invalid effort level (must be 1-5)' },
@@ -129,19 +195,20 @@ export async function PUT(
       );
     }
 
-    if (!Array.isArray(body.techniques)) {
+    const techniquesValidation = validateTechniques(body.techniques);
+    if (!techniquesValidation.valid) {
       return NextResponse.json(
-        { error: 'Techniques must be an array' },
+        { error: techniquesValidation.error },
         { status: 400 }
       );
     }
 
     const session: JudoSession = {
       id,
-      date: body.date,
+      date: dateValidation.date,
       effort: body.effort,
       category: body.category,
-      techniques: body.techniques,
+      techniques: techniquesValidation.techniques,
       ...(body.description && { description: body.description }),
       ...(body.notes && { notes: body.notes }),
       ...(body.duration !== undefined && { duration: body.duration }),
