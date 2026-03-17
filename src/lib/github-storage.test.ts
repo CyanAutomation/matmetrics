@@ -27,6 +27,7 @@ function runPathEncodingRegression() {
   const githubPathB = getGitHubSessionPath(makeSession(idB));
 
   assert.notEqual(githubPathA, githubPathB);
+  assert.ok(githubPathA.startsWith('data/2025/03/'));
   assert.ok(githubPathA.endsWith('a%2Fb.md'));
   assert.ok(githubPathB.endsWith('a%3Fb.md'));
 
@@ -188,6 +189,10 @@ async function runTruncatedTreeFallbackRegression() {
       return new Response(JSON.stringify({ truncated: true, tree: [] }), { status: 200 });
     }
 
+    if (path.endsWith('/contents/data')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
     if (path.endsWith('/contents/sessions')) {
       return new Response(
         JSON.stringify([{ type: 'dir', path: 'sessions/2025', name: '2025' }]),
@@ -245,7 +250,7 @@ async function runBulkPushReadmeFailureRegression() {
     const parsed = new URL(String(url));
     const path = parsed.pathname;
 
-    if (path === '/repos/o/r/contents/sessions/2025/03/20250314-matmetrics-session-1.md') {
+    if (path === '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md') {
       sessionPutCount++;
       return new Response(JSON.stringify({ content: { sha: 'session-sha' } }), { status: 200 });
     }
@@ -319,7 +324,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
       }), { status: 200 });
     }
 
-    if (path === '/repos/o/r/contents/sessions/2025/02/20250212-matmetrics-session-1.md' && method === 'GET') {
+    if (path === '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' && method === 'GET') {
       return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
     }
 
@@ -327,7 +332,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
       return new Response(JSON.stringify({ sha: 'old-sha' }), { status: 200 });
     }
 
-    if (path === '/repos/o/r/contents/sessions/2025/02/20250212-matmetrics-session-1.md' && method === 'PUT') {
+    if (path === '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' && method === 'PUT') {
       return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 200 });
     }
 
@@ -355,7 +360,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
     );
 
     assert.equal(result.success, true);
-    assert.equal(result.filePath, 'sessions/2025/02/20250212-matmetrics-session-1.md');
+    assert.equal(result.filePath, 'data/2025/02/20250212-matmetrics-session-1.md');
     assert.ok(
       requests.some(
         (request) =>
