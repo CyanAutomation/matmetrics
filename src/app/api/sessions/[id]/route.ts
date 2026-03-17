@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 import {
   deleteSessionForConfig,
-  listSessionsForConfig,
   normalizeGitHubConfig,
   readSessionByIdForConfig,
   updateSessionForConfig,
