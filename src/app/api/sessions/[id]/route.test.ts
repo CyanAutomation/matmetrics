@@ -48,3 +48,60 @@ test('GET returns 500 when blob listing fails during lookup', async () => {
     __resetBlobStorageDepsForTests();
   }
 });
+
+
+test('GET reads the located blob directly without listing all sessions', async () => {
+  const INDEX_PATH = 'sessions/_index/session-id-paths.json';
+  const SESSION_PATH = 'sessions/2025/01/20250110-matmetrics-target.md';
+  const sessionId = 'target';
+
+  __setBlobStorageDepsForTests({
+    head: async (pathname: string) => {
+      if (pathname === INDEX_PATH) {
+        return { url: 'https://blob.local/index' } as any;
+      }
+
+      if (pathname === SESSION_PATH) {
+        return { url: 'https://blob.local/session' } as any;
+      }
+
+      const error = new Error('not found') as Error & { code?: string };
+      error.code = 'BLOB_NOT_FOUND';
+      throw error;
+    },
+    fetch: async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value === 'https://blob.local/index') {
+        return new Response(JSON.stringify({ [sessionId]: SESSION_PATH }), { status: 200 });
+      }
+
+      if (value === 'https://blob.local/session') {
+        return new Response(`---
+id: "${sessionId}"
+date: "2025-01-10"
+duration: 60
+effort: 3
+category: "Technical"
+techniques: []
+---
+`, { status: 200 });
+      }
+
+      return new Response('', { status: 404 });
+    },
+    list: async () => {
+      throw new Error('list should not be called when indexed path resolves');
+    },
+  });
+
+  try {
+    const response = await makeRequest(sessionId);
+    assert.equal(response.status, 200);
+
+    const payload = await response.json();
+    assert.equal(payload.id, sessionId);
+    assert.equal(payload.date, '2025-01-10');
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+});

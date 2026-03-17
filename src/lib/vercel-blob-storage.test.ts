@@ -13,6 +13,8 @@ import {
   isBlobStorageEnabled,
   listSessions,
   readSession,
+  readSessionById,
+  readSessionByPath,
   sessionBlobExists,
   updateSession,
 } from './vercel-blob-storage';
@@ -136,6 +138,8 @@ async function runDisabledGuardChecks() {
       { name: 'findSessionFileById', run: () => findSessionFileById('session-date-move') },
       { name: 'hasAnySessions', run: () => hasAnySessions() },
       { name: 'readSession', run: () => readSession('2025-01-10') },
+      { name: 'readSessionByPath', run: () => readSessionByPath('sessions/2025/01/test.md') },
+      { name: 'readSessionById', run: () => readSessionById('session-date-move') },
       { name: 'sessionBlobExists', run: () => sessionBlobExists('sessions/2025/01/test.md') },
       { name: 'getNextCounter', run: () => getNextCounter('2025-01-10') },
     ];
@@ -266,6 +270,26 @@ async function runCreateSessionAlreadyExistsBackfillChecks() {
   }
 }
 
+async function runReadSessionByPathNotFoundChecks() {
+  const { deps } = createInMemoryBlobDeps();
+
+  __setBlobStorageDepsForTests(deps as any);
+
+  try {
+    await assert.rejects(
+      () => readSessionByPath('sessions/2025/01/missing.md'),
+      (error: unknown) =>
+        error instanceof SessionLookupError &&
+        error.kind === 'not_found' &&
+        /Session blob not found/.test(error.message),
+      'readSessionByPath should map missing blobs to SessionLookupError(not_found)'
+    );
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
+
 async function runConcurrentIndexMutationRegression() {
   const { deps, blobs } = createInMemoryBlobDeps();
   __setBlobStorageDepsForTests(deps as any);
@@ -308,6 +332,7 @@ runDisabledGuardChecks()
   .then(() => runRegression())
   .then(() => runCreateSessionIndexPersistenceChecks())
   .then(() => runCreateSessionAlreadyExistsBackfillChecks())
+  .then(() => runReadSessionByPathNotFoundChecks())
   .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
   .catch((err) => {
