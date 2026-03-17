@@ -110,3 +110,42 @@ test('POST includes warning when GitHub create sync result reports success:false
     __resetBlobStorageDepsForTests();
   }
 });
+
+
+test('POST returns 400 for invalid techniques element type', async () => {
+  const response = await POST(
+    new NextRequest('http://localhost/api/sessions/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: 'create-invalid-techniques',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari', 42],
+      }),
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid techniques[1]: expected a string' });
+});
+
+test('POST returns 400 for invalid date string', async () => {
+  const response = await POST(
+    new NextRequest('http://localhost/api/sessions/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: 'create-invalid-date',
+        date: '2025-02-30',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      }),
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid date: must be a real calendar date' });
+});
