@@ -156,11 +156,20 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
   const filePath = getSessionFilePath(session.date, undefined, session.id);
+  const assertExistingSessionMatches = async (existingPath: string): Promise<string> => {
+    const existingMarkdown = await fs.readFile(existingPath, 'utf-8');
+    if (existingMarkdown !== markdown) {
+      throw new Error(
+        `Session ID ${session.id} already exists with different content; refusing to overwrite existing data`
+      );
+    }
+    return existingPath;
+  };
 
   // Idempotency: if this ID already exists (canonical path or legacy location), return success.
   try {
     await fs.access(filePath);
-    return filePath;
+    return await assertExistingSessionMatches(filePath);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw e;
@@ -169,7 +178,7 @@ export async function createSession(session: JudoSession): Promise<string> {
 
   const existingPath = await findSessionFileById(session.id);
   if (existingPath) {
-    return existingPath;
+    return await assertExistingSessionMatches(existingPath);
   }
 
   try {
@@ -177,12 +186,15 @@ export async function createSession(session: JudoSession): Promise<string> {
     return filePath;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
-      // Another request wrote this session ID concurrently; treat as idempotent success.
+      // Another request wrote this session ID concurrently. Only treat as idempotent
+      // success if the existing on-disk content exactly matches this write attempt.
       const concurrentExistingPath = await findSessionFileById(session.id);
       if (concurrentExistingPath) {
-        return concurrentExistingPath;
+        return await assertExistingSessionMatches(concurrentExistingPath);
       }
-      return filePath;
+      throw new Error(
+        `Session ID ${session.id} was created concurrently but could not be validated safely`
+      );
     }
     throw e;
   }
