@@ -10,7 +10,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 - **Session Logging**: Quickly log training sessions with date, techniques practiced, and effort level
 - **AI Technique Helper**: Intelligently suggests Judo techniques as you type, powered by Google Genkit AI
-- **Effort Rating**: Track perceived training intensity on a 0-2 scale (0 = normal, 1 = hard, 2 = very hard)
+- **Effort Rating**: Track perceived training intensity on a 1-5 scale (1 = easy, 3 = normal, 5 = intense)
 - **Session History**: Browse and review all logged training sessions
 - **Dashboard Overview**: Visual metrics including average effort levels and frequently practiced techniques
 - **Dark Mode Support**: Light and dark theme options for comfortable viewing
