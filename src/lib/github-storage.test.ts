@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  bulkPushSessions,
   findSessionPathOnGitHubById,
   getGitHubSessionPath,
 } from './github-storage';
@@ -234,12 +235,66 @@ async function runTruncatedTreeFallbackRegression() {
   }
 }
 
+
+
+async function runBulkPushReadmeFailureRegression() {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+
+  let sessionPutCount = 0;
+
+  global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const parsed = new URL(String(url));
+    const path = parsed.pathname;
+
+    if (path === '/repos/o/r/contents/sessions/2025/03/20250314-matmetrics-session-1.md') {
+      sessionPutCount++;
+      return new Response(JSON.stringify({ content: { sha: 'session-sha' } }), { status: 200 });
+    }
+
+    if (path === '/repos/o/r/contents/README.md') {
+      return new Response(JSON.stringify({ message: 'Server error' }), { status: 500 });
+    }
+
+    if (path === '/repos/o/r') {
+      return new Response(JSON.stringify({ default_branch: 'main' }), { status: 200 });
+    }
+
+    return new Response(
+      JSON.stringify({ message: `Unexpected request: ${init?.method || 'GET'} ${path}` }),
+      { status: 500 }
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await bulkPushSessions([makeSession('session-1')], {
+      owner: 'o',
+      repo: 'r',
+    });
+
+    assert.equal(sessionPutCount, 1);
+    assert.equal(result.success, false);
+    assert.match(result.message, /Pushed 1\/1 sessions to GitHub/);
+    assert.match(result.message, /README update failed:/);
+    assert.match(result.message, /GitHub README update failed: GitHub service error \(500\)/);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
 async function main() {
   runPathEncodingRegression();
   await runGitHubLegacyLookupRegression();
   await runMissingBranchLookupRegression();
   await runNon404TreeLookupErrorRegression();
   await runTruncatedTreeFallbackRegression();
+  await runBulkPushReadmeFailureRegression();
 }
 
 main().catch((err) => {
