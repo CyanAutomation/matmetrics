@@ -45,6 +45,20 @@ export class BlobStorageDisabledError extends Error {
   }
 }
 
+export class SessionLookupError extends Error {
+  readonly kind: 'not_found' | 'storage_error';
+
+  constructor(kind: 'not_found' | 'storage_error', message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'SessionLookupError';
+    this.kind = kind;
+  }
+}
+
+function isBlobNotFoundError(error: unknown): boolean {
+  return (error as any)?.code === 'BLOB_NOT_FOUND';
+}
+
 export function isBlobStorageEnabled(): boolean {
   const rawValue = process.env.ENABLE_VERCEL_BLOB;
   if (!rawValue) {
@@ -393,85 +407,110 @@ export async function deleteSession(id: string): Promise<void> {
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
   assertBlobStorageEnabled();
+  const encodedSuffix = `-${encodeSessionId(id)}.md`;
+  const legacySuffix = `-${sanitizeSessionIdLegacy(id)}.md`;
 
-  try {
-    const encodedSuffix = `-${encodeSessionId(id)}.md`;
-    const legacySuffix = `-${sanitizeSessionIdLegacy(id)}.md`;
+  const index = await loadSessionPathIndex();
+  const indexedPath = index[id];
+  if (indexedPath) {
+    try {
+      await blobStorageDeps.head(indexedPath);
+      return indexedPath;
+    } catch (e) {
+      if (isBlobNotFoundError(e)) {
+        try {
+          await withSessionPathIndexMutationLock(async () => {
+            const latestIndex = await loadSessionPathIndex();
+            if (!(id in latestIndex)) {
+              return;
+            }
 
-    const index = await loadSessionPathIndex();
-    const indexedPath = index[id];
-    if (indexedPath) {
-      try {
-        await blobStorageDeps.head(indexedPath);
-        return indexedPath;
-      } catch (e) {
-        if ((e as any).code === 'BLOB_NOT_FOUND') {
-          try {
-            await withSessionPathIndexMutationLock(async () => {
-              const latestIndex = await loadSessionPathIndex();
-              if (!(id in latestIndex)) {
-                return;
-              }
-
-              const { [id]: _removed, ...rest } = latestIndex;
-              await persistSessionPathIndex(rest);
-            });
-          } catch (persistError) {
-            console.error(`Failed removing stale indexed path for session ${id}`, persistError);
-          }
-        } else {
-          console.error(`Error validating indexed path for session ${id}`, e);
+            const { [id]: _removed, ...rest } = latestIndex;
+            await persistSessionPathIndex(rest);
+          });
+        } catch (persistError) {
+          console.error(`Failed removing stale indexed path for session ${id}`, persistError);
         }
+      } else {
+        throw new SessionLookupError(
+          'storage_error',
+          `Failed validating indexed blob path for session ${id}`,
+          { cause: e }
+        );
       }
+    }
+  }
+
+  let blobs: Array<{ pathname: string; url: string }> = [];
+  try {
+    const listed = await blobStorageDeps.list({
+      prefix: `${BLOB_FOLDER}/`,
+      limit: 10000,
+    });
+    blobs = listed.blobs;
+  } catch (e) {
+    throw new SessionLookupError('storage_error', `Failed listing session blobs for ${id}`, {
+      cause: e,
+    });
+  }
+
+  const directMatch = blobs.find(
+    blob => blob.pathname.endsWith(encodedSuffix) || blob.pathname.endsWith(legacySuffix)
+  );
+  if (directMatch) {
+    try {
+      await setSessionPathIndexEntry(id, directMatch.pathname);
+    } catch (indexError) {
+      console.error(`Failed caching indexed path for session ${id}`, indexError);
+    }
+    return directMatch.pathname;
+  }
+
+  for (const blob of blobs) {
+    if (!blob.pathname.endsWith('.md')) continue;
+
+    let markdown: string;
+    try {
+      const response = await blobStorageDeps.fetch(blob.url);
+      if (!response.ok) {
+        if (response.status === 404) {
+          continue;
+        }
+
+        throw new SessionLookupError(
+          'storage_error',
+          `Failed fetching blob ${blob.pathname} while looking up session ${id}`
+        );
+      }
+      markdown = await response.text();
+    } catch (e) {
+      if (e instanceof SessionLookupError) {
+        throw e;
+      }
+
+      throw new SessionLookupError(
+        'storage_error',
+        `Failed fetching blob ${blob.pathname} while looking up session ${id}`,
+        { cause: e }
+      );
     }
 
     try {
-      const { blobs } = await blobStorageDeps.list({
-        prefix: `${BLOB_FOLDER}/`,
-        limit: 10000,
-      });
-
-      const directMatch = blobs.find(
-        blob =>
-          blob.pathname.endsWith(encodedSuffix) || blob.pathname.endsWith(legacySuffix)
-      );
-      if (directMatch) {
+      const parsedSession = markdownToSession(markdown);
+      if (parsedSession.id === id) {
         try {
-          await setSessionPathIndexEntry(id, directMatch.pathname);
+          await setSessionPathIndexEntry(id, blob.pathname);
         } catch (indexError) {
           console.error(`Failed caching indexed path for session ${id}`, indexError);
         }
-        return directMatch.pathname;
+        return blob.pathname;
       }
-
-      for (const blob of blobs) {
-        if (!blob.pathname.endsWith('.md')) continue;
-
-        try {
-          const response = await blobStorageDeps.fetch(blob.url);
-          const markdown = await response.text();
-          const parsedSession = markdownToSession(markdown);
-          if (parsedSession.id === id) {
-            try {
-              await setSessionPathIndexEntry(id, blob.pathname);
-            } catch (indexError) {
-              console.error(`Failed caching indexed path for session ${id}`, indexError);
-            }
-            return blob.pathname;
-          }
-        } catch (e) {
-          // Skip files that can't be parsed
-        }
-      }
-    } catch (e) {
-      console.error(`Error listing blobs with prefix ${BLOB_FOLDER}/`, e);
+    } catch {
+      // Skip files that can't be parsed
     }
-
-    return null;
-  } catch (e) {
-    console.error('Error finding session by ID', e);
-    return null;
   }
+
+  return null;
 }
 
 /**
