@@ -1,0 +1,233 @@
+package markdown
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"matmetrics/go/internal/model"
+)
+
+func SessionToMarkdown(session model.Session) (string, error) {
+	if err := validateSession(session); err != nil {
+		return "", err
+	}
+
+	dateValue, err := time.Parse("2006-01-02", session.Date)
+	if err != nil {
+		return "", fmt.Errorf("invalid session date %q: %w", session.Date, err)
+	}
+
+	var b strings.Builder
+	b.WriteString("---\n")
+	b.WriteString(fmt.Sprintf("id: %q\n", session.ID))
+	b.WriteString(fmt.Sprintf("date: %q\n", session.Date))
+	b.WriteString(fmt.Sprintf("effort: %d\n", session.Effort))
+	b.WriteString(fmt.Sprintf("category: %q\n", session.Category))
+	if session.Duration != nil {
+		b.WriteString(fmt.Sprintf("duration: %d\n", *session.Duration))
+	}
+	b.WriteString("---\n\n")
+
+	b.WriteString(fmt.Sprintf("# %s – Judo Session\n\n", dateValue.Format("January 2, 2006")))
+	b.WriteString("## Techniques Practiced\n")
+	if len(session.Techniques) == 0 {
+		b.WriteString("- (none recorded)\n")
+	} else {
+		for _, technique := range session.Techniques {
+			b.WriteString("- ")
+			b.WriteString(technique)
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("\n")
+
+	if session.Description != "" {
+		b.WriteString("## Session Description\n\n")
+		b.WriteString(session.Description)
+		b.WriteString("\n\n")
+	}
+
+	if session.Notes != "" {
+		b.WriteString("## Notes\n\n")
+		b.WriteString(session.Notes)
+		b.WriteString("\n")
+	}
+
+	return b.String(), nil
+}
+
+func MarkdownToSession(markdown string) (model.Session, error) {
+	frontmatter, content, err := splitFrontmatter(markdown)
+	if err != nil {
+		return model.Session{}, err
+	}
+
+	values, err := parseFrontmatter(frontmatter)
+	if err != nil {
+		return model.Session{}, err
+	}
+
+	id, ok := values["id"].(string)
+	if !ok || strings.TrimSpace(id) == "" {
+		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "id")
+	}
+	dateValue, ok := values["date"].(string)
+	if !ok || strings.TrimSpace(dateValue) == "" {
+		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "date")
+	}
+	effortRaw, ok := values["effort"].(int)
+	if !ok {
+		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "effort")
+	}
+	categoryValue, ok := values["category"].(string)
+	if !ok || strings.TrimSpace(categoryValue) == "" {
+		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "category")
+	}
+
+	description := extractSectionContent(content, "Session Description")
+	notes := extractSectionContent(content, "Notes")
+
+	session := model.Session{
+		ID:          id,
+		Date:        dateValue,
+		Effort:      model.EffortLevel(effortRaw),
+		Category:    model.SessionCategory(categoryValue),
+		Techniques:  extractTechniques(content),
+		Description: description,
+		Notes:       notes,
+	}
+
+	if durationRaw, ok := values["duration"]; ok {
+		duration, ok := durationRaw.(int)
+		if !ok {
+			return model.Session{}, fmt.Errorf("invalid %q in frontmatter", "duration")
+		}
+		session.Duration = &duration
+	}
+
+	if err := validateSession(session); err != nil {
+		return model.Session{}, err
+	}
+
+	return session, nil
+}
+
+func splitFrontmatter(markdown string) (string, string, error) {
+	const marker = "---\n"
+	if !strings.HasPrefix(markdown, marker) {
+		return "", "", fmt.Errorf("markdown is missing YAML frontmatter")
+	}
+
+	rest := markdown[len(marker):]
+	endIndex := strings.Index(rest, "\n---\n")
+	if endIndex < 0 {
+		return "", "", fmt.Errorf("markdown frontmatter terminator not found")
+	}
+
+	frontmatter := rest[:endIndex]
+	content := rest[endIndex+len("\n---\n"):]
+	return frontmatter, content, nil
+}
+
+func parseFrontmatter(frontmatter string) (map[string]any, error) {
+	values := make(map[string]any)
+	lines := strings.Split(frontmatter, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid frontmatter line %q", line)
+		}
+
+		key := strings.TrimSpace(parts[0])
+		rawValue := strings.TrimSpace(parts[1])
+
+		if strings.HasPrefix(rawValue, "\"") && strings.HasSuffix(rawValue, "\"") && len(rawValue) >= 2 {
+			unquoted, err := strconv.Unquote(rawValue)
+			if err != nil {
+				return nil, fmt.Errorf("invalid quoted value for %q: %w", key, err)
+			}
+			values[key] = unquoted
+			continue
+		}
+
+		numberValue, err := strconv.Atoi(rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("unsupported frontmatter value for %q: %q", key, rawValue)
+		}
+		values[key] = numberValue
+	}
+
+	return values, nil
+}
+
+func extractTechniques(content string) []string {
+	section := extractSectionContent(content, "Techniques Practiced")
+	if section == "" {
+		return []string{}
+	}
+
+	lines := strings.Split(section, "\n")
+	techniques := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "- ") {
+			continue
+		}
+		technique := strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
+		if technique == "" || technique == "(none recorded)" {
+			continue
+		}
+		techniques = append(techniques, technique)
+	}
+
+	return techniques
+}
+
+func extractSectionContent(content string, heading string) string {
+	marker := "## " + heading + "\n"
+	start := strings.Index(content, marker)
+	if start < 0 {
+		return ""
+	}
+
+	section := content[start+len(marker):]
+	if strings.HasPrefix(section, "\n") {
+		section = section[1:]
+	}
+
+	end := strings.Index(section, "\n## ")
+	if end >= 0 {
+		section = section[:end]
+	}
+
+	return strings.TrimRight(section, "\n")
+}
+
+func validateSession(session model.Session) error {
+	if strings.TrimSpace(session.ID) == "" {
+		return fmt.Errorf("session ID is required")
+	}
+	if len(session.ID) > 100 {
+		return fmt.Errorf("session ID exceeds maximum allowed length of 100 characters")
+	}
+	if _, err := time.Parse("2006-01-02", session.Date); err != nil {
+		return fmt.Errorf("session date must be YYYY-MM-DD")
+	}
+	if session.Effort < 1 || session.Effort > 5 {
+		return fmt.Errorf("session effort must be between 1 and 5")
+	}
+	switch session.Category {
+	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai:
+	default:
+		return fmt.Errorf("invalid session category %q", session.Category)
+	}
+	return nil
+}
