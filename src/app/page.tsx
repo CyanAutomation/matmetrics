@@ -10,7 +10,7 @@ import { PromptSettings } from "@/components/prompt-settings";
 import { GitHubSettings } from "@/components/github-settings";
 import { getSessions, initializeStorage, getSyncStatus } from "@/lib/storage";
 import { JudoSession } from "@/lib/types";
-import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit, Github, Wifi, WifiOff, Loader2, CheckCircle } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, Info, Plus, Tags, BrainCircuit, Github, WifiOff, Loader2, CheckCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export default function Home() {
     refreshSessions();
 
     // Listen for storage sync events from the API
-    const handleStorageSync = (event: Event) => {
+    const handleStorageSync = () => {
       refreshSessions();
     };
 

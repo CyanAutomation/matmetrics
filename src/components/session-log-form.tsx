@@ -83,7 +83,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
         title: "Description Refined",
         description: "AI has polished your training notes based on your prompt settings.",
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Transformation Failed",
@@ -119,7 +119,7 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
           description: suggestions.length > 0 ? "All suggested techniques are already tagged." : "AI couldn't identify specific techniques.",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "AI Suggestion Failed",

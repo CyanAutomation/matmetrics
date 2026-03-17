@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { JudoSession, EFFORT_LABELS, SessionCategory } from "@/lib/types";
+import { JudoSession } from "@/lib/types";
 import { TrendingUp, Award, Calendar, Zap, Target } from "lucide-react";
 import { 
   BarChart, 
@@ -10,8 +10,6 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
   Cell
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
