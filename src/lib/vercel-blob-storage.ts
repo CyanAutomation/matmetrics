@@ -325,18 +325,17 @@ export async function createSession(session: JudoSession): Promise<string> {
       access: 'public',
       allowOverwrite: false,
     });
-    await setSessionPathIndexEntry(session.id, blobPath);
-    return blobPath;
   } catch (e) {
     if ((e as any).code === 'BLOB_ALREADY_EXISTS') {
       // Another request wrote the same ID concurrently; treat this as idempotent success.
-      await setSessionPathIndexEntry(session.id, blobPath);
-      return blobPath;
+    } else {
+      console.error(`Failed to create session at ${blobPath}`, e);
+      throw e;
     }
-
-    console.error(`Failed to create session at ${blobPath}`, e);
-    throw e;
   }
+
+  await setSessionPathIndexEntry(session.id, blobPath);
+  return blobPath;
 }
 
 export async function sessionBlobExists(blobPath: string): Promise<boolean> {
