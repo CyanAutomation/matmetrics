@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
-import { POST } from './route';
+import { POST } from '@/app/api/sessions/create/route';
 import { __resetDataDirForTests, __setDataDirForTests, getSessionFilePath } from '@/lib/file-storage';
 
 async function withTempDataDir(run: (dataDir: string) => Promise<void>) {

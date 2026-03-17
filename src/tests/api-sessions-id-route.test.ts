@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
-import { DELETE, GET, PUT } from './route';
+import { DELETE, GET, PUT } from '@/app/api/sessions/[id]/route';
 import {
   __resetDataDirForTests,
   __setDataDirForTests,
