@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BlobStorageDisabledError, findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
+import { BlobStorageDisabledError, SessionLookupError, findSessionFileById, updateSession, deleteSession, listSessions } from '@/lib/vercel-blob-storage';
 import { updateSessionOnGitHub, deleteSessionOnGitHub, deleteSessionOnGitHubById, isGitHubConfigured } from '@/lib/github-storage';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 
@@ -16,6 +16,11 @@ function blobStorageDisabledResponse() {
     },
     { status: 503 }
   );
+}
+
+
+function isSessionLookupNotFoundError(error: unknown): boolean {
+  return error instanceof SessionLookupError && error.kind === 'not_found';
 }
 
 function isSessionNotFoundError(error: unknown): boolean {
@@ -65,6 +70,13 @@ export async function GET(
   } catch (error) {
     if (isBlobStorageDisabledError(error)) {
       return blobStorageDisabledResponse();
+    }
+
+    if (isSessionLookupNotFoundError(error)) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
     }
 
     console.error('Error retrieving session', error);
@@ -155,7 +167,7 @@ export async function PUT(
       return blobStorageDisabledResponse();
     }
 
-    if (isSessionNotFoundError(error)) {
+    if (isSessionLookupNotFoundError(error) || isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -213,7 +225,7 @@ export async function DELETE(
       return blobStorageDisabledResponse();
     }
 
-    if (isSessionNotFoundError(error)) {
+    if (isSessionLookupNotFoundError(error) || isSessionNotFoundError(error)) {
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }

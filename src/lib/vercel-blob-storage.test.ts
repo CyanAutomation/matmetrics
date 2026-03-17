@@ -3,6 +3,7 @@ import {
   __resetBlobStorageDepsForTests,
   __setBlobStorageDepsForTests,
   BlobStorageDisabledError,
+  SessionLookupError,
   createSession,
   deleteSession,
   findSessionFileById,
@@ -187,6 +188,31 @@ async function runRegression() {
   }
 }
 
+
+async function runSessionLookupStorageErrorChecks() {
+  const { deps } = createInMemoryBlobDeps();
+
+  __setBlobStorageDepsForTests({
+    ...deps,
+    list: async () => {
+      throw new Error('simulated storage outage');
+    },
+  } as any);
+
+  try {
+    await assert.rejects(
+      () => findSessionFileById('session-date-move'),
+      (error: unknown) =>
+        error instanceof SessionLookupError &&
+        error.kind === 'storage_error' &&
+        /Failed listing session blobs/.test(error.message),
+      'findSessionFileById should surface storage outages as SessionLookupError(storage_error)'
+    );
+  } finally {
+    __resetBlobStorageDepsForTests();
+  }
+}
+
 async function runConcurrentIndexMutationRegression() {
   const { deps, blobs } = createInMemoryBlobDeps();
   __setBlobStorageDepsForTests(deps as any);
@@ -225,6 +251,7 @@ async function runConcurrentIndexMutationRegression() {
 }
 
 runDisabledGuardChecks()
+  .then(() => runSessionLookupStorageErrorChecks())
   .then(() => runRegression())
   .then(() => runConcurrentIndexMutationRegression())
   .then(() => runEncodingAndLegacyLookupRegression())
