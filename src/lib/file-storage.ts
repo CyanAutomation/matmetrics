@@ -4,8 +4,6 @@ import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const CREATE_SESSION_MAX_RETRIES = 5;
-
 function sanitizeSessionId(sessionId: string): string {
   if (sessionId.length > 100) {
     throw new Error('Session ID exceeds maximum allowed length of 100 characters');
@@ -157,28 +155,37 @@ export async function createSession(session: JudoSession): Promise<string> {
   if (!session.id || typeof session.id !== 'string') {
     throw new Error('Session ID is required and must be a non-empty string');
   }
+  const filePath = getSessionFilePath(session.date, undefined, session.id);
 
-  // Prefer ID-based filenames to avoid counter contention in concurrent creates.
-  for (let attempt = 0; attempt < CREATE_SESSION_MAX_RETRIES; attempt += 1) {
-    const sessionIdSuffix = attempt === 0
-      ? session.id
-      : `${session.id}-${String(attempt).padStart(2, '0')}`;
-    const filePath = getSessionFilePath(session.date, undefined, sessionIdSuffix);
-
-    try {
-      await fs.writeFile(filePath, markdown, { encoding: 'utf-8', flag: 'wx' });
-      return filePath;
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
-        continue;
-      }
+  // Idempotency: if this ID already exists (canonical path or legacy location), return success.
+  try {
+    await fs.access(filePath);
+    return filePath;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw e;
     }
   }
 
-  throw new Error(
-    `Failed to allocate a unique session file path after ${CREATE_SESSION_MAX_RETRIES} attempts for session ${session.id}`
-  );
+  const existingPath = await findSessionFileById(session.id);
+  if (existingPath) {
+    return existingPath;
+  }
+
+  try {
+    await fs.writeFile(filePath, markdown, { encoding: 'utf-8', flag: 'wx' });
+    return filePath;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
+      // Another request wrote this session ID concurrently; treat as idempotent success.
+      const concurrentExistingPath = await findSessionFileById(session.id);
+      if (concurrentExistingPath) {
+        return concurrentExistingPath;
+      }
+      return filePath;
+    }
+    throw e;
+  }
 }
 
 /**
