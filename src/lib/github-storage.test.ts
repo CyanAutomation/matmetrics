@@ -59,6 +59,21 @@ async function runGitHubLegacyLookupRegression() {
     const parsed = new URL(String(url));
     const path = parsed.pathname;
 
+    if (path.includes('/git/ref/heads/')) {
+      return new Response(
+        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+        { status: 200 }
+      );
+    }
+
+    if (path.includes('/git/commits/')) {
+      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), { status: 200 });
+    }
+
+    if (path.includes('/git/trees/')) {
+      return new Response(JSON.stringify({ truncated: true, tree: [] }), { status: 200 });
+    }
+
     if (path.includes('/contents/')) {
       const marker = '/contents/';
       const contentPath = decodeURIComponent(path.slice(path.indexOf(marker) + marker.length));
@@ -83,8 +98,113 @@ async function runGitHubLegacyLookupRegression() {
   }
 }
 
-runPathEncodingRegression();
-runGitHubLegacyLookupRegression().catch((err) => {
+async function runMissingBranchLookupRegression() {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+
+  global.fetch = (async (url: string | URL | Request) => {
+    const parsed = new URL(String(url));
+    const path = parsed.pathname;
+
+    if (path.includes('/git/ref/heads/')) {
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    }
+
+    return new Response(JSON.stringify({ message: 'Unexpected path' }), { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const config = { owner: 'o', repo: 'r', branch: 'missing' };
+    await assert.rejects(findSessionPathOnGitHubById('a/b', config), {
+      message: /GitHub API error 404: Not Found/,
+    });
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
+async function runTruncatedTreeFallbackRegression() {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+
+  global.fetch = (async (url: string | URL | Request) => {
+    const parsed = new URL(String(url));
+    const path = parsed.pathname;
+
+    if (path.includes('/git/ref/heads/')) {
+      return new Response(
+        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+        { status: 200 }
+      );
+    }
+
+    if (path.includes('/git/commits/')) {
+      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), { status: 200 });
+    }
+
+    if (path.includes('/git/trees/')) {
+      return new Response(JSON.stringify({ truncated: true, tree: [] }), { status: 200 });
+    }
+
+    if (path.endsWith('/contents/sessions')) {
+      return new Response(
+        JSON.stringify([{ type: 'dir', path: 'sessions/2025', name: '2025' }]),
+        { status: 200 }
+      );
+    }
+
+    if (path.endsWith('/contents/sessions/2025')) {
+      return new Response(
+        JSON.stringify([{ type: 'dir', path: 'sessions/2025/03', name: '03' }]),
+        { status: 200 }
+      );
+    }
+
+    if (path.endsWith('/contents/sessions/2025/03')) {
+      return new Response(
+        JSON.stringify([
+          {
+            type: 'file',
+            path: 'sessions/2025/03/20250314-matmetrics-a-b.md',
+            name: '20250314-matmetrics-a-b.md',
+          },
+        ]),
+        { status: 200 }
+      );
+    }
+
+    return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const config = { owner: 'o', repo: 'r', branch: 'main' };
+    const found = await findSessionPathOnGitHubById('a/b', config);
+    assert.equal(found, 'sessions/2025/03/20250314-matmetrics-a-b.md');
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
+async function main() {
+  runPathEncodingRegression();
+  await runGitHubLegacyLookupRegression();
+  await runMissingBranchLookupRegression();
+  await runTruncatedTreeFallbackRegression();
+}
+
+main().catch((err) => {
   console.error('GitHub storage regression test failed:', err);
   process.exit(1);
 });
