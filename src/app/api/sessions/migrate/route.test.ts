@@ -95,11 +95,27 @@ function createInMemoryBlobDepsWithLockDelay() {
     blobs,
     releaseNextLockWrite: () => {
       const release = lockWrites.shift();
-      if (release) {
-        release();
+      if (!release) {
+        return false;
       }
+
+      release();
+      return true;
     },
   };
+}
+
+
+async function waitForAndReleaseLockWrite(releaseNextLockWrite: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (releaseNextLockWrite()) {
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  throw new Error('Timed out waiting for lock write to become pending');
 }
 
 test('concurrent migration requests are lock-protected with deterministic accounting', async () => {
@@ -138,7 +154,7 @@ test('concurrent migration requests are lock-protected with deterministic accoun
     await Promise.resolve();
     const responsePromiseB = POST(requestB);
 
-    releaseNextLockWrite();
+    await waitForAndReleaseLockWrite(releaseNextLockWrite);
     const responseB = await responsePromiseB;
     assert.equal(responseB.status, 409);
 
