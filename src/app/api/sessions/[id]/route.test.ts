@@ -293,3 +293,46 @@ test('DELETE includes warning when GitHub delete sync result reports success:fal
     __resetBlobStorageDepsForTests();
   }
 });
+
+
+test('PUT returns 400 for invalid techniques element type', async () => {
+  const sessionId = 'put-invalid-techniques';
+  const response = await PUT(
+    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata', { bad: true }],
+      }),
+    }),
+    { params: Promise.resolve({ id: sessionId }) }
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid techniques[1]: expected a string' });
+});
+
+test('PUT returns 400 for invalid date string', async () => {
+  const sessionId = 'put-invalid-date';
+  const response = await PUT(
+    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: sessionId,
+        date: '2025-13-01',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      }),
+    }),
+    { params: Promise.resolve({ id: sessionId }) }
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid date: must be a real calendar date' });
+});
