@@ -124,3 +124,43 @@ test('POST returns 400 for invalid date string', async () => {
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: 'Invalid date: must be a real calendar date' });
 });
+
+test('POST returns 400 for invalid duration type', async () => {
+  const response = await POST(
+    new NextRequest('http://localhost/api/sessions/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: 'create-invalid-duration',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        duration: '90',
+      }),
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid duration: expected a non-negative integer' });
+});
+
+test('POST returns 400 for invalid description type', async () => {
+  const response = await POST(
+    new NextRequest('http://localhost/api/sessions/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: 'create-invalid-description',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        description: { bad: true },
+      }),
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid description: expected a string' });
+});
