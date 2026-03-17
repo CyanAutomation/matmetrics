@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
+import { compareDateOnlyDesc } from './utils';
 
 let dataDir = path.join(process.cwd(), 'data');
 
@@ -125,7 +126,7 @@ export async function listSessions(): Promise<JudoSession[]> {
     }
 
     // Sort by date descending (newest first)
-    sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
     return sessions;
   } catch (e) {
     // Data directory doesn't exist yet
@@ -219,14 +220,23 @@ export async function createSession(session: JudoSession): Promise<string> {
  */
 export async function updateSession(session: JudoSession): Promise<string> {
   // Find the session by ID
-  const filePath = await findSessionFileById(session.id);
-  if (!filePath) {
+  const existingPath = await findSessionFileById(session.id);
+  if (!existingPath) {
     throw new Error(`Session with ID ${session.id} not found`);
   }
 
+  const nextPath = getSessionFilePath(session.date, undefined, session.id);
   const markdown = sessionToMarkdown(session);
-  await fs.writeFile(filePath, markdown, 'utf-8');
-  return filePath;
+
+  if (existingPath === nextPath) {
+    await fs.writeFile(existingPath, markdown, 'utf-8');
+    return existingPath;
+  }
+
+  await fs.mkdir(path.dirname(nextPath), { recursive: true });
+  await fs.writeFile(nextPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+  await fs.unlink(existingPath);
+  return nextPath;
 }
 
 /**

@@ -414,13 +414,12 @@ export async function updateSessionOnGitHub(
     const branch = await resolveBranch(config);
     const expectedPath = getGitHubSessionPath(session);
     const markdown = sessionToMarkdown(session);
-    let filePath = expectedPath;
     let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+    let discoveredPath: string | null = null;
 
     if (!sha) {
-      const discoveredPath = await findSessionPathOnGitHubById(session.id, config);
+      discoveredPath = await findSessionPathOnGitHubById(session.id, config);
       if (discoveredPath) {
-        filePath = discoveredPath;
         sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
       }
     }
@@ -437,8 +436,39 @@ export async function updateSessionOnGitHub(
       return result;
     }
 
+    if (discoveredPath && discoveredPath !== expectedPath) {
+      const createResult = await putFile(
+        config,
+        expectedPath,
+        markdown,
+        `Move session: ${session.date}`
+      );
+
+      if (!createResult.success) {
+        return createResult;
+      }
+
+      const deleteResult = await githubApiRequest(
+        'DELETE',
+        `/repos/${config.owner}/${config.repo}/contents/${discoveredPath}`,
+        {
+          message: `Move session: ${session.date}`,
+          branch,
+          sha,
+        }
+      );
+
+      return {
+        success: true,
+        message: 'Session updated on GitHub',
+        filePath: expectedPath,
+        sha: createResult.sha ?? deleteResult?.content?.sha ?? deleteResult?.sha,
+        branch,
+      };
+    }
+
     const message = `Update session: ${session.date}`;
-    return putFile(config, filePath, markdown, message, sha);
+    return putFile(config, expectedPath, markdown, message, sha);
   } catch (error) {
     return {
       success: false,
