@@ -17,10 +17,9 @@ export interface GitHubSyncResult {
 
 const defaultBranchCache = new Map<string, string>();
 
-interface GitHubContentItem {
-  name: string;
+interface GitHubTreeEntry {
   path: string;
-  type: 'file' | 'dir' | 'symlink' | 'submodule';
+  type: 'blob' | 'tree' | 'commit';
 }
 
 class GitHubApiError extends Error {
@@ -166,25 +165,53 @@ async function getFileSha(
   }
 }
 
-async function listDirectoryContents(
+async function getTreeEntriesForPath(
   owner: string,
   repo: string,
-  path: string,
-  branch: string
-): Promise<GitHubContentItem[]> {
+  branch: string,
+  rootPath: string
+): Promise<GitHubTreeEntry[]> {
   try {
-    const data = await githubApiRequest(
+    const refData = await githubApiRequest(
       'GET',
-      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`
+      `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`
     );
 
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    if (error instanceof GitHubApiError && error.status !== 404) {
-      throw error;
+    const commitSha = refData?.object?.sha;
+    if (typeof commitSha !== 'string' || commitSha.trim() === '') {
+      throw new Error('Branch reference does not include a commit SHA');
     }
 
-    return [];
+    const commitData = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/git/commits/${commitSha}`
+    );
+
+    const treeSha = commitData?.tree?.sha;
+    if (typeof treeSha !== 'string' || treeSha.trim() === '') {
+      throw new Error('Commit does not include a tree SHA');
+    }
+
+    const treeData = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`
+    );
+
+    if (!Array.isArray(treeData?.tree)) {
+      return [];
+    }
+
+    const prefix = `${rootPath.replace(/\/+$/, '')}/`;
+
+    return treeData.tree.filter((entry: GitHubTreeEntry) =>
+      typeof entry?.path === 'string' && entry.path.startsWith(prefix)
+    );
+  } catch (error) {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return [];
+    }
+
+    throw error;
   }
 }
 
@@ -227,46 +254,30 @@ export async function findSessionPathOnGitHubById(
   const branch = await resolveBranch(config);
   const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
   const legacySuffix = `-matmetrics-${sanitizeSessionIdLegacy(sessionId)}.md`;
-  const years = await listDirectoryContents(config.owner, config.repo, 'sessions', branch);
-  const yearPaths: string[] = [];
-
-  for (const year of years) {
-    if (year.type === 'dir' && /^\d{4}$/.test(year.name)) {
-      yearPaths.push(year.path);
-    }
-  }
-
-  const monthContents = await Promise.all(
-    yearPaths.map((yearPath) =>
-      listDirectoryContents(config.owner, config.repo, yearPath, branch)
-    )
+  const sessionEntries = await getTreeEntriesForPath(
+    config.owner,
+    config.repo,
+    branch,
+    'sessions'
   );
 
-  const monthPaths: string[] = [];
-
-  for (const months of monthContents) {
-    for (const month of months) {
-      if (month.type === 'dir' && /^\d{2}$/.test(month.name)) {
-        monthPaths.push(month.path);
-      }
+  for (const entry of sessionEntries) {
+    if (entry.type !== 'blob') {
+      continue;
     }
-  }
 
-  const fileLists = await Promise.all(
-    monthPaths.map((monthPath) =>
-      listDirectoryContents(config.owner, config.repo, monthPath, branch)
-    )
-  );
+    const pathParts = entry.path.split('/');
+    if (pathParts.length !== 4) {
+      continue;
+    }
 
-  for (const files of fileLists) {
-    const match = files.find(
-      (file) =>
-        file.type === 'file' &&
-        (file.name.endsWith(encodedSuffix) || file.name.endsWith(legacySuffix))
-    );
+    const [sessionsDir, year, month, fileName] = pathParts;
+    if (sessionsDir !== 'sessions' || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
+      continue;
+    }
 
-    if (match) {
-      return match.path;
+    if (fileName.endsWith(encodedSuffix) || fileName.endsWith(legacySuffix)) {
+      return entry.path;
     }
   }
 
