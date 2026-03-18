@@ -19,8 +19,6 @@ import type { GitHubConfig, JudoSession } from './types';
 import { compareDateOnlyDesc } from './utils';
 
 const GITHUB_SESSION_ROOT = 'data';
-const LEGACY_GITHUB_SESSION_ROOT = 'sessions';
-const GITHUB_SESSION_ROOTS = [GITHUB_SESSION_ROOT, LEGACY_GITHUB_SESSION_ROOT] as const;
 
 function normalizeBranch(branch: string | undefined): string | undefined {
   const trimmed = branch?.trim();
@@ -99,53 +97,48 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
 
   const branch = normalizeBranch(config.branch);
   const paths: string[] = [];
-  const seenPaths = new Set<string>();
+  const queue: string[] = [GITHUB_SESSION_ROOT];
 
-  for (const rootPath of GITHUB_SESSION_ROOTS) {
-    const queue = [rootPath];
+  while (queue.length > 0) {
+    const currentPath = queue.shift();
+    if (!currentPath) {
+      continue;
+    }
 
-    while (queue.length > 0) {
-      const currentPath = queue.shift();
-      if (!currentPath) {
+    const query = branch ? `?ref=${encodeURIComponent(branch)}` : '';
+    const response = await fetch(
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${currentPath}${query}`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'matmetrics',
+        },
+      }
+    );
+
+    if (response.status === 404 && currentPath === GITHUB_SESSION_ROOT) {
+      break;
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const message =
+        payload && typeof payload.message === 'string' ? payload.message : response.statusText;
+      throw new Error(`GitHub API error ${response.status}: ${message}`);
+    }
+
+    const payload = await response.json();
+    const entries = Array.isArray(payload) ? (payload as GitHubContentsEntry[]) : [];
+
+    for (const entry of entries) {
+      if (entry.type === 'dir') {
+        queue.push(entry.path);
         continue;
       }
 
-      const query = branch ? `?ref=${encodeURIComponent(branch)}` : '';
-      const response = await fetch(
-        `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${currentPath}${query}`,
-        {
-          headers: {
-            Authorization: `token ${token}`,
-            Accept: 'application/vnd.github.v3+json',
-            'User-Agent': 'matmetrics',
-          },
-        }
-      );
-
-      if (response.status === 404 && currentPath === rootPath) {
-        break;
-      }
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const message =
-          payload && typeof payload.message === 'string' ? payload.message : response.statusText;
-        throw new Error(`GitHub API error ${response.status}: ${message}`);
-      }
-
-      const payload = await response.json();
-      const entries = Array.isArray(payload) ? (payload as GitHubContentsEntry[]) : [];
-
-      for (const entry of entries) {
-        if (entry.type === 'dir') {
-          queue.push(entry.path);
-          continue;
-        }
-
-        if (entry.type === 'file' && new RegExp(`^${rootPath}/\\d{4}/\\d{2}/.+\\.md$`).test(entry.path) && !seenPaths.has(entry.path)) {
-          seenPaths.add(entry.path);
-          paths.push(entry.path);
-        }
+      if (entry.type === 'file' && new RegExp(`^${GITHUB_SESSION_ROOT}/\\d{4}/\\d{2}/.+\\.md$`).test(entry.path)) {
+        paths.push(entry.path);
       }
     }
   }
