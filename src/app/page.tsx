@@ -33,6 +33,7 @@ import {
   Info,
   Plus,
   Tags,
+  BrainCircuit,
   Github,
   WifiOff,
   Loader2,
@@ -294,7 +295,7 @@ export default function Home() {
                   onClick={() => setActiveTab('prompt')}
                   className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
                 >
-                  🐾
+                  <BrainCircuit className="h-5 w-5" />
                   <span className="text-base font-semibold">
                     Prompt Settings
                   </span>
