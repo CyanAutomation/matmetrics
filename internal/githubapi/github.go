@@ -315,10 +315,11 @@ func (c *Client) listGitHubSessionPaths(config model.GitHubConfig, branch string
 func (c *Client) getTreeEntriesForPath(config model.GitHubConfig, branch string, rootPath string) ([]gitHubTreeEntry, error) {
 	refPayload, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/git/ref/heads/%s", config.Owner, config.Repo, encodePathSegments(branch)), nil)
 	if err != nil {
-		if apiErr, ok := err.(*gitHubAPIError); ok && apiErr.Status == http.StatusNotFound {
-			return []gitHubTreeEntry{}, nil
+		apiErr, ok := err.(*gitHubAPIError)
+		if !ok || apiErr.Status != http.StatusNotFound {
+			return nil, err
 		}
-		return nil, err
+		return []gitHubTreeEntry{}, nil
 	}
 
 	var refResponse struct {
