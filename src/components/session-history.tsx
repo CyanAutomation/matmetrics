@@ -34,14 +34,36 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
   const [editingSession, setEditingSession] = useState<JudoSession | null>(
     null
   );
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null
+  );
 
-  const handleDelete = (id: string) => {
-    deleteSession(id);
-    onRefresh();
-    toast({
-      title: 'Session deleted',
-      description: 'The training session has been removed from your history.',
-    });
+  const handleDelete = async (id: string) => {
+    if (deletingSessionId) {
+      return;
+    }
+
+    setDeletingSessionId(id);
+    try {
+      const result = await deleteSession(id);
+      onRefresh();
+      toast({
+        title: 'Session deleted',
+        description:
+          result.status === 'queued'
+            ? 'The change is saved locally and queued to sync when the connection is ready.'
+            : 'The training session has been removed from your history.',
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Delete failed',
+        description:
+          'The session could not be deleted. Your local view has been reconciled to match persisted data.',
+      });
+    } finally {
+      setDeletingSessionId(null);
+    }
   };
 
   const handleEditSuccess = () => {
@@ -128,6 +150,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                     variant="ghost"
                     size="icon"
                     className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                    disabled={deletingSessionId === session.id}
                     onClick={() => handleDelete(session.id)}
                   >
                     <Trash2 className="h-4 w-4" />

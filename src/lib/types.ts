@@ -12,6 +12,11 @@ export interface JudoSession {
   duration?: number; // in minutes
 }
 
+export interface MutationResult {
+  status: 'synced' | 'queued';
+  message?: string;
+}
+
 export const EFFORT_LABELS: Record<EffortLevel, string> = {
   1: 'Easy',
   2: 'Light',

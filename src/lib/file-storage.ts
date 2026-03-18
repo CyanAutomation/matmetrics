@@ -260,14 +260,22 @@ export async function updateSession(session: JudoSession): Promise<string> {
     }
   }
 
-  await fs.rename(existingPath, nextPath);
   const tempPath = `${nextPath}.tmp-${process.pid}-${Date.now()}`;
+  const backupPath = `${existingPath}.bak-${process.pid}-${Date.now()}`;
 
   try {
     await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+    await fs.rename(existingPath, backupPath);
     await fs.rename(tempPath, nextPath);
+    await fs.unlink(backupPath);
   } catch (error) {
     await fs.unlink(tempPath).catch(() => undefined);
+    try {
+      await fs.access(backupPath);
+      await fs.rename(backupPath, existingPath);
+    } catch {
+      // Best-effort rollback only.
+    }
     throw error;
   }
 
@@ -292,34 +300,41 @@ export async function deleteSession(id: string): Promise<void> {
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
   try {
-    const sessions = await listSessions();
-    const session = sessions.find((s) => s.id === id);
-    if (!session) return null;
+    const years = await fs.readdir(getDataDir());
 
-    // Try to find the file
-    const dirPath = path.join(
-      getDataDir(),
-      session.date.slice(0, 4),
-      session.date.slice(5, 7)
-    );
-    const files = await fs.readdir(dirPath);
+    for (const year of years) {
+      const yearPath = path.join(getDataDir(), year);
+      const yearStat = await fs.stat(yearPath);
+      if (!yearStat.isDirectory()) continue;
 
-    for (const file of files) {
-      if (!file.endsWith('.md')) continue;
-      const filePath = path.join(dirPath, file);
-      try {
-        const markdown = await fs.readFile(filePath, 'utf-8');
-        const parsedSession = markdownToSession(markdown);
-        if (parsedSession.id === id) {
-          return filePath;
+      const months = await fs.readdir(yearPath);
+      for (const month of months) {
+        const monthPath = path.join(yearPath, month);
+        const monthStat = await fs.stat(monthPath);
+        if (!monthStat.isDirectory()) continue;
+
+        const files = await fs.readdir(monthPath);
+        for (const file of files) {
+          if (!file.endsWith('.md')) continue;
+          const filePath = path.join(monthPath, file);
+          try {
+            const markdown = await fs.readFile(filePath, 'utf-8');
+            const parsedSession = markdownToSession(markdown);
+            if (parsedSession.id === id) {
+              return filePath;
+            }
+          } catch {
+            // Skip files that can't be parsed
+          }
         }
-      } catch {
-        // Skip files that can't be parsed
       }
     }
 
     return null;
   } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
     console.error('Error finding session file by ID', e);
     return null;
   }

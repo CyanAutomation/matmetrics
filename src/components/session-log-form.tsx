@@ -37,7 +37,7 @@ import {
   getTransformerPrompt,
 } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDateInputValue } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -84,14 +84,14 @@ export function SessionLogForm({
   const [notes, setNotes] = useState(sessionToEdit?.notes || '');
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const descriptionRef = useRef(description);
   const transformRequestIdRef = useRef(0);
   const suggestRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!date && !isEditing) {
-      const today = new Date().toISOString().split('T')[0];
-      setDate(today);
+      setDate(formatLocalDateInputValue(new Date()));
     }
   }, [date, isEditing]);
 
@@ -254,8 +254,12 @@ export function SessionLogForm({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+
     if (techniques.length === 0) {
       toast({
         variant: 'destructive',
@@ -279,23 +283,40 @@ export function SessionLogForm({
       notes,
     };
 
-    if (isEditing) {
-      updateSession(sessionData);
-      toast({ title: 'Session Updated!' });
-    } else {
-      saveSession(sessionData);
-      toast({ title: 'Session Saved!' });
-    }
+    setIsSubmitting(true);
 
-    if (!isEditing) {
-      setTechniques([]);
-      setDescription('');
-      setNotes('');
-      setEffort(3);
-      setCategory('Technical');
-    }
+    try {
+      const result = isEditing
+        ? await updateSession(sessionData)
+        : await saveSession(sessionData);
 
-    onSuccess();
+      toast({
+        title: isEditing ? 'Session Updated!' : 'Session Saved!',
+        description:
+          result.status === 'queued'
+            ? 'Changes are saved locally and queued to sync when the connection is ready.'
+            : undefined,
+      });
+
+      if (!isEditing) {
+        setTechniques([]);
+        setDescription('');
+        setNotes('');
+        setEffort(3);
+        setCategory('Technical');
+      }
+
+      onSuccess();
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: isEditing ? 'Update Failed' : 'Save Failed',
+        description:
+          'The change could not be saved. Your local view has been reconciled to match persisted data.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -419,7 +440,9 @@ export function SessionLogForm({
                 variant="outline"
                 size="sm"
                 onClick={handleTransform}
-                disabled={!canUseAi || isTransforming || !description}
+                disabled={
+                  !canUseAi || isTransforming || isSubmitting || !description
+                }
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
               >
                 {isTransforming ? (
@@ -449,7 +472,9 @@ export function SessionLogForm({
                   variant="outline"
                   size="sm"
                   onClick={handleSuggest}
-                  disabled={!canUseAi || isSuggesting || !description}
+                  disabled={
+                    !canUseAi || isSuggesting || isSubmitting || !description
+                  }
                   className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
                 >
                   {isSuggesting ? (
@@ -502,6 +527,7 @@ export function SessionLogForm({
                   type="button"
                   variant="secondary"
                   onClick={() => handleAddTech()}
+                  disabled={isSubmitting}
                   className="h-10 px-6"
                 >
                   Add Tag
@@ -538,6 +564,7 @@ export function SessionLogForm({
               type="button"
               variant="ghost"
               onClick={onCancel}
+              disabled={isSubmitting}
               className="gap-2 h-11 px-6"
             >
               <Undo2 className="h-4 w-4" />
@@ -546,12 +573,17 @@ export function SessionLogForm({
           )}
           <Button
             type="submit"
+            disabled={isSubmitting}
             className={cn(
               'gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]',
               !shouldHideHeader ? 'px-10 py-6 text-lg h-14' : 'px-8 py-5 h-12'
             )}
           >
-            <Save className="h-5 w-5" />
+            {isSubmitting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Save className="h-5 w-5" />
+            )}
             {isEditing ? 'Update Session' : 'Log Training Session'}
           </Button>
         </CardFooter>

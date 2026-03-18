@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import { access, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import {
+  access,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+} from 'node:fs/promises';
+import { promises as fs } from 'fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -40,7 +48,11 @@ async function withTempDataDir(run: () => Promise<void>) {
 
 test('updateSession moves the markdown file when the session date changes', async () => {
   await withTempDataDir(async () => {
-    const originalPath = getSessionFilePath('2025-01-10', undefined, 'session-1');
+    const originalPath = getSessionFilePath(
+      '2025-01-10',
+      undefined,
+      'session-1'
+    );
     await createSession(makeSession());
 
     const nextSession = makeSession({
@@ -73,7 +85,9 @@ test('updateSession leaves exactly one markdown file for the session after a dat
       })
     );
 
-    const januaryFiles = await readdir(path.dirname(getSessionFilePath('2025-01-10')));
+    const januaryFiles = await readdir(
+      path.dirname(getSessionFilePath('2025-01-10'))
+    );
     const februaryFiles = await readdir(path.dirname(nextPath));
 
     const matchingFiles = [...januaryFiles, ...februaryFiles].filter((file) =>
@@ -81,5 +95,62 @@ test('updateSession leaves exactly one markdown file for the session after a dat
     );
 
     assert.deepEqual(matchingFiles, [path.basename(nextPath)]);
+  });
+});
+
+test('findSessionFileById locates a session even when the file path month no longer matches frontmatter date', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-misaligned',
+      date: '2025-01-10',
+    });
+    const originalPath = await createSession(session);
+    const movedPath = getSessionFilePath('2025-02-10', undefined, session.id);
+
+    await fs.mkdir(path.dirname(movedPath), { recursive: true });
+    await rename(originalPath, movedPath);
+
+    assert.equal(await findSessionFileById(session.id), movedPath);
+  });
+});
+
+test('updateSession restores the original file when the destination rename fails after backup', async () => {
+  await withTempDataDir(async () => {
+    const originalRename = fs.rename;
+    const session = makeSession();
+    const originalPath = await createSession(session);
+    const nextSession = makeSession({
+      date: '2025-02-12',
+      notes: 'should roll back cleanly',
+    });
+    const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
+    let renameCount = 0;
+
+    fs.rename = (async (from: string, to: string) => {
+      renameCount += 1;
+      if (renameCount === 2) {
+        throw new Error('simulated destination rename failure');
+      }
+
+      return originalRename.call(fs, from, to);
+    }) as typeof fs.rename;
+
+    try {
+      await assert.rejects(
+        updateSession(nextSession),
+        /simulated destination rename failure/
+      );
+    } finally {
+      fs.rename = originalRename;
+    }
+
+    const originalMarkdown = await readFile(originalPath, 'utf8');
+    assert.match(originalMarkdown, /date: '2025-01-10'/);
+    await assert.rejects(access(nextPath));
+    const januaryFiles = await readdir(path.dirname(originalPath));
+    assert.equal(
+      januaryFiles.filter((file) => file.includes('session-1')).length,
+      1
+    );
   });
 });
