@@ -47,6 +47,8 @@ import {
 } from '@/components/ui/select';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { useAuth } from '@/components/auth-provider';
+import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
+import { useActionFeedback } from '@/hooks/use-action-feedback';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -88,6 +90,9 @@ export function SessionLogForm({
   const descriptionRef = useRef(description);
   const transformRequestIdRef = useRef(0);
   const suggestRequestIdRef = useRef(0);
+  const transformFeedback = useActionFeedback();
+  const suggestFeedback = useActionFeedback();
+  const submitFeedback = useActionFeedback();
 
   useEffect(() => {
     if (!date && !isEditing) {
@@ -131,6 +136,7 @@ export function SessionLogForm({
       return;
     }
 
+    transformFeedback.startLoading();
     setIsTransforming(true);
     const requestId = ++transformRequestIdRef.current;
     const submittedDescription = description;
@@ -158,12 +164,14 @@ export function SessionLogForm({
         return;
       }
       setDescription(result.transformedDescription);
+      transformFeedback.showSuccess();
       toast({
         title: 'Description Refined',
         description:
           'AI has polished your training notes based on your prompt settings.',
       });
     } catch {
+      transformFeedback.showError();
       toast({
         variant: 'destructive',
         title: 'Transformation Failed',
@@ -194,6 +202,7 @@ export function SessionLogForm({
       return;
     }
 
+    suggestFeedback.startLoading();
     setIsSuggesting(true);
     const requestId = ++suggestRequestIdRef.current;
     const submittedDescription = description;
@@ -231,11 +240,13 @@ export function SessionLogForm({
           uniqueNew.forEach((technique) => merged.add(technique));
           return Array.from(merged);
         });
+        suggestFeedback.showSuccess();
         toast({
           title: 'AI Suggestions Added',
           description: `Identified ${uniqueNew.length} techniques from your description.`,
         });
       } else {
+        suggestFeedback.reset();
         toast({
           description:
             suggestions.length > 0
@@ -244,6 +255,7 @@ export function SessionLogForm({
         });
       }
     } catch {
+      suggestFeedback.showError();
       toast({
         variant: 'destructive',
         title: 'AI Suggestion Failed',
@@ -284,6 +296,7 @@ export function SessionLogForm({
     };
 
     setIsSubmitting(true);
+    submitFeedback.startLoading();
 
     try {
       const result = isEditing
@@ -306,8 +319,10 @@ export function SessionLogForm({
         setCategory('Technical');
       }
 
+      submitFeedback.showSuccess();
       onSuccess();
     } catch {
+      submitFeedback.showError();
       toast({
         variant: 'destructive',
         title: isEditing ? 'Update Failed' : 'Save Failed',
@@ -323,6 +338,7 @@ export function SessionLogForm({
     <Card
       className={cn(
         'max-w-4xl mx-auto shadow-lg border-primary/10',
+        !shouldHideHeader && CARD_INTERACTION_CLASS,
         shouldHideHeader && 'shadow-none border-0 bg-transparent'
       )}
     >
@@ -440,6 +456,10 @@ export function SessionLogForm({
                 variant="outline"
                 size="sm"
                 onClick={handleTransform}
+                interaction="subtle"
+                feedbackState={
+                  isTransforming ? 'loading' : transformFeedback.feedbackState
+                }
                 disabled={
                   !canUseAi || isTransforming || isSubmitting || !description
                 }
@@ -472,6 +492,10 @@ export function SessionLogForm({
                   variant="outline"
                   size="sm"
                   onClick={handleSuggest}
+                  interaction="subtle"
+                  feedbackState={
+                    isSuggesting ? 'loading' : suggestFeedback.feedbackState
+                  }
                   disabled={
                     !canUseAi || isSuggesting || isSubmitting || !description
                   }
@@ -501,7 +525,7 @@ export function SessionLogForm({
                     <button
                       type="button"
                       onClick={() => removeTech(tech)}
-                      className="ml-1 hover:text-destructive"
+                      className="ml-1 rounded-full transition-[color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-destructive hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -527,6 +551,7 @@ export function SessionLogForm({
                   type="button"
                   variant="secondary"
                   onClick={() => handleAddTech()}
+                  interaction="subtle"
                   disabled={isSubmitting}
                   className="h-10 px-6"
                 >
@@ -563,6 +588,7 @@ export function SessionLogForm({
             <Button
               type="button"
               variant="ghost"
+              interaction="subtle"
               onClick={onCancel}
               disabled={isSubmitting}
               className="gap-2 h-11 px-6"
@@ -574,8 +600,12 @@ export function SessionLogForm({
           <Button
             type="submit"
             disabled={isSubmitting}
+            interaction="primary-action"
+            feedbackState={
+              isSubmitting ? 'loading' : submitFeedback.feedbackState
+            }
             className={cn(
-              'gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]',
+              'gap-2 font-bold shadow-lg',
               !shouldHideHeader ? 'px-10 py-6 text-lg h-14' : 'px-8 py-5 h-12'
             )}
           >

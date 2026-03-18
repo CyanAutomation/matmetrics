@@ -43,12 +43,22 @@ function installBrowserStorage() {
   return localStorage;
 }
 
+function assertSessionsSortedNewestFirst() {
+  for (let index = 1; index < DEMO_SESSIONS.length; index += 1) {
+    const previous = DEMO_SESSIONS[index - 1].date;
+    const current = DEMO_SESSIONS[index].date;
+    assert.equal(previous >= current, true);
+  }
+}
+
 test('guest workspace seeds demo data the first time guest mode initializes', () => {
   const localStorage = installBrowserStorage();
   setActiveUserId('guest');
 
   ensureGuestWorkspaceSeeded();
 
+  assert.equal(DEMO_SESSIONS.length, 9);
+  assertSessionsSortedNewestFirst();
   assert.deepEqual(getGuestSessionsForImport(), DEMO_SESSIONS);
   assert.deepEqual(getGuestWorkspaceSummary(), {
     source: 'demo',

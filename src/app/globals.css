@@ -38,6 +38,10 @@
     --sidebar-accent-foreground: 216 66% 48%;
     --sidebar-border: 200 20% 85%;
     --sidebar-ring: 216 66% 48%;
+    --motion-duration-fast: 140ms;
+    --motion-duration-base: 200ms;
+    --motion-duration-slow: 320ms;
+    --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .dark {
@@ -88,5 +92,120 @@
   h6 {
     @apply font-headline font-bold tracking-tight;
     font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+}
+
+@layer components {
+  .ui-button {
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+    transform: translateY(0) scale(1);
+  }
+
+  .ui-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -14px hsl(var(--foreground) / 0.35);
+  }
+
+  .ui-button:active:not(:disabled),
+  .ui-button[data-feedback='loading']:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: 0 4px 10px -8px hsl(var(--foreground) / 0.3);
+  }
+
+  .ui-button[data-interaction='primary-action']:not(:disabled) {
+    box-shadow: 0 12px 28px -18px hsl(var(--primary) / 0.65);
+  }
+
+  .ui-button[data-interaction='primary-action']:hover:not(:disabled) {
+    box-shadow: 0 18px 34px -20px hsl(var(--primary) / 0.7);
+  }
+
+  .ui-button[data-interaction='subtle']:hover:not(:disabled) {
+    box-shadow: 0 8px 18px -18px hsl(var(--foreground) / 0.4);
+  }
+
+  .ui-button[data-interaction='destructive']:hover:not(:disabled) {
+    box-shadow: 0 14px 28px -20px hsl(var(--destructive) / 0.75);
+  }
+
+  .ui-button:hover:not(:disabled) svg,
+  .ui-button:focus-visible:not(:disabled) svg {
+    transform: translateX(1px);
+  }
+
+  .ui-button[data-feedback='loading'] {
+    opacity: 0.92;
+  }
+
+  .ui-button[data-feedback='success'] {
+    background-color: hsl(var(--accent) / 0.22);
+    border-color: hsl(var(--accent) / 0.32);
+    animation: button-success-settle var(--motion-duration-slow)
+      var(--motion-ease-emphasized);
+  }
+
+  .ui-button[data-feedback='error'] {
+    animation: button-error-shake var(--motion-duration-slow)
+      var(--motion-ease-emphasized);
+  }
+
+  .ui-button[data-pulse='true']:not(:disabled):not([data-feedback='loading']) {
+    animation: button-callout 2.4s var(--motion-ease-emphasized) infinite;
+  }
+
+  .ui-field-interaction:hover:not(:disabled) {
+    box-shadow: 0 6px 18px -18px hsl(var(--primary) / 0.45);
+  }
+
+  .ui-card-interaction {
+    will-change: transform, box-shadow;
+  }
+}
+
+@keyframes button-success-settle {
+  0% {
+    transform: scale(0.985);
+  }
+  55% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes button-error-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-2px);
+  }
+  40%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes button-callout {
+  0%,
+  100% {
+    box-shadow: 0 12px 28px -18px hsl(var(--primary) / 0.65);
+  }
+  50% {
+    box-shadow: 0 18px 34px -18px hsl(var(--accent) / 0.65);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-button,
+  .ui-field-interaction,
+  .ui-card-interaction,
+  .ui-button svg {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
   }
 }
