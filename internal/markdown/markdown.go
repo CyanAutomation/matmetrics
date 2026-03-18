@@ -14,7 +14,7 @@ func SessionToMarkdown(session model.Session) (string, error) {
 		return "", err
 	}
 
-	dateValue, err := time.Parse("2006-01-02", session.Date)
+	_, err := time.Parse("2006-01-02", session.Date)
 	if err != nil {
 		return "", fmt.Errorf("invalid session date %q: %w", session.Date, err)
 	}
@@ -30,7 +30,7 @@ func SessionToMarkdown(session model.Session) (string, error) {
 	}
 	b.WriteString("---\n\n")
 
-	b.WriteString(fmt.Sprintf("# %s – Judo Session\n\n", dateValue.Format("January 2, 2006")))
+	b.WriteString(fmt.Sprintf("# %s - Judo Session: %s\n\n", session.Date, session.Category))
 	b.WriteString("## Techniques Practiced\n")
 	if len(session.Techniques) == 0 {
 		b.WriteString("- (none recorded)\n")

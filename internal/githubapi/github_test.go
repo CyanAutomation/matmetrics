@@ -83,7 +83,7 @@ func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
 			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2025/03/20250314-matmetrics-stable.md"):
 				payload := map[string]any{
 					"sha":     "sha-stable",
-					"content": base64.StdEncoding.EncodeToString([]byte("---\nid: \"stable\"\ndate: \"2025-03-14\"\neffort: 3\ncategory: \"Technical\"\n---\n\n# March 14, 2025 – Judo Session\n\n## Techniques Practiced\n- (none recorded)\n\n")),
+					"content": base64.StdEncoding.EncodeToString([]byte("---\nid: \"stable\"\ndate: \"2025-03-14\"\neffort: 3\ncategory: \"Technical\"\n---\n\n# 2025-03-14 - Judo Session: Technical\n\n## Techniques Practiced\n- (none recorded)\n\n")),
 				}
 				return jsonBodyResponse(http.StatusOK, payload), nil
 			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2025/03/20250314-matmetrics-changed.md"):

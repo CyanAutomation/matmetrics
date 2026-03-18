@@ -119,13 +119,13 @@ You can reuse this for image generation.
 
 ### Base prompt
 
-```
+```text
 Chibi red panda mascot named Ressa Kuzushi, wearing white judo gi and black belt, thick outline, clean vector style, cute but not childish, red panda with striped tail, white face mask, dark legs, round proportions, sticker style, mascot illustration, flat shading, high quality, centered, white background
 ```
 
 ### Pose example
 
-```
+```text
 Ressa Kuzushi holding a training notebook with charts, pointing up like a coach, chibi red panda, judo gi, black belt, vector mascot style, thick outline, clean shading
 ```
 

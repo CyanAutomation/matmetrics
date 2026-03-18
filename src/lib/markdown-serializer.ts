@@ -35,15 +35,7 @@ export function sessionToMarkdown(session: JudoSession): string {
     ...(session.duration !== undefined && { duration: session.duration }),
   };
 
-  // Format the date for display in title (e.g., "March 16, 2026")
-  const dateObj = new Date(session.date + 'T00:00:00Z');
-  const dateStr = dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  let content = `# ${dateStr} – Judo Session\n\n`;
+  let content = `# ${session.date} - Judo Session: ${session.category}\n\n`;
 
   // Techniques section
   content += '## Techniques Practiced\n';
