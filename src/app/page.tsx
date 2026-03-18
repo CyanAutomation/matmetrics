@@ -33,7 +33,6 @@ import {
   Info,
   Plus,
   Tags,
-  BrainCircuit,
   Github,
   WifiOff,
   Loader2,
@@ -66,22 +65,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
-const JudoBeltIcon = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M2 10h20v4H2z" />
-    <path d="M10 10c0-2 4-2 4 0v4c0 2-4 2-4 0v-4z" />
-    <path d="M10 14l-2 6" />
-    <path d="M14 14l2 6" />
-  </svg>
-);
+
 
 export default function Home() {
   const { toast } = useToast();
@@ -247,7 +231,7 @@ export default function Home() {
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                <JudoBeltIcon className="h-6 w-6" />
+                🐾
               </div>
               <div>
                 <div className="font-headline font-black text-2xl tracking-tighter text-primary">
@@ -309,7 +293,7 @@ export default function Home() {
                   onClick={() => setActiveTab('prompt')}
                   className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
                 >
-                  <BrainCircuit className="h-5 w-5" />
+                  🐾
                   <span className="text-base font-semibold">
                     Prompt Settings
                   </span>

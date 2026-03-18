@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
-  BrainCircuit,
   Save,
   RotateCcw,
   Info,
@@ -108,7 +107,7 @@ export function PromptSettings() {
         <CardHeader className="bg-primary/5 border-b">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-md">
-              <BrainCircuit className="h-6 w-6" />
+              🐾
             </div>
             <div>
               <CardTitle>AI Transformation Prompt</CardTitle>

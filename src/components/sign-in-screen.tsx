@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BrainCircuit, Github, Loader2, LockKeyhole } from 'lucide-react';
+import { Github, Loader2, LockKeyhole } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -140,7 +140,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
         <CardHeader className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground">
-              <BrainCircuit className="h-6 w-6" />
+              🐾
             </div>
             <div>
               <CardTitle className="text-2xl">MatMetrics</CardTitle>
