@@ -227,6 +227,33 @@ func TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames(t 
 	}
 }
 
+func TestGetTreeEntriesForPathReturnsNon404BranchRefError(t *testing.T) {
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			if strings.Contains(r.URL.Path, "/git/ref/heads/") {
+				return jsonResponse(http.StatusForbidden, `{"message":"Forbidden"}`), nil
+			}
+			t.Fatalf("unexpected request path: %s", r.URL.Path)
+			return nil, nil
+		})},
+		Token: "test-token",
+	}
+
+	_, err := client.getTreeEntriesForPath(model.GitHubConfig{Owner: "o", Repo: "r"}, "main", "data")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	apiErr, ok := err.(*gitHubAPIError)
+	if !ok {
+		t.Fatalf("expected *gitHubAPIError, got %T", err)
+	}
+	if apiErr.Status != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, apiErr.Status)
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
