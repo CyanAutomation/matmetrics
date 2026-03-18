@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"matmetrics/pkg/githubapi"
 	"matmetrics/pkg/httpapi"
@@ -28,6 +29,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+
+	request.ID = strings.TrimSpace(request.ID)
+	if request.ID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "Missing session id")
+		return
+	}
+
 	if request.Config.Owner == "" || request.Config.Repo == "" {
 		httpapi.WriteError(w, http.StatusBadRequest, "Missing owner or repo")
 		return

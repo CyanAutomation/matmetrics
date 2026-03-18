@@ -197,6 +197,52 @@ test('DELETE removes the local markdown session when GitHub is not configured', 
   });
 });
 
+
+test('DELETE proxies Go validation error when id is empty after trim', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = global.fetch;
+
+  process.env.GITHUB_TOKEN = 'test-token';
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    const value = String(url);
+    if (value.includes('/api/go/sessions/delete')) {
+      assert.equal(init?.method, 'DELETE');
+      assert.deepEqual(JSON.parse(String(init?.body ?? '{}')), {
+        id: '   ',
+        config: { owner: 'octocat', repo: 'hello-world' },
+      });
+      return new Response(JSON.stringify({ error: 'Missing session id' }), {
+        status: 400,
+      });
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
+
+  try {
+    const response = await DELETE(
+      new NextRequest('http://localhost/api/sessions/%20%20%20', {
+        method: 'DELETE',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
+        }),
+      }),
+      { params: Promise.resolve({ id: '   ' }) }
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Missing session id',
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
 test('DELETE returns 500 when GitHub delete fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
