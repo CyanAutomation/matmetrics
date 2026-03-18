@@ -51,13 +51,29 @@ function assertSessionsSortedNewestFirst() {
   }
 }
 
+function getDemoCategoryCounts() {
+  return DEMO_SESSIONS.reduce<Record<string, number>>((counts, session) => {
+    counts[session.category] = (counts[session.category] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function getDemoTechniqueCounts() {
+  return DEMO_SESSIONS.reduce<Record<string, number>>((counts, session) => {
+    session.techniques.forEach((technique) => {
+      counts[technique] = (counts[technique] || 0) + 1;
+    });
+    return counts;
+  }, {});
+}
+
 test('guest workspace seeds demo data the first time guest mode initializes', () => {
   const localStorage = installBrowserStorage();
   setActiveUserId('guest');
 
   ensureGuestWorkspaceSeeded();
 
-  assert.equal(DEMO_SESSIONS.length, 9);
+  assert.equal(DEMO_SESSIONS.length, 12);
   assertSessionsSortedNewestFirst();
   assert.deepEqual(getGuestSessionsForImport(), DEMO_SESSIONS);
   assert.deepEqual(getGuestWorkspaceSummary(), {
@@ -66,6 +82,19 @@ test('guest workspace seeds demo data the first time guest mode initializes', ()
   });
 
   localStorage.clear();
+});
+
+test('demo sessions are intentionally uneven enough to feel realistic', () => {
+  const categoryCounts = Object.values(getDemoCategoryCounts()).sort(
+    (left, right) => right - left
+  );
+  const techniqueCounts = Object.entries(getDemoTechniqueCounts()).sort(
+    (left, right) => right[1] - left[1]
+  );
+
+  assert.equal(categoryCounts[0] === categoryCounts[1], false);
+  assert.equal(techniqueCounts[0][1] > 1, true);
+  assert.equal(techniqueCounts[0][1] > techniqueCounts[4][1], true);
 });
 
 test('guest workspace becomes importable after local edits and can be dismissed', () => {

@@ -2,111 +2,147 @@ import type { JudoSession } from './types';
 
 export const DEMO_SESSIONS: JudoSession[] = [
   {
-    id: 'demo-randori-combination-timing',
+    id: 'demo-randori-posture-pressure',
     date: '2026-03-17',
     effort: 4,
     category: 'Randori',
-    duration: 78,
-    techniques: ['Ko-uchi-gari', 'Uchi-mata', 'Sasae-tsuri-komi-ashi'],
+    duration: 76,
+    techniques: ['Uchi-mata', 'Ko-uchi-gari', 'Kumi-kata'],
     description:
-      'The focus was attacking off the first broken step instead of resetting after every grip exchange. The Ko-uchi-gari to Uchi-mata combination started landing cleanly once I stayed chest-up through the turn.',
+      'Hard rounds from standard grips with a clear goal of attacking before the exchange went static. The best sequences came from forcing posture up with the sleeve and immediately threatening Ko-uchi-gari into Uchi-mata.',
     notes:
-      'Best randori of the last two weeks. Still need to commit faster when Sasae-tsuri-komi-ashi stalls the lead foot.',
+      'The combination is becoming reliable when I win the inside lapel first. I still bailed out too often after the first failed Uchi-mata entry.',
   },
   {
-    id: 'demo-technical-kuzushi-chain',
+    id: 'demo-technical-uchimata-finishing',
     date: '2026-03-14',
     effort: 3,
     category: 'Technical',
-    duration: 85,
+    duration: 82,
     techniques: ['Uchi-mata', 'Ko-uchi-gari', 'Tai-otoshi'],
     description:
-      'Focused on linking forward throws off broken posture. The cleanest entries came when I committed to the sleeve pull before stepping across for Uchi-mata.',
+      'Repped the same forward chain from uchikomi into moving nage-komi. Most of the session was about finishing Uchi-mata without drifting across the center line and using Ko-uchi-gari when the partner pulled the lead leg back.',
     notes:
-      'Need a more decisive pivot when switching from Ko-uchi-gari to Tai-otoshi.',
+      'Tai-otoshi is still useful as a bailout option, but it is clearly secondary to the main Uchi-mata sequence right now.',
   },
   {
-    id: 'demo-randori-grip-battle',
+    id: 'demo-technical-recovery-footwork',
     date: '2026-03-11',
-    effort: 4,
-    category: 'Randori',
-    duration: 70,
-    techniques: ['O-soto-gari', 'Sasae-tsuri-komi-ashi', 'Kumi-kata'],
+    effort: 1,
+    category: 'Technical',
+    duration: 48,
+    techniques: ['Uchi-komi', 'Tai-sabaki', 'Kumi-kata'],
     description:
-      'Several rounds started from unfavorable grips, so the main goal was to win the first exchange and attack immediately rather than circling out.',
+      'Kept the session light after a hard week. Mostly footwork rounds, shadow turns, and grip-entry patterns with no real throwing volume.',
     notes:
-      'Better posture under pressure, but I still reached with the lead hand too early.',
+      'Good reminder that the first step is cleaner when I keep the head up and stop reaching for the sleeve from too far out.',
   },
   {
-    id: 'demo-shiai-transition-work',
+    id: 'demo-shiai-scoreboard-rounds',
     date: '2026-03-08',
     effort: 5,
     category: 'Shiai',
-    duration: 95,
-    techniques: ['Ippon-seoi-nage', 'Tani-otoshi', 'Ne-waza transition'],
+    duration: 92,
+    techniques: ['Uchi-mata', 'Kumi-kata', 'Ne-waza transition'],
     description:
-      'Competition-style rounds with short breaks. The emphasis was entering first and following missed throws into immediate groundwork.',
+      'Competition rounds with penalties, short rest, and coaches calling pace. The successful attacks came when I established grips early and committed to the first Uchi-mata instead of waiting for a perfect opening.',
     notes:
-      'Cardio held up well. Need cleaner decision-making when the first attack stalls.',
+      'Conditioning held up, but I lost two exchanges by accepting a defensive grip and trying to recover too late on the edge.',
   },
   {
-    id: 'demo-technical-recovery-uchikomi',
+    id: 'demo-randori-grip-denial',
     date: '2026-03-04',
-    effort: 1,
-    category: 'Technical',
-    duration: 45,
-    techniques: ['Ashi-waza', 'Uchi-komi', 'Tai-sabaki'],
+    effort: 3,
+    category: 'Randori',
+    duration: 64,
+    techniques: ['Kumi-kata', 'De-ashi-barai', 'Uchi-mata'],
     description:
-      'Light recovery session built around footwork patterns, movement entries, and relaxed Uchi-komi. No hard throws, just trying to make the step, turn, and posture feel automatic again.',
+      'Started every round from neutral grips and worked on breaking rhythm before attacking. De-ashi-barai was mostly there to force reactions back into the forward turn.',
     notes:
-      'Exactly the right pace for sore legs. The timing is fine; the left foot still drifts too wide on repeated turns.',
+      'This felt better than the last neutral-grip session. I was much more willing to use foot sweeps as setup instead of hunting only the big throw.',
   },
   {
-    id: 'demo-shiai-scoreboard-pressure',
+    id: 'demo-technical-newaza-followup',
     date: '2026-02-28',
-    effort: 4,
-    category: 'Shiai',
-    duration: 82,
-    techniques: ['Ippon-seoi-nage', 'Kumi-kata', 'O-soto-gari'],
+    effort: 2,
+    category: 'Technical',
+    duration: 66,
+    techniques: ['Ne-waza transition', 'Juji-gatame', 'Uchi-mata'],
     description:
-      'Ran short scoreboard rounds with penalties and golden-score restarts. The rounds felt sharper when I established the collar grip early and forced the pace instead of waiting for a perfect entry.',
+      'Spent most of the class chaining missed throws into immediate control on the ground. The armbar entries were best when I settled chest pressure first instead of racing straight to the finish.',
     notes:
-      'Good urgency overall. I gave up initiative twice by backing straight out after a failed Ippon-seoi-nage.',
+      'Useful complement to the standing work. If the Uchi-mata stalls, the transition is there as long as I do not pause upright.',
   },
   {
-    id: 'demo-technical-newaza-chain',
+    id: 'demo-technical-ashiwaza-entries',
     date: '2026-02-24',
     effort: 2,
     category: 'Technical',
-    duration: 68,
-    techniques: ['Juji-gatame', 'Tate-shiho-gatame', 'Ne-waza transition'],
+    duration: 58,
+    techniques: ['Ko-uchi-gari', 'Sasae-tsuri-komi-ashi', 'Uchi-mata'],
     description:
-      'Spent most of the session on turnovers and armbar entries after a defended throw. The cleaner reps came when I paused for control before chasing the finish.',
+      'Technical drilling centered on ashi-waza entries that feed the main turn throw. The idea was to make Ko-uchi-gari and Sasae feel like real attacks instead of token feints.',
     notes:
-      'Need tighter knees in Tate-shiho-gatame. The Juji-gatame entry is there if I stop rushing the leg over the head.',
+      'Ko-uchi-gari is the better fit for my timing. Sasae works when the partner is pushing back into me, but it still feels less natural.',
   },
   {
-    id: 'demo-randori-short-grip-frustration',
+    id: 'demo-randori-uneven-pace',
     date: '2026-02-19',
-    effort: 3,
+    effort: 4,
     category: 'Randori',
-    duration: 52,
-    techniques: ['Kumi-kata', 'Sode-tsuri-komi-goshi', 'De-ashi-barai'],
+    duration: 72,
+    techniques: ['Uchi-mata', 'Ko-uchi-gari', 'O-soto-gari'],
     description:
-      'Short rounds started from neutral grips, and I spent too much time hand-fighting without creating a real attacking rhythm. The few productive exchanges came when I used De-ashi-barai to interrupt instead of trying to muscle into Sode-tsuri-komi-goshi.',
+      'Full rounds with several bigger training partners. When I attacked decisively, the forward chain was there; when I hesitated, I ended up reaching and getting moved backward.',
     notes:
-      'Frustrating session. Fix the first contact and stop accepting a dead sleeve grip.',
+      'O-soto-gari showed up a few times as the safer attack when I could not load the hips in for Uchi-mata.',
   },
   {
-    id: 'demo-shiai-uneven-pressure-rounds',
+    id: 'demo-technical-grip-sequencing',
     date: '2026-02-13',
+    effort: 3,
+    category: 'Technical',
+    duration: 74,
+    techniques: ['Kumi-kata', 'Uchi-mata', 'Ko-uchi-gari'],
+    description:
+      'Dedicated most of class to first-contact sequences: sleeve control, collar timing, then immediate entry. The whole point was reducing the dead time between winning grips and launching the attack.',
+    notes:
+      'This session made it obvious that the throw fails later when the grip work is lazy early.',
+  },
+  {
+    id: 'demo-shiai-fatigue-decisions',
+    date: '2026-02-08',
     effort: 5,
     category: 'Shiai',
-    duration: 88,
-    techniques: ['Tani-otoshi', 'Uchi-mata', 'Kesa-gatame'],
+    duration: 86,
+    techniques: ['Uchi-mata', 'Tani-otoshi', 'Ne-waza transition'],
     description:
-      'Hard match-style rounds with coaches calling tempo changes from the side. A few attacks were sharp, but I also forced low-percentage entries late and got punished when I chased from too far away.',
+      'Hard match-style rounds under fatigue with almost no coaching between sets. The first attacks were sharp, but later exchanges got messy when I chased too far after a defended entry.',
     notes:
-      'This one exposed bad decision-making under fatigue. Settle the grip, attack once with intent, then transition instead of forcing a second scramble.',
+      'Important reality check. If the first attack dies, I need to transition or reset instead of forcing a second bad entry.',
+  },
+  {
+    id: 'demo-randori-first-attack-commitment',
+    date: '2026-02-03',
+    effort: 3,
+    category: 'Randori',
+    duration: 60,
+    techniques: ['Ko-uchi-gari', 'Uchi-mata', 'Kumi-kata'],
+    description:
+      'Shorter rounds with an emphasis on attacking within the first exchange. The cleanest moments came from using Ko-uchi-gari to draw the weight forward and turning immediately before the grip fight reset.',
+    notes:
+      'Still too hesitant against left-sided partners, but the attacking intention was much better than last month.',
+  },
+  {
+    id: 'demo-technical-osoto-balance',
+    date: '2026-01-30',
+    effort: 2,
+    category: 'Technical',
+    duration: 62,
+    techniques: ['O-soto-gari', 'Kumi-kata', 'Tai-sabaki'],
+    description:
+      'Earlier-cycle technical session on posture and off-balancing for O-soto-gari. This was less about building a primary attack and more about having a dependable secondary direction when the forward turn was not there.',
+    notes:
+      'Worth keeping in the mix, but the standing identity of the block is clearly centered on Uchi-mata and its setups.',
   },
 ];
