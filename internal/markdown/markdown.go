@@ -221,9 +221,7 @@ func extractSectionContent(content string, heading string) string {
 	}
 
 	section := content[start+len(marker):]
-	if strings.HasPrefix(section, "\n") {
-		section = section[1:]
-	}
+	section = strings.TrimPrefix(section, "\n")
 
 	end := strings.Index(section, "\n## ")
 	if end >= 0 {
