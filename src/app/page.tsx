@@ -18,6 +18,7 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
 import { TagManager } from '@/components/tag-manager';
 import { PromptSettings } from '@/components/prompt-settings';
+import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { GitHubSettings } from '@/components/github-settings';
 import {
   getSessions,
@@ -232,9 +233,7 @@ export default function Home() {
         <Sidebar className="border-r border-primary/10">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                🐾
-              </div>
+              <MatMetricsLogo size="md" variant="solid" />
               <div>
                 <div className="font-headline font-black text-2xl tracking-tighter text-primary">
                   MatMetrics

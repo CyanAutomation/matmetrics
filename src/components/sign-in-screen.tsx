@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Github, Loader2, LockKeyhole } from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
+import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import {
   Card,
   CardContent,
@@ -145,9 +146,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
             alt="Ressa welcomes you to MatMetrics"
           />
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground">
-              🐾
-            </div>
+            <MatMetricsLogo size="lg" variant="solid" />
             <div>
               <CardTitle className="text-2xl">MatMetrics</CardTitle>
               <CardDescription>
