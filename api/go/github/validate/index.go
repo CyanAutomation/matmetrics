@@ -15,6 +15,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !httpapi.RequireAuthenticatedUser(w, r) {
+		return
+	}
+
 	var config model.GitHubConfig
 	if err := httpapi.DecodeJSON(r, &config); err != nil {
 		httpapi.WriteJSON(w, http.StatusBadRequest, map[string]any{
