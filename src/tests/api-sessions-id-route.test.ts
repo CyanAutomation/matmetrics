@@ -16,7 +16,9 @@ import type { JudoSession } from '@/lib/types';
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
 async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
-  const dataDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-session-route-'));
+  const dataDir = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-session-route-')
+  );
   __setDataDirForTests(dataDir);
 
   try {
@@ -40,11 +42,14 @@ function makeSession(id: string, date: string): JudoSession {
 }
 
 function makeGetRequest(id: string, query = '') {
-  return GET(new NextRequest(`http://localhost/api/sessions/${id}${query}`, {
-    headers: { authorization: 'Bearer test-token' },
-  }), {
-    params: Promise.resolve({ id }),
-  });
+  return GET(
+    new NextRequest(`http://localhost/api/sessions/${id}${query}`, {
+      headers: { authorization: 'Bearer test-token' },
+    }),
+    {
+      params: Promise.resolve({ id }),
+    }
+  );
 }
 
 test('GET returns 404 when session does not exist', async () => {
@@ -76,7 +81,10 @@ test('PUT updates local markdown storage when GitHub is not configured', async (
     const response = await PUT(
       new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
         method: 'PUT',
-        headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
         body: JSON.stringify({
           id: sessionId,
           date: '2025-01-10',
@@ -107,7 +115,10 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
   global.fetch = async (url: string | URL | Request) => {
     const value = String(url);
     if (value.includes('/api/go/sessions/update')) {
-      return new Response(JSON.stringify({ error: 'Failed to update session' }), { status: 500 });
+      return new Response(
+        JSON.stringify({ error: 'Failed to update session' }),
+        { status: 500 }
+      );
     }
     throw new Error(`Unexpected Go proxy URL: ${value}`);
   };
@@ -116,7 +127,10 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
     const response = await PUT(
       new NextRequest('http://localhost/api/sessions/put-github-failure', {
         method: 'PUT',
-        headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
         body: JSON.stringify({
           id: 'put-github-failure',
           date: '2025-01-10',
@@ -130,7 +144,9 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
     );
 
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { error: 'Failed to update session' });
+    assert.deepEqual(await response.json(), {
+      error: 'Failed to update session',
+    });
   } finally {
     global.fetch = originalFetch;
     process.env.GITHUB_TOKEN = originalToken;
@@ -145,7 +161,10 @@ test('DELETE removes the local markdown session when GitHub is not configured', 
     const response = await DELETE(
       new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
       }),
       { params: Promise.resolve({ id: sessionId }) }
     );
@@ -164,7 +183,10 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
   global.fetch = async (url: string | URL | Request) => {
     const value = String(url);
     if (value.includes('/api/go/sessions/delete')) {
-      return new Response(JSON.stringify({ error: 'Failed to delete session' }), { status: 500 });
+      return new Response(
+        JSON.stringify({ error: 'Failed to delete session' }),
+        { status: 500 }
+      );
     }
     throw new Error(`Unexpected Go proxy URL: ${value}`);
   };
@@ -173,7 +195,10 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
     const response = await DELETE(
       new NextRequest('http://localhost/api/sessions/delete-github-failure', {
         method: 'DELETE',
-        headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
         body: JSON.stringify({
           gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
         }),
@@ -182,7 +207,9 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
     );
 
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { error: 'Failed to delete session' });
+    assert.deepEqual(await response.json(), {
+      error: 'Failed to delete session',
+    });
   } finally {
     global.fetch = originalFetch;
     process.env.GITHUB_TOKEN = originalToken;
@@ -194,7 +221,10 @@ test('PUT returns 400 for invalid techniques element type', async () => {
   const response = await PUT(
     new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
       method: 'PUT',
-      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
       body: JSON.stringify({
         id: sessionId,
         date: '2025-01-10',
@@ -207,7 +237,9 @@ test('PUT returns 400 for invalid techniques element type', async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: 'Invalid techniques[1]: expected a string' });
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid techniques[1]: expected a string',
+  });
 });
 
 test('PUT returns 400 for invalid date string', async () => {
@@ -215,7 +247,10 @@ test('PUT returns 400 for invalid date string', async () => {
   const response = await PUT(
     new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
       method: 'PUT',
-      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
       body: JSON.stringify({
         id: sessionId,
         date: '2025-13-01',
@@ -228,7 +263,9 @@ test('PUT returns 400 for invalid date string', async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: 'Invalid date: must be a real calendar date' });
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid date: must be a real calendar date',
+  });
 });
 
 test('PUT returns 400 for invalid duration type', async () => {
@@ -236,7 +273,10 @@ test('PUT returns 400 for invalid duration type', async () => {
   const response = await PUT(
     new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
       method: 'PUT',
-      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
       body: JSON.stringify({
         id: sessionId,
         date: '2025-01-10',
@@ -250,7 +290,9 @@ test('PUT returns 400 for invalid duration type', async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: 'Invalid duration: expected a non-negative integer' });
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid duration: expected a non-negative integer',
+  });
 });
 
 test('PUT returns 400 for invalid notes type', async () => {
@@ -258,7 +300,10 @@ test('PUT returns 400 for invalid notes type', async () => {
   const response = await PUT(
     new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
       method: 'PUT',
-      headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
       body: JSON.stringify({
         id: sessionId,
         date: '2025-01-10',
@@ -272,13 +317,18 @@ test('PUT returns 400 for invalid notes type', async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: 'Invalid notes: expected a string' });
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid notes: expected a string',
+  });
 });
 
 test('GET returns 401 when authorization header is missing', async () => {
-  const response = await GET(new NextRequest('http://localhost/api/sessions/unauthorized'), {
-    params: Promise.resolve({ id: 'unauthorized' }),
-  });
+  const response = await GET(
+    new NextRequest('http://localhost/api/sessions/unauthorized'),
+    {
+      params: Promise.resolve({ id: 'unauthorized' }),
+    }
+  );
 
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: 'Authentication required' });

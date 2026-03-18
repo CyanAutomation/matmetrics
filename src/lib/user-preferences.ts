@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import {
   deleteField,
@@ -7,14 +7,14 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
-} from "firebase/firestore";
-import { getFirebaseDb } from "./firebase-client";
-import { getScopedStorageKey } from "./client-identity";
-import type { GitHubConfig, GitHubSettings, UserPreferences } from "./types";
+} from 'firebase/firestore';
+import { getFirebaseDb } from './firebase-client';
+import { getScopedStorageKey } from './client-identity';
+import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
 
-const LEGACY_PROMPT_KEY = "matmetrics_transformer_prompt";
-const LEGACY_GITHUB_CONFIG_KEY = "matmetrics_github_config";
-const PREFERENCES_CACHE_KEY = "matmetrics_user_preferences";
+const LEGACY_PROMPT_KEY = 'matmetrics_transformer_prompt';
+const LEGACY_GITHUB_CONFIG_KEY = 'matmetrics_github_config';
+const PREFERENCES_CACHE_KEY = 'matmetrics_user_preferences';
 
 export const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
 
@@ -30,7 +30,7 @@ Guidelines:
 export const DEFAULT_GITHUB_SETTINGS: GitHubSettings = {
   enabled: false,
   migrationDone: false,
-  syncStatus: "idle",
+  syncStatus: 'idle',
 };
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -45,7 +45,7 @@ let loadedUserId: string | null = null;
 const listeners = new Set<PreferencesListener>();
 
 function getPreferencesDocRef(uid: string) {
-  return doc(getFirebaseDb(), "users", uid, "preferences", "app");
+  return doc(getFirebaseDb(), 'users', uid, 'preferences', 'app');
 }
 
 function notifyPreferencesChanged(): void {
@@ -53,8 +53,12 @@ function notifyPreferencesChanged(): void {
     listener(currentPreferences);
   }
 
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("preferencesSync", { detail: { preferences: currentPreferences } }));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('preferencesSync', {
+        detail: { preferences: currentPreferences },
+      })
+    );
   }
 }
 
@@ -66,35 +70,46 @@ function cloneDefaults(): UserPreferences {
 }
 
 function normalizeGitHubSettings(value: unknown): GitHubSettings {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     return { ...DEFAULT_GITHUB_SETTINGS };
   }
 
   const input = value as Partial<GitHubSettings>;
-  const config = input.config && typeof input.config === "object"
-    ? {
-      owner: typeof input.config.owner === "string" ? input.config.owner.trim() : "",
-      repo: typeof input.config.repo === "string" ? input.config.repo.trim() : "",
-      branch: typeof input.config.branch === "string" ? input.config.branch.trim() : undefined,
-    }
-    : undefined;
+  const config =
+    input.config && typeof input.config === 'object'
+      ? {
+          owner:
+            typeof input.config.owner === 'string'
+              ? input.config.owner.trim()
+              : '',
+          repo:
+            typeof input.config.repo === 'string'
+              ? input.config.repo.trim()
+              : '',
+          branch:
+            typeof input.config.branch === 'string'
+              ? input.config.branch.trim()
+              : undefined,
+        }
+      : undefined;
 
   return {
     config: config && config.owner && config.repo ? config : undefined,
     enabled: input.enabled === true,
     migrationDone: input.migrationDone === true,
-    lastSyncTime: typeof input.lastSyncTime === "string" ? input.lastSyncTime : undefined,
+    lastSyncTime:
+      typeof input.lastSyncTime === 'string' ? input.lastSyncTime : undefined,
     syncStatus:
-      input.syncStatus === "syncing" ||
-      input.syncStatus === "success" ||
-      input.syncStatus === "error"
+      input.syncStatus === 'syncing' ||
+      input.syncStatus === 'success' ||
+      input.syncStatus === 'error'
         ? input.syncStatus
-        : "idle",
+        : 'idle',
   };
 }
 
 function normalizePreferences(value: unknown): UserPreferences {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     return cloneDefaults();
   }
 
@@ -102,64 +117,76 @@ function normalizePreferences(value: unknown): UserPreferences {
 
   return {
     transformerPrompt:
-      typeof input.transformerPrompt === "string" && input.transformerPrompt.trim()
+      typeof input.transformerPrompt === 'string' &&
+      input.transformerPrompt.trim()
         ? input.transformerPrompt
         : DEFAULT_TRANSFORMER_PROMPT,
     gitHub: normalizeGitHubSettings(input.gitHub),
     migratedLocalSettingsAt:
-      typeof input.migratedLocalSettingsAt === "string" ? input.migratedLocalSettingsAt : undefined,
+      typeof input.migratedLocalSettingsAt === 'string'
+        ? input.migratedLocalSettingsAt
+        : undefined,
   };
 }
 
-function serializeGitHubSettings(gitHub: GitHubSettings): Record<string, unknown> {
+function serializeGitHubSettings(
+  gitHub: GitHubSettings
+): Record<string, unknown> {
   return {
     enabled: gitHub.enabled,
     migrationDone: gitHub.migrationDone,
     syncStatus: gitHub.syncStatus,
     ...(gitHub.config
       ? {
-        config: {
-          owner: gitHub.config.owner,
-          repo: gitHub.config.repo,
-          ...(gitHub.config.branch ? { branch: gitHub.config.branch } : {}),
-        },
-      }
+          config: {
+            owner: gitHub.config.owner,
+            repo: gitHub.config.repo,
+            ...(gitHub.config.branch ? { branch: gitHub.config.branch } : {}),
+          },
+        }
       : {}),
     ...(gitHub.lastSyncTime ? { lastSyncTime: gitHub.lastSyncTime } : {}),
   };
 }
 
 function readCachedPreferences(): UserPreferences {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return cloneDefaults();
   }
 
   try {
-    const stored = localStorage.getItem(getScopedStorageKey(PREFERENCES_CACHE_KEY));
+    const stored = localStorage.getItem(
+      getScopedStorageKey(PREFERENCES_CACHE_KEY)
+    );
     return stored ? normalizePreferences(JSON.parse(stored)) : cloneDefaults();
   } catch (error) {
-    console.error("Failed to parse cached user preferences", error);
+    console.error('Failed to parse cached user preferences', error);
     return cloneDefaults();
   }
 }
 
 function writeCachedPreferences(preferences: UserPreferences): void {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return;
   }
 
-  localStorage.setItem(getScopedStorageKey(PREFERENCES_CACHE_KEY), JSON.stringify(preferences));
+  localStorage.setItem(
+    getScopedStorageKey(PREFERENCES_CACHE_KEY),
+    JSON.stringify(preferences)
+  );
 }
 
 function readLegacyPreferences(): Partial<UserPreferences> | null {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return null;
   }
 
   try {
     const prompt = localStorage.getItem(LEGACY_PROMPT_KEY);
     const gitHubRaw = localStorage.getItem(LEGACY_GITHUB_CONFIG_KEY);
-    const gitHub = gitHubRaw ? normalizeGitHubSettings(JSON.parse(gitHubRaw)) : undefined;
+    const gitHub = gitHubRaw
+      ? normalizeGitHubSettings(JSON.parse(gitHubRaw))
+      : undefined;
 
     if (!prompt && !gitHubRaw) {
       return null;
@@ -170,7 +197,7 @@ function readLegacyPreferences(): Partial<UserPreferences> | null {
       ...(gitHub ? { gitHub } : {}),
     };
   } catch (error) {
-    console.error("Failed to read legacy user preferences", error);
+    console.error('Failed to read legacy user preferences', error);
     return null;
   }
 }
@@ -179,14 +206,18 @@ export function getCurrentPreferences(): UserPreferences {
   return currentPreferences;
 }
 
-export function subscribeToPreferences(listener: PreferencesListener): () => void {
+export function subscribeToPreferences(
+  listener: PreferencesListener
+): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export async function initializeUserPreferences(uid: string): Promise<UserPreferences> {
+export async function initializeUserPreferences(
+  uid: string
+): Promise<UserPreferences> {
   if (loadedUserId === uid) {
     return currentPreferences;
   }
@@ -195,18 +226,20 @@ export async function initializeUserPreferences(uid: string): Promise<UserPrefer
   notifyPreferencesChanged();
 
   const snapshot = await getDoc(getPreferencesDocRef(uid));
-  const remotePreferences = snapshot.exists() ? normalizePreferences(snapshot.data()) : cloneDefaults();
+  const remotePreferences = snapshot.exists()
+    ? normalizePreferences(snapshot.data())
+    : cloneDefaults();
   const legacyPreferences = readLegacyPreferences();
 
   const mergedPreferences = normalizePreferences({
     ...remotePreferences,
     ...(legacyPreferences && !remotePreferences.migratedLocalSettingsAt
       ? {
-        ...remotePreferences,
-        ...legacyPreferences,
-        gitHub: legacyPreferences.gitHub ?? remotePreferences.gitHub,
-        migratedLocalSettingsAt: new Date().toISOString(),
-      }
+          ...remotePreferences,
+          ...legacyPreferences,
+          gitHub: legacyPreferences.gitHub ?? remotePreferences.gitHub,
+          migratedLocalSettingsAt: new Date().toISOString(),
+        }
       : {}),
   });
 
@@ -237,7 +270,10 @@ export function clearUserPreferencesState(): void {
   notifyPreferencesChanged();
 }
 
-export async function saveTransformerPromptPreference(uid: string, prompt: string): Promise<void> {
+export async function saveTransformerPromptPreference(
+  uid: string,
+  prompt: string
+): Promise<void> {
   currentPreferences = {
     ...currentPreferences,
     transformerPrompt: prompt,
@@ -255,11 +291,16 @@ export async function saveTransformerPromptPreference(uid: string, prompt: strin
   );
 }
 
-export async function resetTransformerPromptPreference(uid: string): Promise<void> {
+export async function resetTransformerPromptPreference(
+  uid: string
+): Promise<void> {
   await saveTransformerPromptPreference(uid, DEFAULT_TRANSFORMER_PROMPT);
 }
 
-export async function saveGitHubSettingsPreference(uid: string, gitHub: GitHubSettings): Promise<void> {
+export async function saveGitHubSettingsPreference(
+  uid: string,
+  gitHub: GitHubSettings
+): Promise<void> {
   currentPreferences = {
     ...currentPreferences,
     gitHub,
@@ -277,7 +318,10 @@ export async function saveGitHubSettingsPreference(uid: string, gitHub: GitHubSe
   );
 }
 
-export async function saveGitHubConfigPreference(uid: string, config: GitHubConfig): Promise<void> {
+export async function saveGitHubConfigPreference(
+  uid: string,
+  config: GitHubConfig
+): Promise<void> {
   await saveGitHubSettingsPreference(uid, {
     ...currentPreferences.gitHub,
     config,

@@ -25,7 +25,9 @@ function makeSession(overrides: Partial<JudoSession> = {}): JudoSession {
 }
 
 async function withTempDataDir(run: () => Promise<void>) {
-  const dataDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-file-storage-'));
+  const dataDir = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-file-storage-')
+  );
   __setDataDirForTests(dataDir);
 
   try {
@@ -47,7 +49,10 @@ test('updateSession moves the markdown file when the session date changes', asyn
 
     const nextPath = await updateSession(nextSession);
 
-    assert.equal(nextPath, getSessionFilePath('2025-02-12', undefined, 'session-1'));
+    assert.equal(
+      nextPath,
+      getSessionFilePath('2025-02-12', undefined, 'session-1')
+    );
     assert.equal(await findSessionFileById('session-1'), nextPath);
   });
 });

@@ -20,7 +20,9 @@ export function __resetDataDirForTests(): void {
 
 function sanitizeSessionId(sessionId: string): string {
   if (sessionId.length > 100) {
-    throw new Error('Session ID exceeds maximum allowed length of 100 characters');
+    throw new Error(
+      'Session ID exceeds maximum allowed length of 100 characters'
+    );
   }
   return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
@@ -31,7 +33,11 @@ function sanitizeSessionId(sessionId: string): string {
  * Preferred format includes session ID: YYYYMMDD-matmetrics-<sessionId>.md
  * Legacy counter format remains supported: YYYYMMDD-matmetrics-01.md
  */
-export function getSessionFilePath(date: string, counter?: number, sessionId?: string): string {
+export function getSessionFilePath(
+  date: string,
+  counter?: number,
+  sessionId?: string
+): string {
   const [year, month, day] = date.split('-');
   const baseName = sessionId
     ? `${year}${month}${day}-matmetrics-${sanitizeSessionId(sessionId)}.md`
@@ -46,9 +52,8 @@ export function getSessionFilePath(date: string, counter?: number, sessionId?: s
  * Reverse of getSessionFilePath
  */
 export function extractDateFromPath(filePath: string): string | null {
-  const [, year, month, dayMatch] = filePath.match(
-    /(\d{4})\/(\d{2})\/(\d{8})/
-  ) || [];
+  const [, year, month, dayMatch] =
+    filePath.match(/(\d{4})\/(\d{2})\/(\d{8})/) || [];
   if (!dayMatch) return null;
   const day = dayMatch.slice(6, 8);
   return `${year}-${month}-${day}`;
@@ -59,11 +64,7 @@ export function extractDateFromPath(filePath: string): string | null {
  * Used when creating multiple sessions on the same day
  */
 export async function getNextCounter(date: string): Promise<number> {
-  const dirPath = path.join(
-    getDataDir(),
-    date.slice(0, 4),
-    date.slice(5, 7)
-  );
+  const dirPath = path.join(getDataDir(), date.slice(0, 4), date.slice(5, 7));
 
   try {
     const files = await fs.readdir(dirPath);
@@ -74,7 +75,9 @@ export async function getNextCounter(date: string): Promise<number> {
       if (!file.startsWith(datePrefix)) continue;
 
       // Try to extract counter from filename
-      const counterMatch = file.match(new RegExp(`${datePrefix}(?:-matmetrics)?(?:-(\\d+))?\\.md`));
+      const counterMatch = file.match(
+        new RegExp(`${datePrefix}(?:-matmetrics)?(?:-(\\d+))?\\.md`)
+      );
       if (counterMatch && counterMatch[1]) {
         maxCounter = Math.max(maxCounter, parseInt(counterMatch[1], 10));
       }
@@ -140,7 +143,10 @@ export async function listSessions(): Promise<JudoSession[]> {
 /**
  * Read a single session by date and optional counter
  */
-export async function readSession(date: string, counter?: number): Promise<JudoSession | null> {
+export async function readSession(
+  date: string,
+  counter?: number
+): Promise<JudoSession | null> {
   try {
     const filePath = getSessionFilePath(date, counter);
     const markdown = await fs.readFile(filePath, 'utf-8');
@@ -158,7 +164,11 @@ export async function readSession(date: string, counter?: number): Promise<JudoS
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
-  const dirPath = path.join(getDataDir(), session.date.slice(0, 4), session.date.slice(5, 7));
+  const dirPath = path.join(
+    getDataDir(),
+    session.date.slice(0, 4),
+    session.date.slice(5, 7)
+  );
 
   // Ensure directory exists
   await fs.mkdir(dirPath, { recursive: true });
@@ -170,7 +180,9 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
   const filePath = getSessionFilePath(session.date, undefined, session.id);
-  const assertExistingSessionMatches = async (existingPath: string): Promise<string> => {
+  const assertExistingSessionMatches = async (
+    existingPath: string
+  ): Promise<string> => {
     const existingMarkdown = await fs.readFile(existingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
       throw new Error(
@@ -258,7 +270,7 @@ export async function deleteSession(id: string): Promise<void> {
 export async function findSessionFileById(id: string): Promise<string | null> {
   try {
     const sessions = await listSessions();
-    const session = sessions.find(s => s.id === id);
+    const session = sessions.find((s) => s.id === id);
     if (!session) return null;
 
     // Try to find the file

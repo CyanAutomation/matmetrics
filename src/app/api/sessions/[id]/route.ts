@@ -17,7 +17,9 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-function validateDate(dateValue: unknown): { valid: true; date: string } | { valid: false; error: string } {
+function validateDate(
+  dateValue: unknown
+): { valid: true; date: string } | { valid: false; error: string } {
   if (typeof dateValue !== 'string') {
     return { valid: false, error: 'Invalid date: expected YYYY-MM-DD format' };
   }
@@ -38,7 +40,10 @@ function validateDate(dateValue: unknown): { valid: true; date: string } | { val
     parsedDate.getUTCMonth() !== month - 1 ||
     parsedDate.getUTCDate() !== day
   ) {
-    return { valid: false, error: 'Invalid date: must be a real calendar date' };
+    return {
+      valid: false,
+      error: 'Invalid date: must be a real calendar date',
+    };
   }
 
   return { valid: true, date: dateValue };
@@ -48,7 +53,10 @@ function validateTechniques(
   techniquesValue: unknown
 ): { valid: true; techniques: string[] } | { valid: false; error: string } {
   if (!Array.isArray(techniquesValue)) {
-    return { valid: false, error: 'Invalid techniques: expected an array of non-empty strings' };
+    return {
+      valid: false,
+      error: 'Invalid techniques: expected an array of non-empty strings',
+    };
   }
 
   const normalized: string[] = [];
@@ -56,12 +64,18 @@ function validateTechniques(
   for (let index = 0; index < techniquesValue.length; index += 1) {
     const technique = techniquesValue[index];
     if (typeof technique !== 'string') {
-      return { valid: false, error: `Invalid techniques[${index}]: expected a string` };
+      return {
+        valid: false,
+        error: `Invalid techniques[${index}]: expected a string`,
+      };
     }
 
     const trimmed = technique.trim();
     if (!trimmed) {
-      return { valid: false, error: `Invalid techniques[${index}]: value cannot be empty` };
+      return {
+        valid: false,
+        error: `Invalid techniques[${index}]: value cannot be empty`,
+      };
     }
 
     normalized.push(trimmed);
@@ -76,7 +90,9 @@ function validateTechniques(
 function validateOptionalString(
   value: unknown,
   fieldName: 'description' | 'notes'
-): { valid: true; value: string | undefined } | { valid: false; error: string } {
+):
+  | { valid: true; value: string | undefined }
+  | { valid: false; error: string } {
   if (value === undefined) {
     return { valid: true, value: undefined };
   }
@@ -90,13 +106,18 @@ function validateOptionalString(
 
 function validateDuration(
   value: unknown
-): { valid: true; duration: number | undefined } | { valid: false; error: string } {
+):
+  | { valid: true; duration: number | undefined }
+  | { valid: false; error: string } {
   if (value === undefined) {
     return { valid: true, duration: undefined };
   }
 
   if (!Number.isInteger(value) || (value as number) < 0) {
-    return { valid: false, error: 'Invalid duration: expected a non-negative integer' };
+    return {
+      valid: false,
+      error: 'Invalid duration: expected a non-negative integer',
+    };
   }
 
   return { valid: true, duration: value as number };
@@ -104,7 +125,10 @@ function validateDuration(
 
 function isSessionNotFoundError(error: unknown): boolean {
   if (error instanceof Error) {
-    return /Session with ID .* not found/.test(error.message) || /GitHub session not found/.test(error.message);
+    return (
+      /Session with ID .* not found/.test(error.message) ||
+      /GitHub session not found/.test(error.message)
+    );
   }
 
   if (typeof error === 'string') {
@@ -148,10 +172,7 @@ export async function GET(
 
     const session = await readSessionByIdForConfig(id, gitHubConfig);
     if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     return NextResponse.json(session, { status: 200 });
@@ -213,10 +234,7 @@ export async function PUT(
     }
 
     if (!['Technical', 'Randori', 'Shiai'].includes(body.category)) {
-      return NextResponse.json(
-        { error: 'Invalid category' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
 
     const techniquesValidation = validateTechniques(body.techniques);
@@ -227,7 +245,10 @@ export async function PUT(
       );
     }
 
-    const descriptionValidation = validateOptionalString(body.description, 'description');
+    const descriptionValidation = validateOptionalString(
+      body.description,
+      'description'
+    );
     if (!descriptionValidation.valid) {
       return NextResponse.json(
         { error: descriptionValidation.error },
@@ -257,12 +278,20 @@ export async function PUT(
       effort: body.effort,
       category: body.category,
       techniques: techniquesValidation.techniques,
-      ...(descriptionValidation.value !== undefined && { description: descriptionValidation.value }),
-      ...(notesValidation.value !== undefined && { notes: notesValidation.value }),
-      ...(durationValidation.duration !== undefined && { duration: durationValidation.duration }),
+      ...(descriptionValidation.value !== undefined && {
+        description: descriptionValidation.value,
+      }),
+      ...(notesValidation.value !== undefined && {
+        notes: notesValidation.value,
+      }),
+      ...(durationValidation.duration !== undefined && {
+        duration: durationValidation.duration,
+      }),
     };
 
-    const gitHubConfig = normalizeGitHubConfig(body.gitHubConfig as GitHubConfig | undefined);
+    const gitHubConfig = normalizeGitHubConfig(
+      body.gitHubConfig as GitHubConfig | undefined
+    );
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
         path: '/api/go/sessions/update',
@@ -276,10 +305,7 @@ export async function PUT(
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
     if (isSessionNotFoundError(error)) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     console.error('Error updating session', error);
@@ -306,7 +332,9 @@ export async function DELETE(
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const gitHubConfig = normalizeGitHubConfig(body?.gitHubConfig as GitHubConfig | undefined);
+    const gitHubConfig = normalizeGitHubConfig(
+      body?.gitHubConfig as GitHubConfig | undefined
+    );
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
         path: '/api/go/sessions/delete',
@@ -320,10 +348,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
     if (isSessionNotFoundError(error)) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     console.error('Error deleting session', error);

@@ -25,7 +25,9 @@ function normalizeBranch(branch: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-export function normalizeGitHubConfig(config: Partial<GitHubConfig> | null | undefined): GitHubConfig | null {
+export function normalizeGitHubConfig(
+  config: Partial<GitHubConfig> | null | undefined
+): GitHubConfig | null {
   if (!config) {
     return null;
   }
@@ -41,11 +43,16 @@ export function normalizeGitHubConfig(config: Partial<GitHubConfig> | null | und
   return { owner, repo, ...(branch ? { branch } : {}) };
 }
 
-export function shouldUseGitHubStorage(config: GitHubConfig | null | undefined): config is GitHubConfig {
+export function shouldUseGitHubStorage(
+  config: GitHubConfig | null | undefined
+): config is GitHubConfig {
   return !!config && isGitHubConfigured();
 }
 
-async function readGitHubFileContent(config: GitHubConfig, filePath: string): Promise<string> {
+async function readGitHubFileContent(
+  config: GitHubConfig,
+  filePath: string
+): Promise<string> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     throw new Error('GITHUB_TOKEN environment variable not set');
@@ -71,13 +78,17 @@ async function readGitHubFileContent(config: GitHubConfig, filePath: string): Pr
 
     const payload = await response.json().catch(() => null);
     const message =
-      payload && typeof payload.message === 'string' ? payload.message : response.statusText;
+      payload && typeof payload.message === 'string'
+        ? payload.message
+        : response.statusText;
     throw new Error(`GitHub API error ${response.status}: ${message}`);
   }
 
   const payload = await response.json();
   if (typeof payload?.content !== 'string') {
-    throw new Error(`GitHub contents response for ${filePath} did not include file content`);
+    throw new Error(
+      `GitHub contents response for ${filePath} did not include file content`
+    );
   }
 
   const content = payload.content.replace(/\n/g, '');
@@ -124,12 +135,16 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
       const message =
-        payload && typeof payload.message === 'string' ? payload.message : response.statusText;
+        payload && typeof payload.message === 'string'
+          ? payload.message
+          : response.statusText;
       throw new Error(`GitHub API error ${response.status}: ${message}`);
     }
 
     const payload = await response.json();
-    const entries = Array.isArray(payload) ? (payload as GitHubContentsEntry[]) : [];
+    const entries = Array.isArray(payload)
+      ? (payload as GitHubContentsEntry[])
+      : [];
 
     for (const entry of entries) {
       if (entry.type === 'dir') {
@@ -137,7 +152,12 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
         continue;
       }
 
-      if (entry.type === 'file' && new RegExp(`^${GITHUB_SESSION_ROOT}/\\d{4}/\\d{2}/.+\\.md$`).test(entry.path)) {
+      if (
+        entry.type === 'file' &&
+        new RegExp(`^${GITHUB_SESSION_ROOT}/\\d{4}/\\d{2}/.+\\.md$`).test(
+          entry.path
+        )
+      ) {
         paths.push(entry.path);
       }
     }
@@ -146,17 +166,24 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
   return paths;
 }
 
-export async function listSessionsFromGitHub(config: GitHubConfig): Promise<JudoSession[]> {
+export async function listSessionsFromGitHub(
+  config: GitHubConfig
+): Promise<JudoSession[]> {
   const markdownPaths = await listGitHubSessionPaths(config);
   const sessions = await Promise.all(
-    markdownPaths.map(async (filePath) => markdownToSession(await readGitHubFileContent(config, filePath)))
+    markdownPaths.map(async (filePath) =>
+      markdownToSession(await readGitHubFileContent(config, filePath))
+    )
   );
 
   sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
   return sessions;
 }
 
-export async function readSessionByIdFromGitHub(id: string, config: GitHubConfig): Promise<JudoSession | null> {
+export async function readSessionByIdFromGitHub(
+  id: string,
+  config: GitHubConfig
+): Promise<JudoSession | null> {
   const filePath = await findSessionPathOnGitHubById(id, config);
   if (!filePath) {
     return null;
@@ -165,7 +192,9 @@ export async function readSessionByIdFromGitHub(id: string, config: GitHubConfig
   return markdownToSession(await readGitHubFileContent(config, filePath));
 }
 
-export async function listSessionsForConfig(config: GitHubConfig | null): Promise<JudoSession[]> {
+export async function listSessionsForConfig(
+  config: GitHubConfig | null
+): Promise<JudoSession[]> {
   if (shouldUseGitHubStorage(config)) {
     return listSessionsFromGitHub(config);
   }

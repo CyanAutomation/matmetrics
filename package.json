@@ -14,6 +14,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && tsc --noEmit --incremental false",
     "test": "node --import tsx --test src/**/*.test.ts",
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
@@ -73,6 +75,7 @@
     "eslint-config-next": "^16.1.7",
     "genkit-cli": "^1.28.0",
     "postcss": "^8",
+    "prettier": "^3.8.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

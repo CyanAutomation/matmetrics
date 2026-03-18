@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compareDateOnlyDesc, isSameMonthAndYear, parseDateOnly } from './utils';
+import {
+  compareDateOnlyDesc,
+  isSameMonthAndYear,
+  parseDateOnly,
+} from './utils';
 
 test('parseDateOnly keeps the same calendar day for date-only values', () => {
   const parsed = parseDateOnly('2025-01-10');

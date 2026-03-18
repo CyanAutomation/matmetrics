@@ -21,16 +21,17 @@ Each session markdown file must use YAML frontmatter followed by fixed headings:
 
 ```md
 ---
-id: "session-id"
-date: "2026-03-17"
+id: 'session-id'
+date: '2026-03-17'
 effort: 3
-category: "Technical"
+category: 'Technical'
 duration: 90
 ---
 
 # March 17, 2026 – Judo Session
 
 ## Techniques Practiced
+
 - Uchi mata
 
 ## Session Description

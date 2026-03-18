@@ -1,6 +1,6 @@
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 type FirebaseClientConfig = {
   apiKey: string;
@@ -38,7 +38,7 @@ export function isFirebaseConfigured(): boolean {
 export function getFirebaseApp(): FirebaseApp {
   const config = getFirebaseClientConfig();
   if (!config) {
-    throw new Error("Firebase client configuration is missing");
+    throw new Error('Firebase client configuration is missing');
   }
 
   return getApps().length > 0 ? getApp() : initializeApp(config);

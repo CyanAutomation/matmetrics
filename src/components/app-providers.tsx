@@ -1,9 +1,9 @@
-"use client"
+'use client';
 
-import React from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/components/auth-provider";
+import React from 'react';
+import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/components/auth-provider';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (

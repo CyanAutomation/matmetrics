@@ -1,20 +1,51 @@
-"use client"
+'use client';
 
 import React, { useState, useEffect, useId } from 'react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Badge } from "@/components/ui/badge";
-import { Brain, X, Sparkles, Loader2, Save, Undo2, Wand2, PlusCircle } from "lucide-react";
-import { EffortLevel, EFFORT_LABELS, JudoSession, SessionCategory } from "@/lib/types";
-import { saveSession, updateSession, getTransformerPrompt } from "@/lib/storage";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAuthHeaders } from "@/lib/auth-session";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import {
+  Brain,
+  X,
+  Sparkles,
+  Loader2,
+  Save,
+  Undo2,
+  Wand2,
+  PlusCircle,
+} from 'lucide-react';
+import {
+  EffortLevel,
+  EFFORT_LABELS,
+  JudoSession,
+  SessionCategory,
+} from '@/lib/types';
+import {
+  saveSession,
+  updateSession,
+  getTransformerPrompt,
+} from '@/lib/storage';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { getAuthHeaders } from '@/lib/auth-session';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -23,21 +54,32 @@ interface SessionLogFormProps {
   hideHeader?: boolean;
 }
 
-export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader = false }: SessionLogFormProps) {
+export function SessionLogForm({
+  onSuccess,
+  sessionToEdit,
+  onCancel,
+  hideHeader = false,
+}: SessionLogFormProps) {
   const { toast } = useToast();
-  const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, "id");
+  const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, 'id');
   const fid = (suffix: string) => `judo-log-${uniquePrefix}-${suffix}`;
-  
+
   const isEditing = !!sessionToEdit;
   const shouldHideHeader = isEditing || hideHeader;
 
-  const [date, setDate] = useState(sessionToEdit?.date || "");
-  const [description, setDescription] = useState(sessionToEdit?.description || "");
-  const [techniques, setTechniques] = useState<string[]>(sessionToEdit?.techniques || []);
-  const [newTech, setNewTech] = useState("");
+  const [date, setDate] = useState(sessionToEdit?.date || '');
+  const [description, setDescription] = useState(
+    sessionToEdit?.description || ''
+  );
+  const [techniques, setTechniques] = useState<string[]>(
+    sessionToEdit?.techniques || []
+  );
+  const [newTech, setNewTech] = useState('');
   const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 3);
-  const [category, setCategory] = useState<SessionCategory>(sessionToEdit?.category || "Technical");
-  const [notes, setNotes] = useState(sessionToEdit?.notes || "");
+  const [category, setCategory] = useState<SessionCategory>(
+    sessionToEdit?.category || 'Technical'
+  );
+  const [notes, setNotes] = useState(sessionToEdit?.notes || '');
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
 
@@ -52,20 +94,20 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
     e?.preventDefault();
     if (newTech.trim() && !techniques.includes(newTech.trim())) {
       setTechniques([...techniques, newTech.trim()]);
-      setNewTech("");
+      setNewTech('');
     }
   };
 
   const removeTech = (tech: string) => {
-    setTechniques(techniques.filter(t => t !== tech));
+    setTechniques(techniques.filter((t) => t !== tech));
   };
 
   const handleTransform = async () => {
     if (!description.trim()) {
       toast({
-        variant: "destructive",
-        title: "Nothing to transform",
-        description: "Please write a draft of what you practiced first.",
+        variant: 'destructive',
+        title: 'Nothing to transform',
+        description: 'Please write a draft of what you practiced first.',
       });
       return;
     }
@@ -73,9 +115,11 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
     setIsTransforming(true);
     try {
       const customPrompt = getTransformerPrompt();
-      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
-      const response = await fetch("/api/ai/transform-description", {
-        method: "POST",
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch('/api/ai/transform-description', {
+        method: 'POST',
         headers,
         body: JSON.stringify({
           description,
@@ -83,19 +127,20 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
         }),
       });
       if (!response.ok) {
-        throw new Error("Failed to transform description");
+        throw new Error('Failed to transform description');
       }
       const result = await response.json();
       setDescription(result.transformedDescription);
       toast({
-        title: "Description Refined",
-        description: "AI has polished your training notes based on your prompt settings.",
+        title: 'Description Refined',
+        description:
+          'AI has polished your training notes based on your prompt settings.',
       });
     } catch {
       toast({
-        variant: "destructive",
-        title: "Transformation Failed",
-        description: "There was an error refining your description.",
+        variant: 'destructive',
+        title: 'Transformation Failed',
+        description: 'There was an error refining your description.',
       });
     } finally {
       setIsTransforming(false);
@@ -105,45 +150,55 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
   const handleSuggest = async () => {
     if (!description.trim()) {
       toast({
-        variant: "destructive",
-        title: "Missing description",
-        description: "Please write what you practiced to get suggestions.",
+        variant: 'destructive',
+        title: 'Missing description',
+        description: 'Please write what you practiced to get suggestions.',
       });
       return;
     }
 
     setIsSuggesting(true);
     try {
-      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
-      const response = await fetch("/api/ai/suggest-techniques", {
-        method: "POST",
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch('/api/ai/suggest-techniques', {
+        method: 'POST',
         headers,
         body: JSON.stringify({ description }),
       });
       if (!response.ok) {
-        throw new Error("Failed to suggest techniques");
+        throw new Error('Failed to suggest techniques');
       }
       const payload = await response.json();
       const suggestions: string[] = Array.isArray(payload.suggestions)
-        ? payload.suggestions.filter((suggestion: unknown): suggestion is string => typeof suggestion === "string")
+        ? payload.suggestions.filter(
+            (suggestion: unknown): suggestion is string =>
+              typeof suggestion === 'string'
+          )
         : [];
-      const uniqueNew = suggestions.filter((suggestion) => !techniques.includes(suggestion));
+      const uniqueNew = suggestions.filter(
+        (suggestion) => !techniques.includes(suggestion)
+      );
       if (uniqueNew.length > 0) {
         setTechniques([...techniques, ...uniqueNew]);
         toast({
-          title: "AI Suggestions Added",
+          title: 'AI Suggestions Added',
           description: `Identified ${uniqueNew.length} techniques from your description.`,
         });
       } else {
         toast({
-          description: suggestions.length > 0 ? "All suggested techniques are already tagged." : "AI couldn't identify specific techniques.",
+          description:
+            suggestions.length > 0
+              ? 'All suggested techniques are already tagged.'
+              : "AI couldn't identify specific techniques.",
         });
       }
     } catch {
       toast({
-        variant: "destructive",
-        title: "AI Suggestion Failed",
-        description: "There was an error connecting to the AI helper.",
+        variant: 'destructive',
+        title: 'AI Suggestion Failed',
+        description: 'There was an error connecting to the AI helper.',
       });
     } finally {
       setIsSuggesting(false);
@@ -154,15 +209,19 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
     e.preventDefault();
     if (techniques.length === 0) {
       toast({
-        variant: "destructive",
-        title: "Incomplete log",
-        description: "Please add at least one technique tag.",
+        variant: 'destructive',
+        title: 'Incomplete log',
+        description: 'Please add at least one technique tag.',
       });
       return;
     }
 
     const sessionData: JudoSession = {
-      id: sessionToEdit?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)),
+      id:
+        sessionToEdit?.id ||
+        (typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2)),
       date,
       techniques,
       effort,
@@ -173,25 +232,30 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
     if (isEditing) {
       updateSession(sessionData);
-      toast({ title: "Session Updated!" });
+      toast({ title: 'Session Updated!' });
     } else {
       saveSession(sessionData);
-      toast({ title: "Session Saved!" });
+      toast({ title: 'Session Saved!' });
     }
 
     if (!isEditing) {
       setTechniques([]);
-      setDescription("");
-      setNotes("");
+      setDescription('');
+      setNotes('');
       setEffort(3);
-      setCategory("Technical");
+      setCategory('Technical');
     }
-    
+
     onSuccess();
   };
 
   return (
-    <Card className={cn("max-w-4xl mx-auto shadow-lg border-primary/10", shouldHideHeader && "shadow-none border-0 bg-transparent")}>
+    <Card
+      className={cn(
+        'max-w-4xl mx-auto shadow-lg border-primary/10',
+        shouldHideHeader && 'shadow-none border-0 bg-transparent'
+      )}
+    >
       {!shouldHideHeader && (
         <CardHeader className="bg-primary/5 border-b">
           <div className="flex items-center gap-3">
@@ -200,22 +264,53 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
             </div>
             <div>
               <CardTitle>Log Practice Session</CardTitle>
-              <CardDescription>Record your techniques, effort, and reflections.</CardDescription>
+              <CardDescription>
+                Record your techniques, effort, and reflections.
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
       )}
       <form onSubmit={handleSubmit} autoComplete="off">
-        <CardContent className={cn("space-y-8", !shouldHideHeader ? "p-8" : "p-0")}>
+        <CardContent
+          className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-0')}
+        >
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2.5">
-              <Label htmlFor={fid('date')} className="text-sm font-semibold block h-5">Session Date</Label>
-              <Input id={fid('date')} name="sessionDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="bg-background h-11" />
+              <Label
+                htmlFor={fid('date')}
+                className="text-sm font-semibold block h-5"
+              >
+                Session Date
+              </Label>
+              <Input
+                id={fid('date')}
+                name="sessionDate"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="bg-background h-11"
+              />
             </div>
             <div className="md:col-span-3 space-y-2.5">
-              <Label htmlFor={fid('category')} className="text-sm font-semibold block h-5">Session Type</Label>
-              <Select name="sessionCategory" value={category} onValueChange={(val) => setCategory(val as SessionCategory)}>
-                <SelectTrigger id={fid('category')} className="bg-background h-11"><SelectValue /></SelectTrigger>
+              <Label
+                htmlFor={fid('category')}
+                className="text-sm font-semibold block h-5"
+              >
+                Session Type
+              </Label>
+              <Select
+                name="sessionCategory"
+                value={category}
+                onValueChange={(val) => setCategory(val as SessionCategory)}
+              >
+                <SelectTrigger
+                  id={fid('category')}
+                  className="bg-background h-11"
+                >
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Technical">Technical</SelectItem>
                   <SelectItem value="Randori">Randori</SelectItem>
@@ -224,12 +319,30 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
               </Select>
             </div>
             <div className="md:col-span-6 space-y-2.5">
-              <Label className="text-sm font-semibold block h-5">Effort Level</Label>
-              <RadioGroup name="sessionEffort" value={effort.toString()} onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)} className="flex items-center justify-around h-11 px-2 bg-background rounded-md border border-input">
+              <Label className="text-sm font-semibold block h-5">
+                Effort Level
+              </Label>
+              <RadioGroup
+                name="sessionEffort"
+                value={effort.toString()}
+                onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
+                className="flex items-center justify-around h-11 px-2 bg-background rounded-md border border-input"
+              >
                 {[1, 2, 3, 4, 5].map((val) => (
-                  <div key={fid(`effort-${val}`)} className="flex items-center space-x-1">
-                    <RadioGroupItem value={val.toString()} id={fid(`effort-radio-${val}`)} />
-                    <Label htmlFor={fid(`effort-radio-${val}`)} className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap">{EFFORT_LABELS[val as EffortLevel]}</Label>
+                  <div
+                    key={fid(`effort-${val}`)}
+                    className="flex items-center space-x-1"
+                  >
+                    <RadioGroupItem
+                      value={val.toString()}
+                      id={fid(`effort-radio-${val}`)}
+                    />
+                    <Label
+                      htmlFor={fid(`effort-radio-${val}`)}
+                      className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap"
+                    >
+                      {EFFORT_LABELS[val as EffortLevel]}
+                    </Label>
                   </div>
                 ))}
               </RadioGroup>
@@ -238,47 +351,151 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor={fid('description')} className="text-sm font-semibold">What did you practice?</Label>
-              <Button type="button" variant="outline" size="sm" onClick={handleTransform} disabled={isTransforming || !description} className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs">
-                {isTransforming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              <Label
+                htmlFor={fid('description')}
+                className="text-sm font-semibold"
+              >
+                What did you practice?
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTransform}
+                disabled={isTransforming || !description}
+                className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
+              >
+                {isTransforming ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
                 AI Transform
               </Button>
             </div>
-            <Textarea id={fid('description')} name="practiceDescription" placeholder="Quick notes about drills, throws, or focus..." value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-[140px] bg-background text-base" />
-            
+            <Textarea
+              id={fid('description')}
+              name="practiceDescription"
+              placeholder="Quick notes about drills, throws, or focus..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="min-h-[140px] bg-background text-base"
+            />
+
             <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Technique Tags</Label>
-                <Button type="button" variant="outline" size="sm" onClick={handleSuggest} disabled={isSuggesting || !description} className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs">
-                  {isSuggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Technique Tags
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSuggest}
+                  disabled={isSuggesting || !description}
+                  className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
+                >
+                  {isSuggesting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
                   AI Tag Suggestion
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg border border-dashed border-primary/20 bg-secondary/5">
-                {techniques.length === 0 && <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5"><Brain className="h-4 w-4" />Tags will appear here...</span>}
+                {techniques.length === 0 && (
+                  <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
+                    <Brain className="h-4 w-4" />
+                    Tags will appear here...
+                  </span>
+                )}
                 {techniques.map((tech) => (
-                  <Badge key={fid(`tech-badge-${tech}`)} className="gap-1 bg-primary text-white py-1.5 px-3 text-sm">
+                  <Badge
+                    key={fid(`tech-badge-${tech}`)}
+                    className="gap-1 bg-primary text-white py-1.5 px-3 text-sm"
+                  >
                     {tech}
-                    <button type="button" onClick={() => removeTech(tech)} className="ml-1 hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
+                    <button
+                      type="button"
+                      onClick={() => removeTech(tech)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </Badge>
                 ))}
               </div>
               <div className="flex gap-2">
-                <Input id={fid('manual-tag')} name="manualTagEntry" placeholder="Manual tag (e.g. O-soto-gari)" value={newTech} onChange={(e) => setNewTech(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTech(); } }} className="bg-background h-10" />
-                <Button type="button" variant="secondary" onClick={() => handleAddTech()} className="h-10 px-6">Add Tag</Button>
+                <Input
+                  id={fid('manual-tag')}
+                  name="manualTagEntry"
+                  placeholder="Manual tag (e.g. O-soto-gari)"
+                  value={newTech}
+                  onChange={(e) => setNewTech(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTech();
+                    }
+                  }}
+                  className="bg-background h-10"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handleAddTech()}
+                  className="h-10 px-6"
+                >
+                  Add Tag
+                </Button>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={fid('notes')} className="text-sm font-semibold text-muted-foreground">Personal Notes (Optional)</Label>
-            <Textarea id={fid('notes')} name="personalNotes" placeholder="How did you feel?" value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-background" />
+            <Label
+              htmlFor={fid('notes')}
+              className="text-sm font-semibold text-muted-foreground"
+            >
+              Personal Notes (Optional)
+            </Label>
+            <Textarea
+              id={fid('notes')}
+              name="personalNotes"
+              placeholder="How did you feel?"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-background"
+            />
           </div>
         </CardContent>
-        <CardFooter className={cn("flex justify-end gap-3", !shouldHideHeader ? "bg-primary/5 border-t p-8" : "p-0 pt-6")}>
-          {onCancel && <Button type="button" variant="ghost" onClick={onCancel} className="gap-2 h-11 px-6"><Undo2 className="h-4 w-4" />Cancel</Button>}
-          <Button type="submit" className={cn("gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]", !shouldHideHeader ? "px-10 py-6 text-lg h-14" : "px-8 py-5 h-12")}>
-            <Save className="h-5 w-5" />{isEditing ? "Update Session" : "Log Training Session"}
+        <CardFooter
+          className={cn(
+            'flex justify-end gap-3',
+            !shouldHideHeader ? 'bg-primary/5 border-t p-8' : 'p-0 pt-6'
+          )}
+        >
+          {onCancel && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancel}
+              className="gap-2 h-11 px-6"
+            >
+              <Undo2 className="h-4 w-4" />
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            className={cn(
+              'gap-2 font-bold shadow-lg transition-transform hover:scale-[1.02]',
+              !shouldHideHeader ? 'px-10 py-6 text-lg h-14' : 'px-8 py-5 h-12'
+            )}
+          >
+            <Save className="h-5 w-5" />
+            {isEditing ? 'Update Session' : 'Log Training Session'}
           </Button>
         </CardFooter>
       </form>

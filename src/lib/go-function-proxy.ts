@@ -52,14 +52,20 @@ export function buildGitHubSearchParams(config: GitHubConfig): URLSearchParams {
   return params;
 }
 
-export function buildGitHubSessionBody(session: JudoSession, config: GitHubConfig): Record<string, unknown> {
+export function buildGitHubSessionBody(
+  session: JudoSession,
+  config: GitHubConfig
+): Record<string, unknown> {
   return {
     session,
     config,
   };
 }
 
-export function buildGitHubDeleteBody(id: string, config: GitHubConfig): Record<string, unknown> {
+export function buildGitHubDeleteBody(
+  id: string,
+  config: GitHubConfig
+): Record<string, unknown> {
   return {
     id,
     config,

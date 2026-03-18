@@ -11,19 +11,19 @@ import { JudoSession, EffortLevel, SessionCategory } from './types';
  * category: "Technical"
  * duration: 90
  * ---
- * 
+ *
  * # March 16, 2026 – Judo Session
- * 
+ *
  * ## Techniques Practiced
  * - Technique 1
  * - Technique 2
- * 
+ *
  * ## Session Description
- * 
+ *
  * [description text here]
- * 
+ *
  * ## Notes
- * 
+ *
  * [notes text here]
  */
 export function sessionToMarkdown(session: JudoSession): string {
@@ -48,7 +48,7 @@ export function sessionToMarkdown(session: JudoSession): string {
   // Techniques section
   content += '## Techniques Practiced\n';
   if (session.techniques.length > 0) {
-    content += session.techniques.map(t => `- ${t}`).join('\n');
+    content += session.techniques.map((t) => `- ${t}`).join('\n');
   } else {
     content += '- (none recorded)\n';
   }
@@ -97,7 +97,7 @@ export function markdownToSession(markdown: string): JudoSession {
   // Parse techniques from markdown content
   const techniques = extractTechniques(content);
 
-  // Parse description and notes from markdown content  
+  // Parse description and notes from markdown content
   const { description, notes } = extractContentSections(content);
 
   const session: JudoSession = {
@@ -141,10 +141,14 @@ function extractTechniques(content: string): string[] {
 /**
  * Extract description and notes from markdown content
  */
-function extractContentSections(
-  content: string
-): { description: string | undefined; notes: string | undefined } {
-  const description = extractSectionContent(content, 'Session Description')?.trim();
+function extractContentSections(content: string): {
+  description: string | undefined;
+  notes: string | undefined;
+} {
+  const description = extractSectionContent(
+    content,
+    'Session Description'
+  )?.trim();
   const notes = extractSectionContent(content, 'Notes')?.trim();
 
   return { description, notes };
@@ -155,7 +159,10 @@ function extractContentSections(
  * Handles optional blank line after heading and end-of-file boundaries
  * with or without trailing newlines.
  */
-function extractSectionContent(content: string, heading: string): string | undefined {
+function extractSectionContent(
+  content: string,
+  heading: string
+): string | undefined {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const sectionRegex = new RegExp(
     `## ${escapedHeading}\\n\\n?([\\s\\S]*?)(?=\\n## |\\s*$)`
@@ -218,7 +225,8 @@ Finishes at file end with Z`;
   if (
     parsedNoTrailingNewline.techniques.length === 0 ||
     parsedNoTrailingNewline.techniques[0] !== 'O soto gari' ||
-    parsedNoTrailingNewline.description !== 'Includes the letter Z in the middle of content.' ||
+    parsedNoTrailingNewline.description !==
+      'Includes the letter Z in the middle of content.' ||
     parsedNoTrailingNewline.notes !== 'Finishes at file end with Z'
   ) {
     return false;

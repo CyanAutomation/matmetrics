@@ -1,33 +1,46 @@
-"use client"
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Github, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { GitHubConfig } from "@/lib/types";
-import { useAuth } from "@/components/auth-provider";
-import { getAuthHeaders } from "@/lib/auth-session";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Github,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  RefreshCw,
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { GitHubConfig } from '@/lib/types';
+import { useAuth } from '@/components/auth-provider';
+import { getAuthHeaders } from '@/lib/auth-session';
 import {
   clearGitHubConfigPreference,
   saveGitHubConfigPreference,
   saveGitHubSettingsPreference,
-} from "@/lib/user-preferences";
+} from '@/lib/user-preferences';
 
 export function GitHubSettings() {
   const { toast } = useToast();
   const { user, preferences } = useAuth();
-  const [owner, setOwner] = useState("");
-  const [repo, setRepo] = useState("");
-  const [branch, setBranch] = useState("");
+  const [owner, setOwner] = useState('');
+  const [repo, setRepo] = useState('');
+  const [branch, setBranch] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ 
-    success: boolean; 
-    message: string 
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
   } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
@@ -40,11 +53,11 @@ export function GitHubSettings() {
     if (config) {
       setOwner(config.owner);
       setRepo(config.repo);
-      setBranch(config.branch ?? "");
+      setBranch(config.branch ?? '');
     } else {
-      setOwner("");
-      setRepo("");
-      setBranch("");
+      setOwner('');
+      setRepo('');
+      setBranch('');
     }
     setIsEnabled(enabled);
     setMigrationDone(migrationDoneValue);
@@ -55,15 +68,19 @@ export function GitHubSettings() {
 
     if (!owner || !repo) {
       toast({
-        title: "Validation Error",
-        description: "Please enter both GitHub owner and repository name.",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Please enter both GitHub owner and repository name.',
+        variant: 'destructive',
       });
       return;
     }
 
     const normalizedBranch = branch.trim();
-    const config: GitHubConfig = { owner, repo, ...(normalizedBranch && { branch: normalizedBranch }) };
+    const config: GitHubConfig = {
+      owner,
+      repo,
+      ...(normalizedBranch && { branch: normalizedBranch }),
+    };
     await saveGitHubConfigPreference(user.uid, config);
     await saveGitHubSettingsPreference(user.uid, {
       ...preferences.gitHub,
@@ -73,7 +90,7 @@ export function GitHubSettings() {
     setIsEnabled(true);
 
     toast({
-      title: "Configuration Saved",
+      title: 'Configuration Saved',
       description: `GitHub sync configured for ${owner}/${repo}`,
     });
   };
@@ -81,20 +98,26 @@ export function GitHubSettings() {
   const handleTestConnection = async () => {
     if (!owner || !repo) {
       toast({
-        title: "Validation Error",
-        description: "Please enter both GitHub owner and repository name.",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Please enter both GitHub owner and repository name.',
+        variant: 'destructive',
       });
       return;
     }
 
     setIsTesting(true);
     try {
-      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
-      const response = await fetch("/api/github/validate", {
-        method: "POST",
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch('/api/github/validate', {
+        method: 'POST',
         headers,
-        body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
+        body: JSON.stringify({
+          owner,
+          repo,
+          branch: branch.trim() || undefined,
+        }),
       });
 
       const result = await response.json();
@@ -102,26 +125,26 @@ export function GitHubSettings() {
 
       if (result.success) {
         toast({
-          title: "Connection Successful",
+          title: 'Connection Successful',
           description: `Connected to ${owner}/${repo}`,
         });
       } else {
         toast({
-          title: "Connection Failed",
+          title: 'Connection Failed',
           description: result.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       setTestResult({
         success: false,
         message: `Error: ${message}`,
       });
       toast({
-        title: "Error",
-        description: "Failed to test connection",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to test connection',
+        variant: 'destructive',
       });
     } finally {
       setIsTesting(false);
@@ -133,20 +156,26 @@ export function GitHubSettings() {
 
     if (!isEnabled || !owner || !repo) {
       toast({
-        title: "Error",
-        description: "Please configure and enable GitHub sync first.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Please configure and enable GitHub sync first.',
+        variant: 'destructive',
       });
       return;
     }
 
     setIsSyncing(true);
     try {
-      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
-      const response = await fetch("/api/github/sync-all", {
-        method: "POST",
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      const response = await fetch('/api/github/sync-all', {
+        method: 'POST',
         headers,
-        body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
+        body: JSON.stringify({
+          owner,
+          repo,
+          branch: branch.trim() || undefined,
+        }),
       });
 
       const result = await response.json();
@@ -155,29 +184,33 @@ export function GitHubSettings() {
         setMigrationDone(true);
         await saveGitHubSettingsPreference(user.uid, {
           ...preferences.gitHub,
-          config: { owner, repo, ...(branch.trim() ? { branch: branch.trim() } : {}) },
+          config: {
+            owner,
+            repo,
+            ...(branch.trim() ? { branch: branch.trim() } : {}),
+          },
           enabled: true,
           migrationDone: true,
-          syncStatus: "success",
+          syncStatus: 'success',
           lastSyncTime: new Date().toISOString(),
         });
         toast({
-          title: "Bulk Sync Complete",
+          title: 'Bulk Sync Complete',
           description: result.message,
         });
       } else {
         toast({
-          title: "Sync Failed",
+          title: 'Sync Failed',
           description: result.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
-        title: "Error",
+        title: 'Error',
         description: `Bulk sync failed: ${message}`,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsSyncing(false);
@@ -193,23 +226,23 @@ export function GitHubSettings() {
     });
     setIsEnabled(false);
     toast({
-      description: "GitHub sync disabled",
+      description: 'GitHub sync disabled',
     });
   };
 
   const handleClear = async () => {
     if (!user) return;
 
-    if (confirm("Are you sure? This will clear your GitHub configuration.")) {
+    if (confirm('Are you sure? This will clear your GitHub configuration.')) {
       await clearGitHubConfigPreference(user.uid);
-      setOwner("");
-      setRepo("");
-      setBranch("");
+      setOwner('');
+      setRepo('');
+      setBranch('');
       setIsEnabled(false);
       setTestResult(null);
       setMigrationDone(false);
       toast({
-        description: "GitHub configuration cleared",
+        description: 'GitHub configuration cleared',
       });
     }
   };
@@ -220,8 +253,9 @@ export function GitHubSettings() {
         <Github className="h-4 w-4 text-blue-600" />
         <AlertTitle className="text-blue-900 font-bold">GitHub Sync</AlertTitle>
         <AlertDescription className="text-blue-800">
-          Sync your Judo training sessions to a personal GitHub repository. 
-          Sessions are stored as markdown files and synced automatically when you create or update entries.
+          Sync your Judo training sessions to a personal GitHub repository.
+          Sessions are stored as markdown files and synced automatically when
+          you create or update entries.
         </AlertDescription>
       </Alert>
 
@@ -242,10 +276,22 @@ export function GitHubSettings() {
         <CardContent className="p-6 pt-8 space-y-6">
           {/* Configuration Information */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm text-amber-900 font-semibold mb-2">Setup Requirements:</p>
+            <p className="text-sm text-amber-900 font-semibold mb-2">
+              Setup Requirements:
+            </p>
             <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-              <li>Add <code className="bg-amber-100 px-2 py-1 rounded">GITHUB_TOKEN</code> to your Vercel environment variables</li>
-              <li>Token must have <code className="bg-amber-100 px-2 py-1 rounded">repo</code> permissions</li>
+              <li>
+                Add{' '}
+                <code className="bg-amber-100 px-2 py-1 rounded">
+                  GITHUB_TOKEN
+                </code>{' '}
+                to your Vercel environment variables
+              </li>
+              <li>
+                Token must have{' '}
+                <code className="bg-amber-100 px-2 py-1 rounded">repo</code>{' '}
+                permissions
+              </li>
               <li>Repository will be created or used if it already exists</li>
             </ul>
           </div>
@@ -300,7 +346,18 @@ export function GitHubSettings() {
             {isEnabled && (
               <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg">
                 <CheckCircle2 className="h-4 w-4" />
-                Connected to <strong>{owner}/{repo}</strong>{branch.trim() ? <> on branch <strong>{branch.trim()}</strong></> : <> on repository default branch</>}
+                Connected to{' '}
+                <strong>
+                  {owner}/{repo}
+                </strong>
+                {branch.trim() ? (
+                  <>
+                    {' '}
+                    on branch <strong>{branch.trim()}</strong>
+                  </>
+                ) : (
+                  <> on repository default branch</>
+                )}
               </div>
             )}
 
@@ -383,8 +440,9 @@ export function GitHubSettings() {
           </CardHeader>
           <CardContent className="p-6 pt-8">
             <p className="text-sm text-gray-700 mb-4">
-              Click below to sync all your existing training sessions to GitHub. 
-              This is a one-time operation and will create the folder structure in your repository.
+              Click below to sync all your existing training sessions to GitHub.
+              This is a one-time operation and will create the folder structure
+              in your repository.
             </p>
             <Button
               onClick={() => void handleBulkSync()}
@@ -414,9 +472,12 @@ export function GitHubSettings() {
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
               <div>
-                <p className="font-semibold text-green-900">GitHub Sync Active</p>
+                <p className="font-semibold text-green-900">
+                  GitHub Sync Active
+                </p>
                 <p className="text-sm text-green-800">
-                  All existing sessions have been synced. New sessions will sync automatically.
+                  All existing sessions have been synced. New sessions will sync
+                  automatically.
                 </p>
               </div>
             </div>
