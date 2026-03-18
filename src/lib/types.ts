@@ -58,3 +58,16 @@ export interface GitHubSettings {
   lastSyncTime?: string;
   syncStatus: GitHubSyncStatus;
 }
+
+export interface UserPreferences {
+  transformerPrompt: string;
+  gitHub: GitHubSettings;
+  migratedLocalSettingsAt?: string;
+}
+
+export interface AuthenticatedUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}

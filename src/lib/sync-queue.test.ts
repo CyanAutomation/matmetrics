@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
-  SYNC_QUEUE_KEY,
   clearQueue,
+  getSyncQueueStorageKey,
   getQueue,
   queueOperation,
   setQueue,
@@ -64,7 +64,7 @@ function createOp(id: string, queuedAt: number): SyncOperation {
 function resetQueue(initialQueue?: SyncOperation[]): void {
   localStorage.clear();
   if (initialQueue) {
-    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(initialQueue));
+    localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(initialQueue));
   }
 }
 

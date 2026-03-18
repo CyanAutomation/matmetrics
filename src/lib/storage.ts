@@ -8,27 +8,25 @@ import {
   getPendingOperationCount,
   hasPendingOperations,
   setQueue,
-  SYNC_QUEUE_KEY,
+  getSyncQueueStorageKey,
 } from "./sync-queue";
+import { getScopedStorageKey } from "./client-identity";
+import { getAuthHeaders } from "./auth-session";
+import {
+  DEFAULT_GITHUB_SETTINGS,
+  DEFAULT_TRANSFORMER_PROMPT,
+  getCurrentPreferences,
+} from "./user-preferences";
 
-const STORAGE_KEY = "matmetrics_sessions";
-const PROMPT_KEY = "matmetrics_transformer_prompt";
-const GITHUB_CONFIG_KEY = "matmetrics_github_config";
+const STORAGE_KEY_BASE = "matmetrics_sessions";
+
+function getSessionsStorageKey(): string {
+  return getScopedStorageKey(STORAGE_KEY_BASE);
+}
 
 function isStorageEventForKey(event: StorageEvent, key: string): boolean {
   return event.storageArea === localStorage && event.key === key;
 }
-
-const DEFAULT_TRANSFORMER_PROMPT = `You are an experienced Judo practitioner helping a student write their training diary.
-
-Your task is to take the following raw, informal notes from a Judo practice session and transform them into a well-structured, clear, and terminologically accurate diary entry.
-
-Guidelines:
-- **Tone**: Use an informal, personal, and reflective tone. It should feel like a student writing in their own training diary. Avoid being overly optimistic, buoyant, or exaggerated; maintain a neutral and realistic perspective on the session.
-- **Terminology**: Use official Kodokan Judo terminology. Crucially, all techniques MUST be correctly hyphenated (e.g., "O-soto-gari", "Ippon-seoi-nage", "Uchi-mata", "Kuzushi"). Ensure correct spelling and capitalization according to Kodokan standards.
-- **Content**: Maintain all specific details and meaning provided by the user.
-- **Structure**: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
-- **Focus**: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.`;
 
 // Internal state
 let sessionCache: JudoSession[] | null = null;
@@ -43,6 +41,8 @@ let latestAppliedSeq = 0;
  */
 export function initializeStorage(): void {
   if (typeof window === "undefined") return;
+
+  sessionCache = null;
 
   // Set up online/offline detection exactly once
   if (!listenersInitialized) {
@@ -123,9 +123,10 @@ export function saveSession(session: JudoSession): void {
 
     void (async () => {
       try {
+        const headers = await getAuthHeaders({ "Content-Type": "application/json" });
         const res = await fetch("/api/sessions/create", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(requestBody),
         });
 
@@ -171,9 +172,10 @@ export function updateSession(session: JudoSession): void {
 
     void (async () => {
       try {
+        const headers = await getAuthHeaders({ "Content-Type": "application/json" });
         const res = await fetch(`/api/sessions/${session.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(requestBody),
         });
 
@@ -211,9 +213,10 @@ export function deleteSession(id: string): void {
 
     void (async () => {
       try {
+        const headers = await getAuthHeaders({ "Content-Type": "application/json" });
         const res = await fetch(`/api/sessions/${id}`, {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
         });
 
@@ -287,51 +290,23 @@ export function mergeTags(sourceTag: string, targetTag: string): void {
   renameTag(sourceTag, targetTag);
 }
 
-// AI Transformer Prompt Persistence (stays in localStorage)
+// AI Transformer Prompt Persistence
 export function getTransformerPrompt(): string {
-  if (typeof window === "undefined") return DEFAULT_TRANSFORMER_PROMPT;
-  return localStorage.getItem(PROMPT_KEY) || DEFAULT_TRANSFORMER_PROMPT;
+  return getCurrentPreferences().transformerPrompt || DEFAULT_TRANSFORMER_PROMPT;
 }
 
 export function saveTransformerPrompt(prompt: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(PROMPT_KEY, prompt);
+  void prompt;
+  console.warn("saveTransformerPrompt is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function resetTransformerPrompt(): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(PROMPT_KEY, DEFAULT_TRANSFORMER_PROMPT);
+  console.warn("resetTransformerPrompt is deprecated. Use the authenticated preference helpers instead.");
 }
 
 // GitHub Settings Persistence
 export function getGitHubSettings(): GitHubSettings {
-  if (typeof window === "undefined") {
-    return {
-      enabled: false,
-      migrationDone: false,
-      syncStatus: 'idle',
-    };
-  }
-
-  try {
-    const stored = localStorage.getItem(GITHUB_CONFIG_KEY);
-    if (!stored) {
-      return {
-        enabled: false,
-        migrationDone: false,
-        syncStatus: 'idle',
-      };
-    }
-
-    return JSON.parse(stored);
-  } catch (e) {
-    console.error("Failed to parse GitHub settings", e);
-    return {
-      enabled: false,
-      migrationDone: false,
-      syncStatus: 'idle',
-    };
-  }
+  return getCurrentPreferences().gitHub ?? { ...DEFAULT_GITHUB_SETTINGS };
 }
 
 export function getGitHubConfig(): GitHubConfig | null {
@@ -348,54 +323,30 @@ export function isGitHubMigrationDone(): boolean {
 }
 
 export function saveGitHubConfig(config: GitHubConfig): void {
-  if (typeof window === "undefined") return;
-
-  const settings: GitHubSettings = {
-    config,
-    enabled: true,
-    migrationDone: false,
-    syncStatus: 'idle',
-  };
-
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+  void config;
+  console.warn("saveGitHubConfig is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function enableGitHub(): void {
-  if (typeof window === "undefined") return;
-
-  const settings = getGitHubSettings();
-  settings.enabled = true;
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+  console.warn("enableGitHub is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function disableGitHub(): void {
-  if (typeof window === "undefined") return;
-
-  const settings = getGitHubSettings();
-  settings.enabled = false;
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+  console.warn("disableGitHub is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function clearGitHubConfig(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(GITHUB_CONFIG_KEY);
+  console.warn("clearGitHubConfig is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function setGitHubMigrationDone(): void {
-  if (typeof window === "undefined") return;
-
-  const settings = getGitHubSettings();
-  settings.migrationDone = true;
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
+  console.warn("setGitHubMigrationDone is deprecated. Use the authenticated preference helpers instead.");
 }
 
 export function setGitHubSyncStatus(status: 'idle' | 'syncing' | 'success' | 'error'): void {
-  if (typeof window === "undefined") return;
-
   const settings = getGitHubSettings();
   settings.syncStatus = status;
   settings.lastSyncTime = new Date().toISOString();
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(settings));
 }
 
 export function getGitHubSyncStatus(): 'idle' | 'syncing' | 'success' | 'error' {
@@ -434,7 +385,7 @@ export function retryCloudSync(): void {
 
 function getLocalStorageCache(): JudoSession[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getSessionsStorageKey());
     return stored ? JSON.parse(stored) : [];
   } catch (e) {
     console.error("Failed to parse localStorage cache", e);
@@ -444,7 +395,7 @@ function getLocalStorageCache(): JudoSession[] {
 
 function updateLocalStorageCache(sessions: JudoSession[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    localStorage.setItem(getSessionsStorageKey(), JSON.stringify(sessions));
   } catch (e) {
     console.error("Failed to update localStorage cache", e);
   }
@@ -471,14 +422,14 @@ function handleOffline(): void {
 function handleStorageEvent(event: StorageEvent): void {
   if (typeof window === "undefined") return;
 
-  if (isStorageEventForKey(event, STORAGE_KEY)) {
+  if (isStorageEventForKey(event, getSessionsStorageKey())) {
     const latestSessions = getLocalStorageCache();
     sessionCache = latestSessions;
     window.dispatchEvent(new CustomEvent("storageSync", { detail: { sessions: latestSessions } }));
     return;
   }
 
-  if (isStorageEventForKey(event, SYNC_QUEUE_KEY) && isOnline && hasPendingOperations()) {
+  if (isStorageEventForKey(event, getSyncQueueStorageKey()) && isOnline && hasPendingOperations()) {
     void syncPendingOperations();
   }
 }
@@ -499,7 +450,8 @@ async function refreshSessionsFromAPI(): Promise<void> {
       }
     }
 
-    const res = await fetch(url.toString());
+    const headers = await getAuthHeaders();
+    const res = await fetch(url.toString(), { headers });
     if (!res.ok) {
       console.warn(`Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`);
       return;
@@ -537,9 +489,10 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               createBody.gitHubConfig = gitHubConfig;
             }
+            const createHeaders = await getAuthHeaders({ "Content-Type": "application/json" });
             const createResponse = await fetch("/api/sessions/create", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: createHeaders,
               body: JSON.stringify(createBody),
             });
 
@@ -551,9 +504,10 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               updateBody.gitHubConfig = gitHubConfig;
             }
+            const updateHeaders = await getAuthHeaders({ "Content-Type": "application/json" });
             const updateResponse = await fetch(`/api/sessions/${operation.session.id}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: updateHeaders,
               body: JSON.stringify(updateBody),
             });
 
@@ -565,9 +519,10 @@ async function syncPendingOperations(): Promise<void> {
             if (gitHubConfig && gitHubEnabled) {
               deleteBody.gitHubConfig = gitHubConfig;
             }
+            const deleteHeaders = await getAuthHeaders({ "Content-Type": "application/json" });
             const deleteResponse = await fetch(`/api/sessions/${operation.id}`, {
               method: "DELETE",
-              headers: { "Content-Type": "application/json" },
+              headers: deleteHeaders,
               body: Object.keys(deleteBody).length > 0 ? JSON.stringify(deleteBody) : undefined,
             });
 

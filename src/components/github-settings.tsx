@@ -8,20 +8,18 @@ import { Label } from "@/components/ui/label";
 import { Github, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { 
-  getGitHubConfig, 
-  saveGitHubConfig, 
-  clearGitHubConfig,
-  isGitHubEnabled,
-  enableGitHub,
-  disableGitHub,
-  isGitHubMigrationDone,
-  setGitHubMigrationDone,
-} from "@/lib/storage";
 import { GitHubConfig } from "@/lib/types";
+import { useAuth } from "@/components/auth-provider";
+import { getAuthHeaders } from "@/lib/auth-session";
+import {
+  clearGitHubConfigPreference,
+  saveGitHubConfigPreference,
+  saveGitHubSettingsPreference,
+} from "@/lib/user-preferences";
 
 export function GitHubSettings() {
   const { toast } = useToast();
+  const { user, preferences } = useAuth();
   const [owner, setOwner] = useState("");
   const [repo, setRepo] = useState("");
   const [branch, setBranch] = useState("");
@@ -35,20 +33,26 @@ export function GitHubSettings() {
   const [migrationDone, setMigrationDone] = useState(false);
 
   useEffect(() => {
-    const config = getGitHubConfig();
-    const enabled = isGitHubEnabled();
-    const migrationDone = isGitHubMigrationDone();
+    const config = preferences.gitHub.config;
+    const enabled = preferences.gitHub.enabled;
+    const migrationDoneValue = preferences.gitHub.migrationDone;
 
     if (config) {
       setOwner(config.owner);
       setRepo(config.repo);
       setBranch(config.branch ?? "");
+    } else {
+      setOwner("");
+      setRepo("");
+      setBranch("");
     }
     setIsEnabled(enabled);
-    setMigrationDone(migrationDone);
-  }, []);
+    setMigrationDone(migrationDoneValue);
+  }, [preferences.gitHub]);
 
   const handleSaveConfig = async () => {
+    if (!user) return;
+
     if (!owner || !repo) {
       toast({
         title: "Validation Error",
@@ -60,9 +64,13 @@ export function GitHubSettings() {
 
     const normalizedBranch = branch.trim();
     const config: GitHubConfig = { owner, repo, ...(normalizedBranch && { branch: normalizedBranch }) };
-    saveGitHubConfig(config);
+    await saveGitHubConfigPreference(user.uid, config);
+    await saveGitHubSettingsPreference(user.uid, {
+      ...preferences.gitHub,
+      config,
+      enabled: true,
+    });
     setIsEnabled(true);
-    enableGitHub();
 
     toast({
       title: "Configuration Saved",
@@ -82,9 +90,10 @@ export function GitHubSettings() {
 
     setIsTesting(true);
     try {
+      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/github/validate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
       });
 
@@ -120,6 +129,8 @@ export function GitHubSettings() {
   };
 
   const handleBulkSync = async () => {
+    if (!user) return;
+
     if (!isEnabled || !owner || !repo) {
       toast({
         title: "Error",
@@ -131,9 +142,10 @@ export function GitHubSettings() {
 
     setIsSyncing(true);
     try {
+      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/github/sync-all", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ owner, repo, branch: branch.trim() || undefined }),
       });
 
@@ -141,7 +153,14 @@ export function GitHubSettings() {
 
       if (result.success) {
         setMigrationDone(true);
-        setGitHubMigrationDone();
+        await saveGitHubSettingsPreference(user.uid, {
+          ...preferences.gitHub,
+          config: { owner, repo, ...(branch.trim() ? { branch: branch.trim() } : {}) },
+          enabled: true,
+          migrationDone: true,
+          syncStatus: "success",
+          lastSyncTime: new Date().toISOString(),
+        });
         toast({
           title: "Bulk Sync Complete",
           description: result.message,
@@ -165,17 +184,24 @@ export function GitHubSettings() {
     }
   };
 
-  const handleDisable = () => {
-    disableGitHub();
+  const handleDisable = async () => {
+    if (!user) return;
+
+    await saveGitHubSettingsPreference(user.uid, {
+      ...preferences.gitHub,
+      enabled: false,
+    });
     setIsEnabled(false);
     toast({
       description: "GitHub sync disabled",
     });
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
+    if (!user) return;
+
     if (confirm("Are you sure? This will clear your GitHub configuration.")) {
-      clearGitHubConfig();
+      await clearGitHubConfigPreference(user.uid);
       setOwner("");
       setRepo("");
       setBranch("");
@@ -289,7 +315,7 @@ export function GitHubSettings() {
           {/* Action Buttons */}
           <div className="flex gap-3 flex-wrap">
             <Button
-              onClick={handleTestConnection}
+              onClick={() => void handleTestConnection()}
               disabled={isTesting || !owner || !repo}
               variant="outline"
               className="gap-2"
@@ -308,7 +334,7 @@ export function GitHubSettings() {
             </Button>
 
             <Button
-              onClick={handleSaveConfig}
+              onClick={() => void handleSaveConfig()}
               disabled={!owner || !repo || isEnabled}
               className="gap-2 bg-blue-600 hover:bg-blue-700"
             >
@@ -317,7 +343,7 @@ export function GitHubSettings() {
 
             {isEnabled && (
               <Button
-                onClick={handleDisable}
+                onClick={() => void handleDisable()}
                 variant="outline"
                 className="text-red-600 border-red-200 hover:bg-red-50"
               >
@@ -327,7 +353,7 @@ export function GitHubSettings() {
 
             {isEnabled && (
               <Button
-                onClick={handleClear}
+                onClick={() => void handleClear()}
                 variant="ghost"
                 size="sm"
                 className="text-gray-600 ml-auto"
@@ -361,7 +387,7 @@ export function GitHubSettings() {
               This is a one-time operation and will create the folder structure in your repository.
             </p>
             <Button
-              onClick={handleBulkSync}
+              onClick={() => void handleBulkSync()}
               disabled={isSyncing}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >

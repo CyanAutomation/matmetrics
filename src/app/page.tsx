@@ -16,6 +16,8 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { isSameMonthAndYear } from "@/lib/utils";
+import { useAuth } from "@/components/auth-provider";
+import { SignInScreen } from "@/components/sign-in-screen";
 
 const JudoBeltIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -27,6 +29,7 @@ const JudoBeltIcon = ({ className }: { className?: string }) => (
 );
 
 export default function Home() {
+  const { authReady, preferencesReady, user, signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -49,7 +52,7 @@ export default function Home() {
 
     // Also listen for traditional storage events (for tab sync)
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === "matmetrics_sessions") {
+      if (event.key?.startsWith("matmetrics_sessions:")) {
         refreshSessions();
       }
     };
@@ -67,13 +70,35 @@ export default function Home() {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(statusInterval);
     };
-  }, [refreshSessions]);
+  }, [refreshSessions, user?.uid]);
 
   const handleSessionAdded = () => {
     refreshSessions();
     setIsLogModalOpen(false);
     if (activeTab !== "history") setActiveTab("history");
   };
+
+  if (!authReady || !preferencesReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading your account...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <SignInScreen />;
+  }
+
+  const initials = (user.displayName || user.email || "MM")
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <SidebarProvider>
@@ -181,8 +206,14 @@ export default function Home() {
             <div className="flex items-center gap-3">
                <Button variant="outline" size="icon" className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/5" onClick={() => setIsLogModalOpen(true)}><Plus className="h-5 w-5" /></Button>
                <ModeToggle />
-               <div className="hidden sm:flex flex-col items-end mr-2"><span className="text-sm font-bold">Judoka User</span><span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">White Belt (Demo)</span></div>
-               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20">JU</div>
+               <div className="hidden sm:flex flex-col items-end mr-2">
+                 <span className="text-sm font-bold">{user.displayName || user.email || "MatMetrics User"}</span>
+                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{user.email || "Authenticated"}</span>
+               </div>
+               <Button variant="ghost" size="sm" onClick={() => void signOutUser()} className="text-muted-foreground">Logout</Button>
+               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20">
+                 {initials}
+               </div>
             </div>
           </header>
 
