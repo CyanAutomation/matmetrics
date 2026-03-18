@@ -149,11 +149,11 @@ func parseFrontmatter(frontmatter string) (map[string]any, error) {
 		key := strings.TrimSpace(parts[0])
 		rawValue := strings.TrimSpace(parts[1])
 
-		if strings.HasPrefix(rawValue, "\"") && strings.HasSuffix(rawValue, "\"") && len(rawValue) >= 2 {
-			unquoted, err := strconv.Unquote(rawValue)
-			if err != nil {
-				return nil, fmt.Errorf("invalid quoted value for %q: %w", key, err)
-			}
+		unquoted, isQuoted, err := parseQuotedFrontmatterValue(rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("invalid quoted value for %q: %w", key, err)
+		}
+		if isQuoted {
 			values[key] = unquoted
 			continue
 		}
@@ -166,6 +166,28 @@ func parseFrontmatter(frontmatter string) (map[string]any, error) {
 	}
 
 	return values, nil
+}
+
+func parseQuotedFrontmatterValue(rawValue string) (string, bool, error) {
+	if len(rawValue) < 2 {
+		return "", false, nil
+	}
+
+	if strings.HasPrefix(rawValue, "\"") && strings.HasSuffix(rawValue, "\"") {
+		unquoted, err := strconv.Unquote(rawValue)
+		if err != nil {
+			return "", false, err
+		}
+		return unquoted, true, nil
+	}
+
+	if strings.HasPrefix(rawValue, "'") && strings.HasSuffix(rawValue, "'") {
+		content := rawValue[1 : len(rawValue)-1]
+		content = strings.ReplaceAll(content, "''", "'")
+		return content, true, nil
+	}
+
+	return "", false, nil
 }
 
 func extractTechniques(content string) []string {
