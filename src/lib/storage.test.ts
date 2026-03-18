@@ -109,7 +109,7 @@ test('stale refresh does not overwrite an optimistic create while the create req
     initializeStorage();
     const session = makeSession('session-stale-refresh');
 
-    saveSession(session);
+    const savePromise = saveSession(session);
     getSessions();
     await flushAsyncWork();
 
@@ -119,6 +119,7 @@ test('stale refresh does not overwrite an optimistic create while the create req
     );
 
     resolveCreate?.();
+    await savePromise;
     await flushAsyncWork();
   } finally {
     teardownStorageListeners();
@@ -151,7 +152,7 @@ test('non-retryable create failures are not queued and optimistic state is recon
   try {
     initializeStorage();
 
-    saveSession(makeSession('session-terminal-failure'));
+    await assert.rejects(saveSession(makeSession('session-terminal-failure')));
     await flushAsyncWork();
 
     assert.deepEqual(getQueue(), []);
@@ -183,9 +184,10 @@ test('retryable create failures remain queued for later sync', async () => {
   try {
     initializeStorage();
 
-    saveSession(makeSession('session-retryable-failure'));
+    const result = await saveSession(makeSession('session-retryable-failure'));
     await flushAsyncWork();
 
+    assert.equal(result.status, 'queued');
     assert.equal(getQueue().length, 1);
     assert.equal(getQueue()[0].type, 'CREATE');
     assert.deepEqual(

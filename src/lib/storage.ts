@@ -1,6 +1,11 @@
 'use client';
 
-import { JudoSession, GitHubConfig, GitHubSettings } from './types';
+import {
+  JudoSession,
+  GitHubConfig,
+  GitHubSettings,
+  MutationResult,
+} from './types';
 import {
   queueOperation,
   getQueue,
@@ -110,7 +115,10 @@ function hydrateDirtyMutationsFromQueue(): void {
 
   for (const operation of getQueue()) {
     if (operation.type === 'DELETE') {
-      markDirtyMutation({ type: 'DELETE', id: operation.id }, operation.queuedAt);
+      markDirtyMutation(
+        { type: 'DELETE', id: operation.id },
+        operation.queuedAt
+      );
       continue;
     }
 
@@ -162,7 +170,9 @@ function dispatchStorageSync(sessions: JudoSession[]): void {
     return;
   }
 
-  window.dispatchEvent(new CustomEvent('storageSync', { detail: { sessions } }));
+  window.dispatchEvent(
+    new CustomEvent('storageSync', { detail: { sessions } })
+  );
 }
 
 async function syncRequest(
@@ -196,15 +206,17 @@ function handleMutationSyncFailure(
   retryOperation: () => void,
   mutationId: string,
   version: number
-): void {
+): Promise<MutationResult> {
   console.error('Error syncing mutation', error);
   if (error instanceof SyncRequestError && !error.retryable) {
     clearDirtyMutation(mutationId, version);
-    void reconcilePermanentFailure();
-    return;
+    return reconcilePermanentFailure().then(() => {
+      throw error;
+    });
   }
 
   retryOperation();
+  return Promise.resolve({ status: 'queued' });
 }
 
 /**
@@ -284,17 +296,21 @@ export function getSessions(): JudoSession[] {
 /**
  * Save a new session (online -> API, offline -> queue + cache)
  */
-export function saveSession(session: JudoSession): void {
-  if (typeof window === 'undefined') return;
+export async function saveSession(
+  session: JudoSession
+): Promise<MutationResult> {
+  if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
   const version = markDirtyMutation({ type: 'CREATE', session });
 
   // Update local cache immediately
-  const nextSessions = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
+  const nextSessions = getOptimisticSessions(
+    sessionCache ?? getLocalStorageCache()
+  );
   commitLocalSessions(nextSessions);
   if (guestMode) {
     markGuestWorkspaceCustom();
-    return;
+    return { status: 'synced' };
   }
 
   if (isOnline) {
@@ -305,40 +321,41 @@ export function saveSession(session: JudoSession): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    void (async () => {
-      try {
-        const headers = await getAuthHeaders({
-          'Content-Type': 'application/json',
-        });
-        await syncRequest('/api/sessions/create', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody),
-        });
-      } catch (error) {
-        handleMutationSyncFailure(
-          error,
-          () => queueOperation({ type: 'CREATE', session }),
-          session.id,
-          version
-        );
-        return;
-      }
+    try {
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      await syncRequest('/api/sessions/create', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+    } catch (error) {
+      return handleMutationSyncFailure(
+        error,
+        () => queueOperation({ type: 'CREATE', session }),
+        session.id,
+        version
+      );
+    }
 
-      clearDirtyMutation(session.id, version);
-      void refreshSessionsFromAPI();
-    })();
-  } else {
-    // Offline: queue the operation
-    queueOperation({ type: 'CREATE', session });
+    clearDirtyMutation(session.id, version);
+    void refreshSessionsFromAPI();
+    return { status: 'synced' };
   }
+
+  // Offline: queue the operation
+  queueOperation({ type: 'CREATE', session });
+  return { status: 'queued' };
 }
 
 /**
  * Update an existing session (online -> API, offline -> queue + cache)
  */
-export function updateSession(session: JudoSession): void {
-  if (typeof window === 'undefined') return;
+export async function updateSession(
+  session: JudoSession
+): Promise<MutationResult> {
+  if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
   const version = markDirtyMutation({ type: 'UPDATE', session });
 
@@ -358,7 +375,7 @@ export function updateSession(session: JudoSession): void {
   commitLocalSessions(updated);
   if (guestMode) {
     markGuestWorkspaceCustom();
-    return;
+    return { status: 'synced' };
   }
 
   if (isOnline) {
@@ -369,40 +386,39 @@ export function updateSession(session: JudoSession): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    void (async () => {
-      try {
-        const headers = await getAuthHeaders({
-          'Content-Type': 'application/json',
-        });
-        await syncRequest(`/api/sessions/${session.id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(requestBody),
-        });
-      } catch (error) {
-        handleMutationSyncFailure(
-          error,
-          () => queueOperation({ type: 'UPDATE', session }),
-          session.id,
-          version
-        );
-        return;
-      }
+    try {
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      await syncRequest(`/api/sessions/${session.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+    } catch (error) {
+      return handleMutationSyncFailure(
+        error,
+        () => queueOperation({ type: 'UPDATE', session }),
+        session.id,
+        version
+      );
+    }
 
-      clearDirtyMutation(session.id, version);
-      void refreshSessionsFromAPI();
-    })();
-  } else {
-    // Offline: queue the operation
-    queueOperation({ type: 'UPDATE', session });
+    clearDirtyMutation(session.id, version);
+    void refreshSessionsFromAPI();
+    return { status: 'synced' };
   }
+
+  // Offline: queue the operation
+  queueOperation({ type: 'UPDATE', session });
+  return { status: 'queued' };
 }
 
 /**
  * Delete a session (online -> API, offline -> queue + cache)
  */
-export function deleteSession(id: string): void {
-  if (typeof window === 'undefined') return;
+export async function deleteSession(id: string): Promise<MutationResult> {
+  if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
   const version = markDirtyMutation({ type: 'DELETE', id });
 
@@ -412,7 +428,7 @@ export function deleteSession(id: string): void {
   commitLocalSessions(filtered);
   if (guestMode) {
     markGuestWorkspaceCustom();
-    return;
+    return { status: 'synced' };
   }
 
   if (isOnline) {
@@ -423,36 +439,35 @@ export function deleteSession(id: string): void {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
-    void (async () => {
-      try {
-        const headers = await getAuthHeaders({
-          'Content-Type': 'application/json',
-        });
-        await syncRequest(`/api/sessions/${id}`, {
-          method: 'DELETE',
-          headers,
-          body:
-            Object.keys(requestBody).length > 0
-              ? JSON.stringify(requestBody)
-              : undefined,
-        });
-      } catch (error) {
-        handleMutationSyncFailure(
-          error,
-          () => queueOperation({ type: 'DELETE', id }),
-          id,
-          version
-        );
-        return;
-      }
+    try {
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+      });
+      await syncRequest(`/api/sessions/${id}`, {
+        method: 'DELETE',
+        headers,
+        body:
+          Object.keys(requestBody).length > 0
+            ? JSON.stringify(requestBody)
+            : undefined,
+      });
+    } catch (error) {
+      return handleMutationSyncFailure(
+        error,
+        () => queueOperation({ type: 'DELETE', id }),
+        id,
+        version
+      );
+    }
 
-      clearDirtyMutation(id, version);
-      void refreshSessionsFromAPI();
-    })();
-  } else {
-    // Offline: queue the operation
-    queueOperation({ type: 'DELETE', id });
+    clearDirtyMutation(id, version);
+    void refreshSessionsFromAPI();
+    return { status: 'synced' };
   }
+
+  // Offline: queue the operation
+  queueOperation({ type: 'DELETE', id });
+  return { status: 'queued' };
 }
 
 /**
@@ -483,7 +498,7 @@ export function renameTag(oldName: string, newName: string): void {
   // Update each modified session
   updated.forEach((session, idx) => {
     if (sessions[idx].techniques.join(',') !== session.techniques.join(',')) {
-      updateSession(session);
+      void updateSession(session);
     }
   });
 }
@@ -501,7 +516,7 @@ export function deleteTag(tagName: string): void {
   // Update each modified session
   updated.forEach((session, idx) => {
     if (sessions[idx].techniques.join(',') !== session.techniques.join(',')) {
-      updateSession(session);
+      void updateSession(session);
     }
   });
 }
@@ -787,14 +802,11 @@ async function syncPendingOperations(): Promise<void> {
             const updateHeaders = await getAuthHeaders({
               'Content-Type': 'application/json',
             });
-            await syncRequest(
-              `/api/sessions/${operation.session.id}`,
-              {
-                method: 'PUT',
-                headers: updateHeaders,
-                body: JSON.stringify(updateBody),
-              }
-            );
+            await syncRequest(`/api/sessions/${operation.session.id}`, {
+              method: 'PUT',
+              headers: updateHeaders,
+              body: JSON.stringify(updateBody),
+            });
             break;
 
           case 'DELETE':
@@ -805,17 +817,14 @@ async function syncPendingOperations(): Promise<void> {
             const deleteHeaders = await getAuthHeaders({
               'Content-Type': 'application/json',
             });
-            await syncRequest(
-              `/api/sessions/${operation.id}`,
-              {
-                method: 'DELETE',
-                headers: deleteHeaders,
-                body:
-                  Object.keys(deleteBody).length > 0
-                    ? JSON.stringify(deleteBody)
-                    : undefined,
-              }
-            );
+            await syncRequest(`/api/sessions/${operation.id}`, {
+              method: 'DELETE',
+              headers: deleteHeaders,
+              body:
+                Object.keys(deleteBody).length > 0
+                  ? JSON.stringify(deleteBody)
+                  : undefined,
+            });
             break;
         }
       } catch (error) {

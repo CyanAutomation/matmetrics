@@ -82,6 +82,14 @@ function readGuestSessions(): JudoSession[] {
   }
 }
 
+function writeGuestSessions(sessions: JudoSession[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.setItem(getGuestSessionsStorageKey(), JSON.stringify(sessions));
+}
+
 export function ensureGuestWorkspaceSeeded(): void {
   if (typeof window === 'undefined' || !isGuestMode()) {
     return;
@@ -159,4 +167,25 @@ export function clearGuestWorkspaceAfterImport(): void {
   localStorage.removeItem(getGuestSessionsStorageKey());
   localStorage.removeItem(getGuestQueueStorageKey());
   localStorage.removeItem(GUEST_WORKSPACE_META_KEY);
+}
+
+export function retainGuestSessionsAfterPartialImport(
+  sessions: JudoSession[]
+): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  writeGuestSessions(sessions);
+
+  if (sessions.length === 0) {
+    localStorage.removeItem(GUEST_WORKSPACE_META_KEY);
+    localStorage.removeItem(getGuestQueueStorageKey());
+    return;
+  }
+
+  writeGuestWorkspaceMeta({
+    source: 'custom',
+    importDismissedBy: [],
+  });
 }

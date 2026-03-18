@@ -59,6 +59,7 @@ import {
   dismissGuestImport,
   getGuestSessionsForImport,
   getGuestWorkspaceSummary,
+  retainGuestSessionsAfterPartialImport,
   shouldPromptGuestImport,
 } from '@/lib/guest-mode';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -170,16 +171,45 @@ export default function Home() {
     setIsImportingGuestData(true);
     try {
       const guestSessions = getGuestSessionsForImport();
-      guestSessions.forEach((session) => {
-        saveSession(session);
-      });
-      clearGuestWorkspaceAfterImport();
+      const results = await Promise.allSettled(
+        guestSessions.map(async (session) => ({
+          session,
+          result: await saveSession(session),
+        }))
+      );
+      const successfulSessions = results.flatMap((entry) =>
+        entry.status === 'fulfilled' ? [entry.value] : []
+      );
+      const permanentlyFailedSessions = results.flatMap((entry, index) =>
+        entry.status === 'rejected' ? [guestSessions[index]] : []
+      );
+
+      if (permanentlyFailedSessions.length === 0) {
+        clearGuestWorkspaceAfterImport();
+      } else {
+        retainGuestSessionsAfterPartialImport(permanentlyFailedSessions);
+      }
+
       refreshSessions();
-      setIsImportDialogOpen(false);
-      toast({
-        title: 'Guest sessions imported',
-        description: `${guestSessions.length} local session${guestSessions.length === 1 ? '' : 's'} moved into your account.`,
-      });
+      if (permanentlyFailedSessions.length === 0) {
+        setIsImportDialogOpen(false);
+        const queuedCount = successfulSessions.filter(
+          ({ result }) => result.status === 'queued'
+        ).length;
+        toast({
+          title: 'Guest sessions imported',
+          description:
+            queuedCount > 0
+              ? `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} moved into your account. ${queuedCount} ${queuedCount === 1 ? 'is' : 'are'} queued to finish syncing.`
+              : `${successfulSessions.length} local session${successfulSessions.length === 1 ? '' : 's'} moved into your account.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Guest import incomplete',
+          description: `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} imported, ${permanentlyFailedSessions.length} left in guest mode for retry.`,
+        });
+      }
     } finally {
       setIsImportingGuestData(false);
     }
@@ -197,7 +227,11 @@ export default function Home() {
   }
 
   const isGuest = authMode === 'guest';
-  const initials = (user?.displayName || user?.email || (isGuest ? 'Guest' : 'MM'))
+  const initials = (
+    user?.displayName ||
+    user?.email ||
+    (isGuest ? 'Guest' : 'MM')
+  )
     .split(/\s+/)
     .map((part) => part[0])
     .join('')
@@ -450,7 +484,9 @@ export default function Home() {
                       onClick={() => setIsAuthDialogOpen(true)}
                       variant="outline"
                     >
-                      {authAvailable ? 'Sign in to unlock more' : 'View sign-in setup'}
+                      {authAvailable
+                        ? 'Sign in to unlock more'
+                        : 'View sign-in setup'}
                     </Button>
                   </AlertDescription>
                 </Alert>
