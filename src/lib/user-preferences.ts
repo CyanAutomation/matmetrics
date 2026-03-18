@@ -216,7 +216,10 @@ export function subscribeToPreferences(
 }
 
 export async function initializeUserPreferences(
-  uid: string
+  uid: string,
+  options?: {
+    shouldApply?: () => boolean;
+  }
 ): Promise<UserPreferences> {
   if (loadedUserId === uid) {
     return currentPreferences;
@@ -242,6 +245,10 @@ export async function initializeUserPreferences(
         }
       : {}),
   });
+
+  if (options?.shouldApply && !options.shouldApply()) {
+    return mergedPreferences;
+  }
 
   currentPreferences = mergedPreferences;
   loadedUserId = uid;
