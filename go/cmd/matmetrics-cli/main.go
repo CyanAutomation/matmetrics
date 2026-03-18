@@ -88,28 +88,6 @@ func runGitHub(args []string) error {
 			return err
 		}
 		return writeJSON(result)
-	case "migrate-layout":
-		fs := flag.NewFlagSet("github migrate-layout", flag.ContinueOnError)
-		fs.SetOutput(os.Stderr)
-		owner := fs.String("owner", "", "GitHub owner")
-		repo := fs.String("repo", "", "GitHub repository")
-		branch := fs.String("branch", "", "GitHub branch")
-		if err := fs.Parse(args[1:]); err != nil {
-			return err
-		}
-		config, err := buildGitHubConfig(*owner, *repo, *branch)
-		if err != nil {
-			return err
-		}
-		client, err := githubapi.NewClientFromEnv()
-		if err != nil {
-			return err
-		}
-		result, err := client.MigrateLegacyLayout(config)
-		if err != nil {
-			return err
-		}
-		return writeJSON(result)
 	default:
 		return usageError()
 	}
@@ -160,5 +138,5 @@ func writeJSON(v any) error {
 }
 
 func usageError() error {
-	return fmt.Errorf("usage: matmetrics-cli <github validate|github sync-all|github migrate-layout|sessions list> [flags]")
+	return fmt.Errorf("usage: matmetrics-cli <github validate|github sync-all|sessions list> [flags]")
 }

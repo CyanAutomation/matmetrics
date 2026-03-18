@@ -40,18 +40,6 @@ type SyncAllResult struct {
 	Errors  []string `json:"errors,omitempty"`
 }
 
-type MigrateLayoutResult struct {
-	Success   bool     `json:"success"`
-	Message   string   `json:"message"`
-	Branch    string   `json:"branch,omitempty"`
-	Migrated  int      `json:"migrated"`
-	Cleaned   int      `json:"cleaned"`
-	Skipped   int      `json:"skipped"`
-	Conflicts int      `json:"conflicts"`
-	Failed    int      `json:"failed"`
-	Errors    []string `json:"errors,omitempty"`
-}
-
 type gitHubAPIError struct {
 	Status  int
 	Message string
@@ -136,64 +124,6 @@ func (c *Client) SyncAll(config model.GitHubConfig, sessions []model.Session) (S
 
 	if !result.Success {
 		result.Message = fmt.Sprintf("Bulk sync completed with %d failure(s)", result.Failed)
-	}
-
-	return result, nil
-}
-
-func (c *Client) MigrateLegacyLayout(config model.GitHubConfig) (MigrateLayoutResult, error) {
-	branch, err := c.resolveBranch(config)
-	if err != nil {
-		return MigrateLayoutResult{}, err
-	}
-
-	entries, err := c.getTreeEntriesForPath(config, branch, legacyGitHubSessionRoot)
-	if err != nil {
-		return MigrateLayoutResult{}, err
-	}
-
-	result := MigrateLayoutResult{
-		Success: true,
-		Message: fmt.Sprintf("Migrated legacy GitHub layout in %s/%s", config.Owner, config.Repo),
-		Branch:  branch,
-	}
-
-	for _, entry := range entries {
-		if entry.Type != "blob" || !isLegacyGitHubSessionPath(entry.Path) {
-			continue
-		}
-
-		outcome, err := c.migrateLegacySessionPath(config, branch, entry.Path)
-		if err != nil {
-			result.Success = false
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", entry.Path, err))
-			continue
-		}
-
-		switch outcome {
-		case "migrated":
-			result.Migrated++
-		case "cleaned":
-			result.Cleaned++
-		case "skipped":
-			result.Skipped++
-		case "conflict":
-			result.Success = false
-			result.Conflicts++
-		default:
-			result.Success = false
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: unexpected migration outcome %q", entry.Path, outcome))
-		}
-	}
-
-	if result.Conflicts > 0 || result.Failed > 0 {
-		result.Message = fmt.Sprintf(
-			"Legacy GitHub layout migration completed with %d conflict(s) and %d failure(s)",
-			result.Conflicts,
-			result.Failed,
-		)
 	}
 
 	return result, nil
@@ -320,20 +250,8 @@ func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) 
 }
 
 const (
-	gitHubSessionRoot       = "data"
-	legacyGitHubSessionRoot = "sessions"
+	gitHubSessionRoot = "data"
 )
-
-var gitHubSessionRoots = []string{gitHubSessionRoot, legacyGitHubSessionRoot}
-
-func isLegacyGitHubSessionPath(path string) bool {
-	parts := strings.Split(path, "/")
-	return len(parts) == 4 && parts[0] == legacyGitHubSessionRoot && parts[1] != "" && parts[2] != "" && strings.HasSuffix(parts[3], ".md")
-}
-
-func legacyPathToCurrentGitHubPath(path string) string {
-	return gitHubSessionRoot + "/" + strings.TrimPrefix(path, legacyGitHubSessionRoot+"/")
-}
 
 func SessionGitHubPath(session model.Session) (string, error) {
 	encodedID, err := storage.EncodedSessionID(session.ID)
@@ -350,18 +268,6 @@ func SessionGitHubPath(session model.Session) (string, error) {
 	return fmt.Sprintf("%s/%s/%s/%s", gitHubSessionRoot, parts[0], parts[1], fileName), nil
 }
 
-func sanitizeSessionIDLegacy(sessionID string) string {
-	var b strings.Builder
-	for _, r := range sessionID {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			b.WriteRune(r)
-			continue
-		}
-		b.WriteByte('-')
-	}
-	return b.String()
-}
-
 func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionID string) (string, string, error) {
 	branch, err := c.resolveBranch(config)
 	if err != nil {
@@ -373,21 +279,17 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 		return "", "", err
 	}
 	encodedSuffix := "-matmetrics-" + encodedID + ".md"
-	legacySuffix := "-matmetrics-" + sanitizeSessionIDLegacy(sessionID) + ".md"
+	entries, err := c.getTreeEntriesForPath(config, branch, gitHubSessionRoot)
+	if err != nil {
+		return "", "", err
+	}
 
-	for _, rootPath := range gitHubSessionRoots {
-		entries, err := c.getTreeEntriesForPath(config, branch, rootPath)
-		if err != nil {
-			return "", "", err
+	for _, entry := range entries {
+		if entry.Type != "blob" {
+			continue
 		}
-
-		for _, entry := range entries {
-			if entry.Type != "blob" {
-				continue
-			}
-			if strings.HasSuffix(entry.Path, encodedSuffix) || strings.HasSuffix(entry.Path, legacySuffix) {
-				return entry.Path, branch, nil
-			}
+		if strings.HasSuffix(entry.Path, encodedSuffix) {
+			return entry.Path, branch, nil
 		}
 	}
 
@@ -395,23 +297,14 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 }
 
 func (c *Client) listGitHubSessionPaths(config model.GitHubConfig, branch string) ([]string, error) {
-	paths := make([]string, 0)
-	seen := make(map[string]struct{})
+	entries, err := c.getTreeEntriesForPath(config, branch, gitHubSessionRoot)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, rootPath := range gitHubSessionRoots {
-		entries, err := c.getTreeEntriesForPath(config, branch, rootPath)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, entry := range entries {
-			if entry.Type != "blob" || !strings.HasPrefix(entry.Path, rootPath+"/") || !strings.HasSuffix(entry.Path, ".md") {
-				continue
-			}
-			if _, ok := seen[entry.Path]; ok {
-				continue
-			}
-			seen[entry.Path] = struct{}{}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Type == "blob" && strings.HasPrefix(entry.Path, gitHubSessionRoot+"/") && strings.HasSuffix(entry.Path, ".md") {
 			paths = append(paths, entry.Path)
 		}
 	}
@@ -609,72 +502,6 @@ func (c *Client) getFile(config model.GitHubConfig, filePath string, branch stri
 	return response.SHA, string(decoded), nil
 }
 
-func (c *Client) migrateLegacySessionPath(config model.GitHubConfig, branch string, legacyPath string) (string, error) {
-	targetPath := legacyPathToCurrentGitHubPath(legacyPath)
-	if targetPath == legacyPath {
-		return "skipped", nil
-	}
-
-	legacySHA, legacyContent, err := c.getFile(config, legacyPath, branch)
-	if err != nil {
-		if apiErr, ok := err.(*gitHubAPIError); ok && apiErr.Status == http.StatusNotFound {
-			return "skipped", nil
-		}
-		return "", err
-	}
-
-	targetSHA, targetContent, err := c.getFile(config, targetPath, branch)
-	if err != nil {
-		if apiErr, ok := err.(*gitHubAPIError); ok && apiErr.Status == http.StatusNotFound {
-			targetSHA = ""
-			targetContent = ""
-		} else {
-			return "", err
-		}
-	}
-
-	if targetSHA != "" {
-		if targetContent != legacyContent {
-			return "conflict", nil
-		}
-
-		if err := c.deleteFile(config, branch, legacyPath, legacySHA, fmt.Sprintf("Clean legacy session path: %s", legacyPath)); err != nil {
-			return "", err
-		}
-		return "cleaned", nil
-	}
-
-	if err := c.putFile(config, branch, targetPath, legacyContent, fmt.Sprintf("Migrate session path: %s", legacyPath), ""); err != nil {
-		return "", err
-	}
-	if err := c.deleteFile(config, branch, legacyPath, legacySHA, fmt.Sprintf("Migrate session path: %s", legacyPath)); err != nil {
-		return "", err
-	}
-	return "migrated", nil
-}
-
-func (c *Client) putFile(config model.GitHubConfig, branch string, filePath string, content string, message string, sha string) error {
-	body := map[string]any{
-		"message": message,
-		"content": base64.StdEncoding.EncodeToString([]byte(content)),
-		"branch":  branch,
-	}
-	if sha != "" {
-		body["sha"] = sha
-	}
-
-	_, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, filePath), body)
-	return err
-}
-
-func (c *Client) deleteFile(config model.GitHubConfig, branch string, filePath string, sha string, message string) error {
-	_, err := c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, filePath), map[string]any{
-		"message": message,
-		"branch":  branch,
-		"sha":     sha,
-	})
-	return err
-}
 
 func (c *Client) resolveBranch(config model.GitHubConfig) (string, error) {
 	if strings.TrimSpace(config.Branch) != "" {

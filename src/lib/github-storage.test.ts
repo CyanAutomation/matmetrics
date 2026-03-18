@@ -37,18 +37,18 @@ function runPathEncodingRegression() {
   });
 }
 
-async function runGitHubLegacyLookupRegression() {
+async function runGitHubLookupRegression() {
   const originalFetch = global.fetch;
   const originalToken = process.env.GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = 'test-token';
 
   const dirListing: Record<string, Array<{ name: string; path: string; type: 'dir' | 'file' }>> = {
-    sessions: [{ name: '2025', path: 'sessions/2025', type: 'dir' }],
-    'sessions/2025': [{ name: '03', path: 'sessions/2025/03', type: 'dir' }],
-    'sessions/2025/03': [
+    data: [{ name: '2025', path: 'data/2025', type: 'dir' }],
+    'data/2025': [{ name: '03', path: 'data/2025/03', type: 'dir' }],
+    'data/2025/03': [
       {
-        name: '20250314-matmetrics-a-b.md',
-        path: 'sessions/2025/03/20250314-matmetrics-a-b.md',
+        name: '20250314-matmetrics-a%2Fb.md',
+        path: 'data/2025/03/20250314-matmetrics-a%2Fb.md',
         type: 'file',
       },
     ],
@@ -86,7 +86,7 @@ async function runGitHubLegacyLookupRegression() {
   try {
     const config = { owner: 'o', repo: 'r', branch: 'main' };
     const found = await findSessionPathOnGitHubById('a/b', config);
-    assert.equal(found, 'sessions/2025/03/20250314-matmetrics-a-b.md');
+    assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
   } finally {
     global.fetch = originalFetch;
     if (originalToken === undefined) {
@@ -190,30 +190,26 @@ async function runTruncatedTreeFallbackRegression() {
     }
 
     if (path.endsWith('/contents/data')) {
-      return new Response(JSON.stringify([]), { status: 200 });
-    }
-
-    if (path.endsWith('/contents/sessions')) {
       return new Response(
-        JSON.stringify([{ type: 'dir', path: 'sessions/2025', name: '2025' }]),
+        JSON.stringify([{ type: 'dir', path: 'data/2025', name: '2025' }]),
         { status: 200 }
       );
     }
 
-    if (path.endsWith('/contents/sessions/2025')) {
+    if (path.endsWith('/contents/data/2025')) {
       return new Response(
-        JSON.stringify([{ type: 'dir', path: 'sessions/2025/03', name: '03' }]),
+        JSON.stringify([{ type: 'dir', path: 'data/2025/03', name: '03' }]),
         { status: 200 }
       );
     }
 
-    if (path.endsWith('/contents/sessions/2025/03')) {
+    if (path.endsWith('/contents/data/2025/03')) {
       return new Response(
         JSON.stringify([
           {
             type: 'file',
-            path: 'sessions/2025/03/20250314-matmetrics-a-b.md',
-            name: '20250314-matmetrics-a-b.md',
+            path: 'data/2025/03/20250314-matmetrics-a%2Fb.md',
+            name: '20250314-matmetrics-a%2Fb.md',
           },
         ]),
         { status: 200 }
@@ -226,7 +222,7 @@ async function runTruncatedTreeFallbackRegression() {
   try {
     const config = { owner: 'o', repo: 'r', branch: 'main' };
     const found = await findSessionPathOnGitHubById('a/b', config);
-    assert.equal(found, 'sessions/2025/03/20250314-matmetrics-a-b.md');
+    assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
   } finally {
     global.fetch = originalFetch;
     if (originalToken === undefined) {
@@ -317,7 +313,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
         truncated: false,
         tree: [
           {
-            path: 'sessions/2025/01/20250110-matmetrics-session-1.md',
+            path: 'data/2025/01/20250110-matmetrics-session-1.md',
             type: 'blob',
           },
         ],
@@ -328,7 +324,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
       return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
     }
 
-    if (path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md' && method === 'GET') {
+    if (path === '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' && method === 'GET') {
       return new Response(JSON.stringify({ sha: 'old-sha' }), { status: 200 });
     }
 
@@ -336,7 +332,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
       return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 200 });
     }
 
-    if (path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md' && method === 'DELETE') {
+    if (path === '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' && method === 'DELETE') {
       assert.equal(body?.sha, 'old-sha');
       return new Response(JSON.stringify({ content: { sha: 'deleted-sha' } }), { status: 200 });
     }
@@ -365,7 +361,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
       requests.some(
         (request) =>
           request.method === 'DELETE' &&
-          request.path === '/repos/o/r/contents/sessions/2025/01/20250110-matmetrics-session-1.md'
+          request.path === '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md'
       )
     );
   } finally {
@@ -380,7 +376,7 @@ async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
 
 async function main() {
   runPathEncodingRegression();
-  await runGitHubLegacyLookupRegression();
+  await runGitHubLookupRegression();
   await runMissingBranchLookupRegression();
   await runNon404TreeLookupErrorRegression();
   await runTruncatedTreeFallbackRegression();
