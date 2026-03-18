@@ -111,6 +111,122 @@ func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
 	}
 }
 
+func TestGetFileEncodesPathSegmentsAndRefQuery(t *testing.T) {
+	var gotPath string
+	var gotQuery string
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotPath = r.URL.EscapedPath()
+			gotQuery = r.URL.RawQuery
+			return jsonBodyResponse(http.StatusOK, map[string]any{
+				"sha":     "sha-1",
+				"content": base64.StdEncoding.EncodeToString([]byte("hello")),
+			}), nil
+		})},
+		Token: "test-token",
+	}
+
+	_, _, err := client.getFile(model.GitHubConfig{Owner: "o", Repo: "r"}, "data/2025/03/20250314-matmetrics-a%2Fb.md", "feature/session-sync")
+	if err != nil {
+		t.Fatalf("getFile() error = %v", err)
+	}
+
+	wantPath := "/repos/o/r/contents/data/2025/03/20250314-matmetrics-a%252Fb.md"
+	if gotPath != wantPath {
+		t.Fatalf("unexpected path: got %q want %q", gotPath, wantPath)
+	}
+	if gotQuery != "ref=feature%2Fsession-sync" {
+		t.Fatalf("unexpected query: %q", gotQuery)
+	}
+}
+
+func TestListTreeEntriesFromContentsAPIEncodesPathAndRef(t *testing.T) {
+	var gotPath string
+	var gotQuery string
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotPath = r.URL.EscapedPath()
+			gotQuery = r.URL.RawQuery
+			return jsonResponse(http.StatusOK, `[]`), nil
+		})},
+		Token: "test-token",
+	}
+
+	entries, err := client.listTreeEntriesFromContentsAPI(model.GitHubConfig{Owner: "o", Repo: "r"}, "feature/session-sync", "data/a%2Fb")
+	if err != nil {
+		t.Fatalf("listTreeEntriesFromContentsAPI() error = %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected no entries, got %d", len(entries))
+	}
+
+	wantPath := "/repos/o/r/contents/data/a%252Fb"
+	if gotPath != wantPath {
+		t.Fatalf("unexpected path: got %q want %q", gotPath, wantPath)
+	}
+	if gotQuery != "ref=feature%2Fsession-sync" {
+		t.Fatalf("unexpected query: %q", gotQuery)
+	}
+}
+
+func TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames(t *testing.T) {
+	cases := []struct {
+		name       string
+		branch     string
+		wantRefURI string
+	}{
+		{
+			name:       "nested branch name",
+			branch:     "feature/session-sync",
+			wantRefURI: "/repos/o/r/git/ref/heads/feature/session-sync",
+		},
+		{
+			name:       "simple branch name unchanged",
+			branch:     "main",
+			wantRefURI: "/repos/o/r/git/ref/heads/main",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var seenRefPath string
+
+			client := &Client{
+				BaseURL: "https://example.test",
+				HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+					switch {
+					case strings.Contains(r.URL.Path, "/git/ref/heads/"):
+						seenRefPath = r.URL.EscapedPath()
+						return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+					case strings.Contains(r.URL.Path, "/git/commits/"):
+						return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+					case strings.Contains(r.URL.Path, "/git/trees/"):
+						return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[]}`), nil
+					default:
+						return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+					}
+				})},
+				Token: "test-token",
+			}
+
+			entries, err := client.getTreeEntriesForPath(model.GitHubConfig{Owner: "o", Repo: "r"}, tc.branch, "data")
+			if err != nil {
+				t.Fatalf("getTreeEntriesForPath() error = %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no entries, got %d", len(entries))
+			}
+			if seenRefPath != tc.wantRefURI {
+				t.Fatalf("unexpected ref endpoint path: got %q want %q", seenRefPath, tc.wantRefURI)
+			}
+		})
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
