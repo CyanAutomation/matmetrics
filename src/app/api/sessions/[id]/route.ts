@@ -13,6 +13,7 @@ import {
   proxyGoFunction,
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -122,6 +123,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const { id } = await params;
     const gitHubConfig = normalizeGitHubConfig({
       owner: request.nextUrl.searchParams.get('owner') ?? undefined,
@@ -167,6 +173,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -288,6 +299,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
     const gitHubConfig = normalizeGitHubConfig(body?.gitHubConfig as GitHubConfig | undefined);

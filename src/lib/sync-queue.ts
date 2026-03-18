@@ -1,4 +1,5 @@
 import { JudoSession } from './types';
+import { getScopedStorageKey } from './client-identity';
 
 /**
  * Shared localStorage key for offline sync operations.
@@ -9,7 +10,11 @@ import { JudoSession } from './types';
  * - Callers that sync using a stale snapshot can pass that snapshot as `baseQueue` so writes retain
  *   operations added by other tabs while still removing/rewriting the expected items.
  */
-export const SYNC_QUEUE_KEY = 'matmetrics_sync_queue';
+const SYNC_QUEUE_KEY_BASE = 'matmetrics_sync_queue';
+
+export function getSyncQueueStorageKey(): string {
+  return getScopedStorageKey(SYNC_QUEUE_KEY_BASE);
+}
 
 type SyncOperationPayload =
   | { type: 'CREATE'; session: JudoSession }
@@ -62,7 +67,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
 }
 
 function readQueueFromStorage(): SyncOperation[] {
-  const stored = localStorage.getItem(SYNC_QUEUE_KEY);
+  const stored = localStorage.getItem(getSyncQueueStorageKey());
   return stored ? dedupeOperations(JSON.parse(stored)) : [];
 }
 
@@ -96,11 +101,11 @@ function writeQueueWithLatestMerge(nextQueue: SyncOperationInput[], baseQueue?: 
     : normalizedNextQueue;
 
   if (mergedQueue.length === 0) {
-    localStorage.removeItem(SYNC_QUEUE_KEY);
+    localStorage.removeItem(getSyncQueueStorageKey());
     return;
   }
 
-  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(mergedQueue));
+  localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(mergedQueue));
 }
 
 /**

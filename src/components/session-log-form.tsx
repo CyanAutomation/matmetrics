@@ -14,6 +14,7 @@ import { saveSession, updateSession, getTransformerPrompt } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAuthHeaders } from "@/lib/auth-session";
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -72,9 +73,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
     setIsTransforming(true);
     try {
       const customPrompt = getTransformerPrompt();
+      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/ai/transform-description", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           description,
           customPrompt,
@@ -112,9 +114,10 @@ export function SessionLogForm({ onSuccess, sessionToEdit, onCancel, hideHeader 
 
     setIsSuggesting(true);
     try {
+      const headers = await getAuthHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/ai/suggest-techniques", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ description }),
       });
       if (!response.ok) {

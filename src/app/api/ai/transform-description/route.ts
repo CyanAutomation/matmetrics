@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { transformPracticeDescription } from '@/ai/flows/practice-description-transformer';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const body = await request.json();
 
     if (typeof body?.description !== 'string' || body.description.trim() === '') {

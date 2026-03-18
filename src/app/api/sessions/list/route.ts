@@ -5,6 +5,7 @@ import {
   proxyGoFunction,
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 /**
  * GET /api/sessions/list
@@ -12,6 +13,11 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     const gitHubConfig = normalizeGitHubConfig({
       owner: request.nextUrl.searchParams.get('owner') ?? undefined,
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,

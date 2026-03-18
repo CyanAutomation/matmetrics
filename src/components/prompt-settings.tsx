@@ -6,21 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BrainCircuit, Save, RotateCcw, Info, CheckCircle2 } from "lucide-react";
-import { getTransformerPrompt, saveTransformerPrompt, resetTransformerPrompt } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuth } from "@/components/auth-provider";
+import {
+  resetTransformerPromptPreference,
+  saveTransformerPromptPreference,
+} from "@/lib/user-preferences";
 
 export function PromptSettings() {
   const { toast } = useToast();
+  const { user, preferences } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    setPrompt(getTransformerPrompt());
-  }, []);
+    setPrompt(preferences.transformerPrompt);
+  }, [preferences.transformerPrompt]);
 
-  const handleSave = () => {
-    saveTransformerPrompt(prompt);
+  const handleSave = async () => {
+    if (!user) return;
+
+    await saveTransformerPromptPreference(user.uid, prompt);
     setIsSaved(true);
     toast({
       title: "Prompt updated",
@@ -29,9 +36,10 @@ export function PromptSettings() {
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleReset = () => {
-    resetTransformerPrompt();
-    setPrompt(getTransformerPrompt());
+  const handleReset = async () => {
+    if (!user) return;
+
+    await resetTransformerPromptPreference(user.uid);
     toast({
       description: "Prompt reset to default Kodokan standards.",
     });
@@ -79,11 +87,11 @@ export function PromptSettings() {
           </div>
         </CardContent>
         <CardFooter className="bg-primary/5 border-t p-6 flex justify-between items-center">
-          <Button variant="outline" onClick={handleReset} className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
+          <Button variant="outline" onClick={() => void handleReset()} className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
             <RotateCcw className="h-4 w-4" />
             Reset to Default
           </Button>
-          <Button onClick={handleSave} className="gap-2 px-8 font-bold shadow-lg h-11 transition-all">
+          <Button onClick={() => void handleSave()} className="gap-2 px-8 font-bold shadow-lg h-11 transition-all">
             {isSaved ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {isSaved ? "Saved!" : "Save Prompt"}
           </Button>

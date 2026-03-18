@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isGitHubConfigured } from '@/lib/github-storage';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { GitHubConfig } from '@/lib/types';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 /**
  * POST /api/github/sync-all
@@ -9,6 +10,11 @@ import { GitHubConfig } from '@/lib/types';
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
     if (!isGitHubConfigured()) {
       return NextResponse.json(
         { success: false, message: 'GITHUB_TOKEN environment variable not configured' },
