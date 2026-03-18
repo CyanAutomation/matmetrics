@@ -19,6 +19,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !httpapi.RequireAuthenticatedUser(w, r) {
+		return
+	}
+
 	var request deleteRequest
 	if err := httpapi.DecodeJSON(r, &request); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "Invalid request body")
