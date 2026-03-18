@@ -29,7 +29,7 @@ import {
 
 export function PromptSettings() {
   const { toast } = useToast();
-  const { user, preferences } = useAuth();
+  const { user, preferences, canSavePreferences, authAvailable } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
@@ -61,6 +61,20 @@ export function PromptSettings() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {!canSavePreferences && (
+        <Alert className="bg-amber-50 border-amber-200">
+          <Info className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900 font-bold">
+            Sign-in required
+          </AlertTitle>
+          <AlertDescription className="text-amber-800">
+            {authAvailable
+              ? 'Custom AI prompts are only available after sign-in because they are saved per account.'
+              : 'Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Alert className="bg-primary/5 border-primary/20">
         <Info className="h-4 w-4 text-primary" />
         <AlertTitle className="text-primary font-bold">
@@ -103,6 +117,7 @@ export function PromptSettings() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your custom instructions here..."
+              disabled={!canSavePreferences}
               className="min-h-[400px] font-mono text-sm bg-secondary/5 border-primary/10 focus:border-primary/30 transition-colors leading-relaxed"
             />
             <p className="text-[11px] text-muted-foreground italic">
@@ -115,6 +130,7 @@ export function PromptSettings() {
           <Button
             variant="outline"
             onClick={() => void handleReset()}
+            disabled={!canSavePreferences}
             className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
           >
             <RotateCcw className="h-4 w-4" />
@@ -122,6 +138,7 @@ export function PromptSettings() {
           </Button>
           <Button
             onClick={() => void handleSave()}
+            disabled={!canSavePreferences}
             className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
           >
             {isSaved ? (

@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getAuthHeaders } from '@/lib/auth-session';
+import { useAuth } from '@/components/auth-provider';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -61,6 +62,7 @@ export function SessionLogForm({
   hideHeader = false,
 }: SessionLogFormProps) {
   const { toast } = useToast();
+  const { canUseAi, authAvailable } = useAuth();
   const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, 'id');
   const fid = (suffix: string) => `judo-log-${uniquePrefix}-${suffix}`;
 
@@ -103,6 +105,16 @@ export function SessionLogForm({
   };
 
   const handleTransform = async () => {
+    if (!canUseAi) {
+      toast({
+        title: 'Sign-in required',
+        description: authAvailable
+          ? 'AI description transforms are available after sign-in.'
+          : 'AI description transforms are unavailable because authentication is not configured.',
+      });
+      return;
+    }
+
     if (!description.trim()) {
       toast({
         variant: 'destructive',
@@ -148,6 +160,16 @@ export function SessionLogForm({
   };
 
   const handleSuggest = async () => {
+    if (!canUseAi) {
+      toast({
+        title: 'Sign-in required',
+        description: authAvailable
+          ? 'AI tag suggestions are available after sign-in.'
+          : 'AI tag suggestions are unavailable because authentication is not configured.',
+      });
+      return;
+    }
+
     if (!description.trim()) {
       toast({
         variant: 'destructive',
@@ -275,6 +297,14 @@ export function SessionLogForm({
         <CardContent
           className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-0')}
         >
+          {!canUseAi && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {authAvailable
+                ? 'Guest mode can log sessions locally. Sign in to unlock AI transform and AI tag suggestion.'
+                : 'Guest mode can log sessions locally. AI features are unavailable until Firebase authentication is configured.'}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-3 space-y-2.5">
               <Label
@@ -362,7 +392,7 @@ export function SessionLogForm({
                 variant="outline"
                 size="sm"
                 onClick={handleTransform}
-                disabled={isTransforming || !description}
+                disabled={!canUseAi || isTransforming || !description}
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
               >
                 {isTransforming ? (
@@ -392,7 +422,7 @@ export function SessionLogForm({
                   variant="outline"
                   size="sm"
                   onClick={handleSuggest}
-                  disabled={isSuggesting || !description}
+                  disabled={!canUseAi || isSuggesting || !description}
                   className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
                 >
                   {isSuggesting ? (

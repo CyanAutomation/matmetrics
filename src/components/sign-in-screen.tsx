@@ -18,7 +18,11 @@ import { useAuth } from '@/components/auth-provider';
 
 type AuthMode = 'sign-in' | 'sign-up' | 'reset';
 
-export function SignInScreen() {
+type SignInScreenProps = {
+  onContinueAsGuest?: () => void;
+};
+
+export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
   const { toast } = useToast();
   const {
     isConfigured,
@@ -46,7 +50,7 @@ export function SignInScreen() {
       ? 'Use Google or create an email/password account.'
       : mode === 'reset'
         ? 'Enter your email and Firebase will send a password reset link.'
-        : 'Authentication is required before sessions, AI tools, and GitHub sync are available.';
+        : 'Sign in to unlock AI tools, GitHub sync, and cloud-backed preferences.';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -116,23 +120,8 @@ export function SignInScreen() {
     }
   };
 
-  if (!isConfigured) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Alert className="max-w-xl border-destructive/30 bg-destructive/5">
-          <LockKeyhole className="h-4 w-4" />
-          <AlertTitle>Firebase is not configured</AlertTitle>
-          <AlertDescription>
-            Add the `NEXT_PUBLIC_FIREBASE_*` variables and
-            `FIREBASE_SERVICE_ACCOUNT_KEY` before using authentication.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_40%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--secondary)/0.35))] flex items-center justify-center p-6">
+    <div className="w-full bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_40%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--secondary)/0.35))] flex items-center justify-center p-1">
       <Card className="w-full max-w-md shadow-2xl border-primary/15">
         <CardHeader className="space-y-4">
           <div className="flex items-center gap-3">
@@ -142,133 +131,180 @@ export function SignInScreen() {
             <div>
               <CardTitle className="text-2xl">MatMetrics</CardTitle>
               <CardDescription>
-                Firebase-backed accounts and preferences
+                {isConfigured
+                  ? 'Firebase-backed accounts and preferences'
+                  : 'Guest mode is available'}
               </CardDescription>
             </div>
           </div>
           <div>
             <h1 className="text-xl font-semibold">{title}</h1>
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground">
+              {isConfigured
+                ? description
+                : 'Authentication is unavailable right now, but you can still explore the app in guest mode with local demo data.'}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11"
-            onClick={handleGoogleSignIn}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleMark className="h-4 w-4" />
-            )}
-            Continue with Google
-          </Button>
+          {!isConfigured && (
+            <Alert className="border-destructive/30 bg-destructive/5">
+              <LockKeyhole className="h-4 w-4" />
+              <AlertTitle>Firebase is not configured</AlertTitle>
+              <AlertDescription>
+                Add the `NEXT_PUBLIC_FIREBASE_*` variables and
+                `FIREBASE_SERVICE_ACCOUNT_KEY` to enable authentication.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11"
-            onClick={handleGitHubSignIn}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Github className="h-4 w-4" />
-            )}
-            Continue with GitHub
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                or use email
-              </span>
-            </div>
-          </div>
-
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {mode === 'sign-up' && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Display name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </div>
-
-            {mode !== 'reset' && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={
-                    mode === 'sign-up' ? 'new-password' : 'current-password'
-                  }
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-              </div>
-            )}
-
+          {onContinueAsGuest && (
             <Button
-              type="submit"
+              type="button"
               className="w-full h-11"
+              variant={isConfigured ? 'secondary' : 'default'}
+              onClick={onContinueAsGuest}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
-              {mode === 'sign-up'
-                ? 'Create account'
-                : mode === 'reset'
-                  ? 'Send reset email'
-                  : 'Sign in'}
+              Continue in Guest Mode
             </Button>
-          </form>
+          )}
 
-          <div className="flex items-center justify-between text-sm">
-            <button
-              type="button"
-              className="text-primary"
-              onClick={() =>
-                setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
-              }
-            >
-              {mode === 'sign-in' ? 'Create account' : 'Back to sign in'}
-            </button>
-            {mode !== 'reset' && (
-              <button
+          {isConfigured && (
+            <>
+              {onContinueAsGuest && (
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      or sign in
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <Button
                 type="button"
-                className="text-muted-foreground"
-                onClick={() => setMode('reset')}
+                variant="outline"
+                className="w-full h-11"
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting}
               >
-                Forgot password?
-              </button>
-            )}
-          </div>
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <GoogleMark className="h-4 w-4" />
+                )}
+                Continue with Google
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11"
+                onClick={handleGitHubSignIn}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Github className="h-4 w-4" />
+                )}
+                Continue with GitHub
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    or use email
+                  </span>
+                </div>
+              </div>
+
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                {mode === 'sign-up' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Display name</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </div>
+
+                {mode !== 'reset' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete={
+                        mode === 'sign-up' ? 'new-password' : 'current-password'
+                      }
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full h-11"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {mode === 'sign-up'
+                    ? 'Create account'
+                    : mode === 'reset'
+                      ? 'Send reset email'
+                      : 'Sign in'}
+                </Button>
+              </form>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  className="text-primary"
+                  onClick={() =>
+                    setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
+                  }
+                >
+                  {mode === 'sign-in' ? 'Create account' : 'Back to sign in'}
+                </button>
+
+                {mode === 'sign-in' && (
+                  <button
+                    type="button"
+                    className="text-primary"
+                    onClick={() => setMode('reset')}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -281,24 +317,9 @@ function GoogleMark({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       aria-hidden="true"
       className={className}
-      role="img"
+      fill="currentColor"
     >
-      <path
-        fill="#4285F4"
-        d="M21.805 12.23c0-.682-.061-1.338-.174-1.968H12v3.723h5.498a4.705 4.705 0 0 1-2.04 3.087v2.56h3.303c1.932-1.78 3.044-4.402 3.044-7.402Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 22c2.76 0 5.073-.915 6.764-2.468l-3.303-2.56c-.915.613-2.084.975-3.461.975-2.657 0-4.908-1.794-5.713-4.204H2.872v2.642A10 10 0 0 0 12 22Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M6.287 13.743A5.997 5.997 0 0 1 5.968 12c0-.605.109-1.192.319-1.743V7.615H2.872A10 10 0 0 0 2 12c0 1.611.386 3.137 1.072 4.385l3.215-2.642Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 6.053c1.5 0 2.848.516 3.909 1.528l2.931-2.93C17.069 2.999 14.756 2 12 2a10 10 0 0 0-9.128 5.615l3.415 2.642C7.092 7.847 9.343 6.053 12 6.053Z"
-      />
+      <path d="M21.35 11.1H12v2.98h5.35c-.23 1.5-1.74 4.4-5.35 4.4-3.22 0-5.85-2.67-5.85-5.97s2.63-5.97 5.85-5.97c1.84 0 3.07.78 3.77 1.45l2.57-2.5C16.7 3.95 14.58 3 12 3 7.03 3 3 7.03 3 12s4.03 9 9 9c5.2 0 8.65-3.65 8.65-8.8 0-.59-.06-1.04-.14-1.5Z" />
     </svg>
   );
 }
