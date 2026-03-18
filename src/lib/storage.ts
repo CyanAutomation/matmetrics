@@ -202,7 +202,7 @@ function readSyncLease(): SyncLease | null {
 
     return {
       owner: parsed.owner,
-      expiresAt: parsed.expiresAt,
+      expiresAt: parsed.expiresAt as number,
     };
   } catch (error) {
     console.error('Failed to parse sync lease', error);

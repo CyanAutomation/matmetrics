@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -32,10 +32,21 @@ export function PromptSettings() {
   const { user, preferences, canSavePreferences, authAvailable } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   useEffect(() => {
     setPrompt(preferences.transformerPrompt);
   }, [preferences.transformerPrompt]);
+
+  useEffect(() => {
+    return () => {
+      if (savedIndicatorTimeoutRef.current !== null) {
+        clearTimeout(savedIndicatorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!user) return;
@@ -47,7 +58,13 @@ export function PromptSettings() {
       description:
         'Your AI transformation instructions have been saved successfully.',
     });
-    setTimeout(() => setIsSaved(false), 3000);
+    if (savedIndicatorTimeoutRef.current !== null) {
+      clearTimeout(savedIndicatorTimeoutRef.current);
+    }
+    savedIndicatorTimeoutRef.current = setTimeout(() => {
+      savedIndicatorTimeoutRef.current = null;
+      setIsSaved(false);
+    }, 3000);
   };
 
   const handleReset = async () => {
