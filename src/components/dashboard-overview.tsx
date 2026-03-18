@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { JudoSession } from '@/lib/types';
-import { TrendingUp, Award, Calendar, Zap, Target } from 'lucide-react';
+import { Award, Calendar, Zap, Target } from 'lucide-react';
+import { RessaImage } from '@/components/ressa-image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
 import {
   ChartContainer,
@@ -76,8 +77,12 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-xl border border-dashed border-muted-foreground/20">
-        <TrendingUp className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h3 className="text-xl font-semibold mb-2">No session data yet</h3>
+        <RessaImage
+          pose={5}
+          size="medium"
+          alt="Ressa looking forward to your training data"
+        />
+        <h3 className="text-xl font-semibold mb-2 mt-4">No session data yet</h3>
         <p className="text-muted-foreground">
           Start logging your training sessions to see insights here.
         </p>
