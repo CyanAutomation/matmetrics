@@ -168,6 +168,40 @@ async function getFileSha(
   }
 }
 
+async function getFileContent(
+  owner: string,
+  repo: string,
+  path: string,
+  branch: string
+): Promise<string | null> {
+  try {
+    const data = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`
+    );
+
+    if (typeof data?.content !== 'string') {
+      throw new Error(
+        `GitHub contents response for ${path} did not include file content`
+      );
+    }
+
+    return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString(
+      'utf8'
+    );
+  } catch (error) {
+    if (!isGitHubApiError(error)) {
+      throw error;
+    }
+
+    if (error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 async function getTreeEntriesForPath(
   owner: string,
   repo: string,
@@ -412,11 +446,69 @@ export async function createSessionOnGitHub(
   session: JudoSession,
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
-  const filePath = getGitHubSessionPath(session);
-  const markdown = sessionToMarkdown(session);
-  const message = `Add session: ${session.date}`;
+  try {
+    const branch = await resolveBranch(config);
+    const filePath = getGitHubSessionPath(session);
+    const markdown = sessionToMarkdown(session);
+    const message = `Add session: ${session.date}`;
+    const existingContent = await getFileContent(
+      config.owner,
+      config.repo,
+      filePath,
+      branch
+    );
 
-  return putFile(config, filePath, markdown, message);
+    if (existingContent !== null) {
+      if (existingContent === markdown) {
+        const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+        return {
+          success: true,
+          message: 'Session already exists on GitHub',
+          filePath,
+          sha: sha ?? undefined,
+          branch,
+        };
+      }
+
+      return {
+        success: false,
+        message: `GitHub session create for ${session.id} failed: ${filePath} already exists with different content`,
+      };
+    }
+
+    const result = await putFile(config, filePath, markdown, message);
+    if (result.success) {
+      return result;
+    }
+
+    const concurrentContent = await getFileContent(
+      config.owner,
+      config.repo,
+      filePath,
+      branch
+    );
+
+    if (concurrentContent === markdown) {
+      const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+      return {
+        success: true,
+        message: 'Session already exists on GitHub',
+        filePath,
+        sha: sha ?? undefined,
+        branch,
+      };
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      message: getActionableGitHubErrorMessage(
+        `GitHub session create for ${session.id}`,
+        error
+      ),
+    };
+  }
 }
 
 /**

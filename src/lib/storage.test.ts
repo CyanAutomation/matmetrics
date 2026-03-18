@@ -6,6 +6,7 @@ import {
   __resetStorageStateForTests,
   getSessions,
   initializeStorage,
+  retryCloudSync,
   saveSession,
   teardownStorageListeners,
 } from './storage';
@@ -194,6 +195,94 @@ test('retryable create failures remain queued for later sync', async () => {
       getSessions().map((entry) => entry.id),
       ['session-retryable-failure']
     );
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('successful create stays visible until refresh confirms the remote copy', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const session = makeSession('session-refresh-confirmation');
+  let listRequests = 0;
+
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      return new Response(JSON.stringify(session), { status: 201 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      listRequests += 1;
+      return new Response(
+        JSON.stringify(listRequests === 1 ? [] : [session]),
+        { status: 200 }
+      );
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+
+    const result = await saveSession(session);
+    assert.equal(result.status, 'synced');
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      getSessions().map((entry) => entry.id),
+      ['session-refresh-confirmation']
+    );
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('sync lease prevents replay when another tab already owns the queue flush', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  localStorage.setItem(
+    'matmetrics_sync_queue:user-1',
+    JSON.stringify([
+      {
+        type: 'CREATE',
+        session: makeSession('session-queued-elsewhere'),
+        queuedAt: 1,
+      },
+    ])
+  );
+  localStorage.setItem(
+    'matmetrics_sync_lock:user-1',
+    JSON.stringify({
+      owner: 'other-tab',
+      expiresAt: Date.now() + 60_000,
+    })
+  );
+
+  let requestCount = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async () => {
+    requestCount += 1;
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.equal(requestCount, 0);
+    assert.equal(getQueue().length, 1);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();

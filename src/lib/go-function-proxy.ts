@@ -27,11 +27,17 @@ export async function proxyGoFunction(
     targetURL.search = options.searchParams.toString();
   }
 
+  const headers = new Headers();
+  headers.set('content-type', 'application/json');
+
+  const authorization = request.headers.get('authorization');
+  if (authorization) {
+    headers.set('authorization', authorization);
+  }
+
   const response = await fetch(targetURL.toString(), {
     method: options.method || 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
 
