@@ -64,7 +64,10 @@ function createOp(id: string, queuedAt: number): SyncOperation {
 function resetQueue(initialQueue?: SyncOperation[]): void {
   localStorage.clear();
   if (initialQueue) {
-    localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(initialQueue));
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify(initialQueue)
+    );
   }
 }
 

@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    if (typeof body?.description !== 'string' || body.description.trim() === '') {
+    if (
+      typeof body?.description !== 'string' ||
+      body.description.trim() === ''
+    ) {
       return NextResponse.json(
         { error: 'Description is required' },
         { status: 400 }

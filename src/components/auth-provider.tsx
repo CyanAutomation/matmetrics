@@ -1,6 +1,12 @@
-"use client"
+'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -11,16 +17,16 @@ import {
   signOut,
   updateProfile,
   type User,
-} from "firebase/auth";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase-client";
-import { setActiveUserId } from "@/lib/client-identity";
+} from 'firebase/auth';
+import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase-client';
+import { setActiveUserId } from '@/lib/client-identity';
 import {
   clearUserPreferencesState,
   getCurrentPreferences,
   initializeUserPreferences,
   subscribeToPreferences,
-} from "@/lib/user-preferences";
-import type { AuthenticatedUser, UserPreferences } from "@/lib/types";
+} from '@/lib/user-preferences';
+import type { AuthenticatedUser, UserPreferences } from '@/lib/types';
 
 type AuthContextValue = {
   authReady: boolean;
@@ -30,7 +36,11 @@ type AuthContextValue = {
   isConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
+  signUpWithEmail: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
 };
@@ -95,31 +105,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isConfigured]);
 
-  const value = useMemo<AuthContextValue>(() => ({
-    authReady,
-    preferencesReady,
-    user,
-    preferences,
-    isConfigured,
-    async signInWithGoogle() {
-      await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
-    },
-    async signInWithEmail(email: string, password: string) {
-      await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
-    },
-    async signUpWithEmail(name: string, email: string, password: string) {
-      const credentials = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
-      if (name.trim()) {
-        await updateProfile(credentials.user, { displayName: name.trim() });
-      }
-    },
-    async sendPasswordReset(email: string) {
-      await sendPasswordResetEmail(getFirebaseAuth(), email);
-    },
-    async signOutUser() {
-      await signOut(getFirebaseAuth());
-    },
-  }), [authReady, isConfigured, preferences, preferencesReady, user]);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      authReady,
+      preferencesReady,
+      user,
+      preferences,
+      isConfigured,
+      async signInWithGoogle() {
+        await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
+      },
+      async signInWithEmail(email: string, password: string) {
+        await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+      },
+      async signUpWithEmail(name: string, email: string, password: string) {
+        const credentials = await createUserWithEmailAndPassword(
+          getFirebaseAuth(),
+          email,
+          password
+        );
+        if (name.trim()) {
+          await updateProfile(credentials.user, { displayName: name.trim() });
+        }
+      },
+      async sendPasswordReset(email: string) {
+        await sendPasswordResetEmail(getFirebaseAuth(), email);
+      },
+      async signOutUser() {
+        await signOut(getFirebaseAuth());
+      },
+    }),
+    [authReady, isConfigured, preferences, preferencesReady, user]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -127,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error('useAuth must be used within AuthProvider');
   }
 
   return context;

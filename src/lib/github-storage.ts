@@ -24,7 +24,10 @@ interface GitHubTreeEntry {
 }
 
 class GitHubApiError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
     super(message);
     this.name = 'GitHubApiError';
   }
@@ -34,7 +37,10 @@ function isGitHubApiError(error: unknown): error is GitHubApiError {
   return error instanceof GitHubApiError;
 }
 
-function getActionableGitHubErrorMessage(action: string, error: unknown): string {
+function getActionableGitHubErrorMessage(
+  action: string,
+  error: unknown
+): string {
   if (error instanceof GitHubApiError) {
     if (error.status === 401) {
       return `${action} failed: GitHub authentication failed (401). Verify GITHUB_TOKEN is valid and has repository access.`;
@@ -64,7 +70,9 @@ function getActionableGitHubErrorMessage(action: string, error: unknown): string
 
 function validateSessionIdLength(sessionId: string): void {
   if (sessionId.length > 100) {
-    throw new Error('Session ID exceeds maximum allowed length of 100 characters');
+    throw new Error(
+      'Session ID exceeds maximum allowed length of 100 characters'
+    );
   }
 }
 
@@ -104,12 +112,12 @@ async function githubApiRequest(
   }
 
   const url = `https://api.github.com${path}`;
-  
+
   const response = await fetch(url, {
     method,
     headers: {
       Authorization: `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
+      Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'matmetrics',
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -202,8 +210,9 @@ async function getTreeEntriesForPath(
 
     const prefix = `${rootPath.replace(/\/+$/, '')}/`;
 
-    return treeData.tree.filter((entry: GitHubTreeEntry) =>
-      typeof entry?.path === 'string' && entry.path.startsWith(prefix)
+    return treeData.tree.filter(
+      (entry: GitHubTreeEntry) =>
+        typeof entry?.path === 'string' && entry.path.startsWith(prefix)
     );
   } catch (error) {
     if (isGitHubApiError(error)) {
@@ -212,7 +221,7 @@ async function getTreeEntriesForPath(
       }
       throw error;
     }
-    
+
     throw error;
   }
 }
@@ -246,7 +255,11 @@ async function listTreeEntriesFromContentsApi(
       );
       contents = Array.isArray(data) ? data : [];
     } catch (error) {
-      if (isGitHubApiError(error) && error.status === 404 && currentPath === normalizedRootPath) {
+      if (
+        isGitHubApiError(error) &&
+        error.status === 404 &&
+        currentPath === normalizedRootPath
+      ) {
         return [];
       }
       throw error;
@@ -284,7 +297,10 @@ async function resolveBranch(config: GitHubConfig): Promise<string> {
   }
 
   try {
-    const repoData = await githubApiRequest('GET', `/repos/${config.owner}/${config.repo}`);
+    const repoData = await githubApiRequest(
+      'GET',
+      `/repos/${config.owner}/${config.repo}`
+    );
     const defaultBranch = repoData?.default_branch;
 
     if (typeof defaultBranch !== 'string' || defaultBranch.trim() === '') {
@@ -294,7 +310,8 @@ async function resolveBranch(config: GitHubConfig): Promise<string> {
     defaultBranchCache.set(cacheKey, defaultBranch);
     return defaultBranch;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     throw new Error(
       `Unable to resolve repository branch for ${config.owner}/${config.repo}: ${errorMessage}`
     );
@@ -328,7 +345,11 @@ export async function findSessionPathOnGitHubById(
     }
 
     const [rootDir, year, month, fileName] = pathParts;
-    if (rootDir !== GITHUB_SESSION_ROOT || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
+    if (
+      rootDir !== GITHUB_SESSION_ROOT ||
+      !/^\d{4}$/.test(year) ||
+      !/^\d{2}$/.test(month)
+    ) {
       continue;
     }
 
@@ -353,7 +374,7 @@ async function putFile(
   try {
     const contentBase64 = Buffer.from(content).toString('base64');
     const branch = await resolveBranch(config);
-    
+
     const body = {
       message,
       content: contentBase64,
@@ -375,7 +396,8 @@ async function putFile(
       branch,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
       message: `GitHub sync failed: ${errorMessage}`,
@@ -414,7 +436,12 @@ export async function updateSessionOnGitHub(
     if (!sha) {
       discoveredPath = await findSessionPathOnGitHubById(session.id, config);
       if (discoveredPath) {
-        sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
+        sha = await getFileSha(
+          config.owner,
+          config.repo,
+          discoveredPath,
+          branch
+        );
       }
     }
 
@@ -456,7 +483,8 @@ export async function updateSessionOnGitHub(
         success: true,
         message: 'Session updated on GitHub',
         filePath: expectedPath,
-        sha: createResult.sha ?? deleteResult?.content?.sha ?? deleteResult?.sha,
+        sha:
+          createResult.sha ?? deleteResult?.content?.sha ?? deleteResult?.sha,
         branch,
       };
     }
@@ -488,10 +516,18 @@ export async function deleteSessionOnGitHub(
     let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
 
     if (!sha) {
-      const discoveredPath = await findSessionPathOnGitHubById(session.id, config);
+      const discoveredPath = await findSessionPathOnGitHubById(
+        session.id,
+        config
+      );
       if (discoveredPath) {
         filePath = discoveredPath;
-        sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
+        sha = await getFileSha(
+          config.owner,
+          config.repo,
+          discoveredPath,
+          branch
+        );
       }
     }
 
@@ -617,7 +653,12 @@ Each session includes:
 `;
 
     const branch = await resolveBranch(config);
-    const sha = await getFileSha(config.owner, config.repo, 'README.md', branch);
+    const sha = await getFileSha(
+      config.owner,
+      config.repo,
+      'README.md',
+      branch
+    );
     return putFile(
       config,
       'README.md',
@@ -667,19 +708,31 @@ export async function bulkPushSessions(
     const latestDate = sessions
       .map((session) => {
         const timestamp = Date.parse(session.date);
-        return Number.isNaN(timestamp) ? null : { date: session.date, timestamp };
+        return Number.isNaN(timestamp)
+          ? null
+          : { date: session.date, timestamp };
       })
-      .filter((session): session is { date: string; timestamp: number } => session !== null)
-      .reduce<{ date: string; timestamp: number } | undefined>((max, session) => {
-        if (!max || session.timestamp > max.timestamp) {
-          return session;
-        }
+      .filter(
+        (session): session is { date: string; timestamp: number } =>
+          session !== null
+      )
+      .reduce<{ date: string; timestamp: number } | undefined>(
+        (max, session) => {
+          if (!max || session.timestamp > max.timestamp) {
+            return session;
+          }
 
-        return max;
-      }, undefined)?.date;
+          return max;
+        },
+        undefined
+      )?.date;
 
     // Update README with stats
-    const readmeResult = await createGitHubReadme(config, sessions.length, latestDate);
+    const readmeResult = await createGitHubReadme(
+      config,
+      sessions.length,
+      latestDate
+    );
 
     const readmeWarning = readmeResult.success
       ? ''
@@ -692,7 +745,8 @@ export async function bulkPushSessions(
       }.${readmeWarning}`,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
       message: `Bulk push failed: ${errorMessage}`,
@@ -723,7 +777,8 @@ export async function validateGitHubCredentials(
       branch,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
       message: `Connection failed (owner=${config.owner}, repo=${config.repo}, branch=${config.branch || 'default'}): ${errorMessage}`,

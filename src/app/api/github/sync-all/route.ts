@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
 
     if (!isGitHubConfigured()) {
       return NextResponse.json(
-        { success: false, message: 'GITHUB_TOKEN environment variable not configured' },
+        {
+          success: false,
+          message: 'GITHUB_TOKEN environment variable not configured',
+        },
         { status: 400 }
       );
     }

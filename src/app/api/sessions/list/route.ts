@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listSessionsForConfig, normalizeGitHubConfig } from '@/lib/session-storage';
+import {
+  listSessionsForConfig,
+  normalizeGitHubConfig,
+} from '@/lib/session-storage';
 import {
   buildGitHubSearchParams,
   proxyGoFunction,

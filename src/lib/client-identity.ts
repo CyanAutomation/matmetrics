@@ -1,9 +1,9 @@
-const DEFAULT_SCOPE = "signed-out";
+const DEFAULT_SCOPE = 'signed-out';
 
 let activeUserId: string | null = null;
 
 export function setActiveUserId(userId: string | null | undefined): void {
-  const normalized = typeof userId === "string" ? userId.trim() : "";
+  const normalized = typeof userId === 'string' ? userId.trim() : '';
   activeUserId = normalized || null;
 }
 
