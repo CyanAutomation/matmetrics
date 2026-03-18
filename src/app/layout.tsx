@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppProviders } from '@/components/app-providers';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'MatMetrics | Judo Practice Tracker',
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-body antialiased bg-background">
         <AppProviders>{children}</AppProviders>
+        <Analytics />
       </body>
     </html>
   );
