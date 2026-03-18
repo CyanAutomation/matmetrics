@@ -101,3 +101,82 @@ func TestMarkdownOutputUsesExpectedHeadings(t *testing.T) {
 		t.Fatalf("unexpected section order in rendered markdown: %q", rendered)
 	}
 }
+
+func TestMarkdownToSessionWithSingleQuotedFrontmatter(t *testing.T) {
+	input := `---
+id: 'single-quoted-session''v2'
+date: '2026-03-18'
+effort: 3
+category: 'Technical'
+duration: 75
+---
+
+# March 18, 2026 – Judo Session
+
+## Techniques Practiced
+- O uchi gari
+
+## Session Description
+
+Single-quoted frontmatter should parse.
+
+## Notes
+
+Coach''s note should preserve apostrophe.`
+
+	parsed, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+
+	if parsed.ID != "single-quoted-session'v2" {
+		t.Fatalf("unexpected ID: %q", parsed.ID)
+	}
+	if parsed.Date != "2026-03-18" {
+		t.Fatalf("unexpected date: %q", parsed.Date)
+	}
+	if parsed.Category != model.CategoryTechnical {
+		t.Fatalf("unexpected category: %q", parsed.Category)
+	}
+	if parsed.Duration == nil || *parsed.Duration != 75 {
+		t.Fatalf("unexpected duration: %#v", parsed.Duration)
+	}
+}
+
+func TestMarkdownToSessionWithMixedQuotedFrontmatter(t *testing.T) {
+	input := `---
+id: 'mixed-quoted-session'
+date: "2026-03-18"
+effort: 4
+category: 'Randori'
+duration: 60
+---
+
+# March 18, 2026 – Judo Session
+
+## Techniques Practiced
+- Sasae tsurikomi ashi
+
+## Session Description
+
+Mixed quoting should parse.
+`
+
+	parsed, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+
+	if parsed.ID != "mixed-quoted-session" {
+		t.Fatalf("unexpected ID: %q", parsed.ID)
+	}
+	if parsed.Date != "2026-03-18" {
+		t.Fatalf("unexpected date: %q", parsed.Date)
+	}
+	if parsed.Category != model.CategoryRandori {
+		t.Fatalf("unexpected category: %q", parsed.Category)
+	}
+	if parsed.Duration == nil || *parsed.Duration != 60 {
+		t.Fatalf("unexpected duration: %#v", parsed.Duration)
+	}
+}
