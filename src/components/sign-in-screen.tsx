@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
+import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
+import { useActionFeedback } from '@/hooks/use-action-feedback';
 
 type AuthMode = 'sign-in' | 'sign-up' | 'reset';
 
@@ -37,6 +39,9 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const googleFeedback = useActionFeedback();
+  const githubFeedback = useActionFeedback();
+  const emailFeedback = useActionFeedback();
 
   const title =
     mode === 'sign-up'
@@ -55,6 +60,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
+    emailFeedback.startLoading();
 
     try {
       if (mode === 'sign-in') {
@@ -68,12 +74,14 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
       }
 
       await sendPasswordReset(email);
+      emailFeedback.showSuccess();
       toast({
         title: 'Password reset sent',
         description: 'Check your inbox for a Firebase password reset email.',
       });
       setMode('sign-in');
     } catch (error) {
+      emailFeedback.showError();
       const message =
         error instanceof Error ? error.message : 'Authentication failed';
       toast({
@@ -88,9 +96,11 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
+    googleFeedback.startLoading();
     try {
       await signInWithGoogle();
     } catch (error) {
+      googleFeedback.showError();
       const message =
         error instanceof Error ? error.message : 'Google sign-in failed';
       toast({
@@ -105,9 +115,11 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
 
   const handleGitHubSignIn = async () => {
     setIsSubmitting(true);
+    githubFeedback.startLoading();
     try {
       await signInWithGitHub();
     } catch (error) {
+      githubFeedback.showError();
       const message =
         error instanceof Error ? error.message : 'GitHub sign-in failed';
       toast({
@@ -122,7 +134,9 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
 
   return (
     <div className="w-full bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_40%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--secondary)/0.35))] flex items-center justify-center p-1">
-      <Card className="w-full max-w-md shadow-2xl border-primary/15">
+      <Card
+        className={`w-full max-w-md shadow-2xl border-primary/15 ${CARD_INTERACTION_CLASS}`}
+      >
         <CardHeader className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground">
@@ -163,6 +177,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
               type="button"
               className="w-full h-11"
               variant={isConfigured ? 'secondary' : 'default'}
+              interaction={isConfigured ? 'subtle' : 'primary-action'}
               onClick={onContinueAsGuest}
               disabled={isSubmitting}
             >
@@ -189,6 +204,8 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 type="button"
                 variant="outline"
                 className="w-full h-11"
+                interaction="subtle"
+                feedbackState={googleFeedback.feedbackState}
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting}
               >
@@ -204,6 +221,8 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 type="button"
                 variant="outline"
                 className="w-full h-11"
+                interaction="subtle"
+                feedbackState={githubFeedback.feedbackState}
                 onClick={handleGitHubSignIn}
                 disabled={isSubmitting}
               >
@@ -267,6 +286,8 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 )}
 
                 <Button
+                  interaction="primary-action"
+                  feedbackState={emailFeedback.feedbackState}
                   type="submit"
                   className="w-full h-11"
                   disabled={isSubmitting}

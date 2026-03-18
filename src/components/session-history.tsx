@@ -22,7 +22,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { SessionLogForm } from '@/components/session-log-form';
-import { parseDateOnly } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
+import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -84,7 +85,10 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
       {sessions.map((session) => (
         <Card
           key={session.id}
-          className="overflow-hidden border-l-4 border-l-primary/30 hover:shadow-md transition-shadow"
+          className={cn(
+            'overflow-hidden border-l-4 border-l-primary/30',
+            CARD_INTERACTION_CLASS
+          )}
         >
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between p-5 gap-4">
@@ -141,6 +145,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    interaction="subtle"
                     className="text-muted-foreground hover:text-primary hover:bg-primary/5"
                     onClick={() => setEditingSession(session)}
                   >
@@ -149,6 +154,10 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    interaction="destructive"
+                    feedbackState={
+                      deletingSessionId === session.id ? 'loading' : 'idle'
+                    }
                     className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
                     disabled={deletingSessionId === session.id}
                     onClick={() => handleDelete(session.id)}
