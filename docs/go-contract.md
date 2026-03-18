@@ -28,7 +28,7 @@ category: 'Technical'
 duration: 90
 ---
 
-# March 17, 2026 – Judo Session
+# 2026-03-17 - Judo Session: Technical
 
 ## Techniques Practiced
 
@@ -51,7 +51,7 @@ Rules:
   - `Techniques Practiced`
   - `Session Description`
   - `Notes`
-- The title line uses an en dash: `# Month Day, Year – Judo Session`.
+- The title line uses ISO date with category: `# YYYY-MM-DD - Judo Session: Category`.
 
 ## Local file layout
 

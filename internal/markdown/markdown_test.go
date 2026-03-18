@@ -49,7 +49,7 @@ effort: 3
 category: "Technical"
 ---
 
-# March 16, 2026 – Judo Session
+# 2026-03-16 - Judo Session: Technical
 
 ## Techniques Practiced
 - O soto gari
@@ -89,7 +89,7 @@ func TestMarkdownOutputUsesExpectedHeadings(t *testing.T) {
 		t.Fatalf("SessionToMarkdown() error = %v", err)
 	}
 
-	titleIndex := strings.Index(rendered, "# March 17, 2026 – Judo Session")
+	titleIndex := strings.Index(rendered, "# 2026-03-17 - Judo Session: Technical")
 	techniquesHeadingIndex := strings.Index(rendered, "## Techniques Practiced")
 	noneRecordedIndex := strings.Index(rendered, "- (none recorded)")
 
@@ -111,7 +111,7 @@ category: 'Technical'
 duration: 75
 ---
 
-# March 18, 2026 – Judo Session
+# 2026-03-18 - Judo Session: Technical
 
 ## Techniques Practiced
 - O uchi gari
@@ -152,7 +152,7 @@ category: 'Randori'
 duration: 60
 ---
 
-# March 18, 2026 – Judo Session
+# 2026-03-18 - Judo Session: Randori
 
 ## Techniques Practiced
 - Sasae tsurikomi ashi
