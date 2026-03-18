@@ -209,6 +209,15 @@ func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
 	}
 	firebaseCertsCache.RUnlock()
 
+	firebaseCertsCache.Lock()
+	// Double-check pattern: verify cache is still expired after acquiring write lock
+	if time.Now().Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
+		cached := firebaseCertsCache.certs
+		firebaseCertsCache.Unlock()
+		return cached, nil
+	}
+	firebaseCertsCache.Unlock()
+
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, firebaseCertsURL, nil)
 	if err != nil {
 		return nil, err
