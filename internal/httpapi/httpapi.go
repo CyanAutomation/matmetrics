@@ -77,6 +77,10 @@ func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if os.Getenv("MATMETRICS_AUTH_TEST_MODE") == "true" {
+		if token != "test-token" {
+			WriteError(w, http.StatusUnauthorized, "Invalid test token")
+			return false
+		}
 		return true
 	}
 
