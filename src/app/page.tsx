@@ -19,7 +19,12 @@ import { SessionHistory } from '@/components/session-history';
 import { TagManager } from '@/components/tag-manager';
 import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
-import { getSessions, initializeStorage, getSyncStatus } from '@/lib/storage';
+import {
+  getSessions,
+  initializeStorage,
+  getSyncStatus,
+  saveSession,
+} from '@/lib/storage';
 import { JudoSession } from '@/lib/types';
 import {
   LayoutDashboard,
@@ -33,6 +38,8 @@ import {
   WifiOff,
   Loader2,
   CheckCircle,
+  LockKeyhole,
+  Sparkles,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -47,6 +54,16 @@ import {
 import { isSameMonthAndYear } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
 import { SignInScreen } from '@/components/sign-in-screen';
+import {
+  clearGuestWorkspaceAfterImport,
+  dismissGuestImport,
+  getGuestSessionsForImport,
+  getGuestWorkspaceSummary,
+  shouldPromptGuestImport,
+} from '@/lib/guest-mode';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 const JudoBeltIcon = ({ className }: { className?: string }) => (
   <svg
@@ -66,28 +83,40 @@ const JudoBeltIcon = ({ className }: { className?: string }) => (
 );
 
 export default function Home() {
-  const { authReady, preferencesReady, user, signOutUser } = useAuth();
+  const { toast } = useToast();
+  const {
+    authReady,
+    preferencesReady,
+    user,
+    signOutUser,
+    authMode,
+    authAvailable,
+  } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImportingGuestData, setIsImportingGuestData] = useState(false);
   const [syncStatus, setSyncStatus] = useState(getSyncStatus());
+  const [guestWorkspace, setGuestWorkspace] = useState(() =>
+    getGuestWorkspaceSummary()
+  );
 
   const refreshSessions = useCallback(() => {
     setSessions(getSessions());
     setSyncStatus(getSyncStatus());
+    setGuestWorkspace(getGuestWorkspaceSummary());
   }, []);
 
   useEffect(() => {
-    // Initialize storage (migration, online/offline listeners)
     initializeStorage();
     refreshSessions();
 
-    // Listen for storage sync events from the API
     const handleStorageSync = () => {
       refreshSessions();
     };
 
-    // Also listen for traditional storage events (for tab sync)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key?.startsWith('matmetrics_sessions:')) {
         refreshSessions();
@@ -97,7 +126,6 @@ export default function Home() {
     window.addEventListener('storageSync', handleStorageSync);
     window.addEventListener('storage', handleStorageChange);
 
-    // Poll sync status every 500ms to show real-time updates
     const statusInterval = setInterval(() => {
       setSyncStatus(getSyncStatus());
     }, 500);
@@ -107,7 +135,17 @@ export default function Home() {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(statusInterval);
     };
-  }, [refreshSessions, user?.uid]);
+  }, [refreshSessions, user?.uid, authMode]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsImportDialogOpen(false);
+      return;
+    }
+
+    setIsAuthDialogOpen(false);
+    setIsImportDialogOpen(shouldPromptGuestImport(user.uid));
+  }, [user, sessions.length]);
 
   const handleSessionAdded = () => {
     refreshSessions();
@@ -115,27 +153,58 @@ export default function Home() {
     if (activeTab !== 'history') setActiveTab('history');
   };
 
+  const handleDismissGuestImport = () => {
+    if (!user) {
+      return;
+    }
+
+    dismissGuestImport(user.uid);
+    setIsImportDialogOpen(false);
+  };
+
+  const handleImportGuestData = async () => {
+    if (!user) {
+      return;
+    }
+
+    setIsImportingGuestData(true);
+    try {
+      const guestSessions = getGuestSessionsForImport();
+      guestSessions.forEach((session) => {
+        saveSession(session);
+      });
+      clearGuestWorkspaceAfterImport();
+      refreshSessions();
+      setIsImportDialogOpen(false);
+      toast({
+        title: 'Guest sessions imported',
+        description: `${guestSessions.length} local session${guestSessions.length === 1 ? '' : 's'} moved into your account.`,
+      });
+    } finally {
+      setIsImportingGuestData(false);
+    }
+  };
+
   if (!authReady || !preferencesReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Loading your account...</span>
+          <span>Loading your workspace...</span>
         </div>
       </div>
     );
   }
 
-  if (!user) {
-    return <SignInScreen />;
-  }
-
-  const initials = (user.displayName || user.email || 'MM')
+  const isGuest = authMode === 'guest';
+  const initials = (user?.displayName || user?.email || (isGuest ? 'Guest' : 'MM'))
     .split(/\s+/)
     .map((part) => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const guestBadgeLabel =
+    guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview';
 
   return (
     <SidebarProvider>
@@ -146,8 +215,15 @@ export default function Home() {
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
                 <JudoBeltIcon className="h-6 w-6" />
               </div>
-              <div className="font-headline font-black text-2xl tracking-tighter text-primary">
-                MatMetrics
+              <div>
+                <div className="font-headline font-black text-2xl tracking-tighter text-primary">
+                  MatMetrics
+                </div>
+                {isGuest && (
+                  <Badge variant="outline" className="mt-1 border-primary/20">
+                    {guestBadgeLabel}
+                  </Badge>
+                )}
               </div>
             </div>
           </SidebarHeader>
@@ -247,42 +323,53 @@ export default function Home() {
                 <Info className="h-3 w-3" />
                 <span>v1.2.0 Stable</span>
               </div>
-              <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
-                {!syncStatus.isOnline ? (
-                  <>
-                    <WifiOff className="h-3 w-3 text-amber-500" />
-                    <span className="text-amber-600 dark:text-amber-400">
-                      Offline
-                    </span>
-                    {syncStatus.pendingCount > 0 && (
-                      <span className="ml-auto text-amber-600 dark:text-amber-400">
-                        {syncStatus.pendingCount} pending
+              {isGuest ? (
+                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-primary">
+                    {guestWorkspace.source === 'custom'
+                      ? 'Local guest data'
+                      : 'Demo data loaded'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
+                  {!syncStatus.isOnline ? (
+                    <>
+                      <WifiOff className="h-3 w-3 text-amber-500" />
+                      <span className="text-amber-600 dark:text-amber-400">
+                        Offline
                       </span>
-                    )}
-                  </>
-                ) : syncStatus.isSyncing ? (
-                  <>
-                    <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                    <span className="text-blue-600 dark:text-blue-400">
-                      Syncing...
-                    </span>
-                  </>
-                ) : syncStatus.pendingCount > 0 ? (
-                  <>
-                    <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                    <span className="text-blue-600 dark:text-blue-400">
-                      {syncStatus.pendingCount} syncing
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                    <span className="text-green-600 dark:text-green-400">
-                      Synced
-                    </span>
-                  </>
-                )}
-              </div>
+                      {syncStatus.pendingCount > 0 && (
+                        <span className="ml-auto text-amber-600 dark:text-amber-400">
+                          {syncStatus.pendingCount} pending
+                        </span>
+                      )}
+                    </>
+                  ) : syncStatus.isSyncing ? (
+                    <>
+                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                      <span className="text-blue-600 dark:text-blue-400">
+                        Syncing...
+                      </span>
+                    </>
+                  ) : syncStatus.pendingCount > 0 ? (
+                    <>
+                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {syncStatus.pendingCount} syncing
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      <span className="text-green-600 dark:text-green-400">
+                        Synced
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </SidebarFooter>
         </Sidebar>
@@ -312,20 +399,31 @@ export default function Home() {
               <ModeToggle />
               <div className="hidden sm:flex flex-col items-end mr-2">
                 <span className="text-sm font-bold">
-                  {user.displayName || user.email || 'MatMetrics User'}
+                  {user?.displayName || user?.email || 'Guest Mode'}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-                  {user.email || 'Authenticated'}
+                  {user?.email || guestBadgeLabel}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void signOutUser()}
-                className="text-muted-foreground"
-              >
-                Logout
-              </Button>
+              {user ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void signOutUser()}
+                  className="text-muted-foreground"
+                >
+                  Logout
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsAuthDialogOpen(true)}
+                  className="text-muted-foreground"
+                >
+                  {authAvailable ? 'Sign in' : 'Sign-in info'}
+                </Button>
+              )}
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20">
                 {initials}
               </div>
@@ -333,7 +431,31 @@ export default function Home() {
           </header>
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-6">
+              {isGuest && (
+                <Alert className="border-primary/20 bg-primary/5">
+                  <LockKeyhole className="h-4 w-4 text-primary" />
+                  <AlertTitle className="flex items-center gap-2">
+                    Guest access is active
+                    <Badge variant="outline">{guestBadgeLabel}</Badge>
+                  </AlertTitle>
+                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {guestWorkspace.source === 'custom'
+                        ? 'You can keep logging sessions locally in this browser. Sign in to unlock AI tools, GitHub sync, and cloud-backed preferences.'
+                        : 'You are browsing a seeded preview workspace. Start editing to turn it into your own local guest workspace.'}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => setIsAuthDialogOpen(true)}
+                      variant="outline"
+                    >
+                      {authAvailable ? 'Sign in to unlock more' : 'View sign-in setup'}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {activeTab === 'dashboard' && (
                 <DashboardOverview sessions={sessions} />
               )}
@@ -389,6 +511,38 @@ export default function Home() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <SignInScreen onContinueAsGuest={() => setIsAuthDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import your guest sessions?</DialogTitle>
+            <DialogDescription>
+              You have local guest sessions in this browser. Import them into
+              your signed-in account or keep them separate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={handleDismissGuestImport}>
+              Keep separate
+            </Button>
+            <Button
+              onClick={() => void handleImportGuestData()}
+              disabled={isImportingGuestData}
+            >
+              {isImportingGuestData ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Import guest sessions
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </SidebarProvider>

@@ -32,7 +32,7 @@ import {
 
 export function GitHubSettings() {
   const { toast } = useToast();
-  const { user, preferences } = useAuth();
+  const { user, preferences, canUseGitHubSync, authAvailable } = useAuth();
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState('');
@@ -249,6 +249,20 @@ export function GitHubSettings() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {!canUseGitHubSync && (
+        <Alert className="bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-900 font-bold">
+            Sign-in required
+          </AlertTitle>
+          <AlertDescription className="text-amber-800">
+            {authAvailable
+              ? 'GitHub sync is only available for signed-in accounts because repository settings are stored per user.'
+              : 'GitHub sync is unavailable because Firebase authentication is not configured for this deployment.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Alert className="bg-blue-50 border-blue-200">
         <Github className="h-4 w-4 text-blue-600" />
         <AlertTitle className="text-blue-900 font-bold">GitHub Sync</AlertTitle>
@@ -308,7 +322,7 @@ export function GitHubSettings() {
                   placeholder="e.g., CyanAutomation"
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
-                  disabled={isEnabled && migrationDone}
+                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
                   className="border-blue-200 focus:border-blue-400"
                 />
               </div>
@@ -322,7 +336,7 @@ export function GitHubSettings() {
                   placeholder="e.g., my-judo-diary"
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
-                  disabled={isEnabled && migrationDone}
+                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
                   className="border-blue-200 focus:border-blue-400"
                 />
               </div>
@@ -336,7 +350,7 @@ export function GitHubSettings() {
                   placeholder="e.g., main, master, sync"
                   value={branch}
                   onChange={(e) => setBranch(e.target.value)}
-                  disabled={isEnabled && migrationDone}
+                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
                   className="border-blue-200 focus:border-blue-400"
                 />
               </div>
@@ -373,7 +387,7 @@ export function GitHubSettings() {
           <div className="flex gap-3 flex-wrap">
             <Button
               onClick={() => void handleTestConnection()}
-              disabled={isTesting || !owner || !repo}
+              disabled={!canUseGitHubSync || isTesting || !owner || !repo}
               variant="outline"
               className="gap-2"
             >
@@ -392,7 +406,7 @@ export function GitHubSettings() {
 
             <Button
               onClick={() => void handleSaveConfig()}
-              disabled={!owner || !repo || isEnabled}
+              disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
               className="gap-2 bg-blue-600 hover:bg-blue-700"
             >
               Save Configuration
@@ -401,6 +415,7 @@ export function GitHubSettings() {
             {isEnabled && (
               <Button
                 onClick={() => void handleDisable()}
+                disabled={!canUseGitHubSync}
                 variant="outline"
                 className="text-red-600 border-red-200 hover:bg-red-50"
               >
@@ -411,6 +426,7 @@ export function GitHubSettings() {
             {isEnabled && (
               <Button
                 onClick={() => void handleClear()}
+                disabled={!canUseGitHubSync}
                 variant="ghost"
                 size="sm"
                 className="text-gray-600 ml-auto"
@@ -446,7 +462,7 @@ export function GitHubSettings() {
             </p>
             <Button
               onClick={() => void handleBulkSync()}
-              disabled={isSyncing}
+              disabled={!canUseGitHubSync || isSyncing}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
               {isSyncing ? (

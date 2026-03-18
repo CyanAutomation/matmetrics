@@ -10,8 +10,12 @@ import {
   setQueue,
   getSyncQueueStorageKey,
 } from './sync-queue';
-import { getScopedStorageKey } from './client-identity';
+import { getScopedStorageKey, isGuestMode } from './client-identity';
 import { getAuthHeaders } from './auth-session';
+import {
+  ensureGuestWorkspaceSeeded,
+  markGuestWorkspaceCustom,
+} from './guest-mode';
 import {
   DEFAULT_GITHUB_SETTINGS,
   DEFAULT_TRANSFORMER_PROMPT,
@@ -43,6 +47,11 @@ export function initializeStorage(): void {
   if (typeof window === 'undefined') return;
 
   sessionCache = null;
+  isSyncing = false;
+
+  if (isGuestMode()) {
+    ensureGuestWorkspaceSeeded();
+  }
 
   // Set up online/offline detection exactly once
   if (!listenersInitialized) {
@@ -53,7 +62,7 @@ export function initializeStorage(): void {
   }
 
   // Try to sync if we have pending operations
-  if (isOnline && hasPendingOperations()) {
+  if (!isGuestMode() && isOnline && hasPendingOperations()) {
     void syncPendingOperations();
   }
 }
@@ -75,18 +84,19 @@ export function teardownStorageListeners(): void {
  */
 export function getSessions(): JudoSession[] {
   if (typeof window === 'undefined') return [];
+  const guestMode = isGuestMode();
 
   // If cache is populated, return it (even if online, we'll refresh in the background)
   if (sessionCache !== null) {
     // Refresh from API in the background if online
-    if (isOnline) {
+    if (isOnline && !guestMode) {
       void refreshSessionsFromAPI();
     }
     return sessionCache;
   }
 
-  // If offline, try to read from localStorage cache
-  if (!isOnline) {
+  // Guests always use local data only.
+  if (!isOnline || guestMode) {
     const cached = getLocalStorageCache();
     sessionCache = cached;
     return cached;
@@ -108,10 +118,15 @@ export function getSessions(): JudoSession[] {
  */
 export function saveSession(session: JudoSession): void {
   if (typeof window === 'undefined') return;
+  const guestMode = isGuestMode();
 
   // Update local cache immediately
   sessionCache = sessionCache ? [session, ...sessionCache] : [session];
   updateLocalStorageCache(sessionCache);
+  if (guestMode) {
+    markGuestWorkspaceCustom();
+    return;
+  }
 
   if (isOnline) {
     // Send to API with GitHub config if available
@@ -149,6 +164,7 @@ export function saveSession(session: JudoSession): void {
  */
 export function updateSession(session: JudoSession): void {
   if (typeof window === 'undefined') return;
+  const guestMode = isGuestMode();
 
   // Update local cache immediately
   const base = sessionCache ?? getLocalStorageCache();
@@ -165,6 +181,10 @@ export function updateSession(session: JudoSession): void {
 
   updateLocalStorageCache(updated);
   sessionCache = updated;
+  if (guestMode) {
+    markGuestWorkspaceCustom();
+    return;
+  }
 
   if (isOnline) {
     // Send to API with GitHub config if available
@@ -202,12 +222,17 @@ export function updateSession(session: JudoSession): void {
  */
 export function deleteSession(id: string): void {
   if (typeof window === 'undefined') return;
+  const guestMode = isGuestMode();
 
   // Update local cache immediately
   const base = sessionCache ?? getLocalStorageCache();
   const filtered = base.filter((s) => s.id !== id);
   sessionCache = filtered;
   updateLocalStorageCache(filtered);
+  if (guestMode) {
+    markGuestWorkspaceCustom();
+    return;
+  }
 
   if (isOnline) {
     // Send to API with GitHub config if available
@@ -400,6 +425,14 @@ export function getSyncStatus(): {
   isSyncing: boolean;
   pendingCount: number;
 } {
+  if (isGuestMode()) {
+    return {
+      isOnline,
+      isSyncing: false,
+      pendingCount: 0,
+    };
+  }
+
   return {
     isOnline,
     isSyncing,
@@ -437,6 +470,10 @@ function updateLocalStorageCache(sessions: JudoSession[]): void {
 function handleOnline(): void {
   isOnline = true;
 
+  if (isGuestMode()) {
+    return;
+  }
+
   // Sync pending operations when coming back online.
   // The sync flow already refreshes sessions after queue flush.
   if (hasPendingOperations()) {
@@ -466,6 +503,7 @@ function handleStorageEvent(event: StorageEvent): void {
 
   if (
     isStorageEventForKey(event, getSyncQueueStorageKey()) &&
+    !isGuestMode() &&
     isOnline &&
     hasPendingOperations()
   ) {
@@ -474,7 +512,7 @@ function handleStorageEvent(event: StorageEvent): void {
 }
 
 async function refreshSessionsFromAPI(): Promise<void> {
-  if (typeof window === 'undefined' || !isOnline) return;
+  if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
 
   const seq = ++refreshSeq;
 
@@ -516,7 +554,7 @@ async function refreshSessionsFromAPI(): Promise<void> {
 }
 
 async function syncPendingOperations(): Promise<void> {
-  if (!isOnline || isSyncing) return;
+  if (!isOnline || isSyncing || isGuestMode()) return;
 
   isSyncing = true;
 

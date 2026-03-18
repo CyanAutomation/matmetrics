@@ -36,6 +36,11 @@ type AuthContextValue = {
   user: AuthenticatedUser | null;
   preferences: UserPreferences;
   isConfigured: boolean;
+  authMode: 'authenticated' | 'guest';
+  authAvailable: boolean;
+  canUseAi: boolean;
+  canUseGitHubSync: boolean;
+  canSavePreferences: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -115,6 +120,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       preferences,
       isConfigured,
+      authMode: user ? 'authenticated' : 'guest',
+      authAvailable: isConfigured,
+      canUseAi: !!user && isConfigured,
+      canUseGitHubSync: !!user && isConfigured,
+      canSavePreferences: !!user && isConfigured,
       async signInWithGoogle() {
         await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
       },
