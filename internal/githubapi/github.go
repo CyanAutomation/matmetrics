@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -83,7 +84,7 @@ func (c *Client) Validate(config model.GitHubConfig) (ValidateResult, error) {
 	}
 
 	if strings.TrimSpace(config.Branch) != "" {
-		if _, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/branches/%s", config.Owner, config.Repo, branch), nil); err != nil {
+		if _, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/branches/%s", config.Owner, config.Repo, encodePathSegments(branch)), nil); err != nil {
 			return ValidateResult{Success: false, Message: err.Error()}, nil
 		}
 	}
@@ -241,7 +242,7 @@ func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) 
 		return err
 	}
 
-	_, err = c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, path), map[string]any{
+	_, err = c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(path)), map[string]any{
 		"message": fmt.Sprintf("Delete session by id: %s", sessionID),
 		"branch":  branch,
 		"sha":     sha,
@@ -312,7 +313,7 @@ func (c *Client) listGitHubSessionPaths(config model.GitHubConfig, branch string
 }
 
 func (c *Client) getTreeEntriesForPath(config model.GitHubConfig, branch string, rootPath string) ([]gitHubTreeEntry, error) {
-	refPayload, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/git/ref/heads/%s", config.Owner, config.Repo, branch), nil)
+	refPayload, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/git/ref/heads/%s", config.Owner, config.Repo, encodePathSegments(branch)), nil)
 	if err != nil {
 		if apiErr, ok := err.(*gitHubAPIError); ok && apiErr.Status == http.StatusNotFound {
 			return []gitHubTreeEntry{}, nil
@@ -379,7 +380,7 @@ func (c *Client) listTreeEntriesFromContentsAPI(config model.GitHubConfig, branc
 		currentPath := queue[0]
 		queue = queue[1:]
 
-		payload, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", config.Owner, config.Repo, currentPath, branch), nil)
+		payload, err := c.apiRequest(http.MethodGet, fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", config.Owner, config.Repo, encodePathSegments(currentPath), url.QueryEscape(branch)), nil)
 		if err != nil {
 			if apiErr, ok := err.(*gitHubAPIError); ok && apiErr.Status == http.StatusNotFound && currentPath == strings.Trim(rootPath, "/") {
 				return []gitHubTreeEntry{}, nil
@@ -460,13 +461,13 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 		body["sha"] = existingSHA
 	}
 
-	_, err = c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, filePath), body)
+	_, err = c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body)
 	if err != nil {
 		return "", err
 	}
 
 	if existingSHA != "" && existingPath != filePath {
-		_, err = c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, existingPath), map[string]any{
+		_, err = c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(existingPath)), map[string]any{
 			"message": fmt.Sprintf("Move session: %s", session.Date),
 			"branch":  branch,
 			"sha":     existingSHA,
@@ -480,7 +481,7 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 }
 
 func (c *Client) getFile(config model.GitHubConfig, filePath string, branch string) (sha string, content string, err error) {
-	path := fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", config.Owner, config.Repo, filePath, branch)
+	path := fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", config.Owner, config.Repo, encodePathSegments(filePath), url.QueryEscape(branch))
 	payload, err := c.apiRequest(http.MethodGet, path, nil)
 	if err != nil {
 		return "", "", err
@@ -502,6 +503,18 @@ func (c *Client) getFile(config model.GitHubConfig, filePath string, branch stri
 	return response.SHA, string(decoded), nil
 }
 
+func encodePathSegments(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	segments := strings.Split(path, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+
+	return strings.Join(segments, "/")
+}
 
 func (c *Client) resolveBranch(config model.GitHubConfig) (string, error) {
 	if strings.TrimSpace(config.Branch) != "" {
