@@ -72,6 +72,7 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
     url: string;
     method: string;
     body?: string;
+    authorization?: string | null;
   }> = [];
 
   process.env.GITHUB_TOKEN = 'test-token';
@@ -81,6 +82,7 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
       url: value,
       method: init?.method ?? 'GET',
       body: init?.body ? String(init.body) : undefined,
+      authorization: new Headers(init?.headers).get('authorization'),
     });
     if (value.includes('/api/go/sessions/create')) {
       return new Response(
@@ -117,6 +119,7 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
     assert.equal(forwardedRequests.length, 1);
     assert.equal(forwardedRequests[0].method, 'POST');
     assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/create$/);
+    assert.equal(forwardedRequests[0].authorization, 'Bearer test-token');
     assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
       session: {
         id: 'create-github-failure',

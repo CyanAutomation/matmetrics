@@ -28,9 +28,15 @@ import {
 } from './user-preferences';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
+const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
+const SYNC_LOCK_TTL_MS = 15_000;
 
 function getSessionsStorageKey(): string {
   return getScopedStorageKey(STORAGE_KEY_BASE);
+}
+
+function getSyncLockStorageKey(): string {
+  return getScopedStorageKey(SYNC_LOCK_KEY_BASE);
 }
 
 function isStorageEventForKey(event: StorageEvent, key: string): boolean {
@@ -45,6 +51,10 @@ let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
 let mutationVersion = 0;
+const syncOwnerId =
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `sync-owner-${Math.random().toString(36).slice(2)}`;
 
 type DirtyMutation =
   | {
@@ -69,6 +79,11 @@ type DirtyMutationInput =
     };
 
 const dirtyMutations = new Map<string, DirtyMutation>();
+
+type SyncLease = {
+  owner: string;
+  expiresAt: number;
+};
 
 class SyncRequestError extends Error {
   constructor(
@@ -163,6 +178,91 @@ function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[] {
 function commitLocalSessions(sessions: JudoSession[]): void {
   sessionCache = sessions;
   updateLocalStorageCache(sessions);
+}
+
+function readSyncLease(): SyncLease | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const stored = localStorage.getItem(getSyncLockStorageKey());
+    if (!stored) {
+      return null;
+    }
+
+    const parsed = JSON.parse(stored) as Partial<SyncLease>;
+    if (
+      typeof parsed.owner !== 'string' ||
+      !Number.isFinite(parsed.expiresAt)
+    ) {
+      localStorage.removeItem(getSyncLockStorageKey());
+      return null;
+    }
+
+    return {
+      owner: parsed.owner,
+      expiresAt: parsed.expiresAt,
+    };
+  } catch (error) {
+    console.error('Failed to parse sync lease', error);
+    localStorage.removeItem(getSyncLockStorageKey());
+    return null;
+  }
+}
+
+function tryAcquireSyncLease(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const now = Date.now();
+  const existingLease = readSyncLease();
+  if (
+    existingLease &&
+    existingLease.owner !== syncOwnerId &&
+    existingLease.expiresAt > now
+  ) {
+    return false;
+  }
+
+  const nextLease: SyncLease = {
+    owner: syncOwnerId,
+    expiresAt: now + SYNC_LOCK_TTL_MS,
+  };
+
+  localStorage.setItem(getSyncLockStorageKey(), JSON.stringify(nextLease));
+
+  const confirmedLease = readSyncLease();
+  return (
+    confirmedLease?.owner === syncOwnerId &&
+    confirmedLease.expiresAt === nextLease.expiresAt
+  );
+}
+
+function renewSyncLease(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.setItem(
+    getSyncLockStorageKey(),
+    JSON.stringify({
+      owner: syncOwnerId,
+      expiresAt: Date.now() + SYNC_LOCK_TTL_MS,
+    } satisfies SyncLease)
+  );
+}
+
+function releaseSyncLease(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const existingLease = readSyncLease();
+  if (existingLease?.owner === syncOwnerId) {
+    localStorage.removeItem(getSyncLockStorageKey());
+  }
 }
 
 function dispatchStorageSync(sessions: JudoSession[]): void {
@@ -339,7 +439,6 @@ export async function saveSession(
       );
     }
 
-    clearDirtyMutation(session.id, version);
     void refreshSessionsFromAPI();
     return { status: 'synced' };
   }
@@ -404,7 +503,6 @@ export async function updateSession(
       );
     }
 
-    clearDirtyMutation(session.id, version);
     void refreshSessionsFromAPI();
     return { status: 'synced' };
   }
@@ -460,7 +558,6 @@ export async function deleteSession(id: string): Promise<MutationResult> {
       );
     }
 
-    clearDirtyMutation(id, version);
     void refreshSessionsFromAPI();
     return { status: 'synced' };
   }
@@ -769,6 +866,7 @@ async function refreshSessionsFromAPI(): Promise<void> {
 
 async function syncPendingOperations(): Promise<void> {
   if (!isOnline || isSyncing || isGuestMode()) return;
+  if (!tryAcquireSyncLease()) return;
 
   isSyncing = true;
 
@@ -778,6 +876,7 @@ async function syncPendingOperations(): Promise<void> {
     const gitHubEnabled = isGitHubEnabled();
     for (const [index, operation] of queue.entries()) {
       try {
+        renewSyncLease();
         switch (operation.type) {
           case 'CREATE':
             const createBody: any = { ...operation.session };
@@ -856,6 +955,7 @@ async function syncPendingOperations(): Promise<void> {
     await refreshSessionsFromAPI();
   } finally {
     isSyncing = false;
+    releaseSyncLease();
   }
 }
 
@@ -868,4 +968,7 @@ export function __resetStorageStateForTests(): void {
   latestAppliedSeq = 0;
   mutationVersion = 0;
   dirtyMutations.clear();
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(getSyncLockStorageKey());
+  }
 }

@@ -26,7 +26,6 @@ import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
   clearGitHubConfigPreference,
-  saveGitHubConfigPreference,
   saveGitHubSettingsPreference,
 } from '@/lib/user-preferences';
 
@@ -81,7 +80,6 @@ export function GitHubSettings() {
       repo,
       ...(normalizedBranch && { branch: normalizedBranch }),
     };
-    await saveGitHubConfigPreference(user.uid, config);
     await saveGitHubSettingsPreference(user.uid, {
       ...preferences.gitHub,
       config,

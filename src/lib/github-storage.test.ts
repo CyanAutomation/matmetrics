@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   bulkPushSessions,
+  createSessionOnGitHub,
   findSessionPathOnGitHubById,
   getGitHubSessionPath,
   updateSessionOnGitHub,
 } from './github-storage';
+import { sessionToMarkdown } from './markdown-serializer';
 import type { JudoSession } from './types';
 
 function makeSession(id: string): JudoSession {
@@ -186,7 +188,18 @@ test('bulkPushSessions reports README update failure after pushing session conte
 
       if (
         path ===
-        '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md'
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
+        (init?.method ?? 'GET') === 'GET'
+      ) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
+
+      if (
+        path ===
+        '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
+        (init?.method ?? 'GET') === 'PUT'
       ) {
         sessionPutCount++;
         return new Response(
@@ -228,6 +241,67 @@ test('bulkPushSessions reports README update failure after pushing session conte
         result.message,
         /GitHub README update failed: GitHub service error \(500\)/
       );
+    }
+  );
+});
+
+test('createSessionOnGitHub treats an identical existing file as success', async () => {
+  const session = makeSession('session-1');
+  let putAttempts = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+      const method = init?.method ?? 'GET';
+
+      if (path === '/repos/o/r') {
+        return new Response(JSON.stringify({ default_branch: 'main' }), {
+          status: 200,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
+        method === 'GET'
+      ) {
+        return new Response(
+          JSON.stringify({
+            sha: 'existing-sha',
+            content: Buffer.from(sessionToMarkdown(session)).toString('base64'),
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
+        method === 'PUT'
+      ) {
+        putAttempts += 1;
+        return new Response(JSON.stringify({ message: 'Should not write' }), {
+          status: 500,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          message: `Unexpected request: ${method} ${path}`,
+        }),
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const result = await createSessionOnGitHub(session, {
+        owner: 'o',
+        repo: 'r',
+      });
+
+      assert.equal(result.success, true);
+      assert.equal(result.message, 'Session already exists on GitHub');
+      assert.equal(putAttempts, 0);
     }
   );
 });
