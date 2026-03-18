@@ -75,11 +75,39 @@ GITHUB_TOKEN=your_github_token
 
 # Google Genai API - Get from https://ai.google.dev/
 GOOGLE_GENAI_API_KEY=your_genai_api_key
+
+# Firebase client SDK - Firebase console → Project Settings → Your web app
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+
+# Firebase admin SDK - paste the full service account JSON on one line
+# Firebase console → Project Settings → Service accounts → Generate new private key
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
 ```
+
+Firebase values come from:
+
+| Variable                                   | Where to find it                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Firebase console → Project Settings → Your web app                                |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Firebase console → Project Settings → Your web app                                |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Firebase console → Project Settings → Your web app                                |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Firebase console → Project Settings → Your web app                                |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase console → Project Settings → Your web app                                |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase console → Project Settings → Your web app                                |
+| `FIREBASE_SERVICE_ACCOUNT_KEY`             | Firebase console → Project Settings → Service accounts → Generate new private key |
 
 ### Environment variable behavior
 
+- Copy `.env.example` to `.env.local` before starting the app. `.env.local` is intentionally ignored by git and should contain your real local credentials.
+- Firebase authentication and Firestore-backed preferences require all `NEXT_PUBLIC_FIREBASE_*` variables plus `FIREBASE_SERVICE_ACCOUNT_KEY`.
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
+- When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
+- `GOOGLE_GENAI_API_KEY` is required for AI-assisted technique suggestions and description transforms.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
