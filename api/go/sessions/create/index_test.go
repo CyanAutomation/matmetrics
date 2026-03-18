@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestHandlerRejectsOutOfRangeEffort(t *testing.T) {
+func TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
 
 	body, err := json.Marshal(sessionRequest{

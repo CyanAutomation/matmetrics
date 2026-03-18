@@ -110,102 +110,75 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
   }
 });
 
-test('POST returns 400 for invalid techniques element type', async () => {
-  const response = await POST(
-    new NextRequest('http://localhost/api/sessions/create', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
+test('POST returns 400 for invalid session payload fields', async (t) => {
+  const cases = [
+    {
+      name: 'techniques element type',
+      body: {
         id: 'create-invalid-techniques',
         date: '2025-01-12',
         effort: 3,
         category: 'Technical',
         techniques: ['osoto-gari', 42],
-      }),
-    })
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid techniques[1]: expected a string',
-  });
-});
-
-test('POST returns 400 for invalid date string', async () => {
-  const response = await POST(
-    new NextRequest('http://localhost/api/sessions/create', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
+      error: 'Invalid techniques[1]: expected a string',
+    },
+    {
+      name: 'date string',
+      body: {
         id: 'create-invalid-date',
         date: '2025-02-30',
         effort: 3,
         category: 'Technical',
         techniques: ['osoto-gari'],
-      }),
-    })
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid date: must be a real calendar date',
-  });
-});
-
-test('POST returns 400 for invalid duration type', async () => {
-  const response = await POST(
-    new NextRequest('http://localhost/api/sessions/create', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
+      error: 'Invalid date: must be a real calendar date',
+    },
+    {
+      name: 'duration type',
+      body: {
         id: 'create-invalid-duration',
         date: '2025-01-12',
         effort: 3,
         category: 'Technical',
         techniques: ['osoto-gari'],
         duration: '90',
-      }),
-    })
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid duration: expected a non-negative integer',
-  });
-});
-
-test('POST returns 400 for invalid description type', async () => {
-  const response = await POST(
-    new NextRequest('http://localhost/api/sessions/create', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
+      error: 'Invalid duration: expected a non-negative integer',
+    },
+    {
+      name: 'description type',
+      body: {
         id: 'create-invalid-description',
         date: '2025-01-12',
         effort: 3,
         category: 'Technical',
         techniques: ['osoto-gari'],
         description: { bad: true },
-      }),
-    })
-  );
+      },
+      error: 'Invalid description: expected a string',
+    },
+  ];
 
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid description: expected a string',
-  });
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(testCase.body),
+        })
+      );
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        error: testCase.error,
+      });
+    });
+  }
 });
 
 test('POST returns 401 when authorization header is missing', async () => {

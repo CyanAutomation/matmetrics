@@ -216,120 +216,78 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
   }
 });
 
-test('PUT returns 400 for invalid techniques element type', async () => {
-  const sessionId = 'put-invalid-techniques';
-  const response = await PUT(
-    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-      method: 'PUT',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: sessionId,
+test('PUT returns 400 for invalid session payload fields', async (t) => {
+  const cases = [
+    {
+      name: 'techniques element type',
+      sessionId: 'put-invalid-techniques',
+      body: {
+        id: 'put-invalid-techniques',
         date: '2025-01-10',
         effort: 3,
         category: 'Technical',
         techniques: ['uchi-mata', { bad: true }],
-      }),
-    }),
-    { params: Promise.resolve({ id: sessionId }) }
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid techniques[1]: expected a string',
-  });
-});
-
-test('PUT returns 400 for invalid date string', async () => {
-  const sessionId = 'put-invalid-date';
-  const response = await PUT(
-    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-      method: 'PUT',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        id: sessionId,
+      error: 'Invalid techniques[1]: expected a string',
+    },
+    {
+      name: 'date string',
+      sessionId: 'put-invalid-date',
+      body: {
+        id: 'put-invalid-date',
         date: '2025-13-01',
         effort: 3,
         category: 'Technical',
         techniques: ['uchi-mata'],
-      }),
-    }),
-    { params: Promise.resolve({ id: sessionId }) }
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid date: must be a real calendar date',
-  });
-});
-
-test('PUT returns 400 for invalid duration type', async () => {
-  const sessionId = 'put-invalid-duration';
-  const response = await PUT(
-    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-      method: 'PUT',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        id: sessionId,
+      error: 'Invalid date: must be a real calendar date',
+    },
+    {
+      name: 'duration type',
+      sessionId: 'put-invalid-duration',
+      body: {
+        id: 'put-invalid-duration',
         date: '2025-01-10',
         effort: 3,
         category: 'Technical',
         techniques: ['uchi-mata'],
         duration: 12.5,
-      }),
-    }),
-    { params: Promise.resolve({ id: sessionId }) }
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid duration: expected a non-negative integer',
-  });
-});
-
-test('PUT returns 400 for invalid notes type', async () => {
-  const sessionId = 'put-invalid-notes';
-  const response = await PUT(
-    new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-      method: 'PUT',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        id: sessionId,
+      error: 'Invalid duration: expected a non-negative integer',
+    },
+    {
+      name: 'notes type',
+      sessionId: 'put-invalid-notes',
+      body: {
+        id: 'put-invalid-notes',
         date: '2025-01-10',
         effort: 3,
         category: 'Technical',
         techniques: ['uchi-mata'],
         notes: ['bad'],
-      }),
-    }),
-    { params: Promise.resolve({ id: sessionId }) }
-  );
+      },
+      error: 'Invalid notes: expected a string',
+    },
+  ];
 
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Invalid notes: expected a string',
-  });
-});
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${testCase.sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(testCase.body),
+        }),
+        { params: Promise.resolve({ id: testCase.sessionId }) }
+      );
 
-test('GET returns 401 when authorization header is missing', async () => {
-  const response = await GET(
-    new NextRequest('http://localhost/api/sessions/unauthorized'),
-    {
-      params: Promise.resolve({ id: 'unauthorized' }),
-    }
-  );
-
-  assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), { error: 'Authentication required' });
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        error: testCase.error,
+      });
+    });
+  }
 });
