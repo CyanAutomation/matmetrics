@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import {
   clearQueue,
   getSyncQueueStorageKey,
@@ -71,7 +72,7 @@ function resetQueue(initialQueue?: SyncOperation[]): void {
   }
 }
 
-function runQueueOperationAddsQueuedAtRegression() {
+test('queueOperation timestamps operations and preserves insertion order', () => {
   resetQueue();
 
   queueOperation({ type: 'CREATE', session: makeSession('session-1') });
@@ -81,9 +82,9 @@ function runQueueOperationAddsQueuedAtRegression() {
   assert.equal(queue.length, 2);
   assert.ok(queue.every((operation) => Number.isFinite(operation.queuedAt)));
   assert.ok(queue[1].queuedAt >= queue[0].queuedAt);
-}
+});
 
-function runSetQueueKeepsNewestConcurrentSameIdentityRegression() {
+test('setQueue preserves a newer concurrent operation with the same identity', () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentNewerOperation = createOp('session-1', 200);
 
@@ -92,9 +93,9 @@ function runSetQueueKeepsNewestConcurrentSameIdentityRegression() {
   setQueue([baseOperation], [baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentNewerOperation]);
-}
+});
 
-function runClearQueueKeepsConcurrentSameIdentityRegression() {
+test('clearQueue keeps a newer concurrent operation instead of deleting it', () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentNewerOperation = createOp('session-1', 200);
 
@@ -103,12 +104,13 @@ function runClearQueueKeepsConcurrentSameIdentityRegression() {
   clearQueue([baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentNewerOperation]);
-}
+});
 
-function main() {
-  runQueueOperationAddsQueuedAtRegression();
-  runSetQueueKeepsNewestConcurrentSameIdentityRegression();
-  runClearQueueKeepsConcurrentSameIdentityRegression();
-}
+test('clearQueue removes the persisted storage key when there is no concurrent work', () => {
+  resetQueue([createOp('session-1', 100)]);
 
-main();
+  clearQueue([createOp('session-1', 100)]);
+
+  assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
+  assert.deepEqual(getQueue(), []);
+});

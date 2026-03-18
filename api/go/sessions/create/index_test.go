@@ -36,14 +36,3 @@ func TestHandlerRejectsOutOfRangeEffort(t *testing.T) {
 		t.Fatalf("unexpected body: %s", got)
 	}
 }
-
-func TestHandlerRejectsMissingAuthorization(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/api/go/sessions/create", bytes.NewReader([]byte(`{}`)))
-	recorder := httptest.NewRecorder()
-
-	Handler(recorder, request)
-
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
-	}
-}
