@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Github, Loader2, LockKeyhole } from 'lucide-react';
+import { RessaImage } from '@/components/ressa-image';
 import {
   Card,
   CardContent,
@@ -138,6 +139,11 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
         className={`w-full max-w-md shadow-2xl border-primary/15 ${CARD_INTERACTION_CLASS}`}
       >
         <CardHeader className="space-y-4">
+          <RessaImage
+            pose={3}
+            size="medium"
+            alt="Ressa welcomes you to MatMetrics"
+          />
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground">
               🐾

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 
-type RessaPose = 1 | 2 | 3 | 4 | 5;
+export type RessaPose = 1 | 2 | 3 | 4 | 5;
 
 interface RessaImageProps {
   /**
