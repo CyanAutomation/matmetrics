@@ -8,9 +8,11 @@ import React, {
   useState,
 } from 'react';
 import {
+  GithubAuthProvider,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  reload,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -35,6 +37,7 @@ type AuthContextValue = {
   preferences: UserPreferences;
   isConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithGitHub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (
     name: string,
@@ -115,6 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signInWithGoogle() {
         await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
       },
+      async signInWithGitHub() {
+        await signInWithPopup(getFirebaseAuth(), new GithubAuthProvider());
+      },
       async signInWithEmail(email: string, password: string) {
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
       },
@@ -126,6 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (name.trim()) {
           await updateProfile(credentials.user, { displayName: name.trim() });
+          await reload(credentials.user);
+          setUser(toAuthenticatedUser(credentials.user));
         }
       },
       async sendPasswordReset(email: string) {

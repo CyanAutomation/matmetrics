@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BrainCircuit, Loader2, LockKeyhole, Mail } from 'lucide-react';
+import { BrainCircuit, Github, Loader2, LockKeyhole } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -23,6 +23,7 @@ export function SignInScreen() {
   const {
     isConfigured,
     signInWithGoogle,
+    signInWithGitHub,
     signInWithEmail,
     signUpWithEmail,
     sendPasswordReset,
@@ -98,6 +99,23 @@ export function SignInScreen() {
     }
   };
 
+  const handleGitHubSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      await signInWithGitHub();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'GitHub sign-in failed';
+      toast({
+        title: 'Authentication error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!isConfigured) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -144,9 +162,24 @@ export function SignInScreen() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Mail className="h-4 w-4" />
+              <GoogleMark className="h-4 w-4" />
             )}
             Continue with Google
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11"
+            onClick={handleGitHubSignIn}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Github className="h-4 w-4" />
+            )}
+            Continue with GitHub
           </Button>
 
           <div className="relative">
@@ -226,16 +259,46 @@ export function SignInScreen() {
             >
               {mode === 'sign-in' ? 'Create account' : 'Back to sign in'}
             </button>
-            <button
-              type="button"
-              className="text-muted-foreground"
-              onClick={() => setMode('reset')}
-            >
-              Forgot password?
-            </button>
+            {mode !== 'reset' && (
+              <button
+                type="button"
+                className="text-muted-foreground"
+                onClick={() => setMode('reset')}
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GoogleMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      role="img"
+    >
+      <path
+        fill="#4285F4"
+        d="M21.805 12.23c0-.682-.061-1.338-.174-1.968H12v3.723h5.498a4.705 4.705 0 0 1-2.04 3.087v2.56h3.303c1.932-1.78 3.044-4.402 3.044-7.402Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.76 0 5.073-.915 6.764-2.468l-3.303-2.56c-.915.613-2.084.975-3.461.975-2.657 0-4.908-1.794-5.713-4.204H2.872v2.642A10 10 0 0 0 12 22Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.287 13.743A5.997 5.997 0 0 1 5.968 12c0-.605.109-1.192.319-1.743V7.615H2.872A10 10 0 0 0 2 12c0 1.611.386 3.137 1.072 4.385l3.215-2.642Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 6.053c1.5 0 2.848.516 3.909 1.528l2.931-2.93C17.069 2.999 14.756 2 12 2a10 10 0 0 0-9.128 5.615l3.415 2.642C7.092 7.847 9.343 6.053 12 6.053Z"
+      />
+    </svg>
   );
 }
