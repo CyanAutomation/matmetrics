@@ -93,6 +93,32 @@ export function SessionLogForm({
   const transformFeedback = useActionFeedback();
   const suggestFeedback = useActionFeedback();
   const submitFeedback = useActionFeedback();
+  const resetTransformFeedback = transformFeedback.reset;
+  const resetSuggestFeedback = suggestFeedback.reset;
+  const resetSubmitFeedback = submitFeedback.reset;
+
+  useEffect(() => {
+    setDate(sessionToEdit?.date || '');
+    setDescription(sessionToEdit?.description || '');
+    setTechniques(sessionToEdit?.techniques || []);
+    setNewTech('');
+    setEffort(sessionToEdit?.effort || 3);
+    setCategory(sessionToEdit?.category || 'Technical');
+    setNotes(sessionToEdit?.notes || '');
+    setIsSuggesting(false);
+    setIsTransforming(false);
+    setIsSubmitting(false);
+    transformRequestIdRef.current += 1;
+    suggestRequestIdRef.current += 1;
+    resetTransformFeedback();
+    resetSuggestFeedback();
+    resetSubmitFeedback();
+  }, [
+    sessionToEdit,
+    resetTransformFeedback,
+    resetSuggestFeedback,
+    resetSubmitFeedback,
+  ]);
 
   useEffect(() => {
     if (!date && !isEditing) {
