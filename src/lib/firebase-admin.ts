@@ -13,14 +13,40 @@ type ServiceAccountShape = {
   private_key: string;
 };
 
-function getServiceAccount(): ServiceAccountShape | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+let hasLoggedInvalidServiceAccount = false;
+
+function logInvalidServiceAccount(message: string, error?: unknown): void {
+  if (hasLoggedInvalidServiceAccount) {
+    return;
+  }
+
+  hasLoggedInvalidServiceAccount = true;
+  console.error(message, error);
+}
+
+export function parseServiceAccountKey(
+  raw: string | undefined
+): ServiceAccountShape | null {
   if (!raw) {
     return null;
   }
 
-  const parsed = JSON.parse(raw) as Partial<ServiceAccountShape>;
+  let parsed: Partial<ServiceAccountShape>;
+
+  try {
+    parsed = JSON.parse(raw) as Partial<ServiceAccountShape>;
+  } catch (error) {
+    logInvalidServiceAccount(
+      'FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON.',
+      error
+    );
+    return null;
+  }
+
   if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
+    logInvalidServiceAccount(
+      'FIREBASE_SERVICE_ACCOUNT_KEY is missing required service account fields.'
+    );
     return null;
   }
 
@@ -29,6 +55,10 @@ function getServiceAccount(): ServiceAccountShape | null {
     client_email: parsed.client_email,
     private_key: parsed.private_key.replace(/\\n/g, '\n'),
   };
+}
+
+function getServiceAccount(): ServiceAccountShape | null {
+  return parseServiceAccountKey(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 }
 
 export function isFirebaseAdminConfigured(): boolean {

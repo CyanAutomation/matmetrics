@@ -1,3 +1,5 @@
+'use client';
+
 const DEFAULT_SCOPE = 'signed-out';
 
 let activeUserId: string | null = null;
