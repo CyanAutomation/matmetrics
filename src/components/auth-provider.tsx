@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [preferences, setPreferences] = useState(getCurrentPreferences());
   const isConfigured = isFirebaseConfigured();
+  const authLoadGenerationRef = useRef(0);
 
   useEffect(() => {
     const unsubscribePreferences = subscribeToPreferences((nextPreferences) => {
@@ -86,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const auth = getFirebaseAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, async (nextUser) => {
+      const generation = ++authLoadGenerationRef.current;
+
       if (!nextUser) {
         setActiveUserId(null);
         clearUserPreferencesState();
@@ -100,10 +104,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPreferencesReady(false);
 
       try {
-        await initializeUserPreferences(nextUser.uid);
+        await initializeUserPreferences(nextUser.uid, {
+          shouldApply: () => authLoadGenerationRef.current === generation,
+        });
       } finally {
-        setPreferencesReady(true);
-        setAuthReady(true);
+        if (authLoadGenerationRef.current === generation) {
+          setPreferencesReady(true);
+          setAuthReady(true);
+        }
       }
     });
 

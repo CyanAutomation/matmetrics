@@ -39,6 +39,173 @@ let isSyncing = false;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
+let mutationVersion = 0;
+
+type DirtyMutation =
+  | {
+      type: 'CREATE' | 'UPDATE';
+      session: JudoSession;
+      version: number;
+    }
+  | {
+      type: 'DELETE';
+      id: string;
+      version: number;
+    };
+
+type DirtyMutationInput =
+  | {
+      type: 'CREATE' | 'UPDATE';
+      session: JudoSession;
+    }
+  | {
+      type: 'DELETE';
+      id: string;
+    };
+
+const dirtyMutations = new Map<string, DirtyMutation>();
+
+class SyncRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly retryable: boolean
+  ) {
+    super(message);
+    this.name = 'SyncRequestError';
+  }
+}
+
+function nextMutationVersion(): number {
+  mutationVersion += 1;
+  return mutationVersion;
+}
+
+function markDirtyMutation(
+  mutation: DirtyMutationInput,
+  version = nextMutationVersion()
+): number {
+  const id = mutation.type === 'DELETE' ? mutation.id : mutation.session.id;
+  dirtyMutations.set(id, {
+    ...mutation,
+    version,
+  } as DirtyMutation);
+  return version;
+}
+
+function clearDirtyMutation(id: string, version?: number): void {
+  const existing = dirtyMutations.get(id);
+  if (!existing) {
+    return;
+  }
+
+  if (version !== undefined && existing.version !== version) {
+    return;
+  }
+
+  dirtyMutations.delete(id);
+}
+
+function hydrateDirtyMutationsFromQueue(): void {
+  dirtyMutations.clear();
+
+  for (const operation of getQueue()) {
+    if (operation.type === 'DELETE') {
+      markDirtyMutation({ type: 'DELETE', id: operation.id }, operation.queuedAt);
+      continue;
+    }
+
+    markDirtyMutation(
+      { type: operation.type, session: operation.session },
+      operation.queuedAt
+    );
+  }
+}
+
+function sessionsEqual(left: JudoSession, right: JudoSession): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function applyOptimisticMutation(
+  baseSessions: JudoSession[],
+  mutation: DirtyMutation
+): JudoSession[] {
+  if (mutation.type === 'DELETE') {
+    return baseSessions.filter((session) => session.id !== mutation.id);
+  }
+
+  const existingIndex = baseSessions.findIndex(
+    (session) => session.id === mutation.session.id
+  );
+
+  if (existingIndex === -1) {
+    return [mutation.session, ...baseSessions];
+  }
+
+  return baseSessions.map((session, index) =>
+    index === existingIndex ? mutation.session : session
+  );
+}
+
+function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[] {
+  return Array.from(dirtyMutations.values())
+    .sort((left, right) => left.version - right.version)
+    .reduce(applyOptimisticMutation, baseSessions);
+}
+
+function commitLocalSessions(sessions: JudoSession[]): void {
+  sessionCache = sessions;
+  updateLocalStorageCache(sessions);
+}
+
+function dispatchStorageSync(sessions: JudoSession[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent('storageSync', { detail: { sessions } }));
+}
+
+async function syncRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const response = await fetch(input, init);
+  if (response.ok) {
+    return response;
+  }
+
+  throw new SyncRequestError(
+    `Request failed with status ${response.status}`,
+    response.status >= 500
+  );
+}
+
+async function reconcilePermanentFailure(): Promise<void> {
+  if (isOnline && !isGuestMode()) {
+    await refreshSessionsFromAPI();
+    return;
+  }
+
+  const reconciled = getOptimisticSessions(getLocalStorageCache());
+  commitLocalSessions(reconciled);
+  dispatchStorageSync(reconciled);
+}
+
+function handleMutationSyncFailure(
+  error: unknown,
+  retryOperation: () => void,
+  mutationId: string,
+  version: number
+): void {
+  console.error('Error syncing mutation', error);
+  if (error instanceof SyncRequestError && !error.retryable) {
+    clearDirtyMutation(mutationId, version);
+    void reconcilePermanentFailure();
+    return;
+  }
+
+  retryOperation();
+}
 
 /**
  * Initialize storage: set up online/offline listeners and attempt migration
@@ -48,6 +215,7 @@ export function initializeStorage(): void {
 
   sessionCache = null;
   isSyncing = false;
+  hydrateDirtyMutationsFromQueue();
 
   if (isGuestMode()) {
     ensureGuestWorkspaceSeeded();
@@ -119,10 +287,11 @@ export function getSessions(): JudoSession[] {
 export function saveSession(session: JudoSession): void {
   if (typeof window === 'undefined') return;
   const guestMode = isGuestMode();
+  const version = markDirtyMutation({ type: 'CREATE', session });
 
   // Update local cache immediately
-  sessionCache = sessionCache ? [session, ...sessionCache] : [session];
-  updateLocalStorageCache(sessionCache);
+  const nextSessions = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
+  commitLocalSessions(nextSessions);
   if (guestMode) {
     markGuestWorkspaceCustom();
     return;
@@ -141,17 +310,23 @@ export function saveSession(session: JudoSession): void {
         const headers = await getAuthHeaders({
           'Content-Type': 'application/json',
         });
-        const res = await fetch('/api/sessions/create', {
+        await syncRequest('/api/sessions/create', {
           method: 'POST',
           headers,
           body: JSON.stringify(requestBody),
         });
-
-        if (!res.ok) throw new Error('Failed to save session');
       } catch (error) {
-        console.error('Error saving session to API', error);
-        queueOperation({ type: 'CREATE', session });
+        handleMutationSyncFailure(
+          error,
+          () => queueOperation({ type: 'CREATE', session }),
+          session.id,
+          version
+        );
+        return;
       }
+
+      clearDirtyMutation(session.id, version);
+      void refreshSessionsFromAPI();
     })();
   } else {
     // Offline: queue the operation
@@ -165,9 +340,10 @@ export function saveSession(session: JudoSession): void {
 export function updateSession(session: JudoSession): void {
   if (typeof window === 'undefined') return;
   const guestMode = isGuestMode();
+  const version = markDirtyMutation({ type: 'UPDATE', session });
 
   // Update local cache immediately
-  const base = sessionCache ?? getLocalStorageCache();
+  const base = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
   const hasMatch = base.some((s) => s.id === session.id);
   const updated = hasMatch
     ? base.map((s) => (s.id === session.id ? session : s))
@@ -179,8 +355,7 @@ export function updateSession(session: JudoSession): void {
     );
   }
 
-  updateLocalStorageCache(updated);
-  sessionCache = updated;
+  commitLocalSessions(updated);
   if (guestMode) {
     markGuestWorkspaceCustom();
     return;
@@ -199,17 +374,23 @@ export function updateSession(session: JudoSession): void {
         const headers = await getAuthHeaders({
           'Content-Type': 'application/json',
         });
-        const res = await fetch(`/api/sessions/${session.id}`, {
+        await syncRequest(`/api/sessions/${session.id}`, {
           method: 'PUT',
           headers,
           body: JSON.stringify(requestBody),
         });
-
-        if (!res.ok) throw new Error('Failed to update session');
       } catch (error) {
-        console.error('Error updating session on API', error);
-        queueOperation({ type: 'UPDATE', session });
+        handleMutationSyncFailure(
+          error,
+          () => queueOperation({ type: 'UPDATE', session }),
+          session.id,
+          version
+        );
+        return;
       }
+
+      clearDirtyMutation(session.id, version);
+      void refreshSessionsFromAPI();
     })();
   } else {
     // Offline: queue the operation
@@ -223,12 +404,12 @@ export function updateSession(session: JudoSession): void {
 export function deleteSession(id: string): void {
   if (typeof window === 'undefined') return;
   const guestMode = isGuestMode();
+  const version = markDirtyMutation({ type: 'DELETE', id });
 
   // Update local cache immediately
-  const base = sessionCache ?? getLocalStorageCache();
+  const base = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
   const filtered = base.filter((s) => s.id !== id);
-  sessionCache = filtered;
-  updateLocalStorageCache(filtered);
+  commitLocalSessions(filtered);
   if (guestMode) {
     markGuestWorkspaceCustom();
     return;
@@ -247,7 +428,7 @@ export function deleteSession(id: string): void {
         const headers = await getAuthHeaders({
           'Content-Type': 'application/json',
         });
-        const res = await fetch(`/api/sessions/${id}`, {
+        await syncRequest(`/api/sessions/${id}`, {
           method: 'DELETE',
           headers,
           body:
@@ -255,12 +436,18 @@ export function deleteSession(id: string): void {
               ? JSON.stringify(requestBody)
               : undefined,
         });
-
-        if (!res.ok) throw new Error('Failed to delete session');
       } catch (error) {
-        console.error('Error deleting session on API', error);
-        queueOperation({ type: 'DELETE', id });
+        handleMutationSyncFailure(
+          error,
+          () => queueOperation({ type: 'DELETE', id }),
+          id,
+          version
+        );
+        return;
       }
+
+      clearDirtyMutation(id, version);
+      void refreshSessionsFromAPI();
     })();
   } else {
     // Offline: queue the operation
@@ -415,6 +602,7 @@ export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   updateLocalStorageCache([]);
   sessionCache = [];
+  dirtyMutations.clear();
 }
 
 /**
@@ -494,10 +682,9 @@ function handleStorageEvent(event: StorageEvent): void {
 
   if (isStorageEventForKey(event, getSessionsStorageKey())) {
     const latestSessions = getLocalStorageCache();
-    sessionCache = latestSessions;
-    window.dispatchEvent(
-      new CustomEvent('storageSync', { detail: { sessions: latestSessions } })
-    );
+    const optimisticSessions = getOptimisticSessions(latestSessions);
+    commitLocalSessions(optimisticSessions);
+    dispatchStorageSync(optimisticSessions);
     return;
   }
 
@@ -541,13 +728,25 @@ async function refreshSessionsFromAPI(): Promise<void> {
       return;
     }
 
+    const mergedSessions = getOptimisticSessions(sessions);
+
+    for (const [id, mutation] of dirtyMutations.entries()) {
+      if (mutation.type === 'DELETE') {
+        if (!sessions.some((session) => session.id === id)) {
+          dirtyMutations.delete(id);
+        }
+        continue;
+      }
+
+      const remoteSession = sessions.find((session) => session.id === id);
+      if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
+        dirtyMutations.delete(id);
+      }
+    }
+
     latestAppliedSeq = seq;
-    sessionCache = sessions;
-    updateLocalStorageCache(sessions);
-    // Notify listeners (components) of the update
-    window.dispatchEvent(
-      new CustomEvent('storageSync', { detail: { sessions } })
-    );
+    commitLocalSessions(mergedSessions);
+    dispatchStorageSync(mergedSessions);
   } catch (error) {
     console.error('Error refreshing sessions from API', error);
   }
@@ -573,13 +772,11 @@ async function syncPendingOperations(): Promise<void> {
             const createHeaders = await getAuthHeaders({
               'Content-Type': 'application/json',
             });
-            const createResponse = await fetch('/api/sessions/create', {
+            await syncRequest('/api/sessions/create', {
               method: 'POST',
               headers: createHeaders,
               body: JSON.stringify(createBody),
             });
-
-            if (!createResponse.ok) throw new Error('Failed to create session');
             break;
 
           case 'UPDATE':
@@ -590,7 +787,7 @@ async function syncPendingOperations(): Promise<void> {
             const updateHeaders = await getAuthHeaders({
               'Content-Type': 'application/json',
             });
-            const updateResponse = await fetch(
+            await syncRequest(
               `/api/sessions/${operation.session.id}`,
               {
                 method: 'PUT',
@@ -598,8 +795,6 @@ async function syncPendingOperations(): Promise<void> {
                 body: JSON.stringify(updateBody),
               }
             );
-
-            if (!updateResponse.ok) throw new Error('Failed to update session');
             break;
 
           case 'DELETE':
@@ -610,7 +805,7 @@ async function syncPendingOperations(): Promise<void> {
             const deleteHeaders = await getAuthHeaders({
               'Content-Type': 'application/json',
             });
-            const deleteResponse = await fetch(
+            await syncRequest(
               `/api/sessions/${operation.id}`,
               {
                 method: 'DELETE',
@@ -621,12 +816,23 @@ async function syncPendingOperations(): Promise<void> {
                     : undefined,
               }
             );
-
-            if (!deleteResponse.ok) throw new Error('Failed to delete session');
             break;
         }
       } catch (error) {
         console.error('Error syncing operation', error);
+        if (error instanceof SyncRequestError && !error.retryable) {
+          clearDirtyMutation(
+            operation.type === 'DELETE' ? operation.id : operation.session.id,
+            operation.queuedAt
+          );
+          const remainingOperations = queue.filter(
+            (_, remainingIndex) => remainingIndex !== index
+          );
+          setQueue(remainingOperations, queue);
+          await reconcilePermanentFailure();
+          return;
+        }
+
         // Stop syncing on first error; retries must include the failed operation to avoid data loss.
         const remainingOperations = queue.slice(index);
         setQueue(remainingOperations, queue);
@@ -642,4 +848,15 @@ async function syncPendingOperations(): Promise<void> {
   } finally {
     isSyncing = false;
   }
+}
+
+export function __resetStorageStateForTests(): void {
+  sessionCache = null;
+  isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
+  isSyncing = false;
+  listenersInitialized = false;
+  refreshSeq = 0;
+  latestAppliedSeq = 0;
+  mutationVersion = 0;
+  dirtyMutations.clear();
 }

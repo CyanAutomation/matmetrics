@@ -246,8 +246,31 @@ export async function updateSession(session: JudoSession): Promise<string> {
   }
 
   await fs.mkdir(path.dirname(nextPath), { recursive: true });
-  await fs.writeFile(nextPath, markdown, { encoding: 'utf-8', flag: 'wx' });
-  await fs.unlink(existingPath);
+  try {
+    const existingNextMarkdown = await fs.readFile(nextPath, 'utf-8');
+    const existingNextSession = markdownToSession(existingNextMarkdown);
+    if (existingNextSession.id !== session.id) {
+      throw new Error(
+        `Cannot move session ${session.id} to ${nextPath} because another session already exists there`
+      );
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  await fs.rename(existingPath, nextPath);
+  const tempPath = `${nextPath}.tmp-${process.pid}-${Date.now()}`;
+
+  try {
+    await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+    await fs.rename(tempPath, nextPath);
+  } catch (error) {
+    await fs.unlink(tempPath).catch(() => undefined);
+    throw error;
+  }
+
   return nextPath;
 }
 

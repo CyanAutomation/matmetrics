@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -84,6 +84,9 @@ export function SessionLogForm({
   const [notes, setNotes] = useState(sessionToEdit?.notes || '');
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
+  const descriptionRef = useRef(description);
+  const transformRequestIdRef = useRef(0);
+  const suggestRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!date && !isEditing) {
@@ -91,6 +94,10 @@ export function SessionLogForm({
       setDate(today);
     }
   }, [date, isEditing]);
+
+  useEffect(() => {
+    descriptionRef.current = description;
+  }, [description]);
 
   const handleAddTech = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -125,6 +132,8 @@ export function SessionLogForm({
     }
 
     setIsTransforming(true);
+    const requestId = ++transformRequestIdRef.current;
+    const submittedDescription = description;
     try {
       const customPrompt = getTransformerPrompt();
       const headers = await getAuthHeaders({
@@ -142,6 +151,12 @@ export function SessionLogForm({
         throw new Error('Failed to transform description');
       }
       const result = await response.json();
+      if (
+        requestId !== transformRequestIdRef.current ||
+        descriptionRef.current !== submittedDescription
+      ) {
+        return;
+      }
       setDescription(result.transformedDescription);
       toast({
         title: 'Description Refined',
@@ -180,6 +195,8 @@ export function SessionLogForm({
     }
 
     setIsSuggesting(true);
+    const requestId = ++suggestRequestIdRef.current;
+    const submittedDescription = description;
     try {
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
@@ -202,8 +219,18 @@ export function SessionLogForm({
       const uniqueNew = suggestions.filter(
         (suggestion) => !techniques.includes(suggestion)
       );
+      if (
+        requestId !== suggestRequestIdRef.current ||
+        descriptionRef.current !== submittedDescription
+      ) {
+        return;
+      }
       if (uniqueNew.length > 0) {
-        setTechniques([...techniques, ...uniqueNew]);
+        setTechniques((previousTechniques) => {
+          const merged = new Set(previousTechniques);
+          uniqueNew.forEach((technique) => merged.add(technique));
+          return Array.from(merged);
+        });
         toast({
           title: 'AI Suggestions Added',
           description: `Identified ${uniqueNew.length} techniques from your description.`,
