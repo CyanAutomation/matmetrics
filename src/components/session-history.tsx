@@ -22,6 +22,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { SessionLogForm } from '@/components/session-log-form';
+import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
 
@@ -74,8 +75,14 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
 
   if (sessions.length === 0) {
     return (
-      <div className="text-center py-12 bg-white/50 rounded-lg border-2 border-dashed border-muted">
-        <p className="text-muted-foreground">No sessions logged yet.</p>
+      <div className="flex flex-col items-center justify-center py-12 rounded-lg border-2 border-dashed border-muted">
+        <RessaImage
+          pose={2}
+          size="medium"
+          alt="Ressa encouraging you to log your first session"
+        />
+        <p className="text-center text-muted-foreground mt-3">No sessions logged yet.</p>
+        <p className="text-center text-sm text-muted-foreground mt-1">Your journey starts here. Log your first session!</p>
       </div>
     );
   }
