@@ -89,9 +89,15 @@ func TestMarkdownOutputUsesExpectedHeadings(t *testing.T) {
 		t.Fatalf("SessionToMarkdown() error = %v", err)
 	}
 
-	for _, expected := range []string{"## Techniques Practiced", "- (none recorded)", "# March 17, 2026 – Judo Session"} {
-		if !strings.Contains(rendered, expected) {
-			t.Fatalf("expected %q in rendered markdown", expected)
-		}
+	titleIndex := strings.Index(rendered, "# March 17, 2026 – Judo Session")
+	techniquesHeadingIndex := strings.Index(rendered, "## Techniques Practiced")
+	noneRecordedIndex := strings.Index(rendered, "- (none recorded)")
+
+	if titleIndex < 0 || techniquesHeadingIndex < 0 || noneRecordedIndex < 0 {
+		t.Fatalf("rendered markdown is missing required sections: %q", rendered)
+	}
+
+	if !(titleIndex < techniquesHeadingIndex && techniquesHeadingIndex < noneRecordedIndex) {
+		t.Fatalf("unexpected section order in rendered markdown: %q", rendered)
 	}
 }

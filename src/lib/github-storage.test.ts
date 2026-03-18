@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import {
   bulkPushSessions,
   findSessionPathOnGitHubById,
@@ -19,7 +20,28 @@ function makeSession(id: string): JudoSession {
   };
 }
 
-function runPathEncodingRegression() {
+async function withMockedGitHub(
+  handler: typeof fetch,
+  run: () => Promise<void>
+) {
+  const originalFetch = global.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+  global.fetch = handler;
+
+  try {
+    await run();
+  } finally {
+    global.fetch = originalFetch;
+    if (originalToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  }
+}
+
+test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs', () => {
   const idA = 'a/b';
   const idB = 'a?b';
 
@@ -35,13 +57,9 @@ function runPathEncodingRegression() {
   assert.throws(() => getGitHubSessionPath(makeSession(overlyLongSessionId)), {
     message: 'Session ID exceeds maximum allowed length of 100 characters',
   });
-}
+});
 
-async function runGitHubLookupRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-
+test('findSessionPathOnGitHubById traverses directory listings when the tree is truncated', async () => {
   const dirListing: Record<
     string,
     Array<{ name: string; path: string; type: 'dir' | 'file' }>
@@ -57,405 +75,274 @@ async function runGitHubLookupRegression() {
     ],
   };
 
-  global.fetch = (async (url: string | URL | Request) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
 
-    if (path.includes('/git/ref/heads/')) {
-      return new Response(
-        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
-        { status: 200 }
-      );
-    }
+      if (path.includes('/git/ref/heads/')) {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
 
-    if (path.includes('/git/commits/')) {
-      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
-        status: 200,
-      });
-    }
+      if (path.includes('/git/commits/')) {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
+          status: 200,
+        });
+      }
 
-    if (path.includes('/git/trees/')) {
-      return new Response(JSON.stringify({ truncated: true, tree: [] }), {
-        status: 200,
-      });
-    }
+      if (path.includes('/git/trees/')) {
+        return new Response(JSON.stringify({ truncated: true, tree: [] }), {
+          status: 200,
+        });
+      }
 
-    if (path.includes('/contents/')) {
-      const marker = '/contents/';
-      const contentPath = decodeURIComponent(
-        path.slice(path.indexOf(marker) + marker.length)
-      );
-      const listing = dirListing[contentPath] ?? [];
-      return new Response(JSON.stringify(listing), { status: 200 });
-    }
+      if (path.includes('/contents/')) {
+        const marker = '/contents/';
+        const contentPath = decodeURIComponent(
+          path.slice(path.indexOf(marker) + marker.length)
+        );
+        const listing = dirListing[contentPath] ?? [];
+        return new Response(JSON.stringify(listing), { status: 200 });
+      }
 
-    return new Response(JSON.stringify({ message: 'Not found' }), {
-      status: 404,
-    });
-  }) as typeof fetch;
-
-  try {
-    const config = { owner: 'o', repo: 'r', branch: 'main' };
-    const found = await findSessionPathOnGitHubById('a/b', config);
-    assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
-
-async function runMissingBranchLookupRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-
-  global.fetch = (async (url: string | URL | Request) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
-
-    if (path.includes('/git/ref/heads/')) {
-      return new Response(JSON.stringify({ message: 'Not Found' }), {
+      return new Response(JSON.stringify({ message: 'Not found' }), {
         status: 404,
       });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r', branch: 'main' };
+      const found = await findSessionPathOnGitHubById('a/b', config);
+      assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
     }
+  );
+});
 
-    return new Response(JSON.stringify({ message: 'Unexpected path' }), {
-      status: 500,
-    });
-  }) as typeof fetch;
+test('findSessionPathOnGitHubById returns null when the branch ref is missing', async () => {
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
 
-  try {
-    const config = { owner: 'o', repo: 'r', branch: 'missing' };
-    const found = await findSessionPathOnGitHubById('a/b', config);
-    assert.equal(found, null);
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
+      if (path.includes('/git/ref/heads/')) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
 
-async function runNon404TreeLookupErrorRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-
-  global.fetch = (async (url: string | URL | Request) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
-
-    if (path.includes('/git/ref/heads/')) {
-      return new Response(
-        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
-        { status: 200 }
-      );
-    }
-
-    if (path.includes('/git/commits/')) {
-      return new Response(JSON.stringify({ message: 'Server error' }), {
+      return new Response(JSON.stringify({ message: 'Unexpected path' }), {
         status: 500,
       });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r', branch: 'missing' };
+      const found = await findSessionPathOnGitHubById('a/b', config);
+      assert.equal(found, null);
     }
+  );
+});
 
-    return new Response(JSON.stringify({ message: 'Unexpected path' }), {
-      status: 500,
-    });
-  }) as typeof fetch;
+test('findSessionPathOnGitHubById surfaces non-404 GitHub errors', async () => {
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
 
-  try {
-    const config = { owner: 'o', repo: 'r', branch: 'main' };
-    await assert.rejects(findSessionPathOnGitHubById('a/b', config), {
-      message: /GitHub API error 500: Server error/,
-    });
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
+      if (path.includes('/git/ref/heads/')) {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
 
-async function runTruncatedTreeFallbackRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
+      if (path.includes('/git/commits/')) {
+        return new Response(JSON.stringify({ message: 'Server error' }), {
+          status: 500,
+        });
+      }
 
-  global.fetch = (async (url: string | URL | Request) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
-
-    if (path.includes('/git/ref/heads/')) {
-      return new Response(
-        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
-        { status: 200 }
-      );
-    }
-
-    if (path.includes('/git/commits/')) {
-      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
-        status: 200,
+      return new Response(JSON.stringify({ message: 'Unexpected path' }), {
+        status: 500,
+      });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r', branch: 'main' };
+      await assert.rejects(findSessionPathOnGitHubById('a/b', config), {
+        message: /GitHub API error 500: Server error/,
       });
     }
+  );
+});
 
-    if (path.includes('/git/trees/')) {
-      return new Response(JSON.stringify({ truncated: true, tree: [] }), {
-        status: 200,
-      });
-    }
-
-    if (path.endsWith('/contents/data')) {
-      return new Response(
-        JSON.stringify([{ type: 'dir', path: 'data/2025', name: '2025' }]),
-        { status: 200 }
-      );
-    }
-
-    if (path.endsWith('/contents/data/2025')) {
-      return new Response(
-        JSON.stringify([{ type: 'dir', path: 'data/2025/03', name: '03' }]),
-        { status: 200 }
-      );
-    }
-
-    if (path.endsWith('/contents/data/2025/03')) {
-      return new Response(
-        JSON.stringify([
-          {
-            type: 'file',
-            path: 'data/2025/03/20250314-matmetrics-a%2Fb.md',
-            name: '20250314-matmetrics-a%2Fb.md',
-          },
-        ]),
-        { status: 200 }
-      );
-    }
-
-    return new Response(JSON.stringify({ message: 'Not found' }), {
-      status: 404,
-    });
-  }) as typeof fetch;
-
-  try {
-    const config = { owner: 'o', repo: 'r', branch: 'main' };
-    const found = await findSessionPathOnGitHubById('a/b', config);
-    assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
-
-async function runBulkPushReadmeFailureRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-
+test('bulkPushSessions reports README update failure after pushing session content', async () => {
   let sessionPutCount = 0;
 
-  global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
 
-    if (
-      path ===
-      '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md'
-    ) {
-      sessionPutCount++;
-      return new Response(JSON.stringify({ content: { sha: 'session-sha' } }), {
-        status: 200,
-      });
-    }
+      if (
+        path ===
+        '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md'
+      ) {
+        sessionPutCount++;
+        return new Response(
+          JSON.stringify({ content: { sha: 'session-sha' } }),
+          { status: 200 }
+        );
+      }
 
-    if (path === '/repos/o/r/contents/README.md') {
-      return new Response(JSON.stringify({ message: 'Server error' }), {
-        status: 500,
-      });
-    }
+      if (path === '/repos/o/r/contents/README.md') {
+        return new Response(JSON.stringify({ message: 'Server error' }), {
+          status: 500,
+        });
+      }
 
-    if (path === '/repos/o/r') {
-      return new Response(JSON.stringify({ default_branch: 'main' }), {
-        status: 200,
-      });
-    }
+      if (path === '/repos/o/r') {
+        return new Response(JSON.stringify({ default_branch: 'main' }), {
+          status: 200,
+        });
+      }
 
-    return new Response(
-      JSON.stringify({
-        message: `Unexpected request: ${init?.method || 'GET'} ${path}`,
-      }),
-      { status: 500 }
-    );
-  }) as typeof fetch;
-
-  try {
-    const result = await bulkPushSessions([makeSession('session-1')], {
-      owner: 'o',
-      repo: 'r',
-    });
-
-    assert.equal(sessionPutCount, 1);
-    assert.equal(result.success, false);
-    assert.match(result.message, /Pushed 1\/1 sessions to GitHub/);
-    assert.match(result.message, /README update failed:/);
-    assert.match(
-      result.message,
-      /GitHub README update failed: GitHub service error \(500\)/
-    );
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
-
-async function runGitHubUpdateMovesFileWhenDateChangesRegression() {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-
-  const requests: Array<{ method: string; path: string; body?: any }> = [];
-
-  global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-    const parsed = new URL(String(url));
-    const path = parsed.pathname;
-    const method = init?.method ?? 'GET';
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    requests.push({ method, path, body });
-
-    if (path === '/repos/o/r/git/ref/heads/main') {
-      return new Response(
-        JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
-        { status: 200 }
-      );
-    }
-
-    if (path === '/repos/o/r/git/commits/commit-sha') {
-      return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
-        status: 200,
-      });
-    }
-
-    if (path === '/repos/o/r/git/trees/tree-sha') {
       return new Response(
         JSON.stringify({
-          truncated: false,
-          tree: [
-            {
-              path: 'data/2025/01/20250110-matmetrics-session-1.md',
-              type: 'blob',
-            },
-          ],
+          message: `Unexpected request: ${init?.method || 'GET'} ${path}`,
         }),
-        { status: 200 }
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const result = await bulkPushSessions([makeSession('session-1')], {
+        owner: 'o',
+        repo: 'r',
+      });
+
+      assert.equal(sessionPutCount, 1);
+      assert.equal(result.success, false);
+      assert.match(result.message, /Pushed 1\/1 sessions to GitHub/);
+      assert.match(result.message, /README update failed:/);
+      assert.match(
+        result.message,
+        /GitHub README update failed: GitHub service error \(500\)/
       );
     }
+  );
+});
 
-    if (
-      path ===
-        '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' &&
-      method === 'GET'
-    ) {
-      return new Response(JSON.stringify({ message: 'Not Found' }), {
-        status: 404,
-      });
+test('updateSessionOnGitHub moves the file when the session date changes', async () => {
+  const requests: Array<{ method: string; path: string; body?: any }> = [];
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+      const method = init?.method ?? 'GET';
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      requests.push({ method, path, body });
+
+      if (path === '/repos/o/r/git/ref/heads/main') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-sha') {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
+          status: 200,
+        });
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-sha') {
+        return new Response(
+          JSON.stringify({
+            truncated: false,
+            tree: [
+              {
+                path: 'data/2025/01/20250110-matmetrics-session-1.md',
+                type: 'blob',
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' &&
+        method === 'GET'
+      ) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' &&
+        method === 'GET'
+      ) {
+        return new Response(JSON.stringify({ sha: 'old-sha' }), {
+          status: 200,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' &&
+        method === 'PUT'
+      ) {
+        return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), {
+          status: 200,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' &&
+        method === 'DELETE'
+      ) {
+        assert.equal(body?.sha, 'old-sha');
+        return new Response(
+          JSON.stringify({ content: { sha: 'deleted-sha' } }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ message: `Unexpected request: ${method} ${path}` }),
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const result = await updateSessionOnGitHub(
+        {
+          id: 'session-1',
+          date: '2025-02-12',
+          effort: 3,
+          category: 'Technical',
+          techniques: ['uchi-mata'],
+        },
+        { owner: 'o', repo: 'r', branch: 'main' }
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(
+        result.filePath,
+        'data/2025/02/20250212-matmetrics-session-1.md'
+      );
+      assert.ok(
+        requests.some(
+          (request) =>
+            request.method === 'DELETE' &&
+            request.path ===
+              '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md'
+        )
+      );
     }
-
-    if (
-      path ===
-        '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' &&
-      method === 'GET'
-    ) {
-      return new Response(JSON.stringify({ sha: 'old-sha' }), { status: 200 });
-    }
-
-    if (
-      path ===
-        '/repos/o/r/contents/data/2025/02/20250212-matmetrics-session-1.md' &&
-      method === 'PUT'
-    ) {
-      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), {
-        status: 200,
-      });
-    }
-
-    if (
-      path ===
-        '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md' &&
-      method === 'DELETE'
-    ) {
-      assert.equal(body?.sha, 'old-sha');
-      return new Response(JSON.stringify({ content: { sha: 'deleted-sha' } }), {
-        status: 200,
-      });
-    }
-
-    return new Response(
-      JSON.stringify({ message: `Unexpected request: ${method} ${path}` }),
-      { status: 500 }
-    );
-  }) as typeof fetch;
-
-  try {
-    const result = await updateSessionOnGitHub(
-      {
-        id: 'session-1',
-        date: '2025-02-12',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['uchi-mata'],
-      },
-      { owner: 'o', repo: 'r', branch: 'main' }
-    );
-
-    assert.equal(result.success, true);
-    assert.equal(
-      result.filePath,
-      'data/2025/02/20250212-matmetrics-session-1.md'
-    );
-    assert.ok(
-      requests.some(
-        (request) =>
-          request.method === 'DELETE' &&
-          request.path ===
-            '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md'
-      )
-    );
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
-
-async function main() {
-  runPathEncodingRegression();
-  await runGitHubLookupRegression();
-  await runMissingBranchLookupRegression();
-  await runNon404TreeLookupErrorRegression();
-  await runTruncatedTreeFallbackRegression();
-  await runBulkPushReadmeFailureRegression();
-  await runGitHubUpdateMovesFileWhenDateChangesRegression();
-}
-
-main().catch((err) => {
-  console.error('GitHub storage regression test failed:', err);
-  process.exit(1);
+  );
 });

@@ -68,10 +68,20 @@ test('POST persists the session to local markdown storage when GitHub is not con
 test('POST returns 500 when GitHub create fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
+  const forwardedRequests: Array<{
+    url: string;
+    method: string;
+    body?: string;
+  }> = [];
 
   process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = async (url: string | URL | Request) => {
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
     const value = String(url);
+    forwardedRequests.push({
+      url: value,
+      method: init?.method ?? 'GET',
+      body: init?.body ? String(init.body) : undefined,
+    });
     if (value.includes('/api/go/sessions/create')) {
       return new Response(
         JSON.stringify({ error: 'Failed to create session' }),
@@ -103,6 +113,19 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
       error: 'Failed to create session',
+    });
+    assert.equal(forwardedRequests.length, 1);
+    assert.equal(forwardedRequests[0].method, 'POST');
+    assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/create$/);
+    assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
+      session: {
+        id: 'create-github-failure',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: [],
+      },
+      config: { owner: 'octocat', repo: 'hello-world' },
     });
   } finally {
     global.fetch = originalFetch;
