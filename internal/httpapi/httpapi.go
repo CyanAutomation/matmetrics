@@ -91,7 +91,6 @@ func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if err := verifyFirebaseIDToken(r, token, serviceAccount.ProjectID); err != nil {
-		fmt.Printf("Failed to verify Firebase ID token: %v\n", err)
 		WriteError(w, http.StatusUnauthorized, "Invalid authentication token")
 		return false
 	}
@@ -201,8 +200,10 @@ func verifyFirebaseIDToken(r *http.Request, token, projectID string) error {
 }
 
 func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
+	now := time.Now()
+
 	firebaseCertsCache.RLock()
-	if time.Now().Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
+	if now.Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
 		cached := firebaseCertsCache.certs
 		firebaseCertsCache.RUnlock()
 		return cached, nil
@@ -210,13 +211,14 @@ func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
 	firebaseCertsCache.RUnlock()
 
 	firebaseCertsCache.Lock()
-	// Double-check pattern: verify cache is still expired after acquiring write lock
-	if time.Now().Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
+	defer firebaseCertsCache.Unlock()
+
+	// Double-check after acquiring write lock to avoid redundant remote fetches.
+	now = time.Now()
+	if now.Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
 		cached := firebaseCertsCache.certs
-		firebaseCertsCache.Unlock()
 		return cached, nil
 	}
-	firebaseCertsCache.Unlock()
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, firebaseCertsURL, nil)
 	if err != nil {
@@ -257,10 +259,8 @@ func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
 		}
 	}
 
-	firebaseCertsCache.Lock()
 	firebaseCertsCache.certs = certs
 	firebaseCertsCache.expiresAt = expiresAt
-	firebaseCertsCache.Unlock()
 
 	return certs, nil
 }
