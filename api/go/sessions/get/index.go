@@ -15,6 +15,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !httpapi.RequireAuthenticatedUser(w, r) {
+		return
+	}
+
 	config := readConfigFromQuery(r)
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if config.Owner == "" || config.Repo == "" {

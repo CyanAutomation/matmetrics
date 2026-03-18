@@ -20,3 +20,7 @@ func DecodeJSON(r *http.Request, target any) error {
 func MethodNotAllowed(w http.ResponseWriter, allowed string) {
 	internalhttpapi.MethodNotAllowed(w, allowed)
 }
+
+func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
+	return internalhttpapi.RequireAuthenticatedUser(w, r)
+}

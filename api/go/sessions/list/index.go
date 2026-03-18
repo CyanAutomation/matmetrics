@@ -15,6 +15,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !httpapi.RequireAuthenticatedUser(w, r) {
+		return
+	}
+
 	config := readConfigFromQuery(r)
 	if config.Owner == "" || config.Repo == "" {
 		httpapi.WriteError(w, http.StatusBadRequest, "Missing owner or repo")
