@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -40,6 +40,7 @@ async function withTempDataDir(run: () => Promise<void>) {
 
 test('updateSession moves the markdown file when the session date changes', async () => {
   await withTempDataDir(async () => {
+    const originalPath = getSessionFilePath('2025-01-10', undefined, 'session-1');
     await createSession(makeSession());
 
     const nextSession = makeSession({
@@ -54,5 +55,9 @@ test('updateSession moves the markdown file when the session date changes', asyn
       getSessionFilePath('2025-02-12', undefined, 'session-1')
     );
     assert.equal(await findSessionFileById('session-1'), nextPath);
+    await assert.rejects(access(originalPath));
+    const markdown = await readFile(nextPath, 'utf8');
+    assert.match(markdown, /date: '2025-02-12'/);
+    assert.match(markdown, /moved to a new month/);
   });
 });

@@ -68,8 +68,7 @@ test('GET returns the local markdown session when present', async () => {
     assert.equal(response.status, 200);
 
     const payload = await response.json();
-    assert.equal(payload.id, 'target');
-    assert.equal(payload.date, '2025-01-10');
+    assert.deepEqual(payload, makeSession('target', '2025-01-10'));
   });
 });
 
@@ -110,10 +109,20 @@ test('PUT updates local markdown storage when GitHub is not configured', async (
 test('PUT returns 500 when GitHub update fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
+  const forwardedRequests: Array<{
+    url: string;
+    method: string;
+    body?: string;
+  }> = [];
 
   process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = async (url: string | URL | Request) => {
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
     const value = String(url);
+    forwardedRequests.push({
+      url: value,
+      method: init?.method ?? 'GET',
+      body: init?.body ? String(init.body) : undefined,
+    });
     if (value.includes('/api/go/sessions/update')) {
       return new Response(
         JSON.stringify({ error: 'Failed to update session' }),
@@ -146,6 +155,19 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
       error: 'Failed to update session',
+    });
+    assert.equal(forwardedRequests.length, 1);
+    assert.equal(forwardedRequests[0].method, 'PUT');
+    assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/update$/);
+    assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
+      session: {
+        id: 'put-github-failure',
+        date: '2025-01-10',
+        effort: 4,
+        category: 'Technical',
+        techniques: [],
+      },
+      config: { owner: 'octocat', repo: 'hello-world' },
     });
   } finally {
     global.fetch = originalFetch;
