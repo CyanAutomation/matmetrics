@@ -114,19 +114,20 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
         continue;
       }
 
-      if (reducedOperation.type === 'UPDATE') {
         if (operation.type === 'DELETE') {
           reducedOperation = operation;
           continue;
         }
 
-        reducedOperation = {
-          type: 'UPDATE',
-          session: operation.session,
-          queuedAt: operation.queuedAt,
-        };
-        continue;
-      }
+        // UPDATE followed by UPDATE or CREATE (edge case: treat as UPDATE with latest data)
+        if (operation.type === 'UPDATE' || operation.type === 'CREATE') {
+          reducedOperation = {
+            type: 'UPDATE',
+            session: operation.session,
+            queuedAt: operation.queuedAt,
+          };
+          continue;
+        }
 
       // DELETE followed by CREATE is treated as an upsert update, so replay stays idempotent
       // for servers that may already have deleted state applied.
