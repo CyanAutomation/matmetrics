@@ -96,7 +96,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
           reducedOperation = {
             type: 'CREATE',
             session: operation.session,
-            queuedAt: operation.queuedAt,
+            queuedAt: reducedOperation.queuedAt,
           };
           continue;
         }
