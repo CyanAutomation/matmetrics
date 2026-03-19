@@ -713,8 +713,11 @@ export function getGitHubSyncStatus():
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   updateLocalStorageCache([]);
+  localStorage.removeItem(getSyncQueueStorageKey());
+  localStorage.removeItem(getSyncLockStorageKey());
   sessionCache = [];
   dirtyMutations.clear();
+  dispatchStorageSync([]);
 }
 
 /**
