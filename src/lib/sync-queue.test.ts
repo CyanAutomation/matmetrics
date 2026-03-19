@@ -84,12 +84,18 @@ test('queueOperation timestamps operations and preserves insertion order', () =>
   resetQueue();
 
   queueOperation({ type: 'CREATE', session: makeSession('session-1') });
-  queueOperation({ type: 'UPDATE', session: makeSession('session-1') });
+  queueOperation({
+    type: 'UPDATE',
+    session: { ...makeSession('session-1'), notes: 'updated' },
+  });
 
   const queue = getQueue();
-  assert.equal(queue.length, 2);
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].type, 'CREATE');
+  if (queue[0].type === 'CREATE') {
+    assert.equal(queue[0].session.notes, 'updated');
+  }
   assert.ok(queue.every((operation) => Number.isFinite(operation.queuedAt)));
-  assert.ok(queue[1].queuedAt >= queue[0].queuedAt);
 });
 
 test('setQueue preserves a newer concurrent operation with the same identity', () => {
@@ -144,4 +150,67 @@ test('identity-based removal succeeds under concurrent writes where index-based 
   resetQueue([opB, opC]);
   removeOperationByIdentity(staleTargetB);
   assert.deepEqual(getQueue(), [opC]);
+});
+
+test('coalesces create then update into create with latest payload', () => {
+  resetQueue();
+  const created = makeSession('session-1');
+  const updated = { ...created, notes: 'latest note' };
+
+  setQueue(
+    [
+      { type: 'CREATE', session: created, queuedAt: 100 },
+      { type: 'UPDATE', session: updated, queuedAt: 200 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    { type: 'CREATE', session: updated, queuedAt: 200 },
+  ]);
+});
+
+test('coalesces create then delete into no-op', () => {
+  resetQueue();
+
+  setQueue(
+    [
+      { type: 'CREATE', session: makeSession('session-1'), queuedAt: 100 },
+      { type: 'DELETE', id: 'session-1', queuedAt: 200 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), []);
+});
+
+test('coalesces update then delete into delete', () => {
+  resetQueue();
+
+  setQueue(
+    [
+      { type: 'UPDATE', session: makeSession('session-1'), queuedAt: 100 },
+      { type: 'DELETE', id: 'session-1', queuedAt: 200 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [{ type: 'DELETE', id: 'session-1', queuedAt: 200 }]);
+});
+
+test('coalesces delete then create into upsert-style update', () => {
+  resetQueue();
+  const recreated = { ...makeSession('session-1'), notes: 'recreated' };
+
+  setQueue(
+    [
+      { type: 'DELETE', id: 'session-1', queuedAt: 100 },
+      { type: 'CREATE', session: recreated, queuedAt: 200 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    { type: 'UPDATE', session: recreated, queuedAt: 200 },
+  ]);
 });
