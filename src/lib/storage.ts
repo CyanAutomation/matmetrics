@@ -25,7 +25,10 @@ import {
   DEFAULT_GITHUB_SETTINGS,
   DEFAULT_TRANSFORMER_PROMPT,
   getCurrentPreferences,
+  saveGitHubSettingsPreference,
 } from './user-preferences';
+import { getFirebaseAuth } from './firebase-client';
+import type { UserPreferences } from './types';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -55,6 +58,26 @@ const syncOwnerId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `sync-owner-${Math.random().toString(36).slice(2)}`;
+
+type AuthenticatedUserIdResolver = () => string | null;
+type PreferenceReader = () => UserPreferences;
+type GitHubSettingsSaver = (
+  uid: string,
+  gitHub: GitHubSettings
+) => Promise<void>;
+
+let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
+  try {
+    return getFirebaseAuth().currentUser?.uid ?? null;
+  } catch (error) {
+    console.error('Failed to resolve authenticated user for sync status', error);
+    return null;
+  }
+};
+
+let readPreferences: PreferenceReader = () => getCurrentPreferences();
+let persistGitHubSettingsPreference: GitHubSettingsSaver =
+  saveGitHubSettingsPreference;
 
 type DirtyMutation =
   | {
@@ -647,7 +670,7 @@ export function resetTransformerPrompt(): void {
 
 // GitHub Settings Persistence
 export function getGitHubSettings(): GitHubSettings {
-  return getCurrentPreferences().gitHub ?? { ...DEFAULT_GITHUB_SETTINGS };
+  return readPreferences().gitHub ?? { ...DEFAULT_GITHUB_SETTINGS };
 }
 
 export function getGitHubConfig(): GitHubConfig | null {
@@ -697,9 +720,24 @@ export function setGitHubMigrationDone(): void {
 export function setGitHubSyncStatus(
   status: 'idle' | 'syncing' | 'success' | 'error'
 ): void {
+  const uid = resolveAuthenticatedUserId();
+  if (!uid) {
+    console.warn(
+      'setGitHubSyncStatus skipped: no authenticated user available'
+    );
+    return;
+  }
+
   const settings = getGitHubSettings();
-  settings.syncStatus = status;
-  settings.lastSyncTime = new Date().toISOString();
+  const nextSettings: GitHubSettings = {
+    ...settings,
+    syncStatus: status,
+    lastSyncTime: new Date().toISOString(),
+  };
+
+  void persistGitHubSettingsPreference(uid, nextSettings).catch((error) => {
+    console.error('Failed to persist GitHub sync status preference', error);
+  });
 }
 
 export function getGitHubSyncStatus():
@@ -971,7 +1009,34 @@ export function __resetStorageStateForTests(): void {
   latestAppliedSeq = 0;
   mutationVersion = 0;
   dirtyMutations.clear();
+  resolveAuthenticatedUserId = () => {
+    try {
+      return getFirebaseAuth().currentUser?.uid ?? null;
+    } catch {
+      return null;
+    }
+  };
+  readPreferences = () => getCurrentPreferences();
+  persistGitHubSettingsPreference = saveGitHubSettingsPreference;
   if (typeof window !== 'undefined') {
     localStorage.removeItem(getSyncLockStorageKey());
+  }
+}
+
+export function __setStorageDependencyOverridesForTests(overrides: {
+  resolveAuthenticatedUserId?: AuthenticatedUserIdResolver;
+  readPreferences?: PreferenceReader;
+  persistGitHubSettingsPreference?: GitHubSettingsSaver;
+}): void {
+  if (overrides.resolveAuthenticatedUserId) {
+    resolveAuthenticatedUserId = overrides.resolveAuthenticatedUserId;
+  }
+
+  if (overrides.readPreferences) {
+    readPreferences = overrides.readPreferences;
+  }
+
+  if (overrides.persistGitHubSettingsPreference) {
+    persistGitHubSettingsPreference = overrides.persistGitHubSettingsPreference;
   }
 }
