@@ -51,6 +51,17 @@ function getOperationIdentity(operation: SyncOperationInput): string {
   return `${operation.type}:${operation.session.id}`;
 }
 
+function hasQueuedAt(operation: SyncOperationInput): operation is SyncOperation {
+  return 'queuedAt' in operation && Number.isFinite(operation.queuedAt);
+}
+
+function getOperationKey(operation: SyncOperationInput): string {
+  const identity = getOperationIdentity(operation);
+  return hasQueuedAt(operation)
+    ? `${identity}:${operation.queuedAt}`
+    : `${identity}:*`;
+}
+
 function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   const byIdentity = new Map<string, SyncOperation>();
 
@@ -180,16 +191,27 @@ export function clearQueue(baseQueue?: SyncOperationInput[]): void {
 }
 
 /**
- * Remove a specific operation from the queue by index
- * (useful for removing operations as they're successfully synced)
+ * Remove queued operation(s) by stable identity key.
+ *
+ * - If `operation.queuedAt` is provided, removes the exact matching operation key.
+ * - If `operation.queuedAt` is omitted, removes all operations for that identity.
  */
-export function removeOperation(index: number): void {
+export function removeOperationByIdentity(operation: SyncOperationInput): void {
   if (typeof window === 'undefined') return;
 
   try {
     const baseQueue = getQueue();
-    const queue = [...baseQueue];
-    queue.splice(index, 1);
+    const targetKey = getOperationKey(operation);
+    const queue = hasQueuedAt(operation)
+      ? baseQueue.filter(
+          (queuedOperation) => getOperationKey(queuedOperation) !== targetKey
+        )
+      : baseQueue.filter(
+          (queuedOperation) =>
+            getOperationIdentity(queuedOperation) !==
+            getOperationIdentity(operation)
+        );
+
     writeQueueWithLatestMerge(queue, baseQueue);
   } catch (e) {
     console.error('Failed to remove operation from queue', e);
