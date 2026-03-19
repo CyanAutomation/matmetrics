@@ -7,6 +7,66 @@ import (
 	"matmetrics/internal/model"
 )
 
+func TestSplitFrontmatterWithLF(t *testing.T) {
+	input := "---\nid: \"lf\"\n---\n\nbody"
+
+	frontmatter, content, err := splitFrontmatter(input)
+	if err != nil {
+		t.Fatalf("splitFrontmatter() error = %v", err)
+	}
+
+	if frontmatter != "id: \"lf\"" {
+		t.Fatalf("unexpected frontmatter: %q", frontmatter)
+	}
+	if content != "\nbody" {
+		t.Fatalf("unexpected content: %q", content)
+	}
+}
+
+func TestSplitFrontmatterWithCRLF(t *testing.T) {
+	input := "---\r\nid: \"crlf\"\r\n---\r\n\r\nbody"
+
+	frontmatter, content, err := splitFrontmatter(input)
+	if err != nil {
+		t.Fatalf("splitFrontmatter() error = %v", err)
+	}
+
+	if frontmatter != "id: \"crlf\"" {
+		t.Fatalf("unexpected frontmatter: %q", frontmatter)
+	}
+	if content != "\nbody" {
+		t.Fatalf("unexpected content: %q", content)
+	}
+}
+
+func TestSplitFrontmatterMissingOrInvalidTerminator(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "missing terminator",
+			input: "---\nid: \"missing\"\n",
+		},
+		{
+			name:  "invalid terminator",
+			input: "---\nid: \"invalid\"\n--\n\nbody",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := splitFrontmatter(tc.input)
+			if err == nil {
+				t.Fatalf("splitFrontmatter() error = nil, want error")
+			}
+			if err.Error() != "markdown frontmatter terminator not found" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestRoundTripSessionMarkdown(t *testing.T) {
 	duration := 90
 	session := model.Session{
