@@ -106,7 +106,11 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
           continue;
         }
 
-        reducedOperation = operation;
+        reducedOperation = {
+          type: 'CREATE',
+          session: operation.session,
+          queuedAt: operation.queuedAt,
+        };
         continue;
       }
 
