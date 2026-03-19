@@ -115,6 +115,8 @@ func MarkdownToSession(markdown string) (model.Session, error) {
 }
 
 func splitFrontmatter(markdown string) (string, string, error) {
+	markdown = strings.ReplaceAll(markdown, "\r\n", "\n")
+
 	const marker = "---\n"
 	if !strings.HasPrefix(markdown, marker) {
 		return "", "", fmt.Errorf("markdown is missing YAML frontmatter")
