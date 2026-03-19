@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { setActiveUserId } from './client-identity';
+import { getScopedStorageKey, setActiveUserId } from './client-identity';
 import {
   __resetStorageStateForTests,
+  clearAllData,
   getSessions,
   initializeStorage,
   retryCloudSync,
   saveSession,
   teardownStorageListeners,
 } from './storage';
-import { getQueue } from './sync-queue';
+import { getQueue, getSyncQueueStorageKey } from './sync-queue';
 import type { JudoSession } from './types';
 
 class LocalStorageMock implements Storage {
@@ -287,5 +288,35 @@ test('sync lease prevents replay when another tab already owns the queue flush',
     teardownStorageListeners();
     __resetStorageStateForTests();
     global.fetch = originalFetch;
+  }
+});
+
+test('clearAllData clears scoped sync queue and lock keys and emits storage sync event', () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+  localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify([]));
+  localStorage.setItem(syncLockStorageKey, JSON.stringify({ owner: 'tab-1' }));
+
+  let eventSessions: JudoSession[] | undefined;
+  const onStorageSync = (event: Event) => {
+    eventSessions = (event as CustomEvent<{ sessions: JudoSession[] }>).detail
+      .sessions;
+  };
+
+  window.addEventListener('storageSync', onStorageSync);
+
+  try {
+    clearAllData();
+
+    assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
+    assert.equal(localStorage.getItem(syncLockStorageKey), null);
+    assert.deepEqual(eventSessions, []);
+  } finally {
+    window.removeEventListener('storageSync', onStorageSync);
+    teardownStorageListeners();
+    __resetStorageStateForTests();
   }
 });
