@@ -3,16 +3,20 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { getScopedStorageKey, setActiveUserId } from './client-identity';
 import {
+  __setStorageDependencyOverridesForTests,
   __resetStorageStateForTests,
   clearAllData,
+  getGitHubSyncStatus,
   getSessions,
   initializeStorage,
   retryCloudSync,
   saveSession,
+  setGitHubSyncStatus,
   teardownStorageListeners,
 } from './storage';
 import { getQueue, getSyncQueueStorageKey } from './sync-queue';
 import type { JudoSession } from './types';
+import { DEFAULT_USER_PREFERENCES } from './user-preferences';
 
 class LocalStorageMock implements Storage {
   private store = new Map<string, string>();
@@ -316,6 +320,91 @@ test('clearAllData clears scoped sync queue and lock keys and emits storage sync
     assert.deepEqual(eventSessions, []);
   } finally {
     window.removeEventListener('storageSync', onStorageSync);
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('setGitHubSyncStatus persists via preferences and remains observable after reload/init', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const preferencesStorageKey = getScopedStorageKey('matmetrics_user_preferences');
+  let preferenceState = {
+    ...DEFAULT_USER_PREFERENCES,
+    gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
+  };
+
+  __setStorageDependencyOverridesForTests({
+    resolveAuthenticatedUserId: () => 'user-1',
+    readPreferences: () => preferenceState,
+    persistGitHubSettingsPreference: async (_uid, gitHub) => {
+      preferenceState = {
+        ...preferenceState,
+        gitHub,
+      };
+      localStorage.setItem(preferencesStorageKey, JSON.stringify(preferenceState));
+    },
+  });
+
+  try {
+    setGitHubSyncStatus('success');
+    await flushAsyncWork();
+
+    assert.equal(getGitHubSyncStatus(), 'success');
+
+    // Simulate reload by replacing in-memory preference state from persisted cache.
+    preferenceState = {
+      ...DEFAULT_USER_PREFERENCES,
+      gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
+    };
+    initializeStorage();
+    preferenceState = JSON.parse(localStorage.getItem(preferencesStorageKey) ?? '{}');
+
+    assert.equal(getGitHubSyncStatus(), 'success');
+    assert.ok(preferenceState.gitHub.lastSyncTime);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('setGitHubSyncStatus warns and no-ops when no authenticated user is available', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  let preferenceState = {
+    ...DEFAULT_USER_PREFERENCES,
+    gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
+  };
+  let persisted = false;
+
+  __setStorageDependencyOverridesForTests({
+    resolveAuthenticatedUserId: () => null,
+    readPreferences: () => preferenceState,
+    persistGitHubSettingsPreference: async () => {
+      persisted = true;
+    },
+  });
+
+  const originalWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = ((message: string) => {
+    warnings.push(message);
+  }) as typeof console.warn;
+
+  try {
+    setGitHubSyncStatus('error');
+    await flushAsyncWork();
+
+    assert.equal(persisted, false);
+    assert.equal(getGitHubSyncStatus(), 'idle');
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /no authenticated user/i);
+  } finally {
+    console.warn = originalWarn;
     teardownStorageListeners();
     __resetStorageStateForTests();
   }
