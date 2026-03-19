@@ -5,6 +5,7 @@ import {
   getSyncQueueStorageKey,
   getQueue,
   queueOperation,
+  removeOperationByIdentity,
   setQueue,
   type SyncOperation,
 } from './sync-queue';
@@ -72,6 +73,13 @@ function resetQueue(initialQueue?: SyncOperation[]): void {
   }
 }
 
+function removeOperationByIndexLegacy(index: number): void {
+  const baseQueue = getQueue();
+  const queue = [...baseQueue];
+  queue.splice(index, 1);
+  setQueue(queue, baseQueue);
+}
+
 test('queueOperation timestamps operations and preserves insertion order', () => {
   resetQueue();
 
@@ -113,4 +121,27 @@ test('clearQueue removes the persisted storage key when there is no concurrent w
 
   assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
   assert.deepEqual(getQueue(), []);
+});
+
+test('identity-based removal succeeds under concurrent writes where index-based removal fails', () => {
+  const opA = createOp('session-a', 100);
+  const opB = createOp('session-b', 200);
+  const opC = createOp('session-c', 300);
+  resetQueue([opA, opB, opC]);
+
+  const staleSnapshot = getQueue();
+  const staleIndexForB = 1;
+  const staleTargetB = staleSnapshot[staleIndexForB];
+
+  // Simulate a concurrent writer that removed opA while the caller still holds stale index data.
+  setQueue([staleSnapshot[1], staleSnapshot[2]], staleSnapshot);
+
+  // Legacy behavior removes by positional index and therefore deletes opC, not opB.
+  removeOperationByIndexLegacy(staleIndexForB);
+  assert.deepEqual(getQueue(), [opB]);
+
+  // New behavior removes by stable identity key and correctly removes the intended opB.
+  resetQueue([opB, opC]);
+  removeOperationByIdentity(staleTargetB);
+  assert.deepEqual(getQueue(), [opC]);
 });
