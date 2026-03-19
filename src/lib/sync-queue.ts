@@ -140,7 +140,9 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
         continue;
       }
 
-      reducedOperation = operation;
+      // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
+      // Both deletes are equivalent, but preserve the original operation timing
+      continue;
     }
 
     if (reducedOperation) {
