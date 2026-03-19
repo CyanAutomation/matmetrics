@@ -43,6 +43,10 @@ function withQueuedAt(operation: SyncOperationInput): SyncOperation {
   };
 }
 
+function getOperationSessionId(operation: SyncOperationInput): string {
+  return operation.type === 'DELETE' ? operation.id : operation.session.id;
+}
+
 function getOperationIdentity(operation: SyncOperationInput): string {
   if (operation.type === 'DELETE') {
     return `${operation.type}:${operation.id}`;
@@ -63,22 +67,83 @@ function getOperationKey(operation: SyncOperationInput): string {
 }
 
 function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
-  const byIdentity = new Map<string, SyncOperation>();
+  const groupedBySession = new Map<string, SyncOperation[]>();
 
   for (const operation of operations) {
     const normalizedOperation = withQueuedAt(operation);
-    const identity = getOperationIdentity(normalizedOperation);
-    const existingOperation = byIdentity.get(identity);
+    const sessionId = getOperationSessionId(normalizedOperation);
+    const existingGroup = groupedBySession.get(sessionId) ?? [];
+    existingGroup.push(normalizedOperation);
+    groupedBySession.set(sessionId, existingGroup);
+  }
 
-    if (
-      !existingOperation ||
-      normalizedOperation.queuedAt >= existingOperation.queuedAt
-    ) {
-      byIdentity.set(identity, normalizedOperation);
+  const reducedOperations: SyncOperation[] = [];
+
+  for (const operationsForSession of groupedBySession.values()) {
+    const sortedOperations = [...operationsForSession].sort(
+      (left, right) => left.queuedAt - right.queuedAt
+    );
+
+    let reducedOperation: SyncOperation | undefined;
+    for (const operation of sortedOperations) {
+      if (!reducedOperation) {
+        reducedOperation = operation;
+        continue;
+      }
+
+      if (reducedOperation.type === 'CREATE') {
+        if (operation.type === 'UPDATE') {
+          reducedOperation = {
+            type: 'CREATE',
+            session: operation.session,
+            queuedAt: operation.queuedAt,
+          };
+          continue;
+        }
+
+        if (operation.type === 'DELETE') {
+          reducedOperation = undefined;
+          continue;
+        }
+
+        reducedOperation = operation;
+        continue;
+      }
+
+      if (reducedOperation.type === 'UPDATE') {
+        if (operation.type === 'DELETE') {
+          reducedOperation = operation;
+          continue;
+        }
+
+        reducedOperation = {
+          type: 'UPDATE',
+          session: operation.session,
+          queuedAt: operation.queuedAt,
+        };
+        continue;
+      }
+
+      // DELETE followed by CREATE is treated as an upsert update, so replay stays idempotent
+      // for servers that may already have deleted state applied.
+      if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
+        reducedOperation = {
+          type: 'UPDATE',
+          session: operation.session,
+          queuedAt: operation.queuedAt,
+        };
+        continue;
+      }
+
+      reducedOperation = operation;
+    }
+
+    if (reducedOperation) {
+      reducedOperations.push(reducedOperation);
     }
   }
 
-  return Array.from(byIdentity.values());
+  return reducedOperations.sort((left, right) => left.queuedAt - right.queuedAt);
 }
 
 function readQueueFromStorage(): SyncOperation[] {
@@ -98,20 +163,20 @@ function writeQueueWithLatestMerge(
 
   const mergedQueue = normalizedBaseQueue
     ? (() => {
-        const baseLatestByIdentity = new Map<string, number>();
+        const baseLatestBySession = new Map<string, number>();
 
         for (const operation of normalizedBaseQueue) {
-          const identity = getOperationIdentity(operation);
-          const existingQueuedAt =
-            baseLatestByIdentity.get(identity) ?? Number.NEGATIVE_INFINITY;
-          if (operation.queuedAt > existingQueuedAt) {
-            baseLatestByIdentity.set(identity, operation.queuedAt);
+          const sessionId = getOperationSessionId(operation);
+          const existingSessionQueuedAt =
+            baseLatestBySession.get(sessionId) ?? Number.NEGATIVE_INFINITY;
+          if (operation.queuedAt > existingSessionQueuedAt) {
+            baseLatestBySession.set(sessionId, operation.queuedAt);
           }
         }
 
         const concurrentLatestOperations = latestQueue.filter((operation) => {
-          const baseQueuedAt = baseLatestByIdentity.get(
-            getOperationIdentity(operation)
+          const baseQueuedAt = baseLatestBySession.get(
+            getOperationSessionId(operation)
           );
           return (
             baseQueuedAt === undefined || operation.queuedAt > baseQueuedAt
