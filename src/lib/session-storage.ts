@@ -19,6 +19,9 @@ import type { GitHubConfig, JudoSession } from './types';
 import { compareDateOnlyDesc } from './utils';
 
 const GITHUB_SESSION_ROOT = 'data';
+const GITHUB_SESSION_PATH_REGEX = new RegExp(
+  `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics-[^/]+\\.md$`
+);
 
 function normalizeBranch(branch: string | undefined): string | undefined {
   const trimmed = branch?.trim();
@@ -154,9 +157,7 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
 
       if (
         entry.type === 'file' &&
-        new RegExp(`^${GITHUB_SESSION_ROOT}/\\d{4}/\\d{2}/.+\\.md$`).test(
-          entry.path
-        )
+        GITHUB_SESSION_PATH_REGEX.test(entry.path)
       ) {
         paths.push(entry.path);
       }
@@ -170,10 +171,23 @@ export async function listSessionsFromGitHub(
   config: GitHubConfig
 ): Promise<JudoSession[]> {
   const markdownPaths = await listGitHubSessionPaths(config);
-  const sessions = await Promise.all(
-    markdownPaths.map(async (filePath) =>
-      markdownToSession(await readGitHubFileContent(config, filePath))
-    )
+  const sessionResults = await Promise.all(
+    markdownPaths.map(async (filePath) => {
+      try {
+        const markdown = await readGitHubFileContent(config, filePath);
+        return markdownToSession(markdown);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `Skipping GitHub session file at ${filePath}: ${message}`
+        );
+        return null;
+      }
+    })
+  );
+
+  const sessions = sessionResults.filter(
+    (session): session is JudoSession => session !== null
   );
 
   sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
