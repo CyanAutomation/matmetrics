@@ -14,10 +14,10 @@ import { DashboardOverview } from '@/components/dashboard-overview';
 import { PluginManager } from '@/components/plugin-manager';
 import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
-import { TagManager } from '@/components/tag-manager';
 import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
+import { resolveDashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 
 export const TAB_IDS = {
@@ -27,7 +27,6 @@ export const TAB_IDS = {
   history: 'history',
   prompt: 'prompt',
   github: 'github',
-  tags: 'tags',
 } as const;
 
 export type CoreTabId = (typeof TAB_IDS)[keyof typeof TAB_IDS];
@@ -125,20 +124,13 @@ const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
 };
 
-const pluginTabRenderers: Record<
-  string,
-  (context: TabRenderContext) => React.ReactNode
-> = {
-  tag_manager: ({ refreshSessions }) =>
-    React.createElement(TagManager, { onRefresh: refreshSessions }),
-};
-
 export const mapDashboardExtensionsToTabs = (
   extensions: ResolvedDashboardTabExtension[]
 ): TabDefinition[] =>
   extensions.flatMap(({ extension }) => {
-    const render = pluginTabRenderers[extension.config.component];
+    const render = resolveDashboardTabRenderer(extension.config.component);
     if (!render) {
+      console.error(`Failed to resolve dashboard tab renderer for component: ${extension.config.component}`);
       return [];
     }
 
