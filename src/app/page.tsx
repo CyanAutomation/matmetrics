@@ -58,12 +58,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
   coreTabs,
-  pluginTabs,
+  mapDashboardExtensionsToTabs,
   TAB_IDS,
   type TabId,
 } from '@/lib/navigation/tab-definitions';
-
-const allTabs = [...coreTabs, ...pluginTabs];
+import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
 
 export default function Home() {
   const { toast } = useToast();
@@ -84,6 +83,19 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState(getSyncStatus());
   const [guestWorkspace, setGuestWorkspace] = useState(() =>
     getGuestWorkspaceSummary()
+  );
+
+  const resolvedPluginTabs = React.useMemo(
+    () =>
+      mapDashboardExtensionsToTabs(loadEnabledDashboardTabExtensions()),
+    []
+  );
+  const allTabs = React.useMemo(
+    () =>
+      resolvedPluginTabs.length > 0
+        ? [...coreTabs, ...resolvedPluginTabs]
+        : [...coreTabs],
+    [resolvedPluginTabs]
   );
 
   const refreshSessions = useCallback(() => {
