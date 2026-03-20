@@ -258,17 +258,25 @@ Error messages should be actionable and include the JSON path (for example `uiEx
   },
   "uiExtensions": [
     {
-      "type": "page",
-      "id": "analytics-overview-page",
+      "type": "dashboard_tab",
+      "id": "analytics-overview-tab",
       "title": "Analytics Overview",
-      "route": "/plugins/analytics/overview"
+      "config": {
+        "tabId": "analytics-overview",
+        "route": "/plugins/analytics/overview",
+        "icon": "chart-line",
+        "order": 5
+      }
     },
     {
-      "type": "panel",
-      "id": "analytics-summary-panel",
+      "type": "settings_panel",
+      "id": "analytics-summary-settings",
       "title": "Analytics Summary",
       "config": {
-        "placement": "right-rail"
+        "panelId": "analytics-summary",
+        "title": "Analytics Summary",
+        "description": "Controls summary widget defaults.",
+        "order": 15
       }
     }
   ]
@@ -286,15 +294,20 @@ Error messages should be actionable and include the JSON path (for example `uiEx
   "enabled": "yes",
   "uiExtensions": [
     {
-      "type": "page",
+      "type": "dashboard_tab",
       "id": "dup-extension",
-      "title": "Overview"
+      "title": "Overview",
+      "config": {
+        "tabId": "overview-tab"
+      }
     },
     {
-      "type": "panel",
+      "type": "menu_item",
       "id": "dup-extension",
       "title": 99,
-      "route": "/plugins/analytics/panel"
+      "config": {
+        "label": "Analytics Panel"
+      }
     }
   ]
 }
@@ -304,8 +317,9 @@ Expected validation errors (example):
 - `version`: expected SemVer-like `x.y.z`, got `"v1.2"`.
 - `description`: expected string, got number.
 - `enabled`: expected boolean, got string.
-- `uiExtensions[0]`: missing required `route` or `config` field.
+- `uiExtensions[0].config.route`: missing required string field for `dashboard_tab`.
 - `uiExtensions[1].title`: expected string, got number.
+- `uiExtensions[1].config.route`: missing required string field for `menu_item`.
 - `uiExtensions[1].id`: duplicate extension id `dup-extension`.
 
 ## Create a New Plugin
@@ -345,10 +359,14 @@ Create these files for a new plugin:
   "enabled": true,
   "uiExtensions": [
     {
-      "type": "page",
-      "id": "<kebab-case-plugin-id>-main-page",
+      "type": "dashboard_tab",
+      "id": "<kebab-case-plugin-id>-main-tab",
       "title": "<Plugin Title>",
-      "route": "/plugins/<kebab-case-plugin-id>"
+      "config": {
+        "tabId": "<kebab-case-plugin-id>-main",
+        "route": "/plugins/<kebab-case-plugin-id>",
+        "order": 10
+      }
     }
   ]
 }
