@@ -37,7 +37,9 @@ function getDismissSalt(): string {
   }
 
   // Generate a random salt once per browser profile.
-  const randomSalt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const randomBytes = new Uint8Array(16);
+  crypto.getRandomValues(randomBytes);
+  const randomSalt = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('');
   window.localStorage.setItem(GUEST_DISMISS_SALT_KEY, randomSalt);
   return randomSalt;
 }
