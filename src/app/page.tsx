@@ -85,13 +85,18 @@ export default function Home() {
     getGuestWorkspaceSummary()
   );
 
-  const resolvedPluginTabs = mapDashboardExtensionsToTabs(
-    loadEnabledDashboardTabExtensions()
+  const resolvedPluginTabs = React.useMemo(
+    () =>
+      mapDashboardExtensionsToTabs(loadEnabledDashboardTabExtensions()),
+    []
   );
-  const allTabs =
-    resolvedPluginTabs.length > 0
-      ? [...coreTabs, ...resolvedPluginTabs]
-      : [...coreTabs];
+  const allTabs = React.useMemo(
+    () =>
+      resolvedPluginTabs.length > 0
+        ? [...coreTabs, ...resolvedPluginTabs]
+        : [...coreTabs],
+    [resolvedPluginTabs]
+  );
 
   const refreshSessions = useCallback(() => {
     setSessions(getSessions());
