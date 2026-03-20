@@ -136,6 +136,52 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
   }
 });
 
+test('POST returns 409 for duplicate session ID conflicts with different content', async () => {
+  await withTempDataDir(async () => {
+    const firstResponse = await POST(
+      new NextRequest('http://localhost/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 'create-conflict-id',
+          date: '2025-01-12',
+          effort: 3,
+          category: 'Technical',
+          techniques: ['osoto-gari'],
+        }),
+      })
+    );
+
+    assert.equal(firstResponse.status, 201);
+
+    const conflictResponse = await POST(
+      new NextRequest('http://localhost/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 'create-conflict-id',
+          date: '2025-01-12',
+          effort: 4,
+          category: 'Technical',
+          techniques: ['harai-goshi'],
+        }),
+      })
+    );
+
+    assert.equal(conflictResponse.status, 409);
+    assert.deepEqual(await conflictResponse.json(), {
+      error:
+        'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.',
+    });
+  });
+});
+
 test('POST returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
