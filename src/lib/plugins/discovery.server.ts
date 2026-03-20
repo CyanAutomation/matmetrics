@@ -56,7 +56,7 @@ const loadFilesystemManifestCandidates = async (
 export const discoverPluginManifestCandidates = async (
   options: DiscoveryOptions = {}
 ): Promise<unknown[]> => {
-  const pluginsRoot = options.pluginsRoot ?? path.join(process.cwd(), 'plugins');
+  const pluginsRoot = options.pluginsRoot ?? path.resolve(__dirname, '../../../../plugins');
   const filesystemCandidates = await loadFilesystemManifestCandidates(pluginsRoot);
   const approvedCandidates = options.approvedManifestSources ?? [];
 
