@@ -209,12 +209,6 @@ export default function Home() {
   const selectedTab =
     visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0] ?? null;
 
-  useEffect(() => {
-    if (selectedTab && selectedTab.id !== activeTab) {
-      setActiveTab(selectedTab.id);
-    }
-  }, [activeTab, selectedTab]);
-
   if (!authReady || !preferencesReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
