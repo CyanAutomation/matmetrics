@@ -130,6 +130,7 @@ export const mapDashboardExtensionsToTabs = (
   extensions.flatMap(({ extension }) => {
     const render = resolveDashboardTabRenderer(extension.config.component);
     if (!render) {
+      console.error(`Failed to resolve dashboard tab renderer for component: ${extension.config.component}`);
       return [];
     }
 
