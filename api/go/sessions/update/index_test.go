@@ -22,7 +22,7 @@ func TestHandlerRejectsMalformedDateBeforeCallingGitHub(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 
-	if got := recorder.Body.String(); got == "" || !bytes.Contains([]byte(got), []byte("invalid date: must be a real calendar date")) {
+	if got := recorder.Body.String(); got == "" || !bytes.Contains([]byte(got), []byte("Invalid date: must be a real calendar date")) {
 		t.Fatalf("unexpected body: %s", got)
 	}
 }
