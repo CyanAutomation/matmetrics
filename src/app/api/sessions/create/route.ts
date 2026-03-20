@@ -12,6 +12,11 @@ import {
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const CREATE_CONFLICT_SIGNATURES = [
+  'already exists with different content',
+];
+const CREATE_CONFLICT_ERROR =
+  'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
 
 function validateDate(
   dateValue: unknown
@@ -234,6 +239,21 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error ?? '');
+    const isConflictError = CREATE_CONFLICT_SIGNATURES.some((signature) =>
+      errorMessage.toLowerCase().includes(signature.toLowerCase())
+    );
+
+    if (isConflictError) {
+      return NextResponse.json(
+        {
+          error: CREATE_CONFLICT_ERROR,
+        },
+        { status: 409 }
+      );
+    }
+
     console.error('Error creating session', error);
     return NextResponse.json(
       { error: 'Failed to create session' },
