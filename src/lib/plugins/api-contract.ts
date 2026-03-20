@@ -131,7 +131,10 @@ export const mergePreserveUnknownKeys = (
   return merged;
 };
 
-const ensurePathUnderRoot = (root: string, targetPath: string): string => {
+export const ensurePathUnderRoot = (
+  root: string,
+  targetPath: string
+): string => {
   const resolvedRoot = path.resolve(root);
   const resolvedTarget = path.resolve(targetPath);
 
@@ -141,7 +144,9 @@ const ensurePathUnderRoot = (root: string, targetPath: string): string => {
     : resolvedRoot + path.sep;
 
   if (!resolvedTarget.startsWith(rootWithSep)) {
-    throw new Error('Attempted to write plugin manifest outside of plugins root');
+    throw new Error(
+      'Attempted to write plugin manifest outside of plugins root'
+    );
   }
 
   return resolvedTarget;
