@@ -365,7 +365,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="text-xl font-bold tracking-tight text-primary">
-                {selectedTab?.headerTitle}
+                {selectedTab?.headerTitle ?? 'MatMetrics'}
               </h2>
             </div>
             <div className="flex items-center gap-3">
