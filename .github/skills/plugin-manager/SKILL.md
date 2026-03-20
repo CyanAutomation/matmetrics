@@ -388,6 +388,15 @@ export function initPlugin(context) {
 
 If TypeScript is chosen, keep the same exported `initPlugin` entrypoint and add types as needed.
 
+## Update Existing Plugin
+
+Use this deterministic process whenever the action is `update`.
+
+- **Default merge behavior (`merge-preserve`)**: apply field-level merges that preserve all existing manifest keys not explicitly mentioned by the user. Do not drop unknown or unmentioned keys.
+- **Explicit replace behavior (`replace-explicit`)**: perform full object or array replacement only when the user clearly and explicitly asks for replacement semantics.
+- **Version bump prompts (`version-bump`)**: when structural manifest changes are introduced (for example adding/removing `uiExtensions`, changing extension types, or altering schema shape), prompt for the intended bump level: patch, minor, or major.
+- **Delta evidence requirement**: for any changed JSON keys, include a concise before/after snippet in the response so the user can verify exactly what changed.
+
 ## Safety Constraints
 
 - Never overwrite existing plugin files without explicit user confirmation.
