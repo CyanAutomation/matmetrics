@@ -27,6 +27,18 @@ function sanitizeSessionId(sessionId: string): string {
   return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
 
+function ensurePathWithinDataDir(filePath: string): string {
+  const root = path.resolve(getDataDir());
+  const resolved = path.resolve(filePath);
+
+  // Ensure the resolved path is within the configured data directory
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error('Resolved session file path escapes data directory');
+  }
+
+  return resolved;
+}
+
 /**
  * Get the file path for a session based on its date
  * Format: data/YYYY/MM/YYYYMMDD-matmetrics.md
@@ -180,6 +192,7 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
   const filePath = getSessionFilePath(session.date, undefined, session.id);
+  const safeFilePath = ensurePathWithinDataDir(filePath);
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
@@ -194,8 +207,8 @@ export async function createSession(session: JudoSession): Promise<string> {
 
   // Idempotency: if this ID already exists (canonical path or legacy location), return success.
   try {
-    await fs.access(filePath);
-    return await assertExistingSessionMatches(filePath);
+    await fs.access(safeFilePath);
+    return await assertExistingSessionMatches(safeFilePath);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw e;
@@ -208,8 +221,11 @@ export async function createSession(session: JudoSession): Promise<string> {
   }
 
   try {
-    await fs.writeFile(filePath, markdown, { encoding: 'utf-8', flag: 'wx' });
-    return filePath;
+    await fs.writeFile(safeFilePath, markdown, {
+      encoding: 'utf-8',
+      flag: 'wx',
+    });
+    return safeFilePath;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
       // Another request wrote this session ID concurrently. Only treat as idempotent
