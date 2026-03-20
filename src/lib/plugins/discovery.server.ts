@@ -33,6 +33,10 @@ const loadFilesystemManifestCandidates = async (
           const manifestPath = path.join(rootDir, entry.name, 'plugin.json');
           try {
             const raw = await readFile(manifestPath, 'utf8');
+            // Protect against DoS via extremely large manifest files
+            if (raw.length > 1048576) { // 1MB limit
+              return null;
+            }
             return JSON.parse(raw) as unknown;
           } catch {
             return null;
