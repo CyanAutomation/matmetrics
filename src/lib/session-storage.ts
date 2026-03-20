@@ -65,7 +65,7 @@ function sanitizeGitHubBranch(raw: unknown): string | undefined {
     return undefined;
   }
   // Disallow whitespace and control characters
-  if (/[^\x21-\x7E]/.test(trimmed)) {
+  if (/[\x00-\x1F\x7F\s]/.test(trimmed)) {
     return undefined;
   }
   // Disallow simple path traversal sequences
