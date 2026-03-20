@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --write tsconfig.json",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test",
+    "test:all": "node --import tsx --test src/**/*.test.ts",
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
     "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/..."
   },
