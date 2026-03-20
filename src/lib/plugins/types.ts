@@ -100,6 +100,15 @@ export type PluginManifestValidationResult =
   | PluginManifestValidationSuccess
   | PluginManifestValidationFailure;
 
+
+export type PluginRuntimeWarningCode = 'dashboard_tab_renderer_unresolved';
+
+export type PluginRuntimeWarning = PluginValidationIssue & {
+  code: PluginRuntimeWarningCode;
+  pluginId: string;
+  extensionId: string;
+  componentId?: string;
+};
 export type ResolvedDashboardTabExtension = {
   pluginId: string;
   extension: DashboardTabExtension;
