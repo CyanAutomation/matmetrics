@@ -396,10 +396,13 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
     retryCloudSync();
     await flushAsyncWork();
 
+    const queue = getQueue();
+    const queuedOperation = queue[0];
+
     assert.equal(requestCount, 1);
-    assert.equal(getQueue().length, 1);
-    assert.equal(getQueue()[0].type, 'CREATE');
-    assert.equal(getQueue()[0].session.id, secondSession.id);
+    assert.equal(queue.length, 1);
+    assert.equal(queuedOperation.type, 'CREATE');
+    assert.equal(queuedOperation.session.id, secondSession.id);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
