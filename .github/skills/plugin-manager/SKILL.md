@@ -59,6 +59,12 @@ Fallback when inputs are incomplete:
    - enumerate plugin directories/manifests
    - collect key metadata (name, version, status, validation state)
    - present sorted results based on requested or default criteria
+   - for **List and Review Plugins**, inspect all `plugins/*/plugin.json` files;
+   - tolerate non-plugin directories gracefully (skip with informational note, do not fail scan);
+   - return:
+     1. a plugin summary table with columns `id`, `version`, `enabled`, and extension count;
+     2. per-plugin warnings for missing fields, invalid types, and empty code stubs;
+     3. a final severity summary (`errors`, `warnings`, `info`) plus a recommended next action.
 
 5. **Validate**
    - run structural + schema checks on target scope
