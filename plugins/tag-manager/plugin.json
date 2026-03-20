@@ -3,6 +3,7 @@
   "name": "Tag Manager Plugin",
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing tags.",
+  "capabilities": ["tag_mutation"],
   "enabled": true,
   "uiExtensions": [
     {

@@ -44,6 +44,19 @@ export const createUnresolvedDashboardComponentWarning = (
   componentId,
 });
 
+export const createMissingCapabilityDashboardWarning = (
+  requiredCapability: string,
+  pluginId: string,
+  extensionId: string
+): PluginRuntimeWarning => ({
+  code: 'dashboard_tab_missing_capability',
+  severity: 'warning',
+  path: `plugins.${pluginId}.capabilities`,
+  message: `Dashboard extension "${extensionId}" requires capability "${requiredCapability}" and was not rendered.`,
+  pluginId,
+  extensionId,
+});
+
 export const clearDashboardTabRendererRegistryForTests = (): void => {
   dashboardTabRenderers.clear();
 };
