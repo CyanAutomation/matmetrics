@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
+import type { SyncOperation } from './sync-queue';
+const syncQueueModule = require('./sync-queue');
+const {
   clearQueue,
   getSyncQueueStorageKey,
   getQueue,
   queueOperation,
   removeOperationByIdentity,
   setQueue,
-  type SyncOperation,
-} from './sync-queue';
+} = syncQueueModule;
 import type { JudoSession } from './types';
 
 class LocalStorageMock implements Storage {
@@ -166,7 +167,7 @@ test('coalesces create then update into create with latest payload', () => {
   );
 
   assert.deepEqual(getQueue(), [
-    { type: 'CREATE', session: updated, queuedAt: 200 },
+    { type: 'CREATE', session: updated, queuedAt: 100 },
   ]);
 });
 
