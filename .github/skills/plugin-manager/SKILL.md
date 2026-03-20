@@ -105,7 +105,7 @@ Use this concrete schema contract when creating or validating plugin manifests.
 
 ### Version rule
 
-- Accept only SemVer-like values matching `^\d+\.\d+\.\d+$`.
+- Accept only SemVer-like values matching `^\\d+\\.\\d+\\.\\d+$`.
 - Reject versions such as `1.0`, `v1.2.3`, `1.2.3-beta` unless explicitly allowed by a future schema revision.
 
 ### Validation behavior
