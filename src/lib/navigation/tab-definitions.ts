@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Puzzle,
   PlusCircle,
   History,
   Tags,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { DashboardOverview } from '@/components/dashboard-overview';
+import { PluginManager } from '@/components/plugin-manager';
 import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
 import { TagManager } from '@/components/tag-manager';
@@ -19,6 +21,7 @@ import { JudoSession } from '@/lib/types';
 import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 
 export const TAB_IDS = {
+  pluginManager: 'plugin_manager',
   dashboard: 'dashboard',
   log: 'log',
   history: 'history',
@@ -53,7 +56,19 @@ export type TabDefinition = {
   isVisible?: (context: TabVisibilityContext) => boolean;
 };
 
+const pluginManagerFeatureFlagEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_PLUGIN_MANAGER === 'true';
+
 export const coreTabs: ReadonlyArray<TabDefinition> = [
+  {
+    id: TAB_IDS.pluginManager,
+    title: 'Plugin Manager',
+    headerTitle: 'Plugin Manager',
+    icon: Puzzle,
+    section: 'core',
+    render: () => React.createElement(PluginManager),
+    isVisible: () => pluginManagerFeatureFlagEnabled,
+  },
   {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
