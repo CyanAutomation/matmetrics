@@ -42,15 +42,16 @@ export const listStoredPluginManifests = async (): Promise<
   StoredPluginManifest[]
 > => {
   const pluginsRoot = getPluginsRoot();
-  try {
-    const entries = await readdir(pluginsRoot, { withFileTypes: true });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
+  const entries = await (async () => {
+    try {
+      return await readdir(pluginsRoot, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return [];
+      }
+      throw error;
     }
-    throw error;
-  }
-  const entries = await readdir(pluginsRoot, { withFileTypes: true });
+  })();
   const manifests = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
