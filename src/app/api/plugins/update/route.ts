@@ -7,6 +7,7 @@ import {
   toValidationTable,
   writePluginManifest,
 } from '@/lib/plugins/api-contract';
+import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
@@ -26,6 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Missing required field: id',
+          ...createContractPayload({ unresolvedInputs: ['id'] }),
+        },
+        { status: 400 }
+      );
+    }
+
+    if (pluginId.length > MAX_PLUGIN_ID_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Plugin id must be at most ${MAX_PLUGIN_ID_LENGTH} characters`,
           ...createContractPayload({ unresolvedInputs: ['id'] }),
         },
         { status: 400 }
@@ -100,13 +111,18 @@ export async function POST(request: NextRequest) {
             mode: confirm ? 'applied' : 'dry-run',
             files: [{ path: existing.relativePath, changeType: 'modified' }],
           },
-          assumptions: ['Updates use merge-preserve semantics for unknown keys.'],
+          assumptions: [
+            'Updates use merge-preserve semantics for unknown keys.',
+          ],
         }),
       },
       { status: 200 }
     );
   } catch (error) {
     console.error('Error updating plugin', error);
-    return NextResponse.json({ error: 'Failed to update plugin' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update plugin' },
+      { status: 500 }
+    );
   }
 }

@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { getLocalPluginManifestCandidates } from '@/lib/plugins/registry';
 import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
+import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import type {
   PluginManifest,
   PluginManifestValidationResult,
@@ -226,10 +227,12 @@ export function PluginManager() {
     : 'plugins/<id>/';
 
   const createIdError =
-    createForm.id.trim().length > 0 &&
-    !kebabCasePluginIdRegex.test(createForm.id.trim())
-      ? 'Plugin id must be kebab-case (example: tags-plugin).'
-      : null;
+    createForm.id.trim().length > MAX_PLUGIN_ID_LENGTH
+      ? `Plugin id must be at most ${MAX_PLUGIN_ID_LENGTH} characters.`
+      : createForm.id.trim().length > 0 &&
+          !kebabCasePluginIdRegex.test(createForm.id.trim())
+        ? 'Plugin id must be kebab-case (example: tags-plugin).'
+        : null;
 
   const createResult = React.useMemo(() => {
     if (
@@ -488,6 +491,7 @@ export function PluginManager() {
                   <Input
                     id="plugin-create-id"
                     placeholder="example-plugin"
+                    maxLength={MAX_PLUGIN_ID_LENGTH}
                     value={createForm.id}
                     onChange={(event) =>
                       setCreateForm((prev) => ({
@@ -498,7 +502,11 @@ export function PluginManager() {
                   />
                   {createIdError ? (
                     <p className="text-xs text-destructive">{createIdError}</p>
-                  ) : null}
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Max {MAX_PLUGIN_ID_LENGTH} characters.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="plugin-create-path">Path</Label>
