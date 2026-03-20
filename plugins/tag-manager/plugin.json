@@ -1,0 +1,20 @@
+{
+  "id": "tag-manager",
+  "name": "Tag Manager Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for managing tags.",
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "tag-manager-dashboard-tab",
+      "title": "Tag Manager",
+      "config": {
+        "tabId": "tag-manager",
+        "headerTitle": "Manage Tags",
+        "icon": "tags",
+        "component": "tag_manager"
+      }
+    }
+  ]
+}
