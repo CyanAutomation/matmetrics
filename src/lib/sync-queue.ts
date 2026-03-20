@@ -114,6 +114,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
         continue;
       }
 
+      if (reducedOperation.type === 'UPDATE') {
         if (operation.type === 'DELETE') {
           reducedOperation = operation;
           continue;
@@ -128,21 +129,22 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
           };
           continue;
         }
+      } else {
+        // DELETE followed by CREATE/UPDATE is treated as an upsert update, so replay stays idempotent
+        // for servers that may already have deleted state applied.
+        if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
+          reducedOperation = {
+            type: 'UPDATE',
+            session: operation.session,
+            queuedAt: operation.queuedAt,
+          };
+          continue;
+        }
 
-      // DELETE followed by CREATE is treated as an upsert update, so replay stays idempotent
-      // for servers that may already have deleted state applied.
-      if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
-        reducedOperation = {
-          type: 'UPDATE',
-          session: operation.session,
-          queuedAt: operation.queuedAt,
-        };
+        // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
+        // Both deletes are equivalent, but preserve the original operation timing
         continue;
       }
-
-      // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
-      // Both deletes are equivalent, but preserve the original operation timing
-      continue;
     }
 
     if (reducedOperation) {
