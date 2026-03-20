@@ -29,6 +29,7 @@ import {
 } from './user-preferences';
 import { getFirebaseAuth } from './firebase-client';
 import type { UserPreferences } from './types';
+import { createTagService } from './tags/service';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -603,62 +604,43 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   return { status: 'queued' };
 }
 
+const tagDomainService = createTagService({
+  getSessions,
+  updateSession,
+});
+
 /**
- * Get all unique technique tags
+ * @deprecated Use tagService.listTags from src/lib/tags instead.
  */
 export function getAllTags(): string[] {
-  const sessions = getSessions();
-  const tags = new Set<string>();
-  sessions.forEach((s) => s.techniques.forEach((t) => tags.add(t)));
-  return Array.from(tags).sort();
+  return tagDomainService.listTags();
 }
 
 /**
- * Rename a technique tag across all sessions (updates cache and API/queue)
+ * @deprecated Use tagService.renameTag from src/lib/tags instead.
  */
-export function renameTag(oldName: string, newName: string): void {
-  const sessions = getSessions();
-  const updated = sessions.map((session) => {
-    if (session.techniques.includes(oldName)) {
-      const newTechniques = session.techniques.map((t) =>
-        t === oldName ? newName : t
-      );
-      return { ...session, techniques: Array.from(new Set(newTechniques)) };
-    }
-    return session;
-  });
-
-  // Update each modified session
-  updated.forEach((session, idx) => {
-    if (sessions[idx].techniques.join(',') !== session.techniques.join(',')) {
-      void updateSession(session);
-    }
-  });
+export async function renameTag(
+  oldName: string,
+  newName: string
+): Promise<void> {
+  await tagDomainService.renameTag(oldName, newName);
 }
 
 /**
- * Delete a technique tag from all sessions (updates cache and API/queue)
+ * @deprecated Use tagService.deleteTag from src/lib/tags instead.
  */
-export function deleteTag(tagName: string): void {
-  const sessions = getSessions();
-  const updated = sessions.map((session) => ({
-    ...session,
-    techniques: session.techniques.filter((t) => t !== tagName),
-  }));
-
-  // Update each modified session
-  updated.forEach((session, idx) => {
-    if (sessions[idx].techniques.join(',') !== session.techniques.join(',')) {
-      void updateSession(session);
-    }
-  });
+export async function deleteTag(tagName: string): Promise<void> {
+  await tagDomainService.deleteTag(tagName);
 }
 
 /**
- * Merge two technique tags (rename source to target)
+ * @deprecated Use tagService.mergeTags from src/lib/tags instead.
  */
-export function mergeTags(sourceTag: string, targetTag: string): void {
-  renameTag(sourceTag, targetTag);
+export async function mergeTags(
+  sourceTag: string,
+  targetTag: string
+): Promise<void> {
+  await tagDomainService.mergeTags(sourceTag, targetTag);
 }
 
 // AI Transformer Prompt Persistence
