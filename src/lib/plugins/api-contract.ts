@@ -140,7 +140,7 @@ const ensurePathUnderRoot = (root: string, targetPath: string): string => {
     ? resolvedRoot
     : resolvedRoot + path.sep;
 
-  if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(rootWithSep)) {
+  if (!resolvedTarget.startsWith(rootWithSep)) {
     throw new Error('Attempted to write plugin manifest outside of plugins root');
   }
 
