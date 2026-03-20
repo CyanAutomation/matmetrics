@@ -206,6 +206,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
+    ensurePathWithinDataDir(existingPath);
     const existingMarkdown = await fs.readFile(existingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
       throw new Error(
