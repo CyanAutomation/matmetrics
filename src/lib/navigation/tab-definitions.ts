@@ -17,8 +17,14 @@ import { SessionHistory } from '@/components/session-history';
 import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
-import { resolveDashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
-import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
+import {
+  createUnresolvedDashboardComponentWarning,
+  resolveDashboardTabRenderer,
+} from '@/lib/plugins/dashboard-tab-adapters';
+import {
+  type PluginRuntimeWarning,
+  type ResolvedDashboardTabExtension,
+} from '@/lib/plugins/types';
 
 export const TAB_IDS = {
   pluginManager: 'plugin_manager',
@@ -53,6 +59,15 @@ export type TabDefinition = {
   section: TabSection;
   render: (context: TabRenderContext) => React.ReactNode;
   isVisible?: (context: TabVisibilityContext) => boolean;
+};
+
+export type DashboardTabResolutionResult = {
+  tabs: TabDefinition[];
+  warnings: PluginRuntimeWarning[];
+};
+
+export type MapDashboardExtensionsOptions = {
+  onWarning?: (warning: PluginRuntimeWarning) => void;
 };
 
 const pluginManagerFeatureFlagEnabled =
@@ -124,13 +139,21 @@ const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
 };
 
-export const mapDashboardExtensionsToTabs = (
+export const resolveDashboardExtensionsToTabs = (
   extensions: ResolvedDashboardTabExtension[]
-): TabDefinition[] =>
-  extensions.flatMap(({ extension }) => {
+): DashboardTabResolutionResult => {
+  const warnings: PluginRuntimeWarning[] = [];
+
+  const tabs = extensions.flatMap(({ extension, pluginId }) => {
     const render = resolveDashboardTabRenderer(extension.config.component);
     if (!render) {
-      console.error(`Failed to resolve dashboard tab renderer for component: ${extension.config.component}`);
+      warnings.push(
+        createUnresolvedDashboardComponentWarning(
+          extension.config.component,
+          pluginId,
+          extension.id
+        )
+      );
       return [];
     }
 
@@ -145,3 +168,19 @@ export const mapDashboardExtensionsToTabs = (
       },
     ];
   });
+
+  return { tabs, warnings };
+};
+
+export const mapDashboardExtensionsToTabs = (
+  extensions: ResolvedDashboardTabExtension[],
+  options: MapDashboardExtensionsOptions = {}
+): TabDefinition[] => {
+  const { tabs, warnings } = resolveDashboardExtensionsToTabs(extensions);
+  warnings.forEach((warning) => {
+    options.onWarning?.(warning);
+    console.warn('Plugin runtime warning', warning);
+  });
+
+  return tabs;
+};
