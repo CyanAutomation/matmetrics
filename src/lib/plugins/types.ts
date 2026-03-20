@@ -1,3 +1,5 @@
+export const MAX_PLUGIN_ID_LENGTH = 120;
+
 export type DashboardTabExtensionType = 'dashboard_tab';
 export type MenuItemExtensionType = 'menu_item';
 export type SessionActionExtensionType = 'session_action';
@@ -99,7 +101,6 @@ export type PluginManifestValidationFailure = {
 export type PluginManifestValidationResult =
   | PluginManifestValidationSuccess
   | PluginManifestValidationFailure;
-
 
 export type PluginRuntimeWarningCode = 'dashboard_tab_renderer_unresolved';
 

@@ -11,6 +11,7 @@ import {
   toValidationTable,
   writePluginManifest,
 } from '@/lib/plugins/api-contract';
+import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
@@ -57,11 +58,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (pluginId.length > MAX_PLUGIN_ID_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Manifest id must be at most ${MAX_PLUGIN_ID_LENGTH} characters`,
+          ...createContractPayload({ unresolvedInputs: ['manifest.id'] }),
+        },
+        { status: 400 }
+      );
+    }
+
     const existing = await findStoredPluginManifestById(pluginId);
     if (existing && !confirmOverwrite) {
       return NextResponse.json(
         {
-          error: 'Plugin already exists. Set confirmOverwrite=true to overwrite.',
+          error:
+            'Plugin already exists. Set confirmOverwrite=true to overwrite.',
           ...createContractPayload({
             validationTable,
             fileTreeDiffSummary: {
@@ -75,11 +87,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const directoryName = existing?.directoryName ?? toPluginDirectoryName(pluginId);
+    const directoryName =
+      existing?.directoryName ?? toPluginDirectoryName(pluginId);
     const absolutePath =
       existing?.absolutePath ??
       path.join(getPluginsRoot(), directoryName, 'plugin.json');
-    const relativePath = existing?.relativePath ?? toRelativeRepoPath(absolutePath);
+    const relativePath =
+      existing?.relativePath ?? toRelativeRepoPath(absolutePath);
 
     if (confirm) {
       await mkdir(path.dirname(absolutePath), { recursive: true });
@@ -110,6 +124,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating plugin', error);
-    return NextResponse.json({ error: 'Failed to create plugin' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create plugin' },
+      { status: 500 }
+    );
   }
 }
