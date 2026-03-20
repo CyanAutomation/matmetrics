@@ -4,44 +4,55 @@ export const KNOWN_PLUGIN_CAPABILITIES = ['tag_mutation'] as const;
 
 export type KnownPluginCapability = (typeof KNOWN_PLUGIN_CAPABILITIES)[number];
 
-const dashboardComponentCapabilityRequirements: Record<
-  string,
-  KnownPluginCapability
-> = {
+const dashboardComponentCapabilityRequirements = {
   tag_manager: 'tag_mutation',
-};
+} as const satisfies Record<string, KnownPluginCapability>;
 
-const sessionActionCapabilityRequirements: Record<
-  string,
-  KnownPluginCapability
-> = {
+const sessionActionCapabilityRequirements = {
   'tag-session': 'tag_mutation',
-};
+} as const satisfies Record<string, KnownPluginCapability>;
 
-const settingsPanelCapabilityRequirements: Record<
-  string,
-  KnownPluginCapability
-> = {
+const settingsPanelCapabilityRequirements = {
   tag_settings: 'tag_mutation',
-};
+} as const satisfies Record<string, KnownPluginCapability>;
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const hasStringComponentConfig = (
+  config: unknown
+): config is { component: string } =>
+  isObjectRecord(config) && typeof config.component === 'string';
+
+const hasStringActionIdConfig = (
+  config: unknown
+): config is { actionId: string } =>
+  isObjectRecord(config) && typeof config.actionId === 'string';
 
 export const getRequiredCapabilityForExtension = (
   extension: UIExtension
 ): KnownPluginCapability | null => {
   switch (extension.type) {
     case 'dashboard_tab':
+      if (!hasStringComponentConfig(extension.config)) {
+        return null;
+      }
+
       return (
-        dashboardComponentCapabilityRequirements[extension.config.component] ??
-        null
+        dashboardComponentCapabilityRequirements[extension.config.component] ?? null
       );
     case 'session_action':
-      return (
-        sessionActionCapabilityRequirements[extension.config.actionId] ?? null
-      );
+      if (!hasStringActionIdConfig(extension.config)) {
+        return null;
+      }
+
+      return sessionActionCapabilityRequirements[extension.config.actionId] ?? null;
     case 'settings_panel':
-      return (
-        settingsPanelCapabilityRequirements[extension.config.component] ?? null
-      );
+      if (!hasStringComponentConfig(extension.config)) {
+        return null;
+      }
+
+      return settingsPanelCapabilityRequirements[extension.config.component] ?? null;
     default:
       return null;
   }
