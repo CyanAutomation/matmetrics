@@ -26,9 +26,9 @@ type GuestWorkspaceMeta = {
 
 function getDismissSalt(): string {
   if (typeof window === 'undefined') {
-    // During SSR there is no localStorage; use a constant so logic still works,
-    // but nothing is persisted.
-    return 'server-side-guest-dismiss-salt';
+    // During SSR there is no localStorage; return empty string to disable functionality.
+    // Guest workspace dismissal is client-only and shouldn't work server-side.
+    return '';
   }
 
   const existing = window.localStorage.getItem(GUEST_DISMISS_SALT_KEY);
