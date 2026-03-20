@@ -122,17 +122,17 @@ export const mapDashboardExtensionsToTabs = (
   extensions: ResolvedDashboardTabExtension[]
 ): TabDefinition[] =>
   extensions.flatMap(({ extension }) => {
-    const render = pluginTabRenderers[extension.component];
+    const render = pluginTabRenderers[extension.config.component];
     if (!render) {
       return [];
     }
 
     return [
       {
-        id: extension.tabId,
+        id: extension.config.tabId,
         title: extension.title,
-        headerTitle: extension.headerTitle,
-        icon: pluginTabIcons[extension.icon ?? ''] ?? Tags,
+        headerTitle: extension.config.headerTitle,
+        icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
         section: 'plugins',
         render,
       },
