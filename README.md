@@ -121,6 +121,8 @@ Firebase values come from:
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run ESLint
 - **`npm run typecheck`**: Run TypeScript type checking
+- **`npm test -- <file>`**: Run a specific TypeScript test file with Node's test runner (for example: `npm test -- src/lib/foo.test.ts`)
+- **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
 
 ## Deployment
 
