@@ -13,13 +13,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { DashboardOverview } from '@/components/dashboard-overview';
 import { SessionLogForm } from '@/components/session-log-form';
-import { SessionHistory } from '@/components/session-history';
-import { TagManager } from '@/components/tag-manager';
-import { PromptSettings } from '@/components/prompt-settings';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { GitHubSettings } from '@/components/github-settings';
 import {
   getSessions,
   initializeStorage,
@@ -28,14 +23,8 @@ import {
 } from '@/lib/storage';
 import { JudoSession } from '@/lib/types';
 import {
-  LayoutDashboard,
-  PlusCircle,
-  History,
   Info,
   Plus,
-  Tags,
-  BrainCircuit,
-  Github,
   WifiOff,
   Loader2,
   CheckCircle,
@@ -67,8 +56,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import {
+  coreTabs,
+  pluginTabs,
+  TAB_IDS,
+  type TabId,
+} from '@/lib/navigation/tab-definitions';
 
-
+const allTabs = [...coreTabs, ...pluginTabs];
 
 export default function Home() {
   const { toast } = useToast();
@@ -80,7 +75,7 @@ export default function Home() {
     authMode,
     authAvailable,
   } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>(TAB_IDS.dashboard);
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
@@ -138,7 +133,7 @@ export default function Home() {
   const handleSessionAdded = () => {
     refreshSessions();
     setIsLogModalOpen(false);
-    if (activeTab !== 'history') setActiveTab('history');
+    if (activeTab !== TAB_IDS.history) setActiveTab(TAB_IDS.history);
   };
 
   const handleDismissGuestImport = () => {
@@ -202,6 +197,24 @@ export default function Home() {
     }
   };
 
+  const isGuest = authMode === 'guest';
+  const visibleTabs = allTabs.filter(
+    (tab) =>
+      tab.isVisible?.({
+        hasUser: Boolean(user),
+        isGuest,
+        authAvailable,
+      }) ?? true
+  );
+  const selectedTab =
+    visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0] ?? null;
+
+  useEffect(() => {
+    if (selectedTab && selectedTab.id !== activeTab) {
+      setActiveTab(selectedTab.id);
+    }
+  }, [activeTab, selectedTab]);
+
   if (!authReady || !preferencesReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -213,7 +226,6 @@ export default function Home() {
     );
   }
 
-  const isGuest = authMode === 'guest';
   const initials = (
     user?.displayName ||
     user?.email ||
@@ -248,68 +260,23 @@ export default function Home() {
           </SidebarHeader>
           <SidebarContent className="p-2">
             <SidebarMenu className="gap-2">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'dashboard'}
-                  onClick={() => setActiveTab('dashboard')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <LayoutDashboard className="h-5 w-5" />
-                  <span className="text-base font-semibold">Dashboard</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'log'}
-                  onClick={() => setActiveTab('log')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <PlusCircle className="h-5 w-5" />
-                  <span className="text-base font-semibold">Log Session</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'history'}
-                  onClick={() => setActiveTab('history')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <History className="h-5 w-5" />
-                  <span className="text-base font-semibold">History</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'tags'}
-                  onClick={() => setActiveTab('tags')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <Tags className="h-5 w-5" />
-                  <span className="text-base font-semibold">Tag Manager</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'prompt'}
-                  onClick={() => setActiveTab('prompt')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <BrainCircuit className="h-5 w-5" />
-                  <span className="text-base font-semibold">
-                    Prompt Settings
-                  </span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeTab === 'github'}
-                  onClick={() => setActiveTab('github')}
-                  className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
-                >
-                  <Github className="h-5 w-5" />
-                  <span className="text-base font-semibold">GitHub Sync</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {visibleTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <SidebarMenuItem key={tab.id}>
+                    <SidebarMenuButton
+                      isActive={activeTab === tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-base font-semibold">
+                        {tab.title}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
             <Separator className="my-6 bg-primary/5" />
             <div className="px-4 py-2">
@@ -398,12 +365,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="text-xl font-bold tracking-tight text-primary">
-                {activeTab === 'dashboard' && 'Training Overview'}
-                {activeTab === 'log' && 'Log Practice'}
-                {activeTab === 'history' && 'Session History'}
-                {activeTab === 'tags' && 'Manage Tags'}
-                {activeTab === 'prompt' && 'AI Prompt Configuration'}
-                {activeTab === 'github' && 'GitHub Sync Configuration'}
+                {selectedTab?.headerTitle ?? 'MatMetrics'}
               </h2>
             </div>
             <div className="flex items-center gap-3">
@@ -477,25 +439,10 @@ export default function Home() {
                 </Alert>
               )}
 
-              {activeTab === 'dashboard' && (
-                <DashboardOverview sessions={sessions} />
-              )}
-              {activeTab === 'log' && (
-                <SessionLogForm onSuccess={refreshSessions} />
-              )}
-              {activeTab === 'history' && (
-                <div className="max-w-4xl mx-auto">
-                  <SessionHistory
-                    sessions={sessions}
-                    onRefresh={refreshSessions}
-                  />
-                </div>
-              )}
-              {activeTab === 'tags' && (
-                <TagManager onRefresh={refreshSessions} />
-              )}
-              {activeTab === 'prompt' && <PromptSettings />}
-              {activeTab === 'github' && <GitHubSettings />}
+              {selectedTab?.render({
+                sessions,
+                refreshSessions,
+              })}
             </div>
           </main>
           <div className="fixed bottom-6 right-6 md:hidden z-50">
