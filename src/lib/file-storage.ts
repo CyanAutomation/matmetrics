@@ -253,9 +253,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
   }
   ensurePathWithinDataDir(existingPath);
 
-  const nextPath = ensurePathWithinDataDir(
-    getSessionFilePath(session.date, undefined, session.id)
-  );
+  const nextPath = getSessionFilePath(session.date, undefined, session.id);
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
