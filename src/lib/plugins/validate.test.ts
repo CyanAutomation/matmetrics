@@ -9,6 +9,7 @@ test('valid manifest passes with no issues', () => {
     name: 'Tag Manager Plugin',
     version: '1.2.3',
     description: 'Adds tag management extensions.',
+    capabilities: ['tag_mutation'],
     uiExtensions: [
       {
         type: 'dashboard_tab',
@@ -161,5 +162,97 @@ test('unknown extension type can be explicitly accepted as experimental', () => 
         message: 'Experimental extension type "future_extension" accepted.',
       },
     ]);
+  }
+});
+
+test('sensitive extension without required capability returns warning', () => {
+  const result = validatePluginManifest({
+    id: 'missing-capability-plugin',
+    name: 'Missing Capability Plugin',
+    version: '1.0.0',
+    description: 'Contains sensitive extension without capability.',
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'tag-manager-dashboard-tab',
+        title: 'Tag Manager',
+        config: {
+          tabId: 'tag-manager',
+          headerTitle: 'Manage Tags',
+          component: 'tag_manager',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.deepEqual(result.issues, [
+      {
+        severity: 'warning',
+        path: 'uiExtensions[0].capabilities',
+        message:
+          'Extension "tag-manager-dashboard-tab" requires capability "tag_mutation". Add it to manifest.capabilities to enable execution.',
+      },
+    ]);
+  }
+});
+
+test('unknown capability returns warning', () => {
+  const result = validatePluginManifest({
+    id: 'unknown-capability-plugin',
+    name: 'Unknown Capability Plugin',
+    version: '1.0.0',
+    description: 'Contains unknown capability declaration.',
+    capabilities: ['future_capability'],
+    uiExtensions: [
+      {
+        type: 'menu_item',
+        id: 'known-menu-item',
+        title: 'Known Menu Item',
+        config: {
+          route: '/future',
+          location: 'sidebar',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.deepEqual(result.issues, [
+      {
+        severity: 'warning',
+        path: 'capabilities[0]',
+        message: 'Unknown capability "future_capability".',
+      },
+    ]);
+  }
+});
+
+test('known capability declaration passes without warnings', () => {
+  const result = validatePluginManifest({
+    id: 'known-capability-plugin',
+    name: 'Known Capability Plugin',
+    version: '1.0.0',
+    description: 'Contains known capability declaration.',
+    capabilities: ['tag_mutation'],
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'tag-manager-dashboard-tab',
+        title: 'Tag Manager',
+        config: {
+          tabId: 'tag-manager',
+          headerTitle: 'Manage Tags',
+          component: 'tag_manager',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.issues.length, 0);
   }
 });

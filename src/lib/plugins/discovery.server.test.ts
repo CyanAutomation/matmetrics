@@ -12,6 +12,7 @@ const validManifest = {
   version: '1.0.0',
   description: 'Provides a dashboard tab for managing tags.',
   enabled: true,
+  capabilities: ['tag_mutation'],
   uiExtensions: [
     {
       type: 'dashboard_tab',
@@ -31,7 +32,9 @@ async function withTempPluginsRoot(
   setup: (pluginsRoot: string) => Promise<void>,
   run: (pluginsRoot: string) => Promise<void>
 ) {
-  const repoRoot = await mkdtemp(path.join(tmpdir(), 'matmetrics-plugin-discovery-'));
+  const repoRoot = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-plugin-discovery-')
+  );
   const pluginsRoot = path.join(repoRoot, 'plugins');
 
   try {
@@ -47,7 +50,9 @@ test('discoverEnabledDashboardTabExtensions returns empty list when no plugins e
   await withTempPluginsRoot(
     async () => {},
     async (pluginsRoot) => {
-      const extensions = await discoverEnabledDashboardTabExtensions({ pluginsRoot });
+      const extensions = await discoverEnabledDashboardTabExtensions({
+        pluginsRoot,
+      });
       assert.deepEqual(extensions, []);
     }
   );
@@ -64,7 +69,9 @@ test('discoverEnabledDashboardTabExtensions returns one extension for one valid 
       );
     },
     async (pluginsRoot) => {
-      const extensions = await discoverEnabledDashboardTabExtensions({ pluginsRoot });
+      const extensions = await discoverEnabledDashboardTabExtensions({
+        pluginsRoot,
+      });
       assert.equal(extensions.length, 1);
       assert.equal(extensions[0]?.pluginId, 'tag-manager');
       assert.equal(extensions[0]?.extension.config.tabId, 'tag-manager');
@@ -78,12 +85,18 @@ test('discoverEnabledDashboardTabExtensions skips invalid plugin manifests', asy
       await mkdir(path.join(pluginsRoot, 'broken-plugin'), { recursive: true });
       await writeFile(
         path.join(pluginsRoot, 'broken-plugin', 'plugin.json'),
-        JSON.stringify({ id: 'broken-plugin', enabled: true, uiExtensions: [] }),
+        JSON.stringify({
+          id: 'broken-plugin',
+          enabled: true,
+          uiExtensions: [],
+        }),
         'utf8'
       );
     },
     async (pluginsRoot) => {
-      const extensions = await discoverEnabledDashboardTabExtensions({ pluginsRoot });
+      const extensions = await discoverEnabledDashboardTabExtensions({
+        pluginsRoot,
+      });
       assert.deepEqual(extensions, []);
     }
   );
@@ -92,7 +105,9 @@ test('discoverEnabledDashboardTabExtensions skips invalid plugin manifests', asy
 test('discoverEnabledDashboardTabExtensions ignores disabled plugins', async () => {
   await withTempPluginsRoot(
     async (pluginsRoot) => {
-      await mkdir(path.join(pluginsRoot, 'disabled-plugin'), { recursive: true });
+      await mkdir(path.join(pluginsRoot, 'disabled-plugin'), {
+        recursive: true,
+      });
       await writeFile(
         path.join(pluginsRoot, 'disabled-plugin', 'plugin.json'),
         `${JSON.stringify({ ...validManifest, id: 'disabled-plugin', enabled: false }, null, 2)}\n`,
@@ -100,7 +115,9 @@ test('discoverEnabledDashboardTabExtensions ignores disabled plugins', async () 
       );
     },
     async (pluginsRoot) => {
-      const extensions = await discoverEnabledDashboardTabExtensions({ pluginsRoot });
+      const extensions = await discoverEnabledDashboardTabExtensions({
+        pluginsRoot,
+      });
       assert.deepEqual(extensions, []);
     }
   );
