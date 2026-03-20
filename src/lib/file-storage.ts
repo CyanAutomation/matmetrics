@@ -24,7 +24,31 @@ function sanitizeSessionId(sessionId: string): string {
       'Session ID exceeds maximum allowed length of 100 characters'
     );
   }
-  return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+  const sanitized = sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+  if (!sanitized) {
+    throw new Error('Session ID is empty or contains no valid characters after sanitization');
+  }
+  return sanitized;
+}
+
+/**
+ * Ensure that a given path is within the configured data directory.
+ * Returns the normalized absolute path if valid, otherwise throws.
+ */
+function ensurePathWithinDataDir(targetPath: string): string {
+  const root = path.resolve(getDataDir());
+  const resolved = path.resolve(targetPath);
+
+  if (resolved === root) {
+    return resolved;
+  }
+
+  const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
+  if (!resolved.startsWith(rootWithSep)) {
+    throw new Error('Session path escapes data directory');
+  }
+
+  return resolved;
 }
 
 /**
@@ -44,7 +68,8 @@ export function getSessionFilePath(
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
-  return path.join(getDataDir(), year, month, baseName);
+  const unsafePath = path.join(getDataDir(), year, month, baseName);
+  return ensurePathWithinDataDir(unsafePath);
 }
 
 /**
