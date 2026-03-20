@@ -208,7 +208,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   // Idempotency: if this ID already exists (canonical path or legacy location), return success.
   try {
     await fs.access(safeFilePath);
-    return await assertExistingSessionMatches(safeFilePath);
+    return await assertExistingSessionMatches(filePath);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw e;
