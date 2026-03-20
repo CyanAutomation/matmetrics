@@ -446,7 +446,7 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
   __resetStorageStateForTests();
 
   const preferencesStorageKey = getScopedStorageKey('matmetrics_user_preferences');
-  const preferenceState = {
+  let preferenceState = {
     ...DEFAULT_USER_PREFERENCES,
     gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
   };
@@ -490,7 +490,7 @@ test('setGitHubSyncStatus warns and no-ops when no authenticated user is availab
   setActiveUserId('user-1');
   __resetStorageStateForTests();
 
-  let preferenceState = {
+  const preferenceState = {
     ...DEFAULT_USER_PREFERENCES,
     gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
   };

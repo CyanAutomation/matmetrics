@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   type FeedbackState,
@@ -13,19 +13,18 @@ type UseActionFeedbackOptions = {
 
 export function useActionFeedback(options: UseActionFeedbackOptions = {}) {
   const [feedbackState, setFeedbackState] = useState<FeedbackState>('idle');
-  const resolveDelay = useEffectEvent((delayMs: number) => {
-    return options.resetAfterMs ?? delayMs;
-  });
 
-  const [controller] = useState(() =>
+  const controller = useMemo(
+    () =>
     createActionFeedbackController(
       setFeedbackState,
       (callback, delayMs) =>
-        setTimeout(callback, resolveDelay(delayMs)) as ReturnType<
-          typeof setTimeout
-        >,
+          setTimeout(callback, options.resetAfterMs ?? delayMs) as ReturnType<
+            typeof setTimeout
+          >,
       (handle) => clearTimeout(handle)
-    )
+    ),
+    [options.resetAfterMs]
   );
 
   useEffect(() => {
