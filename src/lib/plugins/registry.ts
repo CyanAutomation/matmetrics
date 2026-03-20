@@ -50,10 +50,13 @@ const validateDashboardTabExtension = (
     });
   }
 
-  if (value.icon != null && typeof value.icon !== 'string') {
+  if (
+    value.icon != null &&
+    (typeof value.icon !== 'string' || value.icon.trim().length === 0)
+  ) {
     issues.push({
       path: `${path}.icon`,
-      message: 'Field must be a string when provided.',
+      message: 'Field must be a non-empty string when provided.',
     });
   }
 
