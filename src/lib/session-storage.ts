@@ -33,6 +33,10 @@ function isValidGitHubOwnerOrRepo(name: string): boolean {
   }
   // 1–39 characters, start with alphanumeric, then alphanumeric, '.', '-', or '_'
   const pattern = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$/;
+  // Disallow consecutive dots which could be used for path traversal
+  if (name.includes('..')) {
+    return false;
+  }
   return pattern.test(name);
 }
 
