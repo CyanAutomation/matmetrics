@@ -446,7 +446,7 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
   __resetStorageStateForTests();
 
   const preferencesStorageKey = getScopedStorageKey('matmetrics_user_preferences');
-  let preferenceState = {
+  const preferenceState = {
     ...DEFAULT_USER_PREFERENCES,
     gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
   };

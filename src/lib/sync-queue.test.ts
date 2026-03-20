@@ -96,7 +96,9 @@ test('queueOperation timestamps operations and preserves insertion order', () =>
   if (queue[0].type === 'CREATE') {
     assert.equal(queue[0].session.notes, 'updated');
   }
-  assert.ok(queue.every((operation) => Number.isFinite(operation.queuedAt)));
+  assert.ok(
+    queue.every((operation: SyncOperation) => Number.isFinite(operation.queuedAt))
+  );
 });
 
 test('setQueue preserves a newer concurrent operation with the same identity', () => {
