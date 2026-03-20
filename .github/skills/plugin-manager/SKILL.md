@@ -108,6 +108,123 @@ Use this concrete schema contract when creating or validating plugin manifests.
 - `settings`, when present, must be a JSON object (not array/string/number).
 - Empty arrays are not allowed for `uiExtensions`.
 
+
+## UI Extension Types
+
+Support the following `uiExtensions[].type` values by default.
+
+### `dashboard_tab`
+
+Required config keys:
+- `tabId` (string)
+- `route` (string)
+
+Optional config keys:
+- `icon` (string)
+- `order` (number)
+
+Example:
+
+```json
+{
+  "type": "dashboard_tab",
+  "id": "progress-tab",
+  "title": "Progress",
+  "config": {
+    "tabId": "progress",
+    "route": "/dashboard/progress",
+    "icon": "chart-line",
+    "order": 20
+  }
+}
+```
+
+### `menu_item`
+
+Required config keys:
+- `label` (string)
+- `route` (string)
+
+Optional config keys:
+- `icon` (string)
+- `group` (string)
+- `order` (number)
+
+Example:
+
+```json
+{
+  "type": "menu_item",
+  "id": "quick-log-session",
+  "title": "Quick Log Session",
+  "config": {
+    "label": "Log Session",
+    "route": "/sessions/new",
+    "icon": "plus-circle",
+    "group": "sessions",
+    "order": 10
+  }
+}
+```
+
+### `session_action`
+
+Required config keys:
+- `actionId` (string)
+- `label` (string)
+
+Optional config keys:
+- `confirm` (boolean)
+- `requiresRole` (string)
+- `icon` (string)
+
+Example:
+
+```json
+{
+  "type": "session_action",
+  "id": "archive-session",
+  "title": "Archive Session",
+  "config": {
+    "actionId": "archive",
+    "label": "Archive",
+    "confirm": true,
+    "requiresRole": "coach",
+    "icon": "archive"
+  }
+}
+```
+
+### `settings_panel`
+
+Required config keys:
+- `panelId` (string)
+- `title` (string)
+
+Optional config keys:
+- `description` (string)
+- `order` (number)
+
+Example:
+
+```json
+{
+  "type": "settings_panel",
+  "id": "notifications-settings",
+  "title": "Notifications",
+  "config": {
+    "panelId": "notifications",
+    "title": "Notification Preferences",
+    "description": "Control reminder and digest behavior.",
+    "order": 30
+  }
+}
+```
+
+Validation rule for unknown types:
+- Unknown `uiExtensions[].type` values must be reported as **warnings** by default.
+- Only treat unknown types as allowed without warnings when the user explicitly opts into experimental mode.
+
 ### Version rule
 
 - Accept only SemVer-like values matching `^\d+\.\d+\.\d+$`.
