@@ -36,3 +36,23 @@ func TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub(t *testing.T) {
 		t.Fatalf("unexpected body: %s", got)
 	}
 }
+
+func TestHandlerRejectsInvalidDateBeforeCallingGitHub(t *testing.T) {
+	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+
+	body := []byte(`{"session":{"id":"session-1","date":"2025-02-30","effort":3,"category":"Technical","techniques":["osoto-gari"]},"config":{"owner":"octocat","repo":"hello-world"}}`)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/go/sessions/create", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer test-token")
+	recorder := httptest.NewRecorder()
+
+	Handler(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+
+	if got := recorder.Body.String(); got == "" || !bytes.Contains([]byte(got), []byte("Invalid date: must be a real calendar date")) {
+		t.Fatalf("unexpected body: %s", got)
+	}
+}
