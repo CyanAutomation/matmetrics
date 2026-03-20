@@ -623,7 +623,10 @@ export async function renameTag(
   oldName: string,
   newName: string
 ): Promise<void> {
-  await tagDomainService.renameTag(oldName, newName);
+  const result = await tagDomainService.renameTag(oldName, newName);
+  if (result.conflicts.length > 0) {
+    throw new Error(result.conflicts[0].message);
+  }
 }
 
 /**
