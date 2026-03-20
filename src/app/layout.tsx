@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   title: 'MatMetrics | Judo Practice Tracker',
   description:
     'Log and analyze your Judo training sessions with AI assistance.',
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export default function RootLayout({
