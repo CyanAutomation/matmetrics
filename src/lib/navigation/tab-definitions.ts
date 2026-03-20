@@ -144,7 +144,7 @@ export const resolveDashboardExtensionsToTabs = (
 ): DashboardTabResolutionResult => {
   const warnings: PluginRuntimeWarning[] = [];
 
-  const tabs = extensions.flatMap(({ extension, pluginId }) => {
+  const tabs: TabDefinition[] = extensions.flatMap(({ extension, pluginId }) => {
     const render = resolveDashboardTabRenderer(extension.config.component);
     if (!render) {
       warnings.push(

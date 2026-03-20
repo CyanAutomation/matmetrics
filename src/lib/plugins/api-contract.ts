@@ -3,7 +3,6 @@ import path from 'node:path';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
-import type { PluginValidationIssue } from '@/lib/plugins/types';
 type JsonRecord = Record<string, unknown>;
 
 export type FileChangeType = 'added' | 'modified' | 'unchanged';
