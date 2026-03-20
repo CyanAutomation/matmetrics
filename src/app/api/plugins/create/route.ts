@@ -10,6 +10,7 @@ import {
   toRelativeRepoPath,
   toValidationTable,
   writePluginManifest,
+  ensurePathUnderRoot,
 } from '@/lib/plugins/api-contract';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
@@ -95,9 +96,14 @@ export async function POST(request: NextRequest) {
     const relativePath =
       existing?.relativePath ?? toRelativeRepoPath(absolutePath);
 
+    const safeAbsolutePath = ensurePathUnderRoot(
+      getPluginsRoot(),
+      absolutePath
+    );
+
     if (confirm) {
-      await mkdir(path.dirname(absolutePath), { recursive: true });
-      await writePluginManifest(absolutePath, manifest);
+      await mkdir(path.dirname(safeAbsolutePath), { recursive: true });
+      await writePluginManifest(safeAbsolutePath, manifest);
     }
 
     return NextResponse.json(
