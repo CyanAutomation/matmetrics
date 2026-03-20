@@ -189,8 +189,21 @@ export default function Home() {
       return;
     }
 
+    let cancelled = false;
+
+    const updateImportDialogState = async () => {
+      const shouldPrompt = await shouldPromptGuestImport(user.uid);
+      if (!cancelled) {
+        setIsImportDialogOpen(shouldPrompt);
+      }
+    };
+
     setIsAuthDialogOpen(false);
-    setIsImportDialogOpen(shouldPromptGuestImport(user.uid));
+    void updateImportDialogState();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, sessions.length]);
 
   const handleSessionAdded = () => {
@@ -199,12 +212,12 @@ export default function Home() {
     if (activeTab !== TAB_IDS.history) setActiveTab(TAB_IDS.history);
   };
 
-  const handleDismissGuestImport = () => {
+  const handleDismissGuestImport = async () => {
     if (!user) {
       return;
     }
 
-    dismissGuestImport(user.uid);
+    await dismissGuestImport(user.uid);
     setIsImportDialogOpen(false);
   };
 
