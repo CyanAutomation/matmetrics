@@ -3,6 +3,7 @@ package sessionapi
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"matmetrics/internal/model"
 )
@@ -13,6 +14,12 @@ func ValidateSession(session model.Session) error {
 	}
 	if strings.TrimSpace(session.Date) == "" {
 		return fmt.Errorf("missing required field: date")
+	}
+if _, err := time.Parse("2006-01-02", session.Date); err != nil {
+		return fmt.Errorf("invalid date: must be a real calendar date")
+	}
+	if len(session.Date) != 10 {
+		return fmt.Errorf("invalid date: must be a real calendar date")
 	}
 	if session.Effort < 1 || session.Effort > 5 {
 		return fmt.Errorf("invalid effort level (must be 1-5)")
