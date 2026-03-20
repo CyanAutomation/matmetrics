@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { tagService } from '@/lib/tags';
+import type { TagOperationSummary } from '@/lib/tags';
 import {
   Tags,
   Edit2,
@@ -53,6 +54,14 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const [mergingTag, setMergingTag] = useState<string | null>(null);
   const [targetMergeTag, setTargetMergeTag] = useState<string>('');
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
+  const [renameAnalysis, setRenameAnalysis] = useState<TagOperationSummary | null>(
+    null
+  );
+  const [mergeAnalysis, setMergeAnalysis] = useState<TagOperationSummary | null>(
+    null
+  );
+  const [deleteAnalysis, setDeleteAnalysis] =
+    useState<TagOperationSummary | null>(null);
 
   const refreshTags = useCallback(() => {
     setTags(tagService.listTags());
@@ -63,19 +72,41 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     refreshTags();
   }, [refreshTags]);
 
-  const handleRename = async () => {
-    if (!editingTag || !newTagName.trim()) return;
-    const normalizedNewTag = newTagName.trim();
-    const preview = await tagService.renameTag(editingTag, normalizedNewTag, {
-      dryRun: true,
-    });
+  const resetRenameDialog = () => {
+    setEditingTag(null);
+    setNewTagName('');
+    setRenameAnalysis(null);
+  };
 
-    if (preview.conflicts.length > 0) {
+  const resetMergeDialog = () => {
+    setMergingTag(null);
+    setTargetMergeTag('');
+    setMergeAnalysis(null);
+  };
+
+  const resetDeleteDialog = () => {
+    setDeletingTag(null);
+    setDeleteAnalysis(null);
+  };
+
+  const handleAnalyzeRename = async () => {
+    if (!editingTag || !newTagName.trim()) return;
+    const analysis = await tagService.analyzeRename(editingTag, newTagName.trim());
+    setRenameAnalysis(analysis);
+
+    if (analysis.conflicts.length > 0) {
       toast({
         title: 'Unable to rename tag',
-        description: preview.conflicts[0].message,
+        description: analysis.conflicts[0].message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleRename = async () => {
+    if (!editingTag || !newTagName.trim() || !renameAnalysis) return;
+    const normalizedNewTag = newTagName.trim();
+    if (renameAnalysis.conflicts.length > 0) {
       return;
     }
 
@@ -84,23 +115,27 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       title: 'Tag renamed',
       description: `"${editingTag}" is now "${normalizedNewTag}" across ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
-    setEditingTag(null);
-    setNewTagName('');
+    resetRenameDialog();
     refreshTags();
   };
 
-  const handleMerge = async () => {
+  const handleAnalyzeMerge = async () => {
     if (!mergingTag || !targetMergeTag) return;
-    const preview = await tagService.mergeTags(mergingTag, targetMergeTag, {
-      dryRun: true,
-    });
+    const analysis = await tagService.analyzeMerge(mergingTag, targetMergeTag);
+    setMergeAnalysis(analysis);
 
-    if (preview.conflicts.length > 0) {
+    if (analysis.conflicts.length > 0) {
       toast({
         title: 'Unable to merge tags',
-        description: preview.conflicts[0].message,
+        description: analysis.conflicts[0].message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!mergingTag || !targetMergeTag || !mergeAnalysis) return;
+    if (mergeAnalysis.conflicts.length > 0) {
       return;
     }
 
@@ -109,21 +144,27 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       title: 'Tags merged',
       description: `Merged into "${targetMergeTag}" across ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
-    setMergingTag(null);
-    setTargetMergeTag('');
+    resetMergeDialog();
     refreshTags();
   };
 
-  const handleDelete = async () => {
+  const handleAnalyzeDelete = async () => {
     if (!deletingTag) return;
-    const preview = await tagService.deleteTag(deletingTag, { dryRun: true });
+    const analysis = await tagService.analyzeDelete(deletingTag);
+    setDeleteAnalysis(analysis);
 
-    if (preview.conflicts.length > 0) {
+    if (analysis.conflicts.length > 0) {
       toast({
         title: 'Unable to delete tag',
-        description: preview.conflicts[0].message,
+        description: analysis.conflicts[0].message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingTag || !deleteAnalysis) return;
+    if (deleteAnalysis.conflicts.length > 0) {
       return;
     }
 
@@ -132,7 +173,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       title: 'Tag deleted',
       description: `"${deletingTag}" was removed from ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
-    setDeletingTag(null);
+    resetDeleteDialog();
     refreshTags();
   };
 
@@ -226,32 +267,51 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       {/* Rename Dialog */}
       <Dialog
         open={!!editingTag}
-        onOpenChange={(open) => !open && setEditingTag(null)}
+        onOpenChange={(open) => !open && resetRenameDialog()}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename Technique</DialogTitle>
             <DialogDescription>
               This will update "{editingTag}" to your new name in every session.
+              {renameAnalysis && renameAnalysis.conflicts.length === 0 && (
+                <>
+                  {' '}
+                  Impact: {renameAnalysis.affectedSessionCount} session(s),{' '}
+                  {renameAnalysis.changedTagCount} tag change(s).
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
               value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
+              onChange={(e) => {
+                setNewTagName(e.target.value);
+                setRenameAnalysis(null);
+              }}
               placeholder="New technique name"
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditingTag(null)}>
+            <Button variant="ghost" onClick={resetRenameDialog}>
               Cancel
             </Button>
-            <Button
-              onClick={handleRename}
-              disabled={!newTagName.trim() || newTagName === editingTag}
-            >
-              Save Changes
-            </Button>
+            {renameAnalysis ? (
+              <Button
+                onClick={handleRename}
+                disabled={renameAnalysis.conflicts.length > 0}
+              >
+                Apply
+              </Button>
+            ) : (
+              <Button
+                onClick={handleAnalyzeRename}
+                disabled={!newTagName.trim() || newTagName === editingTag}
+              >
+                Analyze
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -259,7 +319,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       {/* Merge Dialog */}
       <Dialog
         open={!!mergingTag}
-        onOpenChange={(open) => !open && setMergingTag(null)}
+        onOpenChange={(open) => !open && resetMergeDialog()}
       >
         <DialogContent>
           <DialogHeader>
@@ -267,6 +327,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
             <DialogDescription>
               Move all instances of "{mergingTag}" into another existing
               technique.
+              {mergeAnalysis && mergeAnalysis.conflicts.length === 0 && (
+                <>
+                  {' '}
+                  Impact: {mergeAnalysis.affectedSessionCount} session(s),{' '}
+                  {mergeAnalysis.changedTagCount} tag change(s).
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
@@ -274,7 +341,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               <label className="text-sm font-medium">
                 Select Target Technique
               </label>
-              <Select value={targetMergeTag} onValueChange={setTargetMergeTag}>
+              <Select
+                value={targetMergeTag}
+                onValueChange={(value) => {
+                  setTargetMergeTag(value);
+                  setMergeAnalysis(null);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a technique..." />
                 </SelectTrigger>
@@ -299,17 +372,28 @@ export function TagManager({ onRefresh }: TagManagerProps) {
             </Alert>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setMergingTag(null)}>
+            <Button variant="ghost" onClick={resetMergeDialog}>
               Cancel
             </Button>
-            <Button
-              variant="default"
-              onClick={handleMerge}
-              disabled={!targetMergeTag}
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              Confirm Merge
-            </Button>
+            {mergeAnalysis ? (
+              <Button
+                variant="default"
+                onClick={handleMerge}
+                disabled={mergeAnalysis.conflicts.length > 0}
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                Apply
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                onClick={handleAnalyzeMerge}
+                disabled={!targetMergeTag}
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                Analyze
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -317,7 +401,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       {/* Delete Dialog */}
       <Dialog
         open={!!deletingTag}
-        onOpenChange={(open) => !open && setDeletingTag(null)}
+        onOpenChange={(open) => !open && resetDeleteDialog()}
       >
         <DialogContent>
           <DialogHeader>
@@ -327,15 +411,32 @@ export function TagManager({ onRefresh }: TagManagerProps) {
             <DialogDescription>
               Are you sure you want to remove "{deletingTag}" from all your
               sessions? This cannot be undone.
+              {deleteAnalysis && deleteAnalysis.conflicts.length === 0 && (
+                <>
+                  {' '}
+                  Impact: {deleteAnalysis.affectedSessionCount} session(s),{' '}
+                  {deleteAnalysis.changedTagCount} tag change(s).
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeletingTag(null)}>
+            <Button variant="ghost" onClick={resetDeleteDialog}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete Globally
-            </Button>
+            {deleteAnalysis ? (
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteAnalysis.conflicts.length > 0}
+              >
+                Apply
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={handleAnalyzeDelete}>
+                Analyze
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
