@@ -122,6 +122,7 @@ Firebase values come from:
 - **`npm run lint`**: Run ESLint
 - **`npm run typecheck`**: Run TypeScript type checking
 - **`npm test -- <file>`**: Run a specific TypeScript test file with Node's test runner (for example: `npm test -- src/lib/foo.test.ts`)
+- **Current API route test entry points**: `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts` (use `src/lib/plugins/validate.test.ts` for plugin validation behavior checks).
 - **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
 
 ## Deployment
