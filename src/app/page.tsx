@@ -207,7 +207,7 @@ export default function Home() {
       }) ?? true
   );
   const selectedTab =
-    visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0];
+    visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0] ?? null;
 
   useEffect(() => {
     if (selectedTab && selectedTab.id !== activeTab) {
