@@ -27,11 +27,15 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
 
-  registerPluginComponent('custom_component', () => 'rendered-custom-component');
+  registerPluginComponent(
+    'custom_component',
+    () => 'rendered-custom-component'
+  );
 
   const { tabs, warnings } = resolveDashboardExtensionsToTabs([
     {
       pluginId: 'custom-plugin',
+      capabilities: [],
       extension: {
         type: 'dashboard_tab',
         id: 'custom-plugin-dashboard-tab',
@@ -52,12 +56,17 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
 });
 
 test('captures structured runtime warning when plugin component cannot be resolved', () => {
-  const warningsCaptured = [] as Array<{ code: string; path: string; message: string }>;
+  const warningsCaptured = [] as Array<{
+    code: string;
+    path: string;
+    message: string;
+  }>;
 
   const tabs = mapDashboardExtensionsToTabs(
     [
       {
         pluginId: 'missing-renderer-plugin',
+        capabilities: [],
         extension: {
           type: 'dashboard_tab',
           id: 'missing-renderer-extension',
@@ -83,5 +92,45 @@ test('captures structured runtime warning when plugin component cannot be resolv
   assert.match(
     warningsCaptured[0]?.path ?? '',
     /plugins\.missing-renderer-plugin\.uiExtensions\.missing-renderer-extension\.config\.component/
+  );
+});
+
+test('captures runtime warning and skips tab when required capability is missing', () => {
+  const warningsCaptured = [] as Array<{
+    code: string;
+    path: string;
+    message: string;
+  }>;
+
+  const tabs = mapDashboardExtensionsToTabs(
+    [
+      {
+        pluginId: 'missing-capability-plugin',
+        capabilities: [],
+        extension: {
+          type: 'dashboard_tab',
+          id: 'tag-manager-dashboard-tab',
+          title: 'Tag Manager',
+          config: {
+            tabId: 'tag-manager',
+            headerTitle: 'Manage Tags',
+            component: 'tag_manager',
+          },
+        },
+      },
+    ],
+    {
+      onWarning: (warning) => {
+        warningsCaptured.push(warning);
+      },
+    }
+  );
+
+  assert.equal(tabs.length, 0);
+  assert.equal(warningsCaptured.length, 1);
+  assert.equal(warningsCaptured[0]?.code, 'dashboard_tab_missing_capability');
+  assert.match(
+    warningsCaptured[0]?.path ?? '',
+    /plugins\.missing-capability-plugin\.capabilities/
   );
 });

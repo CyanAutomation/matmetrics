@@ -27,14 +27,19 @@ const loadFilesystemManifestCandidates = async (
         .filter((entry) => entry.isDirectory())
         .map(async (entry) => {
           // Validate entry name to prevent path traversal
-          if (entry.name.includes('..') || entry.name.includes('/') || entry.name.includes('\\')) {
+          if (
+            entry.name.includes('..') ||
+            entry.name.includes('/') ||
+            entry.name.includes('\\')
+          ) {
             return null;
           }
           const manifestPath = path.join(rootDir, entry.name, 'plugin.json');
           try {
             const raw = await readFile(manifestPath, 'utf8');
             // Protect against DoS via extremely large manifest files
-            if (raw.length > 1048576) { // 1MB limit
+            if (raw.length > 1048576) {
+              // 1MB limit
               return null;
             }
             return JSON.parse(raw) as unknown;
@@ -44,7 +49,9 @@ const loadFilesystemManifestCandidates = async (
         })
     );
 
-    return manifests.filter((manifest): manifest is unknown => manifest !== null);
+    return manifests.filter(
+      (manifest): manifest is unknown => manifest !== null
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return [];
@@ -56,8 +63,10 @@ const loadFilesystemManifestCandidates = async (
 export const discoverPluginManifestCandidates = async (
   options: DiscoveryOptions = {}
 ): Promise<unknown[]> => {
-  const pluginsRoot = options.pluginsRoot ?? path.resolve(__dirname, '../../../../plugins');
-  const filesystemCandidates = await loadFilesystemManifestCandidates(pluginsRoot);
+  const pluginsRoot =
+    options.pluginsRoot ?? path.resolve(__dirname, '../../../../plugins');
+  const filesystemCandidates =
+    await loadFilesystemManifestCandidates(pluginsRoot);
   const approvedCandidates = options.approvedManifestSources ?? [];
 
   return [...filesystemCandidates, ...approvedCandidates];
@@ -85,6 +94,7 @@ export const discoverEnabledDashboardTabExtensions = async (
         .filter(isDashboardTabExtension)
         .map((extension) => ({
           pluginId: manifest.id,
+          capabilities: manifest.capabilities ?? [],
           extension,
         }))
     );

@@ -72,6 +72,7 @@ export type PluginManifest = {
   name: string;
   version: string;
   description: string;
+  capabilities?: string[];
   author?: string;
   homepage?: string;
   settings?: Record<string, unknown>;
@@ -102,7 +103,9 @@ export type PluginManifestValidationResult =
   | PluginManifestValidationSuccess
   | PluginManifestValidationFailure;
 
-export type PluginRuntimeWarningCode = 'dashboard_tab_renderer_unresolved';
+export type PluginRuntimeWarningCode =
+  | 'dashboard_tab_renderer_unresolved'
+  | 'dashboard_tab_missing_capability';
 
 export type PluginRuntimeWarning = PluginValidationIssue & {
   code: PluginRuntimeWarningCode;
@@ -112,5 +115,6 @@ export type PluginRuntimeWarning = PluginValidationIssue & {
 };
 export type ResolvedDashboardTabExtension = {
   pluginId: string;
+  capabilities: string[];
   extension: DashboardTabExtension;
 };

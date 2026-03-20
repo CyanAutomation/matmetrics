@@ -18,9 +18,14 @@ import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
 import {
+  createMissingCapabilityDashboardWarning,
   createUnresolvedDashboardComponentWarning,
   resolveDashboardTabRenderer,
 } from '@/lib/plugins/dashboard-tab-adapters';
+import {
+  getRequiredCapabilityForExtension,
+  hasCapability,
+} from '@/lib/plugins/capabilities';
 import {
   type PluginRuntimeWarning,
   type ResolvedDashboardTabExtension,
@@ -144,30 +149,47 @@ export const resolveDashboardExtensionsToTabs = (
 ): DashboardTabResolutionResult => {
   const warnings: PluginRuntimeWarning[] = [];
 
-  const tabs: TabDefinition[] = extensions.flatMap(({ extension, pluginId }) => {
-    const render = resolveDashboardTabRenderer(extension.config.component);
-    if (!render) {
-      warnings.push(
-        createUnresolvedDashboardComponentWarning(
-          extension.config.component,
-          pluginId,
-          extension.id
-        )
-      );
-      return [];
-    }
+  const tabs: TabDefinition[] = extensions.flatMap(
+    ({ extension, pluginId, capabilities }) => {
+      const requiredCapability = getRequiredCapabilityForExtension(extension);
+      if (
+        requiredCapability &&
+        !hasCapability(capabilities, requiredCapability)
+      ) {
+        warnings.push(
+          createMissingCapabilityDashboardWarning(
+            requiredCapability,
+            pluginId,
+            extension.id
+          )
+        );
+        return [];
+      }
 
-    return [
-      {
-        id: extension.config.tabId,
-        title: extension.title,
-        headerTitle: extension.config.headerTitle,
-        icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
-        section: 'plugins',
-        render,
-      },
-    ];
-  });
+      const render = resolveDashboardTabRenderer(extension.config.component);
+      if (!render) {
+        warnings.push(
+          createUnresolvedDashboardComponentWarning(
+            extension.config.component,
+            pluginId,
+            extension.id
+          )
+        );
+        return [];
+      }
+
+      return [
+        {
+          id: extension.config.tabId,
+          title: extension.title,
+          headerTitle: extension.config.headerTitle,
+          icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
+          section: 'plugins',
+          render,
+        },
+      ];
+    }
+  );
 
   return { tabs, warnings };
 };

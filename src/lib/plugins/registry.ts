@@ -30,6 +30,7 @@ export const loadEnabledDashboardTabExtensions =
           .filter(isDashboardTabExtension)
           .map((extension) => ({
             pluginId: manifest.id,
+            capabilities: manifest.capabilities ?? [],
             extension,
           }))
       );
