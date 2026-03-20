@@ -31,6 +31,7 @@ import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
 import type {
   PluginManifest,
   PluginManifestValidationResult,
+  PluginManifestValidationSuccess,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
 
@@ -199,9 +200,15 @@ export function PluginManager() {
     preserveExisting: true,
   });
 
+  const isValidEntry = (
+    entry: PluginCandidateEntry
+  ): entry is PluginCandidateEntry & {
+    result: PluginManifestValidationSuccess;
+  } => entry.result.isValid;
+
   React.useEffect(() => {
-    const firstValidEntry = candidateEntries.find((entry) => entry.result.isValid);
-    if (firstValidEntry?.result.isValid) {
+    const firstValidEntry = candidateEntries.find(isValidEntry);
+    if (firstValidEntry) {
       setUpdateForm((prev) => ({
         ...prev,
         pluginId: firstValidEntry.result.manifest.id,
