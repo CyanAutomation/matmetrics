@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
           ...createContractPayload({
             validationTable,
             fileTreeDiffSummary: {
-              mode: confirm ? 'applied' : 'dry-run',
+              mode: 'dry-run',
               files: [{ path: existing.relativePath, changeType: 'modified' }],
             },
             unresolvedInputs: ['confirmOverwrite'],
