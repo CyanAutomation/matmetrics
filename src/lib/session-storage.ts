@@ -23,9 +23,56 @@ const GITHUB_SESSION_PATH_REGEX = new RegExp(
   `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics-[^/]+\\.md$`
 );
 
+/**
+ * Very conservative validation for GitHub owner/repo names.
+ * GitHub allows letters, digits, '.', '-', and '_' with length limits.
+ */
+function isValidGitHubOwnerOrRepo(name: string): boolean {
+  if (!name) {
+    return false;
+  }
+  // 1–39 characters, start with alphanumeric, then alphanumeric, '.', '-', or '_'
+  const pattern = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$/;
+  return pattern.test(name);
+}
+
+function sanitizeGitHubOwnerOrRepo(raw: unknown): string {
+  if (typeof raw !== 'string') {
+    return '';
+  }
+  const trimmed = raw.trim();
+  if (!isValidGitHubOwnerOrRepo(trimmed)) {
+    return '';
+  }
+  return trimmed;
+}
+
 function normalizeBranch(branch: string | undefined): string | undefined {
   const trimmed = branch?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+/**
+ * Sanitize a GitHub branch name for safe use in a query parameter.
+ * Rejects control characters, whitespace, and obvious path traversal.
+ */
+function sanitizeGitHubBranch(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  // Disallow whitespace and control characters
+  if (/[^\x21-\x7E]/.test(trimmed)) {
+    return undefined;
+  }
+  // Disallow simple path traversal sequences
+  if (trimmed.includes('..')) {
+    return undefined;
+  }
+  return trimmed;
 }
 
 export function normalizeGitHubConfig(
@@ -35,9 +82,9 @@ export function normalizeGitHubConfig(
     return null;
   }
 
-  const owner = typeof config.owner === 'string' ? config.owner.trim() : '';
-  const repo = typeof config.repo === 'string' ? config.repo.trim() : '';
-  const branch = normalizeBranch(config.branch);
+  const owner = sanitizeGitHubOwnerOrRepo(config.owner);
+  const repo = sanitizeGitHubOwnerOrRepo(config.repo);
+  const branch = sanitizeGitHubBranch(config.branch);
 
   if (!owner || !repo) {
     return null;
