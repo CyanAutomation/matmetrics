@@ -263,17 +263,30 @@ function tryAcquireSyncLease(): boolean {
   );
 }
 
-function renewSyncLease(): void {
+function renewSyncLease(): boolean {
   if (typeof window === 'undefined') {
-    return;
+    return false;
   }
+
+  const existingLease = readSyncLease();
+  if (existingLease?.owner !== syncOwnerId) {
+    return false;
+  }
+
+  const nextLease: SyncLease = {
+    owner: syncOwnerId,
+    expiresAt: Date.now() + SYNC_LOCK_TTL_MS,
+  };
 
   localStorage.setItem(
     getSyncLockStorageKey(),
-    JSON.stringify({
-      owner: syncOwnerId,
-      expiresAt: Date.now() + SYNC_LOCK_TTL_MS,
-    } satisfies SyncLease)
+    JSON.stringify(nextLease)
+  );
+
+  const confirmedLease = readSyncLease();
+  return (
+    confirmedLease?.owner === syncOwnerId &&
+    confirmedLease.expiresAt === nextLease.expiresAt
   );
 }
 
@@ -916,8 +929,13 @@ async function syncPendingOperations(): Promise<void> {
     const gitHubConfig = getGitHubConfig();
     const gitHubEnabled = isGitHubEnabled();
     for (const [index, operation] of queue.entries()) {
+      if (!renewSyncLease()) {
+        const remainingOperations = queue.slice(index);
+        setQueue(remainingOperations, queue);
+        return;
+      }
+
       try {
-        renewSyncLease();
         switch (operation.type) {
           case 'CREATE':
             const createBody: any = { ...operation.session };
@@ -1039,4 +1057,12 @@ export function __setStorageDependencyOverridesForTests(overrides: {
   if (overrides.persistGitHubSettingsPreference) {
     persistGitHubSettingsPreference = overrides.persistGitHubSettingsPreference;
   }
+}
+
+export function __tryAcquireSyncLeaseForTests(): boolean {
+  return tryAcquireSyncLease();
+}
+
+export function __renewSyncLeaseForTests(): boolean {
+  return renewSyncLease();
 }
