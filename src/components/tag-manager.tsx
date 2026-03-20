@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { getAllTags, renameTag, deleteTag, mergeTags } from '@/lib/storage';
+import { tagService } from '@/lib/tags';
 import {
   Tags,
   Edit2,
@@ -55,7 +55,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
 
   const refreshTags = useCallback(() => {
-    setTags(getAllTags());
+    setTags(tagService.listTags());
     onRefresh();
   }, [onRefresh]);
 
@@ -63,47 +63,80 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     refreshTags();
   }, [refreshTags]);
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (!editingTag || !newTagName.trim()) return;
+    const normalizedNewTag = newTagName.trim();
+    const preview = await tagService.renameTag(editingTag, normalizedNewTag, {
+      dryRun: true,
+    });
 
-    renameTag(editingTag, newTagName.trim());
+    if (preview.conflicts.length > 0) {
+      toast({
+        title: 'Unable to rename tag',
+        description: preview.conflicts[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const result = await tagService.renameTag(editingTag, normalizedNewTag);
     toast({
       title: 'Tag renamed',
-      description: `"${editingTag}" is now "${newTagName.trim()}" across all sessions.`,
+      description: `"${editingTag}" is now "${normalizedNewTag}" across ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
     setEditingTag(null);
     setNewTagName('');
     refreshTags();
   };
 
-  const handleMerge = () => {
+  const handleMerge = async () => {
     if (!mergingTag || !targetMergeTag) return;
+    const preview = await tagService.mergeTags(mergingTag, targetMergeTag, {
+      dryRun: true,
+    });
 
-    mergeTags(mergingTag, targetMergeTag);
+    if (preview.conflicts.length > 0) {
+      toast({
+        title: 'Unable to merge tags',
+        description: preview.conflicts[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const result = await tagService.mergeTags(mergingTag, targetMergeTag);
     toast({
       title: 'Tags merged',
-      description: `All instances of "${mergingTag}" have been merged into "${targetMergeTag}".`,
+      description: `Merged into "${targetMergeTag}" across ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
     setMergingTag(null);
     setTargetMergeTag('');
     refreshTags();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingTag) return;
+    const preview = await tagService.deleteTag(deletingTag, { dryRun: true });
 
-    deleteTag(deletingTag);
+    if (preview.conflicts.length > 0) {
+      toast({
+        title: 'Unable to delete tag',
+        description: preview.conflicts[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const result = await tagService.deleteTag(deletingTag);
     toast({
       title: 'Tag deleted',
-      description: `"${deletingTag}" has been removed from all training sessions.`,
+      description: `"${deletingTag}" was removed from ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
     });
     setDeletingTag(null);
     refreshTags();
   };
 
-  const filteredTags = tags.filter((t) =>
-    t.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTags = tagService.searchTags(search);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
