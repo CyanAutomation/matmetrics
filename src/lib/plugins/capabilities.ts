@@ -33,26 +33,36 @@ export const getRequiredCapabilityForExtension = (
   extension: UIExtension
 ): KnownPluginCapability | null => {
   switch (extension.type) {
-    case 'dashboard_tab':
-      if (!hasStringComponentConfig(extension.config)) {
+    case 'dashboard_tab': {
+      const config = extension.config;
+      if (!hasStringComponentConfig(config)) {
         return null;
       }
 
-      return (
-        dashboardComponentCapabilityRequirements[extension.config.component] ?? null
-      );
-    case 'session_action':
-      if (!hasStringActionIdConfig(extension.config)) {
+      const component =
+        config.component as keyof typeof dashboardComponentCapabilityRequirements;
+      return dashboardComponentCapabilityRequirements[component] ?? null;
+    }
+    case 'session_action': {
+      const config = extension.config;
+      if (!hasStringActionIdConfig(config)) {
         return null;
       }
 
-      return sessionActionCapabilityRequirements[extension.config.actionId] ?? null;
-    case 'settings_panel':
-      if (!hasStringComponentConfig(extension.config)) {
+      const actionId =
+        config.actionId as keyof typeof sessionActionCapabilityRequirements;
+      return sessionActionCapabilityRequirements[actionId] ?? null;
+    }
+    case 'settings_panel': {
+      const config = extension.config;
+      if (!hasStringComponentConfig(config)) {
         return null;
       }
 
-      return settingsPanelCapabilityRequirements[extension.config.component] ?? null;
+      const component =
+        config.component as keyof typeof settingsPanelCapabilityRequirements;
+      return settingsPanelCapabilityRequirements[component] ?? null;
+    }
     default:
       return null;
   }
