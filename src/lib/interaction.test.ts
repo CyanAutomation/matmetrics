@@ -50,7 +50,7 @@ test('action feedback controller resets transient states back to idle', () => {
 
 test('action feedback controller clears pending reset when showing an error', () => {
   const states: string[] = [];
-  let scheduledCallbacks: Array<() => void> = [];
+  const scheduledCallbacks: Array<() => void> = [];
   let cleared = 0;
 
   const controller = createActionFeedbackController(
