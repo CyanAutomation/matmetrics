@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
-
+import { getPluginsRoot } from '@/lib/plugins/api-contract';
 type JsonRecord = Record<string, unknown>;
 
 export type FileChangeType = 'added' | 'modified' | 'unchanged';
@@ -131,12 +131,30 @@ export const mergePreserveUnknownKeys = (
   return merged;
 };
 
+const ensurePathUnderRoot = (root: string, targetPath: string): string => {
+  const resolvedRoot = path.resolve(root);
+  const resolvedTarget = path.resolve(targetPath);
+
+  // Ensure the target path is within the root directory
+  const rootWithSep = resolvedRoot.endsWith(path.sep)
+    ? resolvedRoot
+    : resolvedRoot + path.sep;
+
+  if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(rootWithSep)) {
+    throw new Error('Attempted to write plugin manifest outside of plugins root');
+  }
+
+  return resolvedTarget;
+};
+
 export const writePluginManifest = async (
   absolutePath: string,
   manifest: unknown
 ): Promise<void> => {
+  const pluginsRoot = getPluginsRoot();
+  const safePath = ensurePathUnderRoot(pluginsRoot, absolutePath);
   const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
-  await writeFile(absolutePath, serialized, 'utf8');
+  await writeFile(safePath, serialized, 'utf8');
 };
 
 export const toPluginDirectoryName = (pluginId: string): string =>
