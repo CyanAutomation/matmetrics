@@ -26,6 +26,10 @@ const loadFilesystemManifestCandidates = async (
       entries
         .filter((entry) => entry.isDirectory())
         .map(async (entry) => {
+          // Validate entry name to prevent path traversal
+          if (entry.name.includes('..') || entry.name.includes('/') || entry.name.includes('\\')) {
+            return null;
+          }
           const manifestPath = path.join(rootDir, entry.name, 'plugin.json');
           try {
             const raw = await readFile(manifestPath, 'utf8');
