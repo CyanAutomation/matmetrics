@@ -206,15 +206,20 @@ export function PluginManager() {
     result: PluginManifestValidationSuccess;
   } => entry.result.isValid;
 
+  const validCandidateEntries = React.useMemo(
+    () => candidateEntries.filter(isValidEntry),
+    [candidateEntries]
+  );
+
   React.useEffect(() => {
-    const firstValidEntry = candidateEntries.find(isValidEntry);
+    const firstValidEntry = validCandidateEntries[0];
     if (firstValidEntry) {
       setUpdateForm((prev) => ({
         ...prev,
         pluginId: firstValidEntry.result.manifest.id,
       }));
     }
-  }, [candidateEntries]);
+  }, [validCandidateEntries]);
 
   const createPath = createForm.id.trim()
     ? `plugins/${createForm.id.trim()}/`
@@ -615,14 +620,12 @@ export function PluginManager() {
                   list="plugin-ids"
                 />
                 <datalist id="plugin-ids">
-                  {candidateEntries
-                    .filter((entry) => entry.result.isValid)
-                    .map((entry) => (
-                      <option
-                        key={`option-${entry.key}`}
-                        value={entry.result.manifest.id}
-                      />
-                    ))}
+                  {validCandidateEntries.map((entry) => (
+                    <option
+                      key={`option-${entry.key}`}
+                      value={entry.result.manifest.id}
+                    />
+                  ))}
                 </datalist>
                 <p className="text-xs text-muted-foreground">
                   Target path:{' '}
