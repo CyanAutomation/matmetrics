@@ -62,7 +62,11 @@ import {
   TAB_IDS,
   type TabId,
 } from '@/lib/navigation/tab-definitions';
+import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
+
+const legacyPluginRegistryFallbackEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_LEGACY_PLUGIN_REGISTRY === 'true';
 
 export default function Home() {
   const { toast } = useToast();
@@ -84,11 +88,15 @@ export default function Home() {
   const [guestWorkspace, setGuestWorkspace] = useState(() =>
     getGuestWorkspaceSummary()
   );
+  const [pluginExtensions, setPluginExtensions] = useState<
+    ResolvedDashboardTabExtension[]
+  >(() =>
+    legacyPluginRegistryFallbackEnabled ? loadEnabledDashboardTabExtensions() : []
+  );
 
   const resolvedPluginTabs = React.useMemo(
-    () =>
-      mapDashboardExtensionsToTabs(loadEnabledDashboardTabExtensions()),
-    []
+    () => mapDashboardExtensionsToTabs(pluginExtensions),
+    [pluginExtensions]
   );
   const allTabs = React.useMemo(
     () =>
@@ -102,6 +110,49 @@ export default function Home() {
     setSessions(getSessions());
     setSyncStatus(getSyncStatus());
     setGuestWorkspace(getGuestWorkspaceSummary());
+  }, []);
+
+  useEffect(() => {
+    if (legacyPluginRegistryFallbackEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDiscoveredPluginExtensions = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch('/api/plugins/discovered-dashboard-tabs', {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Plugin discovery failed with status ${response.status}`);
+        }
+
+        const payload = (await response.json()) as {
+          extensions?: ResolvedDashboardTabExtension[];
+        };
+
+        if (!cancelled) {
+          setPluginExtensions(Array.isArray(payload.extensions) ? payload.extensions : []);
+        }
+      } catch (error) {
+        console.error('Unable to load discovered plugin manifests', error);
+        if (!cancelled) {
+          setPluginExtensions(loadEnabledDashboardTabExtensions());
+        }
+      }
+    };
+
+    void loadDiscoveredPluginExtensions();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
