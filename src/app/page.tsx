@@ -121,7 +121,14 @@ export default function Home() {
 
     const loadDiscoveredPluginExtensions = async () => {
       try {
-        const response = await fetch('/api/plugins/discovered-dashboard-tabs');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch('/api/plugins/discovered-dashboard-tabs', {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
           throw new Error(`Plugin discovery failed with status ${response.status}`);
         }
