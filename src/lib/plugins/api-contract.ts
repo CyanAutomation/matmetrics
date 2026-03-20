@@ -144,4 +144,4 @@ export const toPluginDirectoryName = (pluginId: string): string =>
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'plugin';
+    .replace(/^-+/, '').replace(/-+$/, '') || 'plugin';
