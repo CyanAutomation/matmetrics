@@ -31,6 +31,8 @@ test('rename returns a case conflict when target casing already exists', async (
 
   assert.equal(result.affectedSessionCount, 0);
   assert.equal(result.changedTagCount, 0);
+  assert.deepEqual(result.affectedSessionIds, []);
+  assert.deepEqual(result.affectedTags, []);
   assert.equal(result.conflicts[0]?.code, 'case_conflict');
   assert.equal(updates.length, 0);
 });
@@ -50,6 +52,8 @@ test('rename to existing tag returns a conflict instead of mutating sessions', a
 
   assert.equal(result.affectedSessionCount, 0);
   assert.equal(result.changedTagCount, 0);
+  assert.deepEqual(result.affectedSessionIds, []);
+  assert.deepEqual(result.affectedTags, []);
   assert.equal(result.conflicts[0]?.code, 'target_tag_exists');
   assert.equal(updates.length, 0);
 });
@@ -69,6 +73,8 @@ test('merge into same tag returns conflict and performs no updates', async () =>
 
   assert.equal(result.affectedSessionCount, 0);
   assert.equal(result.changedTagCount, 0);
+  assert.deepEqual(result.affectedSessionIds, []);
+  assert.deepEqual(result.affectedTags, []);
   assert.equal(result.conflicts[0]?.code, 'merge_same_tag');
   assert.equal(updates.length, 0);
 });
@@ -89,6 +95,50 @@ test('delete nonexistent tag returns conflict and supports dry-run', async () =>
   assert.equal(result.dryRun, true);
   assert.equal(result.affectedSessionCount, 0);
   assert.equal(result.changedTagCount, 0);
+  assert.deepEqual(result.affectedSessionIds, []);
+  assert.deepEqual(result.affectedTags, []);
   assert.equal(result.conflicts[0]?.code, 'tag_not_found');
+  assert.equal(updates.length, 0);
+});
+
+test('analysis APIs return accurate impact details for representative datasets', async () => {
+  const sessions = [
+    makeSession('s1', ['armbar', 'Armbar', 'triangle']),
+    makeSession('s2', ['armbar', 'seoi-nage', 'armbar']),
+    makeSession('s3', ['triangle', 'tomoe-nage']),
+  ];
+  const updates: JudoSession[] = [];
+  const service = createTagService({
+    getSessions: () => sessions,
+    updateSession: async (session) => {
+      updates.push(session);
+      return { status: 'synced' };
+    },
+  });
+
+  const rename = await service.analyzeRename('armbar', 'juji-gatame');
+  assert.equal(rename.dryRun, true);
+  assert.equal(rename.affectedSessionCount, 2);
+  assert.equal(rename.changedTagCount, 4);
+  assert.deepEqual(rename.affectedSessionIds, ['s1', 's2']);
+  assert.deepEqual(rename.affectedTags, ['armbar', 'juji-gatame']);
+  assert.equal(rename.conflicts.length, 0);
+
+  const merge = await service.analyzeMerge('triangle', 'tomoe-nage');
+  assert.equal(merge.dryRun, true);
+  assert.equal(merge.affectedSessionCount, 2);
+  assert.equal(merge.changedTagCount, 2);
+  assert.deepEqual(merge.affectedSessionIds, ['s1', 's3']);
+  assert.deepEqual(merge.affectedTags, ['triangle', 'tomoe-nage']);
+  assert.equal(merge.conflicts.length, 0);
+
+  const deleteResult = await service.analyzeDelete('armbar');
+  assert.equal(deleteResult.dryRun, true);
+  assert.equal(deleteResult.affectedSessionCount, 2);
+  assert.equal(deleteResult.changedTagCount, 4);
+  assert.deepEqual(deleteResult.affectedSessionIds, ['s1', 's2']);
+  assert.deepEqual(deleteResult.affectedTags, ['armbar']);
+  assert.equal(deleteResult.conflicts.length, 0);
+
   assert.equal(updates.length, 0);
 });
