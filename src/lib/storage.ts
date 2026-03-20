@@ -646,7 +646,10 @@ export async function mergeTags(
   sourceTag: string,
   targetTag: string
 ): Promise<void> {
-  await tagDomainService.mergeTags(sourceTag, targetTag);
+  const result = await tagDomainService.mergeTags(sourceTag, targetTag);
+  if (result.conflicts.length > 0) {
+    throw new Error(result.conflicts[0].message);
+  }
 }
 
 // AI Transformer Prompt Persistence
