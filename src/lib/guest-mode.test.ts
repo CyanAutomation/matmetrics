@@ -97,19 +97,19 @@ test('demo sessions are intentionally uneven enough to feel realistic', () => {
   assert.equal(techniqueCounts[0][1] > techniqueCounts[4][1], true);
 });
 
-test('guest workspace becomes importable after local edits and can be dismissed', () => {
+test('guest workspace becomes importable after local edits and can be dismissed', async () => {
   const localStorage = installBrowserStorage();
   setActiveUserId('guest');
 
   ensureGuestWorkspaceSeeded();
   markGuestWorkspaceCustom();
 
-  assert.equal(shouldPromptGuestImport('user-1'), true);
+  assert.equal(await shouldPromptGuestImport('user-1'), true);
 
-  dismissGuestImport('user-1');
+  await dismissGuestImport('user-1');
 
-  assert.equal(shouldPromptGuestImport('user-1'), false);
-  assert.equal(shouldPromptGuestImport('user-2'), true);
+  assert.equal(await shouldPromptGuestImport('user-1'), false);
+  assert.equal(await shouldPromptGuestImport('user-2'), true);
 
   localStorage.clear();
 });

@@ -24,10 +24,12 @@ type GuestWorkspaceMeta = {
   importDismissedBy: string[];
 };
 
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function getDismissSalt(): string {
   if (typeof window === 'undefined') {
-    // During SSR there is no localStorage; return empty string to disable functionality.
-    // Guest workspace dismissal is client-only and shouldn't work server-side.
     return '';
   }
 
@@ -39,23 +41,24 @@ function getDismissSalt(): string {
   // Generate a random salt once per browser profile.
   const randomBytes = new Uint8Array(16);
   crypto.getRandomValues(randomBytes);
-  const randomSalt = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  const randomSalt = toHex(randomBytes);
   window.localStorage.setItem(GUEST_DISMISS_SALT_KEY, randomSalt);
   return randomSalt;
 }
 
-function getDismissKeyForUser(userId: string): string {
-  const salt = getDismissSalt();
-  const input = `${salt}:${userId}`;
-
-  // Simple deterministic hash (FNV-1a style) to avoid storing the raw userId.
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = (hash * 0x01000193) >>> 0;
+async function getDismissKeyForUser(userId: string): Promise<string> {
+  if (
+    typeof window === 'undefined' ||
+    !window.crypto?.subtle ||
+    !window.crypto?.getRandomValues
+  ) {
+    return '';
   }
 
-  return hash.toString(16);
+  const salt = getDismissSalt();
+  const input = new TextEncoder().encode(`${salt}:${userId}`);
+  const digest = await window.crypto.subtle.digest('SHA-256', input);
+  return toHex(new Uint8Array(digest));
 }
 
 function getGuestSessionsStorageKey(): string {
@@ -169,13 +172,17 @@ export function getGuestWorkspaceSummary(): {
   };
 }
 
-export function shouldPromptGuestImport(userId: string): boolean {
+export async function shouldPromptGuestImport(userId: string): Promise<boolean> {
   const meta = readGuestWorkspaceMeta();
   if (meta.source !== 'custom') {
     return false;
   }
 
-  const dismissKey = getDismissKeyForUser(userId);
+  const dismissKey = await getDismissKeyForUser(userId);
+  if (!dismissKey) {
+    return false;
+  }
+
   if (meta.importDismissedBy.includes(dismissKey)) {
     return false;
   }
@@ -183,9 +190,13 @@ export function shouldPromptGuestImport(userId: string): boolean {
   return readGuestSessions().length > 0;
 }
 
-export function dismissGuestImport(userId: string): void {
+export async function dismissGuestImport(userId: string): Promise<void> {
   const meta = readGuestWorkspaceMeta();
-  const dismissKey = getDismissKeyForUser(userId);
+  const dismissKey = await getDismissKeyForUser(userId);
+  if (!dismissKey) {
+    return;
+  }
+
   if (meta.importDismissedBy.includes(dismissKey)) {
     return;
   }
