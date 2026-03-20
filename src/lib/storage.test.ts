@@ -3,8 +3,10 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { getScopedStorageKey, setActiveUserId } from './client-identity';
 import {
+  __renewSyncLeaseForTests,
   __setStorageDependencyOverridesForTests,
   __resetStorageStateForTests,
+  __tryAcquireSyncLeaseForTests,
   clearAllData,
   getGitHubSyncStatus,
   getSessions,
@@ -288,6 +290,116 @@ test('sync lease prevents replay when another tab already owns the queue flush',
 
     assert.equal(requestCount, 0);
     assert.equal(getQueue().length, 1);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('sync lease owner can renew its own lease', () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+
+  try {
+    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    const beforeRenewal = JSON.parse(
+      localStorage.getItem(syncLockStorageKey) ?? '{}'
+    );
+
+    assert.equal(__renewSyncLeaseForTests(), true);
+
+    const afterRenewal = JSON.parse(
+      localStorage.getItem(syncLockStorageKey) ?? '{}'
+    );
+    assert.equal(afterRenewal.owner, beforeRenewal.owner);
+    assert.ok(afterRenewal.expiresAt >= beforeRenewal.expiresAt);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('stale sync lease owner cannot renew after another owner acquires lease', () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+
+  try {
+    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    localStorage.setItem(
+      syncLockStorageKey,
+      JSON.stringify({
+        owner: 'other-tab',
+        expiresAt: Date.now() + 60_000,
+      })
+    );
+
+    assert.equal(__renewSyncLeaseForTests(), false);
+    const currentLease = JSON.parse(
+      localStorage.getItem(syncLockStorageKey) ?? '{}'
+    );
+    assert.equal(currentLease.owner, 'other-tab');
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('sync loop exits when lease renewal fails mid-flight', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncQueueStorageKey = getSyncQueueStorageKey();
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+  const firstSession = makeSession('session-renew-ok');
+  const secondSession = makeSession('session-renew-fails');
+
+  localStorage.setItem(
+    syncQueueStorageKey,
+    JSON.stringify([
+      { type: 'CREATE', session: firstSession, queuedAt: 1 },
+      { type: 'CREATE', session: secondSession, queuedAt: 2 },
+    ])
+  );
+
+  let requestCount = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (!url.endsWith('/api/sessions/create')) {
+      throw new Error(`Unexpected fetch: ${url}`);
+    }
+
+    requestCount += 1;
+    if (requestCount === 1) {
+      localStorage.setItem(
+        syncLockStorageKey,
+        JSON.stringify({
+          owner: 'other-tab',
+          expiresAt: Date.now() + 60_000,
+        })
+      );
+    }
+
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.equal(requestCount, 1);
+    assert.equal(getQueue().length, 1);
+    assert.equal(getQueue()[0].type, 'CREATE');
+    assert.equal(getQueue()[0].session.id, secondSession.id);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
