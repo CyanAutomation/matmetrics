@@ -36,7 +36,7 @@ function ensurePathWithinDataDir(filePath: string): string {
     throw new Error('Resolved session file path escapes data directory');
   }
 
-  return resolved;
+  return filePath;
 }
 
 /**
@@ -56,7 +56,7 @@ export function getSessionFilePath(
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
-  return path.join(getDataDir(), year, month, baseName);
+  return ensurePathWithinDataDir(path.join(getDataDir(), year, month, baseName));
 }
 
 /**
@@ -76,7 +76,9 @@ export function extractDateFromPath(filePath: string): string | null {
  * Used when creating multiple sessions on the same day
  */
 export async function getNextCounter(date: string): Promise<number> {
-  const dirPath = path.join(getDataDir(), date.slice(0, 4), date.slice(5, 7));
+  const dirPath = ensurePathWithinDataDir(
+    path.join(getDataDir(), date.slice(0, 4), date.slice(5, 7))
+  );
 
   try {
     const files = await fs.readdir(dirPath);
@@ -160,7 +162,7 @@ export async function readSession(
   counter?: number
 ): Promise<JudoSession | null> {
   try {
-    const filePath = getSessionFilePath(date, counter);
+    const filePath = ensurePathWithinDataDir(getSessionFilePath(date, counter));
     const markdown = await fs.readFile(filePath, 'utf-8');
     return markdownToSession(markdown);
   } catch (e) {
@@ -176,10 +178,8 @@ export async function readSession(
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
-  const dirPath = path.join(
-    getDataDir(),
-    session.date.slice(0, 4),
-    session.date.slice(5, 7)
+  const dirPath = ensurePathWithinDataDir(
+    path.join(getDataDir(), session.date.slice(0, 4), session.date.slice(5, 7))
   );
 
   // Ensure directory exists
@@ -192,7 +192,6 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
   const filePath = getSessionFilePath(session.date, undefined, session.id);
-  const safeFilePath = ensurePathWithinDataDir(filePath);
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
@@ -207,7 +206,7 @@ export async function createSession(session: JudoSession): Promise<string> {
 
   // Idempotency: if this ID already exists (canonical path or legacy location), return success.
   try {
-    await fs.access(safeFilePath);
+    await fs.access(filePath);
     return await assertExistingSessionMatches(filePath);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -221,7 +220,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   }
 
   try {
-    await fs.writeFile(safeFilePath, markdown, {
+    await fs.writeFile(filePath, markdown, {
       encoding: 'utf-8',
       flag: 'wx',
     });
@@ -252,8 +251,11 @@ export async function updateSession(session: JudoSession): Promise<string> {
   if (!existingPath) {
     throw new Error(`Session with ID ${session.id} not found`);
   }
+  ensurePathWithinDataDir(existingPath);
 
-  const nextPath = getSessionFilePath(session.date, undefined, session.id);
+  const nextPath = ensurePathWithinDataDir(
+    getSessionFilePath(session.date, undefined, session.id)
+  );
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
@@ -276,8 +278,12 @@ export async function updateSession(session: JudoSession): Promise<string> {
     }
   }
 
-  const tempPath = `${nextPath}.tmp-${process.pid}-${Date.now()}`;
-  const backupPath = `${existingPath}.bak-${process.pid}-${Date.now()}`;
+  const tempPath = ensurePathWithinDataDir(
+    `${nextPath}.tmp-${process.pid}-${Date.now()}`
+  );
+  const backupPath = ensurePathWithinDataDir(
+    `${existingPath}.bak-${process.pid}-${Date.now()}`
+  );
 
   try {
     await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
@@ -307,6 +313,7 @@ export async function deleteSession(id: string): Promise<void> {
     throw new Error(`Session with ID ${id} not found`);
   }
 
+  ensurePathWithinDataDir(filePath);
   await fs.unlink(filePath);
 }
 
@@ -332,7 +339,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         const files = await fs.readdir(monthPath);
         for (const file of files) {
           if (!file.endsWith('.md')) continue;
-          const filePath = path.join(monthPath, file);
+          const filePath = ensurePathWithinDataDir(path.join(monthPath, file));
           try {
             const markdown = await fs.readFile(filePath, 'utf-8');
             const parsedSession = markdownToSession(markdown);
