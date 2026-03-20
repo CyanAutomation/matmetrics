@@ -14,6 +14,7 @@ export const pluginManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(VERSION_REGEX),
   description: z.string().min(1),
+  capabilities: z.array(z.string().min(1)).optional(),
   uiExtensions: z.array(pluginExtensionBaseSchema).min(1),
   author: z.string().min(1).optional(),
   homepage: z.string().url().optional(),

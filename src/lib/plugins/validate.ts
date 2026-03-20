@@ -1,6 +1,11 @@
 import { type ZodIssue } from 'zod';
 
 import {
+  KNOWN_PLUGIN_CAPABILITIES,
+  getRequiredCapabilityForExtension,
+  hasCapability,
+} from '@/lib/plugins/capabilities';
+import {
   pluginManifestSchema,
   type PluginManifestSchema,
 } from '@/lib/plugins/manifest-schema';
@@ -22,6 +27,8 @@ const knownExtensionTypes: UIExtensionType[] = [
   'session_action',
   'settings_panel',
 ];
+
+const knownCapabilities = new Set<string>(KNOWN_PLUGIN_CAPABILITIES);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -138,6 +145,19 @@ export const validatePluginManifest = (
   const issues: PluginValidationIssue[] = [];
 
   const seenExtensionIds = new Set<string>();
+  const manifestCapabilities = manifest.capabilities ?? [];
+
+  manifestCapabilities.forEach((capability, index) => {
+    if (!knownCapabilities.has(capability)) {
+      issues.push(
+        makeIssue(
+          'warning',
+          `capabilities[${index}]`,
+          `Unknown capability "${capability}".`
+        )
+      );
+    }
+  });
 
   manifest.uiExtensions.forEach((extension, index) => {
     const extensionPath = `uiExtensions[${index}]`;
@@ -176,11 +196,28 @@ export const validatePluginManifest = (
       return;
     }
 
+    const typedExtension = extension as UIExtension;
+
     issues.push(
-      ...validateKnownExtension(extension as UIExtension, index).filter(
+      ...validateKnownExtension(typedExtension, index).filter(
         (issue) => issue.severity === 'error'
       )
     );
+
+    const requiredCapability =
+      getRequiredCapabilityForExtension(typedExtension);
+    if (
+      requiredCapability &&
+      !hasCapability(manifestCapabilities, requiredCapability)
+    ) {
+      issues.push(
+        makeIssue(
+          'warning',
+          `${extensionPath}.capabilities`,
+          `Extension "${extension.id}" requires capability "${requiredCapability}". Add it to manifest.capabilities to enable execution.`
+        )
+      );
+    }
   });
 
   const hasErrors = issues.some((issue) => issue.severity === 'error');
@@ -192,6 +229,7 @@ export const validatePluginManifest = (
   const normalizedManifest = {
     ...manifest,
     enabled: manifest.enabled ?? true,
+    capabilities: manifest.capabilities ?? [],
   };
 
   return {
