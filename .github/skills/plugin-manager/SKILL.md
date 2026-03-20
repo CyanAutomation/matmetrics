@@ -45,8 +45,7 @@ Fallback when inputs are incomplete:
    - verify plugin root exists and inspect current structure
 
 2. **Create**
-   - confirm target plugin does not already exist
-   - scaffold files from repository pattern
+   - follow the **Create a New Plugin** deterministic scaffold below
    - populate manifest with required keys and sensible defaults
    - run schema/structure validation and report results
 
@@ -185,6 +184,68 @@ Expected validation errors (example):
 - `uiExtensions[0]`: missing required `route` or `config` field.
 - `uiExtensions[1].title`: expected string, got number.
 - `uiExtensions[1].id`: duplicate extension id `dup-extension`.
+
+## Create a New Plugin
+
+Use this deterministic scaffold whenever the action is `create`.
+
+### Naming rules (must pass before scaffolding)
+
+- Plugin path must be exactly: `plugins/<kebab-case-plugin-id>/`.
+- `id` in `plugin.json` and folder name **must match exactly**.
+- Use lowercase kebab-case only (`[a-z0-9-]+`).
+- Do not allow spaces or uppercase characters in plugin IDs.
+
+### Conflict handling
+
+- If `plugins/<kebab-case-plugin-id>/` already exists, **do not recreate** it.
+- Prompt the user to confirm they want an **update** workflow instead of create.
+- If user confirms update, switch action to `update` and preserve existing files.
+
+### Required file set
+
+Create these files for a new plugin:
+
+1. `plugins/<kebab-case-plugin-id>/plugin.json` (required)
+2. `plugins/<kebab-case-plugin-id>/src/index.js` (required by default)
+   - If user explicitly chooses TypeScript, create `src/index.ts` instead.
+3. `plugins/<kebab-case-plugin-id>/README.md` (optional; create only when requested)
+
+### `plugin.json` template
+
+```json
+{
+  "id": "<kebab-case-plugin-id>",
+  "name": "<Human Readable Plugin Name>",
+  "version": "0.1.0",
+  "description": "<Short plugin description>",
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "page",
+      "id": "<kebab-case-plugin-id>-main-page",
+      "title": "<Plugin Title>",
+      "route": "/plugins/<kebab-case-plugin-id>"
+    }
+  ]
+}
+```
+
+### Entrypoint stub template (`src/index.js` or `src/index.ts`)
+
+```js
+export function initPlugin(context) {
+  // Register plugin behavior, routes, and extensions here.
+  return {
+    id: '<kebab-case-plugin-id>',
+    register() {
+      // Example: context.registerPage(...);
+    },
+  };
+}
+```
+
+If TypeScript is chosen, keep the same exported `initPlugin` entrypoint and add types as needed.
 
 ## Safety Constraints
 
