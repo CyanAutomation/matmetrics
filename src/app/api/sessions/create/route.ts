@@ -10,6 +10,7 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import crypto from 'crypto';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CREATE_CONFLICT_SIGNATURES = [
@@ -140,10 +141,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Generate ID if not provided (format: timestamp-based)
+    // Generate ID if not provided (format: timestamp-based with cryptographically secure random suffix)
     const id =
-      body.id ||
-      `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      body.id || `session-${Date.now()}-${crypto.randomUUID()}`;
 
     // Validate required fields
     if (!body.date) {
