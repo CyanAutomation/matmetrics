@@ -70,6 +70,122 @@ Fallback when inputs are incomplete:
    - include diff summary, validation table, and next-step suggestions
    - call out assumptions and unresolved input gaps explicitly
 
+## Manifest Schema: `plugins/<plugin-id>/plugin.json`
+
+Use this concrete schema contract when creating or validating plugin manifests.
+
+### Required fields
+
+- `id` (string): stable plugin identifier; should match folder slug.
+- `name` (string): human-readable display name.
+- `version` (string): SemVer-like format `x.y.z` (digits only per segment, for example `1.4.0`).
+- `description` (string): short description of plugin purpose.
+- `uiExtensions` (array): non-empty array of extension objects.
+
+### Optional fields
+
+- `author` (string)
+- `homepage` (string URL)
+- `settings` (object): plugin-level configuration schema or default settings.
+- `enabled` (boolean): explicit default enablement state.
+
+### Type expectations
+
+- Manifest root must be a JSON object.
+- `uiExtensions` must be an array of objects.
+- Each `uiExtensions[]` object must include:
+  - `type` (string)
+  - `id` (string, unique within the plugin)
+  - `title` (string)
+  - route/config field:
+    - either `route` (string path, e.g. `"/plugins/example/panel"`),
+    - or equivalent configuration object under `config` (object), depending on extension type.
+- `settings`, when present, must be a JSON object (not array/string/number).
+- Empty arrays are not allowed for `uiExtensions`.
+
+### Version rule
+
+- Accept only SemVer-like values matching `^\\d+\\.\\d+\\.\\d+$`.
+- Reject versions such as `1.0`, `v1.2.3`, `1.2.3-beta` unless explicitly allowed by a future schema revision.
+
+### Validation behavior
+
+Validation should report:
+- missing required fields;
+- type mismatches (field value does not match expected type);
+- duplicate `uiExtensions[].id` values within a manifest;
+- empty arrays where not allowed (notably `uiExtensions: []`);
+- malformed `version` not matching `x.y.z`.
+
+Error messages should be actionable and include the JSON path (for example `uiExtensions[1].id`).
+
+### Canonical valid example
+
+```json
+{
+  "id": "analytics-dashboard",
+  "name": "Analytics Dashboard",
+  "version": "1.2.0",
+  "description": "Adds dashboard widgets and reporting views.",
+  "author": "MatMetrics Team",
+  "homepage": "https://example.com/plugins/analytics-dashboard",
+  "enabled": true,
+  "settings": {
+    "defaultRangeDays": 30,
+    "showTrendline": true
+  },
+  "uiExtensions": [
+    {
+      "type": "page",
+      "id": "analytics-overview-page",
+      "title": "Analytics Overview",
+      "route": "/plugins/analytics/overview"
+    },
+    {
+      "type": "panel",
+      "id": "analytics-summary-panel",
+      "title": "Analytics Summary",
+      "config": {
+        "placement": "right-rail"
+      }
+    }
+  ]
+}
+```
+
+### Invalid example + expected errors
+
+```json
+{
+  "id": "analytics-dashboard",
+  "name": "Analytics Dashboard",
+  "version": "v1.2",
+  "description": 404,
+  "enabled": "yes",
+  "uiExtensions": [
+    {
+      "type": "page",
+      "id": "dup-extension",
+      "title": "Overview"
+    },
+    {
+      "type": "panel",
+      "id": "dup-extension",
+      "title": 99,
+      "route": "/plugins/analytics/panel"
+    }
+  ]
+}
+```
+
+Expected validation errors (example):
+- `version`: expected SemVer-like `x.y.z`, got `"v1.2"`.
+- `description`: expected string, got number.
+- `enabled`: expected boolean, got string.
+- `uiExtensions[0]`: expected `route` or `config`.
+- `uiExtensions[1].title`: expected string, got number.
+- `uiExtensions[1].id`: duplicate extension id `dup-extension`.
+
 ## Safety Constraints
 
 - Never overwrite existing plugin files without explicit user confirmation.
