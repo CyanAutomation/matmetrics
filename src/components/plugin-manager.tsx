@@ -194,12 +194,20 @@ export function PluginManager() {
     defaultCreateFormState
   );
   const [updateForm, setUpdateForm] = React.useState<UpdateFormState>({
-    pluginId:
-      candidateEntries.find((entry) => entry.result.isValid)?.result.manifest
-        .id ?? '',
+    pluginId: '',
     patchJson: '{\n  "description": ""\n}',
     preserveExisting: true,
   });
+
+  React.useEffect(() => {
+    const firstValidEntry = candidateEntries.find((entry) => entry.result.isValid);
+    if (firstValidEntry?.result.isValid) {
+      setUpdateForm((prev) => ({
+        ...prev,
+        pluginId: firstValidEntry.result.manifest.id,
+      }));
+    }
+  }, [candidateEntries]);
 
   const createPath = createForm.id.trim()
     ? `plugins/${createForm.id.trim()}/`
