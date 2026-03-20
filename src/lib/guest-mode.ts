@@ -11,13 +11,50 @@ import type { JudoSession } from './types';
 const GUEST_WORKSPACE_META_KEY = 'matmetrics_guest_workspace_meta';
 const SESSIONS_STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_QUEUE_KEY_BASE = 'matmetrics_sync_queue';
+const GUEST_DISMISS_SALT_KEY = 'matmetrics_guest_dismiss_salt';
 
 type GuestWorkspaceSource = 'demo' | 'custom';
 
 type GuestWorkspaceMeta = {
   source: GuestWorkspaceSource;
+  /**
+   * List of per-user dismiss keys derived from the authenticated user ID.
+   * These are salted, non-reversible identifiers local to this browser.
+   */
   importDismissedBy: string[];
 };
+
+function getDismissSalt(): string {
+  if (typeof window === 'undefined') {
+    // During SSR there is no localStorage; use a constant so logic still works,
+    // but nothing is persisted.
+    return 'server-side-guest-dismiss-salt';
+  }
+
+  const existing = window.localStorage.getItem(GUEST_DISMISS_SALT_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  // Generate a random salt once per browser profile.
+  const randomSalt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  window.localStorage.setItem(GUEST_DISMISS_SALT_KEY, randomSalt);
+  return randomSalt;
+}
+
+function getDismissKeyForUser(userId: string): string {
+  const salt = getDismissSalt();
+  const input = `${salt}:${userId}`;
+
+  // Simple deterministic hash (FNV-1a style) to avoid storing the raw userId.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+
+  return hash.toString(16);
+}
 
 function getGuestSessionsStorageKey(): string {
   return getScopedStorageKeyForUser(SESSIONS_STORAGE_KEY_BASE, GUEST_USER_ID);
@@ -136,7 +173,8 @@ export function shouldPromptGuestImport(userId: string): boolean {
     return false;
   }
 
-  if (meta.importDismissedBy.includes(userId)) {
+  const dismissKey = getDismissKeyForUser(userId);
+  if (meta.importDismissedBy.includes(dismissKey)) {
     return false;
   }
 
@@ -145,13 +183,14 @@ export function shouldPromptGuestImport(userId: string): boolean {
 
 export function dismissGuestImport(userId: string): void {
   const meta = readGuestWorkspaceMeta();
-  if (meta.importDismissedBy.includes(userId)) {
+  const dismissKey = getDismissKeyForUser(userId);
+  if (meta.importDismissedBy.includes(dismissKey)) {
     return;
   }
 
   writeGuestWorkspaceMeta({
     ...meta,
-    importDismissedBy: [...meta.importDismissedBy, userId],
+    importDismissedBy: [...meta.importDismissedBy, dismissKey],
   });
 }
 
