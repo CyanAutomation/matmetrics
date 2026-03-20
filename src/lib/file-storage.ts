@@ -19,12 +19,23 @@ export function __resetDataDirForTests(): void {
 }
 
 function sanitizeSessionId(sessionId: string): string {
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new Error('Session ID is required and must be a non-empty string');
+  }
   if (sessionId.length > 100) {
     throw new Error(
       'Session ID exceeds maximum allowed length of 100 characters'
     );
   }
-  return sessionId.replace(/[^a-zA-Z0-9-_]/g, '-');
+  // Enforce a strict allow-list to ensure the ID cannot affect directory structure.
+  // Only ASCII letters, digits, dash, and underscore are permitted.
+  const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+  if (!SAFE_ID_PATTERN.test(sessionId)) {
+    throw new Error(
+      'Session ID contains invalid characters; only letters, digits, "-" and "_" are allowed'
+    );
+  }
+  return sessionId;
 }
 
 function ensurePathWithinDataDir(filePath: string): string {
