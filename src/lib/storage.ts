@@ -633,7 +633,10 @@ export async function renameTag(
  * @deprecated Use tagService.deleteTag from src/lib/tags instead.
  */
 export async function deleteTag(tagName: string): Promise<void> {
-  await tagDomainService.deleteTag(tagName);
+  const result = await tagDomainService.deleteTag(tagName);
+  if (result.conflicts.length > 0) {
+    throw new Error(result.conflicts[0].message);
+  }
 }
 
 /**
