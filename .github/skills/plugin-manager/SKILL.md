@@ -182,7 +182,7 @@ Expected validation errors (example):
 - `version`: expected SemVer-like `x.y.z`, got `"v1.2"`.
 - `description`: expected string, got number.
 - `enabled`: expected boolean, got string.
-- `uiExtensions[0]`: expected `route` or `config`.
+- `uiExtensions[0]`: missing required `route` or `config` field.
 - `uiExtensions[1].title`: expected string, got number.
 - `uiExtensions[1].id`: duplicate extension id `dup-extension`.
 
