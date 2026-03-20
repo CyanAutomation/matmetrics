@@ -17,6 +17,8 @@ export interface TagOperationSummary {
   dryRun: boolean;
   affectedSessionCount: number;
   changedTagCount: number;
+  affectedSessionIds: string[];
+  affectedTags: string[];
   conflicts: TagOperationConflict[];
 }
 
@@ -46,27 +48,16 @@ export function createTagService({
   getSessions,
   updateSession,
 }: TagServiceDependencies) {
-  function listTags(): string[] {
-    return getUniqueTags(getSessions());
-  }
-
-  function searchTags(query: string): string[] {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return listTags();
-    }
-
-    return listTags().filter((tag) => tag.toLowerCase().includes(needle));
-  }
-
-  async function renameTag(
+  function summarizeRenameOrMerge(
     oldName: string,
     newName: string,
-    options: TagOperationOptions = {}
-  ): Promise<TagOperationSummary> {
+    dryRun: boolean
+  ): {
+    summary: TagOperationSummary;
+    updatedSessions: JudoSession[];
+  } {
     const sourceTag = oldName.trim();
     const targetTag = newName.trim();
-    const dryRun = options.dryRun ?? false;
     const sessions = getSessions();
     const availableTags = getUniqueTags(sessions);
     const conflicts: TagOperationConflict[] = [];
@@ -87,10 +78,15 @@ export function createTagService({
 
     if (conflicts.length > 0) {
       return {
-        dryRun,
-        affectedSessionCount: 0,
-        changedTagCount: 0,
-        conflicts,
+        summary: {
+          dryRun,
+          affectedSessionCount: 0,
+          changedTagCount: 0,
+          affectedSessionIds: [],
+          affectedTags: [],
+          conflicts,
+        },
+        updatedSessions: [],
       };
     }
 
@@ -127,15 +123,21 @@ export function createTagService({
 
     if (conflicts.length > 0) {
       return {
-        dryRun,
-        affectedSessionCount: 0,
-        changedTagCount: 0,
-        conflicts,
+        summary: {
+          dryRun,
+          affectedSessionCount: 0,
+          changedTagCount: 0,
+          affectedSessionIds: [],
+          affectedTags: [],
+          conflicts,
+        },
+        updatedSessions: [],
       };
     }
 
     let affectedSessionCount = 0;
     let changedTagCount = 0;
+    const affectedSessionIds: string[] = [];
     const updatedSessions: JudoSession[] = [];
 
     sessions.forEach((session) => {
@@ -155,6 +157,240 @@ export function createTagService({
       if (sessionChangedCount > 0) {
         affectedSessionCount += 1;
         changedTagCount += sessionChangedCount;
+        affectedSessionIds.push(session.id);
+        updatedSessions.push({
+          ...session,
+          techniques: nextTechniques,
+        });
+      }
+    });
+
+    return {
+      summary: {
+        dryRun,
+        affectedSessionCount,
+        changedTagCount,
+        affectedSessionIds,
+        affectedTags: Array.from(new Set([sourceTag, targetTag])),
+        conflicts: [],
+      },
+      updatedSessions,
+    };
+  }
+
+  function summarizeDelete(
+    tagName: string,
+    dryRun: boolean
+  ): {
+    summary: TagOperationSummary;
+    updatedSessions: JudoSession[];
+  } {
+    const targetTag = tagName.trim();
+    const sessions = getSessions();
+
+    if (!targetTag) {
+      return {
+        summary: {
+          dryRun,
+          affectedSessionCount: 0,
+          changedTagCount: 0,
+          affectedSessionIds: [],
+          affectedTags: [],
+          conflicts: [
+            {
+              code: 'empty_source_tag',
+              message: 'Tag to delete cannot be empty.',
+            },
+          ],
+        },
+        updatedSessions: [],
+      };
+    }
+
+    const normalizedTarget = normalizeTag(targetTag);
+    const hasTag = getUniqueTags(sessions).some(
+      (tag) => normalizeTag(tag) === normalizedTarget
+    );
+
+    if (!hasTag) {
+      return {
+        summary: {
+          dryRun,
+          affectedSessionCount: 0,
+          changedTagCount: 0,
+          affectedSessionIds: [],
+          affectedTags: [],
+          conflicts: [
+            {
+              code: 'tag_not_found',
+              message: `Tag "${targetTag}" does not exist.`,
+            },
+          ],
+        },
+        updatedSessions: [],
+      };
+    }
+
+    const updatedSessions: JudoSession[] = [];
+    const affectedSessionIds: string[] = [];
+    let affectedSessionCount = 0;
+    let changedTagCount = 0;
+
+    sessions.forEach((session) => {
+      const removedCount = session.techniques.filter(
+        (tag) => normalizeTag(tag) === normalizedTarget
+      ).length;
+
+      if (removedCount === 0) {
+        return;
+      }
+
+      affectedSessionCount += 1;
+      changedTagCount += removedCount;
+      affectedSessionIds.push(session.id);
+      updatedSessions.push({
+        ...session,
+        techniques: session.techniques.filter(
+          (tag) => normalizeTag(tag) !== normalizedTarget
+        ),
+      });
+    });
+
+    return {
+      summary: {
+        dryRun,
+        affectedSessionCount,
+        changedTagCount,
+        affectedSessionIds,
+        affectedTags: [targetTag],
+        conflicts: [],
+      },
+      updatedSessions,
+    };
+  }
+
+  function listTags(): string[] {
+    return getUniqueTags(getSessions());
+  }
+
+  function searchTags(query: string): string[] {
+    const needle = query.trim().toLowerCase();
+    if (!needle) {
+      return listTags();
+    }
+
+    return listTags().filter((tag) => tag.toLowerCase().includes(needle));
+  }
+
+  async function renameTag(
+    oldName: string,
+    newName: string,
+    options: TagOperationOptions = {}
+  ): Promise<TagOperationSummary> {
+    const dryRun = options.dryRun ?? false;
+    const { summary, updatedSessions } = summarizeRenameOrMerge(
+      oldName,
+      newName,
+      dryRun
+    );
+
+    if (!dryRun && summary.conflicts.length === 0) {
+      await Promise.all(updatedSessions.map((session) => updateSession(session)));
+    }
+
+    return summary;
+  }
+
+  async function mergeTags(
+    sourceTag: string,
+    targetTag: string,
+    options: TagOperationOptions = {}
+  ): Promise<TagOperationSummary> {
+    const dryRun = options.dryRun ?? false;
+    const source = sourceTag.trim();
+    const target = targetTag.trim();
+    const normalizedSource = normalizeTag(source);
+    const normalizedTarget = normalizeTag(target);
+    const sessions = getSessions();
+    const availableTags = getUniqueTags(sessions);
+
+    const conflicts: TagOperationConflict[] = [];
+    const hasSource = availableTags.some(
+      (tag) => normalizeTag(tag) === normalizedSource
+    );
+    const hasTarget = availableTags.some(
+      (tag) => normalizeTag(tag) === normalizedTarget
+    );
+
+    if (!source) {
+      conflicts.push({
+        code: 'empty_source_tag',
+        message: 'Source tag cannot be empty.',
+      });
+    }
+
+    if (!target) {
+      conflicts.push({
+        code: 'empty_target_tag',
+        message: 'Target tag cannot be empty.',
+      });
+    }
+
+    if (source && target && normalizedSource === normalizedTarget) {
+      conflicts.push({
+        code: 'merge_same_tag',
+        message: 'Cannot merge a tag into itself.',
+      });
+    }
+
+    if (source && !hasSource) {
+      conflicts.push({
+        code: 'tag_not_found',
+        message: `Tag "${source}" does not exist.`,
+      });
+    }
+
+    if (target && !hasTarget) {
+      conflicts.push({
+        code: 'tag_not_found',
+        message: `Tag "${target}" does not exist.`,
+      });
+    }
+
+    if (conflicts.length > 0) {
+      return {
+        dryRun,
+        affectedSessionCount: 0,
+        changedTagCount: 0,
+        affectedSessionIds: [],
+        affectedTags: [],
+        conflicts,
+      };
+    }
+
+    let affectedSessionCount = 0;
+    let changedTagCount = 0;
+    const affectedSessionIds: string[] = [];
+    const updatedSessions: JudoSession[] = [];
+
+    sessions.forEach((session) => {
+      let sessionChangedCount = 0;
+      const nextTechniques = Array.from(
+        new Set(
+          session.techniques.map((tag) => {
+            if (normalizeTag(tag) === normalizedSource) {
+              sessionChangedCount += 1;
+              return target;
+            }
+            return tag;
+          })
+        )
+      );
+
+      if (sessionChangedCount > 0) {
+        affectedSessionCount += 1;
+        changedTagCount += sessionChangedCount;
+        affectedSessionIds.push(session.id);
         updatedSessions.push({
           ...session,
           techniques: nextTechniques,
@@ -170,115 +406,50 @@ export function createTagService({
       dryRun,
       affectedSessionCount,
       changedTagCount,
-      conflicts,
+      affectedSessionIds,
+      affectedTags: Array.from(new Set([source, target])),
+      conflicts: [],
     };
   }
 
-  async function mergeTags(
-    sourceTag: string,
-    targetTag: string,
-    options: TagOperationOptions = {}
+  async function analyzeRename(
+    oldName: string,
+    newName: string
   ): Promise<TagOperationSummary> {
-    const normalizedSource = normalizeTag(sourceTag);
-    const normalizedTarget = normalizeTag(targetTag);
-    const dryRun = options.dryRun ?? false;
+    return summarizeRenameOrMerge(oldName, newName, true).summary;
+  }
 
-    if (normalizedSource === normalizedTarget) {
-      return {
-        dryRun,
-        affectedSessionCount: 0,
-        changedTagCount: 0,
-        conflicts: [
-          {
-            code: 'merge_same_tag',
-            message: 'Cannot merge a tag into itself.',
-          },
-        ],
-      };
-    }
-
-    return renameTag(sourceTag, targetTag, options);
+  async function analyzeMerge(
+    sourceTag: string,
+    targetTag: string
+  ): Promise<TagOperationSummary> {
+    return mergeTags(sourceTag, targetTag, { dryRun: true });
   }
 
   async function deleteTag(
     tagName: string,
     options: TagOperationOptions = {}
   ): Promise<TagOperationSummary> {
-    const targetTag = tagName.trim();
     const dryRun = options.dryRun ?? false;
-    const sessions = getSessions();
+    const { summary, updatedSessions } = summarizeDelete(tagName, dryRun);
 
-    if (!targetTag) {
-      return {
-        dryRun,
-        affectedSessionCount: 0,
-        changedTagCount: 0,
-        conflicts: [
-          {
-            code: 'empty_source_tag',
-            message: 'Tag to delete cannot be empty.',
-          },
-        ],
-      };
-    }
-
-    const normalizedTarget = normalizeTag(targetTag);
-    const hasTag = getUniqueTags(sessions).some(
-      (tag) => normalizeTag(tag) === normalizedTarget
-    );
-
-    if (!hasTag) {
-      return {
-        dryRun,
-        affectedSessionCount: 0,
-        changedTagCount: 0,
-        conflicts: [
-          {
-            code: 'tag_not_found',
-            message: `Tag "${targetTag}" does not exist.`,
-          },
-        ],
-      };
-    }
-
-    const updatedSessions: JudoSession[] = [];
-    let affectedSessionCount = 0;
-    let changedTagCount = 0;
-
-    sessions.forEach((session) => {
-      const removedCount = session.techniques.filter(
-        (tag) => normalizeTag(tag) === normalizedTarget
-      ).length;
-
-      if (removedCount === 0) {
-        return;
-      }
-
-      affectedSessionCount += 1;
-      changedTagCount += removedCount;
-      updatedSessions.push({
-        ...session,
-        techniques: session.techniques.filter(
-          (tag) => normalizeTag(tag) !== normalizedTarget
-        ),
-      });
-    });
-
-    if (!dryRun) {
+    if (!dryRun && summary.conflicts.length === 0) {
       await Promise.all(updatedSessions.map((session) => updateSession(session)));
     }
 
-    return {
-      dryRun,
-      affectedSessionCount,
-      changedTagCount,
-      conflicts: [],
-    };
+    return summary;
+  }
+
+  async function analyzeDelete(tagName: string): Promise<TagOperationSummary> {
+    return summarizeDelete(tagName, true).summary;
   }
 
   return {
     listTags,
     searchTags,
+    analyzeRename,
+    analyzeMerge,
+    analyzeDelete,
     renameTag,
     mergeTags,
     deleteTag,
