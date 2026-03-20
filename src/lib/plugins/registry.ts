@@ -1,4 +1,4 @@
-import tagsPluginManifest from '../../../plugins/tags/plugin.json';
+import tagManagerPluginManifest from '../../../plugins/tag-manager/plugin.json';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import {
@@ -7,7 +7,7 @@ import {
   type ResolvedDashboardTabExtension,
 } from '@/lib/plugins/types';
 
-const localPluginManifestSources: unknown[] = [tagsPluginManifest];
+const localPluginManifestSources: unknown[] = [tagManagerPluginManifest];
 
 export const getLocalPluginManifestCandidates = (): unknown[] =>
   localPluginManifestSources;
