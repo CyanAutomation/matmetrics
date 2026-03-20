@@ -162,7 +162,7 @@ export async function readSession(
   counter?: number
 ): Promise<JudoSession | null> {
   try {
-    const filePath = ensurePathWithinDataDir(getSessionFilePath(date, counter));
+    const filePath = getSessionFilePath(date, counter);
     const markdown = await fs.readFile(filePath, 'utf-8');
     return markdownToSession(markdown);
   } catch (e) {
