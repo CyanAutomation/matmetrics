@@ -225,7 +225,7 @@ export async function createSession(session: JudoSession): Promise<string> {
       encoding: 'utf-8',
       flag: 'wx',
     });
-    return safeFilePath;
+    return filePath;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
       // Another request wrote this session ID concurrently. Only treat as idempotent
