@@ -16,6 +16,7 @@ import { TagManager } from '@/components/tag-manager';
 import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
+import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 
 export const TAB_IDS = {
   dashboard: 'dashboard',
@@ -26,7 +27,8 @@ export const TAB_IDS = {
   tags: 'tags',
 } as const;
 
-export type TabId = (typeof TAB_IDS)[keyof typeof TAB_IDS];
+export type CoreTabId = (typeof TAB_IDS)[keyof typeof TAB_IDS];
+export type TabId = CoreTabId | (string & {});
 
 export type TabSection = 'core' | 'plugins';
 
@@ -51,7 +53,7 @@ export type TabDefinition = {
   isVisible?: (context: TabVisibilityContext) => boolean;
 };
 
-export const coreTabs: TabDefinition[] = [
+export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
@@ -102,16 +104,37 @@ export const coreTabs: TabDefinition[] = [
     section: 'core',
     render: () => React.createElement(GitHubSettings),
   },
-];
+] as const;
 
-export const pluginTabs: TabDefinition[] = [
-  {
-    id: TAB_IDS.tags,
-    title: 'Tag Manager',
-    headerTitle: 'Manage Tags',
-    icon: Tags,
-    section: 'plugins',
-    render: ({ refreshSessions }) =>
-      React.createElement(TagManager, { onRefresh: refreshSessions }),
-  },
-];
+const pluginTabIcons: Record<string, LucideIcon> = {
+  tags: Tags,
+};
+
+const pluginTabRenderers: Record<
+  string,
+  (context: TabRenderContext) => React.ReactNode
+> = {
+  tag_manager: ({ refreshSessions }) =>
+    React.createElement(TagManager, { onRefresh: refreshSessions }),
+};
+
+export const mapDashboardExtensionsToTabs = (
+  extensions: ResolvedDashboardTabExtension[]
+): TabDefinition[] =>
+  extensions.flatMap(({ extension }) => {
+    const render = pluginTabRenderers[extension.component];
+    if (!render) {
+      return [];
+    }
+
+    return [
+      {
+        id: extension.tabId,
+        title: extension.title,
+        headerTitle: extension.headerTitle,
+        icon: pluginTabIcons[extension.icon ?? ''] ?? Tags,
+        section: 'plugins',
+        render,
+      },
+    ];
+  });
