@@ -201,7 +201,7 @@ test('coalesces update then delete into delete', () => {
   assert.deepEqual(getQueue(), [{ type: 'DELETE', id: 'session-1', queuedAt: 200 }]);
 });
 
-test('coalesces delete then create into upsert-style update', () => {
+test('coalesces delete then create into recreate create', () => {
   resetQueue();
   const recreated = { ...makeSession('session-1'), notes: 'recreated' };
 
@@ -214,6 +214,48 @@ test('coalesces delete then create into upsert-style update', () => {
   );
 
   assert.deepEqual(getQueue(), [
-    { type: 'UPDATE', session: recreated, queuedAt: 200 },
+    { type: 'CREATE', session: recreated, queuedAt: 200 },
+  ]);
+});
+
+test('coalesces delete then create then update into create with latest payload', () => {
+  resetQueue();
+  const recreated = { ...makeSession('session-1'), notes: 'recreated' };
+  const updatedAfterRecreate = {
+    ...recreated,
+    notes: 'updated after recreate',
+  };
+
+  setQueue(
+    [
+      { type: 'DELETE', id: 'session-1', queuedAt: 100 },
+      { type: 'CREATE', session: recreated, queuedAt: 200 },
+      { type: 'UPDATE', session: updatedAfterRecreate, queuedAt: 300 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    { type: 'CREATE', session: updatedAfterRecreate, queuedAt: 200 },
+  ]);
+});
+
+test('coalesces delete then update into create to avoid missing-record updates', () => {
+  resetQueue();
+  const updatedAfterDelete = {
+    ...makeSession('session-1'),
+    notes: 'updated after delete',
+  };
+
+  setQueue(
+    [
+      { type: 'DELETE', id: 'session-1', queuedAt: 100 },
+      { type: 'UPDATE', session: updatedAfterDelete, queuedAt: 200 },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    { type: 'CREATE', session: updatedAfterDelete, queuedAt: 200 },
   ]);
 });
