@@ -254,6 +254,37 @@ func TestGetTreeEntriesForPathReturnsNon404BranchRefError(t *testing.T) {
 	}
 }
 
+func TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix(t *testing.T) {
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2025/03/20250314-matmetrics-a-b.md","type":"blob"}]}`), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	path, branch, err := client.findSessionPathOnGitHubByID(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, "a/b")
+	if err != nil {
+		t.Fatalf("findSessionPathOnGitHubByID() error = %v", err)
+	}
+
+	if path != "data/2025/03/20250314-matmetrics-a-b.md" {
+		t.Fatalf("unexpected path: %q", path)
+	}
+	if branch != "main" {
+		t.Fatalf("unexpected branch: %q", branch)
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
