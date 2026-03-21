@@ -324,6 +324,18 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid duration: expected a non-negative integer',
     },
     {
+      name: 'effort integer',
+      sessionId: 'put-invalid-effort',
+      body: {
+        id: 'put-invalid-effort',
+        date: '2025-01-10',
+        effort: 2.5,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      },
+      error: 'Invalid effort level (must be an integer 1-5)',
+    },
+    {
       name: 'notes type',
       sessionId: 'put-invalid-notes',
       body: {
