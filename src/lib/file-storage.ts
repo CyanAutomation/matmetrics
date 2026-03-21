@@ -53,7 +53,7 @@ function ensurePathWithinDataDir(filePath: string): string {
 
 function validateAndNormalizeDate(date: string): string {
   // Expect strict YYYY-MM-DD format
-  const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const ISO_DATE_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
   const match = ISO_DATE_PATTERN.exec(date);
   if (!match) {
     throw new Error('Invalid session date format; expected YYYY-MM-DD');
