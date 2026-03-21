@@ -11,16 +11,67 @@ import {
 } from '@/lib/plugins/dashboard-tab-adapters';
 import { resetPluginComponentRegistryInitializationForTests } from '@/lib/plugins/plugin-component-bootstrap';
 import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
+import type { ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 
-test('resolves Tag Manager sidebar tab from plugin manifest extensions', () => {
-  const extensions = loadEnabledDashboardTabExtensions();
-  const tabs = mapDashboardExtensionsToTabs(extensions);
+const createDashboardTabExtensionFixture = (
+  overrides: Partial<ResolvedDashboardTabExtension> = {}
+): ResolvedDashboardTabExtension => ({
+  pluginId: 'fixture-plugin',
+  capabilities: ['tag_mutation'],
+  extension: {
+    type: 'dashboard_tab',
+    id: 'fixture-dashboard-extension',
+    title: 'Fixture Tab',
+    config: {
+      tabId: 'fixture-tab',
+      headerTitle: 'Fixture Header',
+      component: 'tag_manager',
+      icon: 'tags',
+    },
+  },
+  ...overrides,
+  extension: {
+    type: 'dashboard_tab',
+    id: overrides.extension?.id ?? 'fixture-dashboard-extension',
+    title: overrides.extension?.title ?? 'Fixture Tab',
+    config: {
+      tabId: 'fixture-tab',
+      headerTitle: 'Fixture Header',
+      component: 'tag_manager',
+      icon: 'tags',
+      ...overrides.extension?.config,
+    },
+  },
+});
 
-  const tagManagerTab = tabs.find((tab) => tab.id === 'tag-manager');
+test('maps dashboard tab extension fixture into plugin tab metadata', () => {
+  const tabs = mapDashboardExtensionsToTabs([
+    createDashboardTabExtensionFixture({
+      pluginId: 'tag-manager-plugin',
+      extension: {
+        type: 'dashboard_tab',
+        id: 'tag-manager-dashboard-tab',
+        title: 'Tag Manager',
+        config: {
+          tabId: 'tag-manager',
+          headerTitle: 'Manage Tags',
+          component: 'tag_manager',
+          icon: 'tags',
+        },
+      },
+    }),
+  ]);
 
-  assert.ok(tagManagerTab);
-  assert.equal(tagManagerTab?.title, 'Tag Manager');
-  assert.equal(tagManagerTab?.section, 'plugins');
+  assert.equal(tabs.length, 1);
+  assert.equal(tabs[0]?.id, 'tag-manager');
+  assert.equal(tabs[0]?.title, 'Tag Manager');
+  assert.equal(tabs[0]?.section, 'plugins');
+});
+
+test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', () => {
+  const tabs = mapDashboardExtensionsToTabs(loadEnabledDashboardTabExtensions());
+
+  assert.ok(tabs.some((tab) => tab.id === 'tag-manager'));
 });
 
 test('resolves plugin tab when renderer is registered in the registry', () => {
@@ -33,7 +84,7 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
   );
 
   const { tabs, warnings } = resolveDashboardExtensionsToTabs([
-    {
+    createDashboardTabExtensionFixture({
       pluginId: 'custom-plugin',
       capabilities: [],
       extension: {
@@ -47,7 +98,7 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
           icon: 'tags',
         },
       },
-    },
+    }),
   ]);
 
   assert.equal(warnings.length, 0);
@@ -64,7 +115,7 @@ test('captures structured runtime warning when plugin component cannot be resolv
 
   const tabs = mapDashboardExtensionsToTabs(
     [
-      {
+      createDashboardTabExtensionFixture({
         pluginId: 'missing-renderer-plugin',
         capabilities: [],
         extension: {
@@ -77,7 +128,7 @@ test('captures structured runtime warning when plugin component cannot be resolv
             component: 'unknown_component',
           },
         },
-      },
+      }),
     ],
     {
       onWarning: (warning) => {
@@ -104,7 +155,7 @@ test('captures runtime warning and skips tab when required capability is missing
 
   const tabs = mapDashboardExtensionsToTabs(
     [
-      {
+      createDashboardTabExtensionFixture({
         pluginId: 'missing-capability-plugin',
         capabilities: [],
         extension: {
@@ -117,7 +168,7 @@ test('captures runtime warning and skips tab when required capability is missing
             component: 'tag_manager',
           },
         },
-      },
+      }),
     ],
     {
       onWarning: (warning) => {
