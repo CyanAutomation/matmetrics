@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import { getLocalPluginManifestCandidates } from '@/lib/plugins/registry';
 import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
@@ -54,6 +55,16 @@ type UpdateFormState = {
   pluginId: string;
   patchJson: string;
   preserveExisting: boolean;
+};
+
+type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
+
+type InstalledPluginRow = Pick<
+  PluginManifest,
+  'id' | 'name' | 'version' | 'description' | 'enabled'
+> & {
+  status: PluginToggleStatus;
+  statusMessage?: string;
 };
 
 const kebabCasePluginIdRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -119,40 +130,6 @@ const resolveOverallSeverity = (
   return 'info';
 };
 
-const getManifestListFields = (
-  source: unknown,
-  result: PluginManifestValidationResult
-): Pick<PluginManifest, 'id' | 'version' | 'enabled'> & {
-  extensionCount: number;
-} => {
-  if (result.isValid) {
-    return {
-      id: result.manifest.id,
-      version: result.manifest.version,
-      enabled: result.manifest.enabled,
-      extensionCount: result.manifest.uiExtensions.length,
-    };
-  }
-
-  if (isManifestLike(source)) {
-    return {
-      id: typeof source.id === 'string' ? source.id : '—',
-      version: typeof source.version === 'string' ? source.version : '—',
-      enabled: typeof source.enabled === 'boolean' ? source.enabled : false,
-      extensionCount: Array.isArray(source.uiExtensions)
-        ? source.uiExtensions.length
-        : 0,
-    };
-  }
-
-  return {
-    id: '—',
-    version: '—',
-    enabled: false,
-    extensionCount: 0,
-  };
-};
-
 const parsePatchJson = (
   patchJson: string
 ): { parsed: Record<string, unknown> | null; error: string | null } => {
@@ -182,6 +159,7 @@ const parsePatchJson = (
 };
 
 export function PluginManager() {
+  const { toast } = useToast();
   const candidateEntries = React.useMemo<PluginCandidateEntry[]>(
     () =>
       getLocalPluginManifestCandidates().map((source, index) => ({
@@ -200,6 +178,9 @@ export function PluginManager() {
     patchJson: '{\n  "description": ""\n}',
     preserveExisting: true,
   });
+  const [installedPlugins, setInstalledPlugins] = React.useState<
+    InstalledPluginRow[]
+  >([]);
 
   const isValidEntry = (
     entry: PluginCandidateEntry
@@ -211,6 +192,97 @@ export function PluginManager() {
     () => candidateEntries.filter(isValidEntry),
     [candidateEntries]
   );
+
+  React.useEffect(() => {
+    const nextRows = validCandidateEntries
+      .map((entry) => entry.result.manifest)
+      .sort((a, b) => {
+        if (a.id === 'tag-manager') {
+          return -1;
+        }
+        if (b.id === 'tag-manager') {
+          return 1;
+        }
+        return a.name.localeCompare(b.name);
+      })
+      .map((manifest) => ({
+        id: manifest.id,
+        name: manifest.name,
+        version: manifest.version,
+        description: manifest.description,
+        enabled: manifest.enabled,
+        status: 'idle' as const,
+      }));
+
+    setInstalledPlugins(nextRows);
+  }, [validCandidateEntries]);
+
+  const togglePluginEnabled = async (
+    pluginId: string,
+    nextEnabled: boolean
+  ) => {
+    const plugin = installedPlugins.find((row) => row.id === pluginId);
+    if (!plugin) {
+      return;
+    }
+
+    setInstalledPlugins((prev) =>
+      prev.map((row) =>
+        row.id === pluginId
+          ? {
+              ...row,
+              status: 'pending',
+              statusMessage: `Saving ${nextEnabled ? 'enabled' : 'disabled'} state...`,
+            }
+          : row
+      )
+    );
+
+    toast({
+      title: 'Plugin update pending',
+      description: `${plugin.name}: applying enabled state change...`,
+    });
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+
+      setInstalledPlugins((prev) =>
+        prev.map((row) =>
+          row.id === pluginId
+            ? {
+                ...row,
+                enabled: nextEnabled,
+                status: 'success',
+                statusMessage: `Plugin ${nextEnabled ? 'enabled' : 'disabled'} successfully.`,
+              }
+            : row
+        )
+      );
+
+      toast({
+        title: 'Plugin updated',
+        description: `${plugin.name} is now ${nextEnabled ? 'enabled' : 'disabled'}.`,
+      });
+    } catch {
+      setInstalledPlugins((prev) =>
+        prev.map((row) =>
+          row.id === pluginId
+            ? {
+                ...row,
+                status: 'failure',
+                statusMessage: 'Could not update plugin state. Please retry.',
+              }
+            : row
+        )
+      );
+
+      toast({
+        variant: 'destructive',
+        title: 'Plugin update failed',
+        description: `${plugin.name} could not be updated.`,
+      });
+    }
+  };
 
   React.useEffect(() => {
     const firstValidEntry = validCandidateEntries[0];
@@ -348,368 +420,426 @@ export function PluginManager() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="list" className="space-y-4">
+      <Tabs defaultValue="installed" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">list</TabsTrigger>
-          <TabsTrigger value="validate">validate</TabsTrigger>
-          <TabsTrigger value="create">create</TabsTrigger>
-          <TabsTrigger value="update">update</TabsTrigger>
+          <TabsTrigger value="installed">Installed Plugins</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list">
+        <TabsContent value="installed">
           <Card>
             <CardHeader>
-              <CardTitle>Manifest inventory</CardTitle>
+              <CardTitle>Installed Plugins</CardTitle>
               <CardDescription>
-                Local manifest candidates with required columns and counts.
+                View all installed plugin manifests and control each plugin's
+                enabled state.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>name</TableHead>
                     <TableHead>id</TableHead>
                     <TableHead>version</TableHead>
+                    <TableHead>description</TableHead>
                     <TableHead>enabled</TableHead>
-                    <TableHead>extension count</TableHead>
+                    <TableHead className="text-right">status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {candidateEntries.map((entry) => {
-                    const fields = getManifestListFields(
-                      entry.source,
-                      entry.result
-                    );
+                  {installedPlugins.map((plugin) => {
                     return (
-                      <TableRow key={entry.key}>
-                        <TableCell className="font-mono text-xs">
-                          {fields.id}
+                      <TableRow key={plugin.id}>
+                        <TableCell className="font-medium">
+                          {plugin.name}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {fields.version}
+                          {plugin.id}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {plugin.version}
+                        </TableCell>
+                        <TableCell className="max-w-sm text-sm text-muted-foreground">
+                          {plugin.description}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={fields.enabled ? 'default' : 'secondary'}
-                          >
-                            {fields.enabled ? 'enabled' : 'disabled'}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id={`plugin-enabled-${plugin.id}`}
+                              checked={plugin.enabled}
+                              disabled={plugin.status === 'pending'}
+                              onCheckedChange={(checked) =>
+                                void togglePluginEnabled(plugin.id, checked)
+                              }
+                            />
+                            <Label htmlFor={`plugin-enabled-${plugin.id}`}>
+                              Enabled
+                            </Label>
+                          </div>
                         </TableCell>
-                        <TableCell>{fields.extensionCount}</TableCell>
+                        <TableCell className="text-right">
+                          {plugin.status === 'pending' ? (
+                            <span className="text-xs text-muted-foreground">
+                              Saving…
+                            </span>
+                          ) : plugin.status === 'success' ? (
+                            <span className="text-xs text-emerald-700">
+                              Saved
+                            </span>
+                          ) : plugin.status === 'failure' ? (
+                            <span className="text-xs text-destructive">
+                              Failed
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              Idle
+                            </span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
+
+              <div className="mt-4 space-y-2">
+                {installedPlugins
+                  .filter((plugin) => plugin.status !== 'idle')
+                  .map((plugin) => (
+                    <Alert key={`toggle-status-${plugin.id}`}>
+                      {plugin.status === 'failure' ? (
+                        <AlertCircle className="h-4 w-4" />
+                      ) : plugin.status === 'pending' ? (
+                        <Info className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                      <AlertTitle>{plugin.name}</AlertTitle>
+                      <AlertDescription>
+                        {plugin.statusMessage}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="validate">
-          <Card>
-            <CardHeader>
-              <CardTitle>Per-plugin validation report</CardTitle>
-              <CardDescription>
-                Errors and warnings are shown per plugin with highest severity.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {candidateEntries.map((entry) => {
-                const summarySeverity = resolveEntrySummarySeverity(
-                  entry.result.issues
-                );
-                const manifestId = entry.result.isValid
-                  ? entry.result.manifest.id
-                  : isManifestLike(entry.source) &&
-                      typeof entry.source.id === 'string'
-                    ? entry.source.id
-                    : entry.key;
+        <TabsContent value="advanced">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Per-plugin validation report</CardTitle>
+                <CardDescription>
+                  Errors and warnings are shown per plugin with highest
+                  severity.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {candidateEntries.map((entry) => {
+                  const summarySeverity = resolveEntrySummarySeverity(
+                    entry.result.issues
+                  );
+                  const manifestId = entry.result.isValid
+                    ? entry.result.manifest.id
+                    : isManifestLike(entry.source) &&
+                        typeof entry.source.id === 'string'
+                      ? entry.source.id
+                      : entry.key;
 
-                return (
-                  <div
-                    key={`validate-${entry.key}`}
-                    className="rounded-lg border p-4 space-y-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-semibold">{manifestId}</div>
-                      <Badge className={severityBadgeClass[summarySeverity]}>
-                        {severityLabel(summarySeverity)}
-                      </Badge>
+                  return (
+                    <div
+                      key={`validate-${entry.key}`}
+                      className="rounded-lg border p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold">{manifestId}</div>
+                        <Badge className={severityBadgeClass[summarySeverity]}>
+                          {severityLabel(summarySeverity)}
+                        </Badge>
+                      </div>
+
+                      {entry.result.issues.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No issues found.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {entry.result.issues
+                            .slice()
+                            .sort(
+                              (a, b) =>
+                                severityOrder[b.severity] -
+                                severityOrder[a.severity]
+                            )
+                            .map((issue, issueIndex) => (
+                              <li
+                                key={`${entry.key}-${issue.path}-${issueIndex}`}
+                                className="text-sm"
+                              >
+                                <span className="font-medium">
+                                  {issue.path}:
+                                </span>{' '}
+                                {issue.message}{' '}
+                                <Badge
+                                  variant="outline"
+                                  className={severityBadgeClass[issue.severity]}
+                                >
+                                  {severityLabel(issue.severity)}
+                                </Badge>
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                     </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
 
-                    {entry.result.issues.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No issues found.
+            <Card>
+              <CardHeader>
+                <CardTitle>Create plugin manifest</CardTitle>
+                <CardDescription>
+                  Enforces kebab-case IDs and plugin path convention.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="plugin-create-id">
+                      Plugin id (kebab-case)
+                    </Label>
+                    <Input
+                      id="plugin-create-id"
+                      placeholder="example-plugin"
+                      maxLength={MAX_PLUGIN_ID_LENGTH}
+                      value={createForm.id}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          id: event.target.value,
+                        }))
+                      }
+                    />
+                    {createIdError ? (
+                      <p className="text-xs text-destructive">
+                        {createIdError}
                       </p>
                     ) : (
-                      <ul className="space-y-2">
-                        {entry.result.issues
-                          .slice()
-                          .sort(
-                            (a, b) =>
-                              severityOrder[b.severity] -
-                              severityOrder[a.severity]
-                          )
-                          .map((issue, issueIndex) => (
-                            <li
-                              key={`${entry.key}-${issue.path}-${issueIndex}`}
-                              className="text-sm"
-                            >
-                              <span className="font-medium">{issue.path}:</span>{' '}
-                              {issue.message}{' '}
-                              <Badge
-                                variant="outline"
-                                className={severityBadgeClass[issue.severity]}
-                              >
-                                {severityLabel(issue.severity)}
-                              </Badge>
-                            </li>
-                          ))}
-                      </ul>
+                      <p className="text-xs text-muted-foreground">
+                        Max {MAX_PLUGIN_ID_LENGTH} characters.
+                      </p>
                     )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="plugin-create-path">Path</Label>
+                    <Input
+                      id="plugin-create-path"
+                      value={createPath}
+                      readOnly
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="plugin-create-name">Name</Label>
+                    <Input
+                      id="plugin-create-name"
+                      value={createForm.name}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="plugin-create-version">Version</Label>
+                    <Input
+                      id="plugin-create-version"
+                      value={createForm.version}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          version: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
 
-        <TabsContent value="create">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create plugin manifest</CardTitle>
-              <CardDescription>
-                Enforces kebab-case IDs and plugin path convention.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plugin-create-id">
-                    Plugin id (kebab-case)
-                  </Label>
-                  <Input
-                    id="plugin-create-id"
-                    placeholder="example-plugin"
-                    maxLength={MAX_PLUGIN_ID_LENGTH}
-                    value={createForm.id}
+                  <Label htmlFor="plugin-create-description">Description</Label>
+                  <Textarea
+                    id="plugin-create-description"
+                    rows={3}
+                    value={createForm.description}
                     onChange={(event) =>
                       setCreateForm((prev) => ({
                         ...prev,
-                        id: event.target.value,
+                        description: event.target.value,
                       }))
                     }
                   />
-                  {createIdError ? (
-                    <p className="text-xs text-destructive">{createIdError}</p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Max {MAX_PLUGIN_ID_LENGTH} characters.
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="plugin-create-enabled"
+                    checked={createForm.enabled}
+                    onCheckedChange={(checked) =>
+                      setCreateForm((prev) => ({ ...prev, enabled: checked }))
+                    }
+                  />
+                  <Label htmlFor="plugin-create-enabled">
+                    Enabled by default
+                  </Label>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/20">
+                  <div className="text-sm font-semibold mb-2">
+                    Create validation
+                  </div>
+                  {createResult === null ? (
+                    <p className="text-sm text-muted-foreground">
+                      Fill out required fields to generate and validate manifest
+                      payload.
                     </p>
+                  ) : createResult.isValid ? (
+                    <p className="text-sm text-emerald-700">
+                      Manifest candidate is valid and follows the initial
+                      contract.
+                    </p>
+                  ) : (
+                    <ul className="text-sm space-y-1 text-destructive">
+                      {createResult.issues.map((issue, index) => (
+                        <li key={`create-issue-${index}`}>
+                          {issue.path}: {issue.message}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setCreateForm(defaultCreateFormState)}
+                >
+                  Reset form
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Update plugin manifest</CardTitle>
+                <CardDescription>
+                  Merge-preserve mode is enabled by default to avoid dropping
+                  fields.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plugin-create-path">Path</Label>
-                  <Input id="plugin-create-path" value={createPath} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plugin-create-name">Name</Label>
+                  <Label htmlFor="plugin-update-id">Plugin id</Label>
                   <Input
-                    id="plugin-create-name"
-                    value={createForm.name}
+                    id="plugin-update-id"
+                    value={updateForm.pluginId}
                     onChange={(event) =>
-                      setCreateForm((prev) => ({
+                      setUpdateForm((prev) => ({
                         ...prev,
-                        name: event.target.value,
+                        pluginId: event.target.value,
                       }))
                     }
+                    placeholder="Select an existing plugin id"
+                    list="plugin-ids"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plugin-create-version">Version</Label>
-                  <Input
-                    id="plugin-create-version"
-                    value={createForm.version}
-                    onChange={(event) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        version: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="plugin-create-description">Description</Label>
-                <Textarea
-                  id="plugin-create-description"
-                  rows={3}
-                  value={createForm.description}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      description: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="plugin-create-enabled"
-                  checked={createForm.enabled}
-                  onCheckedChange={(checked) =>
-                    setCreateForm((prev) => ({ ...prev, enabled: checked }))
-                  }
-                />
-                <Label htmlFor="plugin-create-enabled">
-                  Enabled by default
-                </Label>
-              </div>
-
-              <div className="rounded-lg border p-4 bg-muted/20">
-                <div className="text-sm font-semibold mb-2">
-                  Create validation
-                </div>
-                {createResult === null ? (
-                  <p className="text-sm text-muted-foreground">
-                    Fill out required fields to generate and validate manifest
-                    payload.
-                  </p>
-                ) : createResult.isValid ? (
-                  <p className="text-sm text-emerald-700">
-                    Manifest candidate is valid and follows the initial
-                    contract.
-                  </p>
-                ) : (
-                  <ul className="text-sm space-y-1 text-destructive">
-                    {createResult.issues.map((issue, index) => (
-                      <li key={`create-issue-${index}`}>
-                        {issue.path}: {issue.message}
-                      </li>
+                  <datalist id="plugin-ids">
+                    {validCandidateEntries.map((entry) => (
+                      <option
+                        key={`option-${entry.key}`}
+                        value={entry.result.manifest.id}
+                      />
                     ))}
-                  </ul>
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">
+                    Target path:{' '}
+                    {updateForm.pluginId
+                      ? `plugins/${updateForm.pluginId}/`
+                      : 'plugins/<id>/'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="plugin-update-preserve"
+                    checked={updateForm.preserveExisting}
+                    onCheckedChange={(checked) =>
+                      setUpdateForm((prev) => ({
+                        ...prev,
+                        preserveExisting: checked,
+                      }))
+                    }
+                  />
+                  <Label htmlFor="plugin-update-preserve">
+                    Merge-preserve existing fields (default)
+                  </Label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="plugin-update-patch">Patch JSON</Label>
+                  <Textarea
+                    id="plugin-update-patch"
+                    rows={8}
+                    className="font-mono text-xs"
+                    value={updateForm.patchJson}
+                    onChange={(event) =>
+                      setUpdateForm((prev) => ({
+                        ...prev,
+                        patchJson: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                {updateResult.error ? (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Update input required</AlertTitle>
+                    <AlertDescription>{updateResult.error}</AlertDescription>
+                  </Alert>
+                ) : updateResult.result?.isValid ? (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Update payload is valid</AlertTitle>
+                    <AlertDescription>
+                      Ready to apply manifest update with merge-preserve
+                      behavior set to{' '}
+                      {updateForm.preserveExisting ? 'enabled' : 'disabled'}.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>
+                      Update payload has validation issues
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="text-sm space-y-1 mt-2">
+                        {(updateResult.result?.issues ?? []).map(
+                          (issue, index) => (
+                            <li key={`update-issue-${index}`}>
+                              {issue.path}: {issue.message}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </div>
-
-              <Button
-                variant="outline"
-                onClick={() => setCreateForm(defaultCreateFormState)}
-              >
-                Reset form
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="update">
-          <Card>
-            <CardHeader>
-              <CardTitle>Update plugin manifest</CardTitle>
-              <CardDescription>
-                Merge-preserve mode is enabled by default to avoid dropping
-                fields.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="plugin-update-id">Plugin id</Label>
-                <Input
-                  id="plugin-update-id"
-                  value={updateForm.pluginId}
-                  onChange={(event) =>
-                    setUpdateForm((prev) => ({
-                      ...prev,
-                      pluginId: event.target.value,
-                    }))
-                  }
-                  placeholder="Select an existing plugin id"
-                  list="plugin-ids"
-                />
-                <datalist id="plugin-ids">
-                  {validCandidateEntries.map((entry) => (
-                    <option
-                      key={`option-${entry.key}`}
-                      value={entry.result.manifest.id}
-                    />
-                  ))}
-                </datalist>
-                <p className="text-xs text-muted-foreground">
-                  Target path:{' '}
-                  {updateForm.pluginId
-                    ? `plugins/${updateForm.pluginId}/`
-                    : 'plugins/<id>/'}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="plugin-update-preserve"
-                  checked={updateForm.preserveExisting}
-                  onCheckedChange={(checked) =>
-                    setUpdateForm((prev) => ({
-                      ...prev,
-                      preserveExisting: checked,
-                    }))
-                  }
-                />
-                <Label htmlFor="plugin-update-preserve">
-                  Merge-preserve existing fields (default)
-                </Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="plugin-update-patch">Patch JSON</Label>
-                <Textarea
-                  id="plugin-update-patch"
-                  rows={8}
-                  className="font-mono text-xs"
-                  value={updateForm.patchJson}
-                  onChange={(event) =>
-                    setUpdateForm((prev) => ({
-                      ...prev,
-                      patchJson: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              {updateResult.error ? (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Update input required</AlertTitle>
-                  <AlertDescription>{updateResult.error}</AlertDescription>
-                </Alert>
-              ) : updateResult.result?.isValid ? (
-                <Alert>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>Update payload is valid</AlertTitle>
-                  <AlertDescription>
-                    Ready to apply manifest update with merge-preserve behavior
-                    set to{' '}
-                    {updateForm.preserveExisting ? 'enabled' : 'disabled'}.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Update payload has validation issues</AlertTitle>
-                  <AlertDescription>
-                    <ul className="text-sm space-y-1 mt-2">
-                      {(updateResult.result?.issues ?? []).map(
-                        (issue, index) => (
-                          <li key={`update-issue-${index}`}>
-                            {issue.path}: {issue.message}
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
