@@ -14,6 +14,7 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -147,17 +148,25 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireAuthenticatedUser(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    const user = await requireAuthenticatedUser(request);
+    if (user instanceof NextResponse) {
+      return user;
     }
 
     const { id } = await params;
-    const gitHubConfig = normalizeGitHubConfig({
+    const requestedGitHubConfig = normalizeGitHubConfig({
       owner: request.nextUrl.searchParams.get('owner') ?? undefined,
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
+    const authzResult = await resolveAuthorizedGitHubConfig(
+      user.uid,
+      requestedGitHubConfig
+    );
+    if (authzResult.forbiddenResponse) {
+      return authzResult.forbiddenResponse;
+    }
+    const gitHubConfig = authzResult.config;
 
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
@@ -194,9 +203,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireAuthenticatedUser(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    const user = await requireAuthenticatedUser(request);
+    if (user instanceof NextResponse) {
+      return user;
     }
 
     const { id } = await params;
@@ -226,11 +235,7 @@ export async function PUT(
       );
     }
 
-    if (
-      !Number.isInteger(body.effort) ||
-      body.effort < 1 ||
-      body.effort > 5
-    ) {
+    if (!Number.isInteger(body.effort) || body.effort < 1 || body.effort > 5) {
       return NextResponse.json(
         { error: 'Invalid effort level (must be an integer 1-5)' },
         { status: 400 }
@@ -293,9 +298,17 @@ export async function PUT(
       }),
     };
 
-    const gitHubConfig = normalizeGitHubConfig(
+    const requestedGitHubConfig = normalizeGitHubConfig(
       body.gitHubConfig as GitHubConfig | undefined
     );
+    const authzResult = await resolveAuthorizedGitHubConfig(
+      user.uid,
+      requestedGitHubConfig
+    );
+    if (authzResult.forbiddenResponse) {
+      return authzResult.forbiddenResponse;
+    }
+    const gitHubConfig = authzResult.config;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
         path: '/api/go/sessions/update',
@@ -329,16 +342,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireAuthenticatedUser(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    const user = await requireAuthenticatedUser(request);
+    if (user instanceof NextResponse) {
+      return user;
     }
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const gitHubConfig = normalizeGitHubConfig(
+    const requestedGitHubConfig = normalizeGitHubConfig(
       body?.gitHubConfig as GitHubConfig | undefined
     );
+    const authzResult = await resolveAuthorizedGitHubConfig(
+      user.uid,
+      requestedGitHubConfig
+    );
+    if (authzResult.forbiddenResponse) {
+      return authzResult.forbiddenResponse;
+    }
+    const gitHubConfig = authzResult.config;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
         path: '/api/go/sessions/delete',
