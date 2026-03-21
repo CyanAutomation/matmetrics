@@ -76,7 +76,7 @@ export async function proxyGoFunction(
     return NextResponse.json(payload, { status: response.status });
   }
 
-  const rawBody = await response.text();
+  const rawBody = await response.text().catch(() => '');
 
   return new NextResponse(rawBody || null, {
     status: response.status,
