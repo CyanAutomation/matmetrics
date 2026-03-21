@@ -48,6 +48,7 @@ export type TabSection = 'core' | 'plugins';
 export type TabRenderContext = {
   sessions: JudoSession[];
   refreshSessions: () => void;
+  refreshPluginExtensions: () => void | Promise<void>;
 };
 
 export type TabVisibilityContext = {
@@ -85,7 +86,10 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
     headerTitle: 'Plugin Manager',
     icon: Puzzle,
     section: 'core',
-    render: () => React.createElement(PluginManager),
+    render: ({ refreshPluginExtensions }) =>
+      React.createElement(PluginManager, {
+        onPluginsChanged: refreshPluginExtensions,
+      }),
     isVisible: () => pluginManagerFeatureFlagEnabled,
   },
   {
