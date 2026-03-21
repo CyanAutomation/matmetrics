@@ -105,7 +105,7 @@ func bearerToken(r *http.Request) (string, bool) {
 	}
 
 	parts := strings.SplitN(header, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 		return "", false
 	}
 

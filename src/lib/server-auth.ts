@@ -21,6 +21,10 @@ function getBearerToken(request: NextRequest): string | null {
 
 async function verifyToken(token: string): Promise<DecodedIdToken> {
   if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {
+    if (token !== 'test-token') {
+      throw new Error('Invalid test token');
+    }
+
     return {
       uid: 'test-user',
       aud: 'matmetrics-test',
