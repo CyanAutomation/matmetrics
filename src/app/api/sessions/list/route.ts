@@ -9,6 +9,7 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 
 /**
  * GET /api/sessions/list
@@ -16,16 +17,24 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuthenticatedUser(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    const user = await requireAuthenticatedUser(request);
+    if (user instanceof NextResponse) {
+      return user;
     }
 
-    const gitHubConfig = normalizeGitHubConfig({
+    const requestedGitHubConfig = normalizeGitHubConfig({
       owner: request.nextUrl.searchParams.get('owner') ?? undefined,
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
+    const authzResult = await resolveAuthorizedGitHubConfig(
+      user.uid,
+      requestedGitHubConfig
+    );
+    if (authzResult.forbiddenResponse) {
+      return authzResult.forbiddenResponse;
+    }
+    const gitHubConfig = authzResult.config;
 
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
