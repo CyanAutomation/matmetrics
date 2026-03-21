@@ -76,7 +76,7 @@ export type MapDashboardExtensionsOptions = {
 };
 
 const pluginManagerFeatureFlagEnabled =
-  process.env.NEXT_PUBLIC_ENABLE_PLUGIN_MANAGER === 'true';
+  process.env.NEXT_PUBLIC_ENABLE_PLUGIN_MANAGER !== 'false';
 
 export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
