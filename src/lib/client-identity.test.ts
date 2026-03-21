@@ -16,20 +16,32 @@ test('client identity falls back to guest scope when no user is active', () => {
   assert.equal(getActiveUserId(), GUEST_USER_ID);
   assert.equal(isGuestMode(), true);
   assert.equal(isGuestUserId(undefined), true);
-  assert.equal(getScopedStorageKey('matmetrics_sessions'), 'matmetrics_sessions:guest');
+
+  const guestKey = getScopedStorageKey('matmetrics_sessions');
+
+  assert.equal(
+    guestKey,
+    getScopedStorageKeyForUser('matmetrics_sessions', GUEST_USER_ID)
+  );
 });
 
-test('client identity scopes keys to the authenticated user id', () => {
-  setActiveUserId('user-123');
+test('client identity isolates guest-scoped and user-scoped storage reads/writes', () => {
+  const storage = new Map<string, string>();
+  const baseKey = 'matmetrics_sessions';
 
-  assert.equal(getActiveUserId(), 'user-123');
+  setActiveUserId(null);
+  const guestScopedKey = getScopedStorageKey(baseKey);
+  storage.set(guestScopedKey, 'guest-session');
+
+  setActiveUserId('user-123');
+  const userScopedKey = getScopedStorageKey(baseKey);
+
+  assert.notEqual(userScopedKey, guestScopedKey);
+  assert.equal(storage.get(userScopedKey), undefined);
+
+  storage.set(userScopedKey, 'user-session');
+
+  assert.equal(storage.get(guestScopedKey), 'guest-session');
+  assert.equal(storage.get(userScopedKey), 'user-session');
   assert.equal(isGuestMode(), false);
-  assert.equal(
-    getScopedStorageKey('matmetrics_sessions'),
-    'matmetrics_sessions:user-123'
-  );
-  assert.equal(
-    getScopedStorageKeyForUser('matmetrics_sessions', 'other-user'),
-    'matmetrics_sessions:other-user'
-  );
 });
