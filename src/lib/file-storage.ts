@@ -47,7 +47,34 @@ function ensurePathWithinDataDir(filePath: string): string {
     throw new Error('Resolved session file path escapes data directory');
   }
 
-  return filePath;
+  // Always return the normalized, validated path
+  return resolved;
+}
+
+function validateAndNormalizeDate(date: string): string {
+  // Expect strict YYYY-MM-DD format
+  const ISO_DATE_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+  const match = ISO_DATE_PATTERN.exec(date);
+  if (!match) {
+    throw new Error('Invalid session date format; expected YYYY-MM-DD');
+  }
+  const [, yearStr, monthStr, dayStr] = match;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() + 1 !== month ||
+    d.getUTCDate() !== day
+  ) {
+    throw new Error('Invalid session date value');
+  }
+  // Return normalized date string to ensure consistent formatting
+  const normalizedYear = String(year).padStart(4, '0');
+  const normalizedMonth = String(month).padStart(2, '0');
+  const normalizedDay = String(day).padStart(2, '0');
+  return `${normalizedYear}-${normalizedMonth}-${normalizedDay}`;
 }
 
 /**
@@ -61,7 +88,8 @@ export function getSessionFilePath(
   counter?: number,
   sessionId?: string
 ): string {
-  const [year, month, day] = date.split('-');
+  const normalizedDate = validateAndNormalizeDate(date);
+  const [year, month, day] = normalizedDate.split('-');
   const baseName = sessionId
     ? `${year}${month}${day}-matmetrics-${sanitizeSessionId(sessionId)}.md`
     : `${year}${month}${day}-matmetrics${
@@ -189,8 +217,10 @@ export async function readSession(
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
 export async function createSession(session: JudoSession): Promise<string> {
+  const normalizedDate = validateAndNormalizeDate(session.date);
+  const [year, month] = normalizedDate.split('-');
   const dirPath = ensurePathWithinDataDir(
-    path.join(getDataDir(), session.date.slice(0, 4), session.date.slice(5, 7))
+    path.join(getDataDir(), year, month)
   );
 
   // Ensure directory exists
@@ -202,18 +232,18 @@ export async function createSession(session: JudoSession): Promise<string> {
   if (!session.id || typeof session.id !== 'string') {
     throw new Error('Session ID is required and must be a non-empty string');
   }
-  const filePath = getSessionFilePath(session.date, undefined, session.id);
+  const filePath = getSessionFilePath(normalizedDate, undefined, session.id);
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
-    ensurePathWithinDataDir(existingPath);
-    const existingMarkdown = await fs.readFile(existingPath, 'utf-8');
+    const safeExistingPath = ensurePathWithinDataDir(existingPath);
+    const existingMarkdown = await fs.readFile(safeExistingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
       throw new Error(
         `Session ID ${session.id} already exists with different content; refusing to overwrite existing data`
       );
     }
-    return existingPath;
+    return safeExistingPath;
   };
 
   // Idempotency: if this ID already exists (canonical path or legacy location), return success.
