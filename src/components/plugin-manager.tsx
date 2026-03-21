@@ -27,13 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import {
-  getLocalPluginManifestCandidates,
-  getPluginRegistryRevision,
-  loadPluginManifests,
-  subscribePluginRegistry,
-  updatePluginEnabledState,
-} from '@/lib/plugins/registry';
+import { getLocalPluginManifestCandidates } from '@/lib/plugins/registry';
 import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import type {
@@ -167,14 +161,12 @@ const parsePatchJson = (
 export function PluginManager() {
   const { toast } = useToast();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
+  const [installedManifestRows, setInstalledManifestRows] = React.useState<
+    PluginManifest[]
+  >([]);
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
   >({});
-  const pluginRegistryRevision = React.useSyncExternalStore(
-    subscribePluginRegistry,
-    getPluginRegistryRevision,
-    getPluginRegistryRevision
-  );
   const candidateEntries = React.useMemo<PluginCandidateEntry[]>(
     () =>
       getLocalPluginManifestCandidates().map((source, index) => ({
@@ -193,6 +185,42 @@ export function PluginManager() {
     patchJson: '{\n  "description": ""\n}',
     preserveExisting: true,
   });
+
+  const refreshInstalledPlugins = React.useCallback(async () => {
+    const response = await fetch('/api/plugins/list', { method: 'GET' });
+    if (!response.ok) {
+      throw new Error('Could not refresh installed plugins.');
+    }
+
+    const payload = (await response.json()) as {
+      plugins?: unknown[];
+      error?: string;
+    };
+
+    if (!Array.isArray(payload.plugins)) {
+      throw new Error(payload.error ?? 'Invalid plugins list response.');
+    }
+
+    const validPlugins = payload.plugins
+      .map((plugin) => validatePluginManifest(plugin))
+      .flatMap((result) => (result.isValid ? [result.manifest] : []));
+
+    setInstalledManifestRows(validPlugins);
+  }, []);
+
+  React.useEffect(() => {
+    void refreshInstalledPlugins().catch((error) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not load installed plugins from the API.';
+      toast({
+        variant: 'destructive',
+        title: 'Failed to load plugins',
+        description: message,
+      });
+    });
+  }, [refreshInstalledPlugins, toast]);
   const isValidEntry = (
     entry: PluginCandidateEntry
   ): entry is PluginCandidateEntry & {
@@ -206,9 +234,8 @@ export function PluginManager() {
 
   const installedPlugins = React.useMemo<InstalledPluginRow[]>(() => {
     const statusEntries = rowStatuses;
-    void pluginRegistryRevision;
 
-    return loadPluginManifests()
+    return installedManifestRows
       .sort((a, b) => {
         if (a.id === 'tag-manager') {
           return -1;
@@ -227,7 +254,7 @@ export function PluginManager() {
         status: statusEntries[manifest.id]?.status ?? 'idle',
         statusMessage: statusEntries[manifest.id]?.statusMessage,
       }));
-  }, [pluginRegistryRevision, rowStatuses]);
+  }, [installedManifestRows, rowStatuses]);
 
   React.useEffect(() => {
     setRowStatuses((prev) => {
@@ -236,7 +263,7 @@ export function PluginManager() {
         Pick<InstalledPluginRow, 'status' | 'statusMessage'>
       > = {};
 
-      for (const plugin of loadPluginManifests()) {
+      for (const plugin of installedManifestRows) {
         if (prev[plugin.id]) {
           next[plugin.id] = prev[plugin.id];
         }
@@ -244,7 +271,7 @@ export function PluginManager() {
 
       return next;
     });
-  }, [pluginRegistryRevision]);
+  }, [installedManifestRows]);
 
   const togglePluginEnabled = async (
     pluginId: string,
@@ -273,7 +300,25 @@ export function PluginManager() {
     });
 
     try {
-      await updatePluginEnabledState(pluginId, nextEnabled);
+      const response = await fetch('/api/plugins/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: pluginId,
+          enabled: nextEnabled,
+          confirm: true,
+          confirmOverwrite: true,
+        }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Could not update plugin state.');
+      }
+
+      await refreshInstalledPlugins();
 
       const latestVersion = toggleRequestVersionRef.current.get(pluginId);
       if (latestVersion !== requestVersion) {
