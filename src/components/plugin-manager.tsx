@@ -27,7 +27,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getLocalPluginManifestCandidates } from '@/lib/plugins/registry';
+import {
+  getLocalPluginManifestCandidates,
+  getPluginRegistryRevision,
+  loadPluginManifests,
+  subscribePluginRegistry,
+  updatePluginEnabledState,
+} from '@/lib/plugins/registry';
 import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import type {
@@ -160,6 +166,15 @@ const parsePatchJson = (
 
 export function PluginManager() {
   const { toast } = useToast();
+  const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
+  const [rowStatuses, setRowStatuses] = React.useState<
+    Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
+  >({});
+  const pluginRegistryRevision = React.useSyncExternalStore(
+    subscribePluginRegistry,
+    getPluginRegistryRevision,
+    getPluginRegistryRevision
+  );
   const candidateEntries = React.useMemo<PluginCandidateEntry[]>(
     () =>
       getLocalPluginManifestCandidates().map((source, index) => ({
@@ -178,10 +193,6 @@ export function PluginManager() {
     patchJson: '{\n  "description": ""\n}',
     preserveExisting: true,
   });
-  const [installedPlugins, setInstalledPlugins] = React.useState<
-    InstalledPluginRow[]
-  >([]);
-
   const isValidEntry = (
     entry: PluginCandidateEntry
   ): entry is PluginCandidateEntry & {
@@ -193,9 +204,11 @@ export function PluginManager() {
     [candidateEntries]
   );
 
-  React.useEffect(() => {
-    const nextRows = validCandidateEntries
-      .map((entry) => entry.result.manifest)
+  const installedPlugins = React.useMemo<InstalledPluginRow[]>(() => {
+    const statusEntries = rowStatuses;
+    void pluginRegistryRevision;
+
+    return loadPluginManifests()
       .sort((a, b) => {
         if (a.id === 'tag-manager') {
           return -1;
@@ -211,11 +224,27 @@ export function PluginManager() {
         version: manifest.version,
         description: manifest.description,
         enabled: manifest.enabled,
-        status: 'idle' as const,
+        status: statusEntries[manifest.id]?.status ?? 'idle',
+        statusMessage: statusEntries[manifest.id]?.statusMessage,
       }));
+  }, [pluginRegistryRevision, rowStatuses]);
 
-    setInstalledPlugins(nextRows);
-  }, [validCandidateEntries]);
+  React.useEffect(() => {
+    setRowStatuses((prev) => {
+      const next: Record<
+        string,
+        Pick<InstalledPluginRow, 'status' | 'statusMessage'>
+      > = {};
+
+      for (const plugin of loadPluginManifests()) {
+        if (prev[plugin.id]) {
+          next[plugin.id] = prev[plugin.id];
+        }
+      }
+
+      return next;
+    });
+  }, [pluginRegistryRevision]);
 
   const togglePluginEnabled = async (
     pluginId: string,
@@ -226,17 +255,17 @@ export function PluginManager() {
       return;
     }
 
-    setInstalledPlugins((prev) =>
-      prev.map((row) =>
-        row.id === pluginId
-          ? {
-              ...row,
-              status: 'pending',
-              statusMessage: `Saving ${nextEnabled ? 'enabled' : 'disabled'} state...`,
-            }
-          : row
-      )
-    );
+    const requestVersion =
+      (toggleRequestVersionRef.current.get(pluginId) ?? 0) + 1;
+    toggleRequestVersionRef.current.set(pluginId, requestVersion);
+
+    setRowStatuses((prev) => ({
+      ...prev,
+      [pluginId]: {
+        status: 'pending',
+        statusMessage: `Saving ${nextEnabled ? 'enabled' : 'disabled'} state...`,
+      },
+    }));
 
     toast({
       title: 'Plugin update pending',
@@ -244,42 +273,48 @@ export function PluginManager() {
     });
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await updatePluginEnabledState(pluginId, nextEnabled);
 
-      setInstalledPlugins((prev) =>
-        prev.map((row) =>
-          row.id === pluginId
-            ? {
-                ...row,
-                enabled: nextEnabled,
-                status: 'success',
-                statusMessage: `Plugin ${nextEnabled ? 'enabled' : 'disabled'} successfully.`,
-              }
-            : row
-        )
-      );
+      const latestVersion = toggleRequestVersionRef.current.get(pluginId);
+      if (latestVersion !== requestVersion) {
+        return;
+      }
+
+      setRowStatuses((prev) => ({
+        ...prev,
+        [pluginId]: {
+          status: 'success',
+          statusMessage: `Plugin ${nextEnabled ? 'enabled' : 'disabled'} successfully.`,
+        },
+      }));
 
       toast({
         title: 'Plugin updated',
         description: `${plugin.name} is now ${nextEnabled ? 'enabled' : 'disabled'}.`,
       });
-    } catch {
-      setInstalledPlugins((prev) =>
-        prev.map((row) =>
-          row.id === pluginId
-            ? {
-                ...row,
-                status: 'failure',
-                statusMessage: 'Could not update plugin state. Please retry.',
-              }
-            : row
-        )
-      );
+    } catch (error) {
+      const latestVersion = toggleRequestVersionRef.current.get(pluginId);
+      if (latestVersion !== requestVersion) {
+        return;
+      }
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not update plugin state. Please retry.';
+
+      setRowStatuses((prev) => ({
+        ...prev,
+        [pluginId]: {
+          status: 'failure',
+          statusMessage: message,
+        },
+      }));
 
       toast({
         variant: 'destructive',
         title: 'Plugin update failed',
-        description: `${plugin.name} could not be updated.`,
+        description: `${plugin.name} could not be updated: ${message}`,
       });
     }
   };
