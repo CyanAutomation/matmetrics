@@ -275,11 +275,16 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 		return "", "", err
 	}
 
-	encodedID, err := storage.EncodedSessionID(sessionID)
+	suffixIDs, err := storage.SessionIDPathSuffixCandidates(sessionID)
 	if err != nil {
 		return "", "", err
 	}
-	encodedSuffix := "-matmetrics-" + encodedID + ".md"
+
+	suffixes := make([]string, 0, len(suffixIDs))
+	for _, suffixID := range suffixIDs {
+		suffixes = append(suffixes, "-matmetrics-"+suffixID+".md")
+	}
+
 	entries, err := c.getTreeEntriesForPath(config, branch, gitHubSessionRoot)
 	if err != nil {
 		return "", "", err
@@ -289,8 +294,10 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 		if entry.Type != "blob" {
 			continue
 		}
-		if strings.HasSuffix(entry.Path, encodedSuffix) {
-			return entry.Path, branch, nil
+		for _, suffix := range suffixes {
+			if strings.HasSuffix(entry.Path, suffix) {
+				return entry.Path, branch, nil
+			}
 		}
 	}
 
