@@ -282,7 +282,10 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       existingLease.owner !== syncOwnerId &&
       existingLease.expiresAt > now
     ) {
-      return false;
+      if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
+        await sleep(randomBackoffMs());
+      }
+      continue;
     }
 
     const nextLease: SyncLease = {
