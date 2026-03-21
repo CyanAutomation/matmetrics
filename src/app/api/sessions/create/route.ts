@@ -161,9 +161,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof body.effort !== 'number' || body.effort < 1 || body.effort > 5) {
+    if (
+      !Number.isInteger(body.effort) ||
+      body.effort < 1 ||
+      body.effort > 5
+    ) {
       return NextResponse.json(
-        { error: 'Invalid effort level (must be 1-5)' },
+        { error: 'Invalid effort level (must be an integer 1-5)' },
         { status: 400 }
       );
     }
