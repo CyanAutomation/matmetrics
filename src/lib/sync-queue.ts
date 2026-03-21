@@ -130,11 +130,21 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
           continue;
         }
       } else {
-        // DELETE followed by CREATE/UPDATE is treated as an upsert update, so replay stays idempotent
-        // for servers that may already have deleted state applied.
-        if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
+        // DELETE followed by CREATE is a true recreate and must replay as CREATE.
+        if (operation.type === 'CREATE') {
           reducedOperation = {
-            type: 'UPDATE',
+            type: 'CREATE',
+            session: operation.session,
+            queuedAt: operation.queuedAt,
+          };
+          continue;
+        }
+
+        // DELETE followed by UPDATE should avoid a guaranteed 404 path for missing records.
+        // Treat as CREATE so replay remains safe when the delete has already applied remotely.
+        if (operation.type === 'UPDATE') {
+          reducedOperation = {
+            type: 'CREATE',
             session: operation.session,
             queuedAt: operation.queuedAt,
           };
