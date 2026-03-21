@@ -14,6 +14,10 @@ import {
 import type { JudoSession } from '@/lib/types';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = JSON.stringify({
+  owner: 'test-owner',
+  repo: 'test-repo',
+});
 
 async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   const dataDir = await mkdtemp(
@@ -146,7 +150,7 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
           effort: 4,
           category: 'Technical',
           techniques: [],
-          gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
+          gitHubConfig: { owner: 'test-owner', repo: 'test-repo' },
         }),
       }),
       { params: Promise.resolve({ id: 'put-github-failure' }) }
@@ -167,7 +171,7 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
         category: 'Technical',
         techniques: [],
       },
-      config: { owner: 'octocat', repo: 'hello-world' },
+      config: { owner: 'test-owner', repo: 'test-repo' },
     });
   } finally {
     global.fetch = originalFetch;
@@ -197,7 +201,6 @@ test('DELETE removes the local markdown session when GitHub is not configured', 
   });
 });
 
-
 test('DELETE proxies Go validation error when id is empty after trim', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
@@ -209,7 +212,7 @@ test('DELETE proxies Go validation error when id is empty after trim', async () 
       assert.equal(init?.method, 'DELETE');
       assert.deepEqual(JSON.parse(String(init?.body ?? '{}')), {
         id: '   ',
-        config: { owner: 'octocat', repo: 'hello-world' },
+        config: { owner: 'test-owner', repo: 'test-repo' },
       });
       return new Response(JSON.stringify({ error: 'Missing session id' }), {
         status: 400,
@@ -227,7 +230,7 @@ test('DELETE proxies Go validation error when id is empty after trim', async () 
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
+          gitHubConfig: { owner: 'test-owner', repo: 'test-repo' },
         }),
       }),
       { params: Promise.resolve({ id: '   ' }) }
@@ -268,7 +271,7 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
+          gitHubConfig: { owner: 'test-owner', repo: 'test-repo' },
         }),
       }),
       { params: Promise.resolve({ id: 'delete-github-failure' }) }
@@ -282,6 +285,67 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
     global.fetch = originalFetch;
     process.env.GITHUB_TOKEN = originalToken;
   }
+});
+
+test('GET returns 403 when query repo does not match user preferences', async () => {
+  const response = await makeGetRequest(
+    'blocked',
+    '?owner=another-owner&repo=another-repo'
+  );
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error:
+      'Forbidden: requested GitHub repository does not match your configured repository.',
+  });
+});
+
+test('PUT returns 403 when body repo does not match user preferences', async () => {
+  const response = await PUT(
+    new NextRequest('http://localhost/api/sessions/put-forbidden', {
+      method: 'PUT',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: 'put-forbidden',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: [],
+        gitHubConfig: { owner: 'another-owner', repo: 'another-repo' },
+      }),
+    }),
+    { params: Promise.resolve({ id: 'put-forbidden' }) }
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error:
+      'Forbidden: requested GitHub repository does not match your configured repository.',
+  });
+});
+
+test('DELETE returns 403 when body repo does not match user preferences', async () => {
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/sessions/delete-forbidden', {
+      method: 'DELETE',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        gitHubConfig: { owner: 'another-owner', repo: 'another-repo' },
+      }),
+    }),
+    { params: Promise.resolve({ id: 'delete-forbidden' }) }
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error:
+      'Forbidden: requested GitHub repository does not match your configured repository.',
+  });
 });
 
 test('PUT returns 400 for invalid session payload fields', async (t) => {
