@@ -125,6 +125,17 @@ Firebase values come from:
 - **Current API route test entry points**: `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts` (use `src/lib/plugins/validate.test.ts` for plugin validation behavior checks).
 - **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
 
+## Test Authentication Contract
+
+When `MATMETRICS_AUTH_TEST_MODE=true`, both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same Authorization contract:
+
+- Header must be `Authorization: Bearer test-token`
+- `Bearer` is case-insensitive (`Bearer` and `bearer` are both accepted)
+- Missing/malformed Authorization headers return `401` with `Authentication required`
+- Any token other than `test-token` returns `401` with an invalid-token error
+
+This keeps proxy and non-proxy test behavior identical.
+
 ## Deployment
 
 ### Vercel (Recommended)

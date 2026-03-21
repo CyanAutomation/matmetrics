@@ -61,3 +61,20 @@ test('requireAuthenticatedUser rejects malformed authorization headers', async (
     assert.equal(body.error, 'Authentication required');
   }
 });
+
+test('requireAuthenticatedUser rejects invalid test-mode token', async () => {
+  const result = await requireAuthenticatedUser(
+    new NextRequest('http://localhost/api/test', {
+      headers: { authorization: 'Bearer invalid' },
+    })
+  );
+
+  assert.equal('status' in result, true);
+  if (!('status' in result)) {
+    assert.fail('Expected NextResponse for invalid test token');
+  }
+
+  assert.equal(result.status, 401);
+  const body = await result.json();
+  assert.equal(body.error, 'Invalid authentication token');
+});
