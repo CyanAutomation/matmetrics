@@ -226,10 +226,9 @@ test('successful create stays visible until refresh confirms the remote copy', a
 
     if (url.endsWith('/api/sessions/list')) {
       listRequests += 1;
-      return new Response(
-        JSON.stringify(listRequests === 1 ? [] : [session]),
-        { status: 200 }
-      );
+      return new Response(JSON.stringify(listRequests === 1 ? [] : [session]), {
+        status: 200,
+      });
     }
 
     throw new Error(`Unexpected fetch: ${url}`);
@@ -273,6 +272,7 @@ test('sync lease prevents replay when another tab already owns the queue flush',
     JSON.stringify({
       owner: 'other-tab',
       expiresAt: Date.now() + 60_000,
+      nonce: 'other-nonce',
     })
   );
 
@@ -297,7 +297,7 @@ test('sync lease prevents replay when another tab already owns the queue flush',
   }
 });
 
-test('sync lease owner can renew its own lease', () => {
+test('sync lease owner can renew its own lease', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -305,7 +305,7 @@ test('sync lease owner can renew its own lease', () => {
   const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
 
   try {
-    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     const beforeRenewal = JSON.parse(
       localStorage.getItem(syncLockStorageKey) ?? '{}'
     );
@@ -316,6 +316,7 @@ test('sync lease owner can renew its own lease', () => {
       localStorage.getItem(syncLockStorageKey) ?? '{}'
     );
     assert.equal(afterRenewal.owner, beforeRenewal.owner);
+    assert.equal(afterRenewal.nonce, beforeRenewal.nonce);
     assert.ok(afterRenewal.expiresAt >= beforeRenewal.expiresAt);
   } finally {
     teardownStorageListeners();
@@ -323,7 +324,7 @@ test('sync lease owner can renew its own lease', () => {
   }
 });
 
-test('stale sync lease owner cannot renew after another owner acquires lease', () => {
+test('stale sync lease owner cannot renew after another owner acquires lease', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -331,12 +332,13 @@ test('stale sync lease owner cannot renew after another owner acquires lease', (
   const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
 
   try {
-    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     localStorage.setItem(
       syncLockStorageKey,
       JSON.stringify({
         owner: 'other-tab',
         expiresAt: Date.now() + 60_000,
+        nonce: 'other-nonce',
       })
     );
 
@@ -384,6 +386,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
         JSON.stringify({
           owner: 'other-tab',
           expiresAt: Date.now() + 60_000,
+          nonce: 'other-nonce',
         })
       );
     }
@@ -392,7 +395,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   }) as typeof fetch;
 
   try {
-    assert.equal(__tryAcquireSyncLeaseForTests(), true);
+    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     retryCloudSync();
     await flushAsyncWork();
 
@@ -410,6 +413,47 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   }
 });
 
+test('compare-and-verify lease acquisition retries under interleaving writes', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  let interleavingWriteCount = 0;
+
+  localStorage.setItem = (key: string, value: string): void => {
+    originalSetItem(key, value);
+    if (key !== syncLockStorageKey || interleavingWriteCount > 0) {
+      return;
+    }
+
+    interleavingWriteCount += 1;
+    originalSetItem(
+      key,
+      JSON.stringify({
+        owner: 'other-tab',
+        expiresAt: Date.now() - 1,
+        nonce: 'interleaving-write',
+      })
+    );
+  };
+
+  try {
+    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+    assert.equal(interleavingWriteCount, 1);
+
+    const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+    assert.equal(typeof lease.owner, 'string');
+    assert.notEqual(lease.owner, 'other-tab');
+    assert.notEqual(lease.nonce, 'interleaving-write');
+  } finally {
+    localStorage.setItem = originalSetItem;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
 test('clearAllData clears scoped sync queue and lock keys and emits storage sync event', () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
@@ -417,7 +461,14 @@ test('clearAllData clears scoped sync queue and lock keys and emits storage sync
 
   const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
   localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify([]));
-  localStorage.setItem(syncLockStorageKey, JSON.stringify({ owner: 'tab-1' }));
+  localStorage.setItem(
+    syncLockStorageKey,
+    JSON.stringify({
+      owner: 'tab-1',
+      expiresAt: Date.now() + 60_000,
+      nonce: 'tab-1-nonce',
+    })
+  );
 
   let eventSessions: JudoSession[] | undefined;
   const onStorageSync = (event: Event) => {
@@ -445,7 +496,9 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
   setActiveUserId('user-1');
   __resetStorageStateForTests();
 
-  const preferencesStorageKey = getScopedStorageKey('matmetrics_user_preferences');
+  const preferencesStorageKey = getScopedStorageKey(
+    'matmetrics_user_preferences'
+  );
   let preferenceState = {
     ...DEFAULT_USER_PREFERENCES,
     gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
@@ -459,7 +512,10 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
         ...preferenceState,
         gitHub,
       };
-      localStorage.setItem(preferencesStorageKey, JSON.stringify(preferenceState));
+      localStorage.setItem(
+        preferencesStorageKey,
+        JSON.stringify(preferenceState)
+      );
     },
   });
 
@@ -475,7 +531,9 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
       gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
     };
     initializeStorage();
-    preferenceState = JSON.parse(localStorage.getItem(preferencesStorageKey) ?? '{}');
+    preferenceState = JSON.parse(
+      localStorage.getItem(preferencesStorageKey) ?? '{}'
+    );
 
     assert.equal(getGitHubSyncStatus(), 'success');
     assert.ok(preferenceState.gitHub.lastSyncTime);
