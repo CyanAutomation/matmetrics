@@ -297,6 +297,34 @@ test('sync lease prevents replay when another tab already owns the queue flush',
   }
 });
 
+test('sync lease acquisition retries when competing lease expires during backoff', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+
+  localStorage.setItem(
+    syncLockStorageKey,
+    JSON.stringify({
+      owner: 'other-tab',
+      expiresAt: Date.now() + 1,
+      nonce: 'other-nonce',
+    })
+  );
+
+  try {
+    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+
+    const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+    assert.notEqual(lease.owner, 'other-tab');
+    assert.notEqual(lease.nonce, 'other-nonce');
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
 test('sync lease owner can renew its own lease', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
