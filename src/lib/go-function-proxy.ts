@@ -17,8 +17,8 @@ function isJsonContentType(contentType: string | null): boolean {
 
   const normalized = contentType.toLowerCase();
   return (
-    normalized.includes('application/json') ||
-    normalized.includes('+json')
+    normalized.startsWith('application/json') ||
+    /[\/+]json(?:[;\s]|$)/.test(normalized)
   );
 }
 
