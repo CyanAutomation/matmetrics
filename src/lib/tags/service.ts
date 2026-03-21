@@ -6,11 +6,13 @@ export type TagOperationConflictCode =
   | 'tag_not_found'
   | 'target_tag_exists'
   | 'case_conflict'
-  | 'merge_same_tag';
+  | 'merge_same_tag'
+  | 'session_update_failed';
 
 export interface TagOperationConflict {
   code: TagOperationConflictCode;
   message: string;
+  failedSessionIds?: string[];
 }
 
 export interface TagOperationSummary {
@@ -18,6 +20,7 @@ export interface TagOperationSummary {
   affectedSessionCount: number;
   changedTagCount: number;
   affectedSessionIds: string[];
+  failedSessionIds: string[];
   affectedTags: string[];
   conflicts: TagOperationConflict[];
 }
@@ -48,6 +51,40 @@ export function createTagService({
   getSessions,
   updateSession,
 }: TagServiceDependencies) {
+  async function applyUpdatesSequentially(
+    sessionsToUpdate: JudoSession[],
+    summary: TagOperationSummary
+  ): Promise<TagOperationSummary> {
+    const failedSessionIds: string[] = [];
+
+    for (const session of sessionsToUpdate) {
+      try {
+        await updateSession(session);
+      } catch (error) {
+        failedSessionIds.push(session.id);
+        const reason =
+          error instanceof Error ? error.message : 'Unknown update failure';
+
+        return {
+          ...summary,
+          failedSessionIds,
+          conflicts: [
+            {
+              code: 'session_update_failed',
+              message: `Failed to update session "${session.id}": ${reason}`,
+              failedSessionIds,
+            },
+          ],
+        };
+      }
+    }
+
+    return {
+      ...summary,
+      failedSessionIds,
+    };
+  }
+
   function summarizeRenameOrMerge(
     oldName: string,
     newName: string,
@@ -83,6 +120,7 @@ export function createTagService({
           affectedSessionCount: 0,
           changedTagCount: 0,
           affectedSessionIds: [],
+          failedSessionIds: [],
           affectedTags: [],
           conflicts,
         },
@@ -128,6 +166,7 @@ export function createTagService({
           affectedSessionCount: 0,
           changedTagCount: 0,
           affectedSessionIds: [],
+          failedSessionIds: [],
           affectedTags: [],
           conflicts,
         },
@@ -171,6 +210,7 @@ export function createTagService({
         affectedSessionCount,
         changedTagCount,
         affectedSessionIds,
+        failedSessionIds: [],
         affectedTags: Array.from(new Set([sourceTag, targetTag])),
         conflicts: [],
       },
@@ -195,6 +235,7 @@ export function createTagService({
           affectedSessionCount: 0,
           changedTagCount: 0,
           affectedSessionIds: [],
+          failedSessionIds: [],
           affectedTags: [],
           conflicts: [
             {
@@ -219,6 +260,7 @@ export function createTagService({
           affectedSessionCount: 0,
           changedTagCount: 0,
           affectedSessionIds: [],
+          failedSessionIds: [],
           affectedTags: [],
           conflicts: [
             {
@@ -262,6 +304,7 @@ export function createTagService({
         affectedSessionCount,
         changedTagCount,
         affectedSessionIds,
+        failedSessionIds: [],
         affectedTags: [targetTag],
         conflicts: [],
       },
@@ -295,7 +338,7 @@ export function createTagService({
     );
 
     if (!dryRun && summary.conflicts.length === 0) {
-      await Promise.all(updatedSessions.map((session) => updateSession(session)));
+      return applyUpdatesSequentially(updatedSessions, summary);
     }
 
     return summary;
@@ -363,6 +406,7 @@ export function createTagService({
         affectedSessionCount: 0,
         changedTagCount: 0,
         affectedSessionIds: [],
+        failedSessionIds: [],
         affectedTags: [],
         conflicts,
       };
@@ -398,18 +442,21 @@ export function createTagService({
       }
     });
 
-    if (!dryRun) {
-      await Promise.all(updatedSessions.map((session) => updateSession(session)));
-    }
-
-    return {
+    const summary: TagOperationSummary = {
       dryRun,
       affectedSessionCount,
       changedTagCount,
       affectedSessionIds,
+      failedSessionIds: [],
       affectedTags: Array.from(new Set([source, target])),
       conflicts: [],
     };
+
+    if (!dryRun) {
+      return applyUpdatesSequentially(updatedSessions, summary);
+    }
+
+    return summary;
   }
 
   async function analyzeRename(
@@ -434,7 +481,7 @@ export function createTagService({
     const { summary, updatedSessions } = summarizeDelete(tagName, dryRun);
 
     if (!dryRun && summary.conflicts.length === 0) {
-      await Promise.all(updatedSessions.map((session) => updateSession(session)));
+      return applyUpdatesSequentially(updatedSessions, summary);
     }
 
     return summary;
