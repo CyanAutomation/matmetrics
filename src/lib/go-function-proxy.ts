@@ -10,6 +10,34 @@ type ProxyOptions = {
 
 type GitHubConfigLike = Partial<GitHubConfig> | null | undefined;
 
+function isJsonContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return false;
+  }
+
+  const normalized = contentType.toLowerCase();
+  return (
+    normalized.includes('application/json') ||
+    normalized.includes('+json')
+  );
+}
+
+function buildProxyResponseHeaders(response: Response): Headers {
+  const headers = new Headers();
+  const contentType = response.headers.get('content-type');
+  const cacheControl = response.headers.get('cache-control');
+
+  if (contentType) {
+    headers.set('content-type', contentType);
+  }
+
+  if (cacheControl) {
+    headers.set('cache-control', cacheControl);
+  }
+
+  return headers;
+}
+
 export function shouldProxyGitHubRequests(config: GitHubConfigLike): boolean {
   return !!config && !!process.env.GITHUB_TOKEN;
 }
@@ -41,8 +69,19 @@ export async function proxyGoFunction(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
 
-  const payload = await response.json().catch(() => null);
-  return NextResponse.json(payload, { status: response.status });
+  const contentType = response.headers.get('content-type');
+
+  if (isJsonContentType(contentType)) {
+    const payload = await response.json().catch(() => null);
+    return NextResponse.json(payload, { status: response.status });
+  }
+
+  const rawBody = await response.text();
+
+  return new NextResponse(rawBody || null, {
+    status: response.status,
+    headers: buildProxyResponseHeaders(response),
+  });
 }
 
 export function buildGitHubSearchParams(config: GitHubConfig): URLSearchParams {
