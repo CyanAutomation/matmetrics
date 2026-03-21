@@ -73,8 +73,7 @@ export async function resolveAuthorizedGitHubConfig(
   if (
     requestedConfig.owner !== storedConfig.owner ||
     requestedConfig.repo !== storedConfig.repo ||
-    (requestedConfig.branch !== undefined &&
-      requestedConfig.branch !== storedConfig.branch)
+    requestedConfig.branch !== storedConfig.branch
   ) {
     return {
       forbiddenResponse: NextResponse.json(
