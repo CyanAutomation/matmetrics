@@ -32,15 +32,8 @@ const createDashboardTabExtensionFixture = (
   ...overrides,
   extension: {
     type: 'dashboard_tab',
-    id: 'fixture-dashboard-extension',
-    title: 'Fixture Tab',
-    config: {
-      tabId: 'fixture-tab',
-      headerTitle: 'Fixture Header',
-      component: 'tag_manager',
-      icon: 'tags',
-    },
-    ...overrides.extension,
+    id: overrides.extension?.id ?? 'fixture-dashboard-extension',
+    title: overrides.extension?.title ?? 'Fixture Tab',
     config: {
       tabId: 'fixture-tab',
       headerTitle: 'Fixture Header',
