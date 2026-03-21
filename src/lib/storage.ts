@@ -51,6 +51,7 @@ function isStorageEventForKey(event: StorageEvent, key: string): boolean {
 let sessionCache: JudoSession[] | null = null;
 let isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
 let isSyncing = false;
+let inFlightSync: Promise<void> | null = null;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
@@ -958,109 +959,127 @@ async function refreshSessionsFromAPI(): Promise<void> {
 }
 
 async function syncPendingOperations(): Promise<void> {
-  if (!isOnline || isSyncing || isGuestMode()) return;
-  if (!(await tryAcquireSyncLease())) return;
+  if (!isOnline || isGuestMode()) return;
+  if (inFlightSync) {
+    return inFlightSync;
+  }
 
-  isSyncing = true;
+  inFlightSync = (async () => {
+    isSyncing = true;
+    let leaseAcquired = false;
 
-  try {
-    const queue = getQueue();
-    const gitHubConfig = getGitHubConfig();
-    const gitHubEnabled = isGitHubEnabled();
-    for (const [index, operation] of queue.entries()) {
-      if (!renewSyncLease()) {
-        const remainingOperations = queue.slice(index);
-        setQueue(remainingOperations, queue);
+    try {
+      leaseAcquired = await tryAcquireSyncLease();
+      if (!leaseAcquired) {
         return;
       }
 
-      try {
-        switch (operation.type) {
-          case 'CREATE':
-            const createBody: any = { ...operation.session };
-            if (gitHubConfig && gitHubEnabled) {
-              createBody.gitHubConfig = gitHubConfig;
-            }
-            const createHeaders = await getAuthHeaders({
-              'Content-Type': 'application/json',
-            });
-            await syncRequest('/api/sessions/create', {
-              method: 'POST',
-              headers: createHeaders,
-              body: JSON.stringify(createBody),
-            });
-            break;
-
-          case 'UPDATE':
-            const updateBody: any = { ...operation.session };
-            if (gitHubConfig && gitHubEnabled) {
-              updateBody.gitHubConfig = gitHubConfig;
-            }
-            const updateHeaders = await getAuthHeaders({
-              'Content-Type': 'application/json',
-            });
-            await syncRequest(`/api/sessions/${operation.session.id}`, {
-              method: 'PUT',
-              headers: updateHeaders,
-              body: JSON.stringify(updateBody),
-            });
-            break;
-
-          case 'DELETE':
-            const deleteBody: any = {};
-            if (gitHubConfig && gitHubEnabled) {
-              deleteBody.gitHubConfig = gitHubConfig;
-            }
-            const deleteHeaders = await getAuthHeaders({
-              'Content-Type': 'application/json',
-            });
-            await syncRequest(`/api/sessions/${operation.id}`, {
-              method: 'DELETE',
-              headers: deleteHeaders,
-              body:
-                Object.keys(deleteBody).length > 0
-                  ? JSON.stringify(deleteBody)
-                  : undefined,
-            });
-            break;
-        }
-      } catch (error) {
-        console.error('Error syncing operation', error);
-        if (error instanceof SyncRequestError && !error.retryable) {
-          clearDirtyMutation(
-            operation.type === 'DELETE' ? operation.id : operation.session.id,
-            operation.queuedAt
-          );
-          const remainingOperations = queue.filter(
-            (_, remainingIndex) => remainingIndex !== index
-          );
+      const queue = getQueue();
+      const gitHubConfig = getGitHubConfig();
+      const gitHubEnabled = isGitHubEnabled();
+      for (const [index, operation] of queue.entries()) {
+        if (!renewSyncLease()) {
+          const remainingOperations = queue.slice(index);
           setQueue(remainingOperations, queue);
-          await reconcilePermanentFailure();
           return;
         }
 
-        // Stop syncing on first error; retries must include the failed operation to avoid data loss.
-        const remainingOperations = queue.slice(index);
-        setQueue(remainingOperations, queue);
-        return;
+        try {
+          switch (operation.type) {
+            case 'CREATE':
+              const createBody: any = { ...operation.session };
+              if (gitHubConfig && gitHubEnabled) {
+                createBody.gitHubConfig = gitHubConfig;
+              }
+              const createHeaders = await getAuthHeaders({
+                'Content-Type': 'application/json',
+              });
+              await syncRequest('/api/sessions/create', {
+                method: 'POST',
+                headers: createHeaders,
+                body: JSON.stringify(createBody),
+              });
+              break;
+
+            case 'UPDATE':
+              const updateBody: any = { ...operation.session };
+              if (gitHubConfig && gitHubEnabled) {
+                updateBody.gitHubConfig = gitHubConfig;
+              }
+              const updateHeaders = await getAuthHeaders({
+                'Content-Type': 'application/json',
+              });
+              await syncRequest(`/api/sessions/${operation.session.id}`, {
+                method: 'PUT',
+                headers: updateHeaders,
+                body: JSON.stringify(updateBody),
+              });
+              break;
+
+            case 'DELETE':
+              const deleteBody: any = {};
+              if (gitHubConfig && gitHubEnabled) {
+                deleteBody.gitHubConfig = gitHubConfig;
+              }
+              const deleteHeaders = await getAuthHeaders({
+                'Content-Type': 'application/json',
+              });
+              await syncRequest(`/api/sessions/${operation.id}`, {
+                method: 'DELETE',
+                headers: deleteHeaders,
+                body:
+                  Object.keys(deleteBody).length > 0
+                    ? JSON.stringify(deleteBody)
+                    : undefined,
+              });
+              break;
+          }
+        } catch (error) {
+          console.error('Error syncing operation', error);
+          if (error instanceof SyncRequestError && !error.retryable) {
+            clearDirtyMutation(
+              operation.type === 'DELETE'
+                ? operation.id
+                : operation.session.id,
+              operation.queuedAt
+            );
+            const remainingOperations = queue.filter(
+              (_, remainingIndex) => remainingIndex !== index
+            );
+            setQueue(remainingOperations, queue);
+            await reconcilePermanentFailure();
+            return;
+          }
+
+          // Stop syncing on first error; retries must include the failed operation to avoid data loss.
+          const remainingOperations = queue.slice(index);
+          setQueue(remainingOperations, queue);
+          return;
+        }
       }
+
+      // If all operations succeeded, clear the queue
+      clearQueue(queue);
+
+      // Refresh sessions from API to ensure cache is up-to-date
+      await refreshSessionsFromAPI();
+    } finally {
+      isSyncing = false;
+      if (leaseAcquired) {
+        releaseSyncLease();
+      }
+      inFlightSync = null;
     }
+  })();
 
-    // If all operations succeeded, clear the queue
-    clearQueue(queue);
-
-    // Refresh sessions from API to ensure cache is up-to-date
-    await refreshSessionsFromAPI();
-  } finally {
-    isSyncing = false;
-    releaseSyncLease();
-  }
+  return inFlightSync;
 }
 
 export function __resetStorageStateForTests(): void {
   sessionCache = null;
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
+  inFlightSync = null;
   listenersInitialized = false;
   refreshSeq = 0;
   latestAppliedSeq = 0;
