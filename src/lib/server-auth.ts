@@ -12,7 +12,7 @@ function getBearerToken(request: NextRequest): string | null {
   }
 
   const [scheme, token] = authorization.split(' ');
-  if (scheme !== 'Bearer' || !token) {
+  if (scheme.toLowerCase() !== 'bearer' || !token) {
     return null;
   }
 
