@@ -16,6 +16,7 @@ import {
   __setDataDirForTests,
   createSession,
   findSessionFileById,
+  getNextCounter,
   getSessionFilePath,
   updateSession,
 } from './file-storage';
@@ -152,5 +153,34 @@ test('updateSession restores the original file when the destination rename fails
       januaryFiles.filter((file) => file.includes('session-1')).length,
       1
     );
+  });
+});
+
+test('getNextCounter rejects invalid dates before constructing paths', async () => {
+  await withTempDataDir(async () => {
+    await assert.rejects(
+      getNextCounter('2026-99-99'),
+      /Invalid session date format; expected YYYY-MM-DD/
+    );
+  });
+});
+
+test('getNextCounter counts existing sessions for a normalized valid date', async () => {
+  await withTempDataDir(async () => {
+    await createSession(
+      makeSession({
+        id: 'session-2',
+        date: '2025-01-10',
+      })
+    );
+    await createSession(
+      makeSession({
+        id: 'session-3',
+        date: '2025-01-10',
+      })
+    );
+
+    const nextCounter = await getNextCounter('2025-01-10');
+    assert.equal(nextCounter, 1);
   });
 });

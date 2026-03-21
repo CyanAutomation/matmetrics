@@ -115,13 +115,15 @@ export function extractDateFromPath(filePath: string): string | null {
  * Used when creating multiple sessions on the same day
  */
 export async function getNextCounter(date: string): Promise<number> {
+  const normalizedDate = validateAndNormalizeDate(date);
+  const [year, month] = normalizedDate.split('-');
   const dirPath = ensurePathWithinDataDir(
-    path.join(getDataDir(), date.slice(0, 4), date.slice(5, 7))
+    path.join(getDataDir(), year, month)
   );
 
   try {
     const files = await fs.readdir(dirPath);
-    const datePrefix = date.replace(/-/g, '');
+    const datePrefix = normalizedDate.replace(/-/g, '');
 
     let maxCounter = 0;
     for (const file of files) {
