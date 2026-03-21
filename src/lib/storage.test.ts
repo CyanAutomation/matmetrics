@@ -209,6 +209,49 @@ test('retryable create failures remain queued for later sync', async () => {
   }
 });
 
+test('non-retryable queued create failures are removed during sync replay', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const queuedSession = makeSession('session-queued-terminal-failure');
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([
+      { type: 'CREATE', session: queuedSession, queuedAt: 1 },
+    ])
+  );
+
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      return new Response(JSON.stringify({ error: 'invalid' }), {
+        status: 400,
+      });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.deepEqual(getQueue(), []);
+    assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
 test('successful create stays visible until refresh confirms the remote copy', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
