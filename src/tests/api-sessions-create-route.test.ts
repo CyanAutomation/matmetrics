@@ -12,6 +12,10 @@ import {
 } from '@/lib/file-storage';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = JSON.stringify({
+  owner: 'test-owner',
+  repo: 'test-repo',
+});
 
 async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   const dataDir = await mkdtemp(
@@ -107,7 +111,7 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
           effort: 3,
           category: 'Technical',
           techniques: [],
-          gitHubConfig: { owner: 'octocat', repo: 'hello-world' },
+          gitHubConfig: { owner: 'test-owner', repo: 'test-repo' },
         }),
       })
     );
@@ -128,12 +132,38 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
         category: 'Technical',
         techniques: [],
       },
-      config: { owner: 'octocat', repo: 'hello-world' },
+      config: { owner: 'test-owner', repo: 'test-repo' },
     });
   } finally {
     global.fetch = originalFetch;
     process.env.GITHUB_TOKEN = originalToken;
   }
+});
+
+test('POST returns 403 when request GitHub repo does not match user preferences', async () => {
+  const response = await POST(
+    new NextRequest('http://localhost/api/sessions/create', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: 'create-forbidden-repo',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: [],
+        gitHubConfig: { owner: 'another-owner', repo: 'another-repo' },
+      }),
+    })
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error:
+      'Forbidden: requested GitHub repository does not match your configured repository.',
+  });
 });
 
 test('POST returns 409 for duplicate session ID conflicts with different content', async () => {
@@ -226,7 +256,8 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
         category: 'Technical',
         techniques: ['osoto-gari'],
       },
-      error: 'Invalid id: contains invalid characters; only letters, digits, "-" and "_" are allowed',
+      error:
+        'Invalid id: contains invalid characters; only letters, digits, "-" and "_" are allowed',
     },
     {
       name: 'id exceeds max length',
