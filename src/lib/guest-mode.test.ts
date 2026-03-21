@@ -51,22 +51,6 @@ function assertSessionsSortedNewestFirst() {
   }
 }
 
-function getDemoCategoryCounts() {
-  return DEMO_SESSIONS.reduce<Record<string, number>>((counts, session) => {
-    counts[session.category] = (counts[session.category] || 0) + 1;
-    return counts;
-  }, {});
-}
-
-function getDemoTechniqueCounts() {
-  return DEMO_SESSIONS.reduce<Record<string, number>>((counts, session) => {
-    session.techniques.forEach((technique) => {
-      counts[technique] = (counts[technique] || 0) + 1;
-    });
-    return counts;
-  }, {});
-}
-
 test('guest workspace seeds demo data the first time guest mode initializes', () => {
   const localStorage = installBrowserStorage();
   setActiveUserId('guest');
@@ -84,17 +68,23 @@ test('guest workspace seeds demo data the first time guest mode initializes', ()
   localStorage.clear();
 });
 
-test('demo sessions are intentionally uneven enough to feel realistic', () => {
-  const categoryCounts = Object.values(getDemoCategoryCounts()).sort(
-    (left, right) => right - left
-  );
-  const techniqueCounts = Object.entries(getDemoTechniqueCounts()).sort(
-    (left, right) => right[1] - left[1]
-  );
+test('demo sessions fixture enforces stable product invariants', () => {
+  const allowedCategories = new Set(['Technical', 'Randori', 'Shiai']);
+  const allowedEffortLevels = new Set([1, 2, 3, 4, 5]);
 
-  assert.equal(categoryCounts[0] === categoryCounts[1], false);
-  assert.equal(techniqueCounts[0][1] > 1, true);
-  assert.equal(techniqueCounts[0][1] > techniqueCounts[4][1], true);
+  DEMO_SESSIONS.forEach((session) => {
+    assert.equal(typeof session.id, 'string');
+    assert.equal(session.id.length > 0, true);
+    assert.equal(typeof session.date, 'string');
+    assert.match(session.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(allowedCategories.has(session.category), true);
+    assert.equal(allowedEffortLevels.has(session.effort), true);
+    assert.equal(Array.isArray(session.techniques), true);
+    assert.equal(session.techniques.length > 0, true);
+  });
+
+  assert.equal(new Set(DEMO_SESSIONS.map((session) => session.id)).size, DEMO_SESSIONS.length);
+  assertSessionsSortedNewestFirst();
 });
 
 test('guest workspace becomes importable after local edits and can be dismissed', async () => {
