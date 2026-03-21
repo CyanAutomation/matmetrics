@@ -185,6 +185,61 @@ test('POST returns 409 for duplicate session ID conflicts with different content
 test('POST returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
+      name: 'id number',
+      body: {
+        id: 12345,
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a string',
+    },
+    {
+      name: 'id object',
+      body: {
+        id: { bad: true },
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a string',
+    },
+    {
+      name: 'id empty string',
+      body: {
+        id: '   ',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a non-empty string',
+    },
+    {
+      name: 'id with invalid characters',
+      body: {
+        id: 'session@invalid!',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: contains invalid characters; only letters, digits, "-" and "_" are allowed',
+    },
+    {
+      name: 'id exceeds max length',
+      body: {
+        id: 'a'.repeat(101),
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: exceeds maximum length of 100 characters',
+    },
+    {
       name: 'techniques element type',
       body: {
         id: 'create-invalid-techniques',

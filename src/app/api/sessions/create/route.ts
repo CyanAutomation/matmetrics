@@ -18,6 +18,8 @@ const CREATE_CONFLICT_SIGNATURES = [
 ];
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
+const SAFE_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MAX_SESSION_ID_LENGTH = 100;
 
 function validateDate(
   dateValue: unknown
@@ -125,6 +127,46 @@ function validateDuration(
   return { valid: true, duration: value as number };
 }
 
+function validateSessionId(
+  value: unknown
+): { valid: true; id: string } | { valid: false; error: string } {
+  if (value === undefined || value === null) {
+    return {
+      valid: true,
+      id: `session-${Date.now()}-${crypto.randomUUID()}`,
+    };
+  }
+
+  if (typeof value !== 'string') {
+    return { valid: false, error: 'Invalid id: expected a string' };
+  }
+
+  const trimmedId = value.trim();
+  if (!trimmedId) {
+    return {
+      valid: false,
+      error: 'Invalid id: expected a non-empty string',
+    };
+  }
+
+  if (trimmedId.length > MAX_SESSION_ID_LENGTH) {
+    return {
+      valid: false,
+      error: `Invalid id: exceeds maximum length of ${MAX_SESSION_ID_LENGTH} characters`,
+    };
+  }
+
+  if (!SAFE_SESSION_ID_PATTERN.test(trimmedId)) {
+    return {
+      valid: false,
+      error:
+        'Invalid id: contains invalid characters; only letters, digits, "-" and "_" are allowed',
+    };
+  }
+
+  return { valid: true, id: trimmedId };
+}
+
 /**
  * POST /api/sessions/create
  * Create a new session and save it as a markdown file
@@ -141,9 +183,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Generate ID if not provided (format: timestamp-based with cryptographically secure random suffix)
-    const id =
-      body.id || `session-${Date.now()}-${crypto.randomUUID()}`;
+    const idValidation = validateSessionId(body.id);
+    if (!idValidation.valid) {
+      return NextResponse.json({ error: idValidation.error }, { status: 400 });
+    }
+    const id = idValidation.id;
 
     // Validate required fields
     if (!body.date) {
