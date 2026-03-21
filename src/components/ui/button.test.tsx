@@ -23,11 +23,14 @@ test('button maps interaction props to data attributes and preserves accessibili
   assert.match(markup, /data-pulse="true"/);
 });
 
-test('button defaults to idle feedback and default interaction tone', () => {
+test('button public API defaults align with design-system/button expectations', () => {
   const markup = renderToStaticMarkup(<Button>Default</Button>);
 
+  // design-system/button expects a plain Button to render as a <button> with neutral, idle interaction state.
+  assert.match(markup, /^<button[^>]*>Default<\/button>$/);
   assert.match(markup, /data-feedback="idle"/);
   assert.match(markup, /data-interaction="default"/);
+  assert.doesNotMatch(markup, /data-pulse=/);
 });
 
 test('button forwards data attributes when rendered as child element', () => {
