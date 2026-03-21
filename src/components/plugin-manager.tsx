@@ -158,7 +158,11 @@ const parsePatchJson = (
   }
 };
 
-export function PluginManager() {
+type PluginManagerProps = {
+  onPluginsChanged?: () => void | Promise<void>;
+};
+
+export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { toast } = useToast();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
@@ -319,6 +323,11 @@ export function PluginManager() {
       }
 
       await refreshInstalledPlugins();
+      try {
+        await onPluginsChanged?.();
+      } catch (error) {
+        console.error('Plugin extension refresh callback failed', error);
+      }
 
       const latestVersion = toggleRequestVersionRef.current.get(pluginId);
       if (latestVersion !== requestVersion) {
