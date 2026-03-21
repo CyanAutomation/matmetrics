@@ -185,6 +185,39 @@ test('POST returns 409 for duplicate session ID conflicts with different content
 test('POST returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
+      name: 'id number',
+      body: {
+        id: 12345,
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a string',
+    },
+    {
+      name: 'id object',
+      body: {
+        id: { bad: true },
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a string',
+    },
+    {
+      name: 'id empty string',
+      body: {
+        id: '   ',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid id: expected a non-empty string',
+    },
+    {
       name: 'techniques element type',
       body: {
         id: 'create-invalid-techniques',
