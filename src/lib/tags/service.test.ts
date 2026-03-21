@@ -142,3 +142,39 @@ test('analysis APIs return accurate impact details for representative datasets',
 
   assert.equal(updates.length, 0);
 });
+
+test('rename stops on first failed session update and reports failed ids', async () => {
+  const sessions = [
+    makeSession('s1', ['armbar']),
+    makeSession('s2', ['armbar']),
+    makeSession('s3', ['armbar']),
+  ];
+  const attemptedUpdates: string[] = [];
+  const service = createTagService({
+    getSessions: () => sessions,
+    updateSession: async (session) => {
+      attemptedUpdates.push(session.id);
+      if (session.id === 's2') {
+        throw new Error('write failed');
+      }
+
+      const index = sessions.findIndex((item) => item.id === session.id);
+      sessions[index] = session;
+      return { status: 'synced' };
+    },
+  });
+
+  const result = await service.renameTag('armbar', 'juji-gatame');
+
+  assert.equal(result.affectedSessionCount, 3);
+  assert.equal(result.changedTagCount, 3);
+  assert.deepEqual(result.affectedSessionIds, ['s1', 's2', 's3']);
+  assert.deepEqual(result.failedSessionIds, ['s2']);
+  assert.equal(result.conflicts[0]?.code, 'session_update_failed');
+  assert.deepEqual(result.conflicts[0]?.failedSessionIds, ['s2']);
+  assert.deepEqual(attemptedUpdates, ['s1', 's2']);
+
+  assert.deepEqual(sessions[0].techniques, ['juji-gatame']);
+  assert.deepEqual(sessions[1].techniques, ['armbar']);
+  assert.deepEqual(sessions[2].techniques, ['armbar']);
+});
