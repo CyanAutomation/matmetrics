@@ -64,6 +64,7 @@ import {
 } from '@/lib/navigation/tab-definitions';
 import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
+import { loadDashboardTabExtensions } from '@/lib/plugins/load-dashboard-tab-extensions';
 
 const legacyPluginRegistryFallbackEnabled =
   process.env.NEXT_PUBLIC_ENABLE_LEGACY_PLUGIN_REGISTRY === 'true';
@@ -112,48 +113,18 @@ export default function Home() {
     setGuestWorkspace(getGuestWorkspaceSummary());
   }, []);
 
-  useEffect(() => {
-    if (legacyPluginRegistryFallbackEnabled) {
-      return;
-    }
+  const refreshPluginExtensions = useCallback(async () => {
+    const nextExtensions = await loadDashboardTabExtensions({
+      useLegacyRegistryFallback: legacyPluginRegistryFallbackEnabled,
+      fallbackLoader: loadEnabledDashboardTabExtensions,
+    });
 
-    let cancelled = false;
-
-    const loadDiscoveredPluginExtensions = async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
-        const response = await fetch('/api/plugins/discovered-dashboard-tabs', {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`Plugin discovery failed with status ${response.status}`);
-        }
-
-        const payload = (await response.json()) as {
-          extensions?: ResolvedDashboardTabExtension[];
-        };
-
-        if (!cancelled) {
-          setPluginExtensions(Array.isArray(payload.extensions) ? payload.extensions : []);
-        }
-      } catch (error) {
-        console.error('Unable to load discovered plugin manifests', error);
-        if (!cancelled) {
-          setPluginExtensions(loadEnabledDashboardTabExtensions());
-        }
-      }
-    };
-
-    void loadDiscoveredPluginExtensions();
-
-    return () => {
-      cancelled = true;
-    };
+    setPluginExtensions(nextExtensions);
   }, []);
+
+  useEffect(() => {
+    void refreshPluginExtensions();
+  }, [refreshPluginExtensions]);
 
   useEffect(() => {
     initializeStorage();
@@ -512,6 +483,7 @@ export default function Home() {
               {selectedTab?.render({
                 sessions,
                 refreshSessions,
+                refreshPluginExtensions,
               })}
             </div>
           </main>
