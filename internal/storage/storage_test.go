@@ -9,7 +9,7 @@ import (
 	"matmetrics/internal/model"
 )
 
-func TestGetSessionFilePathSanitizesID(t *testing.T) {
+func TestGetSessionFilePathEncodesID(t *testing.T) {
 	session := model.Session{
 		ID:         "a/b",
 		Date:       "2025-03-14",
@@ -23,9 +23,42 @@ func TestGetSessionFilePathSanitizesID(t *testing.T) {
 		t.Fatalf("GetSessionFilePath() error = %v", err)
 	}
 
-	want := filepath.Join("/tmp/data", "2025", "03", "20250314-matmetrics-a-b.md")
+	want := filepath.Join("/tmp/data", "2025", "03", "20250314-matmetrics-a%2Fb.md")
 	if got != want {
 		t.Fatalf("GetSessionFilePath() = %q, want %q", got, want)
+	}
+}
+
+func TestGetSessionFilePathKeepsSpecialCharacterIDsDistinct(t *testing.T) {
+	base := model.Session{
+		Date:       "2025-03-14",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{},
+	}
+
+	withSlash := base
+	withSlash.ID = "a/b"
+	withQuestion := base
+	withQuestion.ID = "a?b"
+	withSpace := base
+	withSpace.ID = "a b"
+
+	slashPath, err := GetSessionFilePath("/tmp/data", withSlash)
+	if err != nil {
+		t.Fatalf("GetSessionFilePath() slash error = %v", err)
+	}
+	questionPath, err := GetSessionFilePath("/tmp/data", withQuestion)
+	if err != nil {
+		t.Fatalf("GetSessionFilePath() question error = %v", err)
+	}
+	spacePath, err := GetSessionFilePath("/tmp/data", withSpace)
+	if err != nil {
+		t.Fatalf("GetSessionFilePath() space error = %v", err)
+	}
+
+	if slashPath == questionPath || slashPath == spacePath || questionPath == spacePath {
+		t.Fatalf("expected distinct paths, got slash=%q question=%q space=%q", slashPath, questionPath, spacePath)
 	}
 }
 
@@ -41,6 +74,17 @@ func TestEncodedSessionIDMatchesTypeScriptBehavior(t *testing.T) {
 
 	if a != "a%2Fb" || b != "a%3Fb" || a == b {
 		t.Fatalf("unexpected encoded values: %q %q", a, b)
+	}
+}
+
+func TestSessionIDPathSuffixCandidatesIncludesLegacySanitizedFallback(t *testing.T) {
+	candidates, err := SessionIDPathSuffixCandidates("a/b")
+	if err != nil {
+		t.Fatalf("SessionIDPathSuffixCandidates() error = %v", err)
+	}
+
+	if len(candidates) != 2 || candidates[0] != "a%2Fb" || candidates[1] != "a-b" {
+		t.Fatalf("unexpected candidates: %#v", candidates)
 	}
 }
 

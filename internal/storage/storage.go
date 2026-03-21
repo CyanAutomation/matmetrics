@@ -14,15 +14,17 @@ import (
 )
 
 func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
-	if len(session.ID) > 100 {
-		return "", fmt.Errorf("session ID exceeds maximum allowed length of 100 characters")
+	encodedID, err := EncodedSessionID(session.ID)
+	if err != nil {
+		return "", err
 	}
+
 	parts := strings.Split(session.Date, "-")
 	if len(parts) != 3 {
 		return "", fmt.Errorf("invalid session date %q", session.Date)
 	}
 
-	fileName := fmt.Sprintf("%s%s%s-matmetrics-%s.md", parts[0], parts[1], parts[2], sanitizeSessionID(session.ID))
+	fileName := fmt.Sprintf("%s%s%s-matmetrics-%s.md", parts[0], parts[1], parts[2], encodedID)
 	return filepath.Join(dataDir, parts[0], parts[1], fileName), nil
 }
 
@@ -43,6 +45,21 @@ func EncodedSessionID(sessionID string) (string, error) {
 		return "", fmt.Errorf("session ID exceeds maximum allowed length of 100 characters")
 	}
 	return url.PathEscape(sessionID), nil
+}
+
+func SessionIDPathSuffixCandidates(sessionID string) ([]string, error) {
+	encodedID, err := EncodedSessionID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates := []string{encodedID}
+	legacySanitizedID := sanitizeSessionID(sessionID)
+	if legacySanitizedID != encodedID {
+		candidates = append(candidates, legacySanitizedID)
+	}
+
+	return candidates, nil
 }
 
 func ListSessions(dataDir string) ([]model.Session, error) {
