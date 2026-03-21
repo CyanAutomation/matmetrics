@@ -219,6 +219,17 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid duration: expected a non-negative integer',
     },
     {
+      name: 'effort integer',
+      body: {
+        id: 'create-invalid-effort',
+        date: '2025-01-12',
+        effort: 3.5,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      },
+      error: 'Invalid effort level (must be an integer 1-5)',
+    },
+    {
       name: 'description type',
       body: {
         id: 'create-invalid-description',
