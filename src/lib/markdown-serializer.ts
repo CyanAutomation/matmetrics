@@ -71,6 +71,7 @@ export function sessionToMarkdown(session: JudoSession): string {
  */
 export function markdownToSession(markdown: string): JudoSession {
   const { data, content } = matter(markdown);
+  const normalizedContent = content.replace(/\r\n?/g, '\n');
 
   // Validate required fields from frontmatter
   if (!data.id || typeof data.id !== 'string') {
@@ -87,10 +88,10 @@ export function markdownToSession(markdown: string): JudoSession {
   }
 
   // Parse techniques from markdown content
-  const techniques = extractTechniques(content);
+  const techniques = extractTechniques(normalizedContent);
 
   // Parse description and notes from markdown content
-  const { description, notes } = extractContentSections(content);
+  const { description, notes } = extractContentSections(normalizedContent);
 
   const session: JudoSession = {
     id: data.id,
