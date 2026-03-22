@@ -5,6 +5,14 @@ import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 import { compareDateOnlyDesc } from './utils';
 
 let dataDir = path.join(process.cwd(), 'data');
+const SESSION_INDEX_DIR = '.index';
+const SESSION_INDEX_POLL_ATTEMPTS = 20;
+const SESSION_INDEX_POLL_DELAY_MS = 10;
+
+interface SessionIndexRecord {
+  id: string;
+  path: string;
+}
 
 function getDataDir(): string {
   return dataDir;
@@ -49,6 +57,90 @@ function ensurePathWithinDataDir(filePath: string): string {
 
   // Always return the normalized, validated path
   return resolved;
+}
+
+function getSessionIndexDirPath(): string {
+  return ensurePathWithinDataDir(path.join(getDataDir(), SESSION_INDEX_DIR));
+}
+
+function getSessionIndexFilePath(sessionId: string): string {
+  return ensurePathWithinDataDir(
+    path.join(getSessionIndexDirPath(), `${sanitizeSessionId(sessionId)}.json`)
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function readSessionIndex(
+  sessionId: string
+): Promise<SessionIndexRecord | null> {
+  const indexPath = getSessionIndexFilePath(sessionId);
+  try {
+    const raw = await fs.readFile(indexPath, 'utf-8');
+    const parsed = JSON.parse(raw) as Partial<SessionIndexRecord>;
+    if (
+      parsed &&
+      parsed.id === sessionId &&
+      typeof parsed.path === 'string' &&
+      parsed.path.length > 0
+    ) {
+      return {
+        id: parsed.id,
+        path: ensurePathWithinDataDir(parsed.path),
+      };
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`Failed to read session index for ${sessionId}`, error);
+    }
+  }
+  return null;
+}
+
+async function writeSessionIndex(
+  sessionId: string,
+  sessionPath: string,
+  flag: 'wx' | 'w'
+): Promise<void> {
+  const record: SessionIndexRecord = {
+    id: sessionId,
+    path: ensurePathWithinDataDir(sessionPath),
+  };
+  const indexPath = getSessionIndexFilePath(sessionId);
+  await fs.mkdir(path.dirname(indexPath), { recursive: true });
+  await fs.writeFile(indexPath, JSON.stringify(record), {
+    encoding: 'utf-8',
+    flag,
+  });
+}
+
+async function resolveIndexedSessionPath(sessionId: string): Promise<string | null> {
+  for (let attempt = 0; attempt < SESSION_INDEX_POLL_ATTEMPTS; attempt += 1) {
+    const indexed = await readSessionIndex(sessionId);
+    if (indexed) {
+      try {
+        await fs.access(indexed.path);
+        return indexed.path;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+
+    const discovered = await findSessionFileById(sessionId);
+    if (discovered) {
+      return discovered;
+    }
+
+    await sleep(SESSION_INDEX_POLL_DELAY_MS);
+  }
+
+  return null;
 }
 
 function validateAndNormalizeDate(date: string): string {
@@ -237,6 +329,7 @@ export async function createSession(session: JudoSession): Promise<string> {
     throw new Error('Session ID is required and must be a non-empty string');
   }
   const filePath = getSessionFilePath(normalizedDate, undefined, session.id);
+  const indexPath = getSessionIndexFilePath(session.id);
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
@@ -249,20 +342,22 @@ export async function createSession(session: JudoSession): Promise<string> {
     }
     return safeExistingPath;
   };
+  let hasIndexLock = false;
 
-  // Idempotency: if this ID already exists (canonical path or legacy location), return success.
   try {
-    await fs.access(filePath);
-    return await assertExistingSessionMatches(filePath);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw e;
+    await writeSessionIndex(session.id, filePath, 'wx');
+    hasIndexLock = true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
     }
-  }
-
-  const existingPath = await findSessionFileById(session.id);
-  if (existingPath) {
-    return await assertExistingSessionMatches(existingPath);
+    const indexedExistingPath = await resolveIndexedSessionPath(session.id);
+    if (!indexedExistingPath) {
+      throw new Error(
+        `Session ID ${session.id} is locked by another create operation but existing data could not be resolved`
+      );
+    }
+    return await assertExistingSessionMatches(indexedExistingPath);
   }
 
   try {
@@ -270,12 +365,11 @@ export async function createSession(session: JudoSession): Promise<string> {
       encoding: 'utf-8',
       flag: 'wx',
     });
+    await writeSessionIndex(session.id, filePath, 'w');
     return filePath;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
-      // Another request wrote this session ID concurrently. Only treat as idempotent
-      // success if the existing on-disk content exactly matches this write attempt.
-      const concurrentExistingPath = await findSessionFileById(session.id);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      const concurrentExistingPath = await resolveIndexedSessionPath(session.id);
       if (concurrentExistingPath) {
         return await assertExistingSessionMatches(concurrentExistingPath);
       }
@@ -283,7 +377,40 @@ export async function createSession(session: JudoSession): Promise<string> {
         `Session ID ${session.id} was created concurrently but could not be validated safely`
       );
     }
-    throw e;
+    throw error;
+  } finally {
+    if (hasIndexLock) {
+      try {
+        await fs.readFile(filePath, 'utf-8');
+        const verifyMarkdown = await fs.readFile(filePath, 'utf-8');
+        if (verifyMarkdown !== markdown) {
+          await fs.unlink(indexPath).catch(() => undefined);
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          await fs.unlink(indexPath).catch(() => undefined);
+        }
+      }
+    }
+  }
+}
+
+async function updateSessionIndexPath(id: string, sessionPath: string): Promise<void> {
+  try {
+    await writeSessionIndex(id, sessionPath, 'w');
+  } catch (error) {
+    console.warn(`Failed to update session index for ${id}`, error);
+  }
+}
+
+async function removeSessionIndex(id: string): Promise<void> {
+  const indexPath = getSessionIndexFilePath(id);
+  try {
+    await fs.unlink(indexPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
   }
 }
 
@@ -304,6 +431,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
 
   if (existingPath === nextPath) {
     await fs.writeFile(existingPath, markdown, 'utf-8');
+    await updateSessionIndexPath(session.id, existingPath);
     return existingPath;
   }
 
@@ -359,6 +487,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
           throw error;
         }
       }
+      await updateSessionIndexPath(session.id, nextPath);
     }
   } catch (error) {
     throw error;
@@ -380,6 +509,7 @@ export async function deleteSession(id: string): Promise<void> {
 
   ensurePathWithinDataDir(filePath);
   await fs.unlink(filePath);
+  await removeSessionIndex(id);
 }
 
 /**
