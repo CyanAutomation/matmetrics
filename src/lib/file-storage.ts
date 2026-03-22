@@ -490,6 +490,11 @@ export async function updateSession(session: JudoSession): Promise<string> {
           `Cannot move session ${session.id} to ${nextPath} because another session already exists there`
         );
       }
+      if (existingNextMarkdown !== markdown) {
+        await fs.writeFile(nextPath, markdown, {
+          encoding: 'utf-8',
+        });
+      }
       committedAtNextPath = true;
     }
 

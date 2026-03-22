@@ -195,7 +195,7 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
   });
 });
 
-test('updateSession treats interleaved write of the same session ID as idempotent and removes old path', async () => {
+test('updateSession overwrites an existing destination file when interleaved write has the same session ID with stale content', async () => {
   await withTempDataDir(async () => {
     const originalWriteFile = fs.writeFile;
     const session = makeSession();
@@ -221,7 +221,11 @@ test('updateSession treats interleaved write of the same session ID as idempoten
         typeof data === 'string'
       ) {
         injectedSameIdWrite = true;
-        await originalWriteFile.call(fs, nextPath, data, 'utf-8');
+        const staleSameIdMarkdown = data.replace(
+          'same-id interleaving should still succeed',
+          'stale destination content'
+        );
+        await originalWriteFile.call(fs, nextPath, staleSameIdMarkdown, 'utf-8');
       }
 
       return originalWriteFile.call(fs, ...args);
@@ -238,6 +242,8 @@ test('updateSession treats interleaved write of the same session ID as idempoten
     await assert.rejects(access(originalPath));
     const nextMarkdown = await readFile(nextPath, 'utf8');
     assert.match(nextMarkdown, /id: session-1/);
+    assert.match(nextMarkdown, /same-id interleaving should still succeed/);
+    assert.doesNotMatch(nextMarkdown, /stale destination content/);
   });
 });
 
