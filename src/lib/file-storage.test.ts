@@ -116,44 +116,126 @@ test('findSessionFileById locates a session even when the file path month no lon
   });
 });
 
-test('updateSession restores the original file when the destination rename fails after backup', async () => {
+test('updateSession rejects a conflicting interleaved write to nextPath and preserves the original file', async () => {
   await withTempDataDir(async () => {
-    const originalRename = fs.rename;
+    const originalWriteFile = fs.writeFile;
     const session = makeSession();
     const originalPath = await createSession(session);
     const nextSession = makeSession({
       date: '2025-02-12',
-      notes: 'should roll back cleanly',
+      notes: 'should fail due to interleaved conflict',
     });
     const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
-    let renameCount = 0;
+    const conflictingMarkdown = [
+      "---",
+      "id: 'session-other'",
+      "date: '2025-02-12'",
+      'effort: 2',
+      "category: 'Technical'",
+      'duration: 90',
+      '---',
+      '',
+      '# Conflicting Session',
+      '',
+      '## Techniques Practiced',
+      '',
+      '- Seoi nage',
+      '',
+      '## Session Description',
+      '',
+      'interleaving write',
+      '',
+      '## Notes',
+      '',
+      'conflict',
+      '',
+    ].join('\n');
+    let injectedConflict = false;
 
-    fs.rename = (async (from: string, to: string) => {
-      renameCount += 1;
-      if (renameCount === 2) {
-        throw new Error('simulated destination rename failure');
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPath, data, options] = args;
+      const targetPathString = targetPath.toString();
+      const flag =
+        typeof options === 'object' && options !== null && 'flag' in options
+          ? options.flag
+          : undefined;
+      if (
+        !injectedConflict &&
+        targetPathString === nextPath &&
+        flag === 'wx'
+      ) {
+        injectedConflict = true;
+        await originalWriteFile.call(fs, nextPath, conflictingMarkdown, 'utf-8');
       }
 
-      return originalRename.call(fs, from, to);
-    }) as typeof fs.rename;
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
 
     try {
       await assert.rejects(
         updateSession(nextSession),
-        /simulated destination rename failure/
+        /another session already exists there/
       );
     } finally {
-      fs.rename = originalRename;
+      fs.writeFile = originalWriteFile;
     }
 
+    assert.equal(injectedConflict, true);
     const originalMarkdown = await readFile(originalPath, 'utf8');
     assert.match(originalMarkdown, /date: '2025-01-10'/);
-    await assert.rejects(access(nextPath));
+    const conflictingAtNextPath = await readFile(nextPath, 'utf8');
+    assert.match(conflictingAtNextPath, /id: 'session-other'/);
     const januaryFiles = await readdir(path.dirname(originalPath));
     assert.equal(
       januaryFiles.filter((file) => file.includes('session-1')).length,
       1
     );
+  });
+});
+
+test('updateSession treats interleaved write of the same session ID as idempotent and removes old path', async () => {
+  await withTempDataDir(async () => {
+    const originalWriteFile = fs.writeFile;
+    const session = makeSession();
+    const originalPath = await createSession(session);
+    const nextSession = makeSession({
+      date: '2025-02-12',
+      notes: 'same-id interleaving should still succeed',
+    });
+    const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
+    let injectedSameIdWrite = false;
+
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPath, data, options] = args;
+      const targetPathString = targetPath.toString();
+      const flag =
+        typeof options === 'object' && options !== null && 'flag' in options
+          ? options.flag
+          : undefined;
+      if (
+        !injectedSameIdWrite &&
+        targetPathString === nextPath &&
+        flag === 'wx' &&
+        typeof data === 'string'
+      ) {
+        injectedSameIdWrite = true;
+        await originalWriteFile.call(fs, nextPath, data, 'utf-8');
+      }
+
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
+
+    try {
+      const updatedPath = await updateSession(nextSession);
+      assert.equal(updatedPath, nextPath);
+    } finally {
+      fs.writeFile = originalWriteFile;
+    }
+
+    assert.equal(injectedSameIdWrite, true);
+    await assert.rejects(access(originalPath));
+    const nextMarkdown = await readFile(nextPath, 'utf8');
+    assert.match(nextMarkdown, /id: session-1/);
   });
 });
 
