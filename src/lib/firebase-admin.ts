@@ -25,6 +25,28 @@ function logInvalidServiceAccount(message: string, error?: unknown): void {
   console.error(message, error);
 }
 
+function getNonEmptyString(
+  value: unknown,
+  fieldName: keyof ServiceAccountShape
+): string | null {
+  if (typeof value !== 'string') {
+    logInvalidServiceAccount(
+      `FIREBASE_SERVICE_ACCOUNT_KEY has a non-string ${fieldName} field.`
+    );
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    logInvalidServiceAccount(
+      `FIREBASE_SERVICE_ACCOUNT_KEY has an empty ${fieldName} field.`
+    );
+    return null;
+  }
+
+  return trimmed;
+}
+
 export function parseServiceAccountKey(
   raw: string | undefined
 ): ServiceAccountShape | null {
@@ -32,10 +54,10 @@ export function parseServiceAccountKey(
     return null;
   }
 
-  let parsed: Partial<ServiceAccountShape>;
+  let parsed: unknown;
 
   try {
-    parsed = JSON.parse(raw) as Partial<ServiceAccountShape>;
+    parsed = JSON.parse(raw);
   } catch (error) {
     logInvalidServiceAccount(
       'FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON.',
@@ -44,17 +66,26 @@ export function parseServiceAccountKey(
     return null;
   }
 
-  if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     logInvalidServiceAccount(
-      'FIREBASE_SERVICE_ACCOUNT_KEY is missing required service account fields.'
+      'FIREBASE_SERVICE_ACCOUNT_KEY must be a JSON object with required service account fields.'
     );
     return null;
   }
 
+  const shape = parsed as Partial<ServiceAccountShape>;
+  const project_id = getNonEmptyString(shape.project_id, 'project_id');
+  const client_email = getNonEmptyString(shape.client_email, 'client_email');
+  const private_key = getNonEmptyString(shape.private_key, 'private_key');
+
+  if (!project_id || !client_email || !private_key) {
+    return null;
+  }
+
   return {
-    project_id: parsed.project_id,
-    client_email: parsed.client_email,
-    private_key: parsed.private_key.replace(/\\n/g, '\n'),
+    project_id,
+    client_email,
+    private_key: private_key.replace(/\\n/g, '\n'),
   };
 }
 
