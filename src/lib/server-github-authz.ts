@@ -16,7 +16,7 @@ function readTestModeGitHubConfig(): GitHubConfig | undefined {
   const rawConfig = process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG;
   if (rawConfig) {
     try {
-      return normalizeGitHubConfig(JSON.parse(rawConfig)) ?? undefined;
+      return normalizeGitHubConfig(JSON.parse(rawConfig));
     } catch (error) {
       console.error('Invalid MATMETRICS_TEST_USER_GITHUB_CONFIG JSON', error);
       return undefined;
@@ -48,16 +48,16 @@ export async function getStoredGitHubConfigForUser(
   }
 
   const preferences = snapshot.data() as FirebasePreferences;
-  return normalizeGitHubConfig(preferences?.gitHub?.config) ?? undefined;
+  return normalizeGitHubConfig(preferences?.gitHub?.config);
 }
 
 /**
- * `requestedConfig` accepts `GitHubConfig`, `null`, or `undefined`.
- * Empty-state values (`null`/`undefined`) are treated as no requested repository.
+ * `requestedConfig` accepts `GitHubConfig` or `undefined`.
+ * Undefined is treated as no requested repository.
  */
 export async function resolveAuthorizedGitHubConfig(
   uid: string,
-  requestedConfig: GitHubConfig | null | undefined
+  requestedConfig: GitHubConfig | undefined
 ): Promise<{ config?: GitHubConfig; forbiddenResponse?: NextResponse }> {
   const storedConfig = await getStoredGitHubConfigForUser(uid);
 
