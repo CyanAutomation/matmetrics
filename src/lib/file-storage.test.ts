@@ -19,10 +19,12 @@ import {
   DuplicateSessionIdError,
   extractDateFromPath,
   hasAnySessions,
+  isSessionUpdateConflictError,
   findSessionFileById,
   getNextCounter,
   getSessionFilePath,
   listSessions,
+  SessionUpdateConflictError,
   updateSession,
 } from './file-storage';
 import type { JudoSession } from './types';
@@ -246,6 +248,63 @@ test('updateSession overwrites an existing destination file when interleaved wri
     assert.match(nextMarkdown, /id: session-1/);
     assert.match(nextMarkdown, /same-id interleaving should still succeed/);
     assert.doesNotMatch(nextMarkdown, /stale destination content/);
+  });
+});
+
+test('concurrent updateSession calls for the same file return a conflict for one caller', async () => {
+  await withTempDataDir(async () => {
+    const originalWriteFile = fs.writeFile;
+    let startedNestedUpdate = false;
+    const session = makeSession({
+      id: 'session-same-path-race',
+      date: '2025-01-10',
+      notes: 'baseline',
+    });
+    const sessionPath = await createSession(session);
+    const secondUpdate = makeSession({
+      id: session.id,
+      date: session.date,
+      notes: 'second-writer',
+    });
+
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPath, data] = args;
+      const targetPathString = targetPath.toString();
+      if (
+        !startedNestedUpdate &&
+        targetPathString.startsWith(`${sessionPath}.tmp-`) &&
+        typeof data === 'string' &&
+        data.includes('first-writer')
+      ) {
+        startedNestedUpdate = true;
+        await updateSession(secondUpdate);
+      }
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
+
+    try {
+      await assert.rejects(
+        updateSession(
+          makeSession({
+            id: session.id,
+            date: session.date,
+            notes: 'first-writer',
+          })
+        ),
+        (error: unknown) => {
+          assert.equal(error instanceof SessionUpdateConflictError, true);
+          assert.equal(isSessionUpdateConflictError(error), true);
+          return true;
+        }
+      );
+
+      assert.equal(startedNestedUpdate, true);
+      const markdown = await readFile(sessionPath, 'utf8');
+      assert.match(markdown, /second-writer/);
+      assert.doesNotMatch(markdown, /first-writer/);
+    } finally {
+      fs.writeFile = originalWriteFile;
+    }
   });
 });
 
