@@ -71,22 +71,26 @@ function makeGetRequest(id: string, query = '') {
 }
 
 test('GET returns 404 when session does not exist', async () => {
-  await withTempDataDir(async () => {
-    const response = await makeGetRequest('missing-session');
-    assert.equal(response.status, 404);
-    assert.deepEqual(await response.json(), { error: 'Session not found' });
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const response = await makeGetRequest('missing-session');
+      assert.equal(response.status, 404);
+      assert.deepEqual(await response.json(), { error: 'Session not found' });
+    });
   });
 });
 
 test('GET returns the local markdown session when present', async () => {
-  await withTempDataDir(async () => {
-    await createLocalSession(makeSession('target', '2025-01-10'));
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(makeSession('target', '2025-01-10'));
 
-    const response = await makeGetRequest('target');
-    assert.equal(response.status, 200);
+      const response = await makeGetRequest('target');
+      assert.equal(response.status, 200);
 
-    const payload = await response.json();
-    assert.deepEqual(payload, makeSession('target', '2025-01-10'));
+      const payload = await response.json();
+      assert.deepEqual(payload, makeSession('target', '2025-01-10'));
+    });
   });
 });
 
@@ -127,36 +131,48 @@ test('PUT updates local markdown storage when GitHub is not configured', async (
 });
 
 test('PUT returns 409 when local storage has duplicate files for the same session ID', async () => {
-  await withTempDataDir(async () => {
-    const sessionId = 'put-duplicate-id';
-    const originalPath = await createLocalSession(makeSession(sessionId, '2025-01-10'));
-    const duplicatePath = getSessionFilePath('2025-02-10', undefined, sessionId);
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-duplicate-id';
+      const originalPath = await createLocalSession(
+        makeSession(sessionId, '2025-01-10')
+      );
+      const duplicatePath = getSessionFilePath(
+        '2025-02-10',
+        undefined,
+        sessionId
+      );
 
-    await mkdir(path.dirname(duplicatePath), { recursive: true });
-    await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
+      await mkdir(path.dirname(duplicatePath), { recursive: true });
+      await writeFile(
+        duplicatePath,
+        await readFile(originalPath, 'utf-8'),
+        'utf-8'
+      );
 
-    const response = await PUT(
-      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: sessionId,
-          date: '2025-01-10',
-          effort: 4,
-          category: 'Technical',
-          techniques: ['uchi-mata'],
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['uchi-mata'],
+          }),
         }),
-      }),
-      { params: Promise.resolve({ id: sessionId }) }
-    );
+        { params: Promise.resolve({ id: sessionId }) }
+      );
 
-    assert.equal(response.status, 409);
-    assert.deepEqual(await response.json(), {
-      error:
-        'Session ID conflict: multiple session files share this ID. Resolve duplicates before updating.',
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), {
+        error:
+          'Session ID conflict: multiple session files share this ID. Resolve duplicates before updating.',
+      });
     });
   });
 });

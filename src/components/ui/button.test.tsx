@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+// @ts-expect-error Next bundles this parser without publishing type declarations.
 import { parse } from 'next/dist/compiled/node-html-parser';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -12,7 +13,9 @@ function renderElement(jsx: ReactElement) {
   const root =
     parsed.tagName
       ? parsed
-      : parsed.childNodes.find((node) => node.nodeType === 1);
+      : parsed.childNodes.find(
+          (node: { nodeType?: number }) => node.nodeType === 1
+        );
 
   assert.ok(root, 'expected a root element in rendered markup');
 
