@@ -4,46 +4,69 @@ import test from 'node:test';
 import { getRequiredCapabilityForExtension } from '@/lib/plugins/capabilities';
 import type { UIExtension } from '@/lib/plugins/types';
 
-test('returns required capability for known extension ids', () => {
-  assert.equal(
-    getRequiredCapabilityForExtension({
-      type: 'dashboard_tab',
-      id: 'dashboard-tab',
-      title: 'Dashboard',
-      config: {
-        tabId: 'tags',
-        headerTitle: 'Tag Manager',
-        component: 'tag_manager',
+test('returns required capability for extension types covered by policy', () => {
+  // Authoritative contract reference: docs/plugin-capability-policy.md
+  const cases: Array<{
+    name: string;
+    rationale: string;
+    extension: UIExtension;
+    expectedCapability: 'tag_mutation';
+  }> = [
+    {
+      name: 'dashboard_tab',
+      rationale:
+        'Dashboard tabs that render tag-manager UI can mutate tag data and must require tag_mutation.',
+      extension: {
+        type: 'dashboard_tab',
+        id: 'dashboard-tab',
+        title: 'Dashboard',
+        config: {
+          tabId: 'tags',
+          headerTitle: 'Tag Manager',
+          component: 'tag_manager',
+        },
       },
-    }),
-    'tag_mutation'
-  );
+      expectedCapability: 'tag_mutation',
+    },
+    {
+      name: 'session_action',
+      rationale:
+        'Session actions that trigger tag-session workflows can change session tags and must require tag_mutation.',
+      extension: {
+        type: 'session_action',
+        id: 'session-action',
+        title: 'Session Action',
+        config: {
+          actionId: 'tag-session',
+          component: 'session_tagger',
+        },
+      },
+      expectedCapability: 'tag_mutation',
+    },
+    {
+      name: 'settings_panel',
+      rationale:
+        'Settings panels that manage tag settings can update tag configuration and must require tag_mutation.',
+      extension: {
+        type: 'settings_panel',
+        id: 'settings-panel',
+        title: 'Settings',
+        config: {
+          section: 'tags',
+          component: 'tag_settings',
+        },
+      },
+      expectedCapability: 'tag_mutation',
+    },
+  ];
 
-  assert.equal(
-    getRequiredCapabilityForExtension({
-      type: 'session_action',
-      id: 'session-action',
-      title: 'Session Action',
-      config: {
-        actionId: 'tag-session',
-        component: 'session_tagger',
-      },
-    }),
-    'tag_mutation'
-  );
-
-  assert.equal(
-    getRequiredCapabilityForExtension({
-      type: 'settings_panel',
-      id: 'settings-panel',
-      title: 'Settings',
-      config: {
-        section: 'tags',
-        component: 'tag_settings',
-      },
-    }),
-    'tag_mutation'
-  );
+  cases.forEach(({ name, rationale, extension, expectedCapability }) => {
+    assert.equal(
+      getRequiredCapabilityForExtension(extension),
+      expectedCapability,
+      `Capability policy regression for ${name}: ${rationale}`
+    );
+  });
 });
 
 test('returns null for malformed extension config shape', () => {
