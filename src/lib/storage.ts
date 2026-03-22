@@ -151,11 +151,30 @@ const SYNC_LOCK_BACKOFF_MAX_MS = 16;
 class SyncRequestError extends Error {
   constructor(
     message: string,
-    public readonly retryable: boolean
+    public readonly retryable: boolean,
+    public readonly retryAfterMs: number | null = null
   ) {
     super(message);
     this.name = 'SyncRequestError';
   }
+}
+
+function parseRetryAfterMs(headerValue: string | null): number | null {
+  if (!headerValue) {
+    return null;
+  }
+
+  const seconds = Number(headerValue);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.floor(seconds * 1000);
+  }
+
+  const retryAt = Date.parse(headerValue);
+  if (Number.isNaN(retryAt)) {
+    return null;
+  }
+
+  return Math.max(0, retryAt - Date.now());
 }
 
 function nextMutationVersion(): number {
@@ -409,9 +428,16 @@ async function syncRequest(
     return response;
   }
 
+  const retryable =
+    response.status === 408 ||
+    response.status === 429 ||
+    response.status >= 500;
+  const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
+
   throw new SyncRequestError(
     `Request failed with status ${response.status}`,
-    response.status >= 500
+    retryable,
+    retryAfterMs
   );
 }
 
@@ -1121,6 +1147,16 @@ const heartbeatIntervalMs = Math.max(
             setQueue(remainingOperations, queue);
             await reconcilePermanentFailure();
             return;
+          }
+
+          if (
+            error instanceof SyncRequestError &&
+            error.retryAfterMs !== null &&
+            error.retryAfterMs > 0
+          ) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, error.retryAfterMs)
+            );
           }
 
           // Stop syncing on first error; retries must include the failed operation to avoid data loss.
