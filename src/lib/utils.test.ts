@@ -69,13 +69,11 @@ test('formatLocalDateInputValue remains stable across timezone-offset transition
     const dayPart = transitionDay.getDate();
 
     for (const dayDelta of [-1, 0, 1]) {
-      const normalizedDate = new Date(Date.UTC(yearPart, monthPart, dayPart + dayDelta));
-      const expected = `${normalizedDate.getUTCFullYear()}-${String(
-        normalizedDate.getUTCMonth() + 1
-      ).padStart(2, '0')}-${String(normalizedDate.getUTCDate()).padStart(2, '0')}`;
-      const formatted = formatLocalDateInputValue(
-        new Date(yearPart, monthPart, dayPart + dayDelta, 12, 0, 0)
-      );
+      const testDate = new Date(yearPart, monthPart, dayPart + dayDelta, 12, 0, 0);
+      const expected = `${testDate.getFullYear()}-${String(
+        testDate.getMonth() + 1
+      ).padStart(2, '0')}-${String(testDate.getDate()).padStart(2, '0')}`;
+      const formatted = formatLocalDateInputValue(testDate);
 
       assert.equal(formatted, expected);
     }
