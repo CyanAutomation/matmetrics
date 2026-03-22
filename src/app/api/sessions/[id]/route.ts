@@ -13,6 +13,7 @@ import {
   proxyGoFunction,
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
+import { isDuplicateSessionIdError } from '@/lib/file-storage';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 
@@ -324,6 +325,15 @@ export async function PUT(
     if (isSessionNotFoundError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+    if (isDuplicateSessionIdError(error)) {
+      return NextResponse.json(
+        {
+          error:
+            'Session ID conflict: multiple session files share this ID. Resolve duplicates before updating.',
+        },
+        { status: 409 }
+      );
+    }
 
     console.error('Error updating session', error);
     return NextResponse.json(
@@ -374,6 +384,15 @@ export async function DELETE(
   } catch (error) {
     if (isSessionNotFoundError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+    if (isDuplicateSessionIdError(error)) {
+      return NextResponse.json(
+        {
+          error:
+            'Session ID conflict: multiple session files share this ID. Resolve duplicates before deleting.',
+        },
+        { status: 409 }
+      );
     }
 
     console.error('Error deleting session', error);

@@ -15,6 +15,8 @@ import {
   __resetDataDirForTests,
   __setDataDirForTests,
   createSession,
+  deleteSession,
+  DuplicateSessionIdError,
   extractDateFromPath,
   hasAnySessions,
   findSessionFileById,
@@ -288,6 +290,69 @@ test('createSession rejects same-ID concurrent creates across different dates an
     const storedMarkdown = await readFile(winningPath, 'utf8');
     assert.match(storedMarkdown, /id: session-concurrent/);
     assert.match(storedMarkdown, /date: '(2025-01-10|2025-02-11)'/);
+  });
+});
+
+test('findSessionFileById throws DuplicateSessionIdError when multiple files share an ID', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-duplicate',
+      date: '2025-01-10',
+    });
+    const canonicalPath = await createSession(session);
+    const duplicatePath = getSessionFilePath(
+      '2025-02-10',
+      undefined,
+      session.id
+    );
+
+    await fs.mkdir(path.dirname(duplicatePath), { recursive: true });
+    await fs.writeFile(
+      duplicatePath,
+      await readFile(canonicalPath, 'utf8'),
+      'utf-8'
+    );
+
+    await assert.rejects(
+      findSessionFileById(session.id),
+      (error: unknown) => {
+        assert.equal(error instanceof DuplicateSessionIdError, true);
+        if (!(error instanceof DuplicateSessionIdError)) {
+          return false;
+        }
+        assert.equal(error.sessionId, session.id);
+        assert.deepEqual(error.paths, [canonicalPath, duplicatePath].sort());
+        return true;
+      }
+    );
+  });
+});
+
+test('updateSession and deleteSession throw DuplicateSessionIdError when session ID is duplicated', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-duplicate-callers',
+      date: '2025-01-10',
+    });
+    const canonicalPath = await createSession(session);
+    const duplicatePath = getSessionFilePath(
+      '2025-02-10',
+      undefined,
+      session.id
+    );
+
+    await fs.mkdir(path.dirname(duplicatePath), { recursive: true });
+    await fs.writeFile(
+      duplicatePath,
+      await readFile(canonicalPath, 'utf8'),
+      'utf-8'
+    );
+
+    await assert.rejects(
+      updateSession({ ...session, notes: 'should fail on duplicate id' }),
+      DuplicateSessionIdError
+    );
+    await assert.rejects(deleteSession(session.id), DuplicateSessionIdError);
   });
 });
 
