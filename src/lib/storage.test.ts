@@ -51,9 +51,34 @@ class LocalStorageMock implements Storage {
   }
 }
 
-function installBrowserEnv() {
+class LockManagerMock {
+  private held = false;
+
+  async request(
+    _name: string,
+    options: { ifAvailable?: boolean },
+    callback: (lock: { name: string } | null) => Promise<void>
+  ): Promise<void> {
+    if (this.held) {
+      if (options.ifAvailable) {
+        await callback(null);
+        return;
+      }
+      throw new Error(
+        'Lock contention without ifAvailable is unsupported in test'
+      );
+    }
+
+    this.held = true;
+    await callback({ name: 'matmetrics-sync' });
+    this.held = false;
+  }
+}
+
+function installBrowserEnv(options: { withLocks?: boolean } = {}) {
   const windowTarget = new EventTarget();
   const localStorage = new LocalStorageMock();
+  const lockManager = new LockManagerMock();
   const windowLike = Object.assign(windowTarget, {
     localStorage,
     location: { origin: 'http://localhost' },
@@ -69,10 +94,12 @@ function installBrowserEnv() {
   });
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
-    value: { onLine: true },
+    value: options.withLocks
+      ? { onLine: true, locks: lockManager }
+      : { onLine: true },
   });
 
-  return { localStorage };
+  return { localStorage, lockManager };
 }
 
 function makeSession(id: string): JudoSession {
@@ -534,6 +561,7 @@ test('sync lease prevents replay when another tab already owns the queue flush',
       owner: 'other-tab',
       expiresAt: Date.now() + 60_000,
       nonce: 'other-nonce',
+      epoch: 1,
     })
   );
 
@@ -562,6 +590,10 @@ test('sync lease acquisition retries when competing lease expires during backoff
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: true },
+  });
 
   const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
 
@@ -571,6 +603,7 @@ test('sync lease acquisition retries when competing lease expires during backoff
       owner: 'other-tab',
       expiresAt: Date.now() + 1,
       nonce: 'other-nonce',
+      epoch: 1,
     })
   );
 
@@ -628,6 +661,7 @@ test('stale sync lease owner cannot renew after another owner acquires lease', a
         owner: 'other-tab',
         expiresAt: Date.now() + 60_000,
         nonce: 'other-nonce',
+        epoch: 99,
       })
     );
 
@@ -680,6 +714,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
           owner: 'other-tab',
           expiresAt: Date.now() + 60_000,
           nonce: 'other-nonce',
+          epoch: 2,
         })
       );
     }
@@ -769,6 +804,10 @@ test('compare-and-verify lease acquisition retries under interleaving writes', a
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: true },
+  });
 
   const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -787,6 +826,7 @@ test('compare-and-verify lease acquisition retries under interleaving writes', a
         owner: 'other-tab',
         expiresAt: Date.now() - 1,
         nonce: 'interleaving-write',
+        epoch: 1,
       })
     );
   };
@@ -806,6 +846,39 @@ test('compare-and-verify lease acquisition retries under interleaving writes', a
   }
 });
 
+test('only one contender acquires web lock when racing simultaneously', async () => {
+  const { lockManager } = installBrowserEnv({ withLocks: true });
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const primaryAttempt = __tryAcquireSyncLeaseForTests();
+  const competingAttempt = (async (): Promise<boolean> => {
+    let acquired = false;
+    await lockManager.request(
+      'matmetrics-sync',
+      { ifAvailable: true },
+      async (lock) => {
+        acquired = Boolean(lock);
+        await delay(0);
+      }
+    );
+    return acquired;
+  })();
+
+  try {
+    const [primaryAcquired, competingAcquired] = await Promise.all([
+      primaryAttempt,
+      competingAttempt,
+    ]);
+
+    assert.equal(primaryAcquired || competingAcquired, true);
+    assert.equal(primaryAcquired && competingAcquired, false);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
 test('clearAllData clears scoped sync queue and lock keys and emits storage sync event', () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
@@ -819,6 +892,7 @@ test('clearAllData clears scoped sync queue and lock keys and emits storage sync
       owner: 'tab-1',
       expiresAt: Date.now() + 60_000,
       nonce: 'tab-1-nonce',
+      epoch: 1,
     })
   );
 
