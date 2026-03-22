@@ -12,6 +12,8 @@
     --popover-foreground: 216 50% 10%;
     --primary: 216 66% 48%;
     --primary-foreground: 0 0% 100%;
+    --primary-container: 206 76% 62%;
+    --primary-container-foreground: 216 50% 10%;
     --secondary: 200 15% 90%;
     --secondary-foreground: 216 66% 48%;
     --muted: 200 10% 88%;
@@ -53,6 +55,8 @@
     --popover-foreground: 210 40% 98%;
     --primary: 216 66% 55%;
     --primary-foreground: 210 40% 98%;
+    --primary-container: 208 72% 45%;
+    --primary-container-foreground: 210 40% 98%;
     --secondary: 216 30% 15%;
     --secondary-foreground: 210 40% 98%;
     --muted: 216 30% 15%;
@@ -79,8 +83,9 @@
 @layer base {
   body {
     @apply bg-background text-foreground font-body;
-    font-family: var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue',
-      Helvetica, Arial, sans-serif;
+    font-family:
+      var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica,
+      Arial, sans-serif;
   }
   h1,
   h2,
@@ -89,8 +94,9 @@
   h5,
   h6 {
     @apply font-headline font-bold tracking-tight;
-    font-family: var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue',
-      Helvetica, Arial, sans-serif;
+    font-family:
+      var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica,
+      Arial, sans-serif;
   }
 }
 
@@ -152,13 +158,17 @@
 
   .ui-button:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px -14px hsl(var(--foreground) / 0.35);
+    box-shadow:
+      0 10px 20px -16px hsl(var(--foreground) / 0.22),
+      0 0 0 1px hsl(var(--primary) / 0.08);
   }
 
   .ui-button:active:not(:disabled),
   .ui-button[data-feedback='loading']:not(:disabled) {
     transform: translateY(1px) scale(0.985);
-    box-shadow: 0 4px 10px -8px hsl(var(--foreground) / 0.3);
+    box-shadow:
+      0 6px 14px -14px hsl(var(--foreground) / 0.2),
+      0 0 0 1px hsl(var(--primary) / 0.06);
   }
 
   .ui-button[data-interaction='primary-action']:not(:disabled) {
