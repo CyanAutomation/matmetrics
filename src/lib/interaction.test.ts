@@ -119,7 +119,8 @@ test('error reset is scheduled later than success reset', () => {
 
   controller.reset();
   controller.showError();
-  const [, errorDueAt] = scheduler.getScheduledDelays();
+  const scheduledDelays = scheduler.getScheduledDelays();
+  const errorDueAt = scheduledDelays[scheduledDelays.length - 1];
 
   assert.ok(errorDueAt > successDueAt);
   assert.deepEqual(states, ['success', 'idle', 'error']);
