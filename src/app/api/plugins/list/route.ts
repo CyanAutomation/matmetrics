@@ -15,9 +15,17 @@ export async function GET(request: NextRequest) {
     }
 
     const manifests = await listStoredPluginManifests();
+    const pluginRows = manifests.map((entry) => {
+      const validation = toValidationTable(entry.manifest);
+      return {
+        manifest: entry.manifest,
+        validation,
+      };
+    });
+
     return NextResponse.json(
       {
-        plugins: manifests.map((entry) => entry.manifest),
+        plugins: pluginRows,
         ...createContractPayload({
           fileTreeDiffSummary: {
             mode: 'dry-run',
@@ -27,10 +35,8 @@ export async function GET(request: NextRequest) {
             })),
           },
           validationTable: {
-            isValid: manifests.every(
-              (entry) => toValidationTable(entry.manifest).isValid
-            ),
-            rows: manifests.flatMap((entry) => toValidationTable(entry.manifest).rows),
+            isValid: pluginRows.every((entry) => entry.validation.isValid),
+            rows: pluginRows.flatMap((entry) => entry.validation.rows),
           },
           assumptions: ['Local plugin manifests are sourced from plugins/*/plugin.json.'],
         }),
