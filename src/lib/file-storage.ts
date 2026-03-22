@@ -103,8 +103,10 @@ export function getSessionFilePath(
  * Reverse of getSessionFilePath
  */
 export function extractDateFromPath(filePath: string): string | null {
+  const normalizedPath = filePath.replace(/\\/g, '/');
   const [, year, month, dayMatch] =
-    filePath.match(/(\d{4})\/(\d{2})\/(\d{8})/) || [];
+    normalizedPath.match(/(?:^|\/)(\d{4})\/(\d{2})\/(\d{8})(?=[^0-9]|$)/) ||
+    [];
   if (!dayMatch) return null;
   const day = dayMatch.slice(6, 8);
   return `${year}-${month}-${day}`;
