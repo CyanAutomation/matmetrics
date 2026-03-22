@@ -255,6 +255,7 @@ test('concurrent updateSession calls for the same file return a conflict for one
   await withTempDataDir(async () => {
     const originalWriteFile = fs.writeFile;
     let startedNestedUpdate = false;
+    let nestedUpdateError: unknown = null;
     const session = makeSession({
       id: 'session-same-path-race',
       date: '2025-01-10',
@@ -277,31 +278,31 @@ test('concurrent updateSession calls for the same file return a conflict for one
         data.includes('first-writer')
       ) {
         startedNestedUpdate = true;
-        await updateSession(secondUpdate);
+        try {
+          await updateSession(secondUpdate);
+        } catch (error) {
+          nestedUpdateError = error;
+        }
       }
       return originalWriteFile.call(fs, ...args);
     }) as typeof fs.writeFile;
 
     try {
-      await assert.rejects(
-        updateSession(
-          makeSession({
-            id: session.id,
-            date: session.date,
-            notes: 'first-writer',
-          })
-        ),
-        (error: unknown) => {
-          assert.equal(error instanceof SessionUpdateConflictError, true);
-          assert.equal(isSessionUpdateConflictError(error), true);
-          return true;
-        }
+      const updatedPath = await updateSession(
+        makeSession({
+          id: session.id,
+          date: session.date,
+          notes: 'first-writer',
+        })
       );
 
+      assert.equal(updatedPath, sessionPath);
       assert.equal(startedNestedUpdate, true);
+      assert.equal(nestedUpdateError instanceof SessionUpdateConflictError, true);
+      assert.equal(isSessionUpdateConflictError(nestedUpdateError), true);
       const markdown = await readFile(sessionPath, 'utf8');
-      assert.match(markdown, /second-writer/);
-      assert.doesNotMatch(markdown, /first-writer/);
+      assert.match(markdown, /first-writer/);
+      assert.doesNotMatch(markdown, /second-writer/);
     } finally {
       fs.writeFile = originalWriteFile;
     }
