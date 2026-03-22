@@ -516,10 +516,11 @@ export async function saveSession(
         headers,
         body: JSON.stringify(requestBody),
       });
+      clearDirtyMutation(session.id, version);
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'CREATE', session }),
+        () => queueOperation({ type: 'CREATE', session, queuedAt: version }),
         session.id,
         version
       );
@@ -530,7 +531,7 @@ export async function saveSession(
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'CREATE', session });
+  queueOperation({ type: 'CREATE', session, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -580,10 +581,11 @@ export async function updateSession(
         headers,
         body: JSON.stringify(requestBody),
       });
+      clearDirtyMutation(session.id, version);
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'UPDATE', session }),
+        () => queueOperation({ type: 'UPDATE', session, queuedAt: version }),
         session.id,
         version
       );
@@ -594,7 +596,7 @@ export async function updateSession(
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'UPDATE', session });
+  queueOperation({ type: 'UPDATE', session, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -635,10 +637,11 @@ export async function deleteSession(id: string): Promise<MutationResult> {
             ? JSON.stringify(requestBody)
             : undefined,
       });
+      clearDirtyMutation(id, version);
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'DELETE', id }),
+        () => queueOperation({ type: 'DELETE', id, queuedAt: version }),
         id,
         version
       );
@@ -649,7 +652,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'DELETE', id });
+  queueOperation({ type: 'DELETE', id, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -999,6 +1002,7 @@ async function syncPendingOperations(): Promise<void> {
                 headers: createHeaders,
                 body: JSON.stringify(createBody),
               });
+              clearDirtyMutation(operation.session.id, operation.queuedAt);
               break;
 
             case 'UPDATE':
@@ -1014,6 +1018,7 @@ async function syncPendingOperations(): Promise<void> {
                 headers: updateHeaders,
                 body: JSON.stringify(updateBody),
               });
+              clearDirtyMutation(operation.session.id, operation.queuedAt);
               break;
 
             case 'DELETE':
@@ -1032,15 +1037,14 @@ async function syncPendingOperations(): Promise<void> {
                     ? JSON.stringify(deleteBody)
                     : undefined,
               });
+              clearDirtyMutation(operation.id, operation.queuedAt);
               break;
           }
         } catch (error) {
           console.error('Error syncing operation', error);
           if (error instanceof SyncRequestError && !error.retryable) {
             clearDirtyMutation(
-              operation.type === 'DELETE'
-                ? operation.id
-                : operation.session.id,
+              operation.type === 'DELETE' ? operation.id : operation.session.id,
               operation.queuedAt
             );
             const remainingOperations = queue.filter(
