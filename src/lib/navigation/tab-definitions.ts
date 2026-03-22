@@ -82,8 +82,8 @@ const pluginManagerFeatureFlagEnabled =
 export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.pluginManager,
-    title: 'Plugin Manager',
-    headerTitle: 'Plugin Manager',
+    title: 'Plugins',
+    headerTitle: 'Plugins',
     icon: Puzzle,
     section: 'core',
     render: ({ refreshPluginExtensions }) =>
