@@ -34,7 +34,9 @@ const baseManifest = {
 };
 
 async function withTempRepo(run: (repoRoot: string) => Promise<void>) {
-  const repoRoot = await mkdtemp(path.join(tmpdir(), 'matmetrics-plugin-route-'));
+  const repoRoot = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-plugin-route-')
+  );
   const previousCwd = process.cwd();
 
   try {

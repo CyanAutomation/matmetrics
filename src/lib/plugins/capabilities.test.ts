@@ -102,7 +102,10 @@ test('returns null for malformed extension config shape', () => {
 
   assert.equal(getRequiredCapabilityForExtension(malformedDashboard), null);
   assert.equal(getRequiredCapabilityForExtension(malformedSessionAction), null);
-  assert.equal(getRequiredCapabilityForExtension(missingSettingsComponent), null);
+  assert.equal(
+    getRequiredCapabilityForExtension(missingSettingsComponent),
+    null
+  );
 });
 
 test('returns null for unknown ids and unknown extension types', () => {

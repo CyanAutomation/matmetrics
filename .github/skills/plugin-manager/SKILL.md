@@ -10,6 +10,7 @@ Purpose: provide a consistent, safe workflow for creating, updating, listing, an
 ## Trigger Rules
 
 Use this skill when the user asks to:
+
 - create a new plugin scaffold or plugin manifest
 - update an existing plugin definition, metadata, or compatibility fields
 - list installed/available plugins or summarize plugin status
@@ -20,6 +21,7 @@ Do not use this skill for unrelated package management tasks unless the user exp
 ## Inputs to Collect
 
 Collect these inputs before execution:
+
 - action: `create` | `update` | `list` | `validate`
 - plugin identifier (slug/name)
 - target plugin path or root directory
@@ -27,12 +29,14 @@ Collect these inputs before execution:
 - requested output detail level (brief table vs. full report)
 
 Action-specific inputs:
+
 - create: initial fields, template choice, optional defaults
 - update: fields to change, merge strategy, compatibility constraints
 - list: filtering/sorting criteria
 - validate: validation scope (single plugin vs. all plugins)
 
 Fallback when inputs are incomplete:
+
 1. infer safe defaults from existing plugin files and repository conventions;
 2. clearly state the assumptions made;
 3. continue with a non-destructive dry-run style result when uncertainty remains;
@@ -108,7 +112,6 @@ Use this concrete schema contract when creating or validating plugin manifests.
 - `settings`, when present, must be a JSON object (not array/string/number).
 - Empty arrays are not allowed for `uiExtensions`.
 
-
 ## UI Extension Types
 
 Support the following `uiExtensions[].type` values by default.
@@ -116,10 +119,12 @@ Support the following `uiExtensions[].type` values by default.
 ### `dashboard_tab`
 
 Required config keys:
+
 - `tabId` (string)
 - `route` (string)
 
 Optional config keys:
+
 - `icon` (string)
 - `order` (number)
 
@@ -142,10 +147,12 @@ Example:
 ### `menu_item`
 
 Required config keys:
+
 - `label` (string)
 - `route` (string)
 
 Optional config keys:
+
 - `icon` (string)
 - `group` (string)
 - `order` (number)
@@ -170,10 +177,12 @@ Example:
 ### `session_action`
 
 Required config keys:
+
 - `actionId` (string)
 - `label` (string)
 
 Optional config keys:
+
 - `confirm` (boolean)
 - `requiresRole` (string)
 - `icon` (string)
@@ -198,10 +207,12 @@ Example:
 ### `settings_panel`
 
 Required config keys:
+
 - `panelId` (string)
 - `title` (string)
 
 Optional config keys:
+
 - `description` (string)
 - `order` (number)
 
@@ -222,6 +233,7 @@ Example:
 ```
 
 Validation rule for unknown types:
+
 - Unknown `uiExtensions[].type` values must be reported as **warnings** by default.
 - Only treat unknown types as allowed without warnings when the user explicitly opts into experimental mode.
 
@@ -233,6 +245,7 @@ Validation rule for unknown types:
 ### Validation behavior
 
 Validation should report:
+
 - missing required fields;
 - type mismatches (field value does not match expected type);
 - duplicate `uiExtensions[].id` values within a manifest;
@@ -314,6 +327,7 @@ Error messages should be actionable and include the JSON path (for example `uiEx
 ```
 
 Expected validation errors (example):
+
 - `version`: expected SemVer-like `x.y.z`, got `"v1.2"`.
 - `description`: expected string, got number.
 - `enabled`: expected boolean, got string.
@@ -408,6 +422,7 @@ Use this deterministic process whenever the action is `update`.
 ## Output Contract
 
 Return all of the following in the final response:
+
 1. **File tree diff summary**
    - created/modified/deleted files (with concise per-file notes)
 2. **Validation table**
@@ -416,6 +431,7 @@ Return all of the following in the final response:
    - short, prioritized follow-ups (for example: run full validation, add tests, confirm assumptions)
 
 Formatting requirements:
+
 - keep sections in the order above;
 - use explicit status labels (`pass`, `warn`, `fail`);
 - include assumption notes whenever defaults were inferred.

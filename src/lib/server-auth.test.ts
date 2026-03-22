@@ -51,9 +51,15 @@ test('requireAuthenticatedUser rejects malformed authorization headers', async (
       })
     );
 
-    assert.equal('status' in result, true, `${authorization} should be rejected`);
+    assert.equal(
+      'status' in result,
+      true,
+      `${authorization} should be rejected`
+    );
     if (!('status' in result)) {
-      assert.fail(`Expected NextResponse for malformed header: ${authorization}`);
+      assert.fail(
+        `Expected NextResponse for malformed header: ${authorization}`
+      );
     }
 
     assert.equal(result.status, 401);

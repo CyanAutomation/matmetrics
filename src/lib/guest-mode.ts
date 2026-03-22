@@ -25,7 +25,9 @@ type GuestWorkspaceMeta = {
 };
 
 function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    ''
+  );
 }
 
 function getDismissSalt(): string {
@@ -172,7 +174,9 @@ export function getGuestWorkspaceSummary(): {
   };
 }
 
-export async function shouldPromptGuestImport(userId: string): Promise<boolean> {
+export async function shouldPromptGuestImport(
+  userId: string
+): Promise<boolean> {
   const meta = readGuestWorkspaceMeta();
   if (meta.source !== 'custom') {
     return false;

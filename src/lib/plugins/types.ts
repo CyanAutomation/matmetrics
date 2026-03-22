@@ -77,6 +77,7 @@ export type PluginManifest = {
   homepage?: string;
   settings?: Record<string, unknown>;
   enabled: boolean;
+  minVersion?: string;
   uiExtensions: UIExtension[];
 };
 

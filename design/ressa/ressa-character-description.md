@@ -2,29 +2,29 @@
 
 ## Basic Info
 
-| Field | Value |
-| --- | --- |
-| Name | Ressa Kuzushi |
-| Species | Red panda |
-| Role | Judo training coach / tracker mascot |
-| Personality | Calm, encouraging, analytical |
-| Style | Chibi / sticker / vector mascot |
-| Outfit | White judogi, black belt |
-| Theme | Training, progress, balance, improvement |
-| App role | Guides user through training sessions and stats |
+| Field       | Value                                           |
+| ----------- | ----------------------------------------------- |
+| Name        | Ressa Kuzushi                                   |
+| Species     | Red panda                                       |
+| Role        | Judo training coach / tracker mascot            |
+| Personality | Calm, encouraging, analytical                   |
+| Style       | Chibi / sticker / vector mascot                 |
+| Outfit      | White judogi, black belt                        |
+| Theme       | Training, progress, balance, improvement        |
+| App role    | Guides user through training sessions and stats |
 
 ---
 
 ## Personality Profile
 
-| Trait | Description |
-| --- | --- |
-| Encouraging | Always motivates the user |
-| Calm | Never angry, never harsh |
-| Technical | Likes stats, charts, metrics |
-| Disciplined | Represents regular training |
-| Friendly | Cute but not childish |
-| Sensei-like | Gives advice |
+| Trait       | Description                  |
+| ----------- | ---------------------------- |
+| Encouraging | Always motivates the user    |
+| Calm        | Never angry, never harsh     |
+| Technical   | Likes stats, charts, metrics |
+| Disciplined | Represents regular training  |
+| Friendly    | Cute but not childish        |
+| Sensei-like | Gives advice                 |
 
 ### Character voice style
 
@@ -55,15 +55,15 @@
 
 ### Colours
 
-| Part | Colour |
-| --- | --- |
-| Fur | orange-red |
-| Face mask | cream / white |
-| Tail rings | orange + cream |
-| Legs | dark brown / black |
-| Gi | white |
-| Belt | black |
-| Outline | dark brown / black |
+| Part       | Colour             |
+| ---------- | ------------------ |
+| Fur        | orange-red         |
+| Face mask  | cream / white      |
+| Tail rings | orange + cream     |
+| Legs       | dark brown / black |
+| Gi         | white              |
+| Belt       | black              |
+| Outline    | dark brown / black |
 
 ### Style
 
@@ -98,18 +98,18 @@ Ressa Kuzushi standing in judogi
 
 We should define a standard set.
 
-| Pose | Description |
-| --- | --- |
-| Idle | Neutral standing pose |
-| Happy Session | Thumbs up / smile |
-| Tough Session | Sweat / tired / determined |
-| Stats Mode | Holding tablet / chart |
-| Coach Tip | Finger raised |
-| Streak | Fire icon / excited |
-| Rest Day | Sitting / tea / relaxed |
-| Injury / Bad Day | Bandage / concerned |
-| Level Up | Sparkles / belt / star |
-| Competition Mode | Serious face / stance |
+| Pose             | Description                |
+| ---------------- | -------------------------- |
+| Idle             | Neutral standing pose      |
+| Happy Session    | Thumbs up / smile          |
+| Tough Session    | Sweat / tired / determined |
+| Stats Mode       | Holding tablet / chart     |
+| Coach Tip        | Finger raised              |
+| Streak           | Fire icon / excited        |
+| Rest Day         | Sitting / tea / relaxed    |
+| Injury / Bad Day | Bandage / concerned        |
+| Level Up         | Sparkles / belt / star     |
+| Competition Mode | Serious face / stance      |
 
 ---
 
@@ -133,14 +133,14 @@ Ressa Kuzushi holding a training notebook with charts, pointing up like a coach,
 
 ## App UI Role
 
-| Screen | Ressa pose |
-| --- | --- |
-| Home | Idle |
-| Add session | Coach |
-| Stats | Chart |
-| Good week | Happy |
-| Missed training | Concerned |
-| Streak | Fire |
-| Personal best | Celebrate |
-| Injury log | Bandage |
-| Settings | Calm |
+| Screen          | Ressa pose |
+| --------------- | ---------- |
+| Home            | Idle       |
+| Add session     | Coach      |
+| Stats           | Chart      |
+| Good week       | Happy      |
+| Missed training | Concerned  |
+| Streak          | Fire       |
+| Personal best   | Celebrate  |
+| Injury log      | Bandage    |
+| Settings        | Calm       |

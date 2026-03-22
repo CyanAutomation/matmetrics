@@ -18,7 +18,10 @@ export function getFeedbackResetDelay(state: Exclude<FeedbackState, 'idle'>) {
 
 export function createActionFeedbackController(
   onStateChange: (state: FeedbackState) => void,
-  schedule: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>,
+  schedule: (
+    callback: () => void,
+    delayMs: number
+  ) => ReturnType<typeof setTimeout>,
   clear: (handle: ReturnType<typeof setTimeout>) => void
 ) {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;

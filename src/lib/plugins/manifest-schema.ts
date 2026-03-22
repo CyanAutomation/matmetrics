@@ -20,6 +20,11 @@ export const pluginManifestSchema = z.object({
   homepage: z.string().url().optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
   enabled: z.boolean().optional(),
+  minVersion: z
+    .string()
+    .regex(VERSION_REGEX)
+    .optional()
+    .describe('Minimum matmetrics version required to run this plugin'),
 });
 
 export type PluginManifestSchema = z.infer<typeof pluginManifestSchema>;

@@ -206,10 +206,7 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
         continue;
       }
 
-      if (
-        entry.type === 'file' &&
-        GITHUB_SESSION_PATH_REGEX.test(entry.path)
-      ) {
+      if (entry.type === 'file' && GITHUB_SESSION_PATH_REGEX.test(entry.path)) {
         paths.push(entry.path);
       }
     }
@@ -229,9 +226,7 @@ export async function listSessionsFromGitHub(
         return markdownToSession(markdown);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(
-          `Skipping GitHub session file at ${filePath}: ${message}`
-        );
+        console.warn(`Skipping GitHub session file at ${filePath}: ${message}`);
         return null;
       }
     })

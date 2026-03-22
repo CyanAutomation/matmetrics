@@ -710,7 +710,8 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
-  global.setInterval = (() => createIntervalHandle()) as unknown as typeof setInterval;
+  global.setInterval = (() =>
+    createIntervalHandle()) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
@@ -892,7 +893,8 @@ test('sync loop aborts safely when lease expires during a delayed sync request',
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
-  global.setInterval = (() => createIntervalHandle()) as unknown as typeof setInterval;
+  global.setInterval = (() =>
+    createIntervalHandle()) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);

@@ -16,14 +16,14 @@ export function useActionFeedback(options: UseActionFeedbackOptions = {}) {
 
   const controller = useMemo(
     () =>
-    createActionFeedbackController(
-      setFeedbackState,
-      (callback, delayMs) =>
+      createActionFeedbackController(
+        setFeedbackState,
+        (callback, delayMs) =>
           setTimeout(callback, options.resetAfterMs ?? delayMs) as ReturnType<
             typeof setTimeout
           >,
-      (handle) => clearTimeout(handle)
-    ),
+        (handle) => clearTimeout(handle)
+      ),
     [options.resetAfterMs]
   );
 

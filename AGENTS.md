@@ -34,7 +34,7 @@ Frontend and CLI share a frozen **session shape** and **markdown format**. Chang
 
 - **Shape**: `id`, `date` (YYYY-MM-DD), `techniques[]`, `effort` (1–5), `category` (Technical|Randori|Shiai), `description`, `notes`, `duration`
 - **Markdown format**: YAML frontmatter + fixed sections (id, date, effort, category)
-  
+
 See [docs/go-contract.md](./docs/go-contract.md) for the complete contract and exact markdown template.
 
 ### Storage Layer

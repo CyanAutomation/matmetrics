@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { listSessionsFromGitHub } from './session-storage';
 
-async function withMockedGitHub(handler: typeof fetch, run: () => Promise<void>) {
+async function withMockedGitHub(
+  handler: typeof fetch,
+  run: () => Promise<void>
+) {
   const originalFetch = global.fetch;
   const originalToken = process.env.GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = 'test-token';
@@ -165,7 +168,9 @@ category: "Technical"
         );
 
         if (path in dirListing) {
-          return new Response(JSON.stringify(dirListing[path]), { status: 200 });
+          return new Response(JSON.stringify(dirListing[path]), {
+            status: 200,
+          });
         }
 
         const content = contentByPath[path];
@@ -180,7 +185,10 @@ category: "Technical"
         });
       }) as typeof fetch,
       async () => {
-        const sessions = await listSessionsFromGitHub({ owner: 'o', repo: 'r' });
+        const sessions = await listSessionsFromGitHub({
+          owner: 'o',
+          repo: 'r',
+        });
         assert.equal(sessions.length, 1);
         assert.equal(sessions[0]?.id, 'session-valid');
       }

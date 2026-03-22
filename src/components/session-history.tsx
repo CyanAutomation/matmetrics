@@ -81,8 +81,12 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
           size="medium"
           alt="Ressa encouraging you to log your first session"
         />
-        <p className="text-center text-muted-foreground mt-3">No sessions logged yet.</p>
-        <p className="text-center text-sm text-muted-foreground mt-1">Your journey starts here. Log your first session!</p>
+        <p className="text-center text-muted-foreground mt-3">
+          No sessions logged yet.
+        </p>
+        <p className="text-center text-sm text-muted-foreground mt-1">
+          Your journey starts here. Log your first session!
+        </p>
       </div>
     );
   }
@@ -92,10 +96,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
       {sessions.map((session) => (
         <Card
           key={session.id}
-          className={cn(
-            'overflow-hidden bg-card/95',
-            CARD_INTERACTION_CLASS
-          )}
+          className={cn('overflow-hidden bg-card/95', CARD_INTERACTION_CLASS)}
         >
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between p-5 gap-4">

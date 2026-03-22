@@ -38,13 +38,18 @@ export async function GET(request: NextRequest) {
             isValid: pluginRows.every((entry) => entry.validation.isValid),
             rows: pluginRows.flatMap((entry) => entry.validation.rows),
           },
-          assumptions: ['Local plugin manifests are sourced from plugins/*/plugin.json.'],
+          assumptions: [
+            'Local plugin manifests are sourced from plugins/*/plugin.json.',
+          ],
         }),
       },
       { status: 200 }
     );
   } catch (error) {
     console.error('Error listing plugins', error);
-    return NextResponse.json({ error: 'Failed to list plugins' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to list plugins' },
+      { status: 500 }
+    );
   }
 }

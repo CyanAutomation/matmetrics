@@ -5,13 +5,11 @@ import { parseServiceAccountKey } from './firebase-admin';
 type ParseCase = {
   name: string;
   raw: string | undefined;
-  expected:
-    | {
-        project_id: string;
-        client_email: string;
-        private_key: string;
-      }
-    | null;
+  expected: {
+    project_id: string;
+    client_email: string;
+    private_key: string;
+  } | null;
 };
 
 test('parseServiceAccountKey table-driven behavior', async (t) => {
@@ -104,7 +102,11 @@ test('parseServiceAccountKey table-driven behavior', async (t) => {
     },
     {
       name: 'rejects non-object JSON payload',
-      raw: JSON.stringify(['project-id', 'service@example.com', 'line-1\\nline-2']),
+      raw: JSON.stringify([
+        'project-id',
+        'service@example.com',
+        'line-1\\nline-2',
+      ]),
       expected: null,
     },
     {

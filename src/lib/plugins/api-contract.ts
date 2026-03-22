@@ -76,7 +76,9 @@ export const listStoredPluginManifests = async (): Promise<
       })
   );
 
-  return manifests.filter((manifest): manifest is StoredPluginManifest => !!manifest);
+  return manifests.filter(
+    (manifest): manifest is StoredPluginManifest => !!manifest
+  );
 };
 
 export const findStoredPluginManifestById = async (
@@ -167,4 +169,5 @@ export const toPluginDirectoryName = (pluginId: string): string =>
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/^-+/, '').replace(/-+$/, '') || 'plugin';
+    .replace(/^-+/, '')
+    .replace(/-+$/, '') || 'plugin';

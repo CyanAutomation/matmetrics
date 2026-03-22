@@ -10,12 +10,11 @@ import { Button } from './button';
 function renderElement(jsx: ReactElement) {
   const markup = renderToStaticMarkup(jsx);
   const parsed = parse(markup);
-  const root =
-    parsed.tagName
-      ? parsed
-      : parsed.childNodes.find(
-          (node: { nodeType?: number }) => node.nodeType === 1
-        );
+  const root = parsed.tagName
+    ? parsed
+    : parsed.childNodes.find(
+        (node: { nodeType?: number }) => node.nodeType === 1
+      );
 
   assert.ok(root, 'expected a root element in rendered markup');
 

@@ -460,7 +460,12 @@ export async function createSessionOnGitHub(
 
     if (existingContent !== null) {
       if (existingContent === markdown) {
-        const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+        const sha = await getFileSha(
+          config.owner,
+          config.repo,
+          filePath,
+          branch
+        );
         return {
           success: true,
           message: 'Session already exists on GitHub',
