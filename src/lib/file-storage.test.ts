@@ -309,6 +309,65 @@ test('concurrent updateSession calls for the same file return a conflict for one
   });
 });
 
+test('updateSession releases same-path lock when commit rename fails', async () => {
+  await withTempDataDir(async () => {
+    const originalRename = fs.rename;
+    const session = makeSession({
+      id: 'session-lock-release',
+      date: '2025-01-10',
+      notes: 'baseline',
+    });
+    const sessionPath = await createSession(session);
+    let injectedRenameFailure = false;
+
+    fs.rename = (async (...args: Parameters<typeof fs.rename>) => {
+      const [fromPath, toPath] = args;
+      if (
+        !injectedRenameFailure &&
+        fromPath.toString().startsWith(`${sessionPath}.tmp-`) &&
+        toPath.toString() === sessionPath
+      ) {
+        injectedRenameFailure = true;
+        const error = new Error('simulated rename failure') as NodeJS.ErrnoException;
+        error.code = 'EIO';
+        throw error;
+      }
+
+      return originalRename.call(fs, ...args);
+    }) as typeof fs.rename;
+
+    try {
+      await assert.rejects(
+        updateSession(
+          makeSession({
+            id: session.id,
+            date: session.date,
+            notes: 'first-writer-fails',
+          })
+        ),
+        /simulated rename failure/
+      );
+    } finally {
+      fs.rename = originalRename;
+    }
+
+    assert.equal(injectedRenameFailure, true);
+
+    const updatedPath = await updateSession(
+      makeSession({
+        id: session.id,
+        date: session.date,
+        notes: 'second-writer-succeeds',
+      })
+    );
+
+    assert.equal(updatedPath, sessionPath);
+    const markdown = await readFile(sessionPath, 'utf8');
+    assert.match(markdown, /second-writer-succeeds/);
+    assert.doesNotMatch(markdown, /first-writer-fails/);
+  });
+});
+
 test('createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file', async () => {
   await withTempDataDir(async () => {
     const sessionId = 'session-concurrent';
