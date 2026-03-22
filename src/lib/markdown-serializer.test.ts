@@ -113,3 +113,97 @@ test('Roundtrip preserves techniques/description/notes', () => {
   assert.equal(parsedRoundtrip.description, 'Roundtrip description.');
   assert.equal(parsedRoundtrip.notes, 'Roundtrip notes.');
 });
+
+test('Description and notes preserve embedded "## " strings in paragraphs', () => {
+  const markdownWithEmbeddedHashes = `---
+id: "edge-embedded-hashes"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# March 22, 2026 - Judo Session: Technical
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+This line includes a literal token: ## not-a-heading.
+Another line keeps ## Session Description as plain text content.
+
+## Notes
+
+Keep ## Notes literal in notes text too.
+And retain ## Techniques Practiced as inline text.`;
+
+  const parsed = markdownToSession(markdownWithEmbeddedHashes);
+
+  assert.equal(
+    parsed.description,
+    [
+      'This line includes a literal token: ## not-a-heading.',
+      'Another line keeps ## Session Description as plain text content.',
+    ].join('\n')
+  );
+  assert.equal(
+    parsed.notes,
+    [
+      'Keep ## Notes literal in notes text too.',
+      'And retain ## Techniques Practiced as inline text.',
+    ].join('\n')
+  );
+});
+
+test('Description and notes preserve fenced code blocks with "## " lines', () => {
+  const markdownWithFencedCode = `---
+id: "edge-fenced-code"
+date: "2026-03-22"
+effort: 4
+category: "Technical"
+---
+
+# March 22, 2026 - Judo Session: Technical
+
+## Techniques Practiced
+- Tomoe nage
+
+## Session Description
+
+\`\`\`md
+## Notes
+console.log("inside description");
+\`\`\`
+After code fence in description.
+
+## Notes
+
+\`\`\`text
+## Session Description
+note_code();
+\`\`\`
+After code fence in notes.`;
+
+  const parsed = markdownToSession(markdownWithFencedCode);
+
+  assert.equal(
+    parsed.description,
+    [
+      '```md',
+      '## Notes',
+      'console.log("inside description");',
+      '```',
+      'After code fence in description.',
+    ].join('\n')
+  );
+  assert.equal(
+    parsed.notes,
+    [
+      '```text',
+      '## Session Description',
+      'note_code();',
+      '```',
+      'After code fence in notes.',
+    ].join('\n')
+  );
+});
