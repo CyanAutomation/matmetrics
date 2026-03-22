@@ -19,6 +19,10 @@ test('resolveAuthorizedGitHubConfig treats null and undefined missing-state inpu
   );
   const fromNull = await resolveAuthorizedGitHubConfig('test-user', nullRequested);
 
-  assert.deepEqual(fromUndefined, { config: undefined });
-  assert.deepEqual(fromNull, { config: undefined });
+  assert.deepEqual(fromUndefined, {
+    config: { owner: 'test-owner', repo: 'test-repo' },
+  });
+  assert.deepEqual(fromNull, {
+    config: { owner: 'test-owner', repo: 'test-repo' },
+  });
 });

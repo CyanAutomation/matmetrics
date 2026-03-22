@@ -31,41 +31,56 @@ async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   }
 }
 
+async function withStoredGitHubConfig(
+  config: string | undefined,
+  run: () => Promise<void>
+) {
+  const original = process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG;
+  process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = config;
+  try {
+    await run();
+  } finally {
+    process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = original;
+  }
+}
+
 test('POST persists the session to local markdown storage when GitHub is not configured', async () => {
-  await withTempDataDir(async () => {
-    const response = await POST(
-      new NextRequest('http://localhost/api/sessions/create', {
-        method: 'POST',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 'create-local-id',
-          date: '2025-01-12',
-          effort: 3,
-          category: 'Technical',
-          techniques: ['osoto-gari'],
-        }),
-      })
-    );
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: 'create-local-id',
+            date: '2025-01-12',
+            effort: 3,
+            category: 'Technical',
+            techniques: ['osoto-gari'],
+          }),
+        })
+      );
 
-    assert.equal(response.status, 201);
-    assert.deepEqual(await response.json(), {
-      id: 'create-local-id',
-      date: '2025-01-12',
-      effort: 3,
-      category: 'Technical',
-      techniques: ['osoto-gari'],
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), {
+        id: 'create-local-id',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      });
+
+      const filePath = getSessionFilePath(
+        '2025-01-12',
+        undefined,
+        'create-local-id'
+      );
+      const markdown = await readFile(filePath, 'utf8');
+      assert.match(markdown, /id: create-local-id/);
     });
-
-    const filePath = getSessionFilePath(
-      '2025-01-12',
-      undefined,
-      'create-local-id'
-    );
-    const markdown = await readFile(filePath, 'utf8');
-    assert.match(markdown, /id: create-local-id/);
   });
 });
 
@@ -140,6 +155,75 @@ test('POST returns 500 when GitHub create fails in primary mode', async () => {
   }
 });
 
+test('POST uses stored GitHub config when body omits gitHubConfig', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = global.fetch;
+  const forwardedRequests: Array<{
+    url: string;
+    method: string;
+    body?: string;
+  }> = [];
+
+  process.env.GITHUB_TOKEN = 'test-token';
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    const value = String(url);
+    forwardedRequests.push({
+      url: value,
+      method: init?.method ?? 'GET',
+      body: init?.body ? String(init.body) : undefined,
+    });
+    if (value.includes('/api/go/sessions/create')) {
+      return new Response(
+        JSON.stringify({
+          id: 'create-stored-config',
+          date: '2025-01-12',
+          effort: 3,
+          category: 'Technical',
+          techniques: [],
+        }),
+        { status: 201 }
+      );
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
+
+  try {
+    const response = await POST(
+      new NextRequest('http://localhost/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 'create-stored-config',
+          date: '2025-01-12',
+          effort: 3,
+          category: 'Technical',
+          techniques: [],
+        }),
+      })
+    );
+
+    assert.equal(response.status, 201);
+    assert.equal(forwardedRequests.length, 1);
+    assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/create$/);
+    assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
+      session: {
+        id: 'create-stored-config',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: [],
+      },
+      config: { owner: 'test-owner', repo: 'test-repo' },
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
 test('POST returns 403 when request GitHub repo does not match user preferences', async () => {
   const response = await POST(
     new NextRequest('http://localhost/api/sessions/create', {
@@ -167,47 +251,49 @@ test('POST returns 403 when request GitHub repo does not match user preferences'
 });
 
 test('POST returns 409 for duplicate session ID conflicts with different content', async () => {
-  await withTempDataDir(async () => {
-    const firstResponse = await POST(
-      new NextRequest('http://localhost/api/sessions/create', {
-        method: 'POST',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 'create-conflict-id',
-          date: '2025-01-12',
-          effort: 3,
-          category: 'Technical',
-          techniques: ['osoto-gari'],
-        }),
-      })
-    );
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const firstResponse = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: 'create-conflict-id',
+            date: '2025-01-12',
+            effort: 3,
+            category: 'Technical',
+            techniques: ['osoto-gari'],
+          }),
+        })
+      );
 
-    assert.equal(firstResponse.status, 201);
+      assert.equal(firstResponse.status, 201);
 
-    const conflictResponse = await POST(
-      new NextRequest('http://localhost/api/sessions/create', {
-        method: 'POST',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 'create-conflict-id',
-          date: '2025-01-12',
-          effort: 4,
-          category: 'Technical',
-          techniques: ['harai-goshi'],
-        }),
-      })
-    );
+      const conflictResponse = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: 'create-conflict-id',
+            date: '2025-01-12',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['harai-goshi'],
+          }),
+        })
+      );
 
-    assert.equal(conflictResponse.status, 409);
-    assert.deepEqual(await conflictResponse.json(), {
-      error:
-        'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.',
+      assert.equal(conflictResponse.status, 409);
+      assert.deepEqual(await conflictResponse.json(), {
+        error:
+          'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.',
+      });
     });
   });
 });

@@ -34,6 +34,19 @@ async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   }
 }
 
+async function withStoredGitHubConfig(
+  config: string | undefined,
+  run: () => Promise<void>
+) {
+  const original = process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG;
+  process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = config;
+  try {
+    await run();
+  } finally {
+    process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = original;
+  }
+}
+
 function makeSession(id: string, date: string): JudoSession {
   return {
     id,
@@ -78,36 +91,38 @@ test('GET returns the local markdown session when present', async () => {
 });
 
 test('PUT updates local markdown storage when GitHub is not configured', async () => {
-  await withTempDataDir(async () => {
-    const sessionId = 'put-local-id';
-    await createLocalSession(makeSession(sessionId, '2025-01-10'));
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-local-id';
+      await createLocalSession(makeSession(sessionId, '2025-01-10'));
 
-    const response = await PUT(
-      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: sessionId,
-          date: '2025-01-10',
-          effort: 4,
-          category: 'Technical',
-          techniques: ['uchi-mata'],
-          notes: 'updated',
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['uchi-mata'],
+            notes: 'updated',
+          }),
         }),
-      }),
-      { params: Promise.resolve({ id: sessionId }) }
-    );
+        { params: Promise.resolve({ id: sessionId }) }
+      );
 
-    assert.equal(response.status, 200);
-    const payload = await response.json();
-    assert.equal(payload.effort, 4);
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.effort, 4);
 
-    const sessions = await listLocalSessions();
-    assert.equal(sessions[0].notes, 'updated');
-    assert.deepEqual(sessions[0].techniques, ['uchi-mata']);
+      const sessions = await listLocalSessions();
+      assert.equal(sessions[0].notes, 'updated');
+      assert.deepEqual(sessions[0].techniques, ['uchi-mata']);
+    });
   });
 });
 
@@ -215,52 +230,128 @@ test('PUT returns 500 when GitHub update fails in primary mode', async () => {
   }
 });
 
-test('DELETE removes the local markdown session when GitHub is not configured', async () => {
-  await withTempDataDir(async () => {
-    const sessionId = 'delete-local-id';
-    await createLocalSession(makeSession(sessionId, '2025-01-11'));
+test('PUT uses stored GitHub config when body omits gitHubConfig', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = global.fetch;
+  const forwardedRequests: Array<{
+    url: string;
+    method: string;
+    body?: string;
+  }> = [];
 
-    const response = await DELETE(
-      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-        method: 'DELETE',
+  process.env.GITHUB_TOKEN = 'test-token';
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    const value = String(url);
+    forwardedRequests.push({
+      url: value,
+      method: init?.method ?? 'GET',
+      body: init?.body ? String(init.body) : undefined,
+    });
+    if (value.includes('/api/go/sessions/update')) {
+      return new Response(
+        JSON.stringify({
+          id: 'put-stored-config',
+          date: '2025-01-10',
+          effort: 4,
+          category: 'Technical',
+          techniques: [],
+        }),
+        { status: 200 }
+      );
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
+
+  try {
+    const response = await PUT(
+      new NextRequest('http://localhost/api/sessions/put-stored-config', {
+        method: 'PUT',
         headers: {
           authorization: 'Bearer test-token',
           'content-type': 'application/json',
         },
+        body: JSON.stringify({
+          id: 'put-stored-config',
+          date: '2025-01-10',
+          effort: 4,
+          category: 'Technical',
+          techniques: [],
+        }),
       }),
-      { params: Promise.resolve({ id: sessionId }) }
+      { params: Promise.resolve({ id: 'put-stored-config' }) }
     );
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { message: 'Session deleted' });
-    assert.equal((await listLocalSessions()).length, 0);
+    assert.equal(forwardedRequests.length, 1);
+    assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/update$/);
+    assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
+      session: {
+        id: 'put-stored-config',
+        date: '2025-01-10',
+        effort: 4,
+        category: 'Technical',
+        techniques: [],
+      },
+      config: { owner: 'test-owner', repo: 'test-repo' },
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
+test('DELETE removes the local markdown session when GitHub is not configured', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'delete-local-id';
+      await createLocalSession(makeSession(sessionId, '2025-01-11'));
+
+      const response = await DELETE(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { message: 'Session deleted' });
+      assert.equal((await listLocalSessions()).length, 0);
+    });
   });
 });
 
 test('DELETE returns 409 when local storage has duplicate files for the same session ID', async () => {
-  await withTempDataDir(async () => {
-    const sessionId = 'delete-duplicate-id';
-    const originalPath = await createLocalSession(makeSession(sessionId, '2025-01-11'));
-    const duplicatePath = getSessionFilePath('2025-02-11', undefined, sessionId);
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'delete-duplicate-id';
+      const originalPath = await createLocalSession(
+        makeSession(sessionId, '2025-01-11')
+      );
+      const duplicatePath = getSessionFilePath('2025-02-11', undefined, sessionId);
 
-    await mkdir(path.dirname(duplicatePath), { recursive: true });
-    await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
+      await mkdir(path.dirname(duplicatePath), { recursive: true });
+      await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
 
-    const response = await DELETE(
-      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
-        method: 'DELETE',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-      }),
-      { params: Promise.resolve({ id: sessionId }) }
-    );
+      const response = await DELETE(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
 
-    assert.equal(response.status, 409);
-    assert.deepEqual(await response.json(), {
-      error:
-        'Session ID conflict: multiple session files share this ID. Resolve duplicates before deleting.',
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), {
+        error:
+          'Session ID conflict: multiple session files share this ID. Resolve duplicates before deleting.',
+      });
     });
   });
 });
@@ -344,6 +435,56 @@ test('DELETE returns 500 when GitHub delete fails in primary mode', async () => 
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
       error: 'Failed to delete session',
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
+test('DELETE uses stored GitHub config when body omits gitHubConfig', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = global.fetch;
+  const forwardedRequests: Array<{
+    url: string;
+    method: string;
+    body?: string;
+  }> = [];
+
+  process.env.GITHUB_TOKEN = 'test-token';
+  global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    const value = String(url);
+    forwardedRequests.push({
+      url: value,
+      method: init?.method ?? 'GET',
+      body: init?.body ? String(init.body) : undefined,
+    });
+    if (value.includes('/api/go/sessions/delete')) {
+      return new Response(JSON.stringify({ message: 'Session deleted' }), {
+        status: 200,
+      });
+    }
+    throw new Error(`Unexpected Go proxy URL: ${value}`);
+  };
+
+  try {
+    const response = await DELETE(
+      new NextRequest('http://localhost/api/sessions/delete-stored-config', {
+        method: 'DELETE',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+      }),
+      { params: Promise.resolve({ id: 'delete-stored-config' }) }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(forwardedRequests.length, 1);
+    assert.match(forwardedRequests[0].url, /\/api\/go\/sessions\/delete$/);
+    assert.deepEqual(JSON.parse(forwardedRequests[0].body ?? '{}'), {
+      id: 'delete-stored-config',
+      config: { owner: 'test-owner', repo: 'test-repo' },
     });
   } finally {
     global.fetch = originalFetch;

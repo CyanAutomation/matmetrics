@@ -197,7 +197,8 @@ export async function GET(
 
 /**
  * PUT /api/sessions/[id]
- * Update an existing session
+ * Update an existing session.
+ * If body.gitHubConfig is omitted, the server uses the user's stored GitHub config (when available).
  */
 export async function PUT(
   request: NextRequest,
@@ -345,7 +346,8 @@ export async function PUT(
 
 /**
  * DELETE /api/sessions/[id]
- * Delete a session
+ * Delete a session.
+ * If body.gitHubConfig is omitted, the server uses the user's stored GitHub config (when available).
  */
 export async function DELETE(
   request: NextRequest,

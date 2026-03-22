@@ -53,7 +53,8 @@ export async function getStoredGitHubConfigForUser(
 
 /**
  * `requestedConfig` accepts `GitHubConfig` or `undefined`.
- * Undefined is treated as no requested repository.
+ * When undefined, the stored user config is used (if present) so requests
+ * without an explicit `gitHubConfig` still target the configured repository.
  */
 export async function resolveAuthorizedGitHubConfig(
   uid: string,
@@ -62,7 +63,7 @@ export async function resolveAuthorizedGitHubConfig(
   const storedConfig = await getStoredGitHubConfigForUser(uid);
 
   if (!requestedConfig) {
-    return { config: undefined };
+    return { config: storedConfig };
   }
 
   if (!storedConfig) {
