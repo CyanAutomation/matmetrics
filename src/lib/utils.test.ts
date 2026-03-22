@@ -26,3 +26,47 @@ test('formatLocalDateInputValue uses local calendar components', () => {
 
   assert.equal(value, '2025-01-02');
 });
+
+test('formatLocalDateInputValue zero-pads single-digit month/day values', () => {
+  const value = formatLocalDateInputValue(new Date(2025, 2, 4, 12, 0, 0));
+
+  assert.equal(value, '2025-03-04');
+});
+
+test('formatLocalDateInputValue stays stable near midnight local boundaries', () => {
+  const justAfterMidnight = formatLocalDateInputValue(
+    new Date(2025, 6, 15, 0, 0, 0)
+  );
+  const justBeforeMidnight = formatLocalDateInputValue(
+    new Date(2025, 6, 15, 23, 59, 59)
+  );
+
+  assert.equal(justAfterMidnight, '2025-07-15');
+  assert.equal(justBeforeMidnight, '2025-07-15');
+});
+
+test('formatLocalDateInputValue is consistent for DST-transition-adjacent local dates', () => {
+  const dayBeforeSpringTransition = formatLocalDateInputValue(
+    new Date(2025, 2, 8, 12, 0, 0)
+  );
+  const springTransitionDay = formatLocalDateInputValue(
+    new Date(2025, 2, 9, 12, 0, 0)
+  );
+  const dayBeforeFallTransition = formatLocalDateInputValue(
+    new Date(2025, 10, 1, 12, 0, 0)
+  );
+  const fallTransitionDay = formatLocalDateInputValue(
+    new Date(2025, 10, 2, 12, 0, 0)
+  );
+
+  assert.equal(dayBeforeSpringTransition, '2025-03-08');
+  assert.equal(springTransitionDay, '2025-03-09');
+  assert.equal(dayBeforeFallTransition, '2025-11-01');
+  assert.equal(fallTransitionDay, '2025-11-02');
+});
+
+test('parseDateOnly returns an invalid date object for malformed input', () => {
+  const parsed = parseDateOnly('not-a-date');
+
+  assert.equal(Number.isNaN(parsed.getTime()), true);
+});
