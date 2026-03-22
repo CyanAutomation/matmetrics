@@ -7,14 +7,18 @@ import { compareDateOnlyDesc } from './utils';
 
 let dataDir = path.join(process.cwd(), 'data');
 const SESSION_INDEX_DIR = '.index';
-const SESSION_INDEX_POLL_ATTEMPTS = 20;
-const SESSION_INDEX_POLL_DELAY_MS = 10;
+const SESSION_INDEX_RESOLVE_TIMEOUT_MS = 3000;
+const SESSION_INDEX_INITIAL_BACKOFF_MS = 10;
+const SESSION_INDEX_MAX_BACKOFF_MS = 250;
 const YEAR_DIR_PATTERN = /^\d{4}$/;
 const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
 interface SessionIndexRecord {
   id: string;
   path: string;
+  status?: 'locking' | 'ready';
+  updatedAt?: number;
+  lockAcquiredAt?: number;
 }
 
 export class DuplicateSessionIdError extends Error {
@@ -205,6 +209,16 @@ async function readSessionIndex(
       return {
         id: parsed.id,
         path: ensurePathWithinDataDir(parsed.path),
+        status:
+          parsed.status === 'locking' || parsed.status === 'ready'
+            ? parsed.status
+            : undefined,
+        updatedAt:
+          typeof parsed.updatedAt === 'number' ? parsed.updatedAt : undefined,
+        lockAcquiredAt:
+          typeof parsed.lockAcquiredAt === 'number'
+            ? parsed.lockAcquiredAt
+            : undefined,
       };
     }
   } catch (error) {
@@ -218,11 +232,13 @@ async function readSessionIndex(
 async function writeSessionIndex(
   sessionId: string,
   sessionPath: string,
-  flag: 'wx' | 'w'
+  flag: 'wx' | 'w',
+  metadata?: Pick<SessionIndexRecord, 'status' | 'updatedAt' | 'lockAcquiredAt'>
 ): Promise<void> {
   const record: SessionIndexRecord = {
     id: sessionId,
     path: ensurePathWithinDataDir(sessionPath),
+    ...metadata,
   };
   const indexPath = getSessionIndexFilePath(sessionId);
   await fs.mkdir(path.dirname(indexPath), { recursive: true });
@@ -232,13 +248,28 @@ async function writeSessionIndex(
   });
 }
 
-async function resolveIndexedSessionPath(sessionId: string): Promise<string | null> {
-  for (let attempt = 0; attempt < SESSION_INDEX_POLL_ATTEMPTS; attempt += 1) {
+interface ResolveIndexedSessionPathResult {
+  path: string | null;
+  lastRecord: SessionIndexRecord | null;
+}
+
+async function resolveIndexedSessionPath(
+  sessionId: string
+): Promise<ResolveIndexedSessionPathResult> {
+  const deadline = Date.now() + SESSION_INDEX_RESOLVE_TIMEOUT_MS;
+  let backoffMs = SESSION_INDEX_INITIAL_BACKOFF_MS;
+  let lastRecord: SessionIndexRecord | null = null;
+
+  while (Date.now() <= deadline) {
     const indexed = await readSessionIndex(sessionId);
+    lastRecord = indexed;
     if (indexed) {
       try {
         await fs.access(indexed.path);
-        return indexed.path;
+        return {
+          path: indexed.path,
+          lastRecord: indexed,
+        };
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
           throw error;
@@ -246,10 +277,18 @@ async function resolveIndexedSessionPath(sessionId: string): Promise<string | nu
       }
     }
 
-    await sleep(SESSION_INDEX_POLL_DELAY_MS);
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      break;
+    }
+    await sleep(Math.min(backoffMs, remainingMs));
+    backoffMs = Math.min(backoffMs * 2, SESSION_INDEX_MAX_BACKOFF_MS);
   }
 
-  return null;
+  return {
+    path: null,
+    lastRecord,
+  };
 }
 
 function validateAndNormalizeDate(date: string): string {
@@ -296,7 +335,9 @@ export function getSessionFilePath(
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
-  return ensurePathWithinDataDir(path.join(getDataDir(), year, month, baseName));
+  return ensurePathWithinDataDir(
+    path.join(getDataDir(), year, month, baseName)
+  );
 }
 
 /**
@@ -306,8 +347,7 @@ export function getSessionFilePath(
 export function extractDateFromPath(filePath: string): string | null {
   const normalizedPath = filePath.replace(/\\/g, '/');
   const [, year, month, dayMatch] =
-    normalizedPath.match(/(?:^|\/)(\d{4})\/(\d{2})\/(\d{8})(?=[^0-9]|$)/) ||
-    [];
+    normalizedPath.match(/(?:^|\/)(\d{4})\/(\d{2})\/(\d{8})(?=[^0-9]|$)/) || [];
   if (!dayMatch) return null;
   const day = dayMatch.slice(6, 8);
   return `${year}-${month}-${day}`;
@@ -320,9 +360,7 @@ export function extractDateFromPath(filePath: string): string | null {
 export async function getNextCounter(date: string): Promise<number> {
   const normalizedDate = validateAndNormalizeDate(date);
   const [year, month] = normalizedDate.split('-');
-  const dirPath = ensurePathWithinDataDir(
-    path.join(getDataDir(), year, month)
-  );
+  const dirPath = ensurePathWithinDataDir(path.join(getDataDir(), year, month));
 
   try {
     const files = await fs.readdir(dirPath);
@@ -426,9 +464,7 @@ export async function readSession(
 export async function createSession(session: JudoSession): Promise<string> {
   const normalizedDate = validateAndNormalizeDate(session.date);
   const [year, month] = normalizedDate.split('-');
-  const dirPath = ensurePathWithinDataDir(
-    path.join(getDataDir(), year, month)
-  );
+  const dirPath = ensurePathWithinDataDir(path.join(getDataDir(), year, month));
 
   // Ensure directory exists
   await fs.mkdir(dirPath, { recursive: true });
@@ -454,20 +490,30 @@ export async function createSession(session: JudoSession): Promise<string> {
     return safeExistingPath;
   };
   let hasIndexLock = false;
+  const lockAcquiredAt = Date.now();
 
   try {
-    await writeSessionIndex(session.id, filePath, 'wx');
+    await writeSessionIndex(session.id, filePath, 'wx', {
+      status: 'locking',
+      lockAcquiredAt,
+      updatedAt: lockAcquiredAt,
+    });
     hasIndexLock = true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
       throw error;
     }
-    const indexedExistingPath = await resolveIndexedSessionPath(session.id);
+    const { path: indexedExistingPath, lastRecord } =
+      await resolveIndexedSessionPath(session.id);
     if (!indexedExistingPath) {
-      const existingIndexRecord = await readSessionIndex(session.id);
-      const lockStateDescription = existingIndexRecord
-        ? 'appears abandoned or unresolved'
-        : 'is still in progress';
+      const lockAgeMs =
+        lastRecord?.lockAcquiredAt !== undefined
+          ? Date.now() - lastRecord.lockAcquiredAt
+          : null;
+      const lockStateDescription =
+        lockAgeMs !== null
+          ? `could not be resolved after ${SESSION_INDEX_RESOLVE_TIMEOUT_MS}ms (observed lock age ${lockAgeMs}ms)`
+          : `could not be resolved after ${SESSION_INDEX_RESOLVE_TIMEOUT_MS}ms`;
       throw new Error(
         `Session ID ${session.id} is locked by another create operation and ${lockStateDescription}`
       );
@@ -480,11 +526,17 @@ export async function createSession(session: JudoSession): Promise<string> {
       encoding: 'utf-8',
       flag: 'wx',
     });
-    await writeSessionIndex(session.id, filePath, 'w');
+    await writeSessionIndex(session.id, filePath, 'w', {
+      status: 'ready',
+      lockAcquiredAt,
+      updatedAt: Date.now(),
+    });
     return filePath;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      const concurrentExistingPath = await resolveIndexedSessionPath(session.id);
+      const { path: concurrentExistingPath } = await resolveIndexedSessionPath(
+        session.id
+      );
       if (concurrentExistingPath) {
         return await assertExistingSessionMatches(concurrentExistingPath);
       }
@@ -509,7 +561,10 @@ export async function createSession(session: JudoSession): Promise<string> {
   }
 }
 
-async function updateSessionIndexPath(id: string, sessionPath: string): Promise<void> {
+async function updateSessionIndexPath(
+  id: string,
+  sessionPath: string
+): Promise<void> {
   try {
     await writeSessionIndex(id, sessionPath, 'w');
   } catch (error) {
@@ -544,7 +599,10 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
-    const releaseLock = await acquireSessionUpdateLock(session.id, existingPath);
+    const releaseLock = await acquireSessionUpdateLock(
+      session.id,
+      existingPath
+    );
     try {
       const priorMarkdown = await fs.readFile(existingPath, 'utf-8');
       const tempPath = getTempPathForTarget(existingPath);
