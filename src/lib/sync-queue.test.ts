@@ -259,3 +259,51 @@ test('coalesces delete then update into create to avoid missing-record updates',
     { type: 'CREATE', session: updatedAfterDelete, queuedAt: 200 },
   ]);
 });
+
+test('getQueue keeps valid operations when persisted array has corrupt entries', () => {
+  const validOperation = createOp('session-valid', 100);
+  localStorage.clear();
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([
+      validOperation,
+      null,
+      { type: 'DELETE' },
+      { type: 'UPDATE', session: {} },
+      { type: 'DELETE', id: 123 },
+    ])
+  );
+
+  assert.deepEqual(getQueue(), [validOperation]);
+});
+
+test('getQueue clears storage and warns when all persisted entries are invalid', () => {
+  localStorage.clear();
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([null, { type: 'DELETE' }, { type: 'UPDATE', session: {} }])
+  );
+  const warnCalls: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnCalls.push(args);
+  };
+
+  try {
+    assert.deepEqual(getQueue(), []);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
+  assert.equal(warnCalls.length, 1);
+  assert.equal(
+    warnCalls[0][0],
+    'Sync queue storage contained only invalid entries'
+  );
+  assert.deepEqual(warnCalls[0][1], {
+    key: getSyncQueueStorageKey(),
+    totalEntries: 3,
+    validEntries: 0,
+  });
+});
