@@ -69,7 +69,7 @@ function createSchedulerHarness() {
       return clearCalls;
     },
     getScheduledDelays() {
-      return tasks.map((task) => task.dueAt);
+      return tasks.filter((task) => !task.canceled).map((task) => task.dueAt);
     },
   };
 }
