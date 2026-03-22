@@ -184,7 +184,7 @@ function extractSectionContent(
   }
 
   let sectionStartIndex = headingLineIndex + 1;
-  if (lines[sectionStartIndex] === '') {
+  if (sectionStartIndex < lines.length && lines[sectionStartIndex] === '') {
     sectionStartIndex += 1;
   }
 
