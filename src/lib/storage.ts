@@ -1154,9 +1154,8 @@ const heartbeatIntervalMs = Math.max(
             error.retryAfterMs !== null &&
             error.retryAfterMs > 0
           ) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, error.retryAfterMs)
-            );
+            const retryAfterMs = error.retryAfterMs;
+            await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
           }
 
           // Stop syncing on first error; retries must include the failed operation to avoid data loss.
