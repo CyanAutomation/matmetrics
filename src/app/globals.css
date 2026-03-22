@@ -79,7 +79,8 @@
 @layer base {
   body {
     @apply bg-background text-foreground font-body;
-    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue',
+      Helvetica, Arial, sans-serif;
   }
   h1,
   h2,
@@ -88,7 +89,54 @@
   h5,
   h6 {
     @apply font-headline font-bold tracking-tight;
-    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--font-inter), 'Inter', 'Segoe UI', 'Helvetica Neue',
+      Helvetica, Arial, sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-display-lg {
+    @apply font-headline text-4xl md:text-5xl font-bold tracking-[-0.03em] leading-[1.02];
+  }
+
+  .text-display-md {
+    @apply font-headline text-3xl md:text-4xl font-bold tracking-[-0.025em] leading-[1.05];
+  }
+
+  .text-display-sm {
+    @apply font-headline text-2xl font-bold tracking-[-0.02em] leading-tight;
+  }
+
+  .text-headline-lg {
+    @apply font-headline text-2xl font-semibold tracking-tight leading-tight;
+  }
+
+  .text-headline-md {
+    @apply font-headline text-xl font-semibold tracking-tight leading-snug;
+  }
+
+  .text-headline-sm {
+    @apply font-headline text-lg font-semibold tracking-tight leading-snug;
+  }
+
+  .text-body-lg {
+    @apply font-body text-base leading-relaxed;
+  }
+
+  .text-body-md {
+    @apply font-body text-sm leading-relaxed;
+  }
+
+  .text-body-sm {
+    @apply font-body text-xs leading-relaxed;
+  }
+
+  .text-label-md {
+    @apply font-body text-sm font-medium tracking-wide;
+  }
+
+  .text-label-meta {
+    @apply font-body text-xs font-semibold uppercase tracking-[0.16em];
   }
 }
 
