@@ -141,6 +141,37 @@ function getTempPathForTarget(targetPath: string): string {
   );
 }
 
+function getSessionUpdateLockPath(targetPath: string): string {
+  return ensurePathWithinDataDir(`${targetPath}.lock`);
+}
+
+async function acquireSessionUpdateLock(
+  sessionId: string,
+  targetPath: string
+): Promise<() => Promise<void>> {
+  const lockPath = getSessionUpdateLockPath(targetPath);
+
+  try {
+    await fs.writeFile(lockPath, `${process.pid}\n`, {
+      encoding: 'utf-8',
+      flag: 'wx',
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new SessionUpdateConflictError(sessionId, targetPath);
+    }
+    throw error;
+  }
+
+  return async () => {
+    await fs.unlink(lockPath).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    });
+  };
+}
+
 async function readSessionIndex(
   sessionId: string
 ): Promise<SessionIndexRecord | null> {
@@ -496,18 +527,23 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
-    const priorMarkdown = await fs.readFile(existingPath, 'utf-8');
-    const tempPath = getTempPathForTarget(existingPath);
-
-    await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+    const releaseLock = await acquireSessionUpdateLock(session.id, existingPath);
     try {
-      const currentMarkdown = await fs.readFile(existingPath, 'utf-8');
-      if (currentMarkdown !== priorMarkdown) {
-        throw new SessionUpdateConflictError(session.id, existingPath);
+      const priorMarkdown = await fs.readFile(existingPath, 'utf-8');
+      const tempPath = getTempPathForTarget(existingPath);
+
+      await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+      try {
+        const currentMarkdown = await fs.readFile(existingPath, 'utf-8');
+        if (currentMarkdown !== priorMarkdown) {
+          throw new SessionUpdateConflictError(session.id, existingPath);
+        }
+        await fs.rename(tempPath, existingPath);
+      } finally {
+        await fs.unlink(tempPath).catch(() => undefined);
       }
-      await fs.rename(tempPath, existingPath);
     } finally {
-      await fs.unlink(tempPath).catch(() => undefined);
+      await releaseLock();
     }
     await updateSessionIndexPath(session.id, existingPath);
     return existingPath;
