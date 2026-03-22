@@ -30,6 +30,19 @@ async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   }
 }
 
+async function withStoredGitHubConfig(
+  config: string | undefined,
+  run: () => Promise<void>
+) {
+  const original = process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG;
+  process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = config;
+  try {
+    await run();
+  } finally {
+    process.env.MATMETRICS_TEST_USER_GITHUB_CONFIG = original;
+  }
+}
+
 function makeSession(id: string, date: string): JudoSession {
   return {
     id,
@@ -41,23 +54,25 @@ function makeSession(id: string, date: string): JudoSession {
 }
 
 test('GET list returns local sessions when no GitHub config is requested', async () => {
-  await withTempDataDir(async () => {
-    await createLocalSession(makeSession('list-a', '2025-01-01'));
-    await createLocalSession(makeSession('list-b', '2025-01-02'));
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(makeSession('list-a', '2025-01-01'));
+      await createLocalSession(makeSession('list-b', '2025-01-02'));
 
-    const response = await GET(
-      new NextRequest('http://localhost/api/sessions/list', {
-        headers: { authorization: 'Bearer test-token' },
-      })
-    );
+      const response = await GET(
+        new NextRequest('http://localhost/api/sessions/list', {
+          headers: { authorization: 'Bearer test-token' },
+        })
+      );
 
-    assert.equal(response.status, 200);
-    const payload = await response.json();
-    assert.equal(payload.length, 2);
-    assert.deepEqual(
-      payload.map((session: JudoSession) => session.id),
-      ['list-b', 'list-a']
-    );
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.length, 2);
+      assert.deepEqual(
+        payload.map((session: JudoSession) => session.id),
+        ['list-b', 'list-a']
+      );
+    });
   });
 });
 
