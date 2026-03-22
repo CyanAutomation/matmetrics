@@ -16,7 +16,7 @@ function renderElement(jsx: ReactElement) {
 
   assert.ok(root, 'expected a root element in rendered markup');
 
-  return root;
+  return root as NonNullable<typeof root>;
 }
 
 test('button maps interaction props to data attributes and preserves accessibility props', () => {
