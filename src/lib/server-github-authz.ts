@@ -51,9 +51,13 @@ export async function getStoredGitHubConfigForUser(
   return normalizeGitHubConfig(preferences?.gitHub?.config) ?? undefined;
 }
 
+/**
+ * `requestedConfig` accepts `GitHubConfig`, `null`, or `undefined`.
+ * Empty-state values (`null`/`undefined`) are treated as no requested repository.
+ */
 export async function resolveAuthorizedGitHubConfig(
   uid: string,
-  requestedConfig: GitHubConfig | undefined
+  requestedConfig: GitHubConfig | null | undefined
 ): Promise<{ config?: GitHubConfig; forbiddenResponse?: NextResponse }> {
   const storedConfig = await getStoredGitHubConfigForUser(uid);
 
