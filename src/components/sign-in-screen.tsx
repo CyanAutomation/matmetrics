@@ -137,7 +137,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
   return (
     <div className="w-full bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_40%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--secondary)/0.35))] flex items-center justify-center p-1">
       <Card
-        className={`w-full max-w-md shadow-2xl border-primary/15 ${CARD_INTERACTION_CLASS}`}
+        className={`w-full max-w-md shadow-2xl bg-card/95 ${CARD_INTERACTION_CLASS}`}
       >
         <CardHeader className="space-y-4">
           <RessaImage
@@ -195,7 +195,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
               {onContinueAsGuest && (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                    <span className="w-full border-t border-ghost" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-card px-2 text-muted-foreground">
@@ -241,7 +241,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-ghost" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-card px-2 text-muted-foreground">
