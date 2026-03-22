@@ -70,55 +70,55 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
   });
 });
 
-test('POST /api/plugins/validate returns validation table for invalid manifest', async () => {
-  const response = await VALIDATE(
-    new NextRequest('http://localhost/api/plugins/validate', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer test-token',
-        'content-type': 'application/json',
+test('plugin create/update/validate routes are deprecated and return disabled responses', async () => {
+  const requests = [
+    {
+      route: CREATE,
+      url: 'http://localhost/api/plugins/create',
+      body: { manifest: baseManifest, confirm: true, confirmOverwrite: true },
+    },
+    {
+      route: UPDATE,
+      url: 'http://localhost/api/plugins/update',
+      body: {
+        id: 'tags-plugin',
+        manifest: { description: 'forced update' },
+        confirm: true,
+        confirmOverwrite: true,
       },
-      body: JSON.stringify({
-        manifest: {
-          id: 'x',
-          name: 'X',
-          version: 'invalid',
-          description: 'broken',
-          uiExtensions: [],
-        },
-      }),
-    })
-  );
+    },
+    {
+      route: VALIDATE,
+      url: 'http://localhost/api/plugins/validate',
+      body: { manifest: baseManifest },
+    },
+  ] as const;
 
-  assert.equal(response.status, 200);
-  const payload = await response.json();
-  assert.equal(payload.isValid, false);
-  assert.equal(payload.validationTable.isValid, false);
-  assert.ok(payload.validationTable.rows.length > 0);
-});
-
-test('POST /api/plugins/create is non-destructive by default and rejects overwrite without flag', async () => {
-  await withTempRepo(async () => {
-    const response = await CREATE(
-      new NextRequest('http://localhost/api/plugins/create', {
+  for (const request of requests) {
+    const response = await request.route(
+      new NextRequest(request.url, {
         method: 'POST',
         headers: {
           authorization: 'Bearer test-token',
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ manifest: baseManifest, confirm: false }),
+        body: JSON.stringify(request.body),
       })
     );
 
-    assert.equal(response.status, 409);
+    assert.equal(response.status, 403);
     const payload = await response.json();
-    assert.equal(payload.unresolvedInputs[0], 'confirmOverwrite');
-  });
+    assert.equal(payload.code, 'PLUGIN_ROUTE_DISABLED');
+    assert.match(payload.error, /deprecated/i);
+  }
 });
 
-test('POST /api/plugins/create writes only when confirm and confirmOverwrite are true', async () => {
+test('deprecated create/update routes do not mutate plugin manifests', async () => {
   await withTempRepo(async (repoRoot) => {
-    const response = await CREATE(
+    const pluginPath = path.join(repoRoot, 'plugins', 'tags', 'plugin.json');
+    const original = await readFile(pluginPath, 'utf8');
+
+    const createResponse = await CREATE(
       new NextRequest('http://localhost/api/plugins/create', {
         method: 'POST',
         headers: {
@@ -133,54 +133,9 @@ test('POST /api/plugins/create writes only when confirm and confirmOverwrite are
       })
     );
 
-    assert.equal(response.status, 200);
-    const payload = await response.json();
-    assert.equal(payload.persisted, true);
-    assert.equal(payload.fileTreeDiffSummary.mode, 'applied');
+    assert.equal(createResponse.status, 403);
 
-    const stored = JSON.parse(
-      await readFile(path.join(repoRoot, 'plugins', 'tags', 'plugin.json'), 'utf8')
-    );
-    assert.equal(stored.description, 'updated from create');
-  });
-});
-
-test('POST /api/plugins/update performs merge-preserve and dry-run by default', async () => {
-  await withTempRepo(async (repoRoot) => {
-    const response = await UPDATE(
-      new NextRequest('http://localhost/api/plugins/update', {
-        method: 'POST',
-        headers: {
-          authorization: 'Bearer test-token',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 'tags-plugin',
-          manifest: {
-            description: 'updated description',
-            settings: { darkMode: true },
-          },
-        }),
-      })
-    );
-
-    assert.equal(response.status, 200);
-    const payload = await response.json();
-    assert.equal(payload.persisted, false);
-    assert.equal(payload.manifest.unknownTopLevel.preserveMe, true);
-    assert.equal(payload.manifest.settings.darkMode, true);
-
-    const stored = JSON.parse(
-      await readFile(path.join(repoRoot, 'plugins', 'tags', 'plugin.json'), 'utf8')
-    );
-    assert.equal(stored.description, 'Provides a dashboard tab for managing tags.');
-    assert.equal(stored.unknownTopLevel.preserveMe, true);
-  });
-});
-
-test('POST /api/plugins/update rejects applied overwrite without confirmOverwrite', async () => {
-  await withTempRepo(async () => {
-    const response = await UPDATE(
+    const updateResponse = await UPDATE(
       new NextRequest('http://localhost/api/plugins/update', {
         method: 'POST',
         headers: {
@@ -191,12 +146,14 @@ test('POST /api/plugins/update rejects applied overwrite without confirmOverwrit
           id: 'tags-plugin',
           manifest: { description: 'forced update' },
           confirm: true,
+          confirmOverwrite: true,
         }),
       })
     );
 
-    assert.equal(response.status, 409);
-    const payload = await response.json();
-    assert.equal(payload.unresolvedInputs[0], 'confirmOverwrite');
+    assert.equal(updateResponse.status, 403);
+
+    const after = await readFile(pluginPath, 'utf8');
+    assert.equal(after, original);
   });
 });
