@@ -239,6 +239,98 @@ test('updateSession treats interleaved write of the same session ID as idempoten
   });
 });
 
+test('createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file', async () => {
+  await withTempDataDir(async () => {
+    const sessionId = 'session-concurrent';
+    const firstSession = makeSession({
+      id: sessionId,
+      date: '2025-01-10',
+      notes: 'first writer',
+    });
+    const secondSession = makeSession({
+      id: sessionId,
+      date: '2025-02-11',
+      notes: 'conflicting writer',
+    });
+
+    const [firstResult, secondResult] = await Promise.allSettled([
+      createSession(firstSession),
+      createSession(secondSession),
+    ]);
+
+    const fulfilled = [firstResult, secondResult].filter(
+      (result): result is PromiseFulfilledResult<string> =>
+        result.status === 'fulfilled'
+    );
+    const rejected = [firstResult, secondResult].filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+
+    assert.equal(fulfilled.length, 1);
+    assert.equal(rejected.length, 1);
+    assert.match(
+      String(rejected[0].reason),
+      /already exists with different content|is locked by another create operation/
+    );
+
+    const winningPath = fulfilled[0].value;
+    const storedPath = await findSessionFileById(sessionId);
+    assert.equal(storedPath, winningPath);
+
+    const storedMarkdown = await readFile(winningPath, 'utf8');
+    assert.match(storedMarkdown, /id: session-concurrent/);
+    assert.match(storedMarkdown, /date: '(2025-01-10|2025-02-11)'/);
+  });
+});
+
+test('createSession rolls back index lock when markdown write fails', async () => {
+  await withTempDataDir(async () => {
+    const originalWriteFile = fs.writeFile;
+    const session = makeSession({
+      id: 'session-rollback',
+      date: '2025-03-03',
+    });
+    const filePath = getSessionFilePath(session.date, undefined, session.id);
+    const indexPath = path.join(
+      path.dirname(path.dirname(filePath)),
+      '.index',
+      `${session.id}.json`
+    );
+    let injectedFailure = false;
+
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPath, data, options] = args;
+      const targetPathString = targetPath.toString();
+      const flag =
+        typeof options === 'object' && options !== null && 'flag' in options
+          ? options.flag
+          : undefined;
+
+      if (!injectedFailure && targetPathString === filePath && flag === 'wx') {
+        injectedFailure = true;
+        throw Object.assign(new Error('simulated write failure'), {
+          code: 'EIO',
+        });
+      }
+
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
+
+    try {
+      await assert.rejects(createSession(session), /simulated write failure/);
+    } finally {
+      fs.writeFile = originalWriteFile;
+    }
+
+    assert.equal(injectedFailure, true);
+    await assert.rejects(access(filePath));
+    await assert.rejects(access(indexPath));
+
+    const retryPath = await createSession(session);
+    assert.equal(retryPath, filePath);
+  });
+});
+
 test('getNextCounter rejects invalid dates before constructing paths', async () => {
   await withTempDataDir(async () => {
     await assert.rejects(
