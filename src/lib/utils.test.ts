@@ -45,24 +45,41 @@ test('formatLocalDateInputValue stays stable near midnight local boundaries', ()
   assert.equal(justBeforeMidnight, '2025-07-15');
 });
 
-test('formatLocalDateInputValue is consistent for DST-transition-adjacent local dates', () => {
-  const dayBeforeSpringTransition = formatLocalDateInputValue(
-    new Date(2025, 2, 8, 12, 0, 0)
-  );
-  const springTransitionDay = formatLocalDateInputValue(
-    new Date(2025, 2, 9, 12, 0, 0)
-  );
-  const dayBeforeFallTransition = formatLocalDateInputValue(
-    new Date(2025, 10, 1, 12, 0, 0)
-  );
-  const fallTransitionDay = formatLocalDateInputValue(
-    new Date(2025, 10, 2, 12, 0, 0)
-  );
+test('formatLocalDateInputValue remains stable across timezone-offset transition days', () => {
+  const transitionDays: Date[] = [];
+  const year = 2025;
 
-  assert.equal(dayBeforeSpringTransition, '2025-03-08');
-  assert.equal(springTransitionDay, '2025-03-09');
-  assert.equal(dayBeforeFallTransition, '2025-11-01');
-  assert.equal(fallTransitionDay, '2025-11-02');
+  for (let month = 0; month < 12; month += 1) {
+    for (let day = 1; day <= 31; day += 1) {
+      const current = new Date(year, month, day, 12, 0, 0);
+      if (current.getFullYear() !== year || current.getMonth() !== month) {
+        break;
+      }
+
+      const previous = new Date(year, month, day - 1, 12, 0, 0);
+      if (current.getTimezoneOffset() !== previous.getTimezoneOffset()) {
+        transitionDays.push(current);
+      }
+    }
+  }
+
+  for (const transitionDay of transitionDays) {
+    const yearPart = transitionDay.getFullYear();
+    const monthPart = transitionDay.getMonth();
+    const dayPart = transitionDay.getDate();
+
+    for (const dayDelta of [-1, 0, 1]) {
+      const normalizedDate = new Date(Date.UTC(yearPart, monthPart, dayPart + dayDelta));
+      const expected = `${normalizedDate.getUTCFullYear()}-${String(
+        normalizedDate.getUTCMonth() + 1
+      ).padStart(2, '0')}-${String(normalizedDate.getUTCDate()).padStart(2, '0')}`;
+      const formatted = formatLocalDateInputValue(
+        new Date(yearPart, monthPart, dayPart + dayDelta, 12, 0, 0)
+      );
+
+      assert.equal(formatted, expected);
+    }
+  }
 });
 
 test('parseDateOnly returns an invalid date object for malformed input', () => {
