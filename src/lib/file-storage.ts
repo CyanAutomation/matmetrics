@@ -381,7 +381,11 @@ export async function createSession(session: JudoSession): Promise<string> {
   } finally {
     if (hasIndexLock) {
       try {
-        await fs.access(filePath);
+        await fs.readFile(filePath, 'utf-8');
+        const verifyMarkdown = await fs.readFile(filePath, 'utf-8');
+        if (verifyMarkdown !== markdown) {
+          await fs.unlink(indexPath).catch(() => undefined);
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           await fs.unlink(indexPath).catch(() => undefined);
