@@ -15,6 +15,7 @@ import {
   __resetDataDirForTests,
   __setDataDirForTests,
   createSession,
+  extractDateFromPath,
   findSessionFileById,
   getNextCounter,
   getSessionFilePath,
@@ -183,4 +184,20 @@ test('getNextCounter counts existing sessions for a normalized valid date', asyn
     const nextCounter = await getNextCounter('2025-01-10');
     assert.equal(nextCounter, 1);
   });
+});
+
+test('extractDateFromPath extracts dates from POSIX-style session paths', () => {
+  assert.equal(
+    extractDateFromPath('/tmp/data/2025/01/20250110-matmetrics-session-1.md'),
+    '2025-01-10'
+  );
+});
+
+test('extractDateFromPath extracts dates from Windows-style session paths', () => {
+  assert.equal(
+    extractDateFromPath(
+      'C:\\tmp\\data\\2025\\01\\20250110-matmetrics-session-1.md'
+    ),
+    '2025-01-10'
+  );
 });
