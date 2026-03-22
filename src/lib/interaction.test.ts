@@ -1,82 +1,162 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  createActionFeedbackController,
-  getFeedbackResetDelay,
-} from './interaction';
+import { createActionFeedbackController } from './interaction';
 
-test('feedback reset delays are short and state-specific', () => {
-  const successDelay = getFeedbackResetDelay('success');
-  const loadingDelay = getFeedbackResetDelay('loading');
-  const errorDelay = getFeedbackResetDelay('error');
+type ScheduledTask = {
+  id: number;
+  dueAt: number;
+  callback: () => void;
+  canceled: boolean;
+};
 
-  assert.equal(successDelay, loadingDelay);
-  assert.ok(successDelay > 0);
-  assert.ok(successDelay < 2000);
-  assert.ok(errorDelay > successDelay);
-  assert.ok(errorDelay < 2500);
-});
+function createSchedulerHarness() {
+  let now = 0;
+  let nextId = 1;
+  let clearCalls = 0;
+  const tasks: ScheduledTask[] = [];
 
-test('action feedback controller resets transient states back to idle', () => {
-  const states: string[] = [];
-  const scheduled = {
-    callback: undefined as (() => void) | undefined,
+  const schedule = (callback: () => void, delayMs: number) => {
+    const task: ScheduledTask = {
+      id: nextId,
+      dueAt: now + delayMs,
+      callback,
+      canceled: false,
+    };
+    nextId += 1;
+    tasks.push(task);
+    return task.id as unknown as ReturnType<typeof setTimeout>;
   };
-  let scheduledDelay = 0;
-  let cleared = 0;
 
-  const controller = createActionFeedbackController(
-    (state) => states.push(state),
-    (callback, delayMs) => {
-      scheduled.callback = callback;
-      scheduledDelay = delayMs;
-      return 1 as unknown as ReturnType<typeof setTimeout>;
-    },
-    () => {
-      cleared += 1;
+  const clear = (handle: ReturnType<typeof setTimeout>) => {
+    const id = handle as unknown as number;
+    const task = tasks.find((candidate) => candidate.id === id);
+    if (task && !task.canceled) {
+      task.canceled = true;
+      clearCalls += 1;
     }
+  };
+
+  const runDueTasks = () => {
+    const dueTasks = tasks
+      .filter((task) => !task.canceled && task.dueAt <= now)
+      .sort((a, b) => a.dueAt - b.dueAt || a.id - b.id);
+
+    for (const task of dueTasks) {
+      task.canceled = true;
+      task.callback();
+    }
+  };
+
+  return {
+    schedule,
+    clear,
+    advanceBy(ms: number) {
+      now += ms;
+      runDueTasks();
+    },
+    flushAll() {
+      const activeTasks = tasks
+        .filter((task) => !task.canceled)
+        .sort((a, b) => a.dueAt - b.dueAt || a.id - b.id);
+      for (const task of activeTasks) {
+        now = Math.max(now, task.dueAt);
+        task.canceled = true;
+        task.callback();
+      }
+    },
+    getClearCalls() {
+      return clearCalls;
+    },
+    getScheduledDelays() {
+      return tasks.map((task) => task.dueAt);
+    },
+  };
+}
+
+test('action feedback controller eventually transitions success and error to idle', () => {
+  const successStates: string[] = [];
+  const successScheduler = createSchedulerHarness();
+  const successController = createActionFeedbackController(
+    (state) => successStates.push(state),
+    successScheduler.schedule,
+    successScheduler.clear
   );
 
-  controller.startLoading();
-  controller.showSuccess();
+  successController.showSuccess();
+  assert.deepEqual(successStates, ['success']);
 
-  assert.deepEqual(states, ['loading', 'success']);
-  assert.equal(scheduledDelay, 1400);
+  successScheduler.flushAll();
+  assert.deepEqual(successStates, ['success', 'idle']);
 
-  const callback = scheduled.callback;
-  if (callback) {
-    callback();
-  }
+  const errorStates: string[] = [];
+  const errorScheduler = createSchedulerHarness();
+  const errorController = createActionFeedbackController(
+    (state) => errorStates.push(state),
+    errorScheduler.schedule,
+    errorScheduler.clear
+  );
 
-  assert.deepEqual(states, ['loading', 'success', 'idle']);
-  controller.dispose();
-  assert.equal(cleared, 0);
+  errorController.showError();
+  assert.deepEqual(errorStates, ['error']);
+
+  errorScheduler.flushAll();
+  assert.deepEqual(errorStates, ['error', 'idle']);
 });
 
-test('action feedback controller clears pending reset when showing an error', () => {
+test('error reset is scheduled later than success reset', () => {
+  const scheduler = createSchedulerHarness();
   const states: string[] = [];
-  const scheduledCallbacks: Array<() => void> = [];
-  let cleared = 0;
 
   const controller = createActionFeedbackController(
     (state) => states.push(state),
-    (callback) => {
-      scheduledCallbacks.push(callback);
-      return scheduledCallbacks.length as unknown as ReturnType<typeof setTimeout>;
-    },
-    () => {
-      cleared += 1;
-    }
+    scheduler.schedule,
+    scheduler.clear
   );
 
   controller.showSuccess();
+  const [successDueAt] = scheduler.getScheduledDelays();
+
+  controller.reset();
   controller.showError();
+  const [, errorDueAt] = scheduler.getScheduledDelays();
 
-  assert.deepEqual(states, ['success', 'error']);
-  assert.equal(cleared, 1);
+  assert.ok(errorDueAt > successDueAt);
+  assert.deepEqual(states, ['success', 'idle', 'error']);
+});
 
-  scheduledCallbacks.at(-1)?.();
+test('reset() and dispose() cancel pending idle resets', () => {
+  const resetStates: string[] = [];
+  const resetScheduler = createSchedulerHarness();
+  const resetController = createActionFeedbackController(
+    (state) => resetStates.push(state),
+    resetScheduler.schedule,
+    resetScheduler.clear
+  );
 
-  assert.deepEqual(states, ['success', 'error', 'idle']);
+  resetController.showSuccess();
+  resetController.reset();
+  const resetClearCalls = resetScheduler.getClearCalls();
+
+  resetScheduler.flushAll();
+
+  assert.equal(resetClearCalls, 1);
+  assert.deepEqual(resetStates, ['success', 'idle']);
+
+  const disposeStates: string[] = [];
+  const disposeScheduler = createSchedulerHarness();
+  const disposeController = createActionFeedbackController(
+    (state) => disposeStates.push(state),
+    disposeScheduler.schedule,
+    disposeScheduler.clear
+  );
+
+  disposeController.showError();
+  disposeController.dispose();
+  const disposeClearCalls = disposeScheduler.getClearCalls();
+
+  disposeScheduler.flushAll();
+
+  assert.equal(disposeClearCalls, 1);
+  assert.deepEqual(disposeStates, ['error']);
 });
