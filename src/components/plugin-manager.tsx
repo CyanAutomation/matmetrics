@@ -285,10 +285,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     <div className="max-w-5xl mx-auto space-y-6">
       <Card className="bg-card/95">
         <CardHeader className="bg-secondary/45">
-          <CardTitle>Plugin Manager</CardTitle>
+          <CardTitle>Plugins</CardTitle>
           <CardDescription>
-            Operational management view for installed plugins only. Creation and
-            manifest authoring workflows are not available on this page.
+            Enable or disable installed plugins, and review plugin issues.
+            Plugin creation and editing are not available in this UI.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -297,8 +297,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         <CardHeader>
           <CardTitle>Installed Plugins</CardTitle>
           <CardDescription>
-            View installed plugin manifests, control enabled state, and review
-            manifest issues.
+            Use this table to enable or disable plugins and view plugin issue
+            status.
           </CardDescription>
         </CardHeader>
         <CardContent>
