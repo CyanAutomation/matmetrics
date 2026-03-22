@@ -256,3 +256,97 @@ test('known capability declaration passes without warnings', () => {
     assert.equal(result.issues.length, 0);
   }
 });
+
+test('plugin with acceptable minVersion passes', () => {
+  const result = validatePluginManifest(
+    {
+      id: 'version-compatible-plugin',
+      name: 'Version Compatible Plugin',
+      version: '1.0.0',
+      description: 'Plugin with compatible version requirement.',
+      minVersion: '0.1.0', // Same as current version in app-version.ts
+      uiExtensions: [
+        {
+          type: 'menu_item',
+          id: 'menu-item',
+          title: 'Menu Item',
+          config: {
+            route: '/test',
+            location: 'sidebar',
+          },
+        },
+      ],
+    },
+    { currentVersion: '0.1.0' }
+  );
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.issues.length, 0);
+  }
+});
+
+test('plugin with too-high minVersion returns warning', () => {
+  const result = validatePluginManifest(
+    {
+      id: 'version-incompatible-plugin',
+      name: 'Version Incompatible Plugin',
+      version: '1.0.0',
+      description: 'Plugin with incompatible version requirement.',
+      minVersion: '1.0.0', // Higher than current version 0.1.0
+      uiExtensions: [
+        {
+          type: 'menu_item',
+          id: 'menu-item',
+          title: 'Menu Item',
+          config: {
+            route: '/test',
+            location: 'sidebar',
+          },
+        },
+      ],
+    },
+    { currentVersion: '0.1.0' }
+  );
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.deepEqual(result.issues, [
+      {
+        severity: 'warning',
+        path: 'minVersion',
+        message:
+          'Plugin requires matmetrics version 1.0.0 or higher, but current version is 0.1.0.',
+      },
+    ]);
+  }
+});
+
+test('plugin without explicit minVersion passes regardless of version', () => {
+  const result = validatePluginManifest(
+    {
+      id: 'no-version-plugin',
+      name: 'No Version Plugin',
+      version: '1.0.0',
+      description: 'Plugin without version requirement.',
+      // No minVersion specified
+      uiExtensions: [
+        {
+          type: 'menu_item',
+          id: 'menu-item',
+          title: 'Menu Item',
+          config: {
+            route: '/test',
+            location: 'sidebar',
+          },
+        },
+      ],
+    },
+    { currentVersion: '0.1.0' }
+  );
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.issues.length, 0);
+  }
+});

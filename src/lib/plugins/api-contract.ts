@@ -1,6 +1,7 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { APP_VERSION } from '@/lib/app-version';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
 type JsonRecord = Record<string, unknown>;
@@ -94,11 +95,49 @@ export const findStoredPluginManifestById = async (
 };
 
 export const toValidationTable = (manifest: unknown) => {
-  const result = validatePluginManifest(manifest);
+  const result = validatePluginManifest(manifest, {
+    currentVersion: APP_VERSION,
+  });
   return {
     isValid: result.isValid,
     rows: result.issues,
   };
+};
+
+/**
+ * Auto-disables plugins with capability or version validation issues.
+ * Returns a modified manifest with enabled: false if there are critical warnings.
+ */
+export const autoDisablePluginIfNeeded = (
+  manifest: unknown
+): { manifest: unknown; autoDisabledWithWarnings?: string[] } => {
+  if (!isObjectRecord(manifest)) {
+    return { manifest };
+  }
+
+  const result = validatePluginManifest(manifest, {
+    currentVersion: APP_VERSION,
+  });
+
+  // Check if there are capability or version warnings
+  const criticalWarnings = result.issues.filter(
+    (issue) =>
+      issue.severity === 'warning' &&
+      (issue.message.includes('requires capability') ||
+        issue.message.includes('requires matmetrics version'))
+  );
+
+  if (criticalWarnings.length > 0 && manifest.enabled !== false) {
+    return {
+      manifest: {
+        ...manifest,
+        enabled: false,
+      },
+      autoDisabledWithWarnings: criticalWarnings.map((w) => w.message),
+    };
+  }
+
+  return { manifest };
 };
 
 export const createContractPayload = (

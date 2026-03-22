@@ -222,6 +222,19 @@ export const validatePluginManifest = (
     }
   });
 
+  // Check minVersion requirement if currentVersion is provided
+  if (options.currentVersion && manifest.minVersion) {
+    if (!meetsMinimumVersion(options.currentVersion, manifest.minVersion)) {
+      issues.push(
+        makeIssue(
+          'warning',
+          'minVersion',
+          `Plugin requires matmetrics version ${manifest.minVersion} or higher, but current version is ${options.currentVersion}.`
+        )
+      );
+    }
+  }
+
   const hasErrors = issues.some((issue) => issue.severity === 'error');
 
   if (hasErrors) {
