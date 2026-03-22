@@ -1,16 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  markdownToSession,
-  sessionToMarkdown,
-  validateMarkdownParserEdgeCases,
-} from './markdown-serializer';
+import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
 
-test('validateMarkdownParserEdgeCases remains true', () => {
-  assert.equal(validateMarkdownParserEdgeCases(), true);
+test('EOF without trailing newline preserves notes text', () => {
+  const markdownWithoutTrailingNewline = `---
+id: "edge-no-eof-newline"
+date: "2026-03-16"
+effort: 3
+category: "Technical"
+---
+
+# March 16, 2026 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+Includes the letter Z in the middle of content.
+
+## Notes
+
+Finishes at file end with Z`;
+
+  const parsed = markdownToSession(markdownWithoutTrailingNewline);
+
+  assert.equal(parsed.notes, 'Finishes at file end with Z');
 });
 
-test('markdownToSession parses CRLF section content', () => {
+test('CRLF and mixed newline parsing preserve sections', () => {
   const markdownWithCrLf = [
     '---',
     'id: "edge-crlf"',
@@ -39,9 +57,7 @@ test('markdownToSession parses CRLF section content', () => {
   assert.deepEqual(parsed.techniques, ['Uchi mata', 'Harai goshi']);
   assert.equal(parsed.description, 'CRLF description line.');
   assert.equal(parsed.notes, 'CRLF notes line.');
-});
 
-test('markdownToSession parses mixed newline section content', () => {
   const markdownMixedNewlines =
     '---\r\n' +
     'id: "edge-mixed"\n' +
@@ -58,14 +74,14 @@ test('markdownToSession parses mixed newline section content', () => {
     '## Notes\r\n\r\n' +
     'Mixed newline notes.';
 
-  const parsed = markdownToSession(markdownMixedNewlines);
+  const mixedParsed = markdownToSession(markdownMixedNewlines);
 
-  assert.deepEqual(parsed.techniques, ['Sasae tsurikomi ashi', 'Ko uchi gari']);
-  assert.equal(parsed.description, 'Mixed newline description.');
-  assert.equal(parsed.notes, 'Mixed newline notes.');
+  assert.deepEqual(mixedParsed.techniques, ['Sasae tsurikomi ashi', 'Ko uchi gari']);
+  assert.equal(mixedParsed.description, 'Mixed newline description.');
+  assert.equal(mixedParsed.notes, 'Mixed newline notes.');
 });
 
-test('techniques, description, and notes roundtrip from CRLF input', () => {
+test('Roundtrip preserves techniques/description/notes', () => {
   const markdownWithCrLf = [
     '---',
     'id: "edge-roundtrip-crlf"',

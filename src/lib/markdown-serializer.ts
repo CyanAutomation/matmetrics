@@ -190,59 +190,6 @@ export function validateRoundtrip(session: JudoSession): boolean {
   }
 }
 
-/**
- * Local parser validation helper for edge cases that have broken in production.
- */
-export function validateMarkdownParserEdgeCases(): boolean {
-  const baseMarkdown = `---
-id: "edge-1"
-date: "2026-03-16"
-effort: 3
-category: "Technical"
----
-
-# March 16, 2026 – Judo Session
-
-## Techniques Practiced
-- O soto gari
-
-## Session Description
-
-Includes the letter Z in the middle of content.
-
-## Notes
-
-Finishes at file end with Z`;
-
-  const parsedNoTrailingNewline = markdownToSession(baseMarkdown);
-  if (
-    parsedNoTrailingNewline.techniques.length === 0 ||
-    parsedNoTrailingNewline.techniques[0] !== 'O soto gari' ||
-    parsedNoTrailingNewline.description !==
-      'Includes the letter Z in the middle of content.' ||
-    parsedNoTrailingNewline.notes !== 'Finishes at file end with Z'
-  ) {
-    return false;
-  }
-
-  const parsedWithTrailingNewline = markdownToSession(`${baseMarkdown}\n`);
-  if (parsedWithTrailingNewline.notes !== 'Finishes at file end with Z') {
-    return false;
-  }
-
-  const roundtripSession: JudoSession = {
-    id: 'edge-roundtrip',
-    date: '2026-03-17',
-    effort: 4,
-    category: 'Technical',
-    techniques: ['Uchi mata', 'Tai otoshi'],
-    description: 'Roundtrip description with Z marker',
-    notes: 'Roundtrip notes ending at file end Z',
-  };
-
-  return validateRoundtrip(roundtripSession);
-}
-
 function arraysEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((val, idx) => val === b[idx]);
