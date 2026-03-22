@@ -325,24 +325,45 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const tempPath = ensurePathWithinDataDir(
     `${nextPath}.tmp-${process.pid}-${Date.now()}`
   );
-  const backupPath = ensurePathWithinDataDir(
-    `${existingPath}.bak-${process.pid}-${Date.now()}`
-  );
 
   try {
     await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
-    await fs.rename(existingPath, backupPath);
-    await fs.rename(tempPath, nextPath);
-    await fs.unlink(backupPath);
-  } catch (error) {
-    await fs.unlink(tempPath).catch(() => undefined);
+
+    let committedAtNextPath = false;
     try {
-      await fs.access(backupPath);
-      await fs.rename(backupPath, existingPath);
-    } catch {
-      // Best-effort rollback only.
+      await fs.writeFile(nextPath, markdown, {
+        encoding: 'utf-8',
+        flag: 'wx',
+      });
+      committedAtNextPath = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw error;
+      }
+
+      const existingNextMarkdown = await fs.readFile(nextPath, 'utf-8');
+      const existingNextSession = markdownToSession(existingNextMarkdown);
+      if (existingNextSession.id !== session.id) {
+        throw new Error(
+          `Cannot move session ${session.id} to ${nextPath} because another session already exists there`
+        );
+      }
+      committedAtNextPath = true;
     }
+
+    if (committedAtNextPath) {
+      try {
+        await fs.unlink(existingPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  } catch (error) {
     throw error;
+  } finally {
+    await fs.unlink(tempPath).catch(() => undefined);
   }
 
   return nextPath;
