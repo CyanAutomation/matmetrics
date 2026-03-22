@@ -3,9 +3,9 @@ import test from 'node:test';
 
 import {
   loadEnabledDashboardTabExtensions,
-  updatePluginEnabledState,
 } from '@/lib/plugins/registry';
 import { loadDashboardTabExtensions } from '@/lib/plugins/load-dashboard-tab-extensions';
+import { createPluginEnabledStateIsolation } from '@/lib/plugins/registry.test-support';
 
 const discoveredExtension = {
   pluginId: 'tag-manager',
@@ -22,6 +22,12 @@ const discoveredExtension = {
     },
   },
 };
+
+const pluginEnabledStateIsolation = createPluginEnabledStateIsolation();
+
+test.afterEach(async () => {
+  await pluginEnabledStateIsolation.restoreTouchedPluginStates();
+});
 
 test('loadDashboardTabExtensions uses discovery API response when available', async () => {
   const fallbackLoader = () => [];
@@ -64,29 +70,25 @@ test('loadDashboardTabExtensions falls back to local registry when discovery fai
 });
 
 test('loadDashboardTabExtensions legacy fallback respects enabled filtering', async () => {
-  await updatePluginEnabledState('tag-manager', true);
+  await pluginEnabledStateIsolation.setEnabled('tag-manager', true);
 
-  try {
-    const enabledResult = await loadDashboardTabExtensions({
-      useLegacyRegistryFallback: true,
-      fallbackLoader: loadEnabledDashboardTabExtensions,
-    });
-    assert.equal(
-      enabledResult.some((entry) => entry.pluginId === 'tag-manager'),
-      true
-    );
+  const enabledResult = await loadDashboardTabExtensions({
+    useLegacyRegistryFallback: true,
+    fallbackLoader: loadEnabledDashboardTabExtensions,
+  });
+  assert.equal(
+    enabledResult.some((entry) => entry.pluginId === 'tag-manager'),
+    true
+  );
 
-    await updatePluginEnabledState('tag-manager', false);
+  await pluginEnabledStateIsolation.setEnabled('tag-manager', false);
 
-    const disabledResult = await loadDashboardTabExtensions({
-      useLegacyRegistryFallback: true,
-      fallbackLoader: loadEnabledDashboardTabExtensions,
-    });
-    assert.equal(
-      disabledResult.some((entry) => entry.pluginId === 'tag-manager'),
-      false
-    );
-  } finally {
-    await updatePluginEnabledState('tag-manager', true);
-  }
+  const disabledResult = await loadDashboardTabExtensions({
+    useLegacyRegistryFallback: true,
+    fallbackLoader: loadEnabledDashboardTabExtensions,
+  });
+  assert.equal(
+    disabledResult.some((entry) => entry.pluginId === 'tag-manager'),
+    false
+  );
 });
