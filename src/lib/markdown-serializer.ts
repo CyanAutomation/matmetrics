@@ -156,13 +156,67 @@ function extractSectionContent(
   content: string,
   heading: string
 ): string | undefined {
-  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const sectionRegex = new RegExp(
-    `## ${escapedHeading}\\n\\n?([\\s\\S]*?)(?=\\n## |\\s*$)`
-  );
+  const sectionHeadings = [
+    '## Techniques Practiced',
+    '## Session Description',
+    '## Notes',
+  ];
+  const targetHeading = `## ${heading}`;
+  const lines = content.split('\n');
 
-  const match = content.match(sectionRegex);
-  return match ? match[1].trimEnd() : undefined;
+  let inFencedCodeBlock = false;
+  let headingLineIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (isFencedCodeDelimiter(lines[i])) {
+      inFencedCodeBlock = !inFencedCodeBlock;
+      continue;
+    }
+
+    if (!inFencedCodeBlock && lines[i] === targetHeading) {
+      headingLineIndex = i;
+      break;
+    }
+  }
+
+  if (headingLineIndex === -1) {
+    return undefined;
+  }
+
+  let sectionStartIndex = headingLineIndex + 1;
+  if (sectionStartIndex < lines.length && lines[sectionStartIndex] === '') {
+    sectionStartIndex += 1;
+  }
+
+  const sectionLines: string[] = [];
+  inFencedCodeBlock = false;
+
+  for (let i = sectionStartIndex; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (isFencedCodeDelimiter(line)) {
+      inFencedCodeBlock = !inFencedCodeBlock;
+      sectionLines.push(line);
+      continue;
+    }
+
+    if (
+      !inFencedCodeBlock &&
+      sectionHeadings.includes(line) &&
+      line !== targetHeading
+    ) {
+      break;
+    }
+
+    sectionLines.push(line);
+  }
+
+  return sectionLines.join('\n').trimEnd();
+}
+
+function isFencedCodeDelimiter(line: string): boolean {
+  const trimmed = line.trimStart();
+  return trimmed.startsWith('```') || trimmed.startsWith('~~~');
 }
 
 /**
