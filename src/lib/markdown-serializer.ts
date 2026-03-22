@@ -12,7 +12,7 @@ import { JudoSession, EffortLevel, SessionCategory } from './types';
  * duration: 90
  * ---
  *
- * # March 16, 2026 – Judo Session
+ * # 2026-03-16 - Judo Session: Technical
  *
  * ## Techniques Practiced
  * - Technique 1
@@ -68,6 +68,8 @@ export function sessionToMarkdown(session: JudoSession): string {
 /**
  * Parse a markdown string (with YAML frontmatter) into a JudoSession
  * Throws if markdown is invalid or missing required fields
+ * 
+ * Title must match format: # YYYY-MM-DD - Judo Session: Category
  */
 export function markdownToSession(markdown: string): JudoSession {
   const { data, content } = matter(markdown);
@@ -86,6 +88,8 @@ export function markdownToSession(markdown: string): JudoSession {
   if (!data.category || typeof data.category !== 'string') {
     throw new Error('Missing or invalid "category" in frontmatter');
   }
+
+  validateTitleFormat(normalizedContent, data.date, data.category);
 
   // Parse techniques from markdown content
   const techniques = extractTechniques(normalizedContent);
@@ -217,6 +221,50 @@ function extractSectionContent(
 function isFencedCodeDelimiter(line: string): boolean {
   const trimmed = line.trimStart();
   return trimmed.startsWith('```') || trimmed.startsWith('~~~');
+}
+
+function validateTitleFormat(
+  content: string,
+  expectedDate: string,
+  expectedCategory: string
+): void {
+  const lines = content.split('\n');
+
+  // Find the first non-empty line (the title)
+  let titleLine: string | undefined;
+  for (const line of lines) {
+    if (line.trim()) {
+      titleLine = line;
+      break;
+    }
+  }
+
+  if (!titleLine) {
+    throw new Error('Markdown content has no title');
+  }
+
+  const titleRegex = /^# (\d{4}-\d{2}-\d{2}) - Judo Session: (.+)$/;
+  const match = titleLine.match(titleRegex);
+
+  if (!match) {
+    throw new Error(
+      `Title must match format "# YYYY-MM-DD - Judo Session: Category". Got: "${titleLine}"`
+    );
+  }
+
+  const [, titleDate, titleCategory] = match;
+
+  if (titleDate !== expectedDate) {
+    throw new Error(
+      `Title date "${titleDate}" does not match frontmatter date "${expectedDate}"`
+    );
+  }
+
+  if (titleCategory !== expectedCategory) {
+    throw new Error(
+      `Title category "${titleCategory}" does not match frontmatter category "${expectedCategory}"`
+    );
+  }
 }
 
 /**

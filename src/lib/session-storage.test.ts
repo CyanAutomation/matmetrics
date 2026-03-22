@@ -68,6 +68,8 @@ effort: 3
 category: "Technical"
 ---
 
+# 2025-03-14 - Judo Session: Technical
+
 ## Techniques Practiced
 - O soto gari
 `,
@@ -138,6 +140,8 @@ effort: 4
 category: "Randori"
 ---
 
+# 2025-03-14 - Judo Session: Randori
+
 ## Techniques Practiced
 - Uchi mata
 `,
@@ -146,6 +150,8 @@ date: "2025-03-15"
 effort: 2
 category: "Technical"
 ---
+
+# 2025-03-15 - Judo Session: Technical
 
 ## Techniques Practiced
 - Tai otoshi
