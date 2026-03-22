@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,6 +9,7 @@ import {
   __resetDataDirForTests,
   __setDataDirForTests,
   createSession as createLocalSession,
+  getSessionFilePath,
   listSessions as listLocalSessions,
 } from '@/lib/file-storage';
 import type { JudoSession } from '@/lib/types';
@@ -110,6 +111,41 @@ test('PUT updates local markdown storage when GitHub is not configured', async (
   });
 });
 
+test('PUT returns 409 when local storage has duplicate files for the same session ID', async () => {
+  await withTempDataDir(async () => {
+    const sessionId = 'put-duplicate-id';
+    const originalPath = await createLocalSession(makeSession(sessionId, '2025-01-10'));
+    const duplicatePath = getSessionFilePath('2025-02-10', undefined, sessionId);
+
+    await mkdir(path.dirname(duplicatePath), { recursive: true });
+    await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
+
+    const response = await PUT(
+      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: sessionId,
+          date: '2025-01-10',
+          effort: 4,
+          category: 'Technical',
+          techniques: ['uchi-mata'],
+        }),
+      }),
+      { params: Promise.resolve({ id: sessionId }) }
+    );
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      error:
+        'Session ID conflict: multiple session files share this ID. Resolve duplicates before updating.',
+    });
+  });
+});
+
 test('PUT returns 500 when GitHub update fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;
@@ -198,6 +234,34 @@ test('DELETE removes the local markdown session when GitHub is not configured', 
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { message: 'Session deleted' });
     assert.equal((await listLocalSessions()).length, 0);
+  });
+});
+
+test('DELETE returns 409 when local storage has duplicate files for the same session ID', async () => {
+  await withTempDataDir(async () => {
+    const sessionId = 'delete-duplicate-id';
+    const originalPath = await createLocalSession(makeSession(sessionId, '2025-01-11'));
+    const duplicatePath = getSessionFilePath('2025-02-11', undefined, sessionId);
+
+    await mkdir(path.dirname(duplicatePath), { recursive: true });
+    await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+      }),
+      { params: Promise.resolve({ id: sessionId }) }
+    );
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      error:
+        'Session ID conflict: multiple session files share this ID. Resolve duplicates before deleting.',
+    });
   });
 });
 
