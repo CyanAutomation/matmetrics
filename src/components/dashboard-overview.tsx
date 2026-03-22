@@ -76,7 +76,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
 
   if (!stats) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-xl border border-dashed border-muted-foreground/20">
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-xl border border-dashed border-ghost">
         <RessaImage
           pose={5}
           size="medium"

@@ -104,8 +104,8 @@ export function PromptSettings() {
         </AlertDescription>
       </Alert>
 
-      <Card className="border-primary/10 shadow-sm">
-        <CardHeader className="bg-primary/5 border-b">
+      <Card className="bg-card/95 shadow-sm">
+        <CardHeader className="bg-secondary/45">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-md">
               <BrainCircuit className="h-6 w-6" />
@@ -135,7 +135,7 @@ export function PromptSettings() {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your custom instructions here..."
               disabled={!canSavePreferences}
-              className="min-h-[400px] font-mono text-sm bg-secondary/5 border-primary/10 focus:border-primary/30 transition-colors leading-relaxed"
+              className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
             />
             <p className="text-[11px] text-muted-foreground italic">
               Note: The AI will automatically append your practice description
@@ -143,7 +143,7 @@ export function PromptSettings() {
             </p>
           </div>
         </CardContent>
-        <CardFooter className="bg-primary/5 border-t p-6 flex justify-between items-center">
+        <CardFooter className="bg-secondary/45 p-6 flex justify-between items-center">
           <Button
             variant="outline"
             onClick={() => void handleReset()}

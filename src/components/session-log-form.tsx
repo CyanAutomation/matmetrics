@@ -363,13 +363,13 @@ export function SessionLogForm({
   return (
     <Card
       className={cn(
-        'max-w-4xl mx-auto shadow-lg border-primary/10',
+        'max-w-4xl mx-auto shadow-lg bg-card/95',
         !shouldHideHeader && CARD_INTERACTION_CLASS,
         shouldHideHeader && 'shadow-none border-0 bg-transparent'
       )}
     >
       {!shouldHideHeader && (
-        <CardHeader className="bg-primary/5 border-b">
+        <CardHeader className="bg-secondary/45">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary text-primary-foreground rounded-lg">
               <PlusCircle className="h-6 w-6" />
@@ -446,7 +446,7 @@ export function SessionLogForm({
                 name="sessionEffort"
                 value={effort.toString()}
                 onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex items-center justify-around h-11 px-2 bg-background rounded-md border border-input"
+                className="flex items-center justify-around h-11 px-2 bg-background/90 rounded-md"
               >
                 {[1, 2, 3, 4, 5].map((val) => (
                   <div
@@ -535,7 +535,7 @@ export function SessionLogForm({
                   AI Tag Suggestion
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg border border-dashed border-primary/20 bg-secondary/5">
+              <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg border border-dashed border-ghost bg-secondary/25">
                 {techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
                     <Brain className="h-4 w-4" />
@@ -607,7 +607,7 @@ export function SessionLogForm({
         <CardFooter
           className={cn(
             'flex justify-end gap-3',
-            !shouldHideHeader ? 'bg-primary/5 border-t p-8' : 'p-0 pt-6'
+            !shouldHideHeader ? 'bg-secondary/45 p-8' : 'p-0 pt-6'
           )}
         >
           {onCancel && (

@@ -87,8 +87,8 @@ const severityLabel = (severity: PluginValidationSeverity): string => {
 };
 
 const severityBadgeClass: Record<PluginValidationSeverity, string> = {
-  error: 'bg-destructive/10 text-destructive border-destructive/20',
-  warning: 'bg-amber-500/10 text-amber-700 border-amber-300',
+  error: 'bg-destructive/10 text-destructive border-destructive/30',
+  warning: 'bg-amber-500/10 text-amber-700 border-amber-300/40',
   info: 'bg-primary/10 text-primary border-primary/30',
 };
 
@@ -480,8 +480,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <Card className="border-primary/10">
-        <CardHeader className="bg-primary/5 border-b">
+      <Card className="bg-card/95">
+        <CardHeader className="bg-secondary/45">
           <CardTitle>Plugin Manager</CardTitle>
           <CardDescription>
             Core admin view for plugin manifest lifecycle actions: list,
@@ -640,7 +640,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   return (
                     <div
                       key={`validate-${entry.key}`}
-                      className="rounded-lg border p-4 space-y-3"
+                      className="rounded-lg bg-secondary/20 p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="font-semibold">{manifestId}</div>
@@ -786,7 +786,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   </Label>
                 </div>
 
-                <div className="rounded-lg border p-4 bg-muted/20">
+                <div className="rounded-lg border border-ghost p-4 bg-muted/25">
                   <div className="text-sm font-semibold mb-2">
                     Create validation
                   </div>

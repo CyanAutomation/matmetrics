@@ -75,7 +75,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 rounded-lg border-2 border-dashed border-muted">
+      <div className="flex flex-col items-center justify-center py-12 rounded-lg border border-dashed border-ghost bg-secondary/20">
         <RessaImage
           pose={2}
           size="medium"
@@ -93,7 +93,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
         <Card
           key={session.id}
           className={cn(
-            'overflow-hidden border-l-4 border-l-primary/30',
+            'overflow-hidden bg-card/95',
             CARD_INTERACTION_CLASS
           )}
         >
@@ -130,7 +130,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                     <Badge
                       key={idx}
                       variant="outline"
-                      className="bg-background/50 border-primary/20"
+                      className="bg-background/60 border-primary/30"
                     >
                       {tech}
                     </Badge>
@@ -138,7 +138,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0">
+              <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto bg-secondary/25 rounded-md px-3 py-2 md:bg-transparent md:p-0">
                 <div className="flex flex-col items-end mr-4">
                   <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
                     Effort
@@ -176,7 +176,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
             </div>
 
             {(session.description || session.notes) && (
-              <div className="px-5 pb-5 pt-0 space-y-3 border-t">
+              <div className="px-5 pb-5 pt-3 space-y-3 bg-secondary/25">
                 {session.description && (
                   <p className="text-sm text-foreground/90 pt-3 whitespace-pre-wrap">
                     {session.description}
