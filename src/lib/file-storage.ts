@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import { JudoSession } from './types';
 import { markdownToSession, sessionToMarkdown } from './markdown-serializer';
@@ -38,6 +39,27 @@ export function isDuplicateSessionIdError(
   error: unknown
 ): error is DuplicateSessionIdError {
   return error instanceof DuplicateSessionIdError;
+}
+
+export class SessionUpdateConflictError extends Error {
+  readonly code = 'SESSION_UPDATE_CONFLICT';
+  readonly sessionId: string;
+  readonly sessionPath: string;
+
+  constructor(sessionId: string, sessionPath: string) {
+    super(
+      `Session ${sessionId} was modified concurrently at ${sessionPath}; refusing to overwrite newer content`
+    );
+    this.name = 'SessionUpdateConflictError';
+    this.sessionId = sessionId;
+    this.sessionPath = sessionPath;
+  }
+}
+
+export function isSessionUpdateConflictError(
+  error: unknown
+): error is SessionUpdateConflictError {
+  return error instanceof SessionUpdateConflictError;
 }
 
 function getDataDir(): string {
@@ -111,6 +133,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function getTempPathForTarget(targetPath: string): string {
+  return ensurePathWithinDataDir(
+    `${targetPath}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`
+  );
 }
 
 async function readSessionIndex(
@@ -468,7 +496,19 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
-    await fs.writeFile(existingPath, markdown, 'utf-8');
+    const priorMarkdown = await fs.readFile(existingPath, 'utf-8');
+    const tempPath = getTempPathForTarget(existingPath);
+
+    await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+    try {
+      const currentMarkdown = await fs.readFile(existingPath, 'utf-8');
+      if (currentMarkdown !== priorMarkdown) {
+        throw new SessionUpdateConflictError(session.id, existingPath);
+      }
+      await fs.rename(tempPath, existingPath);
+    } finally {
+      await fs.unlink(tempPath).catch(() => undefined);
+    }
     await updateSessionIndexPath(session.id, existingPath);
     return existingPath;
   }
@@ -488,9 +528,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
     }
   }
 
-  const tempPath = ensurePathWithinDataDir(
-    `${nextPath}.tmp-${process.pid}-${Date.now()}`
-  );
+  const tempPath = getTempPathForTarget(nextPath);
 
   try {
     await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
