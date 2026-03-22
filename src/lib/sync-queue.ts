@@ -11,9 +11,22 @@ import { getScopedStorageKey } from './client-identity';
  *   operations added by other tabs while still removing/rewriting the expected items.
  */
 const SYNC_QUEUE_KEY_BASE = 'matmetrics_sync_queue';
+const SYNC_QUEUE_QUARANTINE_KEY_SUFFIX = '__corrupt_backup';
 
 export function getSyncQueueStorageKey(): string {
   return getScopedStorageKey(SYNC_QUEUE_KEY_BASE);
+}
+
+function getSyncQueueQuarantineStorageKey(): string {
+  return `${getSyncQueueStorageKey()}${SYNC_QUEUE_QUARANTINE_KEY_SUFFIX}`;
+}
+
+function getErrorType(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name || 'Error';
+  }
+
+  return typeof error;
 }
 
 type SyncOperationPayload =
@@ -31,7 +44,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isValidSyncOperationInput(value: unknown): value is SyncOperationInput {
+function isValidSyncOperationInput(
+  value: unknown
+): value is SyncOperationInput {
   if (!isRecord(value) || typeof value.type !== 'string') {
     return false;
   }
@@ -82,7 +97,9 @@ function getOperationIdentity(operation: SyncOperationInput): string {
   return `${operation.type}:${operation.session.id}`;
 }
 
-function hasQueuedAt(operation: SyncOperationInput): operation is SyncOperation {
+function hasQueuedAt(
+  operation: SyncOperationInput
+): operation is SyncOperation {
   return 'queuedAt' in operation && Number.isFinite(operation.queuedAt);
 }
 
@@ -189,7 +206,9 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
     }
   }
 
-  return reducedOperations.sort((left, right) => left.queuedAt - right.queuedAt);
+  return reducedOperations.sort(
+    (left, right) => left.queuedAt - right.queuedAt
+  );
 }
 
 function readQueueFromStorage(): SyncOperation[] {
@@ -284,10 +303,29 @@ export function queueOperation(operation: SyncOperationInput): void {
 export function getQueue(): SyncOperation[] {
   if (typeof window === 'undefined') return [];
 
+  const queueStorageKey = getSyncQueueStorageKey();
+
   try {
     return readQueueFromStorage();
-  } catch (e) {
-    console.error('Failed to parse sync queue', e);
+  } catch (error) {
+    const rawStoredQueue = localStorage.getItem(queueStorageKey);
+
+    if (rawStoredQueue !== null) {
+      const quarantineKey = getSyncQueueQuarantineStorageKey();
+      if (localStorage.getItem(quarantineKey) === null) {
+        localStorage.setItem(quarantineKey, rawStoredQueue);
+      }
+
+      localStorage.removeItem(queueStorageKey);
+    }
+
+    console.warn('Sync queue storage parse failure', {
+      key: queueStorageKey,
+      errorType: getErrorType(error),
+      quarantined: rawStoredQueue !== null,
+      quarantineKey: getSyncQueueQuarantineStorageKey(),
+    });
+
     return [];
   }
 }

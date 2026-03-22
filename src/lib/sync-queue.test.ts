@@ -97,7 +97,9 @@ test('queueOperation timestamps operations and preserves insertion order', () =>
     assert.equal(queue[0].session.notes, 'updated');
   }
   assert.ok(
-    queue.every((operation: SyncOperation) => Number.isFinite(operation.queuedAt))
+    queue.every((operation: SyncOperation) =>
+      Number.isFinite(operation.queuedAt)
+    )
   );
 });
 
@@ -130,6 +132,62 @@ test('clearQueue removes the persisted storage key when there is no concurrent w
 
   assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
   assert.deepEqual(getQueue(), []);
+});
+
+test('malformed JSON is quarantined and cleared on first read', () => {
+  resetQueue();
+  const queueKey = getSyncQueueStorageKey();
+  const quarantineKey = `${queueKey}__corrupt_backup`;
+  const malformedPayload = '{"invalid":';
+  localStorage.setItem(queueKey, malformedPayload);
+
+  const warningCalls: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warningCalls.push(args);
+  };
+
+  try {
+    assert.deepEqual(getQueue(), []);
+
+    assert.equal(localStorage.getItem(queueKey), null);
+    assert.equal(localStorage.getItem(quarantineKey), malformedPayload);
+    assert.equal(warningCalls.length, 1);
+
+    const warningContext = warningCalls[0][1] as {
+      key: string;
+      errorType: string;
+      quarantined: boolean;
+      quarantineKey: string;
+    };
+    assert.equal(warningContext.key, queueKey);
+    assert.equal(warningContext.errorType, 'SyntaxError');
+    assert.equal(warningContext.quarantined, true);
+    assert.equal(warningContext.quarantineKey, quarantineKey);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test('subsequent reads after malformed JSON return stable empty queue without repeated parse warnings', () => {
+  resetQueue();
+  const queueKey = getSyncQueueStorageKey();
+  localStorage.setItem(queueKey, '{bad json');
+
+  let warningCount = 0;
+  const originalWarn = console.warn;
+  console.warn = () => {
+    warningCount += 1;
+  };
+
+  try {
+    assert.deepEqual(getQueue(), []);
+    assert.deepEqual(getQueue(), []);
+    assert.equal(warningCount, 1);
+    assert.equal(localStorage.getItem(queueKey), null);
+  } finally {
+    console.warn = originalWarn;
+  }
 });
 
 test('identity-based removal succeeds under concurrent writes where index-based removal fails', () => {
@@ -198,7 +256,9 @@ test('coalesces update then delete into delete', () => {
     []
   );
 
-  assert.deepEqual(getQueue(), [{ type: 'DELETE', id: 'session-1', queuedAt: 200 }]);
+  assert.deepEqual(getQueue(), [
+    { type: 'DELETE', id: 'session-1', queuedAt: 200 },
+  ]);
 });
 
 test('coalesces delete then create into recreate create', () => {
