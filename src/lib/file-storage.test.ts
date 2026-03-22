@@ -40,6 +40,12 @@ function makeSession(overrides: Partial<JudoSession> = {}): JudoSession {
   };
 }
 
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function withTempDataDir(run: () => Promise<void>) {
   const dataDir = await mkdtemp(
     path.join(tmpdir(), 'matmetrics-file-storage-')
@@ -133,7 +139,7 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
     });
     const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
     const conflictingMarkdown = [
-      "---",
+      '---',
       "id: 'session-other'",
       "date: '2025-02-12'",
       'effort: 2',
@@ -165,13 +171,14 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
         typeof options === 'object' && options !== null && 'flag' in options
           ? options.flag
           : undefined;
-      if (
-        !injectedConflict &&
-        targetPathString === nextPath &&
-        flag === 'wx'
-      ) {
+      if (!injectedConflict && targetPathString === nextPath && flag === 'wx') {
         injectedConflict = true;
-        await originalWriteFile.call(fs, nextPath, conflictingMarkdown, 'utf-8');
+        await originalWriteFile.call(
+          fs,
+          nextPath,
+          conflictingMarkdown,
+          'utf-8'
+        );
       }
 
       return originalWriteFile.call(fs, ...args);
@@ -229,7 +236,12 @@ test('updateSession overwrites an existing destination file when interleaved wri
           'same-id interleaving should still succeed',
           'stale destination content'
         );
-        await originalWriteFile.call(fs, nextPath, staleSameIdMarkdown, 'utf-8');
+        await originalWriteFile.call(
+          fs,
+          nextPath,
+          staleSameIdMarkdown,
+          'utf-8'
+        );
       }
 
       return originalWriteFile.call(fs, ...args);
@@ -298,7 +310,10 @@ test('concurrent updateSession calls for the same file return a conflict for one
 
       assert.equal(updatedPath, sessionPath);
       assert.equal(startedNestedUpdate, true);
-      assert.equal(nestedUpdateError instanceof SessionUpdateConflictError, true);
+      assert.equal(
+        nestedUpdateError instanceof SessionUpdateConflictError,
+        true
+      );
       assert.equal(isSessionUpdateConflictError(nestedUpdateError), true);
       const markdown = await readFile(sessionPath, 'utf8');
       assert.match(markdown, /first-writer/);
@@ -328,7 +343,9 @@ test('updateSession releases same-path lock when commit rename fails', async () 
         toPath.toString() === sessionPath
       ) {
         injectedRenameFailure = true;
-        const error = new Error('simulated rename failure') as NodeJS.ErrnoException;
+        const error = new Error(
+          'simulated rename failure'
+        ) as NodeJS.ErrnoException;
         error.code = 'EIO';
         throw error;
       }
@@ -412,6 +429,52 @@ test('createSession rejects same-ID concurrent creates across different dates an
   });
 });
 
+test('createSession resolves concurrent create when the winning writer completes after 200ms', async () => {
+  await withTempDataDir(async () => {
+    const originalWriteFile = fs.writeFile;
+    const session = makeSession({
+      id: 'session-delayed-writer',
+      date: '2025-06-10',
+      notes: 'delayed write winner',
+    });
+    const targetPath = getSessionFilePath(session.date, undefined, session.id);
+    let delayedPrimaryWrite = false;
+
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPathArg, data, options] = args;
+      const flag =
+        typeof options === 'object' && options !== null && 'flag' in options
+          ? options.flag
+          : undefined;
+      if (
+        !delayedPrimaryWrite &&
+        targetPathArg.toString() === targetPath &&
+        flag === 'wx' &&
+        typeof data === 'string'
+      ) {
+        delayedPrimaryWrite = true;
+        await wait(350);
+      }
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
+
+    try {
+      const [first, second] = await Promise.all([
+        createSession(session),
+        createSession(session),
+      ]);
+      assert.equal(first, targetPath);
+      assert.equal(second, targetPath);
+    } finally {
+      fs.writeFile = originalWriteFile;
+    }
+
+    assert.equal(delayedPrimaryWrite, true);
+    const markdown = await readFile(targetPath, 'utf8');
+    assert.match(markdown, /delayed write winner/);
+  });
+});
+
 test('findSessionFileById throws DuplicateSessionIdError when multiple files share an ID', async () => {
   await withTempDataDir(async () => {
     const session = makeSession({
@@ -432,18 +495,15 @@ test('findSessionFileById throws DuplicateSessionIdError when multiple files sha
       'utf-8'
     );
 
-    await assert.rejects(
-      findSessionFileById(session.id),
-      (error: unknown) => {
-        assert.equal(error instanceof DuplicateSessionIdError, true);
-        if (!(error instanceof DuplicateSessionIdError)) {
-          return false;
-        }
-        assert.equal(error.sessionId, session.id);
-        assert.deepEqual(error.paths, [canonicalPath, duplicatePath].sort());
-        return true;
+    await assert.rejects(findSessionFileById(session.id), (error: unknown) => {
+      assert.equal(error instanceof DuplicateSessionIdError, true);
+      if (!(error instanceof DuplicateSessionIdError)) {
+        return false;
       }
-    );
+      assert.equal(error.sessionId, session.id);
+      assert.deepEqual(error.paths, [canonicalPath, duplicatePath].sort());
+      return true;
+    });
   });
 });
 
@@ -614,7 +674,12 @@ test('listSessions and hasAnySessions ignore index-only directories', async () =
       path.join(indexDir, 'session-orphan.json'),
       JSON.stringify({
         id: 'session-orphan',
-        path: path.join(baseDir, '2025', '03', '20250303-matmetrics-session-orphan.md'),
+        path: path.join(
+          baseDir,
+          '2025',
+          '03',
+          '20250303-matmetrics-session-orphan.md'
+        ),
       }),
       'utf-8'
     );
