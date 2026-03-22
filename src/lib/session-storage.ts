@@ -81,9 +81,9 @@ function sanitizeGitHubBranch(raw: unknown): string | undefined {
 
 export function normalizeGitHubConfig(
   config: Partial<GitHubConfig> | null | undefined
-): GitHubConfig | null {
+): GitHubConfig | undefined {
   if (!config) {
-    return null;
+    return undefined;
   }
 
   const owner = sanitizeGitHubOwnerOrRepo(config.owner);
@@ -91,14 +91,14 @@ export function normalizeGitHubConfig(
   const branch = sanitizeGitHubBranch(config.branch);
 
   if (!owner || !repo) {
-    return null;
+    return undefined;
   }
 
   return { owner, repo, ...(branch ? { branch } : {}) };
 }
 
 export function shouldUseGitHubStorage(
-  config: GitHubConfig | null | undefined
+  config: GitHubConfig | undefined
 ): config is GitHubConfig {
   return !!config && isGitHubConfigured();
 }
@@ -258,7 +258,7 @@ export async function readSessionByIdFromGitHub(
 }
 
 export async function listSessionsForConfig(
-  config: GitHubConfig | null
+  config: GitHubConfig | undefined
 ): Promise<JudoSession[]> {
   if (shouldUseGitHubStorage(config)) {
     return listSessionsFromGitHub(config);
@@ -269,7 +269,7 @@ export async function listSessionsForConfig(
 
 export async function readSessionByIdForConfig(
   id: string,
-  config: GitHubConfig | null
+  config: GitHubConfig | undefined
 ): Promise<JudoSession | null> {
   if (shouldUseGitHubStorage(config)) {
     return readSessionByIdFromGitHub(id, config);
@@ -285,7 +285,7 @@ export async function readSessionByIdForConfig(
 
 export async function createSessionForConfig(
   session: JudoSession,
-  config: GitHubConfig | null
+  config: GitHubConfig | undefined
 ): Promise<GitHubSyncResult | null> {
   if (shouldUseGitHubStorage(config)) {
     const result = await createSessionOnGitHub(session, config);
@@ -301,7 +301,7 @@ export async function createSessionForConfig(
 
 export async function updateSessionForConfig(
   session: JudoSession,
-  config: GitHubConfig | null
+  config: GitHubConfig | undefined
 ): Promise<GitHubSyncResult | null> {
   if (shouldUseGitHubStorage(config)) {
     const result = await updateSessionOnGitHub(session, config);
@@ -317,7 +317,7 @@ export async function updateSessionForConfig(
 
 export async function deleteSessionForConfig(
   id: string,
-  config: GitHubConfig | null
+  config: GitHubConfig | undefined
 ): Promise<GitHubSyncResult | null> {
   if (shouldUseGitHubStorage(config)) {
     const result = await deleteSessionOnGitHubById(id, config);

@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await createSessionForConfig(session, gitHubConfig ?? null);
+    await createSessionForConfig(session, gitHubConfig);
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
