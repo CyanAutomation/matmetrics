@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -58,6 +59,8 @@ func SessionToMarkdown(session model.Session) (string, error) {
 	return b.String(), nil
 }
 
+// MarkdownToSession parses a markdown string with YAML frontmatter into a Session.
+// Validates that title matches format: # YYYY-MM-DD - Judo Session: Category
 func MarkdownToSession(markdown string) (model.Session, error) {
 	frontmatter, content, err := splitFrontmatter(markdown)
 	if err != nil {
@@ -84,6 +87,10 @@ func MarkdownToSession(markdown string) (model.Session, error) {
 	categoryValue, ok := values["category"].(string)
 	if !ok || strings.TrimSpace(categoryValue) == "" {
 		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "category")
+	}
+
+	if err := validateTitleFormat(content, dateValue, categoryValue); err != nil {
+		return model.Session{}, err
 	}
 
 	description := extractSectionContent(content, "Session Description")
@@ -251,5 +258,42 @@ func validateSession(session model.Session) error {
 	default:
 		return fmt.Errorf("invalid session category %q", session.Category)
 	}
+	return nil
+}
+
+func validateTitleFormat(content, expectedDate, expectedCategory string) error {
+	lines := strings.Split(content, "\n")
+
+	// Find the first non-empty line (the title)
+	var titleLine string
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			titleLine = line
+			break
+		}
+	}
+
+	if titleLine == "" {
+		return fmt.Errorf("markdown content has no title")
+	}
+
+	titleRegex := regexp.MustCompile(`^# (\d{4}-\d{2}-\d{2}) - Judo Session: (.+)$`)
+	match := titleRegex.FindStringSubmatch(titleLine)
+
+	if match == nil {
+		return fmt.Errorf("title must match format \"# YYYY-MM-DD - Judo Session: Category\". Got: %q", titleLine)
+	}
+
+	titleDate := match[1]
+	titleCategory := match[2]
+
+	if titleDate != expectedDate {
+		return fmt.Errorf("title date %q does not match frontmatter date %q", titleDate, expectedDate)
+	}
+
+	if titleCategory != expectedCategory {
+		return fmt.Errorf("title category %q does not match frontmatter category %q", titleCategory, expectedCategory)
+	}
+
 	return nil
 }

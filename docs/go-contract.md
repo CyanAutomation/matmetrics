@@ -13,11 +13,11 @@ This document freezes the cross-language contract between the existing TypeScrip
 - `effort: 1 | 2 | 3 | 4 | 5`
 - `category: "Technical" | "Randori" | "Shiai"`
 - `notes?: string`
-- `duration?: number`
+- `duration?: number` (session duration in minutes)
 
 ## Markdown format
 
-Each session markdown file must use YAML frontmatter followed by fixed headings:
+Each session markdown file must use YAML frontmatter followed by fixed headings. **Title format is strictly enforced:**
 
 ```md
 ---
@@ -43,15 +43,17 @@ Description text
 Notes text
 ```
 
-Rules:
+**Format Rules:**
 
-- `duration` is optional.
-- If `techniques` is empty, write `- (none recorded)`.
+- **Title must match:** `# YYYY-MM-DD - Judo Session: Category` (ISO date, hyphen separator, uppercase category)
+- Title date must match frontmatter date
+- Title category must match frontmatter category
+- `duration` is optional in frontmatter
+- If `techniques` is empty, write `- (none recorded)`
 - Section names must stay exactly:
   - `Techniques Practiced`
   - `Session Description`
   - `Notes`
-- The title line uses ISO date with category: `# YYYY-MM-DD - Judo Session: Category`.
 
 ## Local file layout
 
@@ -79,3 +81,4 @@ Examples:
 - Missing `GITHUB_TOKEN` is an operator/configuration error.
 - GitHub `404` while reading a session file means not found.
 - Bulk sync must be idempotent for unchanged content: unchanged files are skipped, not rewritten.
+- Title format violations are validation errors (reported before session is saved).

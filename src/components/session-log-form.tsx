@@ -72,6 +72,7 @@ export function SessionLogForm({
   const shouldHideHeader = isEditing || hideHeader;
 
   const [date, setDate] = useState(sessionToEdit?.date || '');
+  const [duration, setDuration] = useState(sessionToEdit?.duration || '');
   const [description, setDescription] = useState(
     sessionToEdit?.description || ''
   );
@@ -99,6 +100,7 @@ export function SessionLogForm({
 
   useEffect(() => {
     setDate(sessionToEdit?.date || '');
+    setDuration(sessionToEdit?.duration || '');
     setDescription(sessionToEdit?.description || '');
     setTechniques(sessionToEdit?.techniques || []);
     setNewTech('');
@@ -319,6 +321,7 @@ export function SessionLogForm({
       category,
       description,
       notes,
+      ...(duration && { duration: parseInt(duration, 10) }),
     };
 
     setIsSubmitting(true);
@@ -341,6 +344,7 @@ export function SessionLogForm({
         setTechniques([]);
         setDescription('');
         setNotes('');
+        setDuration('');
         setEffort(3);
         setCategory('Technical');
       }
@@ -413,6 +417,27 @@ export function SessionLogForm({
                 className="bg-background h-11"
               />
             </div>
+            <div className="md:col-span-2 space-y-2.5">
+              <Label
+                htmlFor={fid('duration')}
+                className="text-sm font-semibold block h-5"
+              >
+                Duration (min)
+              </Label>
+              <Input
+                id={fid('duration')}
+                name="sessionDuration"
+                type="number"
+                min="1"
+                max="999"
+                placeholder="90"
+                title="How long was your practice session in minutes?"
+                aria-label="Session duration in minutes"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="bg-background h-11"
+              />
+            </div>
             <div className="md:col-span-3 space-y-2.5">
               <Label
                 htmlFor={fid('category')}
@@ -438,10 +463,15 @@ export function SessionLogForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-6 space-y-2.5">
-              <Label className="text-sm font-semibold block h-5">
-                Effort Level
-              </Label>
+            <div className="md:col-span-4 space-y-2.5">
+              <div className="h-5 flex items-center justify-between">
+                <Label className="text-sm font-semibold">
+                  Effort Level
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  1 = Easy, 5 = Intense
+                </span>
+              </div>
               <RadioGroup
                 name="sessionEffort"
                 value={effort.toString()}

@@ -10,7 +10,7 @@ effort: 3
 category: "Technical"
 ---
 
-# March 16, 2026 - Judo Session: Technical
+# 2026-03-16 - Judo Session: Technical
 
 ## Techniques Practiced
 - O soto gari
@@ -37,7 +37,7 @@ test('CRLF and mixed newline parsing preserve sections', () => {
     'category: "Technical"',
     '---',
     '',
-    '# March 19, 2026 - Judo Session: Technical',
+    '# 2026-03-19 - Judo Session: Technical',
     '',
     '## Techniques Practiced',
     '- Uchi mata',
@@ -65,7 +65,7 @@ test('CRLF and mixed newline parsing preserve sections', () => {
     'effort: 4\n' +
     'category: "Technical"\r\n' +
     '---\n\n' +
-    '# March 20, 2026 - Judo Session: Technical\r\n\r\n' +
+    '# 2026-03-20 - Judo Session: Technical\r\n\r\n' +
     '## Techniques Practiced\n' +
     '- Sasae tsurikomi ashi\r\n' +
     '- Ko uchi gari\n\n' +
@@ -93,7 +93,7 @@ test('Roundtrip preserves techniques/description/notes', () => {
     'category: "Technical"',
     '---',
     '',
-    '# March 21, 2026 - Judo Session: Technical',
+    '# 2026-03-21 - Judo Session: Technical',
     '',
     '## Techniques Practiced',
     '- O soto gari',
@@ -125,7 +125,7 @@ effort: 3
 category: "Technical"
 ---
 
-# March 22, 2026 - Judo Session: Technical
+# 2026-03-22 - Judo Session: Technical
 
 ## Techniques Practiced
 - Seoi nage
@@ -166,7 +166,7 @@ effort: 4
 category: "Technical"
 ---
 
-# March 22, 2026 - Judo Session: Technical
+# 2026-03-22 - Judo Session: Technical
 
 ## Techniques Practiced
 - Tomoe nage

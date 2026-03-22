@@ -147,7 +147,7 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
       'duration: 90',
       '---',
       '',
-      '# Conflicting Session',
+      '# 2025-02-12 - Judo Session: Technical',
       '',
       '## Techniques Practiced',
       '',
