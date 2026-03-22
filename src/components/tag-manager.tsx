@@ -181,8 +181,8 @@ export function TagManager({ onRefresh }: TagManagerProps) {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <Card className="border-primary/10">
-        <CardHeader className="bg-primary/5 border-b">
+      <Card className="bg-card/95">
+        <CardHeader className="bg-secondary/45">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary text-primary-foreground rounded-lg">
               <Tags className="h-6 w-6" />
@@ -208,7 +208,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           </div>
 
           {filteredTags.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground bg-secondary/20 rounded-lg border border-dashed">
+            <div className="text-center py-12 text-muted-foreground bg-secondary/35 rounded-lg border border-dashed border-ghost">
               {search
                 ? 'No tags match your search.'
                 : 'No technique tags found in your history.'}
@@ -218,7 +218,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               {filteredTags.map((tag) => (
                 <div
                   key={tag}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-background hover:border-primary/30 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-lg bg-background/80 hover:bg-secondary/35 transition-colors group"
                 >
                   <div className="flex items-center gap-2">
                     <Badge
