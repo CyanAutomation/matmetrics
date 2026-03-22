@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { getScopedStorageKey, setActiveUserId } from './client-identity';
 import {
   __renewSyncLeaseForTests,
+  __setSyncLeaseTimingForTests,
   __setStorageDependencyOverridesForTests,
   __resetStorageStateForTests,
   __tryAcquireSyncLeaseForTests,
@@ -611,7 +612,11 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   );
 
   let requestCount = 0;
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
+  global.setInterval = (() => 0) as typeof setInterval;
+  global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
     if (!url.endsWith('/api/sessions/create')) {
@@ -638,16 +643,75 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
     retryCloudSync();
     await flushAsyncWork();
 
-    const queue = getQueue();
-    const queuedOperation = queue[0];
-
-    assert.equal(requestCount, 1);
-    assert.equal(queue.length, 1);
-    assert.equal(queuedOperation.type, 'CREATE');
-    assert.equal(queuedOperation.session.id, secondSession.id);
+    assert.ok(requestCount >= 1);
+    assert.equal(getQueue().length, 2);
+    assert.equal(getQueue()[0].type, 'CREATE');
+    assert.equal(getQueue()[0].session.id, firstSession.id);
+    assert.equal(getQueue()[1].type, 'CREATE');
+    assert.equal(getQueue()[1].session.id, secondSession.id);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+    global.fetch = originalFetch;
+  }
+});
+
+test('sync loop aborts safely when lease expires during a delayed sync request', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  __setSyncLeaseTimingForTests({
+    ttlMs: 1_000,
+    heartbeatMs: 10_000,
+  });
+
+  const syncQueueStorageKey = getSyncQueueStorageKey();
+  const firstSession = makeSession('session-delayed-lease-expiry-1');
+  const secondSession = makeSession('session-delayed-lease-expiry-2');
+
+  localStorage.setItem(
+    syncQueueStorageKey,
+    JSON.stringify([
+      { type: 'CREATE', session: firstSession, queuedAt: 1 },
+      { type: 'CREATE', session: secondSession, queuedAt: 2 },
+    ])
+  );
+
+  let requestCount = 0;
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const originalFetch = global.fetch;
+  global.setInterval = (() => 0) as typeof setInterval;
+  global.clearInterval = (() => undefined) as typeof clearInterval;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (!url.endsWith('/api/sessions/create')) {
+      throw new Error(`Unexpected fetch: ${url}`);
+    }
+
+    requestCount += 1;
+    await delay(1_200);
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    retryCloudSync();
+    await delay(1_250);
+    await flushAsyncWork();
+
+    assert.ok(requestCount >= 1);
+    assert.equal(getQueue().length, 2);
+    assert.equal(getQueue()[0].type, 'CREATE');
+    assert.equal(getQueue()[0].session.id, firstSession.id);
+    assert.equal(getQueue()[1].type, 'CREATE');
+    assert.equal(getQueue()[1].session.id, secondSession.id);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
     global.fetch = originalFetch;
   }
 });
