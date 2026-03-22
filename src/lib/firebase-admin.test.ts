@@ -145,7 +145,7 @@ test('parseServiceAccountKey table-driven behavior', async (t) => {
       }
 
       assert.deepEqual(actual, tc.expected);
-      assert.deepEqual(Object.keys(actual ?? {}).sort(), [
+      assert.deepEqual(Object.keys(actual).sort(), [
         'client_email',
         'private_key',
         'project_id',
