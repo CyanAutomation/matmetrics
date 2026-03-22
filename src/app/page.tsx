@@ -92,7 +92,9 @@ export default function Home() {
   const [pluginExtensions, setPluginExtensions] = useState<
     ResolvedDashboardTabExtension[]
   >(() =>
-    legacyPluginRegistryFallbackEnabled ? loadEnabledDashboardTabExtensions() : []
+    legacyPluginRegistryFallbackEnabled
+      ? loadEnabledDashboardTabExtensions()
+      : []
   );
 
   const resolvedPluginTabs = React.useMemo(

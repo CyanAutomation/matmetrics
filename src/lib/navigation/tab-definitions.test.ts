@@ -58,7 +58,9 @@ test('maps dashboard tab extension fixture into plugin tab metadata', () => {
 });
 
 test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', () => {
-  const tabs = mapDashboardExtensionsToTabs(loadEnabledDashboardTabExtensions());
+  const tabs = mapDashboardExtensionsToTabs(
+    loadEnabledDashboardTabExtensions()
+  );
 
   assert.ok(tabs.some((tab) => tab.id === 'tag-manager'));
 });

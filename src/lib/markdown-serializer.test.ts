@@ -76,7 +76,10 @@ test('CRLF and mixed newline parsing preserve sections', () => {
 
   const mixedParsed = markdownToSession(markdownMixedNewlines);
 
-  assert.deepEqual(mixedParsed.techniques, ['Sasae tsurikomi ashi', 'Ko uchi gari']);
+  assert.deepEqual(mixedParsed.techniques, [
+    'Sasae tsurikomi ashi',
+    'Ko uchi gari',
+  ]);
   assert.equal(mixedParsed.description, 'Mixed newline description.');
   assert.equal(mixedParsed.notes, 'Mixed newline notes.');
 });

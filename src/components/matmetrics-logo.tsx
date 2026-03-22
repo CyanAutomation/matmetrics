@@ -31,7 +31,9 @@ export function MatMetricsLogo({
   }
 
   return (
-    <div className={`${container} flex items-center justify-center ${className}`}>
+    <div
+      className={`${container} flex items-center justify-center ${className}`}
+    >
       <PawPrint className={`${icon} text-primary`} />
     </div>
   );

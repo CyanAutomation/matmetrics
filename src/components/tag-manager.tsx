@@ -54,12 +54,10 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const [mergingTag, setMergingTag] = useState<string | null>(null);
   const [targetMergeTag, setTargetMergeTag] = useState<string>('');
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
-  const [renameAnalysis, setRenameAnalysis] = useState<TagOperationSummary | null>(
-    null
-  );
-  const [mergeAnalysis, setMergeAnalysis] = useState<TagOperationSummary | null>(
-    null
-  );
+  const [renameAnalysis, setRenameAnalysis] =
+    useState<TagOperationSummary | null>(null);
+  const [mergeAnalysis, setMergeAnalysis] =
+    useState<TagOperationSummary | null>(null);
   const [deleteAnalysis, setDeleteAnalysis] =
     useState<TagOperationSummary | null>(null);
 
@@ -91,7 +89,10 @@ export function TagManager({ onRefresh }: TagManagerProps) {
 
   const handleAnalyzeRename = async () => {
     if (!editingTag || !newTagName.trim()) return;
-    const analysis = await tagService.analyzeRename(editingTag, newTagName.trim());
+    const analysis = await tagService.analyzeRename(
+      editingTag,
+      newTagName.trim()
+    );
     setRenameAnalysis(analysis);
 
     if (analysis.conflicts.length > 0) {

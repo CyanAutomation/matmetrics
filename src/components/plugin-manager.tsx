@@ -114,39 +114,42 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       throw new Error(payload.error ?? 'Invalid plugins list response.');
     }
 
-    const validPlugins = payload.plugins
-      .flatMap((pluginRow) => {
-        if (!pluginRow || typeof pluginRow !== 'object') {
-          return [];
-        }
+    const validPlugins = payload.plugins.flatMap((pluginRow) => {
+      if (!pluginRow || typeof pluginRow !== 'object') {
+        return [];
+      }
 
-        const manifest = pluginRow.manifest;
-        if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
-          return [];
-        }
+      const manifest = pluginRow.manifest;
+      if (
+        !manifest ||
+        typeof manifest !== 'object' ||
+        Array.isArray(manifest)
+      ) {
+        return [];
+      }
 
-        const candidate = manifest as Partial<PluginManifest>;
-        if (
-          typeof candidate.id !== 'string' ||
-          typeof candidate.name !== 'string' ||
-          typeof candidate.version !== 'string' ||
-          typeof candidate.description !== 'string' ||
-          typeof candidate.enabled !== 'boolean'
-        ) {
-          return [];
-        }
+      const candidate = manifest as Partial<PluginManifest>;
+      if (
+        typeof candidate.id !== 'string' ||
+        typeof candidate.name !== 'string' ||
+        typeof candidate.version !== 'string' ||
+        typeof candidate.description !== 'string' ||
+        typeof candidate.enabled !== 'boolean'
+      ) {
+        return [];
+      }
 
-        const issues = Array.isArray(pluginRow.validation?.rows)
-          ? pluginRow.validation.rows
-          : [];
+      const issues = Array.isArray(pluginRow.validation?.rows)
+        ? pluginRow.validation.rows
+        : [];
 
-        return [
-          {
-            manifest: candidate as PluginManifest,
-            issues,
-          },
-        ];
-      });
+      return [
+        {
+          manifest: candidate as PluginManifest,
+          issues,
+        },
+      ];
+    });
 
     setInstalledManifestRows(validPlugins);
   }, []);

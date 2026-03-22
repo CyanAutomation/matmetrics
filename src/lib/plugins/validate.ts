@@ -9,6 +9,7 @@ import {
   pluginManifestSchema,
   type PluginManifestSchema,
 } from '@/lib/plugins/manifest-schema';
+import { meetsMinimumVersion } from '@/lib/plugins/version-utils';
 import type {
   PluginManifestValidationResult,
   PluginValidationIssue,
@@ -19,6 +20,7 @@ import type {
 
 type ValidateManifestOptions = {
   allowExperimentalTypes?: boolean;
+  currentVersion?: string;
 };
 
 const knownExtensionTypes: UIExtensionType[] = [

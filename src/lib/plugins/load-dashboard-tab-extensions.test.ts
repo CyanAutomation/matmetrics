@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  loadEnabledDashboardTabExtensions,
-} from '@/lib/plugins/registry';
+import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
 import { loadDashboardTabExtensions } from '@/lib/plugins/load-dashboard-tab-extensions';
 import { createPluginEnabledStateIsolation } from '@/lib/plugins/registry.test-support';
 

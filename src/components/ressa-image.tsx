@@ -15,7 +15,7 @@ interface RessaImageProps {
    * 5: Focused/Technical (Advanced)
    */
   pose: RessaPose;
-  
+
   /**
    * Size variant
    * 'compact': 60-100px (toasts, small modals)
@@ -23,17 +23,17 @@ interface RessaImageProps {
    * 'large': 200-250px (hero sections)
    */
   size?: 'compact' | 'medium' | 'large';
-  
+
   /**
    * Custom CSS class for additional styling
    */
   className?: string;
-  
+
   /**
    * Whether to animate on mount (fade-in-up)
    */
   animate?: boolean;
-  
+
   /**
    * Alt text for accessibility
    */

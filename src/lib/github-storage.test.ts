@@ -198,7 +198,7 @@ test('bulkPushSessions reports README update failure after pushing session conte
 
       if (
         path ===
-        '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-session-1.md' &&
         (init?.method ?? 'GET') === 'PUT'
       ) {
         sessionPutCount++;

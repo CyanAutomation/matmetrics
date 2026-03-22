@@ -14,65 +14,66 @@ The palette is rooted in the "Judo Blue" (`primary: #005cab`) and the "Clean Mat
 
 Use the following token table as the canonical source for implementation. Product surfaces, charts, badges, and controls should reference token names only (never hardcoded hex values in component code).
 
-| Token | Hex | Intended Usage |
-| --- | --- | --- |
-| `primary` | `#005cab` | Primary action backgrounds, key chart series, high-emphasis links |
-| `primary-container` | `#0075d6` | Elevated primary surfaces, gradient companion for primary CTAs |
-| `primary-fixed` | `#0075d6` | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
-| `on-primary` | `#ffffff` | Text/icons on `primary` backgrounds |
-| `on-primary-container` | `#ffffff` | Text/icons on `primary-container` |
-| `secondary` | `#515f78` | Secondary actions, supporting data series |
-| `secondary-container` | `#d4e3ff` | Secondary chips, low-emphasis highlights |
-| `on-secondary` | `#ffffff` | Text/icons on `secondary` |
-| `on-secondary-container` | `#1b2a41` | Text/icons on `secondary-container` |
-| `surface` | `#f7fafc` | App canvas/base background |
-| `surface-container-low` | `#f1f4f6` | Section grouping backgrounds |
-| `surface-container-lowest` | `#ffffff` | Cards and foreground modules |
-| `surface-container-high` | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons) |
-| `surface-variant` | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone |
-| `on-surface` | `#181c1e` | Primary body text/icons |
-| `on-surface-variant` | `#43474a` | Secondary text, helper metadata |
-| `outline` | `#73777a` | Focus/selection outlines requiring strong visibility |
-| `outline-variant` | `#c2c7ca` | Subtle strokes for accessibility fallbacks |
-| `success` | `#0f7a43` | Positive outcomes, successful states |
-| `success-container` | `#d7f3e3` | Success banners, positive badge fills |
-| `on-success` | `#ffffff` | Text/icons on `success` |
-| `on-success-container` | `#0a4b2a` | Text/icons on `success-container` |
-| `warning` | `#b26a00` | Cautionary messages, anomaly callouts |
-| `warning-container` | `#ffe7c2` | Warning badges, caution background panels |
-| `on-warning` | `#1f1600` | Text/icons on `warning` |
-| `on-warning-container` | `#5c3a00` | Text/icons on `warning-container` |
-| `error` | `#c62828` | Error states, critical regressions |
-| `error-container` | `#ffd9d6` | Error banners, destructive confirmation backgrounds |
-| `on-error` | `#ffffff` | Text/icons on `error` |
-| `on-error-container` | `#5f1313` | Text/icons on `error-container` |
-| `info` | `#00639b` | Informational notices and neutral status messaging |
-| `info-container` | `#cde5ff` | Info callouts and non-critical status cards |
-| `on-info` | `#ffffff` | Text/icons on `info` |
-| `on-info-container` | `#0d3b66` | Text/icons on `info-container` |
-| `primary-hover` | `#004f94` | Hover state for primary controls |
-| `primary-pressed` | `#00437d` | Pressed/active state for primary controls |
-| `primary-focus` | `#66a3d9` | Focus ring/accent for primary controls |
-| `primary-disabled` | `#9bbbd7` | Disabled primary controls |
-| `secondary-hover` | `#47556c` | Hover state for secondary controls |
-| `secondary-pressed` | `#3d495d` | Pressed/active state for secondary controls |
-| `secondary-focus` | `#8d9cb4` | Focus ring/accent for secondary controls |
-| `secondary-disabled` | `#b4bcc8` | Disabled secondary controls |
-| `trend-positive` | `#0f7a43` | Positive chart deltas and uptrend badges |
-| `trend-positive-container` | `#d7f3e3` | Positive trend chip backgrounds |
-| `on-trend-positive-container` | `#0a4b2a` | Text/icons on positive trend containers |
-| `trend-negative` | `#c62828` | Negative chart deltas and regression badges |
-| `trend-negative-container` | `#ffd9d6` | Negative trend chip backgrounds |
-| `on-trend-negative-container` | `#5f1313` | Text/icons on negative trend containers |
-| `trend-neutral` | `#6b7280` | Flat/no-change chart signals and neutral badges |
-| `trend-neutral-container` | `#e5e7eb` | Neutral trend chip backgrounds |
-| `on-trend-neutral-container` | `#374151` | Text/icons on neutral trend containers |
+| Token                         | Hex       | Intended Usage                                                                             |
+| ----------------------------- | --------- | ------------------------------------------------------------------------------------------ |
+| `primary`                     | `#005cab` | Primary action backgrounds, key chart series, high-emphasis links                          |
+| `primary-container`           | `#0075d6` | Elevated primary surfaces, gradient companion for primary CTAs                             |
+| `primary-fixed`               | `#0075d6` | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
+| `on-primary`                  | `#ffffff` | Text/icons on `primary` backgrounds                                                        |
+| `on-primary-container`        | `#ffffff` | Text/icons on `primary-container`                                                          |
+| `secondary`                   | `#515f78` | Secondary actions, supporting data series                                                  |
+| `secondary-container`         | `#d4e3ff` | Secondary chips, low-emphasis highlights                                                   |
+| `on-secondary`                | `#ffffff` | Text/icons on `secondary`                                                                  |
+| `on-secondary-container`      | `#1b2a41` | Text/icons on `secondary-container`                                                        |
+| `surface`                     | `#f7fafc` | App canvas/base background                                                                 |
+| `surface-container-low`       | `#f1f4f6` | Section grouping backgrounds                                                               |
+| `surface-container-lowest`    | `#ffffff` | Cards and foreground modules                                                               |
+| `surface-container-high`      | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons)                                |
+| `surface-variant`             | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone                                   |
+| `on-surface`                  | `#181c1e` | Primary body text/icons                                                                    |
+| `on-surface-variant`          | `#43474a` | Secondary text, helper metadata                                                            |
+| `outline`                     | `#73777a` | Focus/selection outlines requiring strong visibility                                       |
+| `outline-variant`             | `#c2c7ca` | Subtle strokes for accessibility fallbacks                                                 |
+| `success`                     | `#0f7a43` | Positive outcomes, successful states                                                       |
+| `success-container`           | `#d7f3e3` | Success banners, positive badge fills                                                      |
+| `on-success`                  | `#ffffff` | Text/icons on `success`                                                                    |
+| `on-success-container`        | `#0a4b2a` | Text/icons on `success-container`                                                          |
+| `warning`                     | `#b26a00` | Cautionary messages, anomaly callouts                                                      |
+| `warning-container`           | `#ffe7c2` | Warning badges, caution background panels                                                  |
+| `on-warning`                  | `#1f1600` | Text/icons on `warning`                                                                    |
+| `on-warning-container`        | `#5c3a00` | Text/icons on `warning-container`                                                          |
+| `error`                       | `#c62828` | Error states, critical regressions                                                         |
+| `error-container`             | `#ffd9d6` | Error banners, destructive confirmation backgrounds                                        |
+| `on-error`                    | `#ffffff` | Text/icons on `error`                                                                      |
+| `on-error-container`          | `#5f1313` | Text/icons on `error-container`                                                            |
+| `info`                        | `#00639b` | Informational notices and neutral status messaging                                         |
+| `info-container`              | `#cde5ff` | Info callouts and non-critical status cards                                                |
+| `on-info`                     | `#ffffff` | Text/icons on `info`                                                                       |
+| `on-info-container`           | `#0d3b66` | Text/icons on `info-container`                                                             |
+| `primary-hover`               | `#004f94` | Hover state for primary controls                                                           |
+| `primary-pressed`             | `#00437d` | Pressed/active state for primary controls                                                  |
+| `primary-focus`               | `#66a3d9` | Focus ring/accent for primary controls                                                     |
+| `primary-disabled`            | `#9bbbd7` | Disabled primary controls                                                                  |
+| `secondary-hover`             | `#47556c` | Hover state for secondary controls                                                         |
+| `secondary-pressed`           | `#3d495d` | Pressed/active state for secondary controls                                                |
+| `secondary-focus`             | `#8d9cb4` | Focus ring/accent for secondary controls                                                   |
+| `secondary-disabled`          | `#b4bcc8` | Disabled secondary controls                                                                |
+| `trend-positive`              | `#0f7a43` | Positive chart deltas and uptrend badges                                                   |
+| `trend-positive-container`    | `#d7f3e3` | Positive trend chip backgrounds                                                            |
+| `on-trend-positive-container` | `#0a4b2a` | Text/icons on positive trend containers                                                    |
+| `trend-negative`              | `#c62828` | Negative chart deltas and regression badges                                                |
+| `trend-negative-container`    | `#ffd9d6` | Negative trend chip backgrounds                                                            |
+| `on-trend-negative-container` | `#5f1313` | Text/icons on negative trend containers                                                    |
+| `trend-neutral`               | `#6b7280` | Flat/no-change chart signals and neutral badges                                            |
+| `trend-neutral-container`     | `#e5e7eb` | Neutral trend chip backgrounds                                                             |
+| `on-trend-neutral-container`  | `#374151` | Text/icons on neutral trend containers                                                     |
 
 ### Token Naming Convention
 
 All semantic tokens use **kebab-case**.
 
 Examples:
+
 - `primary-container`
 - `surface-container-lowest`
 - `on-surface-variant`
@@ -85,24 +86,24 @@ Rule: use lowercase letters and hyphen separators only. Do not introduce `snake_
 
 Use this mapping during migration for frontend and Go/CLI consumers so token lookups can be updated safely.
 
-| Old token | Canonical token |
-| --- | --- |
-| `primary_container` | `primary-container` |
-| `secondary_container` | `secondary-container` |
-| `surface_container_low` | `surface-container-low` |
+| Old token                  | Canonical token            |
+| -------------------------- | -------------------------- |
+| `primary_container`        | `primary-container`        |
+| `secondary_container`      | `secondary-container`      |
+| `surface_container_low`    | `surface-container-low`    |
 | `surface_container_lowest` | `surface-container-lowest` |
-| `surface_container_high` | `surface-container-high` |
-| `surface_variant` | `surface-variant` |
-| `outline_variant` | `outline-variant` |
-| `success_container` | `success-container` |
-| `warning_container` | `warning-container` |
-| `error_container` | `error-container` |
-| `info_container` | `info-container` |
-| `on_surface` | `on-surface` |
-| `on_surface_variant` | `on-surface-variant` |
-| `surface_bright` | `surface-bright` |
-| `surface_tint` | `surface-tint` |
-| `primary_fixed` | `primary-fixed` |
+| `surface_container_high`   | `surface-container-high`   |
+| `surface_variant`          | `surface-variant`          |
+| `outline_variant`          | `outline-variant`          |
+| `success_container`        | `success-container`        |
+| `warning_container`        | `warning-container`        |
+| `error_container`          | `error-container`          |
+| `info_container`           | `info-container`           |
+| `on_surface`               | `on-surface`               |
+| `on_surface_variant`       | `on-surface-variant`       |
+| `surface_bright`           | `surface-bright`           |
+| `surface_tint`             | `surface-tint`             |
+| `primary_fixed`            | `primary-fixed`            |
 
 **Migration note:** Components must consume semantic token names from the shared token map/theme layer (e.g., CSS variables or design-token exports) instead of inline raw hex values. This applies to existing button variants, chart series, badges, and any newly introduced states.
 
@@ -265,7 +266,6 @@ Editorial whitespace should compress proportionally, not disappear:
 - Preserving desktop typography scale on phones without reducing line length, resulting in orphaned words and broken hierarchy.
 - Horizontal scrolling lists used as a workaround for poor breakpoint planning (except deliberate, card-carousel interactions with clear affordances).
 
-
 ## 8. Implementation Appendix (Tailwind + Radix)
 
 This appendix translates design intent into implementation-ready recipes for Tailwind and Radix UI consumers. Use semantic tokens via CSS variables as the only source for component styling.
@@ -309,21 +309,21 @@ Define CSS variables in the theme layer (for example `:root` and optional `[data
 }
 ```
 
-| Token / Surface | CSS Variable | Tailwind Utility Recipe |
-| --- | --- | --- |
-| Canvas (`surface`) | `--color-surface` | `bg-[var(--color-surface)] text-[var(--color-on-surface)]` |
-| Section (`surface-container-low`) | `--color-surface-low` | `bg-[var(--color-surface-low)]` |
-| Card (`surface-container-lowest`) | `--color-surface-lowest` | `bg-[var(--color-surface-lowest)] rounded-2xl` |
-| Neutral elevated (`surface-container-high`) | `--color-surface-high` | `bg-[var(--color-surface-high)]` |
-| Muted track (`surface-variant`) | `--color-surface-variant` | `bg-[var(--color-surface-variant)]` |
-| Primary action | `--color-primary`, `--color-primary-container` | `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]` |
-| Primary fixed emphasis (`primary-fixed`) | `--color-primary-fixed` | `bg-[var(--color-primary-fixed)] text-[var(--color-on-primary)]` |
-| Secondary emphasis | `--color-secondary-container` | `bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]` |
-| Positive trend | `--color-success-container` | `bg-[var(--color-success-container)] text-[var(--color-success)]` |
-| Warning trend | `--color-warning-container` | `bg-[var(--color-warning-container)] text-[var(--color-warning)]` |
-| Error trend | `--color-error-container` | `bg-[var(--color-error-container)] text-[var(--color-error)]` |
-| Focus ring | `--color-outline` | `focus-visible:ring-2 focus-visible:ring-[var(--color-outline)]` |
-| Ghost accessibility border fallback | `--color-outline-variant` | `border border-[color:color-mix(in_srgb,var(--color-outline-variant)_15%,transparent)]` (fallback mode only) |
+| Token / Surface                             | CSS Variable                                   | Tailwind Utility Recipe                                                                                      |
+| ------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Canvas (`surface`)                          | `--color-surface`                              | `bg-[var(--color-surface)] text-[var(--color-on-surface)]`                                                   |
+| Section (`surface-container-low`)           | `--color-surface-low`                          | `bg-[var(--color-surface-low)]`                                                                              |
+| Card (`surface-container-lowest`)           | `--color-surface-lowest`                       | `bg-[var(--color-surface-lowest)] rounded-2xl`                                                               |
+| Neutral elevated (`surface-container-high`) | `--color-surface-high`                         | `bg-[var(--color-surface-high)]`                                                                             |
+| Muted track (`surface-variant`)             | `--color-surface-variant`                      | `bg-[var(--color-surface-variant)]`                                                                          |
+| Primary action                              | `--color-primary`, `--color-primary-container` | `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]`                          |
+| Primary fixed emphasis (`primary-fixed`)    | `--color-primary-fixed`                        | `bg-[var(--color-primary-fixed)] text-[var(--color-on-primary)]`                                             |
+| Secondary emphasis                          | `--color-secondary-container`                  | `bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]`                           |
+| Positive trend                              | `--color-success-container`                    | `bg-[var(--color-success-container)] text-[var(--color-success)]`                                            |
+| Warning trend                               | `--color-warning-container`                    | `bg-[var(--color-warning-container)] text-[var(--color-warning)]`                                            |
+| Error trend                                 | `--color-error-container`                      | `bg-[var(--color-error-container)] text-[var(--color-error)]`                                                |
+| Focus ring                                  | `--color-outline`                              | `focus-visible:ring-2 focus-visible:ring-[var(--color-outline)]`                                             |
+| Ghost accessibility border fallback         | `--color-outline-variant`                      | `border border-[color:color-mix(in_srgb,var(--color-outline-variant)_15%,transparent)]` (fallback mode only) |
 
 > Implementation note: default state should remain borderless; only apply outline fallback in explicit accessibility/high-contrast modes.
 
@@ -420,8 +420,12 @@ Class recipe outcome:
 
 ```tsx
 <article className="rounded-2xl bg-[var(--color-surface-lowest)] p-6 shadow-[var(--shadow-ambient)]">
-  <p className="text-xs uppercase tracking-[0.05em] text-[var(--color-on-surface-variant)]">Weekly Volume</p>
-  <p className="mt-2 text-3xl font-semibold text-[var(--color-on-surface)]">7.4 hrs</p>
+  <p className="text-xs uppercase tracking-[0.05em] text-[var(--color-on-surface-variant)]">
+    Weekly Volume
+  </p>
+  <p className="mt-2 text-3xl font-semibold text-[var(--color-on-surface)]">
+    7.4 hrs
+  </p>
   <p className="mt-3 inline-flex rounded-full bg-[var(--color-success-container)] px-2.5 py-1 text-xs font-medium text-[var(--color-success)]">
     +12% vs last week
   </p>
@@ -480,6 +484,7 @@ Use a two-part semantic format: `MAJOR.MINOR`.
   - Documentation clarifications and implementation guidance updates.
 
 **Release labeling examples**
+
 - `1.4 -> 1.5`: Added `info-container` usage guidance (non-breaking).
 - `1.5 -> 2.0`: Replaced `secondary-container` chip selection contract with a new token family (breaking).
 
@@ -513,6 +518,7 @@ Deprecated tokens/components must remain available during a defined migration pe
 - **Emergency removals:** permitted only for security/compliance/legal reasons and require explicit owner sign-off with incident notes.
 
 Each deprecation must include:
+
 - `Deprecated in`: exact version.
 - `Removal target`: exact version/date.
 - `Replacement`: canonical token/component and migration example.
@@ -535,14 +541,14 @@ Major changes are incomplete and not merge-ready without these artifacts.
 
 ### 9.5 Ownership Matrix
 
-| Area | Design Owner | Frontend Owner | QA Owner |
-| --- | --- | --- | --- |
-| Token taxonomy & semantic meaning | **A/R** | C | C |
-| Component API contract (props/variants/states) | C | **A/R** | C |
-| Visual behavior and interaction patterns | **A/R** | R | C |
-| Accessibility acceptance criteria | A | R | **R** |
-| Regression test definition and sign-off | C | R | **A/R** |
-| Deprecation communication + migration readiness | **A/R** | **R** | C |
-| Release/version bump validation | A | **R** | **R** |
+| Area                                            | Design Owner | Frontend Owner | QA Owner |
+| ----------------------------------------------- | ------------ | -------------- | -------- |
+| Token taxonomy & semantic meaning               | **A/R**      | C              | C        |
+| Component API contract (props/variants/states)  | C            | **A/R**        | C        |
+| Visual behavior and interaction patterns        | **A/R**      | R              | C        |
+| Accessibility acceptance criteria               | A            | R              | **R**    |
+| Regression test definition and sign-off         | C            | R              | **A/R**  |
+| Deprecation communication + migration readiness | **A/R**      | **R**          | C        |
+| Release/version bump validation                 | A            | **R**          | **R**    |
 
 Legend: **A** = Accountable, **R** = Responsible, **C** = Consulted.

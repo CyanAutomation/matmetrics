@@ -83,7 +83,10 @@ test('demo sessions fixture enforces stable product invariants', () => {
     assert.equal(session.techniques.length > 0, true);
   });
 
-  assert.equal(new Set(DEMO_SESSIONS.map((session) => session.id)).size, DEMO_SESSIONS.length);
+  assert.equal(
+    new Set(DEMO_SESSIONS.map((session) => session.id)).size,
+    DEMO_SESSIONS.length
+  );
   assertSessionsSortedNewestFirst();
 });
 

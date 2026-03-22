@@ -39,7 +39,7 @@ Then decode it in `firebase-admin.ts` before parsing. This is more robust but re
 
 > Option A is fine for this project since the `parseServiceAccountKey` function already handles the escaped newlines.
 
-## 3. NEXT_PUBLIC_* Variables Are Baked at Build Time
+## 3. NEXT*PUBLIC*\* Variables Are Baked at Build Time
 
 Unlike server-only variables, the `NEXT_PUBLIC_FIREBASE_*` variables are embedded into the JavaScript bundle during `next build`. In Vercel, set them under **Environment Variables** and ensure they are scoped to the correct environments (Production, Preview, Development). If you change them, you must redeploy — a new deploy is not enough if only triggered by a push with no code changes (use "Redeploy" in the Vercel dashboard).
 
@@ -56,13 +56,13 @@ Add both:
 
 ## Summary
 
-| Task | Action |
-|------|--------|
-| App env vars | Add all `.env.example` vars in Vercel dashboard |
+| Task                         | Action                                                         |
+| ---------------------------- | -------------------------------------------------------------- |
+| App env vars                 | Add all `.env.example` vars in Vercel dashboard                |
 | FIREBASE_SERVICE_ACCOUNT_KEY | Paste as single-line JSON, verify newlines are escaped as `\n` |
-| NEXT_PUBLIC_* changes | Requires a redeploy to take effect |
-| Firebase authorised domains | Add your `*.vercel.app` domain before testing login |
-| Code changes | None required |
+| NEXT*PUBLIC*\* changes       | Requires a redeploy to take effect                             |
+| Firebase authorised domains  | Add your `*.vercel.app` domain before testing login            |
+| Code changes                 | None required                                                  |
 
 ---
 

@@ -347,10 +347,18 @@ test('DELETE returns 409 when local storage has duplicate files for the same ses
       const originalPath = await createLocalSession(
         makeSession(sessionId, '2025-01-11')
       );
-      const duplicatePath = getSessionFilePath('2025-02-11', undefined, sessionId);
+      const duplicatePath = getSessionFilePath(
+        '2025-02-11',
+        undefined,
+        sessionId
+      );
 
       await mkdir(path.dirname(duplicatePath), { recursive: true });
-      await writeFile(duplicatePath, await readFile(originalPath, 'utf-8'), 'utf-8');
+      await writeFile(
+        duplicatePath,
+        await readFile(originalPath, 'utf-8'),
+        'utf-8'
+      );
 
       const response = await DELETE(
         new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
