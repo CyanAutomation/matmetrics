@@ -145,6 +145,27 @@ function getSessionUpdateLockPath(targetPath: string): string {
   return ensurePathWithinDataDir(`${targetPath}.lock`);
 }
 
+async function releaseSessionUpdateLock(lockPath: string): Promise<void> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await fs.unlink(lockPath);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        return;
+      }
+      const isFinalAttempt = attempt === maxAttempts;
+      if (!isFinalAttempt && (code === 'EPERM' || code === 'EBUSY')) {
+        await sleep(10);
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 async function acquireSessionUpdateLock(
   sessionId: string,
   targetPath: string
@@ -164,11 +185,7 @@ async function acquireSessionUpdateLock(
   }
 
   return async () => {
-    await fs.unlink(lockPath).catch((error) => {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
-      }
-    });
+    await releaseSessionUpdateLock(lockPath);
   };
 }
 
