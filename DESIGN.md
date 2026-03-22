@@ -418,3 +418,90 @@ To support future brand skins without breaking hierarchy:
    - Primary Button, Technique Chip, and Metric Card are mandatory snapshots for every new theme.
 
 This allows visual brand variance while preserving the Technical Sensei hierarchy, motion language, and information clarity.
+
+## 9. Governance
+
+This section defines how the design system evolves, who approves changes, and what implementation/migration evidence is required before adoption.
+
+### 9.1 Versioning Policy (Tokens + Components)
+
+Use a two-part semantic format: `MAJOR.MINOR`.
+
+- **MAJOR** increments for breaking changes:
+  - Token renames/removals.
+  - Token meaning/usage contract changes that require code updates.
+  - Component API breaking changes (prop removals/renames, required behavior changes).
+  - Visual behavior changes that materially alter interaction patterns across products.
+- **MINOR** increments for non-breaking changes:
+  - New additive tokens or aliases.
+  - New optional component variants/sizes/states.
+  - Visual refinements that do not require consumer-side code changes.
+  - Documentation clarifications and implementation guidance updates.
+
+**Release labeling examples**
+- `1.4 -> 1.5`: Added `info_container` usage guidance (non-breaking).
+- `1.5 -> 2.0`: Replaced `secondary_container` chip selection contract with a new token family (breaking).
+
+### 9.2 Change Proposal Workflow
+
+All changes must be submitted as a Design Change Proposal (DCP) in version control and reviewed before merge.
+
+1. **Author submits DCP**
+   - Scope: token, visual style, component contract, or mixed.
+   - Includes rationale, impacted surfaces/components, rollout type (major/minor), and risk level.
+2. **Required reviewers by change type**
+   - **Visual-only changes (non-token, non-API):** Design Owner + Frontend Owner.
+   - **Token changes:** Design Owner + Frontend Owner + QA Owner.
+   - **Component API/behavior changes:** Design Owner + Frontend Owner + QA Owner.
+   - **Breaking (`MAJOR`) changes:** all three owners; approval is mandatory from each role.
+3. **Validation gate**
+   - Accessibility and regression checks are completed.
+   - Migration notes are verified for any consumer impact.
+4. **Merge + release note**
+   - Version increment must match change impact.
+   - DCP link is included in release notes/changelog.
+
+No major token/component change may be merged with fewer than three-role approval.
+
+### 9.3 Deprecation + Transition Windows
+
+Deprecated tokens/components must remain available during a defined migration period unless there is a security or legal exception.
+
+- **Minor deprecations (non-breaking path available):** minimum **1 minor release** transition window.
+- **Major deprecations (breaking path):** minimum **2 minor releases or 90 days** (whichever is longer) before removal.
+- **Emergency removals:** permitted only for security/compliance/legal reasons and require explicit owner sign-off with incident notes.
+
+Each deprecation must include:
+- `Deprecated in`: exact version.
+- `Removal target`: exact version/date.
+- `Replacement`: canonical token/component and migration example.
+- Runtime/build-time warning strategy where technically feasible.
+
+### 9.4 Required Artifacts for Major Changes
+
+Every `MAJOR` token/component change must attach all artifacts below:
+
+1. **Before/After examples**
+   - Side-by-side screenshots or snapshots for canonical components and at least one real screen context.
+2. **Accessibility impact statement**
+   - Contrast changes, focus-state impact, keyboard/screen reader implications, and mitigations.
+3. **Migration notes**
+   - Step-by-step consumer migration path (old -> new tokens/components), codemod/manual guidance, and rollback instructions.
+4. **Regression checklist**
+   - Status colors, chart encodings, responsive behavior, and high-contrast fallback verification.
+
+Major changes are incomplete and not merge-ready without these artifacts.
+
+### 9.5 Ownership Matrix
+
+| Area | Design Owner | Frontend Owner | QA Owner |
+| --- | --- | --- | --- |
+| Token taxonomy & semantic meaning | **A/R** | C | C |
+| Component API contract (props/variants/states) | C | **A/R** | C |
+| Visual behavior and interaction patterns | **A/R** | R | C |
+| Accessibility acceptance criteria | A | R | **R** |
+| Regression test definition and sign-off | C | R | **A/R** |
+| Deprecation communication + migration readiness | **A/R** | **R** | C |
+| Release/version bump validation | A | **R** | **R** |
+
+Legend: **A** = Accountable, **R** = Responsible, **C** = Consulted.
