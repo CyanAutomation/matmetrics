@@ -16,6 +16,30 @@ interface SessionIndexRecord {
   path: string;
 }
 
+export class DuplicateSessionIdError extends Error {
+  readonly code = 'DUPLICATE_SESSION_ID';
+  readonly sessionId: string;
+  readonly paths: string[];
+
+  constructor(sessionId: string, paths: string[]) {
+    const sortedPaths = [...paths].sort();
+    super(
+      `Duplicate session ID ${sessionId} found in multiple files: ${sortedPaths.join(
+        ', '
+      )}`
+    );
+    this.name = 'DuplicateSessionIdError';
+    this.sessionId = sessionId;
+    this.paths = sortedPaths;
+  }
+}
+
+export function isDuplicateSessionIdError(
+  error: unknown
+): error is DuplicateSessionIdError {
+  return error instanceof DuplicateSessionIdError;
+}
+
 function getDataDir(): string {
   return dataDir;
 }
@@ -537,13 +561,14 @@ export async function deleteSession(id: string): Promise<void> {
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
   const safeId = sanitizeSessionId(id);
+  const matchingPaths = new Set<string>();
   const indexedRecord = await readSessionIndex(safeId);
   if (indexedRecord) {
     try {
       const markdown = await fs.readFile(indexedRecord.path, 'utf-8');
       const parsedSession = markdownToSession(markdown);
       if (parsedSession.id === safeId) {
-        return indexedRecord.path;
+        matchingPaths.add(indexedRecord.path);
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -576,7 +601,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
             const markdown = await fs.readFile(filePath, 'utf-8');
             const parsedSession = markdownToSession(markdown);
             if (parsedSession.id === safeId) {
-              return filePath;
+              matchingPaths.add(filePath);
             }
           } catch {
             // Skip files that can't be parsed
@@ -585,8 +610,18 @@ export async function findSessionFileById(id: string): Promise<string | null> {
       }
     }
 
-    return null;
+    const uniqueMatches = [...matchingPaths].sort();
+    if (uniqueMatches.length === 0) {
+      return null;
+    }
+    if (uniqueMatches.length === 1) {
+      return uniqueMatches[0];
+    }
+    throw new DuplicateSessionIdError(safeId, uniqueMatches);
   } catch (e) {
+    if (isDuplicateSessionIdError(e)) {
+      throw e;
+    }
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
     }
