@@ -551,8 +551,33 @@ export async function deleteSession(id: string): Promise<void> {
   }
 
   ensurePathWithinDataDir(filePath);
-  await fs.unlink(filePath);
-  await removeSessionIndex(id);
+
+  let deleteError: unknown;
+  let indexCleanupError: unknown;
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      deleteError = error;
+    } else {
+      // ENOENT means the file was already deleted, which is the desired outcome.
+      // No retry needed - the index cleanup in finally block will handle cleanup.
+    }
+  } finally {
+    try {
+      await removeSessionIndex(id);
+    } catch (error) {
+      indexCleanupError = error;
+    }
+  }
+
+  if (deleteError) {
+    throw deleteError;
+  }
+  if (indexCleanupError) {
+    throw indexCleanupError;
+  }
 }
 
 /**
