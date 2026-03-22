@@ -10,6 +10,65 @@ We break the "standard app" mold by using **Intentional Asymmetry** and **Tonal 
 
 The palette is rooted in the "Judo Blue" (`primary: #005cab`) and the "Clean Mat" (`surface: #f7fafc`). We move beyond flat UI by treating the screen as a physical space with varying elevations.
 
+### Canonical Token Guidance (Source of Truth)
+
+Use the following token table as the canonical source for implementation. Product surfaces, charts, badges, and controls should reference token names only (never hardcoded hex values in component code).
+
+| Token | Hex | Intended Usage |
+| --- | --- | --- |
+| `primary` | `#005cab` | Primary action backgrounds, key chart series, high-emphasis links |
+| `primary_container` | `#0075d6` | Elevated primary surfaces, gradient companion for primary CTAs |
+| `on-primary` | `#ffffff` | Text/icons on `primary` backgrounds |
+| `on-primary-container` | `#ffffff` | Text/icons on `primary_container` |
+| `secondary` | `#515f78` | Secondary actions, supporting data series |
+| `secondary_container` | `#d4e3ff` | Secondary chips, low-emphasis highlights |
+| `on-secondary` | `#ffffff` | Text/icons on `secondary` |
+| `on-secondary-container` | `#1b2a41` | Text/icons on `secondary_container` |
+| `surface` | `#f7fafc` | App canvas/base background |
+| `surface_container_low` | `#f1f4f6` | Section grouping backgrounds |
+| `surface_container_lowest` | `#ffffff` | Cards and foreground modules |
+| `surface_container_high` | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons) |
+| `surface_variant` | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone |
+| `on-surface` | `#181c1e` | Primary body text/icons |
+| `on-surface-variant` | `#43474a` | Secondary text, helper metadata |
+| `outline` | `#73777a` | Focus/selection outlines requiring strong visibility |
+| `outline_variant` | `#c2c7ca` | Subtle strokes for accessibility fallbacks |
+| `success` | `#0f7a43` | Positive outcomes, successful states |
+| `success_container` | `#d7f3e3` | Success banners, positive badge fills |
+| `on-success` | `#ffffff` | Text/icons on `success` |
+| `on-success-container` | `#0a4b2a` | Text/icons on `success_container` |
+| `warning` | `#b26a00` | Cautionary messages, anomaly callouts |
+| `warning_container` | `#ffe7c2` | Warning badges, caution background panels |
+| `on-warning` | `#1f1600` | Text/icons on `warning` |
+| `on-warning-container` | `#5c3a00` | Text/icons on `warning_container` |
+| `error` | `#c62828` | Error states, critical regressions |
+| `error_container` | `#ffd9d6` | Error banners, destructive confirmation backgrounds |
+| `on-error` | `#ffffff` | Text/icons on `error` |
+| `on-error-container` | `#5f1313` | Text/icons on `error_container` |
+| `info` | `#00639b` | Informational notices and neutral status messaging |
+| `info_container` | `#cde5ff` | Info callouts and non-critical status cards |
+| `on-info` | `#ffffff` | Text/icons on `info` |
+| `on-info-container` | `#0d3b66` | Text/icons on `info_container` |
+| `primary-hover` | `#004f94` | Hover state for primary controls |
+| `primary-pressed` | `#00437d` | Pressed/active state for primary controls |
+| `primary-focus` | `#66a3d9` | Focus ring/accent for primary controls |
+| `primary-disabled` | `#9bbbd7` | Disabled primary controls |
+| `secondary-hover` | `#47556c` | Hover state for secondary controls |
+| `secondary-pressed` | `#3d495d` | Pressed/active state for secondary controls |
+| `secondary-focus` | `#8d9cb4` | Focus ring/accent for secondary controls |
+| `secondary-disabled` | `#b4bcc8` | Disabled secondary controls |
+| `trend-positive` | `#0f7a43` | Positive chart deltas and uptrend badges |
+| `trend-positive-container` | `#d7f3e3` | Positive trend chip backgrounds |
+| `on-trend-positive-container` | `#0a4b2a` | Text/icons on positive trend containers |
+| `trend-negative` | `#c62828` | Negative chart deltas and regression badges |
+| `trend-negative-container` | `#ffd9d6` | Negative trend chip backgrounds |
+| `on-trend-negative-container` | `#5f1313` | Text/icons on negative trend containers |
+| `trend-neutral` | `#6b7280` | Flat/no-change chart signals and neutral badges |
+| `trend-neutral-container` | `#e5e7eb` | Neutral trend chip backgrounds |
+| `on-trend-neutral-container` | `#374151` | Text/icons on neutral trend containers |
+
+**Migration note:** Components must consume semantic token names from the shared token map/theme layer (e.g., CSS variables or design-token exports) instead of inline raw hex values. This applies to existing button variants, chart series, badges, and any newly introduced states.
+
 ### The "No-Line" Rule
 
 **Prohibition:** Solid 1px borders are strictly forbidden for sectioning or containment.
