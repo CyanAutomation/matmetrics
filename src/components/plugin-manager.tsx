@@ -23,18 +23,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { getLocalPluginManifestCandidates } from '@/lib/plugins/registry';
-import { isManifestLike, validatePluginManifest } from '@/lib/plugins/validate';
 import type {
   PluginManifest,
-  PluginManifestValidationResult,
+  PluginValidationIssue,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
 
-type PluginCandidateEntry = {
-  key: string;
-  source: unknown;
-  result: PluginManifestValidationResult;
+type PluginListRow = {
+  manifest: unknown;
+  validation?: {
+    isValid?: boolean;
+    rows?: PluginValidationIssue[];
+  };
 };
 
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
@@ -45,6 +45,7 @@ type InstalledPluginRow = Pick<
 > & {
   status: PluginToggleStatus;
   statusMessage?: string;
+  issues: PluginValidationIssue[];
 };
 
 const severityOrder: Record<PluginValidationSeverity, number> = {
@@ -71,7 +72,7 @@ const severityBadgeClass: Record<PluginValidationSeverity, string> = {
 };
 
 const resolveEntrySummarySeverity = (
-  issues: PluginManifestValidationResult['issues']
+  issues: PluginValidationIssue[]
 ): PluginValidationSeverity => {
   if (issues.some((issue) => issue.severity === 'error')) {
     return 'error';
@@ -92,21 +93,11 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { toast } = useToast();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
-    PluginManifest[]
+    Array<{ manifest: PluginManifest; issues: PluginValidationIssue[] }>
   >([]);
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
   >({});
-
-  const candidateEntries = React.useMemo<PluginCandidateEntry[]>(
-    () =>
-      getLocalPluginManifestCandidates().map((source, index) => ({
-        key: `plugin-candidate-${index}`,
-        source,
-        result: validatePluginManifest(source),
-      })),
-    []
-  );
 
   const refreshInstalledPlugins = React.useCallback(async () => {
     const response = await fetch('/api/plugins/list', { method: 'GET' });
@@ -115,7 +106,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     }
 
     const payload = (await response.json()) as {
-      plugins?: unknown[];
+      plugins?: PluginListRow[];
       error?: string;
     };
 
@@ -124,8 +115,38 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     }
 
     const validPlugins = payload.plugins
-      .map((plugin) => validatePluginManifest(plugin))
-      .flatMap((result) => (result.isValid ? [result.manifest] : []));
+      .flatMap((pluginRow) => {
+        if (!pluginRow || typeof pluginRow !== 'object') {
+          return [];
+        }
+
+        const manifest = pluginRow.manifest;
+        if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+          return [];
+        }
+
+        const candidate = manifest as Partial<PluginManifest>;
+        if (
+          typeof candidate.id !== 'string' ||
+          typeof candidate.name !== 'string' ||
+          typeof candidate.version !== 'string' ||
+          typeof candidate.description !== 'string' ||
+          typeof candidate.enabled !== 'boolean'
+        ) {
+          return [];
+        }
+
+        const issues = Array.isArray(pluginRow.validation?.rows)
+          ? pluginRow.validation.rows
+          : [];
+
+        return [
+          {
+            manifest: candidate as PluginManifest,
+            issues,
+          },
+        ];
+      });
 
     setInstalledManifestRows(validPlugins);
   }, []);
@@ -149,22 +170,23 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
 
     return installedManifestRows
       .sort((a, b) => {
-        if (a.id === 'tag-manager') {
+        if (a.manifest.id === 'tag-manager') {
           return -1;
         }
-        if (b.id === 'tag-manager') {
+        if (b.manifest.id === 'tag-manager') {
           return 1;
         }
-        return a.name.localeCompare(b.name);
+        return a.manifest.name.localeCompare(b.manifest.name);
       })
       .map((manifest) => ({
-        id: manifest.id,
-        name: manifest.name,
-        version: manifest.version,
-        description: manifest.description,
-        enabled: manifest.enabled,
-        status: statusEntries[manifest.id]?.status ?? 'idle',
-        statusMessage: statusEntries[manifest.id]?.statusMessage,
+        id: manifest.manifest.id,
+        name: manifest.manifest.name,
+        version: manifest.manifest.version,
+        description: manifest.manifest.description,
+        enabled: manifest.manifest.enabled,
+        issues: manifest.issues,
+        status: statusEntries[manifest.manifest.id]?.status ?? 'idle',
+        statusMessage: statusEntries[manifest.manifest.id]?.statusMessage,
       }));
   }, [installedManifestRows, rowStatuses]);
 
@@ -176,8 +198,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       > = {};
 
       for (const plugin of installedManifestRows) {
-        if (prev[plugin.id]) {
-          next[plugin.id] = prev[plugin.id];
+        if (prev[plugin.manifest.id]) {
+          next[plugin.manifest.id] = prev[plugin.manifest.id];
         }
       }
 
@@ -387,40 +409,33 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         <CardHeader>
           <CardTitle>Per-plugin issue details</CardTitle>
           <CardDescription>
-            Current validation summary and issue details for each manifest
-            candidate.
+            Current validation summary and issue details for each installed
+            plugin manifest.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {candidateEntries.map((entry) => {
-            const summarySeverity = resolveEntrySummarySeverity(
-              entry.result.issues
-            );
-            const manifestId = entry.result.isValid
-              ? entry.result.manifest.id
-              : isManifestLike(entry.source) && typeof entry.source.id === 'string'
-                ? entry.source.id
-                : entry.key;
+          {installedPlugins.map((plugin) => {
+            const summarySeverity = resolveEntrySummarySeverity(plugin.issues);
 
             return (
               <div
-                key={`validate-${entry.key}`}
+                key={`validate-${plugin.id}`}
                 className="rounded-lg bg-secondary/20 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold">{manifestId}</div>
+                  <div className="font-semibold">{plugin.id}</div>
                   <Badge className={severityBadgeClass[summarySeverity]}>
                     {severityLabel(summarySeverity)}
                   </Badge>
                 </div>
 
-                {entry.result.issues.length === 0 ? (
+                {plugin.issues.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No issues found.
                   </p>
                 ) : (
                   <ul className="space-y-2">
-                    {entry.result.issues
+                    {plugin.issues
                       .slice()
                       .sort(
                         (a, b) =>
@@ -428,7 +443,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       )
                       .map((issue, issueIndex) => (
                         <li
-                          key={`${entry.key}-${issue.path}-${issueIndex}`}
+                          key={`${plugin.id}-${issue.path}-${issueIndex}`}
                           className="text-sm"
                         >
                           <span className="font-medium">{issue.path}:</span>{' '}
