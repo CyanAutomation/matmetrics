@@ -16,9 +16,11 @@ import {
   __setDataDirForTests,
   createSession,
   extractDateFromPath,
+  hasAnySessions,
   findSessionFileById,
   getNextCounter,
   getSessionFilePath,
+  listSessions,
   updateSession,
 } from './file-storage';
 import type { JudoSession } from './types';
@@ -328,6 +330,27 @@ test('createSession rolls back index lock when markdown write fails', async () =
 
     const retryPath = await createSession(session);
     assert.equal(retryPath, filePath);
+  });
+});
+
+test('listSessions and hasAnySessions ignore index-only directories', async () => {
+  await withTempDataDir(async () => {
+    const sampleFilePath = getSessionFilePath('2025-03-03');
+    const baseDir = path.dirname(path.dirname(path.dirname(sampleFilePath)));
+    const indexDir = path.join(baseDir, '.index');
+    await fs.mkdir(indexDir, { recursive: true });
+    await fs.writeFile(
+      path.join(indexDir, 'session-orphan.json'),
+      JSON.stringify({
+        id: 'session-orphan',
+        path: path.join(baseDir, '2025', '03', '20250303-matmetrics-session-orphan.md'),
+      }),
+      'utf-8'
+    );
+
+    const sessions = await listSessions();
+    assert.deepEqual(sessions, []);
+    assert.equal(await hasAnySessions(), false);
   });
 });
 
