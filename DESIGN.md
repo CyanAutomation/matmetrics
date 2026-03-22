@@ -225,3 +225,196 @@ Editorial whitespace should compress proportionally, not disappear:
 - Fixed-height cards that clip trend badges, axis labels, or localization-expanded text.
 - Preserving desktop typography scale on phones without reducing line length, resulting in orphaned words and broken hierarchy.
 - Horizontal scrolling lists used as a workaround for poor breakpoint planning (except deliberate, card-carousel interactions with clear affordances).
+
+
+## 8. Implementation Appendix (Tailwind + Radix)
+
+This appendix translates design intent into implementation-ready recipes for Tailwind and Radix UI consumers. Use semantic tokens via CSS variables as the only source for component styling.
+
+### 8.1 Token-to-Implementation Mapping
+
+Define CSS variables in the theme layer (for example `:root` and optional `[data-theme]` overrides), then reference those variables through Tailwind arbitrary values.
+
+```css
+:root {
+  --color-primary: #005cab;
+  --color-primary-container: #0075d6;
+  --color-on-primary: #ffffff;
+  --color-secondary: #515f78;
+  --color-secondary-container: #d4e3ff;
+  --color-on-secondary-container: #1b2a41;
+  --color-surface: #f7fafc;
+  --color-surface-low: #f1f4f6;
+  --color-surface-lowest: #ffffff;
+  --color-surface-high: #e5e9eb;
+  --color-surface-variant: #e0e3e5;
+  --color-on-surface: #181c1e;
+  --color-on-surface-variant: #43474a;
+  --color-outline: #73777a;
+  --color-outline-variant: #c2c7ca;
+  --color-success: #0f7a43;
+  --color-success-container: #d7f3e3;
+  --color-warning: #b26a00;
+  --color-warning-container: #ffe7c2;
+  --color-error: #c62828;
+  --color-error-container: #ffd9d6;
+  --color-info: #00639b;
+  --color-info-container: #cde5ff;
+
+  --radius-card: 1rem;
+  --radius-button: 0.75rem;
+  --radius-pill: 9999px;
+
+  --shadow-ambient: 0 12px 24px rgb(24 28 30 / 0.06);
+}
+```
+
+| Token / Surface | CSS Variable | Tailwind Utility Recipe |
+| --- | --- | --- |
+| Canvas (`surface`) | `--color-surface` | `bg-[var(--color-surface)] text-[var(--color-on-surface)]` |
+| Section (`surface_container_low`) | `--color-surface-low` | `bg-[var(--color-surface-low)]` |
+| Card (`surface_container_lowest`) | `--color-surface-lowest` | `bg-[var(--color-surface-lowest)] rounded-2xl` |
+| Neutral elevated (`surface_container_high`) | `--color-surface-high` | `bg-[var(--color-surface-high)]` |
+| Muted track (`surface_variant`) | `--color-surface-variant` | `bg-[var(--color-surface-variant)]` |
+| Primary action | `--color-primary`, `--color-primary-container` | `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]` |
+| Secondary emphasis | `--color-secondary-container` | `bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]` |
+| Positive trend | `--color-success-container` | `bg-[var(--color-success-container)] text-[var(--color-success)]` |
+| Warning trend | `--color-warning-container` | `bg-[var(--color-warning-container)] text-[var(--color-warning)]` |
+| Error trend | `--color-error-container` | `bg-[var(--color-error-container)] text-[var(--color-error)]` |
+| Focus ring | `--color-outline` | `focus-visible:ring-2 focus-visible:ring-[var(--color-outline)]` |
+| Ghost accessibility border fallback | `--color-outline-variant` | `border border-[color:color-mix(in_srgb,var(--color-outline-variant)_15%,transparent)]` (fallback mode only) |
+
+> Implementation note: default state should remain borderless; only apply outline fallback in explicit accessibility/high-contrast modes.
+
+### 8.2 Radix Variant Contract
+
+Use `class-variance-authority (cva)` or an equivalent variant system to keep all Radix primitives aligned.
+
+#### Button (`@radix-ui/react-slot` or `button` primitive)
+
+- `variant=primary`: gradient, white text, ambient shadow on hover.
+- `variant=secondary`: tonal neutral fill, no border.
+- `variant=ghost`: transparent by default, tonal hover only.
+- `size=sm|md|lg` mapped to consistent heights and horizontal padding.
+
+Base recipe:
+
+```ts
+const button = cva(
+  'inline-flex items-center justify-center whitespace-nowrap font-medium transition-all rounded-[var(--radius-button)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-outline)] disabled:cursor-not-allowed disabled:opacity-60',
+  {
+    variants: {
+      variant: {
+        primary:
+          'text-[var(--color-on-primary)] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)] shadow-[var(--shadow-ambient)] hover:brightness-105 active:brightness-95',
+        secondary:
+          'bg-[var(--color-surface-high)] text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)]',
+        ghost:
+          'text-[var(--color-on-surface)] hover:bg-[var(--color-surface-low)]',
+      },
+      size: {
+        sm: 'h-8 px-3 text-sm',
+        md: 'h-10 px-4 text-sm',
+        lg: 'h-12 px-5 text-base',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md' },
+  }
+);
+```
+
+#### Chip (`@radix-ui/react-toggle` or `@radix-ui/react-badge` style wrapper)
+
+- `intent=neutral|active|success|warning|error`
+- Always `rounded-full`, compact typography, no border.
+- Active/selected state should use tonal fill changes, not strokes.
+
+#### Card (`@radix-ui/react-slot` wrapper over `div/section`)
+
+- `elevation=base|raised|glass`
+- `base`: `surface_container_lowest`
+- `raised`: same tonal base + ambient shadow
+- `glass`: translucent white + `backdrop-blur-[12px]`
+
+### 8.3 Canonical Component Recipes
+
+#### A) Primary Button
+
+```tsx
+<Button variant="primary" size="md" className="gap-2">
+  Save Session
+</Button>
+```
+
+Class recipe outcome:
+
+- `inline-flex items-center justify-center h-10 px-4 rounded-[var(--radius-button)]`
+- `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]`
+- `text-[var(--color-on-primary)] shadow-[var(--shadow-ambient)]`
+- `focus-visible:ring-2 focus-visible:ring-[var(--color-outline)]`
+
+#### B) Technique Chip
+
+```tsx
+<Toggle
+  pressed={selected}
+  className={cn(
+    'h-8 px-3 rounded-full text-xs font-medium transition-colors',
+    selected
+      ? 'bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]'
+      : 'bg-[var(--color-surface-low)] text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-high)]'
+  )}
+>
+  Uchi mata
+</Toggle>
+```
+
+Class recipe outcome:
+
+- `rounded-full`
+- Tonal state shift only (no border)
+- Compact metadata typography (`text-xs`, `font-medium`)
+
+#### C) Metric Card
+
+```tsx
+<article className="rounded-2xl bg-[var(--color-surface-lowest)] p-6 shadow-[var(--shadow-ambient)]">
+  <p className="text-xs uppercase tracking-[0.05em] text-[var(--color-on-surface-variant)]">Weekly Volume</p>
+  <p className="mt-2 text-3xl font-semibold text-[var(--color-on-surface)]">7.4 hrs</p>
+  <p className="mt-3 inline-flex rounded-full bg-[var(--color-success-container)] px-2.5 py-1 text-xs font-medium text-[var(--color-success)]">
+    +12% vs last week
+  </p>
+</article>
+```
+
+Class recipe outcome:
+
+- Card uses `surface_container_lowest`
+- Label hierarchy preserved with uppercase + tracking
+- Trend badge uses semantic status container token
+
+### 8.4 Forbidden Implementation Patterns
+
+The following patterns are non-compliant and should fail design review:
+
+1. **Hardcoded borders for layout containment** (e.g., `border border-slate-200` on cards/sections).
+2. **Unapproved shadow presets** (e.g., `shadow-md`, `shadow-xl`) not mapped to `--shadow-ambient`.
+3. **Raw hex values in component files** (e.g., `bg-[#005cab]`, `text-[#181c1e]`) outside token/theme definitions.
+4. **Divider lines as primary separators** (`divide-y`, `<hr />`) where spacing/tonal separation is required.
+5. **State changes encoded only by hue** without shape/label/typographic reinforcement in data visuals.
+
+### 8.5 How to Theme (Brand Variations)
+
+To support future brand skins without breaking hierarchy:
+
+1. **Keep semantic variable names stable.** Only values in theme scopes change.
+2. **Override at theme root, not component level.**
+   - Example: `[data-theme="dojo-night"] { --color-surface: ... }`
+3. **Preserve structural tokens and interaction contracts.**
+   - Do not alter radius scale, spacing rhythm, or focus ring thickness per brand.
+4. **Validate contrast + status semantics per theme.**
+   - `primary/on-primary`, `surface/on-surface`, and all status containers must remain WCAG AA.
+5. **Regression check canonical components.**
+   - Primary Button, Technique Chip, and Metric Card are mandatory snapshots for every new theme.
+
+This allows visual brand variance while preserving the Technical Sensei hierarchy, motion language, and information clarity.
