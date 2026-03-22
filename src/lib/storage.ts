@@ -1017,10 +1017,10 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
 
-      const heartbeatIntervalMs = Math.max(
-        MIN_SYNC_LOCK_HEARTBEAT_MS,
-        Math.min(syncLockHeartbeatMs, Math.floor(syncLockTtlMs / 2))
-      );
+const heartbeatIntervalMs = Math.max(
+  MIN_SYNC_LOCK_HEARTBEAT_MS,
+  Math.floor(syncLockTtlMs / 3)
+);
       leaseHeartbeat = setInterval(() => {
         if (!renewSyncLease()) {
           if (leaseHeartbeat) {
