@@ -27,6 +27,33 @@ type SyncOperationInput = SyncOperationPayload | SyncOperation;
 
 let lastQueuedAt = 0;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isValidSyncOperationInput(value: unknown): value is SyncOperationInput {
+  if (!isRecord(value) || typeof value.type !== 'string') {
+    return false;
+  }
+
+  const hasValidQueuedAt =
+    value.queuedAt === undefined ||
+    (typeof value.queuedAt === 'number' && Number.isFinite(value.queuedAt));
+  if (!hasValidQueuedAt) {
+    return false;
+  }
+
+  if (value.type === 'DELETE') {
+    return typeof value.id === 'string';
+  }
+
+  if (value.type === 'CREATE' || value.type === 'UPDATE') {
+    return isRecord(value.session) && typeof value.session.id === 'string';
+  }
+
+  return false;
+}
+
 function getNextQueuedAt(): number {
   const now = Date.now();
   lastQueuedAt = Math.max(lastQueuedAt + 1, now);
@@ -167,7 +194,27 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
 
 function readQueueFromStorage(): SyncOperation[] {
   const stored = localStorage.getItem(getSyncQueueStorageKey());
-  return stored ? dedupeOperations(JSON.parse(stored)) : [];
+  if (!stored) {
+    return [];
+  }
+
+  const parsed = JSON.parse(stored) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('Sync queue storage must be a JSON array');
+  }
+
+  const validOperations = parsed.filter(isValidSyncOperationInput);
+  if (validOperations.length === 0 && parsed.length > 0) {
+    localStorage.removeItem(getSyncQueueStorageKey());
+    console.warn('Sync queue storage contained only invalid entries', {
+      key: getSyncQueueStorageKey(),
+      totalEntries: parsed.length,
+      validEntries: 0,
+    });
+    return [];
+  }
+
+  return dedupeOperations(validOperations);
 }
 
 function writeQueueWithLatestMerge(
