@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const sessions = await listSessionsForConfig(gitHubConfig);
+    const sessions = await listSessionsForConfig(gitHubConfig ?? null);
     return NextResponse.json(sessions, { status: 200 });
   } catch (error) {
     console.error('Error listing sessions', error);
