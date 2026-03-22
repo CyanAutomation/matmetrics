@@ -212,6 +212,55 @@ test('retryable create failures remain queued for later sync', async () => {
   }
 });
 
+test('429 replay failure keeps failed and later queued operations', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const firstSession = makeSession('session-queued-rate-limited-1');
+  const secondSession = makeSession('session-queued-rate-limited-2');
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([
+      { type: 'CREATE', session: firstSession, queuedAt: 1 },
+      { type: 'CREATE', session: secondSession, queuedAt: 2 },
+    ])
+  );
+
+  let createRequests = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      createRequests += 1;
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: {
+          'Retry-After': '0',
+        },
+      });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.equal(createRequests, 1);
+    assert.deepEqual(getQueue(), [
+      { type: 'CREATE', session: firstSession, queuedAt: 1 },
+      { type: 'CREATE', session: secondSession, queuedAt: 2 },
+    ]);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
 test('non-retryable queued create failures are removed during sync replay', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
