@@ -47,18 +47,18 @@ export function sessionToMarkdown(session: JudoSession): string {
   content += '\n\n';
 
   // Description section
+  content += '## Session Description\n\n';
   if (session.description) {
-    content += '## Session Description\n\n';
     content += session.description;
-    content += '\n\n';
   }
+  content += '\n\n';
 
   // Notes section
+  content += '## Notes\n\n';
   if (session.notes) {
-    content += '## Notes\n\n';
     content += session.notes;
-    content += '\n';
   }
+  content += '\n';
 
   // Use gray-matter to create the complete markdown with frontmatter
   const file = matter.stringify(content, frontmatter);
@@ -69,7 +69,7 @@ export function sessionToMarkdown(session: JudoSession): string {
  * Parse a markdown string (with YAML frontmatter) into a JudoSession
  * Throws if markdown is invalid or missing required fields
  * 
- * Title must match format: # YYYY-MM-DD - Judo Session: Category
+ * Frontmatter is canonical. Title is informational and may be edited manually.
  */
 export function markdownToSession(markdown: string): JudoSession {
   const { data, content } = matter(markdown);
@@ -89,7 +89,7 @@ export function markdownToSession(markdown: string): JudoSession {
     throw new Error('Missing or invalid "category" in frontmatter');
   }
 
-  validateTitleFormat(normalizedContent, data.date, data.category);
+  validateTitlePresence(normalizedContent);
 
   // Parse techniques from markdown content
   const techniques = extractTechniques(normalizedContent);
@@ -223,11 +223,7 @@ function isFencedCodeDelimiter(line: string): boolean {
   return trimmed.startsWith('```') || trimmed.startsWith('~~~');
 }
 
-function validateTitleFormat(
-  content: string,
-  expectedDate: string,
-  expectedCategory: string
-): void {
+function validateTitlePresence(content: string): void {
   const lines = content.split('\n');
 
   // Find the first non-empty line (the title)
@@ -243,26 +239,9 @@ function validateTitleFormat(
     throw new Error('Markdown content has no title');
   }
 
-  const titleRegex = /^# (\d{4}-\d{2}-\d{2}) - Judo Session: (.+)$/;
-  const match = titleLine.match(titleRegex);
-
-  if (!match) {
+  if (!titleLine.startsWith('# ')) {
     throw new Error(
-      `Title must match format "# YYYY-MM-DD - Judo Session: Category". Got: "${titleLine}"`
-    );
-  }
-
-  const [, titleDate, titleCategory] = match;
-
-  if (titleDate !== expectedDate) {
-    throw new Error(
-      `Title date "${titleDate}" does not match frontmatter date "${expectedDate}"`
-    );
-  }
-
-  if (titleCategory !== expectedCategory) {
-    throw new Error(
-      `Title category "${titleCategory}" does not match frontmatter category "${expectedCategory}"`
+      `Markdown content must begin with a level-1 title. Got: "${titleLine}"`
     );
   }
 }

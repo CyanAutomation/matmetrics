@@ -17,7 +17,7 @@ This document freezes the cross-language contract between the existing TypeScrip
 
 ## Markdown format
 
-Each session markdown file must use YAML frontmatter followed by fixed headings. **Title format is strictly enforced:**
+Each session markdown file must use YAML frontmatter followed by fixed headings. Frontmatter is canonical; the title is informational.
 
 ```md
 ---
@@ -45,11 +45,12 @@ Notes text
 
 **Format Rules:**
 
-- **Title must match:** `# YYYY-MM-DD - Judo Session: Category` (ISO date, hyphen separator, uppercase category)
-- Title date must match frontmatter date
-- Title category must match frontmatter category
+- The first non-empty body line must be a level-1 title (`# ...`)
+- Generated files use the default title format `# YYYY-MM-DD - Judo Session: Category`
+- Parsers do not treat title text as canonical metadata
 - `duration` is optional in frontmatter
 - If `techniques` is empty, write `- (none recorded)`
+- Generated files always include these body sections, even when empty
 - Section names must stay exactly:
   - `Techniques Practiced`
   - `Session Description`
@@ -81,4 +82,4 @@ Examples:
 - Missing `GITHUB_TOKEN` is an operator/configuration error.
 - GitHub `404` while reading a session file means not found.
 - Bulk sync must be idempotent for unchanged content: unchanged files are skipped, not rewritten.
-- Title format violations are validation errors (reported before session is saved).
+- Missing a level-1 title in the body is a validation error.

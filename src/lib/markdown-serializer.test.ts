@@ -117,6 +117,47 @@ test('Roundtrip preserves techniques/description/notes', () => {
   assert.equal(parsedRoundtrip.notes, 'Roundtrip notes.');
 });
 
+test('serializer always emits description and notes headings', () => {
+  const markdown = sessionToMarkdown({
+    id: 'always-sections',
+    date: '2026-03-22',
+    effort: 3,
+    category: 'Technical',
+    techniques: [],
+  });
+
+  assert.match(markdown, /## Session Description/);
+  assert.match(markdown, /## Notes/);
+});
+
+test('title may differ from frontmatter and still parse', () => {
+  const markdownWithEditedTitle = `---
+id: "edited-title"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+Worked entries and kuzushi.
+
+## Notes
+
+Keep left elbow higher.`;
+
+  const parsed = markdownToSession(markdownWithEditedTitle);
+
+  assert.equal(parsed.date, '2026-03-22');
+  assert.equal(parsed.category, 'Technical');
+  assert.deepEqual(parsed.techniques, ['Seoi nage']);
+});
+
 test('Description and notes preserve embedded "## " strings in paragraphs', () => {
   const markdownWithEmbeddedHashes = `---
 id: "edge-embedded-hashes"
@@ -208,5 +249,32 @@ After code fence in notes.`;
       '```',
       'After code fence in notes.',
     ].join('\n')
+  );
+});
+
+test('title must still be a level-1 heading', () => {
+  const markdownWithoutH1 = `---
+id: "missing-h1"
+date: "2026-03-22"
+effort: 4
+category: "Technical"
+---
+
+Tuesday drilling session
+
+## Techniques Practiced
+- Tomoe nage
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithoutH1),
+    /must begin with a level-1 title/
   );
 });

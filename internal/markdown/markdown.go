@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -44,23 +43,23 @@ func SessionToMarkdown(session model.Session) (string, error) {
 	}
 	b.WriteString("\n")
 
+	b.WriteString("## Session Description\n\n")
 	if session.Description != "" {
-		b.WriteString("## Session Description\n\n")
 		b.WriteString(session.Description)
-		b.WriteString("\n\n")
 	}
+	b.WriteString("\n\n")
 
+	b.WriteString("## Notes\n\n")
 	if session.Notes != "" {
-		b.WriteString("## Notes\n\n")
 		b.WriteString(session.Notes)
-		b.WriteString("\n")
 	}
+	b.WriteString("\n")
 
 	return b.String(), nil
 }
 
 // MarkdownToSession parses a markdown string with YAML frontmatter into a Session.
-// Validates that title matches format: # YYYY-MM-DD - Judo Session: Category
+// Frontmatter is canonical. Title is informational and may be edited manually.
 func MarkdownToSession(markdown string) (model.Session, error) {
 	frontmatter, content, err := splitFrontmatter(markdown)
 	if err != nil {
@@ -89,7 +88,7 @@ func MarkdownToSession(markdown string) (model.Session, error) {
 		return model.Session{}, fmt.Errorf("missing or invalid %q in frontmatter", "category")
 	}
 
-	if err := validateTitleFormat(content, dateValue, categoryValue); err != nil {
+	if err := validateTitlePresence(content); err != nil {
 		return model.Session{}, err
 	}
 
@@ -223,21 +222,58 @@ func extractTechniques(content string) []string {
 }
 
 func extractSectionContent(content string, heading string) string {
-	marker := "## " + heading + "\n"
-	start := strings.Index(content, marker)
-	if start < 0 {
+	sectionHeadings := []string{
+		"## Techniques Practiced",
+		"## Session Description",
+		"## Notes",
+	}
+	targetHeading := "## " + heading
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+
+	inFencedCodeBlock := false
+	headingLineIndex := -1
+
+	for i, line := range lines {
+		if isFencedCodeDelimiter(line) {
+			inFencedCodeBlock = !inFencedCodeBlock
+			continue
+		}
+
+		if !inFencedCodeBlock && line == targetHeading {
+			headingLineIndex = i
+			break
+		}
+	}
+
+	if headingLineIndex == -1 {
 		return ""
 	}
 
-	section := content[start+len(marker):]
-	section = strings.TrimPrefix(section, "\n")
-
-	end := strings.Index(section, "\n## ")
-	if end >= 0 {
-		section = section[:end]
+	sectionStartIndex := headingLineIndex + 1
+	if sectionStartIndex < len(lines) && lines[sectionStartIndex] == "" {
+		sectionStartIndex += 1
 	}
 
-	return strings.TrimRight(section, "\n")
+	sectionLines := make([]string, 0, len(lines)-sectionStartIndex)
+	inFencedCodeBlock = false
+
+	for i := sectionStartIndex; i < len(lines); i++ {
+		line := lines[i]
+
+		if isFencedCodeDelimiter(line) {
+			inFencedCodeBlock = !inFencedCodeBlock
+			sectionLines = append(sectionLines, line)
+			continue
+		}
+
+		if !inFencedCodeBlock && containsString(sectionHeadings, line) && line != targetHeading {
+			break
+		}
+
+		sectionLines = append(sectionLines, line)
+	}
+
+	return strings.TrimRight(strings.Join(sectionLines, "\n"), "\n")
 }
 
 func validateSession(session model.Session) error {
@@ -261,7 +297,7 @@ func validateSession(session model.Session) error {
 	return nil
 }
 
-func validateTitleFormat(content, expectedDate, expectedCategory string) error {
+func validateTitlePresence(content string) error {
 	lines := strings.Split(content, "\n")
 
 	// Find the first non-empty line (the title)
@@ -277,23 +313,23 @@ func validateTitleFormat(content, expectedDate, expectedCategory string) error {
 		return fmt.Errorf("markdown content has no title")
 	}
 
-	titleRegex := regexp.MustCompile(`^# (\d{4}-\d{2}-\d{2}) - Judo Session: (.+)$`)
-	match := titleRegex.FindStringSubmatch(titleLine)
-
-	if match == nil {
-		return fmt.Errorf("title must match format \"# YYYY-MM-DD - Judo Session: Category\". Got: %q", titleLine)
-	}
-
-	titleDate := match[1]
-	titleCategory := match[2]
-
-	if titleDate != expectedDate {
-		return fmt.Errorf("title date %q does not match frontmatter date %q", titleDate, expectedDate)
-	}
-
-	if titleCategory != expectedCategory {
-		return fmt.Errorf("title category %q does not match frontmatter category %q", titleCategory, expectedCategory)
+	if !strings.HasPrefix(titleLine, "# ") {
+		return fmt.Errorf("markdown content must begin with a level-1 title. Got: %q", titleLine)
 	}
 
 	return nil
+}
+
+func isFencedCodeDelimiter(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	return strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

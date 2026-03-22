@@ -160,6 +160,13 @@ func TestMarkdownOutputUsesExpectedHeadings(t *testing.T) {
 	if !(titleIndex < techniquesHeadingIndex && techniquesHeadingIndex < noneRecordedIndex) {
 		t.Fatalf("unexpected section order in rendered markdown: %q", rendered)
 	}
+
+	if !strings.Contains(rendered, "## Session Description") {
+		t.Fatalf("rendered markdown is missing description heading: %q", rendered)
+	}
+	if !strings.Contains(rendered, "## Notes") {
+		t.Fatalf("rendered markdown is missing notes heading: %q", rendered)
+	}
 }
 
 func TestMarkdownToSessionWithSingleQuotedFrontmatter(t *testing.T) {
@@ -238,5 +245,141 @@ Mixed quoting should parse.
 	}
 	if parsed.Duration == nil || *parsed.Duration != 60 {
 		t.Fatalf("unexpected duration: %#v", parsed.Duration)
+	}
+}
+
+func TestMarkdownToSessionAllowsEditedInformationalTitle(t *testing.T) {
+	input := `---
+id: "edited-title"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+Worked entries and kuzushi.
+
+## Notes
+
+Keep left elbow higher.`
+
+	parsed, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+
+	if parsed.Date != "2026-03-22" {
+		t.Fatalf("unexpected date: %q", parsed.Date)
+	}
+	if parsed.Category != model.CategoryTechnical {
+		t.Fatalf("unexpected category: %q", parsed.Category)
+	}
+	if len(parsed.Techniques) != 1 || parsed.Techniques[0] != "Seoi nage" {
+		t.Fatalf("unexpected techniques: %#v", parsed.Techniques)
+	}
+}
+
+func TestMarkdownToSessionRequiresLevelOneTitle(t *testing.T) {
+	input := `---
+id: "missing-h1"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+Tuesday drilling session
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+Worked entries and kuzushi.
+
+## Notes
+
+Keep left elbow higher.`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatal("MarkdownToSession() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "level-1 title") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMarkdownToSessionPreservesEmbeddedHashesAndFencedCode(t *testing.T) {
+	input := `---
+id: "edge-fenced-code"
+date: "2026-03-22"
+effort: 4
+category: "Technical"
+---
+
+# 2026-03-22 - Judo Session: Technical
+
+## Techniques Practiced
+- Tomoe nage
+
+## Session Description
+
+This line includes a literal token: ## not-a-heading.
+Another line keeps ## Session Description as plain text content.
+
+` + "```md" + `
+## Notes
+console.log("inside description");
+` + "```" + `
+After code fence in description.
+
+## Notes
+
+Keep ## Notes literal in notes text too.
+And retain ## Techniques Practiced as inline text.
+
+` + "```text" + `
+## Session Description
+note_code();
+` + "```" + `
+After code fence in notes.`
+
+	parsed, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+
+	expectedDescription := strings.Join([]string{
+		"This line includes a literal token: ## not-a-heading.",
+		"Another line keeps ## Session Description as plain text content.",
+		"",
+		"```md",
+		"## Notes",
+		`console.log("inside description");`,
+		"```",
+		"After code fence in description.",
+	}, "\n")
+	if parsed.Description != expectedDescription {
+		t.Fatalf("unexpected description: %q", parsed.Description)
+	}
+
+	expectedNotes := strings.Join([]string{
+		"Keep ## Notes literal in notes text too.",
+		"And retain ## Techniques Practiced as inline text.",
+		"",
+		"```text",
+		"## Session Description",
+		"note_code();",
+		"```",
+		"After code fence in notes.",
+	}, "\n")
+	if parsed.Notes != expectedNotes {
+		t.Fatalf("unexpected notes: %q", parsed.Notes)
 	}
 }
