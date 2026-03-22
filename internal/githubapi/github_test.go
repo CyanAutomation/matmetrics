@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"matmetrics/internal/markdown"
 	"matmetrics/internal/model"
 )
 
@@ -73,6 +74,16 @@ func TestValidateUsesDefaultBranchWhenBranchUnset(t *testing.T) {
 
 func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
 	var putCount int
+	stableMarkdown, err := markdown.SessionToMarkdown(model.Session{
+		ID:         "stable",
+		Date:       "2025-03-14",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{},
+	})
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
 
 	client := &Client{
 		BaseURL: "https://example.test",
@@ -80,10 +91,16 @@ func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
 			switch {
 			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
 				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2025/03/20250314-matmetrics-stable.md","type":"blob"}]}`), nil
 			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2025/03/20250314-matmetrics-stable.md"):
 				payload := map[string]any{
 					"sha":     "sha-stable",
-					"content": base64.StdEncoding.EncodeToString([]byte("---\nid: \"stable\"\ndate: \"2025-03-14\"\neffort: 3\ncategory: \"Technical\"\n---\n\n# 2025-03-14 - Judo Session: Technical\n\n## Techniques Practiced\n- (none recorded)\n\n")),
+					"content": base64.StdEncoding.EncodeToString([]byte(stableMarkdown)),
 				}
 				return jsonBodyResponse(http.StatusOK, payload), nil
 			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2025/03/20250314-matmetrics-changed.md"):
