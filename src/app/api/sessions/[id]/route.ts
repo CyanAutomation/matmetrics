@@ -179,7 +179,7 @@ export async function GET(
       });
     }
 
-    const session = await readSessionByIdForConfig(id, gitHubConfig ?? null);
+    const session = await readSessionByIdForConfig(id, gitHubConfig);
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
@@ -317,7 +317,7 @@ export async function PUT(
       });
     }
 
-    await updateSessionForConfig(session, gitHubConfig ?? null);
+    await updateSessionForConfig(session, gitHubConfig);
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
@@ -368,7 +368,7 @@ export async function DELETE(
       });
     }
 
-    await deleteSessionForConfig(id, gitHubConfig ?? null);
+    await deleteSessionForConfig(id, gitHubConfig);
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
