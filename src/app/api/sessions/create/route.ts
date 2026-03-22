@@ -170,7 +170,8 @@ function validateSessionId(
  * POST /api/sessions/create
  * Create a new session and save it as a markdown file
  *
- * Request body: Partial JudoSession (id will be generated if not provided) + optional gitHubConfig
+ * Request body: Partial JudoSession (id will be generated if not provided) + optional gitHubConfig.
+ * If gitHubConfig is omitted, the server uses the user's stored GitHub config (when available).
  * Response: Created JudoSession with id
  */
 export async function POST(request: NextRequest) {
