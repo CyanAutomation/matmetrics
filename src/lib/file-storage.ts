@@ -561,17 +561,8 @@ export async function deleteSession(id: string): Promise<void> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       deleteError = error;
     } else {
-      const relocatedPath = await findSessionFileById(id);
-      if (relocatedPath && relocatedPath !== filePath) {
-        ensurePathWithinDataDir(relocatedPath);
-        try {
-          await fs.unlink(relocatedPath);
-        } catch (relocatedError) {
-          if ((relocatedError as NodeJS.ErrnoException).code !== 'ENOENT') {
-            deleteError = relocatedError;
-          }
-        }
-      }
+      // ENOENT means the file was already deleted, which is the desired outcome.
+      // No retry needed - the index cleanup in finally block will handle cleanup.
     }
   } finally {
     try {
