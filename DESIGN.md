@@ -18,6 +18,7 @@ Use the following token table as the canonical source for implementation. Produc
 | --- | --- | --- |
 | `primary` | `#005cab` | Primary action backgrounds, key chart series, high-emphasis links |
 | `primary-container` | `#0075d6` | Elevated primary surfaces, gradient companion for primary CTAs |
+| `primary-fixed` | `#0075d6` | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
 | `on-primary` | `#ffffff` | Text/icons on `primary` backgrounds |
 | `on-primary-container` | `#ffffff` | Text/icons on `primary-container` |
 | `secondary` | `#515f78` | Secondary actions, supporting data series |
@@ -101,9 +102,11 @@ Use this mapping during migration for frontend and Go/CLI consumers so token loo
 | `on_surface_variant` | `on-surface-variant` |
 | `surface_bright` | `surface-bright` |
 | `surface_tint` | `surface-tint` |
-| `primary_fixed` | `secondary-container` |
+| `primary_fixed` | `primary-fixed` |
 
 **Migration note:** Components must consume semantic token names from the shared token map/theme layer (e.g., CSS variables or design-token exports) instead of inline raw hex values. This applies to existing button variants, chart series, badges, and any newly introduced states.
+
+`primary-fixed` preserves legacy `primary_fixed` semantics and should be treated as a primary-emphasis token (not a secondary-emphasis substitute).
 
 ### The "No-Line" Rule
 
@@ -275,6 +278,7 @@ Define CSS variables in the theme layer (for example `:root` and optional `[data
 :root {
   --color-primary: #005cab;
   --color-primary-container: #0075d6;
+  --color-primary-fixed: #0075d6;
   --color-on-primary: #ffffff;
   --color-secondary: #515f78;
   --color-secondary-container: #d4e3ff;
@@ -313,6 +317,7 @@ Define CSS variables in the theme layer (for example `:root` and optional `[data
 | Neutral elevated (`surface-container-high`) | `--color-surface-high` | `bg-[var(--color-surface-high)]` |
 | Muted track (`surface-variant`) | `--color-surface-variant` | `bg-[var(--color-surface-variant)]` |
 | Primary action | `--color-primary`, `--color-primary-container` | `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]` |
+| Primary fixed emphasis (`primary-fixed`) | `--color-primary-fixed` | `bg-[var(--color-primary-fixed)] text-[var(--color-on-primary)]` |
 | Secondary emphasis | `--color-secondary-container` | `bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]` |
 | Positive trend | `--color-success-container` | `bg-[var(--color-success-container)] text-[var(--color-success)]` |
 | Warning trend | `--color-warning-container` | `bg-[var(--color-warning-container)] text-[var(--color-warning)]` |
