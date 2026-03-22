@@ -70,11 +70,8 @@ class LockManagerMock {
     }
 
     this.held = true;
-    try {
-      await callback({ name: 'matmetrics-sync' });
-    } finally {
-      this.held = false;
-    }
+    await callback({ name: 'matmetrics-sync' });
+    this.held = false;
   }
 }
 
