@@ -14,6 +14,8 @@ import {
   retryCloudSync,
   saveSession,
   setGitHubSyncStatus,
+  updateSession,
+  deleteSession,
   teardownStorageListeners,
 } from './storage';
 import { getQueue, getSyncQueueStorageKey } from './sync-queue';
@@ -217,9 +219,7 @@ test('non-retryable queued create failures are removed during sync replay', asyn
   const queuedSession = makeSession('session-queued-terminal-failure');
   localStorage.setItem(
     getSyncQueueStorageKey(),
-    JSON.stringify([
-      { type: 'CREATE', session: queuedSession, queuedAt: 1 },
-    ])
+    JSON.stringify([{ type: 'CREATE', session: queuedSession, queuedAt: 1 }])
   );
 
   const originalFetch = global.fetch;
@@ -252,12 +252,12 @@ test('non-retryable queued create failures are removed during sync replay', asyn
   }
 });
 
-test('successful create stays visible until refresh confirms the remote copy', async () => {
+test('successful create clears dirty state even when immediate refresh fails', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
 
-  const session = makeSession('session-refresh-confirmation');
+  const session = makeSession('session-clear-dirty-create');
   let listRequests = 0;
 
   const originalFetch = global.fetch;
@@ -269,9 +269,13 @@ test('successful create stays visible until refresh confirms the remote copy', a
 
     if (url.endsWith('/api/sessions/list')) {
       listRequests += 1;
-      return new Response(JSON.stringify(listRequests === 1 ? [] : [session]), {
-        status: 200,
-      });
+      if (listRequests === 1) {
+        return new Response(JSON.stringify({ error: 'refresh failed' }), {
+          status: 500,
+        });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
     }
 
     throw new Error(`Unexpected fetch: ${url}`);
@@ -286,7 +290,118 @@ test('successful create stays visible until refresh confirms the remote copy', a
 
     assert.deepEqual(
       getSessions().map((entry) => entry.id),
-      ['session-refresh-confirmation']
+      ['session-clear-dirty-create']
+    );
+
+    await flushAsyncWork();
+
+    assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('successful update clears dirty state even when immediate refresh fails', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const originalSession = makeSession('session-clear-dirty-update');
+  const updatedSession: JudoSession = {
+    ...originalSession,
+    notes: 'updated locally',
+  };
+  const sessionsStorageKey = getScopedStorageKey('matmetrics_sessions');
+  localStorage.setItem(sessionsStorageKey, JSON.stringify([originalSession]));
+
+  let listRequests = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith(`/api/sessions/${updatedSession.id}`)) {
+      return new Response(JSON.stringify(updatedSession), { status: 200 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      listRequests += 1;
+      if (listRequests === 1) {
+        return new Response(JSON.stringify({ error: 'refresh failed' }), {
+          status: 500,
+        });
+      }
+
+      return new Response(JSON.stringify([originalSession]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+
+    const result = await updateSession(updatedSession);
+    assert.equal(result.status, 'synced');
+    await flushAsyncWork();
+
+    assert.equal(getSessions()[0].notes, 'updated locally');
+
+    await flushAsyncWork();
+
+    assert.equal(getSessions()[0].notes, originalSession.notes);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('successful delete clears dirty state even when immediate refresh fails', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const session = makeSession('session-clear-dirty-delete');
+  const sessionsStorageKey = getScopedStorageKey('matmetrics_sessions');
+  localStorage.setItem(sessionsStorageKey, JSON.stringify([session]));
+
+  let listRequests = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith(`/api/sessions/${session.id}`)) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      listRequests += 1;
+      if (listRequests === 1) {
+        return new Response(JSON.stringify({ error: 'refresh failed' }), {
+          status: 500,
+        });
+      }
+
+      return new Response(JSON.stringify([session]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+
+    const result = await deleteSession(session.id);
+    assert.equal(result.status, 'synced');
+    await flushAsyncWork();
+
+    assert.deepEqual(getSessions(), []);
+
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      getSessions().map((entry) => entry.id),
+      ['session-clear-dirty-delete']
     );
   } finally {
     teardownStorageListeners();
@@ -295,6 +410,59 @@ test('successful create stays visible until refresh confirms the remote copy', a
   }
 });
 
+test('retryable queued create remains visible until replay succeeds', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const session = makeSession('session-queued-dirty-until-success');
+  let createShouldFail = true;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+
+    if (url.endsWith('/api/sessions/create')) {
+      if (createShouldFail) {
+        return new Response(JSON.stringify({ error: 'server' }), {
+          status: 503,
+        });
+      }
+
+      return new Response(JSON.stringify(session), { status: 201 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+
+    const queuedResult = await saveSession(session);
+    assert.equal(queuedResult.status, 'queued');
+    assert.equal(getQueue().length, 1);
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      getSessions().map((entry) => entry.id),
+      ['session-queued-dirty-until-success']
+    );
+
+    createShouldFail = false;
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.deepEqual(getQueue(), []);
+    assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
 test('sync lease prevents replay when another tab already owns the queue flush', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
