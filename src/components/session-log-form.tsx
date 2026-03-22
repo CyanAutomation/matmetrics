@@ -72,7 +72,9 @@ export function SessionLogForm({
   const shouldHideHeader = isEditing || hideHeader;
 
   const [date, setDate] = useState(sessionToEdit?.date || '');
-  const [duration, setDuration] = useState(sessionToEdit?.duration || '');
+  const [duration, setDuration] = useState<string>(
+    sessionToEdit?.duration?.toString() ?? ''
+  );
   const [description, setDescription] = useState(
     sessionToEdit?.description || ''
   );
@@ -100,7 +102,7 @@ export function SessionLogForm({
 
   useEffect(() => {
     setDate(sessionToEdit?.date || '');
-    setDuration(sessionToEdit?.duration || '');
+    setDuration(sessionToEdit?.duration?.toString() ?? '');
     setDescription(sessionToEdit?.description || '');
     setTechniques(sessionToEdit?.techniques || []);
     setNewTech('');
@@ -309,6 +311,9 @@ export function SessionLogForm({
       return;
     }
 
+    const parsedDuration =
+      duration.trim() !== '' ? parseInt(duration, 10) : undefined;
+
     const sessionData: JudoSession = {
       id:
         sessionToEdit?.id ||
@@ -321,7 +326,7 @@ export function SessionLogForm({
       category,
       description,
       notes,
-      ...(duration && { duration: parseInt(duration, 10) }),
+      ...(Number.isFinite(parsedDuration) && { duration: parsedDuration }),
     };
 
     setIsSubmitting(true);
