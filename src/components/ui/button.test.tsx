@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { parse } from 'next/dist/compiled/node-html-parser';
+import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Button } from './button';
 
+function renderElement(jsx: ReactElement) {
+  const markup = renderToStaticMarkup(jsx);
+  const parsed = parse(markup);
+  const root =
+    parsed.tagName
+      ? parsed
+      : parsed.childNodes.find((node) => node.nodeType === 1);
+
+  assert.ok(root, 'expected a root element in rendered markup');
+
+  return root as NonNullable<typeof root>;
+}
+
 test('button maps interaction props to data attributes and preserves accessibility props', () => {
-  const markup = renderToStaticMarkup(
+  const element = renderElement(
     <Button
       interaction="primary-action"
       feedbackState="loading"
@@ -16,25 +31,27 @@ test('button maps interaction props to data attributes and preserves accessibili
     </Button>
   );
 
-  assert.match(markup, /^<button[^>]*>Save<\/button>$/);
-  assert.match(markup, /aria-busy="true"/);
-  assert.match(markup, /data-feedback="loading"/);
-  assert.match(markup, /data-interaction="primary-action"/);
-  assert.match(markup, /data-pulse="true"/);
+  assert.equal(element.tagName.toLowerCase(), 'button');
+  assert.equal(element.textContent.trim(), 'Save');
+  assert.equal(element.getAttribute('aria-busy'), 'true');
+  assert.equal(element.getAttribute('data-feedback'), 'loading');
+  assert.equal(element.getAttribute('data-interaction'), 'primary-action');
+  assert.equal(element.getAttribute('data-pulse'), 'true');
 });
 
 test('button public API defaults align with design-system/button expectations', () => {
-  const markup = renderToStaticMarkup(<Button>Default</Button>);
+  const element = renderElement(<Button>Default</Button>);
 
   // design-system/button expects a plain Button to render as a <button> with neutral, idle interaction state.
-  assert.match(markup, /^<button[^>]*>Default<\/button>$/);
-  assert.match(markup, /data-feedback="idle"/);
-  assert.match(markup, /data-interaction="default"/);
-  assert.doesNotMatch(markup, /data-pulse=/);
+  assert.equal(element.tagName.toLowerCase(), 'button');
+  assert.equal(element.textContent.trim(), 'Default');
+  assert.equal(element.getAttribute('data-feedback'), 'idle');
+  assert.equal(element.getAttribute('data-interaction'), 'default');
+  assert.equal(element.hasAttribute('data-pulse'), false);
 });
 
 test('button forwards data attributes when rendered as child element', () => {
-  const markup = renderToStaticMarkup(
+  const element = renderElement(
     <Button asChild interaction="subtle" feedbackState="success" feedbackPulse>
       <a href="/sessions" aria-label="View sessions">
         Sessions
@@ -42,10 +59,11 @@ test('button forwards data attributes when rendered as child element', () => {
     </Button>
   );
 
-  assert.match(markup, /^<a[^>]*>Sessions<\/a>$/);
-  assert.match(markup, /href="\/sessions"/);
-  assert.match(markup, /aria-label="View sessions"/);
-  assert.match(markup, /data-feedback="success"/);
-  assert.match(markup, /data-interaction="subtle"/);
-  assert.match(markup, /data-pulse="true"/);
+  assert.equal(element.tagName.toLowerCase(), 'a');
+  assert.equal(element.textContent.trim(), 'Sessions');
+  assert.equal(element.getAttribute('href'), '/sessions');
+  assert.equal(element.getAttribute('aria-label'), 'View sessions');
+  assert.equal(element.getAttribute('data-feedback'), 'success');
+  assert.equal(element.getAttribute('data-interaction'), 'subtle');
+  assert.equal(element.getAttribute('data-pulse'), 'true');
 });
