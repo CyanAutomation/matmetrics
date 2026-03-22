@@ -356,6 +356,87 @@ test('updateSession and deleteSession throw DuplicateSessionIdError when session
   });
 });
 
+test('deleteSession treats ENOENT as already deleted and still removes the index entry', async () => {
+  await withTempDataDir(async () => {
+    const originalUnlink = fs.unlink;
+    const session = makeSession({
+      id: 'session-delete-race',
+      date: '2025-04-04',
+    });
+    const sessionPath = await createSession(session);
+    const indexPath = path.join(
+      path.dirname(path.dirname(sessionPath)),
+      '.index',
+      `${session.id}.json`
+    );
+    let injectedEnoent = false;
+
+    fs.unlink = (async (...args: Parameters<typeof fs.unlink>) => {
+      const [targetPath] = args;
+      const targetPathString = targetPath.toString();
+      if (!injectedEnoent && targetPathString === sessionPath) {
+        injectedEnoent = true;
+        await originalUnlink.call(fs, ...args);
+        throw Object.assign(new Error('simulated unlink race'), {
+          code: 'ENOENT',
+        });
+      }
+
+      return originalUnlink.call(fs, ...args);
+    }) as typeof fs.unlink;
+
+    try {
+      await deleteSession(session.id);
+    } finally {
+      fs.unlink = originalUnlink;
+    }
+
+    assert.equal(injectedEnoent, true);
+    await assert.rejects(access(sessionPath));
+    await assert.rejects(access(indexPath));
+    assert.equal(await findSessionFileById(session.id), null);
+  });
+});
+
+test('deleteSession retries once after ENOENT and deletes a moved session file', async () => {
+  await withTempDataDir(async () => {
+    const originalUnlink = fs.unlink;
+    const session = makeSession({
+      id: 'session-delete-moved',
+      date: '2025-04-05',
+    });
+    const originalPath = await createSession(session);
+    const movedPath = getSessionFilePath('2025-05-05', undefined, session.id);
+    let injectedMoveRace = false;
+
+    fs.unlink = (async (...args: Parameters<typeof fs.unlink>) => {
+      const [targetPath] = args;
+      const targetPathString = targetPath.toString();
+      if (!injectedMoveRace && targetPathString === originalPath) {
+        injectedMoveRace = true;
+        await fs.mkdir(path.dirname(movedPath), { recursive: true });
+        await rename(originalPath, movedPath);
+        throw Object.assign(new Error('simulated moved-file race'), {
+          code: 'ENOENT',
+        });
+      }
+
+      return originalUnlink.call(fs, ...args);
+    }) as typeof fs.unlink;
+
+    try {
+      await deleteSession(session.id);
+    } finally {
+      fs.unlink = originalUnlink;
+    }
+
+    assert.equal(injectedMoveRace, true);
+    await assert.rejects(access(originalPath));
+    await assert.rejects(access(movedPath));
+    assert.equal(await findSessionFileById(session.id), null);
+  });
+});
+
 test('createSession rolls back index lock when markdown write fails', async () => {
   await withTempDataDir(async () => {
     const originalWriteFile = fs.writeFile;
