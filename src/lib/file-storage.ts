@@ -8,6 +8,8 @@ let dataDir = path.join(process.cwd(), 'data');
 const SESSION_INDEX_DIR = '.index';
 const SESSION_INDEX_POLL_ATTEMPTS = 20;
 const SESSION_INDEX_POLL_DELAY_MS = 10;
+const YEAR_DIR_PATTERN = /^\d{4}$/;
+const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
 interface SessionIndexRecord {
   id: string;
@@ -61,6 +63,18 @@ function ensurePathWithinDataDir(filePath: string): string {
 
 function getSessionIndexDirPath(): string {
   return ensurePathWithinDataDir(path.join(getDataDir(), SESSION_INDEX_DIR));
+}
+
+function isSessionIndexDirName(name: string): boolean {
+  return name === SESSION_INDEX_DIR;
+}
+
+function isYearDirName(name: string): boolean {
+  return YEAR_DIR_PATTERN.test(name);
+}
+
+function isMonthDirName(name: string): boolean {
+  return MONTH_DIR_PATTERN.test(name);
 }
 
 function getSessionIndexFilePath(sessionId: string): string {
@@ -130,11 +144,6 @@ async function resolveIndexedSessionPath(sessionId: string): Promise<string | nu
           throw error;
         }
       }
-    }
-
-    const discovered = await findSessionFileById(sessionId);
-    if (discovered) {
-      return discovered;
     }
 
     await sleep(SESSION_INDEX_POLL_DELAY_MS);
@@ -249,6 +258,7 @@ export async function listSessions(): Promise<JudoSession[]> {
     const years = await fs.readdir(getDataDir());
 
     for (const year of years) {
+      if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
       const yearPath = path.join(getDataDir(), year);
       const stat = await fs.stat(yearPath);
       if (!stat.isDirectory()) continue;
@@ -256,6 +266,7 @@ export async function listSessions(): Promise<JudoSession[]> {
       const months = await fs.readdir(yearPath);
 
       for (const month of months) {
+        if (!isMonthDirName(month)) continue;
         const monthPath = path.join(yearPath, month);
         const stat = await fs.stat(monthPath);
         if (!stat.isDirectory()) continue;
@@ -353,8 +364,12 @@ export async function createSession(session: JudoSession): Promise<string> {
     }
     const indexedExistingPath = await resolveIndexedSessionPath(session.id);
     if (!indexedExistingPath) {
+      const existingIndexRecord = await readSessionIndex(session.id);
+      const lockStateDescription = existingIndexRecord
+        ? 'appears abandoned or unresolved'
+        : 'is still in progress';
       throw new Error(
-        `Session ID ${session.id} is locked by another create operation but existing data could not be resolved`
+        `Session ID ${session.id} is locked by another create operation and ${lockStateDescription}`
       );
     }
     return await assertExistingSessionMatches(indexedExistingPath);
@@ -381,7 +396,6 @@ export async function createSession(session: JudoSession): Promise<string> {
   } finally {
     if (hasIndexLock) {
       try {
-        await fs.readFile(filePath, 'utf-8');
         const verifyMarkdown = await fs.readFile(filePath, 'utf-8');
         if (verifyMarkdown !== markdown) {
           await fs.unlink(indexPath).catch(() => undefined);
@@ -517,16 +531,34 @@ export async function deleteSession(id: string): Promise<void> {
  * Returns null if not found
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
+  const safeId = sanitizeSessionId(id);
+  const indexedRecord = await readSessionIndex(safeId);
+  if (indexedRecord) {
+    try {
+      const markdown = await fs.readFile(indexedRecord.path, 'utf-8');
+      const parsedSession = markdownToSession(markdown);
+      if (parsedSession.id === safeId) {
+        return indexedRecord.path;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn(`Failed to validate indexed session for ${safeId}`, error);
+      }
+    }
+  }
+
   try {
     const years = await fs.readdir(getDataDir());
 
     for (const year of years) {
+      if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
       const yearPath = path.join(getDataDir(), year);
       const yearStat = await fs.stat(yearPath);
       if (!yearStat.isDirectory()) continue;
 
       const months = await fs.readdir(yearPath);
       for (const month of months) {
+        if (!isMonthDirName(month)) continue;
         const monthPath = path.join(yearPath, month);
         const monthStat = await fs.stat(monthPath);
         if (!monthStat.isDirectory()) continue;
@@ -538,7 +570,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
           try {
             const markdown = await fs.readFile(filePath, 'utf-8');
             const parsedSession = markdownToSession(markdown);
-            if (parsedSession.id === id) {
+            if (parsedSession.id === safeId) {
               return filePath;
             }
           } catch {
@@ -565,7 +597,14 @@ export async function findSessionFileById(id: string): Promise<string | null> {
 export async function hasAnySessions(): Promise<boolean> {
   try {
     const years = await fs.readdir(getDataDir());
-    return years.length > 0;
+    for (const year of years) {
+      if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
+      const yearPath = path.join(getDataDir(), year);
+      const yearStat = await fs.stat(yearPath);
+      if (!yearStat.isDirectory()) continue;
+      return true;
+    }
+    return false;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       return false;
