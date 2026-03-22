@@ -271,8 +271,8 @@ export function GitHubSettings() {
         </AlertDescription>
       </Alert>
 
-      <Card className="border-blue-100 shadow-sm">
-        <CardHeader className="bg-blue-50 border-b">
+      <Card className="bg-card/95 shadow-sm">
+        <CardHeader className="bg-secondary/45">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-600 text-white rounded-lg shadow-md">
               <Github className="h-6 w-6" />
@@ -287,7 +287,7 @@ export function GitHubSettings() {
         </CardHeader>
         <CardContent className="p-6 pt-8 space-y-6">
           {/* Configuration Information */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="bg-amber-50/85 border border-amber-200/40 rounded-lg p-4">
             <p className="text-sm text-amber-900 font-semibold mb-2">
               Setup Requirements:
             </p>
@@ -356,7 +356,7 @@ export function GitHubSettings() {
 
             {/* Status */}
             {isEnabled && (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50/90 border border-green-200/40 p-3 rounded-lg">
                 <CheckCircle2 className="h-4 w-4" />
                 Connected to{' '}
                 <strong>
@@ -374,7 +374,7 @@ export function GitHubSettings() {
             )}
 
             {testResult && !testResult.success && (
-              <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 p-3 rounded-lg">
+              <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50/90 border border-red-200/40 p-3 rounded-lg">
                 <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <div>{testResult.message}</div>
               </div>
@@ -438,8 +438,8 @@ export function GitHubSettings() {
 
       {/* Bulk Sync Section */}
       {isEnabled && !migrationDone && (
-        <Card className="border-purple-100 shadow-sm">
-          <CardHeader className="bg-purple-50 border-b">
+        <Card className="bg-card/95 shadow-sm">
+          <CardHeader className="bg-secondary/45">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-600 text-white rounded-lg shadow-md">
                 <RefreshCw className="h-6 w-6" />
@@ -481,7 +481,7 @@ export function GitHubSettings() {
 
       {/* Success State */}
       {isEnabled && migrationDone && (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="bg-green-50/90 border border-green-200/40">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
