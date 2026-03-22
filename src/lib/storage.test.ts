@@ -742,6 +742,118 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   }
 });
 
+test('sync loop heartbeat cadence uses configured sync heartbeat value', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  __setSyncLeaseTimingForTests({
+    ttlMs: 30_000,
+    heartbeatMs: 7_777,
+  });
+
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([
+      {
+        type: 'CREATE',
+        session: makeSession('session-heartbeat-config'),
+        queuedAt: 1,
+      },
+    ])
+  );
+
+  const intervals: number[] = [];
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const originalFetch = global.fetch;
+  global.setInterval = ((_: TimerHandler, timeout?: number) => {
+    intervals.push(Number(timeout));
+    return 0 as any;
+  }) as typeof setInterval;
+  global.clearInterval = (() => undefined) as typeof clearInterval;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      return new Response(JSON.stringify({ ok: true }), { status: 201 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.deepEqual(intervals, [7_777]);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+    global.fetch = originalFetch;
+  }
+});
+
+test('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  __setSyncLeaseTimingForTests({
+    ttlMs: 6_000,
+    heartbeatMs: 10_000,
+  });
+
+  localStorage.setItem(
+    getSyncQueueStorageKey(),
+    JSON.stringify([
+      {
+        type: 'CREATE',
+        session: makeSession('session-heartbeat-clamp'),
+        queuedAt: 1,
+      },
+    ])
+  );
+
+  const intervals: number[] = [];
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const originalFetch = global.fetch;
+  global.setInterval = ((_: TimerHandler, timeout?: number) => {
+    intervals.push(Number(timeout));
+    return 0 as any;
+  }) as typeof setInterval;
+  global.clearInterval = (() => undefined) as typeof clearInterval;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      return new Response(JSON.stringify({ ok: true }), { status: 201 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    retryCloudSync();
+    await flushAsyncWork();
+
+    assert.deepEqual(intervals, [3_000]);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+    global.fetch = originalFetch;
+  }
+});
+
 test('sync loop aborts safely when lease expires during a delayed sync request', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
