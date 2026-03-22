@@ -288,7 +288,7 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <MatMetricsLogo size="md" variant="solid" />
               <div>
-                <div className="font-headline font-black text-2xl tracking-tighter text-primary">
+                <div className="text-display-sm font-black text-primary">
                   MatMetrics
                 </div>
                 {isGuest && (
@@ -321,7 +321,7 @@ export default function Home() {
             </SidebarMenu>
             <Separator className="my-6 bg-primary/5" />
             <div className="px-4 py-2">
-              <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">
+              <div className="text-label-meta text-muted-foreground mb-4">
                 Training Stats
               </div>
               <div className="space-y-4">

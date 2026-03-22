@@ -95,13 +95,13 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-label-md">
               Total Sessions
             </CardTitle>
             <Calendar className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSessions}</div>
+            <div className="text-display-sm">{stats.totalSessions}</div>
             <p className="text-xs text-muted-foreground">
               Practice makes progress
             </p>
@@ -109,11 +109,11 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Focus Area</CardTitle>
+            <CardTitle className="text-label-md">Focus Area</CardTitle>
             <Target className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.topCategory}</div>
+            <div className="text-display-sm">{stats.topCategory}</div>
             <p className="text-xs text-muted-foreground">
               Primary training type
             </p>
@@ -121,11 +121,11 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Technique</CardTitle>
+            <CardTitle className="text-label-md">Top Technique</CardTitle>
             <Award className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold truncate">
+            <div className="text-display-sm truncate">
               {stats.topTechniques[0]?.name || 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">Most practiced move</p>
@@ -133,11 +133,11 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Effort</CardTitle>
+            <CardTitle className="text-label-md">Avg. Effort</CardTitle>
             <Zap className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.avgEffort}</div>
+            <div className="text-display-sm">{stats.avgEffort}</div>
             <p className="text-xs text-muted-foreground">
               Intensity level (1-5 scale)
             </p>
@@ -190,7 +190,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <p className="text-label-meta text-muted-foreground">
                   Session Types
                 </p>
                 {stats.categoryStats.map((cat, idx) => (
@@ -200,7 +200,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                         <p className="text-sm font-medium leading-none">
                           {cat.name}
                         </p>
-                        <span className="text-xs font-bold text-muted-foreground">
+                        <span className="text-body-sm font-semibold text-muted-foreground">
                           {cat.count}
                         </span>
                       </div>
@@ -225,7 +225,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <p className="text-label-meta text-muted-foreground">
                   Top Techniques
                 </p>
                 {stats.topTechniques.map((tech, idx) => (
