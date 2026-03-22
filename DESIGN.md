@@ -151,3 +151,77 @@ In this design system, "shadows" are atmospheric, not structural.
 - **Don't** use pure black (#000000) for body text; use `on_surface` (#181c1e) to maintain a sophisticated tonal range.
 - **Don't** use standard "Material" shadows. If the shadow is visible enough to be noticed, it is too dark.
 - **Don't** use icons as the primary way to communicate—let the typography and the "Kinetic" layout do the heavy lifting.
+
+## 7. Responsive Layout & Breakpoint Behavior
+
+Maintain the "Technical Sensei" editorial rhythm on every screen size by adapting asymmetry, density, and module structure without sacrificing readability.
+
+### Breakpoint Strategy
+
+- **Mobile (`< 640px`)**
+  - Single-column flow.
+  - Asymmetrical page margins must collapse to **symmetric gutters** to prevent clipped labels and chart axes.
+  - Default horizontal gutter: `spacing-4` (16px).
+- **Tablet (`640px - 1023px`)**
+  - Flexible 8-column grid for mixed single/double-span modules.
+  - Asymmetry may return only in sectional composition (e.g., hero copy alignment), not in core content gutters.
+  - Default horizontal gutter: `spacing-6` (24px).
+- **Desktop (`>= 1024px`)**
+  - Full editorial layout with asymmetrical margins permitted.
+  - Wider lead margin can be used for hero/headline framing while data modules remain on a predictable grid.
+  - Default horizontal gutter: `spacing-8` to `spacing-10` (32-40px).
+
+**Asymmetry collapse rule:** If any module width drops below **320px usable content width** or if chart labels require truncation beyond standard abbreviation rules, switch immediately to symmetric gutters.
+
+### Maximum Content Width & Grid Rules
+
+- **Mobile (`< 640px`)**
+  - `max-width: 100%`.
+  - 1-column stack; cards fill available width.
+- **Tablet (`640px - 1023px`)**
+  - `max-width: 960px`.
+  - 8-column grid; common spans: `span-8` (full), `span-4` (two-up), `span-2` (small stats only).
+- **Desktop (`>= 1024px`)**
+  - `max-width: 1200px` standard content rail.
+  - Optional expanded analytics canvases may extend to `1440px` when required for dense comparative charts.
+  - 12-column grid; common spans: `span-12` hero, `span-8/4` split feature, `span-6` two-up modules, `span-4` three-up cards.
+
+### Spacing Scale Adjustments for Small Screens
+
+Editorial whitespace should compress proportionally, not disappear:
+
+- **Desktop baseline**
+  - Section gap: `spacing-16` (64px)
+  - Card gap: `spacing-8` (32px)
+  - Internal card padding: `spacing-6` to `spacing-8` (24-32px)
+- **Tablet**
+  - Section gap: `spacing-12` (48px)
+  - Card gap: `spacing-6` (24px)
+  - Internal card padding: `spacing-5` to `spacing-6` (20-24px)
+- **Mobile**
+  - Section gap: `spacing-8` to `spacing-10` (32-40px)
+  - Card gap: `spacing-4` to `spacing-5` (16-20px)
+  - Internal card padding: `spacing-4` (16px)
+
+**Minimum rhythm guardrail:** Never reduce vertical gaps between distinct modules below `spacing-4` (16px), or the interface loses scanability.
+
+### Module Behavior Examples (Desktop vs Mobile)
+
+- **Hero/Header**
+  - **Desktop:** Asymmetrical composition allowed (headline starts on shifted column; supporting KPI strip can overlap lower section).
+  - **Mobile:** Collapse to linear stack (headline -> subcopy -> KPI chips -> CTA). Remove overlap effects that reduce legibility.
+- **Card Grids**
+  - **Desktop:** 3-up (`span-4`), 4-up for compact metric cards where labels remain fully readable.
+  - **Mobile:** Single-column stack. Two-up is allowed only for compact numeric tiles with labels that fit at `label-sm` without wrapping awkwardly.
+- **List Modules (sessions, trends, logs)**
+  - **Desktop:** Multi-column metadata rows (date, category, effort, duration) with generous row breathing room.
+  - **Mobile:** Convert metadata to two-line pattern or chip stack under the primary row title; preserve tap targets and avoid horizontal scrolling.
+
+### Responsive Anti-Patterns
+
+- Asymmetrical gutters on narrow screens that push charts/cards off-canvas.
+- Hero overlaps that obscure KPI values or CTA labels on mobile.
+- Dense 3-up/4-up card grids below `640px` causing unreadable labels.
+- Fixed-height cards that clip trend badges, axis labels, or localization-expanded text.
+- Preserving desktop typography scale on phones without reducing line length, resulting in orphaned words and broken hierarchy.
+- Horizontal scrolling lists used as a workaround for poor breakpoint planning (except deliberate, card-carousel interactions with clear affordances).
