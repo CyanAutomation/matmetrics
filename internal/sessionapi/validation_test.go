@@ -16,13 +16,15 @@ func validSession() model.Session {
 	}
 }
 
-func TestValidateSessionRejectsInvalidCalendarDate(t *testing.T) {
+func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 	tests := []struct {
 		name string
 		date string
 	}{
 		{name: "invalid month", date: "2025-13-01"},
 		{name: "invalid day", date: "2025-02-30"},
+		{name: "non leap day", date: "2025-02-29"},
+		{name: "malformed format", date: "01/12/2025"},
 	}
 
 	for _, tc := range tests {
@@ -38,18 +40,5 @@ func TestValidateSessionRejectsInvalidCalendarDate(t *testing.T) {
 				t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 			}
 		})
-	}
-}
-
-func TestValidateSessionRejectsMalformedDateFormat(t *testing.T) {
-	session := validSession()
-	session.Date = "01/12/2025"
-
-	err := ValidateSession(session)
-	if err == nil {
-		t.Fatalf("ValidateSession() error = nil, want non-nil")
-	}
-	if got, want := err.Error(), "invalid date: must be a real calendar date"; got != want {
-		t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 	}
 }
