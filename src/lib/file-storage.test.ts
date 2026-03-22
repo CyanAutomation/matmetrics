@@ -165,7 +165,7 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
     let injectedConflict = false;
 
     fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
-      const [targetPath, data, options] = args;
+      const [targetPath, , options] = args;
       const targetPathString = targetPath.toString();
       const flag =
         typeof options === 'object' && options !== null && 'flag' in options
@@ -632,7 +632,7 @@ test('createSession rolls back index lock when markdown write fails', async () =
     let injectedFailure = false;
 
     fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
-      const [targetPath, data, options] = args;
+      const [targetPath, , options] = args;
       const targetPathString = targetPath.toString();
       const flag =
         typeof options === 'object' && options !== null && 'flag' in options

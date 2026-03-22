@@ -694,24 +694,32 @@ export async function updateSession(session: JudoSession): Promise<string> {
  * Delete a session by ID
  */
 export async function deleteSession(id: string): Promise<void> {
-  const filePath = await findSessionFileById(id);
-  if (!filePath) {
+  const initialPath = await findSessionFileById(id);
+  if (!initialPath) {
     throw new Error(`Session with ID ${id} not found`);
   }
 
-  ensurePathWithinDataDir(filePath);
+  ensurePathWithinDataDir(initialPath);
 
   let deleteError: unknown;
   let indexCleanupError: unknown;
 
   try {
-    await fs.unlink(filePath);
+    await fs.unlink(initialPath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       deleteError = error;
     } else {
-      // ENOENT means the file was already deleted, which is the desired outcome.
-      // No retry needed - the index cleanup in finally block will handle cleanup.
+      const relocatedPath = await findSessionFileById(id);
+      if (relocatedPath && relocatedPath !== initialPath) {
+        try {
+          await fs.unlink(relocatedPath);
+        } catch (retryError) {
+          if ((retryError as NodeJS.ErrnoException).code !== 'ENOENT') {
+            deleteError = retryError;
+          }
+        }
+      }
     }
   } finally {
     try {

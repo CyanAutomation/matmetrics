@@ -20,8 +20,20 @@ import {
   teardownStorageListeners,
 } from './storage';
 import { getQueue, getSyncQueueStorageKey } from './sync-queue';
+import type { SyncOperation } from './sync-queue';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
+
+function assertCreateOperation(
+  operation: SyncOperation | undefined
+): asserts operation is Extract<SyncOperation, { type: 'CREATE' }> {
+  assert.ok(operation);
+  assert.equal(operation.type, 'CREATE');
+}
+
+function createIntervalHandle(): ReturnType<typeof setInterval> {
+  return 0 as unknown as ReturnType<typeof setInterval>;
+}
 
 class LocalStorageMock implements Storage {
   private store = new Map<string, string>();
@@ -698,7 +710,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
-  global.setInterval = (() => 0) as typeof setInterval;
+  global.setInterval = (() => createIntervalHandle()) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
@@ -729,10 +741,11 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
 
     assert.ok(requestCount >= 1);
     assert.equal(getQueue().length, 2);
-    assert.equal(getQueue()[0].type, 'CREATE');
-    assert.equal(getQueue()[0].session.id, firstSession.id);
-    assert.equal(getQueue()[1].type, 'CREATE');
-    assert.equal(getQueue()[1].session.id, secondSession.id);
+    const queue = getQueue();
+    assertCreateOperation(queue[0]);
+    assert.equal(queue[0].session.id, firstSession.id);
+    assertCreateOperation(queue[1]);
+    assert.equal(queue[1].session.id, secondSession.id);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
@@ -768,8 +781,8 @@ test('sync loop heartbeat cadence uses configured sync heartbeat value', async (
   const originalFetch = global.fetch;
   global.setInterval = ((_: TimerHandler, timeout?: number) => {
     intervals.push(Number(timeout));
-    return 0 as any;
-  }) as typeof setInterval;
+    return createIntervalHandle();
+  }) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
@@ -824,8 +837,8 @@ test('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
   const originalFetch = global.fetch;
   global.setInterval = ((_: TimerHandler, timeout?: number) => {
     intervals.push(Number(timeout));
-    return 0 as any;
-  }) as typeof setInterval;
+    return createIntervalHandle();
+  }) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
@@ -879,7 +892,7 @@ test('sync loop aborts safely when lease expires during a delayed sync request',
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
-  global.setInterval = (() => 0) as typeof setInterval;
+  global.setInterval = (() => createIntervalHandle()) as unknown as typeof setInterval;
   global.clearInterval = (() => undefined) as typeof clearInterval;
   global.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
@@ -899,10 +912,11 @@ test('sync loop aborts safely when lease expires during a delayed sync request',
 
     assert.ok(requestCount >= 1);
     assert.equal(getQueue().length, 2);
-    assert.equal(getQueue()[0].type, 'CREATE');
-    assert.equal(getQueue()[0].session.id, firstSession.id);
-    assert.equal(getQueue()[1].type, 'CREATE');
-    assert.equal(getQueue()[1].session.id, secondSession.id);
+    const queue = getQueue();
+    assertCreateOperation(queue[0]);
+    assert.equal(queue[0].session.id, firstSession.id);
+    assertCreateOperation(queue[1]);
+    assert.equal(queue[1].session.id, secondSession.id);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
