@@ -690,6 +690,94 @@ test('listSessions and hasAnySessions ignore index-only directories', async () =
   });
 });
 
+test('findSessionFileById ignores index records that point outside the data root', async () => {
+  await withTempDataDir(async () => {
+    const outsideDir = await mkdtemp(
+      path.join(tmpdir(), 'matmetrics-file-storage-outside-')
+    );
+    const session = makeSession({
+      id: 'session-outside-index',
+      date: '2025-03-03',
+    });
+    const rootPath = getSessionFilePath(session.date, undefined, session.id);
+    const baseDir = path.dirname(path.dirname(path.dirname(rootPath)));
+    const outsidePath = path.join(outsideDir, 'escaped.md');
+    const indexPath = path.join(baseDir, '.index', `${session.id}.json`);
+
+    try {
+      await fs.writeFile(
+        outsidePath,
+        await readFile(await createSession(session), 'utf8'),
+        'utf-8'
+      );
+      await fs.writeFile(
+        indexPath,
+        JSON.stringify({
+          id: session.id,
+          path: outsidePath,
+          status: 'ready',
+        }),
+        'utf-8'
+      );
+
+      assert.equal(await findSessionFileById(session.id), rootPath);
+    } finally {
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+});
+
+test('listSessions and hasAnySessions ignore symlinked year directories that escape the data root', async () => {
+  await withTempDataDir(async () => {
+    const rootPath = getSessionFilePath(
+      '2025-03-03',
+      undefined,
+      'session-safe'
+    );
+    const baseDir = path.dirname(path.dirname(path.dirname(rootPath)));
+    const outsideDir = await mkdtemp(
+      path.join(tmpdir(), 'matmetrics-file-storage-symlink-')
+    );
+    const escapedYearPath = path.join(baseDir, '2025');
+    const escapedMonthPath = path.join(outsideDir, '03');
+
+    try {
+      await fs.mkdir(escapedMonthPath, { recursive: true });
+      await fs.writeFile(
+        path.join(escapedMonthPath, '20250303-matmetrics-session-safe.md'),
+        `---
+id: 'session-safe'
+date: '2025-03-03'
+effort: 3
+category: 'Technical'
+---
+
+# 2025-03-03 - Judo Session: Technical
+
+## Techniques Practiced
+
+- Uchi mata
+
+## Session Description
+
+escaped
+
+## Notes
+
+outside
+`,
+        'utf-8'
+      );
+      await fs.symlink(outsideDir, escapedYearPath, 'dir');
+
+      assert.deepEqual(await listSessions(), []);
+      assert.equal(await hasAnySessions(), false);
+    } finally {
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+});
+
 test('getNextCounter rejects invalid dates before constructing paths', async () => {
   await withTempDataDir(async () => {
     await assert.rejects(
