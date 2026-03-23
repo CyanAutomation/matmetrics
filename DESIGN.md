@@ -128,7 +128,7 @@ Forbidden for grouping/containment in default mode:
 Outline fallback is permitted only when an explicit accessibility mode is enabled (for example via `[data-contrast='high']`).
 
 - Token: `outline-variant` (`--color-outline-variant`)
-- Opacity: **15%** default fallback stroke (`rgb(from var(--color-outline-variant) r g b / 0.15)`)
+- Opacity: **15%** default fallback stroke (`color-mix(in srgb, var(--color-outline-variant) 15%, transparent)`)
 - Optional stronger fallback for severe low-vision contexts: up to **24%** opacity, never 100%
 - Scope: fallback outlines only; default mode remains borderless
 
