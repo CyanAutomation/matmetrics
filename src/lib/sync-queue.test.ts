@@ -125,6 +125,46 @@ test('clearQueue keeps a newer concurrent operation instead of deleting it', () 
   assert.deepEqual(getQueue(), [concurrentNewerOperation]);
 });
 
+test('setQueue retains concurrent operations that share queuedAt with stale base snapshots', () => {
+  const baseOperation = createOp('session-1', 100);
+  const concurrentSameQueuedAt: SyncOperation = {
+    type: 'DELETE',
+    id: 'session-2',
+    queuedAt: 100,
+  };
+
+  resetQueue([baseOperation, concurrentSameQueuedAt]);
+
+  setQueue([baseOperation], [baseOperation]);
+
+  assert.deepEqual(getQueue(), [concurrentSameQueuedAt, baseOperation]);
+});
+
+test('concurrent create and update with identical queuedAt coalesce deterministically', () => {
+  const baseUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-1'), notes: 'from-base-tab' },
+    queuedAt: 100,
+  };
+  const concurrentCreate: SyncOperation = {
+    type: 'CREATE',
+    session: { ...makeSession('session-1'), notes: 'from-concurrent-tab' },
+    queuedAt: 100,
+  };
+
+  resetQueue([concurrentCreate]);
+
+  setQueue([baseUpdate], [baseUpdate]);
+
+  assert.deepEqual(getQueue(), [
+    {
+      type: 'CREATE',
+      session: { ...makeSession('session-1'), notes: 'from-base-tab' },
+      queuedAt: 100,
+    },
+  ]);
+});
+
 test('clearQueue removes the persisted storage key when there is no concurrent work', () => {
   resetQueue([createOp('session-1', 100)]);
 
@@ -132,6 +172,21 @@ test('clearQueue removes the persisted storage key when there is no concurrent w
 
   assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
   assert.deepEqual(getQueue(), []);
+});
+
+test('clearQueue keeps concurrent operations when queuedAt matches stale base snapshot', () => {
+  const baseOperation = createOp('session-1', 100);
+  const concurrentSameQueuedAt: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-2'), notes: 'concurrent' },
+    queuedAt: 100,
+  };
+
+  resetQueue([baseOperation, concurrentSameQueuedAt]);
+
+  clearQueue([baseOperation]);
+
+  assert.deepEqual(getQueue(), [concurrentSameQueuedAt]);
 });
 
 test('malformed JSON is quarantined and cleared on first read', () => {
