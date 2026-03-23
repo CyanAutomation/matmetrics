@@ -34,6 +34,23 @@ const initializePluginsStatically = (): void => {
     console.warn('Failed to initialize tag-manager plugin:', error);
   }
 
+  try {
+    // Use synchronous require for test/runtime compatibility
+    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
+    const promptSettingsModule = require('../../../plugins/prompt-settings/src/index');
+    const initPlugin =
+      promptSettingsModule.initPlugin as PluginInitializer | undefined;
+
+    if (initPlugin && typeof initPlugin === 'function') {
+      initPlugin({
+        register: () => undefined,
+        registerPluginComponent,
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to initialize prompt-settings plugin:', error);
+  }
+
   // To add more plugins:
   // 1. Create plugins/my-plugin/src/index.ts with initPlugin export
   // 2. Add another try-catch block here to initialize it:

@@ -1,4 +1,5 @@
 import tagManagerPluginManifest from '../../../plugins/tag-manager/plugin.json';
+import promptSettingsPluginManifest from '../../../plugins/prompt-settings/plugin.json';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import {
@@ -7,7 +8,10 @@ import {
   type ResolvedDashboardTabExtension,
 } from '@/lib/plugins/types';
 
-const localPluginManifestSources: unknown[] = [tagManagerPluginManifest];
+const localPluginManifestSources: unknown[] = [
+  tagManagerPluginManifest,
+  promptSettingsPluginManifest,
+];
 const pluginEnabledOverrides = new Map<string, boolean>();
 const pluginRegistryListeners = new Set<() => void>();
 let pluginRegistryRevision = 0;

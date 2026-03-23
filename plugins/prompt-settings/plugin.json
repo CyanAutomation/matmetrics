@@ -1,0 +1,20 @@
+{
+  "id": "prompt-settings",
+  "name": "Prompt Settings Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for managing AI prompt settings.",
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "prompt-settings-dashboard-tab",
+      "title": "Prompt Settings",
+      "config": {
+        "tabId": "prompt-settings",
+        "headerTitle": "AI Prompt Configuration",
+        "icon": "brain",
+        "component": "prompt_settings"
+      }
+    }
+  ]
+}

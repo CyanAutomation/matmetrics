@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  coreTabs,
   mapDashboardExtensionsToTabs,
   resolveDashboardExtensionsToTabs,
 } from '@/lib/navigation/tab-definitions';
@@ -63,6 +64,14 @@ test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', ()
   );
 
   assert.ok(tabs.some((tab) => tab.id === 'tag-manager'));
+  assert.ok(tabs.some((tab) => tab.id === 'prompt-settings'));
+});
+
+test('core tabs no longer include prompt settings', () => {
+  assert.equal(
+    coreTabs.some((tab) => tab.title === 'Prompt Settings'),
+    false
+  );
 });
 
 test('resolves plugin tab when renderer is registered in the registry', () => {

@@ -39,6 +39,13 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
     ),
     true
   );
+  assert.equal(
+    enabledPayload.extensions.some(
+      (extension: { pluginId: string }) =>
+        extension.pluginId === 'prompt-settings'
+    ),
+    true
+  );
 
   await persistPluginEnabledOverride('tag-manager', false);
 
@@ -50,5 +57,12 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
       (extension: { pluginId: string }) => extension.pluginId === 'tag-manager'
     ),
     false
+  );
+  assert.equal(
+    disabledPayload.extensions.some(
+      (extension: { pluginId: string }) =>
+        extension.pluginId === 'prompt-settings'
+    ),
+    true
   );
 });
