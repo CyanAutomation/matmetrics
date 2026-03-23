@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   createContractPayload,
   findStoredPluginManifestById,
-  mergePreserveUnknownKeys,
   toValidationTable,
-  writePluginManifest,
 } from '@/lib/plugins/api-contract';
+import { persistPluginEnabledOverride } from '@/lib/plugins/state.server';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
@@ -84,12 +83,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const mergedManifest = mergePreserveUnknownKeys(existing.manifest, {
-      id: pluginId,
+    const effectiveManifest = {
+      ...existing.manifest,
       enabled,
-    });
+    };
 
-    const validationTable = toValidationTable(mergedManifest);
+    const validationTable = toValidationTable(effectiveManifest);
     if (!validationTable.isValid) {
       return NextResponse.json(
         {
@@ -100,20 +99,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await writePluginManifest(existing.absolutePath, mergedManifest);
+    await persistPluginEnabledOverride(pluginId, enabled);
 
     return NextResponse.json(
       {
         persisted: true,
-        manifest: mergedManifest,
+        manifest: effectiveManifest,
         ...createContractPayload({
           validationTable,
           fileTreeDiffSummary: {
             mode: 'applied',
-            files: [{ path: existing.relativePath, changeType: 'modified' }],
+            files: [
+              {
+                path: 'firestore:app/pluginConfig',
+                changeType: 'modified',
+              },
+            ],
           },
           assumptions: [
-            'Toggle mutations are limited to enabled to preserve unknown manifest keys.',
+            'Toggle mutations are persisted as Firebase-backed enabled overrides.',
           ],
         }),
       },
@@ -122,7 +126,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error toggling plugin enabled state', error);
     return NextResponse.json(
-      { error: 'Failed to toggle plugin enabled state' },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to toggle plugin enabled state!',
+      },
       { status: 500 }
     );
   }

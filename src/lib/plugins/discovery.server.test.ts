@@ -122,3 +122,25 @@ test('discoverEnabledDashboardTabExtensions ignores disabled plugins', async () 
     }
   );
 });
+
+test('discoverEnabledDashboardTabExtensions applies enabled overrides over manifest defaults', async () => {
+  await withTempPluginsRoot(
+    async (pluginsRoot) => {
+      await mkdir(path.join(pluginsRoot, 'tag-manager'), { recursive: true });
+      await writeFile(
+        path.join(pluginsRoot, 'tag-manager', 'plugin.json'),
+        `${JSON.stringify(validManifest, null, 2)}\n`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const extensions = await discoverEnabledDashboardTabExtensions({
+        pluginsRoot,
+        enabledOverrides: {
+          'tag-manager': false,
+        },
+      });
+      assert.deepEqual(extensions, []);
+    }
+  );
+});

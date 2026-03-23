@@ -7,6 +7,10 @@ import {
   toValidationTable,
   type StoredPluginManifest,
 } from '@/lib/plugins/api-contract';
+import {
+  applyPluginEnabledOverrides,
+  loadPluginEnabledOverrides,
+} from '@/lib/plugins/state.server';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export async function GET(request: NextRequest) {
@@ -18,6 +22,7 @@ export async function GET(request: NextRequest) {
 
     const manifests: StoredPluginManifest[] = [];
     const discoveryErrors: string[] = [];
+    let enabledOverrides = {};
 
     try {
       const loadedManifests = await listStoredPluginManifests();
@@ -32,9 +37,24 @@ export async function GET(request: NextRequest) {
       // Continue with empty plugins list instead of failing completely
     }
 
+    try {
+      enabledOverrides = await loadPluginEnabledOverrides();
+    } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : String(error);
+      console.error('Error loading plugin enabled overrides:', errMsg);
+      discoveryErrors.push(
+        `Failed to load plugin enabled overrides: ${errMsg}`
+      );
+    }
+
     const pluginRows = manifests.map((entry) => {
+      const effectiveManifest = applyPluginEnabledOverrides(
+        entry.manifest,
+        enabledOverrides
+      );
       const { manifest: processedManifest, autoDisabledWithWarnings } =
-        autoDisablePluginIfNeeded(entry.manifest);
+        autoDisablePluginIfNeeded(effectiveManifest);
       const validation = toValidationTable(processedManifest);
 
       // Add auto-disable warnings to validation issues

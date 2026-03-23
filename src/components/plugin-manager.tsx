@@ -292,7 +292,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           <CardTitle>Plugins</CardTitle>
           <CardDescription>
             Enable or disable installed plugins, and review plugin issues.
-            Plugin creation and editing are not available in this UI.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -303,8 +302,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         <CardHeader>
           <CardTitle>Installed Plugins</CardTitle>
           <CardDescription>
-            Use this table to enable or disable plugins and view plugin issue
-            status.
+            Use this to enable or disable plugins and view plugin status.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -405,8 +403,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         <CardHeader>
           <CardTitle>Per-plugin issue details</CardTitle>
           <CardDescription>
-            Current validation summary and issue details for each installed
-            plugin manifest.
+            Validation summary and issue details for each installed
+            plugin.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
