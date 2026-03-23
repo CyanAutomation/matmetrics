@@ -109,10 +109,28 @@ Use this mapping during migration for frontend and Go/CLI consumers so token loo
 
 `primary-fixed` preserves legacy `primary_fixed` semantics and should be treated as a primary-emphasis token (not a secondary-emphasis substitute).
 
-### The "No-Line" Rule
+### The "No-Line" Rule (Mode-Specific)
 
-**Prohibition:** Solid 1px borders are strictly forbidden for sectioning or containment.
+#### Default UI Mode (Required)
+
+```text
+No containment borders for layout grouping.
+Forbidden for grouping/containment in default mode:
+- border
+- divide-*
+- <hr />
+```
+
 **The Standard:** Boundaries must be defined through background shifts. For example, a card utilizing `surface-container-lowest` (#ffffff) should sit atop a `surface-container-low` (#f1f4f6) section. This creates "soft" containment that feels premium and architectural rather than "boxed in."
+
+#### Accessibility / High-Contrast Mode (Exception Only)
+
+Outline fallback is permitted only when an explicit accessibility mode is enabled (for example via `[data-contrast='high']`).
+
+- Token: `outline-variant` (`--color-outline-variant`)
+- Opacity: **15%** default fallback stroke (`rgb(from var(--color-outline-variant) r g b / 0.15)`)
+- Optional stronger fallback for severe low-vision contexts: up to **24%** opacity, never 100%
+- Scope: fallback outlines only; default mode remains borderless
 
 ### Surface Hierarchy & Nesting
 
@@ -447,6 +465,37 @@ The following patterns are non-compliant and should fail design review:
 3. **Raw hex values in component files** (e.g., `bg-[#005cab]`, `text-[#181c1e]`) outside token/theme definitions.
 4. **Divider lines as primary separators** (`divide-y`, `<hr />`) where spacing/tonal separation is required.
 5. **State changes encoded only by hue** without shape/label/typographic reinforcement in data visuals.
+
+#### Border Behavior Example (Compliant vs Non-compliant)
+
+**Non-compliant (default card with border):**
+
+```tsx
+<article className="rounded-2xl border border-slate-200 bg-[var(--color-surface-lowest)] p-6">
+  ...
+</article>
+```
+
+**Compliant (tonal separation + optional accessibility-only outline):**
+
+```tsx
+<article
+  className="
+    rounded-2xl
+    bg-[var(--color-surface-lowest)]
+    p-6
+    [data-contrast='high']:border
+    [data-contrast='high']:border-[color:rgb(from_var(--color-outline-variant)_r_g_b_/_0.15)]
+  "
+>
+  ...
+</article>
+```
+
+Implementation notes:
+
+- Default mode: no `border`, no `divide-*`, no `<hr />` for layout grouping.
+- High-contrast mode: outline fallback allowed only behind an explicit mode flag/attribute (e.g., `[data-contrast='high']`).
 
 ### 8.5 How to Theme (Brand Variations)
 
