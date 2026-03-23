@@ -22,6 +22,7 @@ Use the following token table as the canonical source for implementation. Produc
 | `on-primary`                  | `#ffffff` | Text/icons on `primary` backgrounds                                                        |
 | `on-primary-container`        | `#ffffff` | Text/icons on `primary-container`                                                          |
 | `secondary`                   | `#515f78` | Secondary actions, supporting data series                                                  |
+| `tertiary`                    | `#67587a` | Tertiary chart series and alternate data accents                                           |
 | `secondary-container`         | `#d4e3ff` | Secondary chips, low-emphasis highlights                                                   |
 | `on-secondary`                | `#ffffff` | Text/icons on `secondary`                                                                  |
 | `on-secondary-container`      | `#1b2a41` | Text/icons on `secondary-container`                                                        |
@@ -29,6 +30,8 @@ Use the following token table as the canonical source for implementation. Produc
 | `surface-container-low`       | `#f1f4f6` | Section grouping backgrounds                                                               |
 | `surface-container-lowest`    | `#ffffff` | Cards and foreground modules                                                               |
 | `surface-container-high`      | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons)                                |
+| `surface-bright`              | `#f7fafc` | Active overlays and glass-like floating surfaces                                           |
+| `surface-tint`                | `#005faf` | Ambient interaction glow for elevated controls                                             |
 | `surface-variant`             | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone                                   |
 | `on-surface`                  | `#181c1e` | Primary body text/icons                                                                    |
 | `on-surface-variant`          | `#43474a` | Secondary text, helper metadata                                                            |
@@ -109,17 +112,11 @@ Use this mapping during migration for frontend and Go/CLI consumers so token loo
 
 `primary-fixed` preserves legacy `primary_fixed` semantics and should be treated as a primary-emphasis token (not a secondary-emphasis substitute).
 
-### The "No-Line" Rule (Mode-Specific)
+### Token Completeness Check
 
-#### Default UI Mode (Required)
+Every token used in this document must exist in the canonical token table in Section 2. If guidance introduces a new token, add it to the canonical table with its hex value and intended usage before adoption.
 
-```text
-No containment borders for layout grouping.
-Forbidden for grouping/containment in default mode:
-- border
-- divide-*
-- <hr />
-```
+### The "No-Line" Rule
 
 **The Standard:** Boundaries must be defined through background shifts. For example, a card utilizing `surface-container-lowest` (#ffffff) should sit atop a `surface-container-low` (#f1f4f6) section. This creates "soft" containment that feels premium and architectural rather than "boxed in."
 
