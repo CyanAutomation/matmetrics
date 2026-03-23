@@ -110,6 +110,18 @@ function getOperationKey(operation: SyncOperationInput): string {
     : `${identity}:*`;
 }
 
+function compareOperations(
+  left: SyncOperation,
+  right: SyncOperation
+): number {
+  const queuedAtDelta = left.queuedAt - right.queuedAt;
+  if (queuedAtDelta !== 0) {
+    return queuedAtDelta;
+  }
+
+  return getOperationKey(left).localeCompare(getOperationKey(right));
+}
+
 function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   const groupedBySession = new Map<string, SyncOperation[]>();
 
@@ -124,9 +136,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   const reducedOperations: SyncOperation[] = [];
 
   for (const operationsForSession of groupedBySession.values()) {
-    const sortedOperations = [...operationsForSession].sort(
-      (left, right) => left.queuedAt - right.queuedAt
-    );
+    const sortedOperations = [...operationsForSession].sort(compareOperations);
 
     let reducedOperation: SyncOperation | undefined;
     for (const operation of sortedOperations) {
@@ -206,9 +216,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
     }
   }
 
-  return reducedOperations.sort(
-    (left, right) => left.queuedAt - right.queuedAt
-  );
+  return reducedOperations.sort(compareOperations);
 }
 
 function readQueueFromStorage(): SyncOperation[] {
@@ -248,24 +256,40 @@ function writeQueueWithLatestMerge(
 
   const mergedQueue = normalizedBaseQueue
     ? (() => {
-        const baseLatestBySession = new Map<string, number>();
+        const baseOperationKeys = new Set(
+          normalizedBaseQueue.map((operation) => getOperationKey(operation))
+        );
+        const nextOperationKeys = new Set(
+          normalizedNextQueue.map((operation) => getOperationKey(operation))
+        );
+        const nextQueuedAtByIdentity = new Map<string, number>();
 
-        for (const operation of normalizedBaseQueue) {
-          const sessionId = getOperationSessionId(operation);
-          const existingSessionQueuedAt =
-            baseLatestBySession.get(sessionId) ?? Number.NEGATIVE_INFINITY;
-          if (operation.queuedAt > existingSessionQueuedAt) {
-            baseLatestBySession.set(sessionId, operation.queuedAt);
+        for (const operation of normalizedNextQueue) {
+          const identity = getOperationIdentity(operation);
+          const existingQueuedAt =
+            nextQueuedAtByIdentity.get(identity) ?? Number.NEGATIVE_INFINITY;
+          if (operation.queuedAt > existingQueuedAt) {
+            nextQueuedAtByIdentity.set(identity, operation.queuedAt);
           }
         }
 
         const concurrentLatestOperations = latestQueue.filter((operation) => {
-          const baseQueuedAt = baseLatestBySession.get(
-            getOperationSessionId(operation)
-          );
-          return (
-            baseQueuedAt === undefined || operation.queuedAt > baseQueuedAt
-          );
+          const operationKey = getOperationKey(operation);
+          if (baseOperationKeys.has(operationKey)) {
+            return false;
+          }
+
+          if (nextOperationKeys.has(operationKey)) {
+            return false;
+          }
+
+          const operationIdentity = getOperationIdentity(operation);
+          const nextQueuedAt = nextQueuedAtByIdentity.get(operationIdentity);
+          if (nextQueuedAt === undefined) {
+            return true;
+          }
+
+          return operation.queuedAt >= nextQueuedAt;
         });
 
         return dedupeOperations([
