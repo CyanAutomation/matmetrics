@@ -71,11 +71,14 @@ function getDataDir(): string {
 }
 
 export function __setDataDirForTests(nextDataDir: string): void {
-  dataDir = nextDataDir;
+  if (!nextDataDir || typeof nextDataDir !== 'string') {
+    throw new Error('Data directory must be a non-empty string');
+  }
+  dataDir = path.resolve(nextDataDir);
 }
 
 export function __resetDataDirForTests(): void {
-  dataDir = path.join(process.cwd(), 'data');
+  dataDir = path.resolve(process.cwd(), 'data');
 }
 
 function sanitizeSessionId(sessionId: string): string {
@@ -98,21 +101,94 @@ function sanitizeSessionId(sessionId: string): string {
   return sessionId;
 }
 
-function ensurePathWithinDataDir(filePath: string): string {
+function isPathWithinRoot(root: string, candidate: string): boolean {
+  return candidate === root || candidate.startsWith(root + path.sep);
+}
+
+function ensureResolvedPathWithinDataDir(filePath: string): string {
   const root = path.resolve(getDataDir());
   const resolved = path.resolve(filePath);
 
-  // Ensure the resolved path is within the configured data directory
-  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+  if (!isPathWithinRoot(root, resolved)) {
     throw new Error('Resolved session file path escapes data directory');
   }
 
-  // Always return the normalized, validated path
+  return resolved;
+}
+
+async function getRealDataDirRoot(): Promise<string> {
+  const root = path.resolve(getDataDir());
+  try {
+    return await fs.realpath(root);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return root;
+    }
+    throw error;
+  }
+}
+
+async function ensureExistingPathWithinDataDir(filePath: string): Promise<string> {
+  const resolved = ensureResolvedPathWithinDataDir(filePath);
+  const realRoot = await getRealDataDirRoot();
+  const realPath = await fs.realpath(resolved);
+
+  if (!isPathWithinRoot(realRoot, realPath)) {
+    throw new Error('Resolved session file path escapes data directory');
+  }
+
+  return resolved;
+}
+
+async function findClosestExistingAncestor(targetPath: string): Promise<string> {
+  let currentPath = path.resolve(targetPath);
+
+  while (true) {
+    try {
+      await fs.lstat(currentPath);
+      return currentPath;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      return currentPath;
+    }
+    currentPath = parentPath;
+  }
+}
+
+async function ensureCreatablePathWithinDataDir(filePath: string): Promise<string> {
+  const resolved = ensureResolvedPathWithinDataDir(filePath);
+  const realRoot = await getRealDataDirRoot();
+  const existingAncestor = await findClosestExistingAncestor(path.dirname(resolved));
+  const realAncestor = await fs.realpath(existingAncestor);
+
+  if (!isPathWithinRoot(realRoot, realAncestor)) {
+    throw new Error('Resolved session file path escapes data directory');
+  }
+
+  return resolved;
+}
+
+async function ensureNonSymlinkDirectory(dirPath: string): Promise<string> {
+  const resolved = await ensureExistingPathWithinDataDir(dirPath);
+  const stats = await fs.lstat(resolved);
+
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw new Error(`Unsafe session directory: ${resolved}`);
+  }
+
   return resolved;
 }
 
 function getSessionIndexDirPath(): string {
-  return ensurePathWithinDataDir(path.join(getDataDir(), SESSION_INDEX_DIR));
+  return ensureResolvedPathWithinDataDir(
+    path.join(getDataDir(), SESSION_INDEX_DIR)
+  );
 }
 
 function isSessionIndexDirName(name: string): boolean {
@@ -128,7 +204,7 @@ function isMonthDirName(name: string): boolean {
 }
 
 function getSessionIndexFilePath(sessionId: string): string {
-  return ensurePathWithinDataDir(
+  return ensureResolvedPathWithinDataDir(
     path.join(getSessionIndexDirPath(), `${sanitizeSessionId(sessionId)}.json`)
   );
 }
@@ -140,13 +216,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function getTempPathForTarget(targetPath: string): string {
-  return ensurePathWithinDataDir(
+  return ensureResolvedPathWithinDataDir(
     `${targetPath}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`
   );
 }
 
 function getSessionUpdateLockPath(targetPath: string): string {
-  return ensurePathWithinDataDir(`${targetPath}.lock`);
+  return ensureResolvedPathWithinDataDir(`${targetPath}.lock`);
 }
 
 async function releaseSessionUpdateLock(lockPath: string): Promise<void> {
@@ -175,6 +251,7 @@ async function acquireSessionUpdateLock(
   targetPath: string
 ): Promise<() => Promise<void>> {
   const lockPath = getSessionUpdateLockPath(targetPath);
+  await ensureCreatablePathWithinDataDir(lockPath);
 
   try {
     await fs.writeFile(lockPath, `${process.pid}\n`, {
@@ -198,7 +275,8 @@ async function readSessionIndex(
 ): Promise<SessionIndexRecord | null> {
   const indexPath = getSessionIndexFilePath(sessionId);
   try {
-    const raw = await fs.readFile(indexPath, 'utf-8');
+    const safeIndexPath = await ensureExistingPathWithinDataDir(indexPath);
+    const raw = await fs.readFile(safeIndexPath, 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SessionIndexRecord>;
     if (
       parsed &&
@@ -208,7 +286,7 @@ async function readSessionIndex(
     ) {
       return {
         id: parsed.id,
-        path: ensurePathWithinDataDir(parsed.path),
+        path: await ensureExistingPathWithinDataDir(parsed.path),
         status:
           parsed.status === 'locking' || parsed.status === 'ready'
             ? parsed.status
@@ -237,10 +315,11 @@ async function writeSessionIndex(
 ): Promise<void> {
   const record: SessionIndexRecord = {
     id: sessionId,
-    path: ensurePathWithinDataDir(sessionPath),
+    path: ensureResolvedPathWithinDataDir(sessionPath),
     ...metadata,
   };
   const indexPath = getSessionIndexFilePath(sessionId);
+  await ensureCreatablePathWithinDataDir(indexPath);
   await fs.mkdir(path.dirname(indexPath), { recursive: true });
   await fs.writeFile(indexPath, JSON.stringify(record), {
     encoding: 'utf-8',
@@ -265,7 +344,7 @@ async function resolveIndexedSessionPath(
     lastRecord = indexed;
     if (indexed) {
       try {
-        await fs.access(indexed.path);
+        await fs.access(await ensureExistingPathWithinDataDir(indexed.path));
         return {
           path: indexed.path,
           lastRecord: indexed,
@@ -335,7 +414,7 @@ export function getSessionFilePath(
     : `${year}${month}${day}-matmetrics${
         counter !== undefined ? `-${String(counter).padStart(2, '0')}` : ''
       }.md`;
-  return ensurePathWithinDataDir(
+  return ensureResolvedPathWithinDataDir(
     path.join(getDataDir(), year, month, baseName)
   );
 }
@@ -360,10 +439,12 @@ export function extractDateFromPath(filePath: string): string | null {
 export async function getNextCounter(date: string): Promise<number> {
   const normalizedDate = validateAndNormalizeDate(date);
   const [year, month] = normalizedDate.split('-');
-  const dirPath = ensurePathWithinDataDir(path.join(getDataDir(), year, month));
+  const dirPath = ensureResolvedPathWithinDataDir(
+    path.join(getDataDir(), year, month)
+  );
 
   try {
-    const files = await fs.readdir(dirPath);
+    const files = await fs.readdir(await ensureNonSymlinkDirectory(dirPath));
     const datePrefix = normalizedDate.replace(/-/g, '');
 
     let maxCounter = 0;
@@ -393,29 +474,40 @@ export async function getNextCounter(date: string): Promise<number> {
 export async function listSessions(): Promise<JudoSession[]> {
   try {
     const sessions: JudoSession[] = [];
-    const years = await fs.readdir(getDataDir());
+    const rootDir = getDataDir();
+    const years = await fs.readdir(rootDir);
 
     for (const year of years) {
       if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
-      const yearPath = path.join(getDataDir(), year);
-      const stat = await fs.stat(yearPath);
-      if (!stat.isDirectory()) continue;
+      const yearPath = path.join(rootDir, year);
+      let safeYearPath: string;
+      try {
+        safeYearPath = await ensureNonSymlinkDirectory(yearPath);
+      } catch {
+        continue;
+      }
 
-      const months = await fs.readdir(yearPath);
+      const months = await fs.readdir(safeYearPath);
 
       for (const month of months) {
         if (!isMonthDirName(month)) continue;
-        const monthPath = path.join(yearPath, month);
-        const stat = await fs.stat(monthPath);
-        if (!stat.isDirectory()) continue;
+        const monthPath = path.join(safeYearPath, month);
+        let safeMonthPath: string;
+        try {
+          safeMonthPath = await ensureNonSymlinkDirectory(monthPath);
+        } catch {
+          continue;
+        }
 
-        const files = await fs.readdir(monthPath);
+        const files = await fs.readdir(safeMonthPath);
 
         for (const file of files) {
           if (!file.endsWith('.md')) continue;
 
           try {
-            const filePath = path.join(monthPath, file);
+            const filePath = await ensureExistingPathWithinDataDir(
+              path.join(safeMonthPath, file)
+            );
             const markdown = await fs.readFile(filePath, 'utf-8');
             const session = markdownToSession(markdown);
             sessions.push(session);
@@ -447,7 +539,10 @@ export async function readSession(
 ): Promise<JudoSession | null> {
   try {
     const filePath = getSessionFilePath(date, counter);
-    const markdown = await fs.readFile(filePath, 'utf-8');
+    const markdown = await fs.readFile(
+      await ensureExistingPathWithinDataDir(filePath),
+      'utf-8'
+    );
     return markdownToSession(markdown);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -464,9 +559,12 @@ export async function readSession(
 export async function createSession(session: JudoSession): Promise<string> {
   const normalizedDate = validateAndNormalizeDate(session.date);
   const [year, month] = normalizedDate.split('-');
-  const dirPath = ensurePathWithinDataDir(path.join(getDataDir(), year, month));
+  const dirPath = ensureResolvedPathWithinDataDir(
+    path.join(getDataDir(), year, month)
+  );
 
   // Ensure directory exists
+  await ensureCreatablePathWithinDataDir(dirPath);
   await fs.mkdir(dirPath, { recursive: true });
 
   const markdown = sessionToMarkdown(session);
@@ -480,7 +578,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
-    const safeExistingPath = ensurePathWithinDataDir(existingPath);
+    const safeExistingPath = await ensureExistingPathWithinDataDir(existingPath);
     const existingMarkdown = await fs.readFile(safeExistingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
       throw new Error(
@@ -522,6 +620,7 @@ export async function createSession(session: JudoSession): Promise<string> {
   }
 
   try {
+    await ensureCreatablePathWithinDataDir(filePath);
     await fs.writeFile(filePath, markdown, {
       encoding: 'utf-8',
       flag: 'wx',
@@ -575,7 +674,7 @@ async function updateSessionIndexPath(
 async function removeSessionIndex(id: string): Promise<void> {
   const indexPath = getSessionIndexFilePath(id);
   try {
-    await fs.unlink(indexPath);
+    await fs.unlink(await ensureExistingPathWithinDataDir(indexPath));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error;
@@ -593,7 +692,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
   if (!existingPath) {
     throw new Error(`Session with ID ${session.id} not found`);
   }
-  ensurePathWithinDataDir(existingPath);
+  await ensureExistingPathWithinDataDir(existingPath);
 
   const nextPath = getSessionFilePath(session.date, undefined, session.id);
   const markdown = sessionToMarkdown(session);
@@ -604,15 +703,23 @@ export async function updateSession(session: JudoSession): Promise<string> {
       existingPath
     );
     try {
-      const priorMarkdown = await fs.readFile(existingPath, 'utf-8');
+      const priorMarkdown = await fs.readFile(
+        await ensureExistingPathWithinDataDir(existingPath),
+        'utf-8'
+      );
       const tempPath = getTempPathForTarget(existingPath);
 
+      await ensureCreatablePathWithinDataDir(tempPath);
       await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
       try {
-        const currentMarkdown = await fs.readFile(existingPath, 'utf-8');
+        const currentMarkdown = await fs.readFile(
+          await ensureExistingPathWithinDataDir(existingPath),
+          'utf-8'
+        );
         if (currentMarkdown !== priorMarkdown) {
           throw new SessionUpdateConflictError(session.id, existingPath);
         }
+        await ensureCreatablePathWithinDataDir(existingPath);
         await fs.rename(tempPath, existingPath);
       } finally {
         await fs.unlink(tempPath).catch(() => undefined);
@@ -624,9 +731,13 @@ export async function updateSession(session: JudoSession): Promise<string> {
     return existingPath;
   }
 
+  await ensureCreatablePathWithinDataDir(nextPath);
   await fs.mkdir(path.dirname(nextPath), { recursive: true });
   try {
-    const existingNextMarkdown = await fs.readFile(nextPath, 'utf-8');
+    const existingNextMarkdown = await fs.readFile(
+      await ensureExistingPathWithinDataDir(nextPath),
+      'utf-8'
+    );
     const existingNextSession = markdownToSession(existingNextMarkdown);
     if (existingNextSession.id !== session.id) {
       throw new Error(
@@ -642,10 +753,12 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const tempPath = getTempPathForTarget(nextPath);
 
   try {
+    await ensureCreatablePathWithinDataDir(tempPath);
     await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
 
     let committedAtNextPath = false;
     try {
+      await ensureCreatablePathWithinDataDir(nextPath);
       await fs.writeFile(nextPath, markdown, {
         encoding: 'utf-8',
         flag: 'wx',
@@ -656,7 +769,10 @@ export async function updateSession(session: JudoSession): Promise<string> {
         throw error;
       }
 
-      const existingNextMarkdown = await fs.readFile(nextPath, 'utf-8');
+      const existingNextMarkdown = await fs.readFile(
+        await ensureExistingPathWithinDataDir(nextPath),
+        'utf-8'
+      );
       const existingNextSession = markdownToSession(existingNextMarkdown);
       if (existingNextSession.id !== session.id) {
         throw new Error(
@@ -664,6 +780,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
         );
       }
       if (existingNextMarkdown !== markdown) {
+        await ensureCreatablePathWithinDataDir(nextPath);
         await fs.writeFile(nextPath, markdown, {
           encoding: 'utf-8',
         });
@@ -673,7 +790,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
 
     if (committedAtNextPath) {
       try {
-        await fs.unlink(existingPath);
+        await fs.unlink(await ensureExistingPathWithinDataDir(existingPath));
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
           throw error;
@@ -699,13 +816,13 @@ export async function deleteSession(id: string): Promise<void> {
     throw new Error(`Session with ID ${id} not found`);
   }
 
-  ensurePathWithinDataDir(initialPath);
+  await ensureExistingPathWithinDataDir(initialPath);
 
   let deleteError: unknown;
   let indexCleanupError: unknown;
 
   try {
-    await fs.unlink(initialPath);
+    await fs.unlink(await ensureExistingPathWithinDataDir(initialPath));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       deleteError = error;
@@ -713,7 +830,7 @@ export async function deleteSession(id: string): Promise<void> {
       const relocatedPath = await findSessionFileById(id);
       if (relocatedPath && relocatedPath !== initialPath) {
         try {
-          await fs.unlink(relocatedPath);
+          await fs.unlink(await ensureExistingPathWithinDataDir(relocatedPath));
         } catch (retryError) {
           if ((retryError as NodeJS.ErrnoException).code !== 'ENOENT') {
             deleteError = retryError;
@@ -747,7 +864,10 @@ export async function findSessionFileById(id: string): Promise<string | null> {
   const indexedRecord = await readSessionIndex(safeId);
   if (indexedRecord) {
     try {
-      const markdown = await fs.readFile(indexedRecord.path, 'utf-8');
+      const markdown = await fs.readFile(
+        await ensureExistingPathWithinDataDir(indexedRecord.path),
+        'utf-8'
+      );
       const parsedSession = markdownToSession(markdown);
       if (parsedSession.id === safeId) {
         matchingPaths.add(indexedRecord.path);
@@ -760,26 +880,37 @@ export async function findSessionFileById(id: string): Promise<string | null> {
   }
 
   try {
-    const years = await fs.readdir(getDataDir());
+    const rootDir = getDataDir();
+    const years = await fs.readdir(rootDir);
 
     for (const year of years) {
       if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
-      const yearPath = path.join(getDataDir(), year);
-      const yearStat = await fs.stat(yearPath);
-      if (!yearStat.isDirectory()) continue;
+      const yearPath = path.join(rootDir, year);
+      let safeYearPath: string;
+      try {
+        safeYearPath = await ensureNonSymlinkDirectory(yearPath);
+      } catch {
+        continue;
+      }
 
-      const months = await fs.readdir(yearPath);
+      const months = await fs.readdir(safeYearPath);
       for (const month of months) {
         if (!isMonthDirName(month)) continue;
-        const monthPath = path.join(yearPath, month);
-        const monthStat = await fs.stat(monthPath);
-        if (!monthStat.isDirectory()) continue;
+        const monthPath = path.join(safeYearPath, month);
+        let safeMonthPath: string;
+        try {
+          safeMonthPath = await ensureNonSymlinkDirectory(monthPath);
+        } catch {
+          continue;
+        }
 
-        const files = await fs.readdir(monthPath);
+        const files = await fs.readdir(safeMonthPath);
         for (const file of files) {
           if (!file.endsWith('.md')) continue;
-          const filePath = ensurePathWithinDataDir(path.join(monthPath, file));
           try {
+            const filePath = await ensureExistingPathWithinDataDir(
+              path.join(safeMonthPath, file)
+            );
             const markdown = await fs.readFile(filePath, 'utf-8');
             const parsedSession = markdownToSession(markdown);
             if (parsedSession.id === safeId) {
@@ -818,12 +949,18 @@ export async function findSessionFileById(id: string): Promise<string | null> {
  */
 export async function hasAnySessions(): Promise<boolean> {
   try {
-    const years = await fs.readdir(getDataDir());
+    const rootDir = getDataDir();
+    const years = await fs.readdir(rootDir);
     for (const year of years) {
       if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
-      const yearPath = path.join(getDataDir(), year);
-      const yearStat = await fs.stat(yearPath);
-      if (!yearStat.isDirectory()) continue;
+      const yearPath = path.join(rootDir, year);
+      let safeYearPath: string;
+      try {
+        safeYearPath = await ensureNonSymlinkDirectory(yearPath);
+      } catch {
+        continue;
+      }
+      void safeYearPath;
       return true;
     }
     return false;
