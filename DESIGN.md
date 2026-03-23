@@ -118,8 +118,16 @@ Every token used in this document must exist in the canonical token table in Sec
 
 ### The "No-Line" Rule
 
-**Prohibition:** Solid 1px borders are strictly forbidden for sectioning or containment.
 **The Standard:** Boundaries must be defined through background shifts. For example, a card utilizing `surface-container-lowest` (#ffffff) should sit atop a `surface-container-low` (#f1f4f6) section. This creates "soft" containment that feels premium and architectural rather than "boxed in."
+
+#### Accessibility / High-Contrast Mode (Exception Only)
+
+Outline fallback is permitted only when an explicit accessibility mode is enabled (for example via `[data-contrast='high']`).
+
+- Token: `outline-variant` (`--color-outline-variant`)
+- Opacity: **15%** default fallback stroke (`color-mix(in srgb, var(--color-outline-variant) 15%, transparent)`)
+- Optional stronger fallback for severe low-vision contexts: up to **24%** opacity, never 100%
+- Scope: fallback outlines only; default mode remains borderless
 
 ### Surface Hierarchy & Nesting
 
@@ -454,6 +462,37 @@ The following patterns are non-compliant and should fail design review:
 3. **Raw hex values in component files** (e.g., `bg-[#005cab]`, `text-[#181c1e]`) outside token/theme definitions.
 4. **Divider lines as primary separators** (`divide-y`, `<hr />`) where spacing/tonal separation is required.
 5. **State changes encoded only by hue** without shape/label/typographic reinforcement in data visuals.
+
+#### Border Behavior Example (Compliant vs Non-compliant)
+
+**Non-compliant (default card with border):**
+
+```tsx
+<article className="rounded-2xl border border-slate-200 bg-[var(--color-surface-lowest)] p-6">
+  ...
+</article>
+```
+
+**Compliant (tonal separation + optional accessibility-only outline):**
+
+```tsx
+<article
+  className="
+    rounded-2xl
+    bg-[var(--color-surface-lowest)]
+    p-6
+    [data-contrast='high']:border
+    [data-contrast='high']:border-[color:color-mix(in_srgb,var(--color-outline-variant)_15%,transparent)]
+  "
+>
+  ...
+</article>
+```
+
+Implementation notes:
+
+- Default mode: no `border`, no `divide-*`, no `<hr />` for layout grouping.
+- High-contrast mode: outline fallback allowed only behind an explicit mode flag/attribute (e.g., `[data-contrast='high']`).
 
 ### 8.5 How to Theme (Brand Variations)
 
