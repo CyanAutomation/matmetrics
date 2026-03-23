@@ -289,7 +289,7 @@ function writeQueueWithLatestMerge(
             return true;
           }
 
-          return operation.queuedAt > nextQueuedAt;
+          return operation.queuedAt >= nextQueuedAt;
         });
 
         return dedupeOperations([
