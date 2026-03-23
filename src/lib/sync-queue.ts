@@ -103,23 +103,53 @@ function hasQueuedAt(
   return 'queuedAt' in operation && Number.isFinite(operation.queuedAt);
 }
 
-function getOperationKey(operation: SyncOperationInput): string {
-  const identity = getOperationIdentity(operation);
-  return hasQueuedAt(operation)
-    ? `${identity}:${operation.queuedAt}`
-    : `${identity}:*`;
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  const entries = Object.entries(value).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey)
+  );
+
+  return `{${entries
+    .map(
+      ([key, entryValue]) =>
+        `${JSON.stringify(key)}:${stableStringify(entryValue)}`
+    )
+    .join(',')}}`;
 }
 
-function compareOperations(
-  left: SyncOperation,
-  right: SyncOperation
-): number {
+function getOperationPayloadKey(operation: SyncOperationInput): string {
+  if (operation.type === 'DELETE') {
+    return `DELETE:${operation.id}`;
+  }
+
+  return `${operation.type}:${stableStringify(operation.session)}`;
+}
+
+function getOperationKey(operation: SyncOperationInput): string {
+  const identity = getOperationIdentity(operation);
+  const payloadKey = getOperationPayloadKey(operation);
+
+  return hasQueuedAt(operation)
+    ? `${identity}:${operation.queuedAt}:${payloadKey}`
+    : `${identity}:*:${payloadKey}`;
+}
+
+function compareOperations(left: SyncOperation, right: SyncOperation): number {
   const queuedAtDelta = left.queuedAt - right.queuedAt;
   if (queuedAtDelta !== 0) {
     return queuedAtDelta;
   }
 
-  return getOperationKey(left).localeCompare(getOperationKey(right));
+  return getOperationPayloadKey(left).localeCompare(
+    getOperationPayloadKey(right)
+  );
 }
 
 function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
