@@ -28,13 +28,25 @@ export const loadDashboardTabExtensions = async ({
     try {
       response = await fetchImpl(endpoint, {
         signal: controller.signal,
+        cache: 'no-store',
       });
     } finally {
       clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
-      throw new Error(`Plugin discovery failed with status ${response.status}`);
+      let errorMessage = `Plugin discovery failed with status ${response.status}`;
+
+      try {
+        const payload = (await response.json()) as { error?: string };
+        if (typeof payload.error === 'string' && payload.error.trim()) {
+          errorMessage = payload.error;
+        }
+      } catch {
+        // Ignore invalid JSON and keep the status-based message.
+      }
+
+      throw new Error(errorMessage);
     }
 
     const payload = (await response.json()) as {
@@ -42,7 +54,8 @@ export const loadDashboardTabExtensions = async ({
     };
 
     return Array.isArray(payload.extensions) ? payload.extensions : [];
-  } catch {
+  } catch (error) {
+    console.warn('Falling back to legacy plugin dashboard discovery', error);
     return fallbackLoader();
   }
 };
