@@ -7,10 +7,16 @@ import { NextRequest } from 'next/server';
 
 import { POST as CREATE } from '@/app/api/plugins/create/route';
 import { GET as LIST } from '@/app/api/plugins/list/route';
+import { POST as TOGGLE } from '@/app/api/plugins/toggle/route';
 import { POST as UPDATE } from '@/app/api/plugins/update/route';
 import { POST as VALIDATE } from '@/app/api/plugins/validate/route';
+import { resetPluginEnabledOverridesForTests } from '@/lib/plugins/state.server';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+
+test.afterEach(() => {
+  resetPluginEnabledOverridesForTests();
+});
 
 const baseManifest = {
   id: 'tags-plugin',
@@ -69,6 +75,51 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
     assert.equal(payload.fileTreeDiffSummary.mode, 'dry-run');
     assert.equal(payload.fileTreeDiffSummary.files[0].changeType, 'unchanged');
     assert.equal(payload.validationTable.isValid, true);
+  });
+});
+
+test('POST /api/plugins/toggle persists enabled override without mutating plugin.json', async () => {
+  await withTempRepo(async (repoRoot) => {
+    const pluginPath = path.join(repoRoot, 'plugins', 'tags', 'plugin.json');
+    const original = await readFile(pluginPath, 'utf8');
+
+    const toggleResponse = await TOGGLE(
+      new NextRequest('http://localhost/api/plugins/toggle', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 'tags-plugin',
+          enabled: false,
+          confirm: true,
+          confirmOverwrite: true,
+        }),
+      })
+    );
+
+    assert.equal(toggleResponse.status, 200);
+    const togglePayload = await toggleResponse.json();
+    assert.equal(togglePayload.persisted, true);
+    assert.equal(togglePayload.manifest.enabled, false);
+    assert.equal(
+      togglePayload.fileTreeDiffSummary.files[0].path,
+      'firestore:app/pluginConfig'
+    );
+
+    const listResponse = await LIST(
+      new NextRequest('http://localhost/api/plugins/list', {
+        headers: { authorization: 'Bearer test-token' },
+      })
+    );
+
+    assert.equal(listResponse.status, 200);
+    const listPayload = await listResponse.json();
+    assert.equal(listPayload.plugins[0].manifest.enabled, false);
+
+    const after = await readFile(pluginPath, 'utf8');
+    assert.equal(after, original);
   });
 });
 

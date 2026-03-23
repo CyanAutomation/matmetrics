@@ -6,11 +6,17 @@ import {
   type PluginManifest,
   type ResolvedDashboardTabExtension,
 } from '@/lib/plugins/types';
+import {
+  applyPluginEnabledOverrides,
+  loadPluginEnabledOverrides,
+  type PluginEnabledOverrides,
+} from '@/lib/plugins/state.server';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 
 type DiscoveryOptions = {
   pluginsRoot?: string;
   approvedManifestSources?: unknown[];
+  enabledOverrides?: PluginEnabledOverrides;
 };
 
 const isDashboardTabExtension = (
@@ -76,10 +82,21 @@ export const discoverValidatedPluginManifests = async (
   options: DiscoveryOptions = {}
 ): Promise<PluginManifest[]> => {
   const candidates = await discoverPluginManifestCandidates(options);
+  const enabledOverrides =
+    options.enabledOverrides ?? (await loadPluginEnabledOverrides());
 
   return candidates
     .map((candidate) => validatePluginManifest(candidate))
-    .flatMap((result) => (result.isValid ? [result.manifest] : []));
+    .flatMap((result) =>
+      result.isValid
+        ? [
+            applyPluginEnabledOverrides(
+              result.manifest,
+              enabledOverrides
+            ) as PluginManifest,
+          ]
+        : []
+    );
 };
 
 export const discoverEnabledDashboardTabExtensions = async (
