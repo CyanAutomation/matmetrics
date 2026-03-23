@@ -14,7 +14,6 @@ import { DashboardOverview } from '@/components/dashboard-overview';
 import { PluginManager } from '@/components/plugin-manager';
 import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
-import { PromptSettings } from '@/components/prompt-settings';
 import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
 import {
@@ -36,7 +35,6 @@ export const TAB_IDS = {
   dashboard: 'dashboard',
   log: 'log',
   history: 'history',
-  prompt: 'prompt',
   github: 'github',
 } as const;
 
@@ -83,7 +81,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.pluginManager,
     title: 'Plugins',
-    headerTitle: 'Plugins',
+    headerTitle: 'Plugin Manager',
     icon: Puzzle,
     section: 'core',
     render: ({ refreshPluginExtensions }) =>
@@ -95,7 +93,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
-    headerTitle: 'Training Overview',
+    headerTitle: 'Dashboard: Training Overview',
     icon: LayoutDashboard,
     section: 'core',
     render: ({ sessions }) =>
@@ -104,7 +102,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.log,
     title: 'Log Session',
-    headerTitle: 'Log Practice',
+    headerTitle: 'Log A Practice Session',
     icon: PlusCircle,
     section: 'core',
     render: ({ refreshSessions }) =>
@@ -127,17 +125,9 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
       ),
   },
   {
-    id: TAB_IDS.prompt,
-    title: 'Prompt Settings',
-    headerTitle: 'AI Prompt Configuration',
-    icon: BrainCircuit,
-    section: 'core',
-    render: () => React.createElement(PromptSettings),
-  },
-  {
     id: TAB_IDS.github,
     title: 'GitHub Sync',
-    headerTitle: 'GitHub Sync Configuration',
+    headerTitle: 'GitHub Sync Config',
     icon: Github,
     section: 'core',
     render: () => React.createElement(GitHubSettings),
@@ -146,6 +136,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
 
 const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
+  brain: BrainCircuit,
 };
 
 export const resolveDashboardExtensionsToTabs = (
