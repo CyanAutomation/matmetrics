@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { getPluginsRoot } from '@/lib/plugins/api-contract';
 import {
   type DashboardTabExtension,
   type PluginManifest,
@@ -69,8 +70,7 @@ const loadFilesystemManifestCandidates = async (
 export const discoverPluginManifestCandidates = async (
   options: DiscoveryOptions = {}
 ): Promise<unknown[]> => {
-  const pluginsRoot =
-    options.pluginsRoot ?? path.resolve(__dirname, '../../../../plugins');
+  const pluginsRoot = options.pluginsRoot ?? getPluginsRoot();
   const filesystemCandidates =
     await loadFilesystemManifestCandidates(pluginsRoot);
   const approvedCandidates = options.approvedManifestSources ?? [];

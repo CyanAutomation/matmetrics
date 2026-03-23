@@ -30,6 +30,7 @@ test.afterEach(async () => {
 test('loadDashboardTabExtensions uses discovery API response when available', async () => {
   const fallbackLoader = () => [];
   let fallbackCalls = 0;
+  let requestedCacheMode: RequestCache | undefined;
 
   const result = await loadDashboardTabExtensions({
     useLegacyRegistryFallback: false,
@@ -37,34 +38,78 @@ test('loadDashboardTabExtensions uses discovery API response when available', as
       fallbackCalls += 1;
       return fallbackLoader();
     },
-    fetchImpl: async () =>
-      new Response(JSON.stringify({ extensions: [discoveredExtension] }), {
+    fetchImpl: async (_input, init) => {
+      requestedCacheMode = init?.cache;
+      return new Response(JSON.stringify({ extensions: [discoveredExtension] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      }),
+      });
+    },
   });
 
   assert.deepEqual(result, [discoveredExtension]);
   assert.equal(fallbackCalls, 0);
+  assert.equal(requestedCacheMode, 'no-store');
 });
 
 test('loadDashboardTabExtensions falls back to local registry when discovery fails', async () => {
   const fallbackResult = [discoveredExtension];
   let fallbackCalls = 0;
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
 
-  const result = await loadDashboardTabExtensions({
-    useLegacyRegistryFallback: false,
-    fallbackLoader: () => {
-      fallbackCalls += 1;
-      return fallbackResult;
-    },
-    fetchImpl: async () => {
-      throw new Error('network down');
-    },
-  });
+  try {
+    const result = await loadDashboardTabExtensions({
+      useLegacyRegistryFallback: false,
+      fallbackLoader: () => {
+        fallbackCalls += 1;
+        return fallbackResult;
+      },
+      fetchImpl: async () => {
+        throw new Error('network down');
+      },
+    });
 
-  assert.deepEqual(result, fallbackResult);
-  assert.equal(fallbackCalls, 1);
+    assert.deepEqual(result, fallbackResult);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0]?.[0] ?? ''), /Falling back to legacy plugin dashboard discovery/);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test('loadDashboardTabExtensions logs API error payload before falling back', async () => {
+  const fallbackResult = [discoveredExtension];
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    const result = await loadDashboardTabExtensions({
+      useLegacyRegistryFallback: false,
+      fallbackLoader: () => fallbackResult,
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({ error: 'Failed to discover plugin dashboard tabs' }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        ),
+    });
+
+    assert.deepEqual(result, fallbackResult);
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0]?.[1] ?? ''), /Failed to discover plugin dashboard tabs/);
+  } finally {
+    console.warn = originalWarn;
+  }
 });
 
 test('loadDashboardTabExtensions legacy fallback respects enabled filtering', async () => {
