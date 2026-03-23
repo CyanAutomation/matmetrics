@@ -165,6 +165,25 @@ test('concurrent create and update with identical queuedAt coalesce deterministi
   ]);
 });
 
+test('setQueue deterministically keeps one equal-timestamp concurrent update for the same identity', () => {
+  const baseUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-1'), notes: 'from-base-tab' },
+    queuedAt: 100,
+  };
+  const concurrentUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-1'), notes: 'from-concurrent-tab' },
+    queuedAt: 100,
+  };
+
+  resetQueue([concurrentUpdate]);
+
+  setQueue([baseUpdate], [baseUpdate]);
+
+  assert.deepEqual(getQueue(), [concurrentUpdate]);
+});
+
 test('clearQueue removes the persisted storage key when there is no concurrent work', () => {
   resetQueue([createOp('session-1', 100)]);
 
