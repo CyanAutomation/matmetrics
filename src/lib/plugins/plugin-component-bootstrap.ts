@@ -37,6 +37,23 @@ const initializePluginsStatically = (): void => {
   try {
     // Use synchronous require for test/runtime compatibility
     // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
+    const githubSyncModule = require('../../../plugins/github-sync/src/index');
+    const initPlugin =
+      githubSyncModule.initPlugin as PluginInitializer | undefined;
+
+    if (initPlugin && typeof initPlugin === 'function') {
+      initPlugin({
+        register: () => undefined,
+        registerPluginComponent,
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to initialize github-sync plugin:', error);
+  }
+
+  try {
+    // Use synchronous require for test/runtime compatibility
+    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
     const promptSettingsModule = require('../../../plugins/prompt-settings/src/index');
     const initPlugin =
       promptSettingsModule.initPlugin as PluginInitializer | undefined;

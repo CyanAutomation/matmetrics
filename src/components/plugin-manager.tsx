@@ -401,7 +401,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Per-plugin issue details</CardTitle>
+          <CardTitle>Plugin issue details</CardTitle>
           <CardDescription>
             Validation summary and issue details for each installed
             plugin.

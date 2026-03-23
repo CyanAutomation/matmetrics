@@ -1,0 +1,20 @@
+{
+  "id": "github-sync",
+  "name": "GitHub Sync Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for managing GitHub sync settings.",
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "github-sync-dashboard-tab",
+      "title": "GitHub Sync",
+      "config": {
+        "tabId": "github-sync",
+        "headerTitle": "GitHub Sync Config",
+        "icon": "github",
+        "component": "github_settings"
+      }
+    }
+  ]
+}

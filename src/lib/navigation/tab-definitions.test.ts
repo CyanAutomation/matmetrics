@@ -64,6 +64,7 @@ test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', ()
   );
 
   assert.ok(tabs.some((tab) => tab.id === 'tag-manager'));
+  assert.ok(tabs.some((tab) => tab.id === 'github-sync'));
   assert.ok(tabs.some((tab) => tab.id === 'prompt-settings'));
 });
 
@@ -72,6 +73,11 @@ test('core tabs no longer include prompt settings', () => {
     coreTabs.some((tab) => tab.title === 'Prompt Settings'),
     false
   );
+  assert.equal(coreTabs.some((tab) => tab.title === 'GitHub Sync'), false);
+});
+
+test('plugins is the last core navigation item', () => {
+  assert.equal(coreTabs[coreTabs.length - 1]?.title, 'Plugins');
 });
 
 test('resolves plugin tab when renderer is registered in the registry', () => {
