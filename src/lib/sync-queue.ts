@@ -262,14 +262,16 @@ function writeQueueWithLatestMerge(
         const nextOperationKeys = new Set(
           normalizedNextQueue.map((operation) => getOperationKey(operation))
         );
-        const nextQueuedAtByIdentity = new Map<string, number>();
+        const nextLatestOperationByIdentity = new Map<string, SyncOperation>();
 
         for (const operation of normalizedNextQueue) {
           const identity = getOperationIdentity(operation);
-          const existingQueuedAt =
-            nextQueuedAtByIdentity.get(identity) ?? Number.NEGATIVE_INFINITY;
-          if (operation.queuedAt > existingQueuedAt) {
-            nextQueuedAtByIdentity.set(identity, operation.queuedAt);
+          const existingOperation = nextLatestOperationByIdentity.get(identity);
+          if (
+            existingOperation === undefined ||
+            compareOperations(operation, existingOperation) > 0
+          ) {
+            nextLatestOperationByIdentity.set(identity, operation);
           }
         }
 
@@ -284,12 +286,13 @@ function writeQueueWithLatestMerge(
           }
 
           const operationIdentity = getOperationIdentity(operation);
-          const nextQueuedAt = nextQueuedAtByIdentity.get(operationIdentity);
-          if (nextQueuedAt === undefined) {
+          const nextLatestOperation =
+            nextLatestOperationByIdentity.get(operationIdentity);
+          if (nextLatestOperation === undefined) {
             return true;
           }
 
-          return operation.queuedAt >= nextQueuedAt;
+          return compareOperations(operation, nextLatestOperation) >= 0;
         });
 
         return dedupeOperations([
