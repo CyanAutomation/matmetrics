@@ -485,7 +485,7 @@ The following patterns are non-compliant and should fail design review:
     bg-[var(--color-surface-lowest)]
     p-6
     [data-contrast='high']:border
-    [data-contrast='high']:border-[color:rgb(from_var(--color-outline-variant)_r_g_b_/_0.15)]
+    [data-contrast='high']:border-[color:color-mix(in_srgb,var(--color-outline-variant)_15%,transparent)]
   "
 >
   ...
