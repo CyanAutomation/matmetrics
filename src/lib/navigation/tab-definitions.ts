@@ -14,7 +14,6 @@ import { DashboardOverview } from '@/components/dashboard-overview';
 import { PluginManager } from '@/components/plugin-manager';
 import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
-import { GitHubSettings } from '@/components/github-settings';
 import { JudoSession } from '@/lib/types';
 import {
   createMissingCapabilityDashboardWarning,
@@ -35,7 +34,6 @@ export const TAB_IDS = {
   dashboard: 'dashboard',
   log: 'log',
   history: 'history',
-  github: 'github',
 } as const;
 
 export type CoreTabId = (typeof TAB_IDS)[keyof typeof TAB_IDS];
@@ -79,18 +77,6 @@ const pluginManagerFeatureFlagEnabled =
 
 export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
-    id: TAB_IDS.pluginManager,
-    title: 'Plugins',
-    headerTitle: 'Plugin Manager',
-    icon: Puzzle,
-    section: 'core',
-    render: ({ refreshPluginExtensions }) =>
-      React.createElement(PluginManager, {
-        onPluginsChanged: refreshPluginExtensions,
-      }),
-    isVisible: () => pluginManagerFeatureFlagEnabled,
-  },
-  {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
     headerTitle: 'Dashboard: Training Overview',
@@ -125,18 +111,23 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
       ),
   },
   {
-    id: TAB_IDS.github,
-    title: 'GitHub Sync',
-    headerTitle: 'GitHub Sync Config',
-    icon: Github,
+    id: TAB_IDS.pluginManager,
+    title: 'Plugins',
+    headerTitle: 'Plugin Manager',
+    icon: Puzzle,
     section: 'core',
-    render: () => React.createElement(GitHubSettings),
+    render: ({ refreshPluginExtensions }) =>
+      React.createElement(PluginManager, {
+        onPluginsChanged: refreshPluginExtensions,
+      }),
+    isVisible: () => pluginManagerFeatureFlagEnabled,
   },
 ] as const;
 
 const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
   brain: BrainCircuit,
+  github: Github,
 };
 
 export const resolveDashboardExtensionsToTabs = (

@@ -1,4 +1,5 @@
 import tagManagerPluginManifest from '../../../plugins/tag-manager/plugin.json';
+import githubSyncPluginManifest from '../../../plugins/github-sync/plugin.json';
 import promptSettingsPluginManifest from '../../../plugins/prompt-settings/plugin.json';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
@@ -10,6 +11,7 @@ import {
 
 const localPluginManifestSources: unknown[] = [
   tagManagerPluginManifest,
+  githubSyncPluginManifest,
   promptSettingsPluginManifest,
 ];
 const pluginEnabledOverrides = new Map<string, boolean>();

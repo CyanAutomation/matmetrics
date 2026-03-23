@@ -41,6 +41,12 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
   );
   assert.equal(
     enabledPayload.extensions.some(
+      (extension: { pluginId: string }) => extension.pluginId === 'github-sync'
+    ),
+    true
+  );
+  assert.equal(
+    enabledPayload.extensions.some(
       (extension: { pluginId: string }) =>
         extension.pluginId === 'prompt-settings'
     ),
@@ -57,6 +63,12 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
       (extension: { pluginId: string }) => extension.pluginId === 'tag-manager'
     ),
     false
+  );
+  assert.equal(
+    disabledPayload.extensions.some(
+      (extension: { pluginId: string }) => extension.pluginId === 'github-sync'
+    ),
+    true
   );
   assert.equal(
     disabledPayload.extensions.some(
