@@ -13,7 +13,7 @@ type PluginInitializer = (context: {
  *
  * To add a new plugin:
  * 1. Create a plugins/my-plugin/src/index.ts file
- * 2. Export an initPlugin function that accepts PluginInitContext
+ * 2. Export an initPlugin function that accepts the registration context
  * 3. Add an import here and call initializePluginComponent with the plugin ID
  */
 const initializePluginsStatically = (): void => {
