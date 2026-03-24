@@ -195,13 +195,13 @@ In this design system, "shadows" are atmospheric, not structural.
 
 ## 6. Do's and Don'ts
 
-### Do:
+### Do
 
 - **Do** use asymmetrical margins (e.g., a wider left margin for headlines) to create a high-end editorial feel.
 - **Do** use `body-lg` for coaching tips to give the text more "weight" and authority.
 - **Do** prioritize white space over "filling the screen." If a screen feels empty, increase the typography scale rather than adding lines or boxes.
 
-### Don't:
+### Don't
 
 - **Don't** use pure black (#000000) for body text; use `on-surface` (#181c1e) to maintain a sophisticated tonal range.
 - **Don't** use standard "Material" shadows. If the shadow is visible enough to be noticed, it is too dark.
