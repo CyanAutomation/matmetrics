@@ -154,10 +154,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       setRenameAnalysis(null);
       setRenameError(null);
       refreshTags();
-    } catch {
+    } catch (error) {
       const message =
         'Could not apply this rename. Nothing was changed. Please try again.';
       setRenameError(message);
+      console.error('Rename operation failed:', error);
       toast({
         title: 'Rename failed',
         description: `${message} You can review and re-apply.`,
