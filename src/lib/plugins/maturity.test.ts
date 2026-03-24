@@ -248,3 +248,121 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
     }
   );
 });
+
+test('scorePluginMaturity does not warn when manifest component matches plugin registration and file', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes('register all manifest component ids') &&
+            !reason.includes('do not map to checked-in UI modules')
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity warns when manifest component is missing from plugin registration', async () => {
+  await withPluginFixture(
+    async (pluginsRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('other_component', () => null);
+};
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes('does not register all manifest component ids')
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity treats missing component file as docs-quality warning when registration exists', async () => {
+  await withPluginFixture(
+    async (pluginsRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'Some registered plugin component UI modules are missing from src/components.'
+          )
+        )
+      );
+      assert.ok(
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes('does not register all manifest component ids') &&
+            !reason.includes('do not map to checked-in UI modules')
+        )
+      );
+    }
+  );
+});
