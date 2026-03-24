@@ -146,7 +146,8 @@ export const scorePluginMaturity = async ({
   const pluginReadmePath = path.join(pluginDir, 'README.md');
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
   const componentIds = manifest.uiExtensions.flatMap((extension) => {
-    const maybeComponent = extension.config['component'];
+    const maybeComponent =
+      'component' in extension.config ? extension.config.component : undefined;
     return typeof maybeComponent === 'string' && maybeComponent.trim()
       ? [maybeComponent]
       : [];
