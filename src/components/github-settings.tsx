@@ -36,6 +36,13 @@ import {
   clearGitHubConfigPreference,
   saveGitHubSettingsPreference,
 } from '@/lib/user-preferences';
+import {
+  buildGitHubNetworkErrorMessage,
+  deriveClearOutcome,
+  deriveDisableOutcome,
+  deriveGitHubSettingsControlState,
+  getGitHubSettingsValidationError,
+} from '@/components/github-settings-view-model';
 
 export function GitHubSettings() {
   const { toast } = useToast();
@@ -82,9 +89,6 @@ export function GitHubSettings() {
     try {
       payload = await response.json();
     } catch {
-    try {
-      payload = await response.json();
-    } catch {
       if (!response.ok) {
         return {
           success: false,
@@ -95,7 +99,6 @@ export function GitHubSettings() {
         success: true,
         message: fallbackMessage,
       };
-    }
     }
 
     const message =
@@ -121,10 +124,11 @@ export function GitHubSettings() {
   const handleSaveConfig = async () => {
     if (!user) return;
 
-    if (!owner || !repo) {
+    const validationError = getGitHubSettingsValidationError(owner, repo);
+    if (validationError) {
       toast({
         title: 'Validation Error',
-        description: 'Please enter both GitHub owner and repository name.',
+        description: validationError,
         variant: 'destructive',
       });
       return;
@@ -150,10 +154,11 @@ export function GitHubSettings() {
   };
 
   const handleTestConnection = async () => {
-    if (!owner || !repo) {
+    const validationError = getGitHubSettingsValidationError(owner, repo);
+    if (validationError) {
       toast({
         title: 'Validation Error',
-        description: 'Please enter both GitHub owner and repository name.',
+        description: validationError,
         variant: 'destructive',
       });
       return;
@@ -193,10 +198,12 @@ export function GitHubSettings() {
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
       setTestResult({
         success: false,
-        message: `Network error while testing connection: ${message}`,
+        message: buildGitHubNetworkErrorMessage(
+          'Network error while testing connection',
+          error
+        ),
       });
       toast({
         title: 'Network Error',
@@ -267,10 +274,12 @@ export function GitHubSettings() {
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: 'Network Error',
-        description: `Bulk sync request failed: ${message}`,
+        description: buildGitHubNetworkErrorMessage(
+          'Bulk sync request failed',
+          error
+        ),
         variant: 'destructive',
       });
     } finally {
@@ -286,7 +295,16 @@ export function GitHubSettings() {
         ...preferences.gitHub,
         enabled: false,
       });
-      setIsEnabled(false);
+      const nextState = deriveDisableOutcome({
+        owner,
+        repo,
+        branch,
+        isEnabled,
+        migrationDone,
+        isClearDialogOpen,
+        testResult,
+      });
+      setIsEnabled(nextState.isEnabled);
       toast({
         title: 'Sync Disabled',
         description: 'GitHub sync has been turned off.',
@@ -308,13 +326,22 @@ export function GitHubSettings() {
     setIsClearing(true);
     try {
       await clearGitHubConfigPreference(user.uid);
-      setOwner('');
-      setRepo('');
-      setBranch('');
-      setIsEnabled(false);
-      setTestResult(null);
-      setMigrationDone(false);
-      setIsClearDialogOpen(false);
+      const nextState = deriveClearOutcome({
+        owner,
+        repo,
+        branch,
+        isEnabled,
+        migrationDone,
+        isClearDialogOpen,
+        testResult,
+      });
+      setOwner(nextState.owner);
+      setRepo(nextState.repo);
+      setBranch(nextState.branch);
+      setIsEnabled(nextState.isEnabled);
+      setTestResult(nextState.testResult);
+      setMigrationDone(nextState.migrationDone);
+      setIsClearDialogOpen(nextState.isClearDialogOpen);
       toast({
         title: 'Configuration Cleared',
         description: 'GitHub repository settings were removed.',
@@ -330,6 +357,18 @@ export function GitHubSettings() {
       setIsClearing(false);
     }
   };
+
+  const controlState = deriveGitHubSettingsControlState({
+    canUseGitHubSync,
+    owner,
+    repo,
+    isEnabled,
+    isTesting,
+    isSyncing,
+    isDisabling,
+    isClearing,
+    isClearDialogOpen,
+  });
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -471,14 +510,14 @@ export function GitHubSettings() {
           <div className="flex gap-3 flex-wrap">
             <Button
               onClick={() => void handleTestConnection()}
-              disabled={!canUseGitHubSync || isTesting || !owner || !repo}
+              disabled={!controlState.canTestConnection}
               variant="outline"
               className="gap-2"
             >
               {isTesting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Testing...
+                  {controlState.testConnectionLabel}
                 </>
               ) : (
                 <>
@@ -498,14 +537,14 @@ export function GitHubSettings() {
             {isEnabled && (
               <Button
                 onClick={() => void handleDisable()}
-                disabled={!canUseGitHubSync || isDisabling || isClearing}
+                disabled={!controlState.canDisableSync}
                 variant="outline"
                 className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
               >
                 {isDisabling ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Disabling...
+                    {controlState.disableLabel}
                   </>
                 ) : (
                   'Disable Sync'
@@ -516,7 +555,7 @@ export function GitHubSettings() {
             {isEnabled && (
               <Button
                 onClick={() => setIsClearDialogOpen(true)}
-                disabled={!canUseGitHubSync || isDisabling || isClearing}
+                disabled={!controlState.canOpenClearDialog}
                 variant="ghost"
                 size="sm"
                 className="gap-2 text-gray-600 ml-auto"
@@ -526,7 +565,7 @@ export function GitHubSettings() {
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                {isClearing ? 'Clearing...' : 'Clear'}
+                {controlState.clearLabel}
               </Button>
             )}
           </div>
@@ -584,13 +623,13 @@ export function GitHubSettings() {
             </p>
             <Button
               onClick={() => void handleBulkSync()}
-              disabled={!canUseGitHubSync || isSyncing}
+              disabled={!controlState.canRunSyncAll}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
               {isSyncing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Syncing...
+                  {controlState.syncAllLabel}
                 </>
               ) : (
                 <>
@@ -623,7 +662,10 @@ export function GitHubSettings() {
         </Card>
       )}
 
-      <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+      <Dialog
+        open={controlState.isClearDialogOpen}
+        onOpenChange={setIsClearDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Clear GitHub configuration?</DialogTitle>
@@ -638,7 +680,7 @@ export function GitHubSettings() {
               type="button"
               variant="outline"
               onClick={() => setIsClearDialogOpen(false)}
-              disabled={isClearing}
+              disabled={!controlState.canConfirmClear}
             >
               Cancel
             </Button>
@@ -646,13 +688,13 @@ export function GitHubSettings() {
               type="button"
               variant="destructive"
               onClick={() => void handleClear()}
-              disabled={isClearing}
+              disabled={!controlState.canConfirmClear}
               className="gap-2"
             >
               {isClearing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Clearing...
+                  {controlState.clearConfirmationLabel}
                 </>
               ) : (
                 <>
