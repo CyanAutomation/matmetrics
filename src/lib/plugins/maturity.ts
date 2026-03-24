@@ -39,6 +39,22 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
 const componentIdToComponentBasename = (componentId: string): string =>
   componentId.replace(/_/g, '-');
 
+const pluginComponentRegistrationPattern =
+  /\.?registerPluginComponent(?:\?\.)?  \s*\(\s*['"]([^'"]+)['"]\s*,/g;
+
+const extractRegisteredPluginComponents = (entryContents: string): string[] => {
+  const componentIds = new Set<string>();
+
+  for (const match of entryContents.matchAll(pluginComponentRegistrationPattern)) {
+    const maybeComponentId = match[1]?.trim();
+    if (maybeComponentId) {
+      componentIds.add(maybeComponentId);
+    }
+  }
+
+  return [...componentIds];
+};
+
 const fileExists = async (targetPath: string): Promise<boolean> => {
   try {
     await access(targetPath);
@@ -220,10 +236,12 @@ export const scorePluginMaturity = async ({
       );
     }
 
-    const hasComponentRegistrations = componentIds.every((componentId) =>
-      entryContents.includes(componentId)
+    const registeredPluginComponents =
+      extractRegisteredPluginComponents(entryContents);
+    const missingComponentRegistrations = componentIds.filter(
+      (componentId) => !registeredPluginComponents.includes(componentId)
     );
-    if (componentIds.length === 0 || hasComponentRegistrations) {
+    if (componentIds.length === 0 || missingComponentRegistrations.length === 0) {
       categoryScores.runtime_integration += 4;
       pushUnique(
         evidence,
@@ -232,7 +250,7 @@ export const scorePluginMaturity = async ({
     } else {
       pushUnique(
         reasons,
-        'Plugin entry does not obviously register all declared components.'
+        'Plugin entry does not register all manifest component ids.'
       );
       pushUnique(
         nextActions,
@@ -267,6 +285,7 @@ export const scorePluginMaturity = async ({
     categoryScores.feature_quality += 5;
   }
 
+  const missingComponentFiles: string[] = [];
   let existingComponentCount = 0;
   let matureComponentSignals = 0;
   for (const componentBasename of componentBasenames) {
@@ -277,6 +296,7 @@ export const scorePluginMaturity = async ({
       `${componentBasename}.tsx`
     );
     if (!(await fileExists(componentPath))) {
+      missingComponentFiles.push(componentBasename);
       continue;
     }
 
@@ -302,11 +322,22 @@ export const scorePluginMaturity = async ({
       'Plugin-backed UI components exist for declared component ids.'
     );
   } else if (componentBasenames.length > 0) {
-    pushUnique(
-      reasons,
-      'Some declared plugin components do not map to checked-in UI modules.'
-    );
-    pushUnique(nextActions, 'Keep component ids and component files aligned.');
+    if (componentIds.length > 0 && !(await fileExists(pluginEntryPath))) {
+      pushUnique(
+        reasons,
+        'Some declared plugin components do not map to checked-in UI modules.'
+      );
+      pushUnique(nextActions, 'Keep component ids and component files aligned.');
+    } else if (missingComponentFiles.length > 0) {
+      pushUnique(
+        reasons,
+        'Some registered plugin component UI modules are missing from src/components.'
+      );
+      pushUnique(
+        nextActions,
+        'Add missing component files to improve maintainability and traceability.'
+      );
+    }
   }
 
   if (matureComponentSignals > 0) {
