@@ -28,6 +28,7 @@ import { getAuthHeaders } from '@/lib/auth-session';
 import {
   fetchInstalledPlugins,
   getPluginManagerAccessState,
+  type InstalledPluginManifestRow,
   toggleInstalledPlugin,
 } from '@/lib/plugins/plugin-manager-client';
 import type {
@@ -105,7 +106,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { user, authAvailable } = useAuth();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
-    Array<{ manifest: PluginManifest; issues: PluginValidationIssue[] }>
+    InstalledPluginManifestRow[]
   >([]);
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
