@@ -134,7 +134,23 @@ export function PromptSettings() {
     setIsResetting(true);
     try {
       await resetTransformerPromptPreference(user.uid);
+    try {
+      await resetTransformerPromptPreference(user.uid);
+      toast({
+        description: 'Prompt reset to default Kodokan standards.',
+      });
+    } catch (error) {
+      console.error('Failed to reset transformer prompt preference', error);
+      toast({
+        variant: 'destructive',
+        title: 'Could not reset prompt',
+        description:
+          'We could not reset your prompt right now. Please try again.',
+      });
+    } finally {
       setIsResetDialogOpen(false);
+      setIsResetting(false);
+    }
       toast({
         description: 'Prompt reset to default Kodokan standards.',
       });
