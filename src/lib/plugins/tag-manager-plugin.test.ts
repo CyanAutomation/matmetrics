@@ -60,7 +60,7 @@ test('tag-manager renderer returns TagManager and forwards refreshSessions as on
   assert.ok(capturedRenderer, 'Expected tag-manager to register a renderer.');
 
   const refreshSessions = () => undefined;
-  const rendered = capturedRenderer?.({
+  const rendered = capturedRenderer({
     sessions: [],
     refreshSessions,
     refreshPluginExtensions: () => undefined,
