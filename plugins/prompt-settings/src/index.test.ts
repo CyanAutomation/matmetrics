@@ -18,7 +18,7 @@ test('manifest dashboard tab component id is prompt_settings', () => {
     (extension) => extension.type === 'dashboard_tab'
   );
 
-  assert.ok(dashboardTabExtension);
+  assert.ok(dashboardTabExtension, 'dashboardTabExtension should exist');
   assert.equal(dashboardTabExtension.config.component, 'prompt_settings');
 });
 
