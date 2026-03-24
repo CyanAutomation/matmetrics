@@ -217,10 +217,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       setMergeAnalysis(null);
       setMergeError(null);
       refreshTags();
-    } catch {
+    } catch (error) {
       const message =
         'Could not apply this merge. No tags were modified. Please try again.';
       setMergeError(message);
+      console.error('Merge operation failed:', error);
       toast({
         title: 'Merge failed',
         description: `${message} You can review and re-apply.`,
