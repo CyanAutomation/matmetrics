@@ -279,10 +279,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       setDeleteAnalysis(null);
       setDeleteError(null);
       refreshTags();
-    } catch {
+    } catch (error) {
       const message =
         'Could not apply this deletion. Your tags are unchanged. Please try again.';
       setDeleteError(message);
+      console.error('Delete operation failed:', error);
       toast({
         title: 'Delete failed',
         description: `${message} You can review and re-apply.`,
