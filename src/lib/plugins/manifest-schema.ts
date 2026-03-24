@@ -14,6 +14,7 @@ export const pluginManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(VERSION_REGEX),
   description: z.string().min(1),
+  owner: z.string().min(1).optional(),
   capabilities: z.array(z.string().min(1)).optional(),
   uiExtensions: z.array(pluginExtensionBaseSchema).min(1),
   author: z.string().min(1).optional(),
@@ -25,6 +26,13 @@ export const pluginManifestSchema = z.object({
     .regex(VERSION_REGEX)
     .optional()
     .describe('Minimum matmetrics version required to run this plugin'),
+  maturity: z
+    .object({
+      tier: z.enum(['bronze', 'silver', 'gold']).optional(),
+      notes: z.string().min(1).optional(),
+      lastReviewedAt: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export type PluginManifestSchema = z.infer<typeof pluginManifestSchema>;

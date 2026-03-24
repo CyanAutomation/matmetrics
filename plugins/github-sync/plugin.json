@@ -3,6 +3,11 @@
   "name": "GitHub Sync Plugin",
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing GitHub sync settings.",
+  "maturity": {
+    "tier": "bronze",
+    "notes": "Baseline maturity. Valid plugin shell and working feature, but still missing plugin-specific docs and stronger test evidence.",
+    "lastReviewedAt": "2026-03-24"
+  },
   "enabled": true,
   "uiExtensions": [
     {

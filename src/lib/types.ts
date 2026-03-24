@@ -34,7 +34,7 @@ export const EFFORT_COLORS: Record<EffortLevel, string> = {
 };
 
 export const CATEGORY_COLORS: Record<SessionCategory, string> = {
-  Technical: 'bg-sky-100 text-sky-700 border-sky-200',
+  Technical: 'bg-orange-100 text-orange-700 border-orange-200',
   Randori: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   Shiai: 'bg-rose-100 text-rose-700 border-rose-200',
 };

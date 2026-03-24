@@ -7,10 +7,12 @@ import {
   toValidationTable,
   type StoredPluginManifest,
 } from '@/lib/plugins/api-contract';
+import { scorePluginMaturity } from '@/lib/plugins/maturity';
 import {
   applyPluginEnabledOverrides,
   loadPluginEnabledOverrides,
 } from '@/lib/plugins/state.server';
+import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export async function GET(request: NextRequest) {
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const pluginRows = manifests.map((entry) => {
+    const pluginRows = await Promise.all(manifests.map(async (entry) => {
       const effectiveManifest = applyPluginEnabledOverrides(
         entry.manifest,
         enabledOverrides
@@ -68,12 +70,26 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const maturity =
+        validation.isValid &&
+        processedManifest &&
+        typeof processedManifest === 'object' &&
+        !Array.isArray(processedManifest)
+          ? await scorePluginMaturity({
+              manifest: processedManifest as PluginManifest,
+              validationIssues: validation.rows,
+              pluginDirectoryName: entry.directoryName,
+              autoDisabledWithWarnings,
+            })
+          : undefined;
+
       return {
         manifest: processedManifest,
         validation,
         autoDisabledWithWarnings,
+        maturity,
       };
-    });
+    }));
 
     const response = {
       plugins: pluginRows,

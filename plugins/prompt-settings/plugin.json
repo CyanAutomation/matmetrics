@@ -3,6 +3,11 @@
   "name": "Prompt Settings Plugin",
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing AI prompt settings.",
+  "maturity": {
+    "tier": "bronze",
+    "notes": "Baseline maturity. Stable plugin shape with a simple feature surface, but still needs plugin-specific docs and deeper automated coverage.",
+    "lastReviewedAt": "2026-03-24"
+  },
   "enabled": true,
   "uiExtensions": [
     {

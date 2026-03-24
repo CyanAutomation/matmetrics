@@ -72,13 +72,49 @@ export type PluginManifest = {
   name: string;
   version: string;
   description: string;
+  owner?: string;
   capabilities?: string[];
   author?: string;
   homepage?: string;
   settings?: Record<string, unknown>;
   enabled: boolean;
   minVersion?: string;
+  maturity?: PluginManifestMaturityMetadata;
   uiExtensions: UIExtension[];
+};
+
+export type PluginMaturityTier = 'bronze' | 'silver' | 'gold';
+
+export type PluginManifestMaturityMetadata = {
+  tier?: PluginMaturityTier;
+  notes?: string;
+  lastReviewedAt?: string;
+};
+
+export type PluginMaturityCategory =
+  | 'contract_metadata'
+  | 'runtime_integration'
+  | 'feature_quality'
+  | 'test_coverage'
+  | 'operability_docs';
+
+export type PluginMaturityCategoryScore = {
+  label: string;
+  earned: number;
+  possible: number;
+};
+
+export type PluginMaturityScorecard = {
+  score: number;
+  tier: PluginMaturityTier;
+  categoryScores: Record<
+    PluginMaturityCategory,
+    PluginMaturityCategoryScore
+  >;
+  reasons: string[];
+  nextActions: string[];
+  evidence: string[];
+  declaredTier?: PluginMaturityTier;
 };
 
 export type PluginValidationSeverity = 'error' | 'warning' | 'info';
