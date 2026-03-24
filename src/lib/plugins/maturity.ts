@@ -382,6 +382,7 @@ export const scorePluginMaturity = async ({
   const hasAnyTestEvidence = testEvidenceFiles.length > 0;
   const hasOwner = Boolean(manifest.owner || manifest.author);
   const hasReadme = await fileExists(pluginReadmePath);
+  const isExplicitGoldReview = manifest.maturity?.tier === 'gold';
 
   let tier: PluginMaturityTier = 'bronze';
   if (
@@ -390,7 +391,8 @@ export const scorePluginMaturity = async ({
     !hasBlockingWarnings &&
     hasAnyTestEvidence &&
     hasOwner &&
-    hasReadme
+    hasReadme &&
+    isExplicitGoldReview
   ) {
     tier = 'gold';
   } else if (
@@ -420,6 +422,16 @@ export const scorePluginMaturity = async ({
     pushUnique(
       reasons,
       'Missing ownership or plugin documentation prevents promotion beyond Bronze/Silver.'
+    );
+  }
+  if (totalScore >= 85 && !isExplicitGoldReview) {
+    pushUnique(
+      reasons,
+      'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
+    );
+    pushUnique(
+      nextActions,
+      'Only mark a plugin Gold after a deliberate review updates `maturity.tier` to `gold`.'
     );
   }
 
