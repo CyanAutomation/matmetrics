@@ -20,7 +20,8 @@
     "test": "node --import tsx --test",
     "test:all": "node --import tsx --test src/**/*.test.ts",
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
-    "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/..."
+    "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/...",
+    "verify": "npm test && npm run typecheck && npm run build && npm run go:test"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
