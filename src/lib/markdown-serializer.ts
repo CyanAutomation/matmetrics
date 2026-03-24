@@ -68,7 +68,7 @@ export function sessionToMarkdown(session: JudoSession): string {
 /**
  * Parse a markdown string (with YAML frontmatter) into a JudoSession
  * Throws if markdown is invalid or missing required fields
- * 
+ *
  * Frontmatter is canonical. Title is informational and may be edited manually.
  */
 export function markdownToSession(markdown: string): JudoSession {

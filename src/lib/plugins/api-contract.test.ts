@@ -26,10 +26,7 @@ test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', () =
   };
 
   const result = autoDisablePluginIfNeeded(manifest);
-  assert.equal(
-    (result.manifest as typeof manifest).enabled,
-    true
-  );
+  assert.equal((result.manifest as typeof manifest).enabled, true);
   assert.equal(result.autoDisabledWithWarnings, undefined);
 });
 
@@ -56,10 +53,7 @@ test('autoDisablePluginIfNeeded - disables plugin with missing capabilities', ()
   };
 
   const result = autoDisablePluginIfNeeded(manifest);
-  assert.equal(
-    (result.manifest as typeof manifest).enabled,
-    false
-  );
+  assert.equal((result.manifest as typeof manifest).enabled, false);
   assert.ok(result.autoDisabledWithWarnings);
   assert.ok(
     result.autoDisabledWithWarnings.some((w) =>
@@ -92,10 +86,7 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', () => 
   };
 
   const result = autoDisablePluginIfNeeded(manifest);
-  assert.equal(
-    (result.manifest as typeof manifest).enabled,
-    false
-  );
+  assert.equal((result.manifest as typeof manifest).enabled, false);
   assert.ok(result.autoDisabledWithWarnings);
   assert.ok(
     result.autoDisabledWithWarnings.some((w) =>

@@ -128,7 +128,9 @@ export const fetchInstalledPlugins = async ({
   fetchImpl = fetch,
   getHeaders = defaultAuthHeadersLoader,
   endpoint = '/api/plugins/list',
-}: FetchInstalledPluginsOptions = {}): Promise<InstalledPluginManifestRow[]> => {
+}: FetchInstalledPluginsOptions = {}): Promise<
+  InstalledPluginManifestRow[]
+> => {
   const headers = await getHeaders();
   const response = await fetchImpl(endpoint, {
     method: 'GET',

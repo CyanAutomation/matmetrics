@@ -22,7 +22,9 @@ const initializePluginsStatically = (): void => {
     // Use synchronous require for test/runtime compatibility
     // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
     const tagManagerModule = require('../../../plugins/tag-manager/src/index');
-    const initPlugin = tagManagerModule.initPlugin as PluginInitializer | undefined;
+    const initPlugin = tagManagerModule.initPlugin as
+      | PluginInitializer
+      | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
       initPlugin({
@@ -38,8 +40,9 @@ const initializePluginsStatically = (): void => {
     // Use synchronous require for test/runtime compatibility
     // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
     const githubSyncModule = require('../../../plugins/github-sync/src/index');
-    const initPlugin =
-      githubSyncModule.initPlugin as PluginInitializer | undefined;
+    const initPlugin = githubSyncModule.initPlugin as
+      | PluginInitializer
+      | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
       initPlugin({
@@ -55,8 +58,9 @@ const initializePluginsStatically = (): void => {
     // Use synchronous require for test/runtime compatibility
     // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
     const promptSettingsModule = require('../../../plugins/prompt-settings/src/index');
-    const initPlugin =
-      promptSettingsModule.initPlugin as PluginInitializer | undefined;
+    const initPlugin = promptSettingsModule.initPlugin as
+      | PluginInitializer
+      | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
       initPlugin({

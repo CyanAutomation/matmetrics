@@ -128,7 +128,9 @@ async function getRealDataDirRoot(): Promise<string> {
   }
 }
 
-async function ensureExistingPathWithinDataDir(filePath: string): Promise<string> {
+async function ensureExistingPathWithinDataDir(
+  filePath: string
+): Promise<string> {
   const resolved = ensureResolvedPathWithinDataDir(filePath);
   const realRoot = await getRealDataDirRoot();
   const realPath = await fs.realpath(resolved);
@@ -140,7 +142,9 @@ async function ensureExistingPathWithinDataDir(filePath: string): Promise<string
   return resolved;
 }
 
-async function findClosestExistingAncestor(targetPath: string): Promise<string> {
+async function findClosestExistingAncestor(
+  targetPath: string
+): Promise<string> {
   let currentPath = path.resolve(targetPath);
 
   while (true) {
@@ -161,10 +165,14 @@ async function findClosestExistingAncestor(targetPath: string): Promise<string> 
   }
 }
 
-async function ensureCreatablePathWithinDataDir(filePath: string): Promise<string> {
+async function ensureCreatablePathWithinDataDir(
+  filePath: string
+): Promise<string> {
   const resolved = ensureResolvedPathWithinDataDir(filePath);
   const realRoot = await getRealDataDirRoot();
-  const existingAncestor = await findClosestExistingAncestor(path.dirname(resolved));
+  const existingAncestor = await findClosestExistingAncestor(
+    path.dirname(resolved)
+  );
   const realAncestor = await fs.realpath(existingAncestor);
 
   if (!isPathWithinRoot(realRoot, realAncestor)) {
@@ -578,7 +586,8 @@ export async function createSession(session: JudoSession): Promise<string> {
   const assertExistingSessionMatches = async (
     existingPath: string
   ): Promise<string> => {
-    const safeExistingPath = await ensureExistingPathWithinDataDir(existingPath);
+    const safeExistingPath =
+      await ensureExistingPathWithinDataDir(existingPath);
     const existingMarkdown = await fs.readFile(safeExistingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
       throw new Error(

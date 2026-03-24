@@ -78,7 +78,9 @@ test('normalizeInstalledPluginRows keeps only valid manifest rows', () => {
           },
         },
         reasons: ['Plugin README is missing.'],
-        nextActions: ['Add a README for each plugin with usage and verification steps.'],
+        nextActions: [
+          'Add a README for each plugin with usage and verification steps.',
+        ],
         evidence: ['Manifest passes required schema validation.'],
       },
     },
@@ -178,13 +180,10 @@ test('fetchInstalledPlugins surfaces API error payloads for auth failures', asyn
     () =>
       fetchInstalledPlugins({
         fetchImpl: async () =>
-          new Response(
-            JSON.stringify({ error: 'Authentication required' }),
-            {
-              status: 401,
-              headers: { 'Content-Type': 'application/json' },
-            }
-          ),
+          new Response(JSON.stringify({ error: 'Authentication required' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
       }),
     /Authentication required/
   );

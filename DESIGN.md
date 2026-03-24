@@ -14,62 +14,62 @@ The light theme palette is rooted in "Ressa Red" (`primary: #F05A28`) for energe
 
 Use the following token table as the canonical source for implementation. Product surfaces, charts, badges, and controls should reference token names only (never hardcoded hex values in component code).
 
-| Token                         | Hex       | Intended Usage                                                                             |
-| ----------------------------- | --------- | ------------------------------------------------------------------------------------------ |
+| Token                         | Hex                                 | Intended Usage                                                                                                                                                       |
+| ----------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `primary`                     | `#E85D04` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series, high-emphasis links. Light mode: Ressa Red (saturated orange-red matching Ressa character); Dark mode: MatMetrics Blue |
-| `primary-container`           | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion for primary CTAs                             |
-| `primary-fixed`               | `#F5843C` (light), `#0075d6` (dark) | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
-| `on-primary`                  | `#ffffff` | Text/icons on `primary` backgrounds                                                        |
-| `on-primary-container`        | `#ffffff` | Text/icons on `primary-container`                                                          |
-| `secondary`                   | `#515f78` | Secondary actions, supporting data series                                                  |
-| `tertiary`                    | `#67587a` | Tertiary chart series and alternate data accents                                           |
-| `secondary-container`         | `#d4e3ff` | Secondary chips, low-emphasis highlights                                                   |
-| `on-secondary`                | `#ffffff` | Text/icons on `secondary`                                                                  |
-| `on-secondary-container`      | `#1b2a41` | Text/icons on `secondary-container`                                                        |
-| `surface`                     | `#f7fafc` | App canvas/base background                                                                 |
-| `surface-container-low`       | `#f1f4f6` | Section grouping backgrounds                                                               |
-| `surface-container-lowest`    | `#ffffff` | Cards and foreground modules                                                               |
-| `surface-container-high`      | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons)                                |
-| `surface-bright`              | `#f7fafc` | Active overlays and glass-like floating surfaces                                           |
-| `surface-tint`                | `#D64C04` (light), `#005faf` (dark) | Ambient interaction glow for elevated controls                                             |
-| `surface-variant`             | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone                                   |
-| `on-surface`                  | `#181c1e` | Primary body text/icons                                                                    |
-| `on-surface-variant`          | `#43474a` | Secondary text, helper metadata                                                            |
-| `outline`                     | `#73777a` | Focus/selection outlines requiring strong visibility                                       |
-| `outline-variant`             | `#c2c7ca` | Subtle strokes for accessibility fallbacks                                                 |
-| `success`                     | `#0f7a43` | Positive outcomes, successful states                                                       |
-| `success-container`           | `#d7f3e3` | Success banners, positive badge fills                                                      |
-| `on-success`                  | `#ffffff` | Text/icons on `success`                                                                    |
-| `on-success-container`        | `#0a4b2a` | Text/icons on `success-container`                                                          |
-| `warning`                     | `#b26a00` | Cautionary messages, anomaly callouts                                                      |
-| `warning-container`           | `#ffe7c2` | Warning badges, caution background panels                                                  |
-| `on-warning`                  | `#1f1600` | Text/icons on `warning`                                                                    |
-| `on-warning-container`        | `#5c3a00` | Text/icons on `warning-container`                                                          |
-| `error`                       | `#c62828` | Error states, critical regressions                                                         |
-| `error-container`             | `#ffd9d6` | Error banners, destructive confirmation backgrounds                                        |
-| `on-error`                    | `#ffffff` | Text/icons on `error`                                                                      |
-| `on-error-container`          | `#5f1313` | Text/icons on `error-container`                                                            |
-| `info`                        | `#00639b` | Informational notices and neutral status messaging                                         |
-| `info-container`              | `#cde5ff` | Info callouts and non-critical status cards                                                |
-| `on-info`                     | `#ffffff` | Text/icons on `info`                                                                       |
-| `on-info-container`           | `#0d3b66` | Text/icons on `info-container`                                                             |
-| `primary-hover`               | `#D64C04` (light), `#004f94` (dark) | Hover state for primary controls                                                           |
-| `primary-pressed`             | `#C43D00` (light), `#00437d` (dark) | Pressed/active state for primary controls                                                  |
-| `primary-focus`               | `#F39D6A` (light), `#66a3d9` (dark) | Focus ring/accent for primary controls                                                     |
-| `primary-disabled`            | `#E8B3A0` (light), `#9bbbd7` (dark) | Disabled primary controls                                                                  |
-| `secondary-hover`             | `#47556c` | Hover state for secondary controls                                                         |
-| `secondary-pressed`           | `#3d495d` | Pressed/active state for secondary controls                                                |
-| `secondary-focus`             | `#8d9cb4` | Focus ring/accent for secondary controls                                                   |
-| `secondary-disabled`          | `#b4bcc8` | Disabled secondary controls                                                                |
-| `trend-positive`              | `#0f7a43` | Positive chart deltas and uptrend badges                                                   |
-| `trend-positive-container`    | `#d7f3e3` | Positive trend chip backgrounds                                                            |
-| `on-trend-positive-container` | `#0a4b2a` | Text/icons on positive trend containers                                                    |
-| `trend-negative`              | `#c62828` | Negative chart deltas and regression badges                                                |
-| `trend-negative-container`    | `#ffd9d6` | Negative trend chip backgrounds                                                            |
-| `on-trend-negative-container` | `#5f1313` | Text/icons on negative trend containers                                                    |
-| `trend-neutral`               | `#6b7280` | Flat/no-change chart signals and neutral badges                                            |
-| `trend-neutral-container`     | `#e5e7eb` | Neutral trend chip backgrounds                                                             |
-| `on-trend-neutral-container`  | `#374151` | Text/icons on neutral trend containers                                                     |
+| `primary-container`           | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion for primary CTAs                                                                                                       |
+| `primary-fixed`               | `#F5843C` (light), `#0075d6` (dark) | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration)                                                                           |
+| `on-primary`                  | `#ffffff`                           | Text/icons on `primary` backgrounds                                                                                                                                  |
+| `on-primary-container`        | `#ffffff`                           | Text/icons on `primary-container`                                                                                                                                    |
+| `secondary`                   | `#515f78`                           | Secondary actions, supporting data series                                                                                                                            |
+| `tertiary`                    | `#67587a`                           | Tertiary chart series and alternate data accents                                                                                                                     |
+| `secondary-container`         | `#d4e3ff`                           | Secondary chips, low-emphasis highlights                                                                                                                             |
+| `on-secondary`                | `#ffffff`                           | Text/icons on `secondary`                                                                                                                                            |
+| `on-secondary-container`      | `#1b2a41`                           | Text/icons on `secondary-container`                                                                                                                                  |
+| `surface`                     | `#f7fafc`                           | App canvas/base background                                                                                                                                           |
+| `surface-container-low`       | `#f1f4f6`                           | Section grouping backgrounds                                                                                                                                         |
+| `surface-container-lowest`    | `#ffffff`                           | Cards and foreground modules                                                                                                                                         |
+| `surface-container-high`      | `#e5e9eb`                           | Elevated neutral containers (secondary controls, skeletons)                                                                                                          |
+| `surface-bright`              | `#f7fafc`                           | Active overlays and glass-like floating surfaces                                                                                                                     |
+| `surface-tint`                | `#D64C04` (light), `#005faf` (dark) | Ambient interaction glow for elevated controls                                                                                                                       |
+| `surface-variant`             | `#e0e3e5`                           | Tracks, muted chart elements, neutral separators by tone                                                                                                             |
+| `on-surface`                  | `#181c1e`                           | Primary body text/icons                                                                                                                                              |
+| `on-surface-variant`          | `#43474a`                           | Secondary text, helper metadata                                                                                                                                      |
+| `outline`                     | `#73777a`                           | Focus/selection outlines requiring strong visibility                                                                                                                 |
+| `outline-variant`             | `#c2c7ca`                           | Subtle strokes for accessibility fallbacks                                                                                                                           |
+| `success`                     | `#0f7a43`                           | Positive outcomes, successful states                                                                                                                                 |
+| `success-container`           | `#d7f3e3`                           | Success banners, positive badge fills                                                                                                                                |
+| `on-success`                  | `#ffffff`                           | Text/icons on `success`                                                                                                                                              |
+| `on-success-container`        | `#0a4b2a`                           | Text/icons on `success-container`                                                                                                                                    |
+| `warning`                     | `#b26a00`                           | Cautionary messages, anomaly callouts                                                                                                                                |
+| `warning-container`           | `#ffe7c2`                           | Warning badges, caution background panels                                                                                                                            |
+| `on-warning`                  | `#1f1600`                           | Text/icons on `warning`                                                                                                                                              |
+| `on-warning-container`        | `#5c3a00`                           | Text/icons on `warning-container`                                                                                                                                    |
+| `error`                       | `#c62828`                           | Error states, critical regressions                                                                                                                                   |
+| `error-container`             | `#ffd9d6`                           | Error banners, destructive confirmation backgrounds                                                                                                                  |
+| `on-error`                    | `#ffffff`                           | Text/icons on `error`                                                                                                                                                |
+| `on-error-container`          | `#5f1313`                           | Text/icons on `error-container`                                                                                                                                      |
+| `info`                        | `#00639b`                           | Informational notices and neutral status messaging                                                                                                                   |
+| `info-container`              | `#cde5ff`                           | Info callouts and non-critical status cards                                                                                                                          |
+| `on-info`                     | `#ffffff`                           | Text/icons on `info`                                                                                                                                                 |
+| `on-info-container`           | `#0d3b66`                           | Text/icons on `info-container`                                                                                                                                       |
+| `primary-hover`               | `#D64C04` (light), `#004f94` (dark) | Hover state for primary controls                                                                                                                                     |
+| `primary-pressed`             | `#C43D00` (light), `#00437d` (dark) | Pressed/active state for primary controls                                                                                                                            |
+| `primary-focus`               | `#F39D6A` (light), `#66a3d9` (dark) | Focus ring/accent for primary controls                                                                                                                               |
+| `primary-disabled`            | `#E8B3A0` (light), `#9bbbd7` (dark) | Disabled primary controls                                                                                                                                            |
+| `secondary-hover`             | `#47556c`                           | Hover state for secondary controls                                                                                                                                   |
+| `secondary-pressed`           | `#3d495d`                           | Pressed/active state for secondary controls                                                                                                                          |
+| `secondary-focus`             | `#8d9cb4`                           | Focus ring/accent for secondary controls                                                                                                                             |
+| `secondary-disabled`          | `#b4bcc8`                           | Disabled secondary controls                                                                                                                                          |
+| `trend-positive`              | `#0f7a43`                           | Positive chart deltas and uptrend badges                                                                                                                             |
+| `trend-positive-container`    | `#d7f3e3`                           | Positive trend chip backgrounds                                                                                                                                      |
+| `on-trend-positive-container` | `#0a4b2a`                           | Text/icons on positive trend containers                                                                                                                              |
+| `trend-negative`              | `#c62828`                           | Negative chart deltas and regression badges                                                                                                                          |
+| `trend-negative-container`    | `#ffd9d6`                           | Negative trend chip backgrounds                                                                                                                                      |
+| `on-trend-negative-container` | `#5f1313`                           | Text/icons on negative trend containers                                                                                                                              |
+| `trend-neutral`               | `#6b7280`                           | Flat/no-change chart signals and neutral badges                                                                                                                      |
+| `trend-neutral-container`     | `#e5e7eb`                           | Neutral trend chip backgrounds                                                                                                                                       |
+| `on-trend-neutral-container`  | `#374151`                           | Text/icons on neutral trend containers                                                                                                                               |
 
 ### Token Naming Convention
 

@@ -51,8 +51,11 @@ test('applyPluginEnabledOverrides changes enabled state only when an override ex
   };
 
   assert.deepEqual(applyPluginEnabledOverrides(manifest, {}), manifest);
-  assert.deepEqual(applyPluginEnabledOverrides(manifest, { 'tag-manager': false }), {
-    ...manifest,
-    enabled: false,
-  });
+  assert.deepEqual(
+    applyPluginEnabledOverrides(manifest, { 'tag-manager': false }),
+    {
+      ...manifest,
+      enabled: false,
+    }
+  );
 });
