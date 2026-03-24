@@ -47,6 +47,40 @@ test('normalizeInstalledPluginRows keeps only valid manifest rows', () => {
       validation: {
         rows: [{ severity: 'info', path: 'enabled', message: 'ok' }],
       },
+      maturity: {
+        score: 62,
+        tier: 'bronze',
+        categoryScores: {
+          contract_metadata: {
+            label: 'Contract & Metadata',
+            earned: 10,
+            possible: 20,
+          },
+          runtime_integration: {
+            label: 'Runtime Integration',
+            earned: 14,
+            possible: 20,
+          },
+          feature_quality: {
+            label: 'Feature Quality',
+            earned: 16,
+            possible: 25,
+          },
+          test_coverage: {
+            label: 'Test Coverage',
+            earned: 12,
+            possible: 20,
+          },
+          operability_docs: {
+            label: 'Operability & Docs',
+            earned: 10,
+            possible: 15,
+          },
+        },
+        reasons: ['Plugin README is missing.'],
+        nextActions: ['Add a README for each plugin with usage and verification steps.'],
+        evidence: ['Manifest passes required schema validation.'],
+      },
     },
     {
       manifest: {
@@ -58,6 +92,7 @@ test('normalizeInstalledPluginRows keeps only valid manifest rows', () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0]?.manifest.id, 'tag-manager');
   assert.equal(rows[0]?.issues.length, 1);
+  assert.equal(rows[0]?.maturity?.tier, 'bronze');
 });
 
 test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', async () => {
@@ -85,6 +120,42 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
               validation: {
                 rows: [],
               },
+              maturity: {
+                score: 62,
+                tier: 'bronze',
+                categoryScores: {
+                  contract_metadata: {
+                    label: 'Contract & Metadata',
+                    earned: 10,
+                    possible: 20,
+                  },
+                  runtime_integration: {
+                    label: 'Runtime Integration',
+                    earned: 14,
+                    possible: 20,
+                  },
+                  feature_quality: {
+                    label: 'Feature Quality',
+                    earned: 16,
+                    possible: 25,
+                  },
+                  test_coverage: {
+                    label: 'Test Coverage',
+                    earned: 12,
+                    possible: 20,
+                  },
+                  operability_docs: {
+                    label: 'Operability & Docs',
+                    earned: 10,
+                    possible: 15,
+                  },
+                },
+                reasons: ['Plugin README is missing.'],
+                nextActions: [
+                  'Add a README for each plugin with usage and verification steps.',
+                ],
+                evidence: ['Manifest passes required schema validation.'],
+              },
             },
           ],
         }),
@@ -99,6 +170,7 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
   assert.equal(requestedAuthorization, 'Bearer test-token');
   assert.equal(plugins.length, 1);
   assert.equal(plugins[0]?.manifest.id, 'tag-manager');
+  assert.equal(plugins[0]?.maturity?.tier, 'bronze');
 });
 
 test('fetchInstalledPlugins surfaces API error payloads for auth failures', async () => {

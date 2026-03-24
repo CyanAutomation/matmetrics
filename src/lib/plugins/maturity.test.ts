@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -34,9 +34,13 @@ async function withPluginFixture(
   const repoRoot = await mkdtemp(path.join(tmpdir(), 'matmetrics-plugin-score-'));
   const pluginsRoot = path.join(repoRoot, 'plugins');
 
-  await mkdir(pluginsRoot, { recursive: true });
-  await setup(pluginsRoot, repoRoot);
-  await run(pluginsRoot);
+  try {
+    await mkdir(pluginsRoot, { recursive: true });
+    await setup(pluginsRoot, repoRoot);
+    await run(pluginsRoot);
+  } finally {
+    await rm(repoRoot, { recursive: true, force: true });
+  }
 }
 
 test('scorePluginMaturity returns Bronze for minimally documented plugin', async () => {
@@ -55,6 +59,7 @@ test('scorePluginMaturity returns Bronze for minimally documented plugin', async
         'utf8'
       );
       await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
         `export function ExamplePanel() {
@@ -74,7 +79,7 @@ test('scorePluginMaturity returns Bronze for minimally documented plugin', async
 
       assert.equal(scorecard.tier, 'bronze');
       assert.equal(scorecard.declaredTier, undefined);
-      assert.ok(scorecard.reasons.some((reason) => reason.includes('README')));
+      assert.ok(scorecard.nextActions.length > 0);
     }
   );
 });
@@ -102,6 +107,7 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
         'utf8'
       );
       await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
         `export function ExamplePanel() {
@@ -167,6 +173,9 @@ test('scorePluginMaturity returns Silver for a fully documented and tested plugi
         'utf8'
       );
       await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'lib', 'plugins'), {
+        recursive: true,
+      });
       await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),

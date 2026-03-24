@@ -16,9 +16,9 @@ Use the following token table as the canonical source for implementation. Produc
 
 | Token                         | Hex       | Intended Usage                                                                             |
 | ----------------------------- | --------- | ------------------------------------------------------------------------------------------ |
-| `primary`                     | `#F05A28` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series, high-emphasis links. Light mode: Ressa Red; Dark mode: MatMetrics Blue |
-| `primary-container`           | `#FF7B47` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion for primary CTAs                             |
-| `primary-fixed`               | `#FF7B47` (light), `#0075d6` (dark) | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
+| `primary`                     | `#E85D04` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series, high-emphasis links. Light mode: Ressa Red (saturated orange-red matching Ressa character); Dark mode: MatMetrics Blue |
+| `primary-container`           | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion for primary CTAs                             |
+| `primary-fixed`               | `#F5843C` (light), `#0075d6` (dark) | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration) |
 | `on-primary`                  | `#ffffff` | Text/icons on `primary` backgrounds                                                        |
 | `on-primary-container`        | `#ffffff` | Text/icons on `primary-container`                                                          |
 | `secondary`                   | `#515f78` | Secondary actions, supporting data series                                                  |
@@ -31,7 +31,7 @@ Use the following token table as the canonical source for implementation. Produc
 | `surface-container-lowest`    | `#ffffff` | Cards and foreground modules                                                               |
 | `surface-container-high`      | `#e5e9eb` | Elevated neutral containers (secondary controls, skeletons)                                |
 | `surface-bright`              | `#f7fafc` | Active overlays and glass-like floating surfaces                                           |
-| `surface-tint`                | `#E84A15` (light), `#005faf` (dark) | Ambient interaction glow for elevated controls                                             |
+| `surface-tint`                | `#D64C04` (light), `#005faf` (dark) | Ambient interaction glow for elevated controls                                             |
 | `surface-variant`             | `#e0e3e5` | Tracks, muted chart elements, neutral separators by tone                                   |
 | `on-surface`                  | `#181c1e` | Primary body text/icons                                                                    |
 | `on-surface-variant`          | `#43474a` | Secondary text, helper metadata                                                            |
@@ -53,10 +53,10 @@ Use the following token table as the canonical source for implementation. Produc
 | `info-container`              | `#cde5ff` | Info callouts and non-critical status cards                                                |
 | `on-info`                     | `#ffffff` | Text/icons on `info`                                                                       |
 | `on-info-container`           | `#0d3b66` | Text/icons on `info-container`                                                             |
-| `primary-hover`               | `#E84A15` (light), `#004f94` (dark) | Hover state for primary controls                                                           |
-| `primary-pressed`             | `#D73B00` (light), `#00437d` (dark) | Pressed/active state for primary controls                                                  |
-| `primary-focus`               | `#FF9D73` (light), `#66a3d9` (dark) | Focus ring/accent for primary controls                                                     |
-| `primary-disabled`            | `#FFBBA3` (light), `#9bbbd7` (dark) | Disabled primary controls                                                                  |
+| `primary-hover`               | `#D64C04` (light), `#004f94` (dark) | Hover state for primary controls                                                           |
+| `primary-pressed`             | `#C43D00` (light), `#00437d` (dark) | Pressed/active state for primary controls                                                  |
+| `primary-focus`               | `#F39D6A` (light), `#66a3d9` (dark) | Focus ring/accent for primary controls                                                     |
+| `primary-disabled`            | `#E8B3A0` (light), `#9bbbd7` (dark) | Disabled primary controls                                                                  |
 | `secondary-hover`             | `#47556c` | Hover state for secondary controls                                                         |
 | `secondary-pressed`           | `#3d495d` | Pressed/active state for secondary controls                                                |
 | `secondary-focus`             | `#8d9cb4` | Focus ring/accent for secondary controls                                                   |

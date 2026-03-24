@@ -257,6 +257,40 @@ test('known capability declaration passes without warnings', () => {
   }
 });
 
+test('manifest accepts optional owner and maturity metadata', () => {
+  const result = validatePluginManifest({
+    id: 'mature-plugin',
+    name: 'Mature Plugin',
+    version: '1.0.0',
+    description: 'Includes maturity metadata.',
+    owner: 'Matmetrics',
+    homepage: 'https://example.com/plugins/mature-plugin',
+    maturity: {
+      tier: 'bronze',
+      notes: 'Initial baseline.',
+      lastReviewedAt: '2026-03-24',
+    },
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'mature-plugin-dashboard-tab',
+        title: 'Mature Plugin',
+        config: {
+          tabId: 'mature-plugin',
+          headerTitle: 'Mature Plugin',
+          component: 'mature_plugin',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.manifest.owner, 'Matmetrics');
+    assert.equal(result.manifest.maturity?.tier, 'bronze');
+  }
+});
+
 test('plugin with acceptable minVersion passes', () => {
   const result = validatePluginManifest(
     {

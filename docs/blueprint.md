@@ -10,7 +10,7 @@
 
 ## Style Guidelines
 
-- Light scheme for a clean and focused feel. Primary color (Ressa Red): #F05A28, an energetic red-orange representing focus and energy. Dark mode retains MatMetrics Blue (#296BCD) for contrast. Background color: #ECF1F4, a very light, desaturated blue providing a clean canvas. Accent color (Progress Cyan): #3DCCE2, a vibrant cyan offering an energetic highlight for interactive elements and data points.
+- Light scheme for a clean and focused feel. Primary color (Ressa Red): #E85D04, a vibrant saturated orange-red inspired by Ressa's character design, representing focus and energy. Dark mode retains MatMetrics Blue (#296BCD) for contrast. Background color: #ECF1F4, a very light, desaturated blue providing a clean canvas. Accent color (Progress Cyan): #3DCCE2, a vibrant cyan offering an energetic highlight for interactive elements and data points.
 - Body and headline font: 'Inter' (sans-serif) for its modern, clear, and objective appearance, ensuring high readability for data and labels across the application.
 - Use minimalist, line-art style icons. Prioritize icons that visually represent common Judo actions, techniques, or tracking concepts for easy recognition within the app's interface.
 - Maintain a clean and structured layout with ample whitespace to enhance readability and user focus on training data. Implement responsive design for consistent experience across devices, especially for dashboard elements and forms.

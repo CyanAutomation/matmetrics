@@ -63,6 +63,18 @@ async function withTempRepo(run: (repoRoot: string) => Promise<void>) {
 
 test('GET /api/plugins/list returns manifests and contract payload', async () => {
   await withTempRepo(async () => {
+    await mkdir(path.join(process.cwd(), 'plugins', 'tags', 'src'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'tags', 'src', 'index.ts'),
+      `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('tags-dashboard-tab');
+  context.registerPluginComponent?.('tag_manager', () => null);
+};
+`,
+      'utf8'
+    );
     const response = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
         headers: { authorization: 'Bearer test-token' },
@@ -75,6 +87,8 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
     assert.equal(payload.fileTreeDiffSummary.mode, 'dry-run');
     assert.equal(payload.fileTreeDiffSummary.files[0].changeType, 'unchanged');
     assert.equal(payload.validationTable.isValid, true);
+    assert.equal(payload.plugins[0].maturity.tier, 'bronze');
+    assert.equal(typeof payload.plugins[0].maturity.score, 'number');
   });
 });
 
