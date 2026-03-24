@@ -21,6 +21,14 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { GitHubConfig } from '@/lib/types';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
@@ -42,7 +50,10 @@ export function GitHubSettings() {
     message: string;
   } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDisabling, setIsDisabling] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -61,6 +72,47 @@ export function GitHubSettings() {
     setIsEnabled(enabled);
     setMigrationDone(migrationDoneValue);
   }, [preferences.gitHub]);
+
+  const parseApiResponse = async (
+    response: Response,
+    fallbackMessage: string
+  ): Promise<{ success: boolean; message: string }> => {
+    let payload: unknown = null;
+
+    try {
+      payload = await response.json();
+    } catch {
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Server error (${response.status}). ${fallbackMessage}`,
+        };
+      }
+      return {
+        success: false,
+        message: `Unexpected response format. ${fallbackMessage}`,
+      };
+    }
+
+    const message =
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      typeof payload.message === 'string' &&
+      payload.message.trim()
+        ? payload.message
+        : fallbackMessage;
+
+    const success =
+      payload &&
+      typeof payload === 'object' &&
+      'success' in payload &&
+      typeof payload.success === 'boolean'
+        ? payload.success
+        : response.ok;
+
+    return { success, message };
+  };
 
   const handleSaveConfig = async () => {
     if (!user) return;
@@ -118,7 +170,10 @@ export function GitHubSettings() {
         }),
       });
 
-      const result = await response.json();
+      const result = await parseApiResponse(
+        response,
+        'Unable to validate this repository right now. Please try again.'
+      );
       setTestResult(result);
 
       if (result.success) {
@@ -137,11 +192,12 @@ export function GitHubSettings() {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setTestResult({
         success: false,
-        message: `Error: ${message}`,
+        message: `Network error while testing connection: ${message}`,
       });
       toast({
-        title: 'Error',
-        description: 'Failed to test connection',
+        title: 'Network Error',
+        description:
+          'We could not reach the server to test your GitHub connection.',
         variant: 'destructive',
       });
     } finally {
@@ -176,7 +232,10 @@ export function GitHubSettings() {
         }),
       });
 
-      const result = await response.json();
+      const result = await parseApiResponse(
+        response,
+        'Sync failed due to an unexpected server response. Please try again.'
+      );
 
       if (result.success) {
         setMigrationDone(true);
@@ -198,7 +257,7 @@ export function GitHubSettings() {
         });
       } else {
         toast({
-          title: 'Sync Failed',
+          title: response.ok ? 'Sync Failed' : 'Server Error',
           description: result.message,
           variant: 'destructive',
         });
@@ -206,8 +265,8 @@ export function GitHubSettings() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
-        title: 'Error',
-        description: `Bulk sync failed: ${message}`,
+        title: 'Network Error',
+        description: `Bulk sync request failed: ${message}`,
         variant: 'destructive',
       });
     } finally {
@@ -217,21 +276,33 @@ export function GitHubSettings() {
 
   const handleDisable = async () => {
     if (!user) return;
-
-    await saveGitHubSettingsPreference(user.uid, {
-      ...preferences.gitHub,
-      enabled: false,
-    });
-    setIsEnabled(false);
-    toast({
-      description: 'GitHub sync disabled',
-    });
+    setIsDisabling(true);
+    try {
+      await saveGitHubSettingsPreference(user.uid, {
+        ...preferences.gitHub,
+        enabled: false,
+      });
+      setIsEnabled(false);
+      toast({
+        title: 'Sync Disabled',
+        description: 'GitHub sync has been turned off.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: 'Server Error',
+        description: `Unable to disable GitHub sync: ${message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDisabling(false);
+    }
   };
 
   const handleClear = async () => {
     if (!user) return;
-
-    if (confirm('Are you sure? This will clear your GitHub configuration.')) {
+    setIsClearing(true);
+    try {
       await clearGitHubConfigPreference(user.uid);
       setOwner('');
       setRepo('');
@@ -239,9 +310,20 @@ export function GitHubSettings() {
       setIsEnabled(false);
       setTestResult(null);
       setMigrationDone(false);
+      setIsClearDialogOpen(false);
       toast({
-        description: 'GitHub configuration cleared',
+        title: 'Configuration Cleared',
+        description: 'GitHub repository settings were removed.',
       });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: 'Server Error',
+        description: `Unable to clear GitHub settings: ${message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -412,28 +494,67 @@ export function GitHubSettings() {
             {isEnabled && (
               <Button
                 onClick={() => void handleDisable()}
-                disabled={!canUseGitHubSync}
+                disabled={!canUseGitHubSync || isDisabling || isClearing}
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
               >
-                Disable Sync
+                {isDisabling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Disabling...
+                  </>
+                ) : (
+                  'Disable Sync'
+                )}
               </Button>
             )}
 
             {isEnabled && (
               <Button
-                onClick={() => void handleClear()}
-                disabled={!canUseGitHubSync}
+                onClick={() => setIsClearDialogOpen(true)}
+                disabled={!canUseGitHubSync || isDisabling || isClearing}
                 variant="ghost"
                 size="sm"
-                className="text-gray-600 ml-auto"
+                className="gap-2 text-gray-600 ml-auto"
               >
-                <Trash2 className="h-4 w-4" />
+                {isClearing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {isClearing ? 'Clearing...' : 'Clear'}
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {!isEnabled && (
+        <Alert className="bg-slate-50 border-slate-200">
+          <AlertCircle className="h-4 w-4 text-slate-600" />
+          <AlertTitle className="text-slate-900 font-bold">
+            Sync not configured
+          </AlertTitle>
+          <AlertDescription className="text-slate-700">
+            No repository is currently configured. Add an owner and repository
+            above, then save your configuration to enable GitHub sync.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isEnabled && !migrationDone && (
+        <Alert className="bg-purple-50 border-purple-200">
+          <AlertCircle className="h-4 w-4 text-purple-700" />
+          <AlertTitle className="text-purple-900 font-bold">
+            Initial sync pending
+          </AlertTitle>
+          <AlertDescription className="text-purple-800">
+            GitHub sync is enabled, but existing sessions have not been pushed
+            yet. Run initial sync below to backfill your current training
+            history.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Bulk Sync Section */}
       {isEnabled && !migrationDone && (
@@ -497,6 +618,48 @@ export function GitHubSettings() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear GitHub configuration?</DialogTitle>
+            <DialogDescription>
+              This removes your saved repository owner, name, and branch
+              settings. GitHub sync will be disabled until you configure it
+              again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsClearDialogOpen(false)}
+              disabled={isClearing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleClear()}
+              disabled={isClearing}
+              className="gap-2"
+            >
+              {isClearing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Clear Configuration
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
