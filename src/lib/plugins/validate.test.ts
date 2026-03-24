@@ -257,7 +257,7 @@ test('known capability declaration passes without warnings', () => {
   }
 });
 
-test('manifest accepts optional owner and maturity metadata', () => {
+test('manifest accepts optional first-party metadata and maturity metadata', () => {
   const result = validatePluginManifest({
     id: 'mature-plugin',
     name: 'Mature Plugin',
