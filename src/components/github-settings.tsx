@@ -82,6 +82,9 @@ export function GitHubSettings() {
     try {
       payload = await response.json();
     } catch {
+    try {
+      payload = await response.json();
+    } catch {
       if (!response.ok) {
         return {
           success: false,
@@ -89,9 +92,10 @@ export function GitHubSettings() {
         };
       }
       return {
-        success: false,
-        message: `Unexpected response format. ${fallbackMessage}`,
+        success: true,
+        message: fallbackMessage,
       };
+    }
     }
 
     const message =
