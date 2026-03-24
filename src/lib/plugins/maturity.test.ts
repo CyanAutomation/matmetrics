@@ -138,8 +138,6 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
       const scorecard = await scorePluginMaturity({
         manifest: {
           ...baseManifest,
-          owner: 'Matmetrics',
-          homepage: 'https://example.com/plugins/example-plugin',
           maturity: {
             tier: 'silver',
             notes: 'Attempting to advance maturity.',
@@ -161,7 +159,7 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
   );
 });
 
-test('scorePluginMaturity returns Silver for a fully documented and tested plugin', async () => {
+test('scorePluginMaturity returns Silver for a fully documented and tested first-party plugin', async () => {
   await withPluginFixture(
     async (pluginsRoot, repoRoot) => {
       await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
@@ -227,8 +225,6 @@ test('scorePluginMaturity returns Silver for a fully documented and tested plugi
       const scorecard = await scorePluginMaturity({
         manifest: {
           ...baseManifest,
-          owner: 'Matmetrics',
-          homepage: 'https://example.com/plugins/example-plugin',
           maturity: {
             tier: 'silver',
             notes: 'Reviewed and documented.',
@@ -243,6 +239,12 @@ test('scorePluginMaturity returns Silver for a fully documented and tested plugi
       assert.equal(scorecard.tier, 'silver');
       assert.ok(scorecard.score >= 70);
       assert.equal(scorecard.declaredTier, 'silver');
+      assert.ok(
+        scorecard.reasons.every((reason) => !reason.includes('owner'))
+      );
+      assert.ok(
+        scorecard.nextActions.every((action) => !action.includes('owner'))
+      );
     }
   );
 });

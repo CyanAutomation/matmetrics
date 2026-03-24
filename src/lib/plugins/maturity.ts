@@ -168,24 +168,6 @@ export const scorePluginMaturity = async ({
     pushUnique(evidence, 'Manifest declares explicit capabilities.');
   }
 
-  if (manifest.owner || manifest.author) {
-    categoryScores.contract_metadata += 4;
-    pushUnique(evidence, 'Manifest declares a plugin owner or author.');
-  } else {
-    pushUnique(reasons, 'Manifest does not declare a plugin owner.');
-    pushUnique(nextActions, 'Add `owner` to each plugin manifest.');
-  }
-
-  if (manifest.homepage) {
-    categoryScores.contract_metadata += 2;
-  } else {
-    pushUnique(
-      reasons,
-      'Manifest is missing a homepage or canonical reference.'
-    );
-    pushUnique(nextActions, 'Add `homepage` for each plugin.');
-  }
-
   if (
     manifest.maturity?.tier &&
     manifest.maturity.notes &&
@@ -391,15 +373,7 @@ export const scorePluginMaturity = async ({
     );
   }
 
-  if (manifest.owner || manifest.author) {
-    categoryScores.operability_docs += 3;
-  }
-
   if (manifest.maturity?.notes && manifest.maturity.lastReviewedAt) {
-    categoryScores.operability_docs += 2;
-  }
-
-  if (manifest.homepage) {
     categoryScores.operability_docs += 2;
   }
 
@@ -438,7 +412,6 @@ export const scorePluginMaturity = async ({
           issue.message.includes('requires matmetrics version'))
     );
   const hasAnyTestEvidence = testEvidenceFiles.length > 0;
-  const hasOwner = Boolean(manifest.owner || manifest.author);
   const hasReadme = await fileExists(pluginReadmePath);
   const isExplicitGoldReview = manifest.maturity?.tier === 'gold';
 
@@ -448,7 +421,6 @@ export const scorePluginMaturity = async ({
     !hasValidationErrors &&
     !hasBlockingWarnings &&
     hasAnyTestEvidence &&
-    hasOwner &&
     hasReadme &&
     isExplicitGoldReview
   ) {
@@ -458,7 +430,6 @@ export const scorePluginMaturity = async ({
     !hasValidationErrors &&
     !hasBlockingWarnings &&
     hasAnyTestEvidence &&
-    hasOwner &&
     hasReadme
   ) {
     tier = 'silver';
@@ -479,10 +450,10 @@ export const scorePluginMaturity = async ({
       'Missing automated test evidence caps the plugin at Bronze.'
     );
   }
-  if (!hasOwner || !hasReadme) {
+  if (!hasReadme) {
     pushUnique(
       reasons,
-      'Missing ownership or plugin documentation prevents promotion beyond Bronze/Silver.'
+      'Missing plugin documentation prevents promotion beyond Bronze/Silver.'
     );
   }
   if (totalScore >= 85 && !isExplicitGoldReview) {
