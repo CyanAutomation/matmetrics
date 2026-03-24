@@ -40,7 +40,7 @@ const componentIdToComponentBasename = (componentId: string): string =>
   componentId.replace(/_/g, '-');
 
 const pluginComponentRegistrationPattern =
-  /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"`]([^'"`]+)['"`]\s*,/g;
+  /\.?registerPluginComponent(?:\?\.)?  \s*\(\s*['"]([^'"]+)['"]\s*,/g;
 
 const extractRegisteredPluginComponents = (entryContents: string): string[] => {
   const componentIds = new Set<string>();
