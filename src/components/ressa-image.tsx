@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 
 export type RessaPose = 1 | 2 | 3 | 4 | 5;
