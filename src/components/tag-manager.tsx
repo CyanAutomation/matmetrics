@@ -120,10 +120,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           variant: 'destructive',
         });
       }
-    } catch {
+    } catch (error) {
       const message =
         'Could not analyze this rename. Check the tag name and try again.';
       setRenameError(message);
+      console.error('Rename analysis failed:', error);
       toast({
         title: 'Rename analysis failed',
         description: `${message} If this keeps happening, refresh and retry.`,
@@ -184,10 +185,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           variant: 'destructive',
         });
       }
-    } catch {
+    } catch (error) {
       const message =
         'Could not analyze this merge. Confirm the target tag and try again.';
       setMergeError(message);
+      console.error('Merge analysis failed:', error);
       toast({
         title: 'Merge analysis failed',
         description: `${message} If this keeps happening, refresh and retry.`,
@@ -247,10 +249,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           variant: 'destructive',
         });
       }
-    } catch {
+    } catch (error) {
       const message =
         'Could not analyze this deletion. Please try again in a moment.';
       setDeleteError(message);
+      console.error('Delete analysis failed:', error);
       toast({
         title: 'Delete analysis failed',
         description: `${message} If this keeps happening, refresh and retry.`,
