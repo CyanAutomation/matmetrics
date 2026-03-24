@@ -18,23 +18,71 @@ import {
   RotateCcw,
   Info,
   CheckCircle2,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth-provider';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   resetTransformerPromptPreference,
   saveTransformerPromptPreference,
 } from '@/lib/user-preferences';
+
+type PromptSettingsUiState = {
+  isPromptMeaningful: boolean;
+  areControlsDisabled: boolean;
+  canSubmitPrompt: boolean;
+};
+
+export function derivePromptSettingsUiState({
+  prompt,
+  canSavePreferences,
+  isSaving,
+  isResetting,
+}: {
+  prompt: string;
+  canSavePreferences: boolean;
+  isSaving: boolean;
+  isResetting: boolean;
+}): PromptSettingsUiState {
+  const isPromptMeaningful = prompt.trim().length > 0;
+  const areControlsDisabled =
+    !canSavePreferences || isSaving || isResetting;
+
+  return {
+    isPromptMeaningful,
+    areControlsDisabled,
+    canSubmitPrompt: isPromptMeaningful && !areControlsDisabled,
+  };
+}
 
 export function PromptSettings() {
   const { toast } = useToast();
   const { user, preferences, canSavePreferences, authAvailable } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const { isPromptMeaningful, areControlsDisabled, canSubmitPrompt } =
+    derivePromptSettingsUiState({
+      prompt,
+      canSavePreferences,
+      isSaving,
+      isResetting,
+    });
 
   useEffect(() => {
     setPrompt(preferences.transformerPrompt);
@@ -49,31 +97,74 @@ export function PromptSettings() {
   }, []);
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !isPromptMeaningful || isSaving || isResetting) return;
 
-    await saveTransformerPromptPreference(user.uid, prompt);
-    setIsSaved(true);
-    toast({
-      title: 'Prompt updated',
-      description:
-        'Your AI transformation instructions have been saved successfully.',
-    });
-    if (savedIndicatorTimeoutRef.current !== null) {
-      clearTimeout(savedIndicatorTimeoutRef.current);
+    setIsSaving(true);
+    try {
+      await saveTransformerPromptPreference(user.uid, prompt);
+      setIsSaved(true);
+      toast({
+        title: 'Prompt updated',
+        description:
+          'Your AI transformation instructions have been saved successfully.',
+      });
+      if (savedIndicatorTimeoutRef.current !== null) {
+        clearTimeout(savedIndicatorTimeoutRef.current);
+      }
+      savedIndicatorTimeoutRef.current = setTimeout(() => {
+        savedIndicatorTimeoutRef.current = null;
+        setIsSaved(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to save transformer prompt preference', error);
+      toast({
+        variant: 'destructive',
+        title: 'Could not save prompt',
+        description:
+          'Your prompt was not saved. Please try again in a moment.',
+      });
+    } finally {
+      setIsSaving(false);
     }
-    savedIndicatorTimeoutRef.current = setTimeout(() => {
-      savedIndicatorTimeoutRef.current = null;
-      setIsSaved(false);
-    }, 3000);
   };
 
   const handleReset = async () => {
-    if (!user) return;
+    if (!user || isSaving || isResetting) return;
 
-    await resetTransformerPromptPreference(user.uid);
-    toast({
-      description: 'Prompt reset to default Kodokan standards.',
-    });
+    setIsResetting(true);
+    try {
+      await resetTransformerPromptPreference(user.uid);
+    try {
+      await resetTransformerPromptPreference(user.uid);
+      toast({
+        description: 'Prompt reset to default Kodokan standards.',
+      });
+    } catch (error) {
+      console.error('Failed to reset transformer prompt preference', error);
+      toast({
+        variant: 'destructive',
+        title: 'Could not reset prompt',
+        description:
+          'We could not reset your prompt right now. Please try again.',
+      });
+    } finally {
+      setIsResetDialogOpen(false);
+      setIsResetting(false);
+    }
+      toast({
+        description: 'Prompt reset to default Kodokan standards.',
+      });
+    } catch (error) {
+      console.error('Failed to reset transformer prompt preference', error);
+      toast({
+        variant: 'destructive',
+        title: 'Could not reset prompt',
+        description:
+          'We could not reset your prompt right now. Please try again.',
+      });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -134,36 +225,87 @@ export function PromptSettings() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your custom instructions here..."
-              disabled={!canSavePreferences}
+              disabled={areControlsDisabled}
               className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
             />
             <p className="text-[11px] text-muted-foreground italic">
-              Note: The AI will automatically append your practice description
-              to the end of these instructions during transformation.
+              {isPromptMeaningful
+                ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
+                : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
             </p>
           </div>
         </CardContent>
         <CardFooter className="bg-secondary/45 p-6 flex justify-between items-center">
-          <Button
-            variant="outline"
-            onClick={() => void handleReset()}
-            disabled={!canSavePreferences}
-            className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset to Default
-          </Button>
+          <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsResetDialogOpen(true)}
+              disabled={areControlsDisabled}
+              className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
+            >
+              {isResetting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              {isResetting ? 'Resetting…' : 'Reset to Default'}
+            </Button>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  Reset custom prompt?
+                </DialogTitle>
+                <DialogDescription>
+                  This will replace your custom instructions with the default
+                  prompt. You can still edit it again afterward.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsResetDialogOpen(false)}
+                  disabled={isResetting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => void handleReset()}
+                  disabled={isResetting}
+                  className="gap-2"
+                >
+                  {isResetting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Resetting…
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-4 w-4" />
+                      Yes, reset prompt
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button
             onClick={() => void handleSave()}
-            disabled={!canSavePreferences}
+            disabled={!canSubmitPrompt}
             className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
           >
-            {isSaved ? (
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isSaved ? (
               <CheckCircle2 className="h-4 w-4" />
             ) : (
               <Save className="h-4 w-4" />
             )}
-            {isSaved ? 'Saved!' : 'Save Prompt'}
+            {isSaving ? 'Saving…' : isSaved ? 'Saved!' : 'Save Prompt'}
           </Button>
         </CardFooter>
       </Card>
