@@ -82,9 +82,6 @@ export function GitHubSettings() {
     try {
       payload = await response.json();
     } catch {
-    try {
-      payload = await response.json();
-    } catch {
       if (!response.ok) {
         return {
           success: false,
@@ -95,7 +92,6 @@ export function GitHubSettings() {
         success: true,
         message: fallbackMessage,
       };
-    }
     }
 
     const message =
@@ -242,7 +238,6 @@ export function GitHubSettings() {
       );
 
       if (result.success) {
-        setMigrationDone(true);
         await saveGitHubSettingsPreference(user.uid, {
           ...preferences.gitHub,
           config: {
@@ -255,6 +250,7 @@ export function GitHubSettings() {
           syncStatus: 'success',
           lastSyncTime: new Date().toISOString(),
         });
+        setMigrationDone(true);
         toast({
           title: 'Bulk Sync Complete',
           description: result.message,
