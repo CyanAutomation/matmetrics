@@ -51,6 +51,7 @@ test('tag-manager renderer returns TagManager and forwards refreshSessions as on
   let capturedRenderer: ((context: TabRenderContext) => unknown) | null = null;
 
   initPlugin({
+    register: () => undefined,
     registerPluginComponent: (_componentId, renderer) => {
       capturedRenderer = renderer;
     },
