@@ -1,10 +1,12 @@
 import type {
   PluginManifest,
+  PluginMaturityScorecard,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
 
 export type PluginListRow = {
   manifest: unknown;
+  maturity?: PluginMaturityScorecard;
   validation?: {
     isValid?: boolean;
     rows?: PluginValidationIssue[];
@@ -14,6 +16,7 @@ export type PluginListRow = {
 export type InstalledPluginManifestRow = {
   manifest: PluginManifest;
   issues: PluginValidationIssue[];
+  maturity?: PluginMaturityScorecard;
 };
 
 export type PluginManagerAccessState =
@@ -116,6 +119,7 @@ export const normalizeInstalledPluginRows = (
       {
         manifest: candidate as PluginManifest,
         issues,
+        maturity: pluginRow.maturity,
       },
     ];
   });

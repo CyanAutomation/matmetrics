@@ -207,7 +207,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                           className={cn(
                             'h-full rounded-full transition-all duration-500',
                             cat.name === 'Technical'
-                              ? 'bg-sky-500'
+                              ? 'bg-orange-500'
                               : cat.name === 'Randori'
                                 ? 'bg-indigo-500'
                                 : 'bg-rose-500'

@@ -3,6 +3,11 @@
   "name": "Tag Manager Plugin",
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing tags.",
+  "maturity": {
+    "tier": "bronze",
+    "notes": "Baseline maturity. Strongest current plugin feature set, but still missing dedicated plugin docs, ownership metadata, and stronger explicit tests.",
+    "lastReviewedAt": "2026-03-24"
+  },
   "capabilities": ["tag_mutation"],
   "enabled": true,
   "uiExtensions": [

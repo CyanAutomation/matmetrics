@@ -32,6 +32,8 @@ import {
 } from '@/lib/plugins/plugin-manager-client';
 import type {
   PluginManifest,
+  PluginMaturityScorecard,
+  PluginMaturityTier,
   PluginValidationIssue,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
@@ -45,6 +47,7 @@ type InstalledPluginRow = Pick<
   status: PluginToggleStatus;
   statusMessage?: string;
   issues: PluginValidationIssue[];
+  maturity?: PluginMaturityScorecard;
 };
 
 const severityOrder: Record<PluginValidationSeverity, number> = {
@@ -69,6 +72,15 @@ const severityBadgeClass: Record<PluginValidationSeverity, string> = {
   warning: 'bg-amber-500/10 text-amber-700 border-amber-300/40',
   info: 'bg-primary/10 text-primary border-primary/30',
 };
+
+const tierBadgeClass: Record<PluginMaturityTier, string> = {
+  bronze: 'bg-amber-700/10 text-amber-800 border-amber-700/30',
+  silver: 'bg-slate-500/10 text-slate-700 border-slate-400/40',
+  gold: 'bg-yellow-500/10 text-yellow-800 border-yellow-400/40',
+};
+
+const formatTierLabel = (tier: PluginMaturityTier): string =>
+  tier.charAt(0).toUpperCase() + tier.slice(1);
 
 const resolveEntrySummarySeverity = (
   issues: PluginValidationIssue[]
@@ -155,6 +167,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         description: manifest.manifest.description,
         enabled: manifest.manifest.enabled,
         issues: manifest.issues,
+        maturity: manifest.maturity,
         status: statusEntries[manifest.manifest.id]?.status ?? 'idle',
         statusMessage: statusEntries[manifest.manifest.id]?.statusMessage,
       }));
@@ -319,6 +332,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   <TableHead>name</TableHead>
                   <TableHead>id</TableHead>
                   <TableHead>version</TableHead>
+                  <TableHead>maturity</TableHead>
                   <TableHead>description</TableHead>
                   <TableHead>enabled</TableHead>
                   <TableHead className="text-right">status</TableHead>
@@ -336,6 +350,25 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {plugin.version}
+                      </TableCell>
+                      <TableCell>
+                        {plugin.maturity ? (
+                          <div className="space-y-1">
+                            <Badge
+                              variant="outline"
+                              className={tierBadgeClass[plugin.maturity.tier]}
+                            >
+                              {formatTierLabel(plugin.maturity.tier)}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground">
+                              {plugin.maturity.score}/100
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Unscored
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-sm text-sm text-muted-foreground">
                         {plugin.description}
@@ -425,10 +458,37 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold">{plugin.id}</div>
-                    <Badge className={severityBadgeClass[summarySeverity]}>
-                      {severityLabel(summarySeverity)}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {plugin.maturity ? (
+                        <Badge
+                          variant="outline"
+                          className={tierBadgeClass[plugin.maturity.tier]}
+                        >
+                          {formatTierLabel(plugin.maturity.tier)}{' '}
+                          {plugin.maturity.score}/100
+                        </Badge>
+                      ) : null}
+                      <Badge className={severityBadgeClass[summarySeverity]}>
+                        {severityLabel(summarySeverity)}
+                      </Badge>
+                    </div>
                   </div>
+
+                  {plugin.maturity ? (
+                    <div className="space-y-2 text-sm">
+                      <p className="text-muted-foreground">
+                        {plugin.maturity.reasons[0] ??
+                          'No maturity gaps are currently recorded.'}
+                      </p>
+                      {plugin.maturity.nextActions.length > 0 ? (
+                        <ul className="space-y-1 text-muted-foreground">
+                          {plugin.maturity.nextActions.map((action) => (
+                            <li key={`${plugin.id}-${action}`}>{action}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {plugin.issues.length === 0 ? (
                     <p className="text-sm text-muted-foreground">

@@ -405,7 +405,6 @@ export function GitHubSettings() {
             <Button
               onClick={() => void handleSaveConfig()}
               disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
             >
               Save Configuration
             </Button>
