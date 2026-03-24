@@ -30,66 +30,64 @@ export async function GET(request: NextRequest) {
       const loadedManifests = await listStoredPluginManifests();
       manifests.push(...loadedManifests);
     } catch (error) {
-      const errMsg =
-        error instanceof Error ? error.message : String(error);
+      const errMsg = error instanceof Error ? error.message : String(error);
       console.error('Error discovering plugins:', errMsg);
-      discoveryErrors.push(
-        `Failed to discover plugins: ${errMsg}`
-      );
+      discoveryErrors.push(`Failed to discover plugins: ${errMsg}`);
       // Continue with empty plugins list instead of failing completely
     }
 
     try {
       enabledOverrides = await loadPluginEnabledOverrides();
     } catch (error) {
-      const errMsg =
-        error instanceof Error ? error.message : String(error);
+      const errMsg = error instanceof Error ? error.message : String(error);
       console.error('Error loading plugin enabled overrides:', errMsg);
       discoveryErrors.push(
         `Failed to load plugin enabled overrides: ${errMsg}`
       );
     }
 
-    const pluginRows = await Promise.all(manifests.map(async (entry) => {
-      const effectiveManifest = applyPluginEnabledOverrides(
-        entry.manifest,
-        enabledOverrides
-      );
-      const { manifest: processedManifest, autoDisabledWithWarnings } =
-        autoDisablePluginIfNeeded(effectiveManifest);
-      const validation = toValidationTable(processedManifest);
-
-      // Add auto-disable warnings to validation issues
-      if (autoDisabledWithWarnings) {
-        validation.rows.push(
-          ...autoDisabledWithWarnings.map((msg) => ({
-            severity: 'warning' as const,
-            path: 'enabled',
-            message: `Auto-disabled: ${msg}`,
-          }))
+    const pluginRows = await Promise.all(
+      manifests.map(async (entry) => {
+        const effectiveManifest = applyPluginEnabledOverrides(
+          entry.manifest,
+          enabledOverrides
         );
-      }
+        const { manifest: processedManifest, autoDisabledWithWarnings } =
+          autoDisablePluginIfNeeded(effectiveManifest);
+        const validation = toValidationTable(processedManifest);
 
-      const maturity =
-        validation.isValid &&
-        processedManifest &&
-        typeof processedManifest === 'object' &&
-        !Array.isArray(processedManifest)
-          ? await scorePluginMaturity({
-              manifest: processedManifest as PluginManifest,
-              validationIssues: validation.rows,
-              pluginDirectoryName: entry.directoryName,
-              autoDisabledWithWarnings,
-            })
-          : undefined;
+        // Add auto-disable warnings to validation issues
+        if (autoDisabledWithWarnings) {
+          validation.rows.push(
+            ...autoDisabledWithWarnings.map((msg) => ({
+              severity: 'warning' as const,
+              path: 'enabled',
+              message: `Auto-disabled: ${msg}`,
+            }))
+          );
+        }
 
-      return {
-        manifest: processedManifest,
-        validation,
-        autoDisabledWithWarnings,
-        maturity,
-      };
-    }));
+        const maturity =
+          validation.isValid &&
+          processedManifest &&
+          typeof processedManifest === 'object' &&
+          !Array.isArray(processedManifest)
+            ? await scorePluginMaturity({
+                manifest: processedManifest as PluginManifest,
+                validationIssues: validation.rows,
+                pluginDirectoryName: entry.directoryName,
+                autoDisabledWithWarnings,
+              })
+            : undefined;
+
+        return {
+          manifest: processedManifest,
+          validation,
+          autoDisabledWithWarnings,
+          maturity,
+        };
+      })
+    );
 
     const response = {
       plugins: pluginRows,
@@ -119,8 +117,7 @@ export async function GET(request: NextRequest) {
       status: discoveryErrors.length > 0 ? 206 : 200, // 206 Partial Content if there were discovery errors
     });
   } catch (error) {
-    const errMsg =
-      error instanceof Error ? error.message : String(error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Error listing plugins:', errMsg);
     return NextResponse.json(
       {

@@ -107,10 +107,7 @@ export type PluginMaturityCategoryScore = {
 export type PluginMaturityScorecard = {
   score: number;
   tier: PluginMaturityTier;
-  categoryScores: Record<
-    PluginMaturityCategory,
-    PluginMaturityCategoryScore
-  >;
+  categoryScores: Record<PluginMaturityCategory, PluginMaturityCategoryScore>;
   reasons: string[];
   nextActions: string[];
   evidence: string[];

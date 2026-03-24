@@ -470,9 +470,7 @@ export function SessionLogForm({
             </div>
             <div className="md:col-span-4 space-y-2.5">
               <div className="h-5 flex items-center justify-between">
-                <Label className="text-sm font-semibold">
-                  Effort Level
-                </Label>
+                <Label className="text-sm font-semibold">Effort Level</Label>
                 <span className="text-xs text-muted-foreground">
                   1 = Easy, 5 = Intense
                 </span>

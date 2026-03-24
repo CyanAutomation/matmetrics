@@ -40,10 +40,13 @@ test('loadDashboardTabExtensions uses discovery API response when available', as
     },
     fetchImpl: async (_input, init) => {
       requestedCacheMode = init?.cache;
-      return new Response(JSON.stringify({ extensions: [discoveredExtension] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ extensions: [discoveredExtension] }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     },
   });
 
@@ -76,7 +79,10 @@ test('loadDashboardTabExtensions falls back to local registry when discovery fai
     assert.deepEqual(result, fallbackResult);
     assert.equal(fallbackCalls, 1);
     assert.equal(warnings.length, 1);
-    assert.match(String(warnings[0]?.[0] ?? ''), /Falling back to legacy plugin dashboard discovery/);
+    assert.match(
+      String(warnings[0]?.[0] ?? ''),
+      /Falling back to legacy plugin dashboard discovery/
+    );
   } finally {
     console.warn = originalWarn;
   }
@@ -106,7 +112,10 @@ test('loadDashboardTabExtensions logs API error payload before falling back', as
 
     assert.deepEqual(result, fallbackResult);
     assert.equal(warnings.length, 1);
-    assert.match(String(warnings[0]?.[1] ?? ''), /Failed to discover plugin dashboard tabs/);
+    assert.match(
+      String(warnings[0]?.[1] ?? ''),
+      /Failed to discover plugin dashboard tabs/
+    );
   } finally {
     console.warn = originalWarn;
   }

@@ -395,9 +395,13 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                             Saving…
                           </span>
                         ) : plugin.status === 'success' ? (
-                          <span className="text-xs text-emerald-700">Saved</span>
+                          <span className="text-xs text-emerald-700">
+                            Saved
+                          </span>
                         ) : plugin.status === 'failure' ? (
-                          <span className="text-xs text-destructive">Failed</span>
+                          <span className="text-xs text-destructive">
+                            Failed
+                          </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             Idle
@@ -437,8 +441,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         <CardHeader>
           <CardTitle>Plugin issue details</CardTitle>
           <CardDescription>
-            Validation summary and issue details for each installed
-            plugin.
+            Validation summary and issue details for each installed plugin.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -450,7 +453,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
             </p>
           ) : (
             installedPlugins.map((plugin) => {
-              const summarySeverity = resolveEntrySummarySeverity(plugin.issues);
+              const summarySeverity = resolveEntrySummarySeverity(
+                plugin.issues
+              );
 
               return (
                 <div
@@ -501,7 +506,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                         .slice()
                         .sort(
                           (a, b) =>
-                            severityOrder[b.severity] - severityOrder[a.severity]
+                            severityOrder[b.severity] -
+                            severityOrder[a.severity]
                         )
                         .map((issue, issueIndex) => (
                           <li

@@ -103,7 +103,12 @@ const findTestEvidenceFiles = async (
   }
 
   const fallbackFiles = [
-    path.join(repoRoot, 'src', 'tests', 'api-plugins-discovered-dashboard-tabs-route.test.ts'),
+    path.join(
+      repoRoot,
+      'src',
+      'tests',
+      'api-plugins-discovered-dashboard-tabs-route.test.ts'
+    ),
     path.join(repoRoot, 'src', 'tests', 'api-plugins-routes.test.ts'),
   ];
 
@@ -138,10 +143,7 @@ export const scorePluginMaturity = async ({
   const reasons: string[] = [];
   const nextActions: string[] = [];
 
-  const pluginDir = path.join(
-    pluginsRoot,
-    pluginDirectoryName ?? manifest.id
-  );
+  const pluginDir = path.join(pluginsRoot, pluginDirectoryName ?? manifest.id);
   const repoRoot = path.dirname(pluginsRoot);
   const pluginReadmePath = path.join(pluginDir, 'README.md');
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
@@ -177,7 +179,10 @@ export const scorePluginMaturity = async ({
   if (manifest.homepage) {
     categoryScores.contract_metadata += 2;
   } else {
-    pushUnique(reasons, 'Manifest is missing a homepage or canonical reference.');
+    pushUnique(
+      reasons,
+      'Manifest is missing a homepage or canonical reference.'
+    );
     pushUnique(nextActions, 'Add `homepage` for each plugin.');
   }
 
@@ -187,9 +192,15 @@ export const scorePluginMaturity = async ({
     manifest.maturity.lastReviewedAt
   ) {
     categoryScores.contract_metadata += 2;
-    pushUnique(evidence, 'Manifest includes maturity metadata and review notes.');
+    pushUnique(
+      evidence,
+      'Manifest includes maturity metadata and review notes.'
+    );
   } else {
-    pushUnique(reasons, 'Manifest is missing complete maturity review metadata.');
+    pushUnique(
+      reasons,
+      'Manifest is missing complete maturity review metadata.'
+    );
     pushUnique(
       nextActions,
       'Add `maturity.tier`, `maturity.notes`, and `maturity.lastReviewedAt`.'
@@ -202,17 +213,29 @@ export const scorePluginMaturity = async ({
 
   if (await fileExists(pluginEntryPath)) {
     categoryScores.runtime_integration += 6;
-    pushUnique(evidence, 'Plugin entry module exists under plugins/<id>/src/index.ts.');
+    pushUnique(
+      evidence,
+      'Plugin entry module exists under plugins/<id>/src/index.ts.'
+    );
     const entryContents = await readFile(pluginEntryPath, 'utf8');
     const hasExtensionRegistrations = manifest.uiExtensions.every((extension) =>
       entryContents.includes(extension.id)
     );
     if (hasExtensionRegistrations) {
       categoryScores.runtime_integration += 4;
-      pushUnique(evidence, 'Plugin entry registers its declared extension ids.');
+      pushUnique(
+        evidence,
+        'Plugin entry registers its declared extension ids.'
+      );
     } else {
-      pushUnique(reasons, 'Plugin entry does not obviously register all declared extensions.');
-      pushUnique(nextActions, 'Align plugin entry registration calls with the manifest.');
+      pushUnique(
+        reasons,
+        'Plugin entry does not obviously register all declared extensions.'
+      );
+      pushUnique(
+        nextActions,
+        'Align plugin entry registration calls with the manifest.'
+      );
     }
 
     const hasComponentRegistrations = componentIds.every((componentId) =>
@@ -220,10 +243,19 @@ export const scorePluginMaturity = async ({
     );
     if (componentIds.length === 0 || hasComponentRegistrations) {
       categoryScores.runtime_integration += 4;
-      pushUnique(evidence, 'Plugin entry registers declared component renderers.');
+      pushUnique(
+        evidence,
+        'Plugin entry registers declared component renderers.'
+      );
     } else {
-      pushUnique(reasons, 'Plugin entry does not obviously register all declared components.');
-      pushUnique(nextActions, 'Register every declared component id in the plugin entry module.');
+      pushUnique(
+        reasons,
+        'Plugin entry does not obviously register all declared components.'
+      );
+      pushUnique(
+        nextActions,
+        'Register every declared component id in the plugin entry module.'
+      );
     }
   } else {
     pushUnique(reasons, 'Plugin entry module is missing.');
@@ -278,16 +310,28 @@ export const scorePluginMaturity = async ({
     }
   }
 
-  if (existingComponentCount === componentBasenames.length && componentBasenames.length > 0) {
+  if (
+    existingComponentCount === componentBasenames.length &&
+    componentBasenames.length > 0
+  ) {
     categoryScores.feature_quality += 10;
-    pushUnique(evidence, 'Plugin-backed UI components exist for declared component ids.');
+    pushUnique(
+      evidence,
+      'Plugin-backed UI components exist for declared component ids.'
+    );
   } else if (componentBasenames.length > 0) {
-    pushUnique(reasons, 'Some declared plugin components do not map to checked-in UI modules.');
+    pushUnique(
+      reasons,
+      'Some declared plugin components do not map to checked-in UI modules.'
+    );
     pushUnique(nextActions, 'Keep component ids and component files aligned.');
   }
 
   if (matureComponentSignals > 0) {
-    categoryScores.feature_quality += clampScore(matureComponentSignals * 5, 10);
+    categoryScores.feature_quality += clampScore(
+      matureComponentSignals * 5,
+      10
+    );
     pushUnique(
       evidence,
       'Plugin-backed UI includes at least some user-state handling such as alerts, toasts, or guarded dialogs.'
@@ -310,9 +354,15 @@ export const scorePluginMaturity = async ({
   );
   if (testEvidenceFiles.length > 0) {
     categoryScores.test_coverage += 12;
-    pushUnique(evidence, `Found automated test evidence in ${testEvidenceFiles.length} file(s).`);
+    pushUnique(
+      evidence,
+      `Found automated test evidence in ${testEvidenceFiles.length} file(s).`
+    );
   } else {
-    pushUnique(reasons, 'No plugin-specific automated test evidence was found.');
+    pushUnique(
+      reasons,
+      'No plugin-specific automated test evidence was found.'
+    );
     pushUnique(
       nextActions,
       'Add plugin-specific tests for manifest, runtime wiring, and primary feature behavior.'
@@ -320,8 +370,12 @@ export const scorePluginMaturity = async ({
   }
 
   if (
-    testEvidenceFiles.some((filePath) => filePath.includes(path.join('src', 'tests'))) ||
-    testEvidenceFiles.some((filePath) => filePath.includes(path.join('src', 'lib', 'plugins')))
+    testEvidenceFiles.some((filePath) =>
+      filePath.includes(path.join('src', 'tests'))
+    ) ||
+    testEvidenceFiles.some((filePath) =>
+      filePath.includes(path.join('src', 'lib', 'plugins'))
+    )
   ) {
     categoryScores.test_coverage += 8;
   }
@@ -331,17 +385,17 @@ export const scorePluginMaturity = async ({
     pushUnique(evidence, 'Plugin README is present.');
   } else {
     pushUnique(reasons, 'Plugin README is missing.');
-    pushUnique(nextActions, 'Add a README for each plugin with usage and verification steps.');
+    pushUnique(
+      nextActions,
+      'Add a README for each plugin with usage and verification steps.'
+    );
   }
 
   if (manifest.owner || manifest.author) {
     categoryScores.operability_docs += 3;
   }
 
-  if (
-    manifest.maturity?.notes &&
-    manifest.maturity.lastReviewedAt
-  ) {
+  if (manifest.maturity?.notes && manifest.maturity.lastReviewedAt) {
     categoryScores.operability_docs += 2;
   }
 
@@ -350,16 +404,19 @@ export const scorePluginMaturity = async ({
   }
 
   const normalizedCategoryScores = Object.fromEntries(
-    (
-      Object.keys(categoryMaximums) as PluginMaturityCategory[]
-    ).map((category) => [
-      category,
-      {
-        label: categoryLabels[category],
-        earned: clampScore(categoryScores[category], categoryMaximums[category]),
-        possible: categoryMaximums[category],
-      } satisfies PluginMaturityCategoryScore,
-    ])
+    (Object.keys(categoryMaximums) as PluginMaturityCategory[]).map(
+      (category) => [
+        category,
+        {
+          label: categoryLabels[category],
+          earned: clampScore(
+            categoryScores[category],
+            categoryMaximums[category]
+          ),
+          possible: categoryMaximums[category],
+        } satisfies PluginMaturityCategoryScore,
+      ]
+    )
   ) as Record<PluginMaturityCategory, PluginMaturityCategoryScore>;
 
   const totalScore = (
@@ -417,7 +474,10 @@ export const scorePluginMaturity = async ({
     );
   }
   if (!hasAnyTestEvidence) {
-    pushUnique(reasons, 'Missing automated test evidence caps the plugin at Bronze.');
+    pushUnique(
+      reasons,
+      'Missing automated test evidence caps the plugin at Bronze.'
+    );
   }
   if (!hasOwner || !hasReadme) {
     pushUnique(

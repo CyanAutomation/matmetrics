@@ -5,7 +5,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
-import type { PluginManifest, PluginValidationIssue } from '@/lib/plugins/types';
+import type {
+  PluginManifest,
+  PluginValidationIssue,
+} from '@/lib/plugins/types';
 
 const baseManifest: PluginManifest = {
   id: 'example-plugin',
@@ -31,7 +34,9 @@ async function withPluginFixture(
   setup: (pluginsRoot: string, repoRoot: string) => Promise<void>,
   run: (pluginsRoot: string) => Promise<void>
 ) {
-  const repoRoot = await mkdtemp(path.join(tmpdir(), 'matmetrics-plugin-score-'));
+  const repoRoot = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-plugin-score-')
+  );
   const pluginsRoot = path.join(repoRoot, 'plugins');
 
   try {
@@ -58,7 +63,9 @@ test('scorePluginMaturity returns Bronze for minimally documented plugin', async
 `,
         'utf8'
       );
-      await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
       await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
@@ -106,7 +113,9 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
 `,
         'utf8'
       );
-      await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
       await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
@@ -172,7 +181,9 @@ test('scorePluginMaturity returns Silver for a fully documented and tested plugi
         '# Example Plugin\n',
         'utf8'
       );
-      await mkdir(path.join(repoRoot, 'src', 'components'), { recursive: true });
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
       await mkdir(path.join(repoRoot, 'src', 'lib', 'plugins'), {
         recursive: true,
       });

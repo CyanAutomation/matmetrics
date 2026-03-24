@@ -2,13 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 // biome-ignore lint/security/noCommonJs: Test runtime exposes Next route modules through CommonJS interop.
-const routeModule = require('@/app/api/plugins/discovered-dashboard-tabs/route') as typeof import('@/app/api/plugins/discovered-dashboard-tabs/route');
+const routeModule =
+  require('@/app/api/plugins/discovered-dashboard-tabs/route') as typeof import('@/app/api/plugins/discovered-dashboard-tabs/route');
 // biome-ignore lint/security/noCommonJs: Test runtime exposes server-only modules through CommonJS interop.
-const stateModule = require('@/lib/plugins/state.server') as typeof import('@/lib/plugins/state.server');
-const {
-  GET: DISCOVER_DASHBOARD_TABS,
-  dynamic,
-} = routeModule;
+const stateModule =
+  require('@/lib/plugins/state.server') as typeof import('@/lib/plugins/state.server');
+const { GET: DISCOVER_DASHBOARD_TABS, dynamic } = routeModule;
 const { persistPluginEnabledOverride, resetPluginEnabledOverridesForTests } =
   stateModule;
 

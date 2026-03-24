@@ -73,7 +73,10 @@ test('core tabs no longer include prompt settings', () => {
     coreTabs.some((tab) => tab.title === 'Prompt Settings'),
     false
   );
-  assert.equal(coreTabs.some((tab) => tab.title === 'GitHub Sync'), false);
+  assert.equal(
+    coreTabs.some((tab) => tab.title === 'GitHub Sync'),
+    false
+  );
 });
 
 test('plugins is the last core navigation item', () => {
