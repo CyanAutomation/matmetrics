@@ -43,6 +43,77 @@ type PromptSettingsUiState = {
   canSubmitPrompt: boolean;
 };
 
+type PromptSettingsToast = {
+  variant?: 'destructive';
+  title?: string;
+  description: string;
+};
+
+type PromptSettingsFeedbackDeps = {
+  toast: (config: PromptSettingsToast) => void;
+  logError: (message: string, error: unknown) => void;
+};
+
+export async function runPromptSaveFlow({
+  uid,
+  prompt,
+  savePreference,
+  feedback,
+}: {
+  uid: string;
+  prompt: string;
+  savePreference: (uid: string, prompt: string) => Promise<void>;
+  feedback: PromptSettingsFeedbackDeps;
+}): Promise<boolean> {
+  try {
+    await savePreference(uid, prompt);
+    feedback.toast({
+      title: 'Prompt updated',
+      description:
+        'Your AI transformation instructions have been saved successfully.',
+    });
+
+    return true;
+  } catch (error) {
+    feedback.logError('Failed to save transformer prompt preference', error);
+    feedback.toast({
+      variant: 'destructive',
+      title: 'Could not save prompt',
+      description: 'Your prompt was not saved. Please try again in a moment.',
+    });
+
+    return false;
+  }
+}
+
+export async function runPromptResetFlow({
+  uid,
+  resetPreference,
+  feedback,
+}: {
+  uid: string;
+  resetPreference: (uid: string) => Promise<void>;
+  feedback: PromptSettingsFeedbackDeps;
+}): Promise<boolean> {
+  try {
+    await resetPreference(uid);
+    feedback.toast({
+      description: 'Prompt reset to default Kodokan standards.',
+    });
+
+    return true;
+  } catch (error) {
+    feedback.logError('Failed to reset transformer prompt preference', error);
+    feedback.toast({
+      variant: 'destructive',
+      title: 'Could not reset prompt',
+      description: 'We could not reset your prompt right now. Please try again.',
+    });
+
+    return false;
+  }
+}
+
 export function derivePromptSettingsUiState({
   prompt,
   canSavePreferences,
@@ -101,13 +172,21 @@ export function PromptSettings() {
 
     setIsSaving(true);
     try {
-      await saveTransformerPromptPreference(user.uid, prompt);
-      setIsSaved(true);
-      toast({
-        title: 'Prompt updated',
-        description:
-          'Your AI transformation instructions have been saved successfully.',
+      const didSave = await runPromptSaveFlow({
+        uid: user.uid,
+        prompt,
+        savePreference: saveTransformerPromptPreference,
+        feedback: {
+          toast,
+          logError: (message, error) => {
+            console.error(message, error);
+          },
+        },
       });
+
+      if (!didSave) return;
+
+      setIsSaved(true);
       if (savedIndicatorTimeoutRef.current !== null) {
         clearTimeout(savedIndicatorTimeoutRef.current);
       }
@@ -115,14 +194,6 @@ export function PromptSettings() {
         savedIndicatorTimeoutRef.current = null;
         setIsSaved(false);
       }, 3000);
-    } catch (error) {
-      console.error('Failed to save transformer prompt preference', error);
-      toast({
-        variant: 'destructive',
-        title: 'Could not save prompt',
-        description:
-          'Your prompt was not saved. Please try again in a moment.',
-      });
     } finally {
       setIsSaving(false);
     }
@@ -133,36 +204,18 @@ export function PromptSettings() {
 
     setIsResetting(true);
     try {
-      await resetTransformerPromptPreference(user.uid);
-    try {
-      await resetTransformerPromptPreference(user.uid);
-      toast({
-        description: 'Prompt reset to default Kodokan standards.',
-      });
-    } catch (error) {
-      console.error('Failed to reset transformer prompt preference', error);
-      toast({
-        variant: 'destructive',
-        title: 'Could not reset prompt',
-        description:
-          'We could not reset your prompt right now. Please try again.',
+      await runPromptResetFlow({
+        uid: user.uid,
+        resetPreference: resetTransformerPromptPreference,
+        feedback: {
+          toast,
+          logError: (message, error) => {
+            console.error(message, error);
+          },
+        },
       });
     } finally {
       setIsResetDialogOpen(false);
-      setIsResetting(false);
-    }
-      toast({
-        description: 'Prompt reset to default Kodokan standards.',
-      });
-    } catch (error) {
-      console.error('Failed to reset transformer prompt preference', error);
-      toast({
-        variant: 'destructive',
-        title: 'Could not reset prompt',
-        description:
-          'We could not reset your prompt right now. Please try again.',
-      });
-    } finally {
       setIsResetting(false);
     }
   };
