@@ -3,17 +3,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   autoDisablePluginIfNeeded,
   createContractPayload,
+  getPluginsRoot,
   listStoredPluginManifests,
   toValidationTable,
   type StoredPluginManifest,
 } from '@/lib/plugins/api-contract';
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
+import { runPluginContractGate } from '@/lib/plugins/plugin-contract-gate';
 import {
   applyPluginEnabledOverrides,
   loadPluginEnabledOverrides,
 } from '@/lib/plugins/state.server';
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+
+const asGateManifest = (value: unknown): Pick<PluginManifest, 'uiExtensions'> => {
+  if (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Array.isArray((value as PluginManifest).uiExtensions)
+  ) {
+    return value as PluginManifest;
+  }
+
+  return { uiExtensions: [] };
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,6 +61,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const pluginsRoot = getPluginsRoot();
+
     const pluginRows = await Promise.all(
       manifests.map(async (entry) => {
         const effectiveManifest = applyPluginEnabledOverrides(
@@ -55,6 +72,15 @@ export async function GET(request: NextRequest) {
         const { manifest: processedManifest, autoDisabledWithWarnings } =
           autoDisablePluginIfNeeded(effectiveManifest);
         const validation = toValidationTable(processedManifest);
+
+        const gateResult = await runPluginContractGate({
+          pluginsRoot,
+          directoryName: entry.directoryName,
+          manifest: asGateManifest(processedManifest),
+        });
+
+        validation.rows.push(...gateResult.issues);
+        validation.isValid = validation.isValid && gateResult.isValid;
 
         // Add auto-disable warnings to validation issues
         if (autoDisabledWithWarnings) {
@@ -108,6 +134,7 @@ export async function GET(request: NextRequest) {
         assumptions: [
           'Local plugin manifests are sourced from plugins/*/plugin.json.',
           'Plugins with capability mismatches or version conflicts are auto-disabled.',
+          'Plugin contract gate requires src/index.ts, component mapping coverage, and README Usage/Verification sections.',
         ],
         unresolvedInputs: discoveryErrors,
       }),
