@@ -95,7 +95,6 @@ export const runPluginContractGate = async ({
   const artifactsUnavailableInPackagedRuntime =
     packagedRuntimeMode &&
     manifestExists &&
-    !srcRootExists &&
     !indexExists &&
     !readmeExists;
 
