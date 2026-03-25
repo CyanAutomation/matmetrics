@@ -136,6 +136,10 @@ function validateDate(value: unknown): string {
   return value;
 }
 
+function isEffortLevel(value: number): value is EffortLevel {
+  return value >= 1 && value <= 5;
+}
+
 function validateEffort(value: unknown): EffortLevel {
   if (
     value === undefined ||
@@ -144,7 +148,7 @@ function validateEffort(value: unknown): EffortLevel {
   ) {
     throw new Error('Missing or invalid "effort" in frontmatter');
   }
-  if (value < 1 || value > 5) {
+  if (!isEffortLevel(value)) {
     throw new Error('Invalid "effort" in frontmatter: must be between 1 and 5');
   }
 
