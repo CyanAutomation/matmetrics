@@ -114,6 +114,20 @@ function installBrowserEnv(options: { withLocks?: boolean } = {}) {
   return { localStorage, lockManager };
 }
 
+function dispatchStorageMutationEvent(
+  key: string,
+  newValue: string | null,
+  storageArea: Storage
+): void {
+  const event = new Event('storage') as StorageEvent;
+  Object.defineProperties(event, {
+    key: { configurable: true, value: key },
+    newValue: { configurable: true, value: newValue },
+    storageArea: { configurable: true, value: storageArea },
+  });
+  window.dispatchEvent(event);
+}
+
 function makeSession(id: string): JudoSession {
   return {
     id,
@@ -1148,6 +1162,102 @@ test('compare-and-verify lease acquisition retries under interleaving writes', a
     assert.notEqual(lease.nonce, 'interleaving-write');
   } finally {
     localStorage.setItem = originalSetItem;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('fallback lease acquisition aborts ownership when storage event signals immediate overwrite', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: true },
+  });
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+
+  localStorage.setItem = (key: string, value: string): void => {
+    originalSetItem(key, value);
+    if (key !== syncLockStorageKey) {
+      return;
+    }
+
+    const parsed = JSON.parse(value) as { owner: string; epoch: number };
+    const competingLease = JSON.stringify({
+      owner: `${parsed.owner}-contender`,
+      expiresAt: Date.now() + 60_000,
+      nonce: `contender-${parsed.epoch}`,
+      epoch: parsed.epoch + 1,
+    });
+    originalSetItem(key, competingLease);
+    dispatchStorageMutationEvent(key, competingLease, localStorage);
+  };
+
+  try {
+    assert.equal(await __tryAcquireSyncLeaseForTests(), false);
+    const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+    assert.match(String(lease.owner), /-contender$/);
+  } finally {
+    localStorage.setItem = originalSetItem;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+test('simultaneous fallback contenders allow only one sync critical-section owner', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: true },
+  });
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+
+  const contenderAcquire = async (owner: string): Promise<boolean> => {
+    const existingRaw = localStorage.getItem(syncLockStorageKey);
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw) as {
+        owner: string;
+        expiresAt: number;
+      };
+      if (existing.owner !== owner && existing.expiresAt > Date.now()) {
+        return false;
+      }
+    }
+
+    const candidate = {
+      owner,
+      expiresAt: Date.now() + 45_000,
+      nonce: `${owner}-nonce`,
+      epoch: Date.now(),
+    };
+    localStorage.setItem(syncLockStorageKey, JSON.stringify(candidate));
+    await delay(0);
+
+    const confirmed = JSON.parse(
+      localStorage.getItem(syncLockStorageKey) ?? '{}'
+    ) as { owner?: string; nonce?: string; epoch?: number };
+    return (
+      confirmed.owner === candidate.owner &&
+      confirmed.nonce === candidate.nonce &&
+      confirmed.epoch === candidate.epoch
+    );
+  };
+
+  try {
+    const [storageLeaseAcquired, competingLeaseAcquired] = await Promise.all([
+      __tryAcquireSyncLeaseForTests(),
+      contenderAcquire('other-tab'),
+    ]);
+
+    assert.equal(storageLeaseAcquired || competingLeaseAcquired, true);
+    assert.equal(storageLeaseAcquired && competingLeaseAcquired, false);
+  } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
   }

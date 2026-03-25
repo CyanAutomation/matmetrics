@@ -145,9 +145,11 @@ type SyncLease = {
   epoch: number;
 };
 
-const SYNC_LOCK_ACQUIRE_ATTEMPTS = 4;
-const SYNC_LOCK_BACKOFF_MIN_MS = 4;
-const SYNC_LOCK_BACKOFF_MAX_MS = 16;
+const SYNC_LOCK_ACQUIRE_ATTEMPTS = 7;
+const SYNC_LOCK_BACKOFF_MIN_MS = 6;
+const SYNC_LOCK_BACKOFF_MAX_MS = 28;
+const SYNC_LOCK_VERIFY_DELAY_MIN_MS = 1;
+const SYNC_LOCK_VERIFY_DELAY_MAX_MS = 6;
 const SYNC_LOCK_NAME = 'matmetrics-sync';
 
 type ActiveSyncLease =
@@ -334,6 +336,16 @@ function randomBackoffMs(): number {
   );
 }
 
+function randomVerifyDelayMs(): number {
+  return (
+    SYNC_LOCK_VERIFY_DELAY_MIN_MS +
+    Math.floor(
+      Math.random() *
+        (SYNC_LOCK_VERIFY_DELAY_MAX_MS - SYNC_LOCK_VERIFY_DELAY_MIN_MS + 1)
+    )
+  );
+}
+
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -421,11 +433,41 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       nonce: createSyncLeaseNonce(),
       epoch: getNextSyncLeaseEpoch(existingLease?.epoch ?? 0),
     };
+    const syncLockStorageKey = getSyncLockStorageKey();
+    let overwrittenByStorageEvent = false;
+    const onStorage = (event: StorageEvent) => {
+      if (!isStorageEventForKey(event, syncLockStorageKey)) {
+        return;
+      }
 
-    localStorage.setItem(getSyncLockStorageKey(), JSON.stringify(nextLease));
+      const nextValue = event.newValue;
+      if (!nextValue) {
+        overwrittenByStorageEvent = true;
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(nextValue) as Partial<SyncLease>;
+        if (
+          parsed.owner !== nextLease.owner ||
+          parsed.nonce !== nextLease.nonce ||
+          parsed.epoch !== nextLease.epoch
+        ) {
+          overwrittenByStorageEvent = true;
+        }
+      } catch {
+        overwrittenByStorageEvent = true;
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    localStorage.setItem(syncLockStorageKey, JSON.stringify(nextLease));
+    await sleep(randomVerifyDelayMs());
 
     const confirmedLease = readSyncLease();
+    window.removeEventListener('storage', onStorage);
     if (
+      !overwrittenByStorageEvent &&
       confirmedLease?.owner === syncOwnerId &&
       confirmedLease.expiresAt === nextLease.expiresAt &&
       confirmedLease.nonce === nextLease.nonce &&
