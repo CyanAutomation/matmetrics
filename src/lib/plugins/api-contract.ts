@@ -97,6 +97,7 @@ export const findStoredPluginManifestById = async (
 export const toValidationTable = (manifest: unknown) => {
   const result = validatePluginManifest(manifest, {
     currentVersion: APP_VERSION,
+    validateDeclaredComponentsAtRuntime: true,
   });
   return {
     isValid: result.isValid,
@@ -117,6 +118,7 @@ export const autoDisablePluginIfNeeded = (
 
   const result = validatePluginManifest(manifest, {
     currentVersion: APP_VERSION,
+    validateDeclaredComponentsAtRuntime: true,
   });
 
   // Check if there are capability or version warnings

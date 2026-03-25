@@ -239,9 +239,7 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
       assert.equal(scorecard.tier, 'silver');
       assert.ok(scorecard.score >= 70);
       assert.equal(scorecard.declaredTier, 'silver');
-      assert.ok(
-        scorecard.reasons.every((reason) => !reason.includes('owner'))
-      );
+      assert.ok(scorecard.reasons.every((reason) => !reason.includes('owner')));
       assert.ok(
         scorecard.nextActions.every((action) => !action.includes('owner'))
       );
@@ -312,14 +310,21 @@ test('scorePluginMaturity warns when manifest component is missing from plugin r
     async (pluginsRoot) => {
       const scorecard = await scorePluginMaturity({
         manifest: baseManifest,
-        validationIssues: [],
+        validationIssues: [
+          {
+            severity: 'warning',
+            path: 'uiExtensions[0].config.component',
+            message:
+              'Extension "example-dashboard-tab" declares component "example_panel" but no dashboard renderer is registered after plugin bootstrap.',
+          },
+        ],
         pluginDirectoryName: 'example-plugin',
         pluginsRoot,
       });
 
       assert.ok(
         scorecard.reasons.some((reason) =>
-          reason.includes('does not register all manifest component ids')
+          reason.includes('do not resolve to registered renderers at runtime')
         )
       );
     }
@@ -433,7 +438,8 @@ test('scorePluginMaturity counts src/lib/tags/service.test.ts as evidence for ta
 
       assert.ok(
         scorecard.reasons.every(
-          (reason) => !reason.includes('No plugin-specific automated test evidence')
+          (reason) =>
+            !reason.includes('No plugin-specific automated test evidence')
         )
       );
       assert.ok(scorecard.categoryScores.test_coverage.earned >= 12);
