@@ -73,10 +73,46 @@ const pushUnique = (values: string[], value: string): void => {
   }
 };
 
+const capabilityCandidateRoots: Record<string, string[]> = {
+  tag_mutation: [path.join('src', 'lib', 'tags')],
+};
+
+const collectTestFiles = async (root: string): Promise<string[]> => {
+  const results: string[] = [];
+  const entries = await readdir(root, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...(await collectTestFiles(entryPath)));
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const lowerName = entry.name.toLowerCase();
+    const isTestFile =
+      lowerName.endsWith('.test.ts') ||
+      lowerName.endsWith('.test.tsx') ||
+      lowerName.endsWith('.spec.ts') ||
+      lowerName.endsWith('.spec.tsx');
+
+    if (isTestFile) {
+      results.push(entryPath);
+    }
+  }
+
+  return results;
+};
+
 const findTestEvidenceFiles = async (
   repoRoot: string,
   pluginId: string,
-  componentBasenames: string[]
+  componentBasenames: string[],
+  componentIds: string[],
+  capabilities: string[]
 ): Promise<string[]> => {
   const candidateRoots = [
     path.join(repoRoot, 'plugins', pluginId),
@@ -84,38 +120,47 @@ const findTestEvidenceFiles = async (
     path.join(repoRoot, 'src', 'lib', 'plugins'),
     path.join(repoRoot, 'src', 'tests'),
   ];
+  for (const capability of capabilities) {
+    const capabilityRoots = capabilityCandidateRoots[capability] ?? [];
+    for (const relativeRoot of capabilityRoots) {
+      candidateRoots.push(path.join(repoRoot, relativeRoot));
+    }
+  }
+
+  const searchTerms = [
+    pluginId,
+    ...componentBasenames,
+    ...componentIds,
+    ...capabilities,
+  ].map((term) => term.toLowerCase());
+  const roots = [...new Set(candidateRoots)];
   const matches: string[] = [];
 
-  for (const root of candidateRoots) {
+  for (const root of roots) {
     if (!(await fileExists(root))) {
       continue;
     }
 
-    const entries = await readdir(root, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile()) {
+    const testFiles = await collectTestFiles(root);
+    for (const testFile of testFiles) {
+      const lowerName = path.basename(testFile).toLowerCase();
+      const mentionsPlugin =
+        lowerName.includes(pluginId.toLowerCase()) ||
+        componentBasenames.some((basename) => lowerName.includes(basename));
+
+      if (mentionsPlugin) {
+        pushUnique(matches, testFile);
         continue;
       }
 
-      const name = entry.name;
-      const lowerName = name.toLowerCase();
-      const mentionsPlugin =
-        lowerName.includes(pluginId) ||
-        componentBasenames.some((basename) => lowerName.includes(basename));
-      const isTestFile =
-        lowerName.endsWith('.test.ts') ||
-        lowerName.endsWith('.test.tsx') ||
-        lowerName.endsWith('.spec.ts') ||
-        lowerName.endsWith('.spec.tsx');
-
-      if (isTestFile && mentionsPlugin) {
-        matches.push(path.join(root, name));
+      const contents = (await readFile(testFile, 'utf8')).toLowerCase();
+      const mentionsPluginInContent = searchTerms.some((term) =>
+        contents.includes(term)
+      );
+      if (mentionsPluginInContent) {
+        pushUnique(matches, testFile);
       }
     }
-  }
-
-  if (matches.length > 0) {
-    return matches;
   }
 
   const fallbackFiles = [
@@ -132,9 +177,10 @@ const findTestEvidenceFiles = async (
     if (!(await fileExists(fallbackFile))) {
       continue;
     }
-    const contents = await readFile(fallbackFile, 'utf8');
-    if (contents.includes(pluginId)) {
-      matches.push(fallbackFile);
+    const contents = (await readFile(fallbackFile, 'utf8')).toLowerCase();
+    const hasFallbackMatch = searchTerms.some((term) => contents.includes(term));
+    if (hasFallbackMatch) {
+      pushUnique(matches, fallbackFile);
     }
   }
 
@@ -363,7 +409,9 @@ export const scorePluginMaturity = async ({
   const testEvidenceFiles = await findTestEvidenceFiles(
     repoRoot,
     manifest.id,
-    componentBasenames
+    componentBasenames,
+    componentIds,
+    manifest.capabilities ?? []
   );
   if (testEvidenceFiles.length > 0) {
     categoryScores.test_coverage += 12;
