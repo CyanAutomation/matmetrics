@@ -292,6 +292,71 @@ test('scorePluginMaturity does not warn when manifest component matches plugin r
   );
 });
 
+test('scorePluginMaturity static scan matches optional/non-optional and spacing variants for registerPluginComponent', async () => {
+  const registrationVariants = [
+    "context.registerPluginComponent?.('example_panel', () => null);",
+    "context.registerPluginComponent('example_panel', () => null);",
+    `context.registerPluginComponent?.(
+  'example_panel',
+  () => null
+);`,
+  ];
+
+  for (const registrationCall of registrationVariants) {
+    await withPluginFixture(
+      async (pluginsRoot, repoRoot) => {
+        await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+          recursive: true,
+        });
+        await writeFile(
+          path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+          `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  ${registrationCall}
+};
+`,
+          'utf8'
+        );
+        await mkdir(path.join(repoRoot, 'src', 'components'), {
+          recursive: true,
+        });
+        await writeFile(
+          path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+          `export function ExamplePanel() {
+  return null;
+}
+`,
+          'utf8'
+        );
+      },
+      async (pluginsRoot) => {
+        const scorecard = await scorePluginMaturity({
+          manifest: baseManifest,
+          validationIssues: [],
+          pluginDirectoryName: 'example-plugin',
+          pluginsRoot,
+        });
+
+        assert.ok(
+          scorecard.reasons.every(
+            (reason) =>
+              !reason.includes('register all manifest component ids') &&
+              !reason.includes('do not map to checked-in UI modules')
+          )
+        );
+        assert.ok(
+          scorecard.nextActions.every(
+            (action) =>
+              !action.includes(
+                'Keep registerPluginComponent calls aligned with manifest component ids for maintainability.'
+              ) &&
+              !action.includes('Keep component ids and component files aligned.')
+          )
+        );
+      }
+    );
+  }
+});
+
 test('scorePluginMaturity warns when manifest component is missing from plugin registration', async () => {
   await withPluginFixture(
     async (pluginsRoot) => {
