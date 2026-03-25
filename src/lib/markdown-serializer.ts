@@ -1,6 +1,7 @@
 import matter from 'gray-matter';
 import { JudoSession, EffortLevel, SessionCategory } from './types';
 
+const SESSION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Convert a JudoSession to a markdown string with YAML frontmatter
  * Format:
@@ -75,19 +76,11 @@ export function markdownToSession(markdown: string): JudoSession {
   const { data, content } = matter(markdown);
   const normalizedContent = content.replace(/\r\n?/g, '\n');
 
-  // Validate required fields from frontmatter
-  if (!data.id || typeof data.id !== 'string') {
-    throw new Error('Missing or invalid "id" in frontmatter');
-  }
-  if (!data.date || typeof data.date !== 'string') {
-    throw new Error('Missing or invalid "date" in frontmatter');
-  }
-  if (data.effort === undefined || typeof data.effort !== 'number') {
-    throw new Error('Missing or invalid "effort" in frontmatter');
-  }
-  if (!data.category || typeof data.category !== 'string') {
-    throw new Error('Missing or invalid "category" in frontmatter');
-  }
+  const id = validateId(data.id);
+  const date = validateDate(data.date);
+  const effort = validateEffort(data.effort);
+  const category = validateCategory(data.category);
+  const duration = validateDuration(data.duration);
 
   validateTitlePresence(normalizedContent);
 
@@ -98,17 +91,92 @@ export function markdownToSession(markdown: string): JudoSession {
   const { description, notes } = extractContentSections(normalizedContent);
 
   const session: JudoSession = {
-    id: data.id,
-    date: data.date,
-    effort: data.effort as EffortLevel,
-    category: data.category as SessionCategory,
+    id,
+    date,
+    effort,
+    category,
     techniques,
     ...(description && { description }),
     ...(notes && { notes }),
-    ...(data.duration !== undefined && { duration: data.duration }),
+    ...(duration !== undefined && { duration }),
   };
 
   return session;
+}
+
+function validateId(value: unknown): string {
+  if (!value || typeof value !== 'string') {
+    throw new Error('Missing or invalid "id" in frontmatter');
+  }
+  return value;
+}
+
+function validateDate(value: unknown): string {
+  if (!value || typeof value !== 'string') {
+    throw new Error('Missing or invalid "date" in frontmatter');
+  }
+  if (!SESSION_DATE_REGEX.test(value)) {
+    throw new Error('Invalid "date" in frontmatter: must be YYYY-MM-DD');
+  }
+
+  const parts = value.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const isValidDate =
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() + 1 === month &&
+    parsed.getUTCDate() === day;
+
+  if (!isValidDate) {
+    throw new Error('Invalid "date" in frontmatter: must be YYYY-MM-DD');
+  }
+
+  return value;
+}
+
+function validateEffort(value: unknown): EffortLevel {
+  if (
+    value === undefined ||
+    typeof value !== 'number' ||
+    !Number.isInteger(value)
+  ) {
+    throw new Error('Missing or invalid "effort" in frontmatter');
+  }
+  if (value < 1 || value > 5) {
+    throw new Error('Invalid "effort" in frontmatter: must be between 1 and 5');
+  }
+
+  return value;
+}
+
+function validateCategory(value: unknown): SessionCategory {
+  if (!value || typeof value !== 'string') {
+    throw new Error('Missing or invalid "category" in frontmatter');
+  }
+
+  switch (value) {
+    case 'Technical':
+    case 'Randori':
+    case 'Shiai':
+      return value;
+    default:
+      throw new Error(
+        'Invalid "category" in frontmatter: must be one of Technical, Randori, Shiai'
+      );
+  }
+}
+
+function validateDuration(value: unknown): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error('Invalid "duration" in frontmatter: must be a non-negative integer');
+  }
+
+  return value;
 }
 
 /**

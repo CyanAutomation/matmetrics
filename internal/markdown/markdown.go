@@ -294,6 +294,9 @@ func validateSession(session model.Session) error {
 	default:
 		return fmt.Errorf("invalid session category %q", session.Category)
 	}
+	if session.Duration != nil && *session.Duration < 0 {
+		return fmt.Errorf("session duration must be a non-negative integer")
+	}
 	return nil
 }
 
