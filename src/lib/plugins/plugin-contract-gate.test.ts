@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -173,4 +173,27 @@ test('runPluginContractGate emits non-blocking warning when packaged runtime lac
       }
     }
   });
+});
+
+test('runPluginContractGate accepts README heading contracts for plugin operation docs', async () => {
+  const repoRoot = process.cwd();
+  const pluginsRoot = path.join(repoRoot, 'plugins');
+  const pluginDirectories = ['tag-manager', 'github-sync', 'prompt-settings'];
+
+  for (const directoryName of pluginDirectories) {
+    const manifestPath = path.join(pluginsRoot, directoryName, 'plugin.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as PluginManifest;
+
+    const result = await runPluginContractGate({
+      pluginsRoot,
+      directoryName,
+      manifest,
+    });
+
+    assert.equal(
+      result.issues.some((issue) => issue.path === 'contractGate.readme'),
+      false,
+      `Expected README heading contract to pass for ${directoryName}`
+    );
+  }
 });
