@@ -29,7 +29,9 @@ At runtime, `initPlugin` wires the plugin into the dashboard extension system by
 2. Registering the component renderer for `prompt_settings`.
 3. Rendering the `PromptSettings` React component for that component id.
 
-## User Workflow
+## Usage
+
+### User workflow
 
 1. Open the Dashboard and select the **Prompt Settings** tab.
 2. Edit the **System Instructions** text area.

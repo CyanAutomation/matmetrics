@@ -21,17 +21,17 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 - **UI component implementation:** `src/components/github-settings.tsx`
   - Implements configuration form, validation flow, and bulk sync flow
 
----
+## Usage
 
-## Setup Prerequisites
+### Setup prerequisites
 
-## Authentication requirements
+#### Authentication requirements
 
 - User must be signed in to use GitHub Sync UI actions.
 - Firebase auth must be configured for the deployment; if it is not configured, the plugin shows an unavailable/auth-required warning state.
 - Server routes used by this plugin require a Bearer token and authenticated user context.
 
-## Environment variables and backend requirements
+#### Environment variables and backend requirements
 
 - `GITHUB_TOKEN` (required)
   - Used by server-side GitHub API calls.
@@ -42,18 +42,16 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
   - `MATMETRICS_AUTH_TEST_MODE`
   - `MATMETRICS_TEST_USER_GITHUB_CONFIG`
 
-## Expected GitHub token permissions
+#### Expected GitHub token permissions
 
 - Token must have repository access sufficient to:
   - Read repository metadata and branches.
   - Read/write repository contents (session markdown files and generated README updates).
 - In practical terms for classic PATs, `repo` scope is expected.
 
----
+### Local workflow
 
-## Local Verification Steps
-
-## 1) Confirm dashboard tab appears
+#### 1) Confirm dashboard tab appears
 
 1. Start the app:
 
@@ -67,7 +65,7 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 
 If auth is unavailable or user is not signed in, expect a sign-in/auth warning banner and disabled actions.
 
-## 2) Test connection flow
+#### 2) Test connection flow
 
 1. In **GitHub Sync** tab, enter:
    - `owner`
@@ -81,7 +79,7 @@ Expected states:
 - **Success:** toast shows "Connection Successful" and target repo.
 - **Failure:** destructive toast and inline red error message block with failure reason.
 
-## 3) Test configuration + bulk sync flow
+#### 3) Test configuration + bulk sync flow
 
 1. Click **Save Configuration**.
 2. Confirm connected status appears (`Connected to owner/repo ...`).
@@ -93,9 +91,9 @@ Expected states:
 - **Success:** toast "Bulk Sync Complete", then success card `GitHub Sync Active` appears once migration is done.
 - **Failure:** destructive toast with sync error details.
 
----
+## Verification
 
-## Testing Checklist
+### Testing checklist
 
 Use this checklist for plugin changes:
 
@@ -106,7 +104,7 @@ Use this checklist for plugin changes:
 - [ ] Validate and sync endpoints handle missing/invalid inputs.
 - [ ] Success/failure UI states for test/sync are visible and actionable.
 
-## Exact test commands
+### Exact test commands
 
 Current targeted checks that cover plugin integration points:
 
@@ -129,11 +127,9 @@ If you add an npm script later, keep parity with:
 npm run test -- plugins/github-sync/**/*.test.ts src/components/github-settings.test.tsx
 ```
 
----
-
 ## Troubleshooting
 
-## Missing token (`GITHUB_TOKEN`)
+### Missing token (`GITHUB_TOKEN`)
 
 Symptoms:
 
@@ -144,7 +140,7 @@ Fix:
 - Set `GITHUB_TOKEN` in the runtime environment.
 - Restart the server/process after updating environment variables.
 
-## Auth unavailable
+### Auth unavailable
 
 Symptoms:
 
@@ -156,7 +152,7 @@ Fix:
 - Ensure Firebase client and admin configuration are present.
 - Sign in with a supported provider/account.
 
-## Invalid repository settings
+### Invalid repository settings
 
 Symptoms:
 
