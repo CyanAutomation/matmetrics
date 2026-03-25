@@ -23,6 +23,20 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 
 ## Usage
 
+### Operator/developer quickstart
+
+1. Ensure runtime dependencies are present before opening the UI:
+   - Firebase auth + admin configuration
+   - `GITHUB_TOKEN` with repository write permissions
+2. Start local app runtime:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Sign in with a user account that can manage the target repository.
+4. Navigate to **Dashboard → GitHub Sync** and run the configuration + sync flow.
+
 ### Setup prerequisites
 
 #### Authentication requirements
@@ -92,6 +106,16 @@ Expected states:
 - **Failure:** destructive toast with sync error details.
 
 ## Verification
+
+### Operator/developer preflight checks
+
+Run these checks before manual UI validation to confirm plugin loading and contract compliance:
+
+```bash
+npm test -- src/lib/plugins/validate.test.ts
+npm test -- src/tests/api-plugins-routes.test.ts
+npm test -- src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts
+```
 
 ### Testing checklist
 
