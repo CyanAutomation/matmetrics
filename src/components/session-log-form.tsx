@@ -584,7 +584,7 @@ export function SessionLogForm({
                     <button
                       type="button"
                       onClick={() => removeTech(tech)}
-                      className="ml-1 rounded-full transition-[color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-destructive hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                      className="ml-1 rounded-full transition-[color,transform] duration-200 ease-snappy hover:text-destructive hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
