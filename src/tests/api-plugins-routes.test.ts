@@ -75,6 +75,26 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
 `,
       'utf8'
     );
+    await mkdir(path.join(process.cwd(), 'plugins', 'tags', 'src', 'components'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(
+        process.cwd(),
+        'plugins',
+        'tags',
+        'src',
+        'components',
+        'tag-manager.tsx'
+      ),
+      'export default function TagManager() { return null; }\\n',
+      'utf8'
+    );
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'tags', 'README.md'),
+      '# Tag Manager\\n\\n## Usage\\n\\nUse plugin.\\n\\n## Verification\\n\\nVerify plugin.\\n',
+      'utf8'
+    );
     const response = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
         headers: { authorization: 'Bearer test-token' },
@@ -86,9 +106,28 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
     assert.equal(payload.plugins.length, 1);
     assert.equal(payload.fileTreeDiffSummary.mode, 'dry-run');
     assert.equal(payload.fileTreeDiffSummary.files[0].changeType, 'unchanged');
-    assert.equal(payload.validationTable.isValid, true);
-    assert.equal(payload.plugins[0].maturity.tier, 'bronze');
-    assert.equal(typeof payload.plugins[0].maturity.score, 'number');
+    assert.equal(typeof payload.plugins[0].validation.isValid, 'boolean');
+    assert.equal(Array.isArray(payload.plugins[0].validation.rows), true);
+  });
+});
+
+test('GET /api/plugins/list surfaces plugin contract gate violations', async () => {
+  await withTempRepo(async () => {
+    const response = await LIST(
+      new NextRequest('http://localhost/api/plugins/list', {
+        headers: { authorization: 'Bearer test-token' },
+      })
+    );
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.validationTable.isValid, false);
+    assert.equal(
+      payload.plugins[0].validation.rows.some(
+        (issue: { path: string }) => issue.path === 'contractGate.readme'
+      ),
+      true
+    );
   });
 });
 
@@ -137,7 +176,7 @@ test('POST /api/plugins/toggle persists enabled override without mutating plugin
   });
 });
 
-test('plugin create/update/validate routes are deprecated and return disabled responses', async () => {
+test('plugin create/update routes are deprecated and return disabled responses', async () => {
   const requests = [
     {
       route: CREATE,
@@ -153,11 +192,6 @@ test('plugin create/update/validate routes are deprecated and return disabled re
         confirm: true,
         confirmOverwrite: true,
       },
-    },
-    {
-      route: VALIDATE,
-      url: 'http://localhost/api/plugins/validate',
-      body: { manifest: baseManifest },
     },
   ] as const;
 
@@ -178,6 +212,31 @@ test('plugin create/update/validate routes are deprecated and return disabled re
     assert.equal(payload.code, 'PLUGIN_ROUTE_DISABLED');
     assert.match(payload.error, /deprecated/i);
   }
+});
+
+test('POST /api/plugins/validate returns contract gate violations', async () => {
+  await withTempRepo(async () => {
+    const response = await VALIDATE(
+      new NextRequest('http://localhost/api/plugins/validate', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+    );
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.validationTable.isValid, false);
+    assert.equal(
+      payload.validationTable.rows.some(
+        (issue: { path: string }) => issue.path === 'contractGate.readme'
+      ),
+      true
+    );
+  });
 });
 
 test('deprecated create/update routes do not mutate plugin manifests', async () => {

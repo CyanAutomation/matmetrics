@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { createContractPayload } from '@/lib/plugins/api-contract';
+import {
+  createContractPayload,
+  getPluginsRoot,
+  listStoredPluginManifests,
+  toValidationTable,
+} from '@/lib/plugins/api-contract';
+import { runPluginContractGate } from '@/lib/plugins/plugin-contract-gate';
+import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-const DEPRECATION_MESSAGE =
-  'Plugin validation via /api/plugins/validate has been deprecated for standard UI clients.';
+const asGateManifest = (value: unknown): Pick<PluginManifest, 'uiExtensions'> => {
+  if (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Array.isArray((value as PluginManifest).uiExtensions)
+  ) {
+    return value as PluginManifest;
+  }
+
+  return { uiExtensions: [] };
+};
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuthenticatedUser(request);
@@ -12,16 +29,49 @@ export async function POST(request: NextRequest) {
     return authResult;
   }
 
-  return NextResponse.json(
-    {
-      error: DEPRECATION_MESSAGE,
-      code: 'PLUGIN_ROUTE_DISABLED',
-      ...createContractPayload({
-        assumptions: [
-          'This route is intentionally disabled for end-user and standard UI workflows.',
-        ],
-      }),
-    },
-    { status: 403 }
+  const manifests = await listStoredPluginManifests();
+  const pluginsRoot = getPluginsRoot();
+
+  const pluginRows = await Promise.all(
+    manifests.map(async (entry) => {
+      const validation = toValidationTable(entry.manifest);
+      const gateResult = await runPluginContractGate({
+        pluginsRoot,
+        directoryName: entry.directoryName,
+        manifest: asGateManifest(entry.manifest),
+      });
+
+      validation.rows.push(...gateResult.issues);
+      validation.isValid = validation.isValid && gateResult.isValid;
+
+      return {
+        pluginId:
+          typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
+        directoryName: entry.directoryName,
+        validation,
+      };
+    })
   );
+
+  const validationRows = pluginRows.flatMap((row) => row.validation.rows);
+
+  return NextResponse.json({
+    plugins: pluginRows,
+    ...createContractPayload({
+      fileTreeDiffSummary: {
+        mode: 'dry-run',
+        files: manifests.map((entry) => ({
+          path: entry.relativePath,
+          changeType: 'unchanged',
+        })),
+      },
+      validationTable: {
+        isValid: pluginRows.every((row) => row.validation.isValid),
+        rows: validationRows,
+      },
+      assumptions: [
+        'Validation includes manifest schema checks and plugin contract gate checks.',
+      ],
+    }),
+  });
 }
