@@ -18,6 +18,20 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
 
 ## Usage
 
+### Operator/developer quickstart
+
+1. Verify plugin manifest/runtime alignment:
+   - `plugins/tag-manager/plugin.json` declares component `tag_manager`
+   - `plugins/tag-manager/src/index.ts` registers `tag_manager`
+2. Start the application:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Open **Dashboard → Plugins** and ensure Tag Manager is enabled.
+4. Open **Dashboard → Tag Manager** and execute rename/merge/delete flows.
+
 ### Enablement and discovery flow
 
 1. **Manifest discovery**
@@ -38,6 +52,16 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
    - After successful discovery + enablement + renderer resolution, users see a **Tag Manager** tab in the dashboard navigation.
 
 ## Verification
+
+### Operator/developer preflight checks
+
+Run these checks before manual validation to confirm discovery and contract-gate integrity:
+
+```bash
+npm test -- src/lib/plugins/plugin-contract-gate.test.ts
+npm test -- src/tests/api-plugins-routes.test.ts
+npm test -- src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts
+```
 
 Use seeded session data that contains at least two tags with overlap opportunities.
 
