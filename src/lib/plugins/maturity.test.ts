@@ -366,3 +366,77 @@ test('scorePluginMaturity treats missing component file as docs-quality warning 
     }
   );
 });
+
+test('scorePluginMaturity counts src/lib/tags/service.test.ts as evidence for tag-manager', async () => {
+  const tagManagerManifest: PluginManifest = {
+    ...baseManifest,
+    id: 'tag-manager',
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'tag-manager-dashboard-tab',
+        title: 'Tag Manager',
+        config: {
+          tabId: 'tag-manager',
+          headerTitle: 'Tags',
+          component: 'tag_manager',
+        },
+      },
+    ],
+    capabilities: ['tag_mutation'],
+  };
+
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'tag-manager', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'tag-manager', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('tag-manager-dashboard-tab');
+  context.registerPluginComponent?.('tag_manager', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'tag-manager.tsx'),
+        `export function TagManager() {
+  return null;
+}
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'lib', 'tags'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(repoRoot, 'src', 'lib', 'tags', 'service.test.ts'),
+        `test('tag service supports plugin capability', () => {
+  'tag_mutation';
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: tagManagerManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'tag-manager',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.every(
+          (reason) => !reason.includes('No plugin-specific automated test evidence')
+        )
+      );
+      assert.ok(scorecard.categoryScores.test_coverage.earned >= 12);
+    }
+  );
+});
