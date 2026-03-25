@@ -10,6 +10,7 @@ test('github-sync initPlugin registers github-sync-dashboard-tab', () => {
     register: (extensionId) => {
       registeredExtensionIds.push(extensionId);
     },
+    registerPluginComponent: () => {},
   });
 
   assert.deepEqual(registeredExtensionIds, ['github-sync-dashboard-tab']);
