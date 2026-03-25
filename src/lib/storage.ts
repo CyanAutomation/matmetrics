@@ -678,6 +678,7 @@ export async function saveSession(
   commitLocalSessions(nextSessions);
   if (guestMode) {
     markGuestWorkspaceCustom();
+    clearDirtyMutation(session.id, version);
     return { status: 'synced' };
   }
 
@@ -743,6 +744,7 @@ export async function updateSession(
   commitLocalSessions(updated);
   if (guestMode) {
     markGuestWorkspaceCustom();
+    clearDirtyMutation(session.id, version);
     return { status: 'synced' };
   }
 
@@ -796,6 +798,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   commitLocalSessions(filtered);
   if (guestMode) {
     markGuestWorkspaceCustom();
+    clearDirtyMutation(id, version);
     return { status: 'synced' };
   }
 

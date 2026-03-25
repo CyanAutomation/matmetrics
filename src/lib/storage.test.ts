@@ -499,6 +499,185 @@ test('successful delete clears dirty state even when immediate refresh fails', a
   }
 });
 
+test('guest create does not leak dirty mutation into later authenticated refresh merge', async () => {
+  installBrowserEnv();
+  setActiveUserId('guest');
+  __resetStorageStateForTests();
+
+  const guestSession = makeSession('session-guest-create-no-dirty-leak');
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    const result = await saveSession(guestSession);
+    assert.equal(result.status, 'synced');
+    assert.ok(
+      getSessions()
+        .map((entry) => entry.id)
+        .includes(guestSession.id)
+    );
+
+    setActiveUserId('user-1');
+    getSessions();
+    await flushAsyncWork();
+
+    assert.deepEqual(getSessions(), []);
+    assert.deepEqual(getQueue(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('guest update does not leak dirty mutation into later authenticated refresh merge', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('guest');
+  __resetStorageStateForTests();
+
+  const originalSession = makeSession('session-guest-update-no-dirty-leak');
+  const updatedSession = { ...originalSession, notes: 'guest-updated-notes' };
+  localStorage.setItem(
+    getScopedStorageKey('matmetrics_sessions'),
+    JSON.stringify([originalSession])
+  );
+
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([originalSession]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    const result = await updateSession(updatedSession);
+    assert.equal(result.status, 'synced');
+    assert.equal(getSessions()[0].notes, updatedSession.notes);
+
+    setActiveUserId('user-1');
+    getSessions();
+    await flushAsyncWork();
+
+    assert.equal(getSessions()[0].notes, originalSession.notes);
+    assert.deepEqual(getQueue(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('guest delete does not leak dirty mutation into later authenticated refresh merge', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('guest');
+  __resetStorageStateForTests();
+
+  const removedSession = makeSession('session-guest-delete-no-dirty-leak');
+  localStorage.setItem(
+    getScopedStorageKey('matmetrics_sessions'),
+    JSON.stringify([removedSession])
+  );
+
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([removedSession]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    const result = await deleteSession(removedSession.id);
+    assert.equal(result.status, 'synced');
+    assert.deepEqual(getSessions(), []);
+
+    setActiveUserId('user-1');
+    getSessions();
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      getSessions().map((entry) => entry.id),
+      [removedSession.id]
+    );
+    assert.deepEqual(getQueue(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('offline non-guest mutations remain queued and keep optimistic state until replay succeeds', async () => {
+  const originalNavigator = globalThis.navigator;
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: false },
+  });
+
+  const session = makeSession('session-offline-queued-retained');
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      return new Response(JSON.stringify(session), { status: 201 });
+    }
+
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    window.dispatchEvent(new Event('offline'));
+    const result = await saveSession(session);
+    assert.equal(result.status, 'queued');
+    assert.deepEqual(
+      getSessions().map((entry) => entry.id),
+      [session.id]
+    );
+    assert.equal(getQueue().length, 1);
+
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: true },
+    });
+    window.dispatchEvent(new Event('online'));
+    await flushAsyncWork();
+
+    assert.deepEqual(getQueue(), []);
+    assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: originalNavigator,
+    });
+  }
+});
+
 test('retryable queued create remains visible until replay succeeds', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
