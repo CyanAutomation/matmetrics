@@ -278,3 +278,112 @@ Notes.`;
     /must begin with a level-1 title/
   );
 });
+
+test('invalid date frontmatter values are rejected', () => {
+  const markdownWithImpossibleDate = `---
+id: "invalid-date"
+date: "2026-02-30"
+effort: 3
+category: "Technical"
+---
+
+# 2026-02-30 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithImpossibleDate),
+    /Invalid "date" in frontmatter: must be YYYY-MM-DD/
+  );
+});
+
+test('invalid effort frontmatter values are rejected', () => {
+  const markdownWithOutOfBoundsEffort = `---
+id: "invalid-effort"
+date: "2026-03-22"
+effort: 6
+category: "Technical"
+---
+
+# 2026-03-22 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithOutOfBoundsEffort),
+    /Invalid "effort" in frontmatter: must be between 1 and 5/
+  );
+});
+
+test('invalid category frontmatter values are rejected', () => {
+  const markdownWithInvalidCategory = `---
+id: "invalid-category"
+date: "2026-03-22"
+effort: 3
+category: "Sparring"
+---
+
+# 2026-03-22 - Judo Session: Sparring
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithInvalidCategory),
+    /Invalid "category" in frontmatter: must be one of Technical, Randori, Shiai/
+  );
+});
+
+test('invalid duration frontmatter values are rejected', () => {
+  const markdownWithNegativeDuration = `---
+id: "invalid-duration"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+duration: -1
+---
+
+# 2026-03-22 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithNegativeDuration),
+    /Invalid "duration" in frontmatter: must be a non-negative integer/
+  );
+});

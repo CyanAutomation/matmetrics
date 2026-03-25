@@ -315,6 +315,34 @@ Keep left elbow higher.`
 	}
 }
 
+func TestMarkdownToSessionRejectsNegativeDuration(t *testing.T) {
+	input := `---
+id: "negative-duration"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+duration: -5
+---
+
+# 2026-03-22 - Judo Session: Technical
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+Worked entries.
+`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatal("MarkdownToSession() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "non-negative integer") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestMarkdownToSessionPreservesEmbeddedHashesAndFencedCode(t *testing.T) {
 	input := `---
 id: "edge-fenced-code"
