@@ -9,8 +9,10 @@ import {
   pluginManifestSchema,
   type PluginManifestSchema,
 } from '@/lib/plugins/manifest-schema';
+import { validateManifestComponentRenderers } from '@/lib/plugins/runtime-component-validation';
 import { meetsMinimumVersion } from '@/lib/plugins/version-utils';
 import type {
+  PluginManifest,
   PluginManifestValidationResult,
   PluginValidationIssue,
   PluginValidationSeverity,
@@ -21,6 +23,7 @@ import type {
 type ValidateManifestOptions = {
   allowExperimentalTypes?: boolean;
   currentVersion?: string;
+  validateDeclaredComponentsAtRuntime?: boolean;
 };
 
 const knownExtensionTypes: UIExtensionType[] = [
@@ -233,6 +236,12 @@ export const validatePluginManifest = (
         )
       );
     }
+  }
+
+  if (options.validateDeclaredComponentsAtRuntime) {
+    issues.push(
+      ...validateManifestComponentRenderers(manifest as PluginManifest)
+    );
   }
 
   const hasErrors = issues.some((issue) => issue.severity === 'error');

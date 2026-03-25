@@ -45,7 +45,9 @@ const pluginComponentRegistrationPattern =
 const extractRegisteredPluginComponents = (entryContents: string): string[] => {
   const componentIds = new Set<string>();
 
-  for (const match of entryContents.matchAll(pluginComponentRegistrationPattern)) {
+  for (const match of entryContents.matchAll(
+    pluginComponentRegistrationPattern
+  )) {
     const maybeComponentId = match[1]?.trim();
     if (maybeComponentId) {
       componentIds.add(maybeComponentId);
@@ -178,7 +180,9 @@ const findTestEvidenceFiles = async (
       continue;
     }
     const contents = (await readFile(fallbackFile, 'utf8')).toLowerCase();
-    const hasFallbackMatch = searchTerms.some((term) => contents.includes(term));
+    const hasFallbackMatch = searchTerms.some((term) =>
+      contents.includes(term)
+    );
     if (hasFallbackMatch) {
       pushUnique(matches, fallbackFile);
     }
@@ -217,6 +221,12 @@ export const scorePluginMaturity = async ({
       : [];
   });
   const componentBasenames = componentIds.map(componentIdToComponentBasename);
+  const unresolvedRuntimeComponentWarnings = validationIssues.filter(
+    (issue) =>
+      issue.severity === 'warning' &&
+      issue.path.includes('.config.component') &&
+      issue.message.includes('no dashboard renderer is registered')
+  );
 
   categoryScores.contract_metadata += 8;
   pushUnique(evidence, 'Manifest passes required schema validation.');
@@ -282,25 +292,47 @@ export const scorePluginMaturity = async ({
       );
     }
 
+    if (
+      componentIds.length === 0 ||
+      unresolvedRuntimeComponentWarnings.length === 0
+    ) {
+      categoryScores.runtime_integration += 4;
+      pushUnique(
+        evidence,
+        'Declared manifest components resolve to registered renderers after plugin bootstrap.'
+      );
+    } else {
+      pushUnique(
+        reasons,
+        'Some manifest component ids do not resolve to registered renderers at runtime.'
+      );
+      pushUnique(
+        nextActions,
+        'Register each declared manifest component id during plugin bootstrap.'
+      );
+    }
+
     const registeredPluginComponents =
       extractRegisteredPluginComponents(entryContents);
     const missingComponentRegistrations = componentIds.filter(
       (componentId) => !registeredPluginComponents.includes(componentId)
     );
-    if (componentIds.length === 0 || missingComponentRegistrations.length === 0) {
-      categoryScores.runtime_integration += 4;
+    if (
+      componentIds.length === 0 ||
+      missingComponentRegistrations.length === 0
+    ) {
       pushUnique(
         evidence,
-        'Plugin entry registers declared component renderers.'
+        'Static plugin-entry scan aligns registerPluginComponent calls with manifest component ids.'
       );
     } else {
       pushUnique(
         reasons,
-        'Plugin entry does not register all manifest component ids.'
+        'Static plugin-entry scan did not find all manifest component ids (supplemental signal only).'
       );
       pushUnique(
         nextActions,
-        'Register every declared component id in the plugin entry module.'
+        'Keep registerPluginComponent calls aligned with manifest component ids for maintainability.'
       );
     }
   } else {
@@ -373,7 +405,10 @@ export const scorePluginMaturity = async ({
         reasons,
         'Some declared plugin components do not map to checked-in UI modules.'
       );
-      pushUnique(nextActions, 'Keep component ids and component files aligned.');
+      pushUnique(
+        nextActions,
+        'Keep component ids and component files aligned.'
+      );
     } else if (missingComponentFiles.length > 0) {
       pushUnique(
         reasons,
