@@ -20,6 +20,7 @@ test('github-sync initPlugin registers github_settings component renderer', () =
   const registeredComponents: string[] = [];
 
   initPlugin({
+    register: () => {},
     registerPluginComponent: (componentId) => {
       registeredComponents.push(componentId);
     },
