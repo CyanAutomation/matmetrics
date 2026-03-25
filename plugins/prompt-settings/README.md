@@ -31,6 +31,20 @@ At runtime, `initPlugin` wires the plugin into the dashboard extension system by
 
 ## Usage
 
+### Operator/developer quickstart
+
+1. Confirm plugin assets are present:
+   - `plugins/prompt-settings/plugin.json`
+   - `plugins/prompt-settings/src/index.ts`
+2. Start the local app:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Sign in, then open **Dashboard → Prompt Settings**.
+4. Validate Save and Reset behavior against the expected outcomes below.
+
 ### User workflow
 
 1. Open the Dashboard and select the **Prompt Settings** tab.
@@ -45,6 +59,16 @@ Behavioral expectations:
 - Reset shows a success toast indicating default prompt restoration.
 
 ## Verification
+
+### Operator/developer preflight checks
+
+Run these checks to validate plugin registration and API/plugin contract behavior:
+
+```bash
+npm test -- src/lib/plugins/plugin-contract-gate.test.ts
+npm test -- src/lib/plugins/load-dashboard-tab-extensions.test.ts
+npm test -- src/tests/api-plugins-routes.test.ts
+```
 
 ### Static checks
 
