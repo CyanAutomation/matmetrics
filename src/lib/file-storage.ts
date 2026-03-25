@@ -10,6 +10,8 @@ const SESSION_INDEX_DIR = '.index';
 const SESSION_INDEX_RESOLVE_TIMEOUT_MS = 3000;
 const SESSION_INDEX_INITIAL_BACKOFF_MS = 10;
 const SESSION_INDEX_MAX_BACKOFF_MS = 250;
+// Same-path session update lock is treated as stale after this timeout.
+const SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS = 3000;
 const YEAR_DIR_PATTERN = /^\d{4}$/;
 const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
@@ -254,6 +256,58 @@ async function releaseSessionUpdateLock(lockPath: string): Promise<void> {
   }
 }
 
+function parseLockPid(lockContent: string): number | null {
+  const trimmed = lockContent.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') {
+      return false;
+    }
+    if (code === 'EPERM') {
+      return true;
+    }
+    return true;
+  }
+}
+
+async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean> {
+  try {
+    const [stats, rawLock] = await Promise.all([
+      fs.stat(lockPath),
+      fs.readFile(lockPath, 'utf-8'),
+    ]);
+    const lockAgeMs = Date.now() - stats.mtimeMs;
+    if (lockAgeMs >= SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS) {
+      return true;
+    }
+
+    const lockPid = parseLockPid(rawLock);
+    if (lockPid !== null && !isPidAlive(lockPid)) {
+      return true;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`Failed to inspect session update lock at ${lockPath}`, error);
+    }
+  }
+
+  return false;
+}
+
 async function acquireSessionUpdateLock(
   sessionId: string,
   targetPath: string
@@ -261,21 +315,37 @@ async function acquireSessionUpdateLock(
   const lockPath = getSessionUpdateLockPath(targetPath);
   await ensureCreatablePathWithinDataDir(lockPath);
 
-  try {
-    await fs.writeFile(lockPath, `${process.pid}\n`, {
-      encoding: 'utf-8',
-      flag: 'wx',
-    });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new SessionUpdateConflictError(sessionId, targetPath);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await fs.writeFile(lockPath, `${process.pid}\n`, {
+        encoding: 'utf-8',
+        flag: 'wx',
+      });
+      return async () => {
+        await releaseSessionUpdateLock(lockPath);
+      };
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EEXIST') {
+        throw error;
+      }
+
+      const shouldReclaim = await shouldReclaimSessionUpdateLock(lockPath);
+      if (!shouldReclaim) {
+        throw new SessionUpdateConflictError(sessionId, targetPath);
+      }
+
+      try {
+        await fs.unlink(lockPath);
+      } catch (unlinkError) {
+        if ((unlinkError as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw new SessionUpdateConflictError(sessionId, targetPath);
+        }
+      }
     }
-    throw error;
   }
 
-  return async () => {
-    await releaseSessionUpdateLock(lockPath);
-  };
+  throw new SessionUpdateConflictError(sessionId, targetPath);
 }
 
 async function readSessionIndex(

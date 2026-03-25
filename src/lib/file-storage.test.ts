@@ -6,6 +6,7 @@ import {
   readdir,
   rename,
   rm,
+  utimes,
 } from 'node:fs/promises';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'node:os';
@@ -382,6 +383,103 @@ test('updateSession releases same-path lock when commit rename fails', async () 
     const markdown = await readFile(sessionPath, 'utf8');
     assert.match(markdown, /second-writer-succeeds/);
     assert.doesNotMatch(markdown, /first-writer-fails/);
+  });
+});
+
+test('updateSession reclaims stale same-path lock and succeeds', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-stale-lock',
+      date: '2025-01-10',
+      notes: 'before stale lock reclaim',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+
+    await fs.writeFile(lockPath, `${process.pid}\n`, 'utf-8');
+    const staleAt = new Date(Date.now() - 5000);
+    await utimes(lockPath, staleAt, staleAt);
+
+    const updatedPath = await updateSession({
+      ...session,
+      notes: 'after stale lock reclaim',
+    });
+
+    assert.equal(updatedPath, sessionPath);
+    const markdown = await readFile(sessionPath, 'utf8');
+    assert.match(markdown, /after stale lock reclaim/);
+    await assert.rejects(access(lockPath));
+  });
+});
+
+test('updateSession keeps conflict behavior when same-path lock is active', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-active-lock',
+      date: '2025-01-10',
+      notes: 'before active lock conflict',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+
+    await fs.writeFile(lockPath, `${process.pid}\n`, 'utf-8');
+
+    await assert.rejects(
+      updateSession({
+        ...session,
+        notes: 'should be blocked by active lock',
+      }),
+      SessionUpdateConflictError
+    );
+  });
+});
+
+test('updateSession release lock is robust on normal and ENOENT cleanup paths', async () => {
+  await withTempDataDir(async () => {
+    const originalUnlink = fs.unlink;
+    const session = makeSession({
+      id: 'session-lock-robust-release',
+      date: '2025-01-10',
+      notes: 'before release robustness checks',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+    let injectedReleaseEnoent = false;
+
+    const firstPath = await updateSession({
+      ...session,
+      notes: 'normal release path',
+    });
+    assert.equal(firstPath, sessionPath);
+    await assert.rejects(access(lockPath));
+
+    fs.unlink = (async (...args: Parameters<typeof fs.unlink>) => {
+      const [targetPath] = args;
+      const targetPathString = targetPath.toString();
+      if (!injectedReleaseEnoent && targetPathString === lockPath) {
+        injectedReleaseEnoent = true;
+        await originalUnlink.call(fs, ...args);
+        throw Object.assign(new Error('simulated lock unlink race'), {
+          code: 'ENOENT',
+        });
+      }
+      return originalUnlink.call(fs, ...args);
+    }) as typeof fs.unlink;
+
+    try {
+      const secondPath = await updateSession({
+        ...session,
+        notes: 'release ENOENT path',
+      });
+      assert.equal(secondPath, sessionPath);
+    } finally {
+      fs.unlink = originalUnlink;
+    }
+
+    assert.equal(injectedReleaseEnoent, true);
+    await assert.rejects(access(lockPath));
+    const markdown = await readFile(sessionPath, 'utf8');
+    assert.match(markdown, /release ENOENT path/);
   });
 });
 
