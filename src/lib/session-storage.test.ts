@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { listSessionsFromGitHub } from './session-storage';
+import { listSessionsFromGitHub, normalizeGitHubConfig } from './session-storage';
 
 async function withMockedGitHub(
   handler: typeof fetch,
@@ -208,4 +208,44 @@ category: "Technical"
     warnCalls[0] ?? '',
     /Skipping GitHub session file at data\/2025\/03\/20250315-matmetrics-broken-session\.md/
   );
+});
+
+test('normalizeGitHubConfig rejects owner names longer than 39 characters', () => {
+  const config = normalizeGitHubConfig({
+    owner: `o${'a'.repeat(39)}`,
+    repo: 'valid-repo',
+  });
+
+  assert.equal(config, undefined);
+});
+
+test('normalizeGitHubConfig accepts repo names up to 100 characters', () => {
+  const config = normalizeGitHubConfig({
+    owner: 'valid-owner',
+    repo: `r${'a'.repeat(99)}`,
+  });
+
+  assert.deepEqual(config, {
+    owner: 'valid-owner',
+    repo: `r${'a'.repeat(99)}`,
+  });
+});
+
+test('normalizeGitHubConfig rejects invalid owner/repo traversal and control characters', () => {
+  const traversalOwner = normalizeGitHubConfig({
+    owner: 'owner..name',
+    repo: 'valid-repo',
+  });
+  const traversalRepo = normalizeGitHubConfig({
+    owner: 'valid-owner',
+    repo: 'repo..name',
+  });
+  const controlRepo = normalizeGitHubConfig({
+    owner: 'valid-owner',
+    repo: 'bad\u0000repo',
+  });
+
+  assert.equal(traversalOwner, undefined);
+  assert.equal(traversalRepo, undefined);
+  assert.equal(controlRepo, undefined);
 });
