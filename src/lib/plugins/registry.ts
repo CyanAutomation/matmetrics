@@ -49,7 +49,11 @@ export const getLocalPluginManifestCandidates = (): unknown[] =>
 
 export const loadPluginManifests = (): PluginManifest[] =>
   getLocalPluginManifestCandidates()
-    .map((candidate) => validatePluginManifest(candidate))
+    .map((candidate) =>
+      validatePluginManifest(candidate, {
+        validateDeclaredComponentsAtRuntime: true,
+      })
+    )
     .flatMap((result) =>
       result.isValid ? [applyEnabledOverride(result.manifest)] : []
     );
