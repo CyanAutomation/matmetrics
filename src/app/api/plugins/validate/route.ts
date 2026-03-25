@@ -24,54 +24,66 @@ const asGateManifest = (value: unknown): Pick<PluginManifest, 'uiExtensions'> =>
 };
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuthenticatedUser(request);
-  if (authResult instanceof NextResponse) {
-    return authResult;
+  try {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
+    const manifests = await listStoredPluginManifests();
+    const pluginsRoot = getPluginsRoot();
+
+    const pluginRows = await Promise.all(
+      manifests.map(async (entry) => {
+        const validation = toValidationTable(entry.manifest);
+        const gateResult = await runPluginContractGate({
+          pluginsRoot,
+          directoryName: entry.directoryName,
+          manifest: asGateManifest(entry.manifest),
+        });
+
+        validation.rows.push(...gateResult.issues);
+        validation.isValid = validation.isValid && gateResult.isValid;
+
+        return {
+          pluginId:
+            typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
+          directoryName: entry.directoryName,
+          validation,
+        };
+      })
+    );
+
+    const validationRows = pluginRows.flatMap((row) => row.validation.rows);
+
+    return NextResponse.json({
+      plugins: pluginRows,
+      ...createContractPayload({
+        fileTreeDiffSummary: {
+          mode: 'dry-run',
+          files: manifests.map((entry) => ({
+            path: entry.relativePath,
+            changeType: 'unchanged',
+          })),
+        },
+        validationTable: {
+          isValid: pluginRows.every((row) => row.validation.isValid),
+          rows: validationRows,
+        },
+        assumptions: [
+          'Validation includes manifest schema checks and plugin contract gate checks.',
+        ],
+      }),
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error validating plugins:', errMsg);
+    return NextResponse.json(
+      {
+        error: 'Failed to validate plugins',
+        details: errMsg,
+      },
+      { status: 500 }
+    );
   }
-
-  const manifests = await listStoredPluginManifests();
-  const pluginsRoot = getPluginsRoot();
-
-  const pluginRows = await Promise.all(
-    manifests.map(async (entry) => {
-      const validation = toValidationTable(entry.manifest);
-      const gateResult = await runPluginContractGate({
-        pluginsRoot,
-        directoryName: entry.directoryName,
-        manifest: asGateManifest(entry.manifest),
-      });
-
-      validation.rows.push(...gateResult.issues);
-      validation.isValid = validation.isValid && gateResult.isValid;
-
-      return {
-        pluginId:
-          typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
-        directoryName: entry.directoryName,
-        validation,
-      };
-    })
-  );
-
-  const validationRows = pluginRows.flatMap((row) => row.validation.rows);
-
-  return NextResponse.json({
-    plugins: pluginRows,
-    ...createContractPayload({
-      fileTreeDiffSummary: {
-        mode: 'dry-run',
-        files: manifests.map((entry) => ({
-          path: entry.relativePath,
-          changeType: 'unchanged',
-        })),
-      },
-      validationTable: {
-        isValid: pluginRows.every((row) => row.validation.isValid),
-        rows: validationRows,
-      },
-      assumptions: [
-        'Validation includes manifest schema checks and plugin contract gate checks.',
-      ],
-    }),
-  });
 }
