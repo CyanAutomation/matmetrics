@@ -7,10 +7,10 @@ export type InteractionTone =
 export type FeedbackState = 'idle' | 'loading' | 'success' | 'error';
 
 export const FIELD_INTERACTION_CLASS =
-  'ui-field-interaction transition-[border-color,box-shadow,background-color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/35 focus-visible:-translate-y-px focus-visible:border-primary/45';
+  'ui-field-interaction transition-[border-color,box-shadow,background-color,transform] duration-200 ease-snappy hover:border-primary/35 focus-visible:-translate-y-px focus-visible:border-primary/45';
 
 export const CARD_INTERACTION_CLASS =
-  'ui-card-interaction transition-[transform,box-shadow,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/20';
+  'ui-card-interaction transition-[transform,box-shadow,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/20';
 
 export function getFeedbackResetDelay(state: Exclude<FeedbackState, 'idle'>) {
   return state === 'error' ? 1800 : 1400;
