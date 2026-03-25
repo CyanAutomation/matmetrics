@@ -119,7 +119,10 @@ function validateDate(value: unknown): string {
     throw new Error('Invalid "date" in frontmatter: must be YYYY-MM-DD');
   }
 
-  const [year, month, day] = value.split('-').map((part) => Number(part));
+  const parts = value.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   const isValidDate =
     parsed.getUTCFullYear() === year &&
