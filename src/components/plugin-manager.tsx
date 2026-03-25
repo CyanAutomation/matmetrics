@@ -108,6 +108,9 @@ const getBlockingContractGateIssues = (
         issue.path.includes('config.component'))
   );
 
+const hasBlockingContractIssues = (issues: PluginValidationIssue[]): boolean =>
+  getBlockingContractGateIssues(issues).length > 0;
+
 type PluginManagerProps = {
   onPluginsChanged?: () => void | Promise<void>;
 };
@@ -352,6 +355,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               </TableHeader>
               <TableBody>
                 {installedPlugins.map((plugin) => {
+                  const scoredWithContractIssues =
+                    Boolean(plugin.maturity) &&
+                    hasBlockingContractIssues(plugin.issues);
                   return (
                     <TableRow key={plugin.id}>
                       <TableCell className="font-medium">
@@ -375,6 +381,14 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                             <div className="text-xs text-muted-foreground">
                               {plugin.maturity.score}/100
                             </div>
+                            {scoredWithContractIssues ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-500/10 text-amber-700 border-amber-300/40"
+                              >
+                                Scored with contract issues
+                              </Badge>
+                            ) : null}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">
@@ -470,6 +484,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               const blockingIssues = getBlockingContractGateIssues(
                 plugin.issues
               );
+              const scoredWithContractIssues =
+                Boolean(plugin.maturity) && blockingIssues.length > 0;
 
               return (
                 <div
@@ -491,6 +507,14 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       <Badge className={severityBadgeClass[summarySeverity]}>
                         {severityLabel(summarySeverity)}
                       </Badge>
+                      {scoredWithContractIssues ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-500/10 text-amber-700 border-amber-300/40"
+                        >
+                          Scored with contract issues
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
 

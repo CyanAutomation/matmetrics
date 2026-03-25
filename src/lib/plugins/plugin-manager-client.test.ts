@@ -97,6 +97,67 @@ test('normalizeInstalledPluginRows keeps only valid manifest rows', () => {
   assert.equal(rows[0]?.maturity?.tier, 'bronze');
 });
 
+test('normalizeInstalledPluginRows keeps maturity when contract gate errors exist', () => {
+  const rows = normalizeInstalledPluginRows([
+    {
+      manifest: {
+        id: 'tag-manager',
+        name: 'Tag Manager',
+        version: '1.0.0',
+        description: 'Manage tags',
+        enabled: true,
+      },
+      validation: {
+        rows: [
+          {
+            severity: 'error',
+            path: 'contractGate.readme',
+            message: 'README is missing required sections.',
+          },
+        ],
+      },
+      maturity: {
+        score: 40,
+        tier: 'bronze',
+        categoryScores: {
+          contract_metadata: {
+            label: 'Contract & Metadata',
+            earned: 8,
+            possible: 20,
+          },
+          runtime_integration: {
+            label: 'Runtime Integration',
+            earned: 10,
+            possible: 20,
+          },
+          feature_quality: {
+            label: 'Feature Quality',
+            earned: 10,
+            possible: 25,
+          },
+          test_coverage: {
+            label: 'Test Coverage',
+            earned: 7,
+            possible: 20,
+          },
+          operability_docs: {
+            label: 'Operability & Docs',
+            earned: 5,
+            possible: 15,
+          },
+        },
+        reasons: ['README contract requirements are not fully satisfied.'],
+        nextActions: ['Add Usage and Verification sections to README.md.'],
+        evidence: ['Manifest passes required schema validation.'],
+      },
+    },
+  ]);
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.issues[0]?.path, 'contractGate.readme');
+  assert.equal(rows[0]?.maturity?.score, 40);
+});
+
 test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', async () => {
   let requestedAuthorization: string | null = null;
 
