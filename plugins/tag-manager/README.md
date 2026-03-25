@@ -16,7 +16,9 @@ The Tag Manager plugin provides a **dashboard tab** for global technique-tag mai
 
 This metadata is declared in `plugins/tag-manager/plugin.json` and must stay aligned with runtime registration in `plugins/tag-manager/src/index.ts`.
 
-## Enablement and discovery flow
+## Usage
+
+### Enablement and discovery flow
 
 1. **Manifest discovery**
    - The plugin manifest is loaded from `plugins/tag-manager/plugin.json`.
@@ -35,7 +37,7 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
 4. **UI appearance**
    - After successful discovery + enablement + renderer resolution, users see a **Tag Manager** tab in the dashboard navigation.
 
-## Manual verification
+## Verification
 
 Use seeded session data that contains at least two tags with overlap opportunities.
 
