@@ -30,6 +30,11 @@ const asGateManifest = (value: unknown): Pick<PluginManifest, 'uiExtensions'> =>
   return { uiExtensions: [] };
 };
 
+const hasScorableManifestShape = (
+  value: unknown
+): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuthenticatedUser(request);
@@ -93,18 +98,14 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        const maturity =
-          validation.isValid &&
-          processedManifest &&
-          typeof processedManifest === 'object' &&
-          !Array.isArray(processedManifest)
-            ? await scorePluginMaturity({
-                manifest: processedManifest as PluginManifest,
-                validationIssues: validation.rows,
-                pluginDirectoryName: entry.directoryName,
-                autoDisabledWithWarnings,
-              })
-            : undefined;
+        const maturity = hasScorableManifestShape(processedManifest)
+          ? await scorePluginMaturity({
+              manifest: processedManifest as PluginManifest,
+              validationIssues: validation.rows,
+              pluginDirectoryName: entry.directoryName,
+              autoDisabledWithWarnings,
+            })
+          : undefined;
 
         return {
           manifest: processedManifest,

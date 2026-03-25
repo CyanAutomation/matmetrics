@@ -129,6 +129,11 @@ test('GET /api/plugins/list surfaces plugin contract gate violations', async () 
       ),
       true
     );
+    assert.equal(typeof payload.plugins[0].maturity?.score, 'number');
+    assert.equal(
+      Array.isArray(payload.plugins[0].maturity?.reasons),
+      true
+    );
   });
 });
 
