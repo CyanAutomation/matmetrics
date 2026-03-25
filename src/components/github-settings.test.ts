@@ -128,7 +128,9 @@ test('keeps tests isolated by using mocked auth + network dependencies', async (
     assert.equal(auth.canUseGitHubSync, true);
     assert.equal(fetchCalls.length, 1);
     assert.equal(fetchCalls[0]?.input, '/api/github/validate');
-  } finally {
+  } catch (error) {
     global.fetch = originalFetch;
+    throw error;
   }
+  global.fetch = originalFetch;
 });
