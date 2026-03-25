@@ -97,6 +97,17 @@ const resolveEntrySummarySeverity = (
   return 'info';
 };
 
+const getBlockingContractGateIssues = (
+  issues: PluginValidationIssue[]
+): PluginValidationIssue[] =>
+  issues.filter(
+    (issue) =>
+      issue.severity === 'error' &&
+      (issue.path === 'contractGate.entrypoint' ||
+        issue.path === 'contractGate.readme' ||
+        issue.path.includes('config.component'))
+  );
+
 type PluginManagerProps = {
   onPluginsChanged?: () => void | Promise<void>;
 };
@@ -456,6 +467,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               const summarySeverity = resolveEntrySummarySeverity(
                 plugin.issues
               );
+              const blockingIssues = getBlockingContractGateIssues(
+                plugin.issues
+              );
 
               return (
                 <div
@@ -480,7 +494,19 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                     </div>
                   </div>
 
-                  {plugin.maturity ? (
+                  {blockingIssues.length > 0 ? (
+                    <Alert className="border-destructive/30 bg-destructive/5">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <AlertTitle>Blocking contract issues</AlertTitle>
+                      <AlertDescription>
+                        This plugin is blocked until the contract gate passes.
+                        Fix the errors below in the plugin folder (entrypoint,
+                        component mapping, and README sections).
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  {plugin.maturity && blockingIssues.length === 0 ? (
                     <div className="space-y-2 text-sm">
                       <p className="text-muted-foreground">
                         {plugin.maturity.reasons[0] ??
