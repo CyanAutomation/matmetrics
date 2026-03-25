@@ -81,7 +81,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to validate plugins',
-        details: errMsg,
+        details:
+          process.env.NODE_ENV === 'production'
+            ? 'An internal error occurred'
+            : errMsg,
       },
       { status: 500 }
     );
