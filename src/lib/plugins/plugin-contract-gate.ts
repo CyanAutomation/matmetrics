@@ -62,6 +62,10 @@ export type PluginContractGateResult = {
   issues: PluginValidationIssue[];
 };
 
+const isPackagedRuntimeArtifactMode = (): boolean =>
+  process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE === 'packaged' ||
+  process.env.NODE_ENV === 'production';
+
 export const runPluginContractGate = async ({
   pluginsRoot,
   directoryName,
@@ -74,13 +78,37 @@ export const runPluginContractGate = async ({
   explicitRuntimeRegistrations?: ReadonlySet<string>;
 }): Promise<PluginContractGateResult> => {
   const pluginRoot = path.join(pluginsRoot, directoryName);
+  const manifestPath = path.join(pluginRoot, 'plugin.json');
+  const srcRoot = path.join(pluginRoot, 'src');
   const indexPath = path.join(pluginRoot, 'src', 'index.ts');
   const readmePath = path.join(pluginRoot, 'README.md');
 
   const issues: PluginValidationIssue[] = [];
+  const packagedRuntimeMode = isPackagedRuntimeArtifactMode();
+  const [manifestExists, srcRootExists, indexExists, readmeExists] = await Promise.all([
+    exists(manifestPath),
+    exists(srcRoot),
+    exists(indexPath),
+    exists(readmePath),
+  ]);
 
-  const indexExists = await exists(indexPath);
-  if (!indexExists) {
+  const artifactsUnavailableInPackagedRuntime =
+    packagedRuntimeMode &&
+    manifestExists &&
+    !srcRootExists &&
+    !indexExists &&
+    !readmeExists;
+
+  if (artifactsUnavailableInPackagedRuntime) {
+    issues.push({
+      severity: 'warning',
+      path: 'contractGate.artifactsUnavailable',
+      message:
+        'Plugin source artifacts are unavailable in packaged runtime (missing src/index.ts and README.md). Contract gate checks are non-blocking in this environment.',
+    });
+  }
+
+  if (!indexExists && !artifactsUnavailableInPackagedRuntime) {
     issues.push({
       severity: 'error',
       path: 'contractGate.entrypoint',
@@ -88,8 +116,7 @@ export const runPluginContractGate = async ({
     });
   }
 
-  const readmeExists = await exists(readmePath);
-  if (!readmeExists) {
+  if (!readmeExists && !artifactsUnavailableInPackagedRuntime) {
     issues.push({
       severity: 'error',
       path: 'contractGate.readme',
@@ -112,27 +139,29 @@ export const runPluginContractGate = async ({
     }
   }
 
-  for (const declaredComponent of extractDeclaredComponentIds(manifest)) {
-    const expectedComponentPath = path.join(
-      pluginRoot,
-      'src',
-      'components',
-      toComponentFileName(declaredComponent.componentId)
-    );
+  if (!artifactsUnavailableInPackagedRuntime) {
+    for (const declaredComponent of extractDeclaredComponentIds(manifest)) {
+      const expectedComponentPath = path.join(
+        pluginRoot,
+        'src',
+        'components',
+        toComponentFileName(declaredComponent.componentId)
+      );
 
-    const expectedComponentExists = await exists(expectedComponentPath);
+      const expectedComponentExists = await exists(expectedComponentPath);
 
-    if (
-      !expectedComponentExists &&
-      !runtimeRegisteredComponentIds.has(declaredComponent.componentId)
-    ) {
-      issues.push({
-        severity: 'error',
-        path: declaredComponent.path,
-        message: `Extension "${declaredComponent.extensionId}" declares component "${declaredComponent.componentId}" but no file exists at plugins/${directoryName}/src/components/${toComponentFileName(
-          declaredComponent.componentId
-        )} and no explicit runtime registration was found in src/index.ts.`,
-      });
+      if (
+        !expectedComponentExists &&
+        !runtimeRegisteredComponentIds.has(declaredComponent.componentId)
+      ) {
+        issues.push({
+          severity: 'error',
+          path: declaredComponent.path,
+          message: `Extension "${declaredComponent.extensionId}" declares component "${declaredComponent.componentId}" but no file exists at plugins/${directoryName}/src/components/${toComponentFileName(
+            declaredComponent.componentId
+          )} and no explicit runtime registration was found in src/index.ts.`,
+        });
+      }
     }
   }
 

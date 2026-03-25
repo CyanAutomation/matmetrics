@@ -2,6 +2,18 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  outputFileTracingIncludes: {
+    '/api/plugins/list': [
+      './plugins/**/plugin.json',
+      './plugins/**/src/index.ts',
+      './plugins/**/README.md',
+    ],
+    '/api/plugins/validate': [
+      './plugins/**/plugin.json',
+      './plugins/**/src/index.ts',
+      './plugins/**/README.md',
+    ],
+  },
   images: {
     remotePatterns: [
       {

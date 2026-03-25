@@ -16,6 +16,7 @@ process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
 test.afterEach(() => {
   resetPluginEnabledOverridesForTests();
+  delete process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
 });
 
 const baseManifest = {
@@ -125,6 +126,43 @@ test('GET /api/plugins/list surfaces plugin contract gate violations', async () 
     assert.equal(
       payload.plugins[0].validation.rows.some(
         (issue: { path: string }) => issue.path === 'contractGate.readme'
+      ),
+      true
+    );
+  });
+});
+
+test('GET /api/plugins/list treats packaged artifact-unavailable contract checks as non-blocking', async () => {
+  await withTempRepo(async () => {
+    process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE = 'packaged';
+
+    const response = await LIST(
+      new NextRequest('http://localhost/api/plugins/list', {
+        headers: { authorization: 'Bearer test-token' },
+      })
+    );
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.validationTable.isValid, true);
+
+    const gateIssues = payload.plugins[0].validation.rows.filter(
+      (issue: { path: string }) => issue.path.startsWith('contractGate.')
+    );
+    assert.equal(
+      gateIssues.some((issue: { path: string }) => issue.path === 'contractGate.entrypoint'),
+      false
+    );
+    assert.equal(
+      gateIssues.some((issue: { path: string }) => issue.path === 'contractGate.readme'),
+      false
+    );
+    assert.equal(
+      gateIssues.some(
+        (issue: { path: string; severity: string; message: string }) =>
+          issue.path === 'contractGate.artifactsUnavailable' &&
+          issue.severity === 'warning' &&
+          /non-blocking/i.test(issue.message)
       ),
       true
     );
