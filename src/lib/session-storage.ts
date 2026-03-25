@@ -23,29 +23,43 @@ const GITHUB_SESSION_PATH_REGEX = new RegExp(
   `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics-[^/]+\\.md$`
 );
 
-/**
- * Very conservative validation for GitHub owner/repo names.
- * GitHub allows letters, digits, '.', '-', and '_' with length limits.
- */
-function isValidGitHubOwnerOrRepo(name: string): boolean {
+function isValidGitHubOwner(name: string): boolean {
   if (!name) {
     return false;
   }
   // 1–39 characters, start with alphanumeric, then alphanumeric, '.', '-', or '_'
   const pattern = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$/;
-  // Disallow consecutive dots which could be used for path traversal
   if (name.includes('..')) {
     return false;
   }
   return pattern.test(name);
 }
 
-function sanitizeGitHubOwnerOrRepo(raw: unknown): string {
+function isValidGitHubRepo(name: string): boolean {
+  if (!name) {
+    return false;
+  }
+  // 1–100 characters, allow existing owner/repo charset.
+  const pattern = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,99})$/;
+  if (name.length > 100) {
+    return false;
+  }
+  // Disallow whitespace/control chars and path traversal patterns.
+  if (/[\x00-\x1F\x7F\s]/.test(name) || name.includes('..')) {
+    return false;
+  }
+  return pattern.test(name);
+}
+
+function sanitizeGitHubName(
+  raw: unknown,
+  validator: (name: string) => boolean
+): string {
   if (typeof raw !== 'string') {
     return '';
   }
   const trimmed = raw.trim();
-  if (!isValidGitHubOwnerOrRepo(trimmed)) {
+  if (!validator(trimmed)) {
     return '';
   }
   return trimmed;
@@ -86,8 +100,8 @@ export function normalizeGitHubConfig(
     return undefined;
   }
 
-  const owner = sanitizeGitHubOwnerOrRepo(config.owner);
-  const repo = sanitizeGitHubOwnerOrRepo(config.repo);
+  const owner = sanitizeGitHubName(config.owner, isValidGitHubOwner);
+  const repo = sanitizeGitHubName(config.repo, isValidGitHubRepo);
   const branch = sanitizeGitHubBranch(config.branch);
 
   if (!owner || !repo) {
