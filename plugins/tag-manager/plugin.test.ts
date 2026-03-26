@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import githubSyncManifest from './plugin.json';
+import tagManagerManifest from './plugin.json';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 
-test('github-sync manifest validates and exposes expected dashboard tab contract', () => {
-  const validation = validatePluginManifest(githubSyncManifest);
+test('tag-manager manifest validates and exposes expected dashboard tab contract', () => {
+  const validation = validatePluginManifest(tagManagerManifest);
 
   assert.equal(validation.isValid, true);
   if (!validation.isValid) {
@@ -20,8 +20,8 @@ test('github-sync manifest validates and exposes expected dashboard tab contract
   if (!dashboardTab) {
     return;
   }
-  assert.equal(validation.manifest.id, 'github-sync');
-  assert.equal(dashboardTab.id, 'github-sync-dashboard-tab');
-  assert.equal(dashboardTab.config.tabId, 'github-sync');
-  assert.equal(dashboardTab.config.component, 'github_settings');
+  assert.equal(validation.manifest.id, 'tag-manager');
+  assert.equal(dashboardTab.id, 'tag-manager-dashboard-tab');
+  assert.equal(dashboardTab.config.tabId, 'tag-manager');
+  assert.equal(dashboardTab.config.component, 'tag_manager');
 });
