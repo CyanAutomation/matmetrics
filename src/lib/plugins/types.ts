@@ -93,6 +93,7 @@ export type PluginManifestMaturityMetadata = {
     loading?: boolean;
     error?: boolean;
     empty?: boolean;
+    destructiveAction?: boolean;
   };
 };
 

@@ -269,6 +269,12 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
       tier: 'bronze',
       notes: 'Initial baseline.',
       lastReviewedAt: '2026-03-24',
+      uxStates: {
+        loading: true,
+        error: true,
+        empty: true,
+        destructiveAction: true,
+      },
     },
     uiExtensions: [
       {
@@ -288,6 +294,7 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
   if (result.isValid) {
     assert.equal(result.manifest.owner, 'Matmetrics');
     assert.equal(result.manifest.maturity?.tier, 'bronze');
+    assert.equal(result.manifest.maturity?.uxStates?.destructiveAction, true);
   }
 });
 
