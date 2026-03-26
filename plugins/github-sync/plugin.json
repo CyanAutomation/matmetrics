@@ -6,7 +6,10 @@
   "maturity": {
     "tier": "bronze",
     "notes": "Baseline maturity. Valid plugin shell and working feature, but still missing plugin-specific docs and stronger test evidence.",
-    "lastReviewedAt": "2026-03-24"
+    "lastReviewedAt": "2026-03-24",
+    "uxStates": {
+      "destructiveAction": true
+    }
   },
   "enabled": true,
   "uiExtensions": [

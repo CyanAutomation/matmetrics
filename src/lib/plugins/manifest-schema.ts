@@ -36,6 +36,7 @@ export const pluginManifestSchema = z.object({
           loading: z.boolean().optional(),
           error: z.boolean().optional(),
           empty: z.boolean().optional(),
+          destructiveAction: z.boolean().optional(),
         })
         .optional(),
     })

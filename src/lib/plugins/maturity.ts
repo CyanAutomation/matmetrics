@@ -82,7 +82,14 @@ const capabilityCandidateRoots: Record<string, string[]> = {
   tag_mutation: [path.join('src', 'lib', 'tags')],
 };
 
-type FeatureUxState = 'loading' | 'error' | 'empty';
+type FeatureUxState = 'loading' | 'error' | 'empty' | 'destructiveAction';
+
+const featureUxStateLabels: Record<FeatureUxState, string> = {
+  loading: 'loading',
+  error: 'error',
+  empty: 'empty',
+  destructiveAction: 'destructive-action',
+};
 
 const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
   loading: [
@@ -94,6 +101,14 @@ const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
   ],
   error: [/\berror\b/i, /\bfails?\b/i, /\bfailure\b/i, /\balert\b/i],
   empty: [/\bempty\b/i, /\bno data\b/i, /\bno results\b/i, /\bzero state\b/i],
+  destructiveAction: [
+    /\bdestructive\b/i,
+    /\bconfirm(?:ation)?\b/i,
+    /\bdelete(?:d|ion)?\b/i,
+    /\breset(?:ting)?\b/i,
+    /\bremove\b/i,
+    /\bdanger\b/i,
+  ],
 };
 
 const assertionAnchorPattern =
@@ -507,12 +522,14 @@ export const scorePluginMaturity = async ({
     loading: manifestUxStates?.loading === true,
     error: manifestUxStates?.error === true,
     empty: manifestUxStates?.empty === true,
+    destructiveAction: manifestUxStates?.destructiveAction === true,
   };
 
   const assertedUxStates = {
     loading: false,
     error: false,
     empty: false,
+    destructiveAction: false,
   };
   for (const testEvidenceFile of testEvidenceFiles) {
     const testFileContents = await readFile(testEvidenceFile, 'utf8');
@@ -526,21 +543,25 @@ export const scorePluginMaturity = async ({
 
   const assertedStateCount = Object.values(assertedUxStates).filter(Boolean)
     .length;
+  const missingUxStates = (
+    Object.keys(featureUxStateLabels) as FeatureUxState[]
+  ).filter((state) => !declaredUxStates[state] && !assertedUxStates[state]);
+
   if (assertedStateCount > 0) {
     categoryScores.feature_quality += clampScore(assertedStateCount * 3, 12);
     pushUnique(
       evidence,
-      'Automated tests assert loading/error/empty user states for plugin-backed UX.'
+      'Automated tests assert loading/error/empty/destructive-action user states for plugin-backed UX.'
     );
   }
 
   const declaredStateCount = Object.values(declaredUxStates).filter(Boolean)
     .length;
   if (declaredStateCount > 0 && runtimeAssertionsSatisfied) {
-    categoryScores.feature_quality += clampScore(declaredStateCount * 2, 8);
+    categoryScores.feature_quality += clampScore(declaredStateCount * 2, 10);
     pushUnique(
       evidence,
-      'Manifest declares supported loading/error/empty UX states and runtime wiring checks passed.'
+      'Manifest declares supported loading/error/empty/destructive-action UX states and runtime wiring checks passed.'
     );
   } else if (declaredStateCount > 0 && !runtimeAssertionsSatisfied) {
     pushUnique(
@@ -560,7 +581,16 @@ export const scorePluginMaturity = async ({
     );
     pushUnique(
       nextActions,
-      'Add explicit loading, error, empty, and destructive-action handling where relevant.'
+      `Add explicit ${missingUxStates
+        .map((state) => featureUxStateLabels[state])
+        .join(', ')} handling where relevant.`
+    );
+  } else if (missingUxStates.length > 0) {
+    pushUnique(
+      nextActions,
+      `Backfill UX-state coverage for: ${missingUxStates
+        .map((state) => featureUxStateLabels[state])
+        .join(', ')}.`
     );
   }
 
