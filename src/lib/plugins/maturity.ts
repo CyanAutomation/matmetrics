@@ -89,7 +89,7 @@ const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
     /\bspinner\b/i,
     /\bskeleton\b/i,
   ],
-  error: [/\berror\b/i, /\bfailed?\b/i, /\bfailure\b/i, /\balert\b/i],
+  error: [/\berror\b/i, /\bfails?\b/i, /\bfailure\b/i, /\balert\b/i],
   empty: [/\bempty\b/i, /\bno data\b/i, /\bno results\b/i, /\bzero state\b/i],
 };
 
