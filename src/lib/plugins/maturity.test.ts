@@ -283,6 +283,7 @@ test('panel state handling', () => {
   assert.match('pending request', /pending/);
   assert.equal('request failed', 'request failed');
   assert.match('no results', /no results/);
+  assert.match('confirm destructive delete', /confirm/);
 });
 `,
         'utf8'
@@ -297,6 +298,74 @@ test('panel state handling', () => {
       });
 
       assert.ok(scorecard.categoryScores.feature_quality.earned >= 20);
+    }
+  );
+});
+
+test('scorePluginMaturity next actions identify only missing UX states', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return <section data-state='ready'>Panel body</section>;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-state.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('panel state handling', () => {
+  assert.equal('request failed', 'request failed');
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            tier: 'bronze',
+            notes: 'Declared loading behavior reviewed.',
+            lastReviewedAt: '2026-03-24',
+            uxStates: {
+              loading: true,
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.nextActions.some((action) =>
+          action.includes(
+            'Backfill UX-state coverage for: error, empty, destructive-action.'
+          )
+        )
+      );
     }
   );
 });
