@@ -31,6 +31,13 @@ export const pluginManifestSchema = z.object({
       tier: z.enum(['bronze', 'silver', 'gold']).optional(),
       notes: z.string().min(1).optional(),
       lastReviewedAt: z.string().min(1).optional(),
+      uxStates: z
+        .object({
+          loading: z.boolean().optional(),
+          error: z.boolean().optional(),
+          empty: z.boolean().optional(),
+        })
+        .optional(),
     })
     .optional(),
 });
