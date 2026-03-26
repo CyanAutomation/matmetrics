@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -40,6 +41,7 @@ import type {
 } from '@/lib/plugins/types';
 
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
+type PluginFetchState = 'idle' | 'loading' | 'success' | 'error';
 
 type InstalledPluginRow = Pick<
   PluginManifest,
@@ -115,6 +117,34 @@ type PluginManagerProps = {
   onPluginsChanged?: () => void | Promise<void>;
 };
 
+export type PluginManagerInstalledViewState =
+  | 'access-blocked'
+  | 'loading'
+  | 'error'
+  | 'empty'
+  | 'table';
+
+export const derivePluginManagerInstalledViewState = (params: {
+  canManagePlugins: boolean;
+  fetchState: PluginFetchState;
+  installedPluginCount: number;
+}): PluginManagerInstalledViewState => {
+  const { canManagePlugins, fetchState, installedPluginCount } = params;
+  if (!canManagePlugins) {
+    return 'access-blocked';
+  }
+  if (fetchState === 'loading' || fetchState === 'idle') {
+    return 'loading';
+  }
+  if (fetchState === 'error') {
+    return 'error';
+  }
+  if (installedPluginCount === 0) {
+    return 'empty';
+  }
+  return 'table';
+};
+
 export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { toast } = useToast();
   const { user, authAvailable } = useAuth();
@@ -122,6 +152,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
     InstalledPluginManifestRow[]
   >([]);
+  const [fetchState, setFetchState] = React.useState<PluginFetchState>('idle');
+  const [loadErrorMessage, setLoadErrorMessage] = React.useState<string | null>(
+    null
+  );
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
   >({});
@@ -136,16 +170,32 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const canManagePlugins = accessState === 'ready';
 
   const refreshInstalledPlugins = React.useCallback(async () => {
-    const validPlugins = await fetchInstalledPlugins({
-      getHeaders: getAuthHeaders,
-    });
-    setInstalledManifestRows(validPlugins);
+    setFetchState('loading');
+    setLoadErrorMessage(null);
+    try {
+      const validPlugins = await fetchInstalledPlugins({
+        getHeaders: getAuthHeaders,
+      });
+      setInstalledManifestRows(validPlugins);
+      setFetchState('success');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not load installed plugins from the API.';
+      setInstalledManifestRows([]);
+      setFetchState('error');
+      setLoadErrorMessage(message);
+      throw error;
+    }
   }, []);
 
   React.useEffect(() => {
     if (!canManagePlugins) {
       setInstalledManifestRows([]);
       setRowStatuses({});
+      setFetchState('idle');
+      setLoadErrorMessage(null);
       return;
     }
 
@@ -204,6 +254,12 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       return next;
     });
   }, [installedManifestRows]);
+
+  const installedPluginsViewState = derivePluginManagerInstalledViewState({
+    canManagePlugins,
+    fetchState,
+    installedPluginCount: installedPlugins.length,
+  });
 
   const togglePluginEnabled = async (
     pluginId: string,
@@ -334,12 +390,67 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!canManagePlugins ? (
+          {installedPluginsViewState === 'access-blocked' ? (
             <p className="text-sm text-muted-foreground">
               {accessState === 'auth-unavailable'
                 ? 'Plugin management cannot load in this environment until Firebase authentication is configured.'
                 : 'Sign in with a configured account to load installed plugins and update their enabled state.'}
             </p>
+          ) : installedPluginsViewState === 'loading' ? (
+            <div className="space-y-2" data-testid="plugins-loading-state">
+              <p className="text-sm text-muted-foreground">
+                Loading installed plugins…
+              </p>
+              <div className="space-y-2">
+                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+              </div>
+            </div>
+          ) : installedPluginsViewState === 'error' ? (
+            <Alert variant="destructive" data-testid="plugins-error-state">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Failed to load installed plugins</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  {loadErrorMessage ??
+                    'Could not load installed plugins from the API.'}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void refreshInstalledPlugins().catch((error) => {
+                      const message =
+                        error instanceof Error
+                          ? error.message
+                          : 'Could not load installed plugins from the API.';
+                      toast({
+                        variant: 'destructive',
+                        title: 'Failed to load plugins',
+                        description: message,
+                      });
+                    });
+                  }}
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : installedPluginsViewState === 'empty' ? (
+            <div
+              className="rounded-lg border border-dashed p-6 space-y-2 bg-secondary/20"
+              data-testid="plugins-empty-state"
+            >
+              <p className="font-medium">No installed plugins found.</p>
+              <p className="text-sm text-muted-foreground">
+                No installed plugins found in plugins/*/plugin.json.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Add a plugin manifest, then retry loading this list.
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -440,7 +551,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
             </Table>
           )}
 
-          {canManagePlugins ? (
+          {canManagePlugins && installedPluginsViewState === 'table' ? (
             <div className="mt-4 space-y-2">
               {installedPlugins
                 .filter((plugin) => plugin.status !== 'idle')
@@ -470,11 +581,25 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!canManagePlugins ? (
+          {installedPluginsViewState === 'access-blocked' ? (
             <p className="text-sm text-muted-foreground">
               {accessState === 'auth-unavailable'
                 ? 'Plugin issue details are unavailable because Firebase authentication is not configured.'
                 : 'Plugin issue details load after authentication succeeds.'}
+            </p>
+          ) : installedPluginsViewState === 'loading' ? (
+            <p className="text-sm text-muted-foreground">
+              Plugin issue details will appear after plugin loading completes.
+            </p>
+          ) : installedPluginsViewState === 'error' ? (
+            <p className="text-sm text-muted-foreground">
+              Plugin issue details are unavailable because plugin loading
+              failed. Retry loading installed plugins.
+            </p>
+          ) : installedPluginsViewState === 'empty' ? (
+            <p className="text-sm text-muted-foreground">
+              No installed plugins were found, so there are no issue details to
+              display.
             </p>
           ) : (
             installedPlugins.map((plugin) => {
