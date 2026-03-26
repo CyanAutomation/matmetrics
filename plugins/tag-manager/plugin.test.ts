@@ -17,6 +17,9 @@ test('tag-manager manifest validates and exposes expected dashboard tab contract
   );
 
   assert.ok(dashboardTab, 'Expected a dashboard_tab extension in the manifest');
+  if (!dashboardTab) {
+    return;
+  }
   assert.equal(validation.manifest.id, 'tag-manager');
   assert.equal(dashboardTab.id, 'tag-manager-dashboard-tab');
   assert.equal(dashboardTab.config.tabId, 'tag-manager');
