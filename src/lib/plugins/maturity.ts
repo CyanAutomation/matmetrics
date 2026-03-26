@@ -37,7 +37,10 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
 };
 
 const componentIdToComponentBasename = (componentId: string): string =>
-  componentId.replace(/_/g, '-');
+  componentId.trim().toLowerCase().replace(/_/g, '-');
+
+const toComponentFileName = (componentId: string): string =>
+  `${componentIdToComponentBasename(componentId)}.tsx`;
 
 const pluginComponentRegistrationPattern =
   /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
@@ -265,6 +268,7 @@ export const scorePluginMaturity = async ({
   const repoRoot = path.dirname(pluginsRoot);
   const pluginReadmePath = path.join(pluginDir, 'README.md');
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
+  const pluginComponentsRoot = path.join(pluginDir, 'src', 'components');
   const componentIds = manifest.uiExtensions.flatMap((extension) => {
     const maybeComponent =
       'component' in extension.config ? extension.config.component : undefined;
@@ -415,52 +419,58 @@ export const scorePluginMaturity = async ({
     categoryScores.feature_quality += 5;
   }
 
-  const missingComponentFiles: string[] = [];
-  let existingComponentCount = 0;
-  for (const componentBasename of componentBasenames) {
-    const componentPath = path.join(
+  const pluginEntryExists = await fileExists(pluginEntryPath);
+  const registeredPluginComponents = pluginEntryExists
+    ? extractRegisteredPluginComponents(await readFile(pluginEntryPath, 'utf8'))
+    : [];
+  const missingComponentEvidence: string[] = [];
+  let resolvedComponentCount = 0;
+
+  for (const componentId of componentIds) {
+    const componentFileName = toComponentFileName(componentId);
+    const pluginLocalComponentPath = path.join(
+      pluginComponentsRoot,
+      componentFileName
+    );
+    const sharedComponentPath = path.join(
       repoRoot,
       'src',
       'components',
-      `${componentBasename}.tsx`
+      componentFileName
     );
-    if (!(await fileExists(componentPath))) {
-      missingComponentFiles.push(componentBasename);
+    const [pluginLocalExists, sharedExists] = await Promise.all([
+      fileExists(pluginLocalComponentPath),
+      fileExists(sharedComponentPath),
+    ]);
+    const hasRuntimeRegistration =
+      pluginEntryExists && registeredPluginComponents.includes(componentId);
+
+    if (pluginLocalExists || sharedExists || hasRuntimeRegistration) {
+      resolvedComponentCount += 1;
       continue;
     }
 
-    existingComponentCount += 1;
+    missingComponentEvidence.push(componentId);
   }
 
   if (
-    existingComponentCount === componentBasenames.length &&
-    componentBasenames.length > 0
+    resolvedComponentCount === componentIds.length &&
+    componentIds.length > 0
   ) {
     categoryScores.feature_quality += 10;
     pushUnique(
       evidence,
-      'Plugin-backed UI components exist for declared component ids.'
+      'Declared components resolve through plugin-local files, shared components, or runtime registration evidence.'
     );
-  } else if (componentBasenames.length > 0) {
-    if (componentIds.length > 0 && !(await fileExists(pluginEntryPath))) {
-      pushUnique(
-        reasons,
-        'Some declared plugin components do not map to checked-in UI modules.'
-      );
-      pushUnique(
-        nextActions,
-        'Keep component ids and component files aligned.'
-      );
-    } else if (missingComponentFiles.length > 0) {
-      pushUnique(
-        reasons,
-        'Some registered plugin component UI modules are missing from src/components.'
-      );
-      pushUnique(
-        nextActions,
-        'Add missing component files to improve maintainability and traceability.'
-      );
-    }
+  } else if (missingComponentEvidence.length > 0) {
+    pushUnique(
+      reasons,
+      'Some declared plugin components could not be resolved from plugin-local files, shared components, or runtime registration.'
+    );
+    pushUnique(
+      nextActions,
+      'For each declared component, add plugins/<id>/src/components/<component>.tsx, add src/components/<component>.tsx, or register it in plugins/<id>/src/index.ts.'
+    );
   }
 
   const testEvidenceFiles = await findTestEvidenceFiles(
@@ -490,7 +500,7 @@ export const scorePluginMaturity = async ({
   const runtimeAssertionsSatisfied =
     componentIds.length > 0 &&
     componentBasenames.length > 0 &&
-    existingComponentCount === componentBasenames.length &&
+    resolvedComponentCount === componentIds.length &&
     unresolvedRuntimeComponentWarnings.length === 0;
   const manifestUxStates = manifest.maturity?.uxStates;
   const declaredUxStates = {
