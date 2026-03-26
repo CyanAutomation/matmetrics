@@ -17,6 +17,9 @@ test('github-sync manifest validates and exposes expected dashboard tab contract
   );
 
   assert.ok(dashboardTab, 'Expected a dashboard_tab extension in the manifest');
+  if (!dashboardTab) {
+    return;
+  }
   assert.equal(validation.manifest.id, 'github-sync');
   assert.equal(dashboardTab.id, 'github-sync-dashboard-tab');
   assert.equal(dashboardTab.config.tabId, 'github-sync');
