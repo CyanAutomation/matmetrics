@@ -89,6 +89,11 @@ export type PluginManifestMaturityMetadata = {
   tier?: PluginMaturityTier;
   notes?: string;
   lastReviewedAt?: string;
+  uxStates?: {
+    loading?: boolean;
+    error?: boolean;
+    empty?: boolean;
+  };
 };
 
 export type PluginMaturityCategory =

@@ -247,6 +247,118 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
   );
 });
 
+test('scorePluginMaturity awards feature-quality points for test-asserted UX states even with different implementation text', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return <section data-state='ready'>Panel body</section>;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-state.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('panel state handling', () => {
+  assert.match('pending request', /pending/);
+  assert.equal('request failed', 'request failed');
+  assert.match('no results', /no results/);
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(scorecard.categoryScores.feature_quality.earned >= 20);
+    }
+  );
+});
+
+test('scorePluginMaturity ignores keyword-only component false positives without structured UX-state signals', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  const words = ['Alert', 'toast', 'disabled', 'Dialog'];
+  return <div>{words.join(', ')}</div>;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-keywords.test.ts'),
+        `test('keyword smoke test', () => {
+  const sentence = 'loading error empty';
+  sentence;
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'Plugin-backed UI has little visible evidence of robust user-state handling.'
+          )
+        )
+      );
+      assert.ok(scorecard.categoryScores.feature_quality.earned <= 15);
+    }
+  );
+});
+
 test('scorePluginMaturity does not warn when manifest component matches plugin registration and file', async () => {
   await withPluginFixture(
     async (pluginsRoot, repoRoot) => {
