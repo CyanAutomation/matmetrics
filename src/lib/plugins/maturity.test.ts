@@ -508,7 +508,7 @@ test('scorePluginMaturity warns when manifest component is missing from plugin r
   );
 });
 
-test('scorePluginMaturity treats missing component file as docs-quality warning when registration exists', async () => {
+test('scorePluginMaturity accepts runtime registration without local/shared component files', async () => {
   await withPluginFixture(
     async (pluginsRoot) => {
       await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
@@ -532,10 +532,11 @@ test('scorePluginMaturity treats missing component file as docs-quality warning 
       });
 
       assert.ok(
-        scorecard.reasons.some((reason) =>
-          reason.includes(
-            'Some registered plugin component UI modules are missing from src/components.'
-          )
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes(
+              'could not be resolved from plugin-local files, shared components, or runtime registration'
+            )
         )
       );
       assert.ok(
@@ -543,6 +544,97 @@ test('scorePluginMaturity treats missing component file as docs-quality warning 
           (reason) =>
             !reason.includes('does not register all manifest component ids') &&
             !reason.includes('do not map to checked-in UI modules')
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity accepts plugin-local component files as component evidence', async () => {
+  await withPluginFixture(
+    async (pluginsRoot) => {
+      await mkdir(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'components'),
+        { recursive: true }
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(
+          pluginsRoot,
+          'example-plugin',
+          'src',
+          'components',
+          'example-panel.tsx'
+        ),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes(
+              'could not be resolved from plugin-local files, shared components, or runtime registration'
+            )
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity warns when declared component has no local, shared, or runtime evidence', async () => {
+  await withPluginFixture(
+    async (pluginsRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = () => {
+  return null;
+};
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: baseManifest,
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'could not be resolved from plugin-local files, shared components, or runtime registration'
+          )
+        )
+      );
+      assert.ok(
+        scorecard.nextActions.some((action) =>
+          action.includes(
+            'For each declared component, add plugins/<id>/src/components/<component>.tsx, add src/components/<component>.tsx, or register it in plugins/<id>/src/index.ts.'
+          )
         )
       );
     }
