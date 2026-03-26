@@ -79,6 +79,58 @@ const capabilityCandidateRoots: Record<string, string[]> = {
   tag_mutation: [path.join('src', 'lib', 'tags')],
 };
 
+type FeatureUxState = 'loading' | 'error' | 'empty';
+
+const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
+  loading: [
+    /\bloading\b/i,
+    /\bisLoading\b/i,
+    /\bpending\b/i,
+    /\bspinner\b/i,
+    /\bskeleton\b/i,
+  ],
+  error: [/\berror\b/i, /\bfails?\b/i, /\bfailure\b/i, /\balert\b/i],
+  empty: [/\bempty\b/i, /\bno data\b/i, /\bno results\b/i, /\bzero state\b/i],
+};
+
+const assertionAnchorPattern =
+  /\b(expect\s*\(|assert\.[a-z]+|getBy[A-Z]\w*|findBy[A-Z]\w*|queryBy[A-Z]\w*)/;
+
+const fileAssertsUxState = (
+  fileContents: string,
+  state: FeatureUxState
+): boolean => {
+  if (!assertionAnchorPattern.test(fileContents)) {
+    return false;
+  }
+
+  const lines = fileContents.split('\n');
+  const patterns = uxStatePatterns[state];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const localWindow = [
+      lines[index - 1] ?? '',
+      lines[index] ?? '',
+      lines[index + 1] ?? '',
+    ].join(' ');
+    if (
+      assertionAnchorPattern.test(localWindow) &&
+      patterns.some((pattern) => pattern.test(localWindow))
+    ) {
+      return true;
+    }
+  }
+
+  const broadWindowPattern = /expect\s*\([\s\S]{0,180}\)/g;
+  for (const match of fileContents.matchAll(broadWindowPattern)) {
+    if (patterns.some((pattern) => pattern.test(match[0]))) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const collectTestFiles = async (root: string): Promise<string[]> => {
   const results: string[] = [];
   const entries = await readdir(root, { withFileTypes: true });
@@ -365,7 +417,6 @@ export const scorePluginMaturity = async ({
 
   const missingComponentFiles: string[] = [];
   let existingComponentCount = 0;
-  let matureComponentSignals = 0;
   for (const componentBasename of componentBasenames) {
     const componentPath = path.join(
       repoRoot,
@@ -379,15 +430,6 @@ export const scorePluginMaturity = async ({
     }
 
     existingComponentCount += 1;
-    const componentContents = await readFile(componentPath, 'utf8');
-    if (
-      componentContents.includes('Alert') ||
-      componentContents.includes('toast') ||
-      componentContents.includes('disabled') ||
-      componentContents.includes('Dialog')
-    ) {
-      matureComponentSignals += 1;
-    }
   }
 
   if (
@@ -421,26 +463,6 @@ export const scorePluginMaturity = async ({
     }
   }
 
-  if (matureComponentSignals > 0) {
-    categoryScores.feature_quality += clampScore(
-      matureComponentSignals * 5,
-      10
-    );
-    pushUnique(
-      evidence,
-      'Plugin-backed UI includes at least some user-state handling such as alerts, toasts, or guarded dialogs.'
-    );
-  } else {
-    pushUnique(
-      reasons,
-      'Plugin-backed UI has little visible evidence of robust user-state handling.'
-    );
-    pushUnique(
-      nextActions,
-      'Add explicit loading, error, empty, and destructive-action handling where relevant.'
-    );
-  }
-
   const testEvidenceFiles = await findTestEvidenceFiles(
     repoRoot,
     manifest.id,
@@ -462,6 +484,73 @@ export const scorePluginMaturity = async ({
     pushUnique(
       nextActions,
       'Add plugin-specific tests for manifest, runtime wiring, and primary feature behavior.'
+    );
+  }
+
+  const runtimeAssertionsSatisfied =
+    componentIds.length > 0 &&
+    componentBasenames.length > 0 &&
+    existingComponentCount === componentBasenames.length &&
+    unresolvedRuntimeComponentWarnings.length === 0;
+  const manifestUxStates = manifest.maturity?.uxStates;
+  const declaredUxStates = {
+    loading: manifestUxStates?.loading === true,
+    error: manifestUxStates?.error === true,
+    empty: manifestUxStates?.empty === true,
+  };
+
+  const assertedUxStates = {
+    loading: false,
+    error: false,
+    empty: false,
+  };
+  for (const testEvidenceFile of testEvidenceFiles) {
+    const testFileContents = await readFile(testEvidenceFile, 'utf8');
+    for (const state of Object.keys(assertedUxStates) as FeatureUxState[]) {
+      if (assertedUxStates[state]) {
+        continue;
+      }
+      assertedUxStates[state] = fileAssertsUxState(testFileContents, state);
+    }
+  }
+
+  const assertedStateCount = Object.values(assertedUxStates).filter(Boolean)
+    .length;
+  if (assertedStateCount > 0) {
+    categoryScores.feature_quality += clampScore(assertedStateCount * 3, 12);
+    pushUnique(
+      evidence,
+      'Automated tests assert loading/error/empty user states for plugin-backed UX.'
+    );
+  }
+
+  const declaredStateCount = Object.values(declaredUxStates).filter(Boolean)
+    .length;
+  if (declaredStateCount > 0 && runtimeAssertionsSatisfied) {
+    categoryScores.feature_quality += clampScore(declaredStateCount * 2, 8);
+    pushUnique(
+      evidence,
+      'Manifest declares supported loading/error/empty UX states and runtime wiring checks passed.'
+    );
+  } else if (declaredStateCount > 0 && !runtimeAssertionsSatisfied) {
+    pushUnique(
+      reasons,
+      'Manifest declares UX states, but runtime wiring checks are incomplete.'
+    );
+    pushUnique(
+      nextActions,
+      'Keep declared UX-state metadata aligned with component files and runtime renderer registration.'
+    );
+  }
+
+  if (assertedStateCount === 0 && declaredStateCount === 0) {
+    pushUnique(
+      reasons,
+      'Plugin-backed UI has little visible evidence of robust user-state handling.'
+    );
+    pushUnique(
+      nextActions,
+      'Add explicit loading, error, empty, and destructive-action handling where relevant.'
     );
   }
 
