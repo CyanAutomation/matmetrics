@@ -98,7 +98,7 @@ export async function runPromptResetFlow({
   try {
     await resetPreference(uid);
     feedback.toast({
-      description: 'Prompt reset to default Kodokan standards.',
+      description: 'Prompt reset to default training terminology guidelines.',
     });
 
     return true;
@@ -244,7 +244,8 @@ export function PromptSettings() {
         <AlertDescription className="text-muted-foreground">
           The "AI Transform" button in the log form uses these instructions to
           rewrite your notes. You can change the tone (e.g., "be more formal" or
-          "be very brief") or add your own terminology rules here.
+          "be very brief") or define terminology preferences (e.g., Judo terms
+          like "uchi mata" or BJJ terms like "armbar") here.
         </AlertDescription>
       </Alert>
 
