@@ -8,6 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
 import { z } from 'genkit';
 
 const TransformPracticeInputSchema = z.object({
@@ -58,11 +59,7 @@ const transformPracticeDescriptionFlow = ai.defineFlow(
     outputSchema: TransformPracticeOutputSchema,
   },
   async (input) => {
-    // Default fallback prompt if none provided
-    const instructions =
-      input.customPrompt ||
-      `You are an experienced Judo practitioner helping a student write their training diary. 
-    Transform the input into a terminologically accurate diary entry.`;
+    const instructions = input.customPrompt || DEFAULT_TRANSFORMER_PROMPT;
 
     const { output } = await transformPracticePrompt({
       ...input,
