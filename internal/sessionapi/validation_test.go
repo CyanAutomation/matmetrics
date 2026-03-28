@@ -1,6 +1,8 @@
 package sessionapi
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"matmetrics/internal/model"
@@ -93,6 +95,39 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 			}
 			if got := err.Error(); got != tc.wantErr {
 				t.Fatalf("ValidateSession() error = %q, want %q", got, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateSessionRejectsPrivateVideoURLHosts(t *testing.T) {
+	blockedHosts := []string{
+		"localhost",
+		"127.0.0.1",
+		"::1",
+		"10.0.0.1",
+		"172.16.0.1",
+		"192.168.1.1",
+		"169.254.169.254",
+		"fc00::1",
+		"fe80::1",
+	}
+
+	for _, host := range blockedHosts {
+		t.Run(host, func(t *testing.T) {
+			session := validSession()
+			hostForURL := host
+			if strings.Contains(hostForURL, ":") {
+				hostForURL = "[" + hostForURL + "]"
+			}
+			session.VideoURL = fmt.Sprintf("https://%s/video", hostForURL)
+
+			err := ValidateSession(session)
+			if err == nil {
+				t.Fatalf("ValidateSession() error = nil, want non-nil for host %q", host)
+			}
+			if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
+				t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 			}
 		})
 	}
