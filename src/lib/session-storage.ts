@@ -15,7 +15,12 @@ import {
   updateSessionOnGitHub,
 } from './github-storage';
 import { markdownToSession } from './markdown-serializer';
-import type { GitHubConfig, JudoSession } from './types';
+import type {
+  GitHubConfig,
+  JudoSession,
+  SessionFileIssue,
+  SessionFileIssueCode,
+} from './types';
 import { compareDateOnlyDesc } from './utils';
 
 const GITHUB_SESSION_ROOT = 'data';
@@ -232,26 +237,108 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
 export async function listSessionsFromGitHub(
   config: GitHubConfig
 ): Promise<JudoSession[]> {
+  const { sessions } = await scanSessionsFromGitHub(config);
+  return sessions;
+}
+
+export type GitHubSessionScanResult = {
+  sessions: JudoSession[];
+  issues: SessionFileIssue[];
+};
+
+function createGitHubSessionFileIssue(
+  filePath: string,
+  code: SessionFileIssueCode,
+  message: string
+): SessionFileIssue {
+  return {
+    source: 'github',
+    code,
+    filePath,
+    message,
+  };
+}
+
+export async function scanSessionsFromGitHub(
+  config: GitHubConfig
+): Promise<GitHubSessionScanResult> {
   const markdownPaths = await listGitHubSessionPaths(config);
   const sessionResults = await Promise.all(
     markdownPaths.map(async (filePath) => {
       try {
         const markdown = await readGitHubFileContent(config, filePath);
-        return markdownToSession(markdown);
+        try {
+          return {
+            session: markdownToSession(markdown),
+            issue: null,
+          };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          return {
+            session: null,
+            issue: createGitHubSessionFileIssue(
+              filePath,
+              'parse_failed',
+              message
+            ),
+          };
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`Skipping GitHub session file at ${filePath}: ${message}`);
-        return null;
+        return {
+          session: null,
+          issue: createGitHubSessionFileIssue(filePath, 'read_failed', message),
+        };
       }
     })
   );
 
-  const sessions = sessionResults.filter(
-    (session): session is JudoSession => session !== null
-  );
+  const sessions = sessionResults
+    .map((result) => result.session)
+    .filter((session): session is JudoSession => session !== null);
+  const issues = sessionResults
+    .map((result) => result.issue)
+    .filter((issue): issue is SessionFileIssue => issue !== null);
+
+  issues.forEach((issue) => {
+    console.warn(
+      `Skipping GitHub session file at ${issue.filePath}: ${issue.message}`
+    );
+  });
 
   sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
+  return {
+    sessions,
+    issues,
+  };
+}
+
+export async function listSessionsForConfig(
+  config: GitHubConfig | undefined
+): Promise<JudoSession[]> {
+  const { sessions } = await listSessionsForConfigWithIssues(config);
   return sessions;
+}
+
+export type SessionListResult = {
+  sessions: JudoSession[];
+  issues: SessionFileIssue[];
+};
+
+export async function listSessionsForConfigWithIssues(
+  config: GitHubConfig | undefined
+): Promise<SessionListResult> {
+  if (shouldUseGitHubStorage(config)) {
+    return scanSessionsFromGitHub(config);
+  }
+
+  const sessions = await listLocalSessions();
+  sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
+  return {
+    sessions,
+    issues: [],
+  };
 }
 
 export async function readSessionByIdFromGitHub(
@@ -264,16 +351,6 @@ export async function readSessionByIdFromGitHub(
   }
 
   return markdownToSession(await readGitHubFileContent(config, filePath));
-}
-
-export async function listSessionsForConfig(
-  config: GitHubConfig | undefined
-): Promise<JudoSession[]> {
-  if (shouldUseGitHubStorage(config)) {
-    return listSessionsFromGitHub(config);
-  }
-
-  return listLocalSessions();
 }
 
 export async function readSessionByIdForConfig(

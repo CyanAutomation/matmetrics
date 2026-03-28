@@ -5,6 +5,7 @@ import {
   GitHubConfig,
   GitHubSettings,
   MutationResult,
+  SessionFileIssue,
 } from './types';
 import {
   queueOperation,
@@ -79,6 +80,7 @@ function isStorageEventForKey(event: StorageEvent, key: string): boolean {
 
 // Internal state
 let sessionCache: JudoSession[] | null = null;
+let sessionFileIssuesCache: SessionFileIssue[] = [];
 let isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
 let isSyncing = false;
 let inFlightSync: Promise<void> | null = null;
@@ -574,7 +576,9 @@ function dispatchStorageSync(sessions: JudoSession[]): void {
   }
 
   window.dispatchEvent(
-    new CustomEvent('storageSync', { detail: { sessions } })
+    new CustomEvent('storageSync', {
+      detail: { sessions, sessionFileIssues: sessionFileIssuesCache },
+    })
   );
 }
 
@@ -701,6 +705,10 @@ export function getSessions(): JudoSession[] {
   void refreshSessionsFromAPI();
 
   return cached;
+}
+
+export function getSessionFileIssues(): SessionFileIssue[] {
+  return [...sessionFileIssuesCache];
 }
 
 /**
@@ -1159,7 +1167,15 @@ async function refreshSessionsFromAPI(): Promise<void> {
       return;
     }
 
-    const sessions: JudoSession[] = await res.json();
+    const payload = await res.json();
+    const sessions: JudoSession[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.sessions)
+        ? payload.sessions
+        : [];
+    const sessionFileIssues: SessionFileIssue[] = Array.isArray(payload?.issues)
+      ? payload.issues
+      : [];
     if (seq < latestAppliedSeq) {
       return;
     }
@@ -1181,6 +1197,7 @@ async function refreshSessionsFromAPI(): Promise<void> {
     }
 
     latestAppliedSeq = seq;
+    sessionFileIssuesCache = sessionFileIssues;
     commitLocalSessions(mergedSessions);
     dispatchStorageSync(mergedSessions);
   } catch (error) {
@@ -1364,6 +1381,7 @@ async function syncPendingOperations(): Promise<void> {
 
 export function __resetStorageStateForTests(): void {
   sessionCache = null;
+  sessionFileIssuesCache = [];
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
