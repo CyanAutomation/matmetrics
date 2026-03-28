@@ -117,6 +117,51 @@ test('Roundtrip preserves techniques/description/notes', () => {
   assert.equal(parsedRoundtrip.notes, 'Roundtrip notes.');
 });
 
+test('Roundtrip preserves videoUrl when present', () => {
+  const session = {
+    id: 'video-roundtrip',
+    date: '2026-03-23',
+    effort: 3 as const,
+    category: 'Technical' as const,
+    techniques: ['Uchi mata'],
+    description: 'With video.',
+    notes: 'Video linked.',
+    videoUrl: 'https://example.com/videos/123',
+  };
+
+  const markdown = sessionToMarkdown(session);
+  const parsed = markdownToSession(markdown);
+
+  assert.equal(parsed.videoUrl, 'https://example.com/videos/123');
+});
+
+test('markdown without videoUrl still parses', () => {
+  const markdownWithoutVideoUrl = `---
+id: "no-video"
+date: "2026-03-23"
+effort: 2
+category: "Technical"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+No video URL in frontmatter.
+
+## Notes
+
+Older file format.`;
+
+  const parsed = markdownToSession(markdownWithoutVideoUrl);
+
+  assert.equal(parsed.videoUrl, undefined);
+  assert.deepEqual(parsed.techniques, ['O soto gari']);
+});
+
 test('serializer always emits description and notes headings', () => {
   const markdown = sessionToMarkdown({
     id: 'always-sections',
