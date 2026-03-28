@@ -2,6 +2,8 @@ package sessionapi
 
 import (
 	"fmt"
+	"net"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -58,22 +60,41 @@ func validateOptionalVideoURL(value string) error {
 
 	// Prevent SSRF attacks by blocking private/internal network ranges
 	host := parsedURL.Hostname()
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" ||
-		strings.HasPrefix(host, "10.") ||
-		strings.HasPrefix(host, "172.16.") || strings.HasPrefix(host, "172.17.") ||
-		strings.HasPrefix(host, "172.18.") || strings.HasPrefix(host, "172.19.") ||
-		strings.HasPrefix(host, "172.20.") || strings.HasPrefix(host, "172.21.") ||
-		strings.HasPrefix(host, "172.22.") || strings.HasPrefix(host, "172.23.") ||
-		strings.HasPrefix(host, "172.24.") || strings.HasPrefix(host, "172.25.") ||
-		strings.HasPrefix(host, "172.26.") || strings.HasPrefix(host, "172.27.") ||
-		strings.HasPrefix(host, "172.28.") || strings.HasPrefix(host, "172.29.") ||
-		strings.HasPrefix(host, "172.30.") || strings.HasPrefix(host, "172.31.") ||
-		strings.HasPrefix(host, "192.168.") ||
-		host == "169.254.169.254" { // AWS/GCP metadata
+	if isDisallowedVideoHost(host) {
 		return fmt.Errorf("invalid videoUrl: private or internal network addresses are not allowed")
 	}
 
 	return nil
+}
 
-	return nil
+func isDisallowedVideoHost(host string) bool {
+	lowerHost := strings.ToLower(strings.TrimSpace(host))
+	if lowerHost == "" || lowerHost == "localhost" {
+		return true
+	}
+
+	if ip, err := netip.ParseAddr(lowerHost); err == nil {
+		return isDisallowedIP(ip)
+	}
+
+	resolvedIPs, err := net.LookupIP(lowerHost)
+	if err != nil {
+		return false
+	}
+	for _, resolvedIP := range resolvedIPs {
+		addr, ok := netip.AddrFromSlice(resolvedIP)
+		if ok && isDisallowedIP(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDisallowedIP(addr netip.Addr) bool {
+	return addr.IsLoopback() ||
+		addr.IsPrivate() ||
+		addr.IsLinkLocalUnicast() ||
+		addr.IsLinkLocalMulticast() ||
+		addr.IsMulticast() ||
+		addr.IsUnspecified()
 }

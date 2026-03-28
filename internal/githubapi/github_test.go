@@ -572,6 +572,25 @@ func TestFixLogsApplyRequiresConfirmation(t *testing.T) {
 	}
 }
 
+func TestFixLogsRejectsUnsafePath(t *testing.T) {
+	client := &Client{
+		BaseURL:    "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) { return jsonResponse(http.StatusOK, `{}`), nil })},
+		Token:      "test-token",
+	}
+
+	_, err := client.FixLogs(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, LogDoctorFixRequest{
+		Mode:  LogDoctorFixModeDryRun,
+		Paths: []string{"../etc/passwd"},
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid file path") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
