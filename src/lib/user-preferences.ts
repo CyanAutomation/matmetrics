@@ -14,8 +14,6 @@ import { getScopedStorageKey } from './client-identity';
 import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
 
 export { DEFAULT_TRANSFORMER_PROMPT };
-import { getScopedStorageKey } from './client-identity';
-import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
 
 const LEGACY_PROMPT_KEY = 'matmetrics_transformer_prompt';
 const LEGACY_GITHUB_CONFIG_KEY = 'matmetrics_github_config';
