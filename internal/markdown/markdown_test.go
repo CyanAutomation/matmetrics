@@ -227,6 +227,10 @@ duration: 60
 ## Session Description
 
 Mixed quoting should parse.
+
+## Notes
+
+No additional notes.
 `
 
 	parsed, err := MarkdownToSession(input)
@@ -315,6 +319,25 @@ Keep left elbow higher.`
 	}
 }
 
+func TestMarkdownToSessionRequiresAllStandardSections(t *testing.T) {
+	input := `---
+id: "missing-sections"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatal("MarkdownToSession() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "missing required sections") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestMarkdownToSessionRejectsNegativeDuration(t *testing.T) {
 	input := `---
 id: "negative-duration"
@@ -332,6 +355,10 @@ duration: -5
 ## Session Description
 
 Worked entries.
+
+## Notes
+
+No additional notes.
 `
 
 	_, err := MarkdownToSession(input)
