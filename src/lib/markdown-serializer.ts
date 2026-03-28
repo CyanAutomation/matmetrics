@@ -221,7 +221,7 @@ function validateVideoUrl(value: unknown): string | undefined {
     host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '::1' ||
-    host === '[::1]' ||
+    host.startsWith('10.') ||
     host.startsWith('10.') ||
     host.startsWith('172.16.') ||
     host.startsWith('172.17.') ||
