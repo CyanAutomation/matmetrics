@@ -43,6 +43,26 @@ export async function transformPracticeDescription(
   return transformPracticeDescriptionFlow(input);
 }
 
+type TransformPracticePromptRunner = (
+  input: TransformPracticeInput
+) => Promise<{ output?: TransformPracticeOutput }>;
+
+export async function runTransformPracticeDescription(
+  input: TransformPracticeInput,
+  promptRunner: TransformPracticePromptRunner
+): Promise<TransformPracticeOutput> {
+  const instructions = input.customPrompt || DEFAULT_TRANSFORMER_PROMPT;
+
+  const { output } = await promptRunner({
+    ...input,
+    customPrompt: instructions,
+  });
+  if (!output) {
+    throw new Error('Prompt runner returned undefined output');
+  }
+  return output;
+}
+
 const transformPracticePrompt = ai.definePrompt({
   name: 'transformPracticePrompt',
   input: { schema: TransformPracticeInputSchema },
@@ -58,13 +78,5 @@ const transformPracticeDescriptionFlow = ai.defineFlow(
     inputSchema: TransformPracticeInputSchema,
     outputSchema: TransformPracticeOutputSchema,
   },
-  async (input) => {
-    const instructions = input.customPrompt || DEFAULT_TRANSFORMER_PROMPT;
-
-    const { output } = await transformPracticePrompt({
-      ...input,
-      customPrompt: instructions,
-    });
-    return output!;
-  }
+  async (input) => runTransformPracticeDescription(input, transformPracticePrompt)
 );
