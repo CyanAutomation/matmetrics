@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -471,5 +472,55 @@ After code fence in notes.`
 	}, "\n")
 	if parsed.Notes != expectedNotes {
 		t.Fatalf("unexpected notes: %q", parsed.Notes)
+	}
+}
+
+func TestMarkdownToSessionRejectsVideoURLPrivateHosts(t *testing.T) {
+	blockedHosts := []string{
+		"localhost",
+		"127.0.0.1",
+		"::1",
+		"10.0.0.1",
+		"172.16.0.1",
+		"192.168.1.1",
+		"169.254.169.254",
+	}
+
+	for _, host := range blockedHosts {
+		t.Run(host, func(t *testing.T) {
+			hostForURL := host
+			if strings.Contains(hostForURL, ":") {
+				hostForURL = "[" + hostForURL + "]"
+			}
+			input := fmt.Sprintf(`---
+id: "blocked-video-host-%s"
+date: "2026-03-28"
+effort: 3
+category: "Technical"
+videoUrl: "https://%s/video"
+---
+
+# 2026-03-28 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.
+`, strings.NewReplacer(".", "-", ":", "-").Replace(host), hostForURL)
+
+			_, err := MarkdownToSession(input)
+			if err == nil {
+				t.Fatalf("MarkdownToSession() error = nil, want error for host %q", host)
+			}
+			if !strings.Contains(err.Error(), "private or internal network addresses are not allowed") {
+				t.Fatalf("unexpected error for host %q: %v", host, err)
+			}
+		})
 	}
 }
