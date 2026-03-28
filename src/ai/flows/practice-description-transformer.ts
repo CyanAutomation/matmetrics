@@ -57,7 +57,10 @@ export async function runTransformPracticeDescription(
     ...input,
     customPrompt: instructions,
   });
-  return output!;
+  if (!output) {
+    throw new Error('Prompt runner returned undefined output');
+  }
+  return output;
 }
 
 const transformPracticePrompt = ai.definePrompt({
