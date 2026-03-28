@@ -45,7 +45,7 @@ export async function transformPracticeDescription(
 
 type TransformPracticePromptRunner = (
   input: TransformPracticeInput
-) => Promise<{ output?: TransformPracticeOutput }>;
+) => Promise<{ output: TransformPracticeOutput | null }>;
 
 export async function runTransformPracticeDescription(
   input: TransformPracticeInput,
