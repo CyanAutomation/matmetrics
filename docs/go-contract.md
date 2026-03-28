@@ -14,6 +14,7 @@ This document freezes the cross-language contract between the existing TypeScrip
 - `category: "Technical" | "Randori" | "Shiai"`
 - `notes?: string`
 - `duration?: number` (session duration in minutes)
+- `videoUrl?: string` (optional absolute `http://` or `https://` URL to a session video)
 
 ## Markdown format
 
@@ -49,6 +50,7 @@ Notes text
 - Generated files use the default title format `# YYYY-MM-DD - Judo Session: Category`
 - Parsers do not treat title text as canonical metadata
 - `duration` is optional in frontmatter
+- `videoUrl` is optional in frontmatter; when present it should be a valid absolute `http://` or `https://` URL
 - If `techniques` is empty, write `- (none recorded)`
 - Generated files always include these body sections, even when empty
 - Section names must stay exactly:

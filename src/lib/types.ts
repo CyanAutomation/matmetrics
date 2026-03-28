@@ -10,6 +10,7 @@ export interface JudoSession {
   category: SessionCategory;
   notes?: string;
   duration?: number; // in minutes
+  videoUrl?: string; // optional absolute http:// or https:// URL to session video
 }
 
 export interface MutationResult {
