@@ -67,9 +67,10 @@ test('GET list returns local sessions when no GitHub config is requested', async
 
       assert.equal(response.status, 200);
       const payload = await response.json();
-      assert.equal(payload.length, 2);
+      assert.equal(payload.sessions.length, 2);
+      assert.deepEqual(payload.issues, []);
       assert.deepEqual(
-        payload.map((session: JudoSession) => session.id),
+        payload.sessions.map((session: JudoSession) => session.id),
         ['list-b', 'list-a']
       );
     });

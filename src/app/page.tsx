@@ -17,11 +17,12 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import {
   getSessions,
+  getSessionFileIssues,
   initializeStorage,
   getSyncStatus,
   saveSession,
 } from '@/lib/storage';
-import { JudoSession } from '@/lib/types';
+import { JudoSession, SessionFileIssue } from '@/lib/types';
 import {
   Info,
   Plus,
@@ -81,6 +82,9 @@ export default function Home() {
   } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>(TAB_IDS.dashboard);
   const [sessions, setSessions] = useState<JudoSession[]>([]);
+  const [sessionFileIssues, setSessionFileIssues] = useState<SessionFileIssue[]>(
+    []
+  );
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -111,6 +115,7 @@ export default function Home() {
 
   const refreshSessions = useCallback(() => {
     setSessions(getSessions());
+    setSessionFileIssues(getSessionFileIssues());
     setSyncStatus(getSyncStatus());
     setGuestWorkspace(getGuestWorkspaceSummary());
   }, []);
@@ -478,6 +483,32 @@ export default function Home() {
                         ? 'Sign in to unlock more'
                         : 'View sign-in setup'}
                     </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!isGuest && sessionFileIssues.length > 0 && (
+                <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-100">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>
+                    {sessionFileIssues.length} GitHub session file
+                    {sessionFileIssues.length === 1 ? '' : 's'} skipped
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs sm:text-sm">
+                      {sessionFileIssues.slice(0, 3).map((issue) => (
+                        <li key={`${issue.filePath}-${issue.code}`}>
+                          <span className="font-medium">{issue.filePath}</span>
+                          : {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                    {sessionFileIssues.length > 3 && (
+                      <p className="mt-2 text-xs">
+                        {sessionFileIssues.length - 3} more issue
+                        {sessionFileIssues.length - 3 === 1 ? '' : 's'} not
+                        shown.
+                      </p>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

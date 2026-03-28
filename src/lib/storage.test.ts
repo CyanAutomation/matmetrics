@@ -9,6 +9,7 @@ import {
   __resetStorageStateForTests,
   __tryAcquireSyncLeaseForTests,
   clearAllData,
+  getSessionFileIssues,
   getGitHubSyncStatus,
   getSessions,
   initializeStorage,
@@ -221,6 +222,58 @@ test('non-retryable create failures are not queued and optimistic state is recon
 
     assert.deepEqual(getQueue(), []);
     assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+test('refreshSessionsFromAPI preserves valid sessions and exposes file-level issues from list payload', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/list')) {
+      return new Response(
+        JSON.stringify({
+          sessions: [makeSession('session-with-issues')],
+          issues: [
+            {
+              source: 'github',
+              code: 'parse_failed',
+              filePath: 'data/2026/03/20260318-matmetrics-broken.md',
+              message: 'Invalid session markdown: Missing required "id" field',
+            },
+          ],
+        }),
+        { status: 200 }
+      );
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    getSessions();
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      getSessions().map((session) => session.id),
+      ['session-with-issues']
+    );
+    assert.deepEqual(getSessionFileIssues(), [
+      {
+        source: 'github',
+        code: 'parse_failed',
+        filePath: 'data/2026/03/20260318-matmetrics-broken.md',
+        message: 'Invalid session markdown: Missing required "id" field',
+      },
+    ]);
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
