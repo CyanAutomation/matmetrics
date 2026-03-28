@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { listSessionsFromGitHub, normalizeGitHubConfig } from './session-storage';
+import {
+  listSessionsFromGitHub,
+  normalizeGitHubConfig,
+  scanSessionsFromGitHub,
+} from './session-storage';
 
 async function withMockedGitHub(
   handler: typeof fetch,
@@ -106,7 +110,7 @@ category: "Technical"
   );
 });
 
-test('listSessionsFromGitHub skips malformed canonical files and logs warnings', async () => {
+test('scanSessionsFromGitHub returns sessions and file-level issues for mixed-validity repositories', async () => {
   const dirListing: Record<
     string,
     Array<{ path: string; type: 'file' | 'dir'; name: string }>
@@ -191,12 +195,19 @@ category: "Technical"
         });
       }) as typeof fetch,
       async () => {
-        const sessions = await listSessionsFromGitHub({
+        const scanResult = await scanSessionsFromGitHub({
           owner: 'o',
           repo: 'r',
         });
-        assert.equal(sessions.length, 1);
-        assert.equal(sessions[0]?.id, 'session-valid');
+        assert.equal(scanResult.sessions.length, 1);
+        assert.equal(scanResult.sessions[0]?.id, 'session-valid');
+        assert.equal(scanResult.issues.length, 1);
+        assert.deepEqual(scanResult.issues[0], {
+          source: 'github',
+          code: 'parse_failed',
+          filePath: 'data/2025/03/20250315-matmetrics-broken-session.md',
+          message: 'Missing or invalid "id" in frontmatter',
+        });
       }
     );
   } finally {
@@ -207,6 +218,69 @@ category: "Technical"
   assert.match(
     warnCalls[0] ?? '',
     /Skipping GitHub session file at data\/2025\/03\/20250315-matmetrics-broken-session\.md/
+  );
+});
+
+test('listSessionsFromGitHub preserves legacy behavior by returning valid sessions only', async () => {
+  const dirListing: Record<
+    string,
+    Array<{ path: string; type: 'file' | 'dir'; name: string }>
+  > = {
+    data: [{ name: '2025', path: 'data/2025', type: 'dir' }],
+    'data/2025': [{ name: '03', path: 'data/2025/03', type: 'dir' }],
+    'data/2025/03': [
+      {
+        name: '20250315-matmetrics-broken-session.md',
+        path: 'data/2025/03/20250315-matmetrics-broken-session.md',
+        type: 'file',
+      },
+    ],
+  };
+
+  const contentByPath: Record<string, string> = {
+    'data/2025/03/20250315-matmetrics-broken-session.md': `---
+date: "2025-03-15"
+effort: 2
+category: "Technical"
+---
+
+# 2025-03-15 - Judo Session: Technical
+
+## Techniques Practiced
+- Tai otoshi
+`,
+  };
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const marker = '/contents/';
+      const path = decodeURIComponent(
+        parsed.pathname.slice(parsed.pathname.indexOf(marker) + marker.length)
+      );
+
+      if (path in dirListing) {
+        return new Response(JSON.stringify(dirListing[path]), { status: 200 });
+      }
+
+      const content = contentByPath[path];
+      if (content) {
+        return new Response(JSON.stringify(toContentsPayload(content)), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ message: `Not found: ${path}` }), {
+        status: 404,
+      });
+    }) as typeof fetch,
+    async () => {
+      const sessions = await listSessionsFromGitHub({
+        owner: 'o',
+        repo: 'r',
+      });
+      assert.deepEqual(sessions, []);
+    }
   );
 });
 

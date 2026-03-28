@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  listSessionsForConfig,
+  listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
 } from '@/lib/session-storage';
 import {
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const sessions = await listSessionsForConfig(gitHubConfig);
-    return NextResponse.json(sessions, { status: 200 });
+    const result = await listSessionsForConfigWithIssues(gitHubConfig);
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error('Error listing sessions', error);
     return NextResponse.json(
