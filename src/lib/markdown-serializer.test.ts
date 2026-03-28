@@ -432,3 +432,45 @@ Notes.`;
     /Invalid "duration" in frontmatter: must be a non-negative integer/
   );
 });
+
+test('videoUrl SSRF-protected hosts are rejected', () => {
+  const blockedHosts = [
+    'localhost',
+    '127.0.0.1',
+    '::1',
+    '10.0.0.1',
+    '172.16.0.1',
+    '192.168.1.1',
+    '169.254.169.254',
+  ];
+
+  for (const host of blockedHosts) {
+    const hostForUrl = host.includes(':') ? `[${host}]` : host;
+    const markdown = `---
+id: "blocked-video-host-${host.replace(/[:.]/g, '-')}"
+date: "2026-03-28"
+effort: 3
+category: "Technical"
+videoUrl: "https://${hostForUrl}/video"
+---
+
+# 2026-03-28 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+    assert.throws(
+      () => markdownToSession(markdown),
+      /private or internal network addresses are not allowed/,
+      `Expected ${host} to be blocked`
+    );
+  }
+});
