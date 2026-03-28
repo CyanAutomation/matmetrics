@@ -63,6 +63,57 @@ type DiagnoseLogsResult struct {
 	Files   []DiagnoseLogsFileResult `json:"files"`
 }
 
+type LogDoctorFixMode string
+
+const (
+	LogDoctorFixModeDryRun LogDoctorFixMode = "dry-run"
+	LogDoctorFixModeApply  LogDoctorFixMode = "apply"
+	maxFixApplyFiles                        = 25
+)
+
+type LogDoctorFixOptions struct {
+	NormalizeFrontmatter bool `json:"normalizeFrontmatter"`
+	EnforceSectionOrder  bool `json:"enforceSectionOrder"`
+	PreserveUserContent  bool `json:"preserveUserContent"`
+}
+
+type LogDoctorFixRequest struct {
+	Mode         LogDoctorFixMode    `json:"mode"`
+	Paths        []string            `json:"paths"`
+	Options      LogDoctorFixOptions `json:"options"`
+	ConfirmApply bool                `json:"confirmApply"`
+}
+
+type LogDoctorFixValidationState struct {
+	Before string   `json:"before"`
+	After  string   `json:"after"`
+	Errors []string `json:"errors,omitempty"`
+}
+
+type LogDoctorFixPreview struct {
+	Changed       bool   `json:"changed"`
+	Diff          string `json:"diff"`
+	OriginalBytes int    `json:"originalBytes"`
+	UpdatedBytes  int    `json:"updatedBytes"`
+}
+
+type LogDoctorFixFileResult struct {
+	Path            string                      `json:"path"`
+	Status          string                      `json:"status"`
+	Message         string                      `json:"message,omitempty"`
+	CommitSHA       string                      `json:"commitSha,omitempty"`
+	ValidationState LogDoctorFixValidationState `json:"validationState"`
+	Preview         LogDoctorFixPreview         `json:"preview"`
+}
+
+type LogDoctorFixResult struct {
+	Success bool                     `json:"success"`
+	Message string                   `json:"message"`
+	Branch  string                   `json:"branch,omitempty"`
+	Mode    LogDoctorFixMode         `json:"mode"`
+	Files   []LogDoctorFixFileResult `json:"files"`
+}
+
 type gitHubAPIError struct {
 	Status  int
 	Message string
@@ -212,6 +263,113 @@ func (c *Client) DiagnoseLogs(config model.GitHubConfig) (DiagnoseLogsResult, er
 	}
 
 	return result, nil
+}
+
+func (c *Client) FixLogs(config model.GitHubConfig, request LogDoctorFixRequest) (LogDoctorFixResult, error) {
+	branch, err := c.resolveBranch(config)
+	if err != nil {
+		return LogDoctorFixResult{}, err
+	}
+
+	if request.Mode != LogDoctorFixModeDryRun && request.Mode != LogDoctorFixModeApply {
+		return LogDoctorFixResult{}, fmt.Errorf("invalid mode %q", request.Mode)
+	}
+	if len(request.Paths) == 0 {
+		return LogDoctorFixResult{}, fmt.Errorf("at least one file path is required")
+	}
+	if request.Mode == LogDoctorFixModeApply && len(request.Paths) > maxFixApplyFiles {
+		return LogDoctorFixResult{}, fmt.Errorf("apply requests are limited to %d files", maxFixApplyFiles)
+	}
+	if request.Mode == LogDoctorFixModeApply && !request.ConfirmApply {
+		return LogDoctorFixResult{}, fmt.Errorf("apply mode requires explicit confirmation")
+	}
+
+	results := make([]LogDoctorFixFileResult, 0, len(request.Paths))
+	overallSuccess := true
+
+	for _, path := range request.Paths {
+		fileResult := LogDoctorFixFileResult{
+			Path:   path,
+			Status: "unchanged",
+			ValidationState: LogDoctorFixValidationState{
+				Before: "invalid",
+				After:  "invalid",
+			},
+		}
+		sha, content, err := c.getFile(config, path, branch)
+		if err != nil {
+			fileResult.Status = "error"
+			fileResult.Message = fmt.Sprintf("failed to read file: %v", err)
+			fileResult.ValidationState.Errors = []string{fileResult.Message}
+			fileResult.Preview = LogDoctorFixPreview{
+				Diff: "Unable to load file contents for preview.",
+			}
+			overallSuccess = false
+			results = append(results, fileResult)
+			continue
+		}
+
+		fileResult.ValidationState.Before, fileResult.ValidationState.Errors = validateMarkdownState(content)
+		normalized := markdown.NormalizeMarkdown(content)
+		updated := normalized.Markdown
+		validationErrors := append([]string{}, normalized.Errors...)
+		if len(validationErrors) == 0 {
+			afterState, afterErrors := validateMarkdownState(updated)
+			fileResult.ValidationState.After = afterState
+			fileResult.ValidationState.Errors = afterErrors
+		} else {
+			fileResult.ValidationState.After = "invalid"
+			fileResult.ValidationState.Errors = validationErrors
+		}
+		if fileResult.ValidationState.Before == "valid" && len(fileResult.ValidationState.Errors) == 0 {
+			fileResult.ValidationState.Before = "valid"
+		}
+
+		fileResult.Preview = LogDoctorFixPreview{
+			Changed:       normalized.Changed,
+			Diff:          buildRewriteDiff(path, content, updated),
+			OriginalBytes: len(content),
+			UpdatedBytes:  len(updated),
+		}
+		if !normalized.Changed {
+			fileResult.Status = "unchanged"
+			fileResult.Message = "file already matches canonical format"
+			results = append(results, fileResult)
+			continue
+		}
+
+		if request.Mode == LogDoctorFixModeDryRun {
+			fileResult.Status = "preview"
+			fileResult.Message = "fix preview generated"
+			results = append(results, fileResult)
+			continue
+		}
+
+		commitSHA, applyErr := c.applyLogDoctorFix(config, branch, path, sha, updated)
+		if applyErr != nil {
+			fileResult.Status = "error"
+			fileResult.Message = applyErr.Error()
+			overallSuccess = false
+		} else {
+			fileResult.Status = "applied"
+			fileResult.Message = "fix committed"
+			fileResult.CommitSHA = commitSHA
+		}
+		results = append(results, fileResult)
+	}
+
+	message := fmt.Sprintf("%s completed for %d file(s)", request.Mode, len(results))
+	if !overallSuccess {
+		message = fmt.Sprintf("%s completed with errors", request.Mode)
+	}
+
+	return LogDoctorFixResult{
+		Success: overallSuccess,
+		Message: message,
+		Branch:  branch,
+		Mode:    request.Mode,
+		Files:   results,
+	}, nil
 }
 
 func (c *Client) ListSessions(config model.GitHubConfig) ([]model.Session, error) {
@@ -593,6 +751,73 @@ func (c *Client) getFile(config model.GitHubConfig, filePath string, branch stri
 	}
 
 	return response.SHA, string(decoded), nil
+}
+
+func (c *Client) applyLogDoctorFix(config model.GitHubConfig, branch, path, sha, content string) (string, error) {
+	commitMessage := "log-doctor: normalize session markdown"
+	body := map[string]any{
+		"message": commitMessage,
+		"content": base64.StdEncoding.EncodeToString([]byte(content)),
+		"branch":  branch,
+		"sha":     sha,
+	}
+
+	payload, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(path)), body)
+	if err == nil {
+		return parseCommitSHA(payload), nil
+	}
+
+	apiErr, ok := err.(*gitHubAPIError)
+	if !ok || (apiErr.Status != http.StatusConflict && apiErr.Status != http.StatusUnprocessableEntity) {
+		return "", err
+	}
+
+	latestSHA, _, getErr := c.getFile(config, path, branch)
+	if getErr != nil {
+		return "", fmt.Errorf("conflict retry failed while reading latest SHA: %w", getErr)
+	}
+	body["sha"] = latestSHA
+
+	retryPayload, retryErr := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(path)), body)
+	if retryErr != nil {
+		return "", fmt.Errorf("conflict retry failed: %w", retryErr)
+	}
+	return parseCommitSHA(retryPayload), nil
+}
+
+func parseCommitSHA(payload []byte) string {
+	var response struct {
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
+	}
+	if err := json.Unmarshal(payload, &response); err != nil {
+		return ""
+	}
+	return response.Commit.SHA
+}
+
+func validateMarkdownState(content string) (string, []string) {
+	if _, err := markdown.MarkdownToSession(content); err != nil {
+		return "invalid", []string{err.Error()}
+	}
+	return "valid", nil
+}
+
+func buildRewriteDiff(path, before, after string) string {
+	if before == after {
+		return "No changes."
+	}
+	maxChars := 1600
+	trimmedBefore := before
+	trimmedAfter := after
+	if len(trimmedBefore) > maxChars {
+		trimmedBefore = trimmedBefore[:maxChars] + "\n... (truncated)"
+	}
+	if len(trimmedAfter) > maxChars {
+		trimmedAfter = trimmedAfter[:maxChars] + "\n... (truncated)"
+	}
+	return fmt.Sprintf("--- %s\n+++ %s\n@@ rewrite @@\n-%s\n+%s", path, path, trimmedBefore, trimmedAfter)
 }
 
 func recoverSessionMetadata(content string) (id string, date string) {

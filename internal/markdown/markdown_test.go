@@ -288,6 +288,65 @@ No additional notes.
 	}
 }
 
+func TestNormalizeMarkdownReordersAndAddsRequiredSections(t *testing.T) {
+	input := `---
+id: "normalize-1"
+date: "2026-03-20"
+effort: 3
+category: "Technical"
+---
+
+# Custom Title
+
+## Notes
+
+Some note first.
+
+## Techniques Practiced
+- Harai goshi
+`
+
+	result := NormalizeMarkdown(input)
+	if len(result.Errors) > 0 {
+		t.Fatalf("NormalizeMarkdown() errors = %#v", result.Errors)
+	}
+	if !result.Changed {
+		t.Fatalf("NormalizeMarkdown() expected changed=true")
+	}
+	if !strings.Contains(result.Markdown, "## Techniques Practiced") ||
+		!strings.Contains(result.Markdown, "## Session Description") ||
+		!strings.Contains(result.Markdown, "## Notes") {
+		t.Fatalf("normalized markdown missing required sections: %q", result.Markdown)
+	}
+	techniquesIndex := strings.Index(result.Markdown, "## Techniques Practiced")
+	descriptionIndex := strings.Index(result.Markdown, "## Session Description")
+	notesIndex := strings.Index(result.Markdown, "## Notes")
+	if !(techniquesIndex < descriptionIndex && descriptionIndex < notesIndex) {
+		t.Fatalf("required sections are not in canonical order: %q", result.Markdown)
+	}
+	if !strings.Contains(result.Markdown, "# Custom Title") {
+		t.Fatalf("expected custom title to be preserved: %q", result.Markdown)
+	}
+}
+
+func TestNormalizeMarkdownReturnsErrorsForInvalidFrontmatter(t *testing.T) {
+	input := `---
+id: "missing-effort"
+date: "2026-03-20"
+category: "Technical"
+---
+
+# Title`
+
+	result := NormalizeMarkdown(input)
+	if len(result.Errors) == 0 {
+		t.Fatalf("NormalizeMarkdown() expected errors, got none")
+	}
+	if !strings.Contains(strings.Join(result.Errors, ","), "effort") {
+		t.Fatalf("expected effort error, got %#v", result.Errors)
+	}
+}
+
 func TestMarkdownToSessionAllowsEditedInformationalTitle(t *testing.T) {
 	input := `---
 id: "edited-title"
