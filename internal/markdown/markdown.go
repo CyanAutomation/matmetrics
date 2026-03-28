@@ -3,6 +3,7 @@ package markdown
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -407,4 +408,110 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+type NormalizeResult struct {
+	Markdown string
+	Changed  bool
+	Errors   []string
+}
+
+// NormalizeMarkdown rewrites markdown into canonical frontmatter + section order.
+// It preserves discovered section content where possible and injects any missing
+// required sections so the content can be re-validated consistently.
+func NormalizeMarkdown(content string) NormalizeResult {
+	normalizedInput := strings.ReplaceAll(content, "\r\n", "\n")
+	frontmatter, body, err := splitFrontmatter(normalizedInput)
+	if err != nil {
+		return NormalizeResult{Markdown: normalizedInput, Errors: []string{err.Error()}}
+	}
+
+	values, err := parseFrontmatter(frontmatter)
+	if err != nil {
+		return NormalizeResult{Markdown: normalizedInput, Errors: []string{err.Error()}}
+	}
+
+	id, _ := values["id"].(string)
+	date, _ := values["date"].(string)
+	category, _ := values["category"].(string)
+	effort, effortOK := values["effort"].(int)
+
+	errors := make([]string, 0)
+	if strings.TrimSpace(id) == "" {
+		errors = append(errors, `missing or invalid "id" in frontmatter`)
+	}
+	if strings.TrimSpace(date) == "" {
+		errors = append(errors, `missing or invalid "date" in frontmatter`)
+	}
+	if !effortOK {
+		errors = append(errors, `missing or invalid "effort" in frontmatter`)
+	}
+	if strings.TrimSpace(category) == "" {
+		errors = append(errors, `missing or invalid "category" in frontmatter`)
+	}
+	if len(errors) > 0 {
+		return NormalizeResult{Markdown: normalizedInput, Errors: errors}
+	}
+
+	session := model.Session{
+		ID:          id,
+		Date:        date,
+		Effort:      model.EffortLevel(effort),
+		Category:    model.SessionCategory(category),
+		Techniques:  extractTechniques(body),
+		Description: extractSectionContent(body, "Session Description"),
+		Notes:       extractSectionContent(body, "Notes"),
+	}
+	if durationRaw, ok := values["duration"]; ok {
+		duration, ok := durationRaw.(int)
+		if !ok {
+			return NormalizeResult{Markdown: normalizedInput, Errors: []string{`invalid "duration" in frontmatter`}}
+		}
+		session.Duration = &duration
+	}
+	if videoURLRaw, ok := values["videoUrl"]; ok {
+		videoURL, ok := videoURLRaw.(string)
+		if !ok {
+			return NormalizeResult{Markdown: normalizedInput, Errors: []string{`invalid "videoUrl" in frontmatter`}}
+		}
+		session.VideoURL = videoURL
+	}
+
+	rendered, err := SessionToMarkdown(session)
+	if err != nil {
+		return NormalizeResult{Markdown: normalizedInput, Errors: []string{err.Error()}}
+	}
+
+	title := extractTitleLine(body)
+	if strings.TrimSpace(title) != "" {
+		rendered = replaceTitleLine(rendered, title)
+	}
+
+	normalized := strings.TrimRight(rendered, "\n") + "\n"
+	changed := normalized != strings.TrimRight(normalizedInput, "\n")+"\n"
+	return NormalizeResult{Markdown: normalized, Changed: changed}
+}
+
+func extractTitleLine(content string) string {
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "# ") {
+			return trimmed
+		}
+		return ""
+	}
+	return ""
+}
+
+func replaceTitleLine(markdown, title string) string {
+	re := regexp.MustCompile(`(?m)^# .*$`)
+	loc := re.FindStringIndex(markdown)
+	if loc == nil {
+		return markdown
+	}
+	return markdown[:loc[0]] + title + markdown[loc[1]:]
 }
