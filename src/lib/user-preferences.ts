@@ -9,8 +9,11 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { DEFAULT_TRANSFORMER_PROMPT } from './ai-prompts';
-export { DEFAULT_TRANSFORMER_PROMPT };
 import { getFirebaseDb } from './firebase-client';
+import { getScopedStorageKey } from './client-identity';
+import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
+
+export { DEFAULT_TRANSFORMER_PROMPT };
 import { getScopedStorageKey } from './client-identity';
 import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
 
