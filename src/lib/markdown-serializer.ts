@@ -34,6 +34,7 @@ export function sessionToMarkdown(session: JudoSession): string {
     effort: session.effort,
     category: session.category,
     ...(session.duration !== undefined && { duration: session.duration }),
+    ...(session.videoUrl && { videoUrl: session.videoUrl }),
   };
 
   let content = `# ${session.date} - Judo Session: ${session.category}\n\n`;
@@ -81,6 +82,7 @@ export function markdownToSession(markdown: string): JudoSession {
   const effort = validateEffort(data.effort);
   const category = validateCategory(data.category);
   const duration = validateDuration(data.duration);
+  const videoUrl = validateVideoUrl(data.videoUrl);
 
   validateTitlePresence(normalizedContent);
 
@@ -99,6 +101,7 @@ export function markdownToSession(markdown: string): JudoSession {
     ...(description && { description }),
     ...(notes && { notes }),
     ...(duration !== undefined && { duration }),
+    ...(videoUrl !== undefined && { videoUrl }),
   };
 
   return session;
@@ -181,6 +184,69 @@ function validateDuration(value: unknown): number | undefined {
   }
 
   return value;
+}
+
+function validateVideoUrl(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(
+      'Invalid "videoUrl" in frontmatter: expected a valid absolute URL'
+    );
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(trimmed);
+  } catch {
+    throw new Error(
+      'Invalid "videoUrl" in frontmatter: expected a valid absolute URL'
+    );
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(
+      'Invalid "videoUrl" in frontmatter: protocol must be http or https'
+    );
+  }
+
+  const host = parsedUrl.hostname;
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host.startsWith('10.') ||
+    host.startsWith('172.16.') ||
+    host.startsWith('172.17.') ||
+    host.startsWith('172.18.') ||
+    host.startsWith('172.19.') ||
+    host.startsWith('172.20.') ||
+    host.startsWith('172.21.') ||
+    host.startsWith('172.22.') ||
+    host.startsWith('172.23.') ||
+    host.startsWith('172.24.') ||
+    host.startsWith('172.25.') ||
+    host.startsWith('172.26.') ||
+    host.startsWith('172.27.') ||
+    host.startsWith('172.28.') ||
+    host.startsWith('172.29.') ||
+    host.startsWith('172.30.') ||
+    host.startsWith('172.31.') ||
+    host.startsWith('192.168.') ||
+    host === '169.254.169.254'
+  ) {
+    throw new Error(
+      'Invalid "videoUrl" in frontmatter: private or internal network addresses are not allowed'
+    );
+  }
+
+  return parsedUrl.toString();
 }
 
 /**
@@ -334,6 +400,7 @@ export function validateRoundtrip(session: JudoSession): boolean {
       recovered.effort === session.effort &&
       recovered.category === session.category &&
       recovered.duration === session.duration &&
+      recovered.videoUrl === session.videoUrl &&
       arraysEqual(recovered.techniques, session.techniques) &&
       recovered.description === session.description &&
       recovered.notes === session.notes
