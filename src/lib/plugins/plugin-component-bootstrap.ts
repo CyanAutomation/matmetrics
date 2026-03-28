@@ -72,6 +72,22 @@ const initializePluginsStatically = (): void => {
     console.warn('Failed to initialize prompt-settings plugin:', error);
   }
 
+  try {
+    // Use synchronous require for test/runtime compatibility
+    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
+    const logDoctorModule = require('../../../plugins/log-doctor/src/index');
+    const initPlugin = logDoctorModule.initPlugin as PluginInitializer | undefined;
+
+    if (initPlugin && typeof initPlugin === 'function') {
+      initPlugin({
+        register: () => undefined,
+        registerPluginComponent,
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to initialize log-doctor plugin:', error);
+  }
+
   // To add more plugins:
   // 1. Create plugins/my-plugin/src/index.ts with initPlugin export
   // 2. Add another try-catch block here to initialize it:
