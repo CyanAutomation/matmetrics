@@ -42,3 +42,58 @@ func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSessionVideoURLValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		videoURL string
+		wantErr  string
+	}{
+		{
+			name:    "accepts empty video url",
+			wantErr: "",
+		},
+		{
+			name:     "rejects invalid url",
+			videoURL: "not-a-url",
+			wantErr:  "invalid videoUrl: expected a valid absolute URL",
+		},
+		{
+			name:     "rejects unsupported protocol",
+			videoURL: "ftp://example.com/video.mp4",
+			wantErr:  "invalid videoUrl: protocol must be http or https",
+		},
+		{
+			name:     "accepts valid https url",
+			videoURL: "https://example.com/video/123",
+			wantErr:  "",
+		},
+		{
+			name:     "accepts valid http url",
+			videoURL: "http://example.com/video/123",
+			wantErr:  "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			session := validSession()
+			session.VideoURL = tc.videoURL
+
+			err := ValidateSession(session)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidateSession() error = %v, want nil", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("ValidateSession() error = nil, want %q", tc.wantErr)
+			}
+			if got := err.Error(); got != tc.wantErr {
+				t.Fatalf("ValidateSession() error = %q, want %q", got, tc.wantErr)
+			}
+		})
+	}
+}

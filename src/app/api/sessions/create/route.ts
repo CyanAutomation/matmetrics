@@ -107,6 +107,56 @@ function validateOptionalString(
   return { valid: true, value };
 }
 
+function validateOptionalVideoUrl(
+  value: unknown
+):
+  | { valid: true; videoUrl: string | undefined }
+  | { valid: false; error: string } {
+  if (value === undefined) {
+    return { valid: true, videoUrl: undefined };
+  }
+
+  if (typeof value !== 'string') {
+    return { valid: false, error: 'Invalid videoUrl: expected a string' };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(value);
+  } catch {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    };
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: protocol must be http or https',
+    };
+  }
+
+  // Prevent SSRF attacks by blocking private/internal network ranges
+  const host = parsedUrl.hostname.toLowerCase();
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host.startsWith('10.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+    host.startsWith('192.168.') ||
+    host === '169.254.169.254' // AWS/GCP metadata endpoint
+  ) {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: private or internal network addresses are not allowed',
+    };
+  }
+
+  return { valid: true, videoUrl: parsedUrl.toString() };
+}
+
 function validateDuration(
   value: unknown
 ):
@@ -243,6 +293,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const videoUrlValidation = validateOptionalVideoUrl(body.videoUrl);
+    if (!videoUrlValidation.valid) {
+      return NextResponse.json(
+        { error: videoUrlValidation.error },
+        { status: 400 }
+      );
+    }
+
     const durationValidation = validateDuration(body.duration);
     if (!durationValidation.valid) {
       return NextResponse.json(
@@ -262,6 +320,9 @@ export async function POST(request: NextRequest) {
       }),
       ...(notesValidation.value !== undefined && {
         notes: notesValidation.value,
+      }),
+      ...(videoUrlValidation.videoUrl !== undefined && {
+        videoUrl: videoUrlValidation.videoUrl,
       }),
       ...(durationValidation.duration !== undefined && {
         duration: durationValidation.duration,
