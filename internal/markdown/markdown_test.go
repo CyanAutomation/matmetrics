@@ -543,6 +543,8 @@ func TestMarkdownToSessionRejectsVideoURLPrivateHosts(t *testing.T) {
 		"172.16.0.1",
 		"192.168.1.1",
 		"169.254.169.254",
+		"fc00::1",
+		"fe80::1",
 	}
 
 	for _, host := range blockedHosts {

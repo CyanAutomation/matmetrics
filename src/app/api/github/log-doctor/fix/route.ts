@@ -6,6 +6,18 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const MAX_APPLY_FILES = 25;
 
+function isSafeLogPath(path: string): boolean {
+  const normalized = path.replace(/\\/g, '/').trim();
+  if (!normalized) return false;
+  if (normalized.startsWith('/') || normalized.includes('\0')) return false;
+  if (normalized.endsWith('/')) return false;
+  if (!normalized.startsWith('data/')) return false;
+  if (!normalized.endsWith('.md')) return false;
+
+  const segments = normalized.split('/');
+  return segments.every(segment => segment !== '' && segment !== '.' && segment !== '..');
+}
+
 /**
  * POST /api/github/log-doctor/fix
  * Preview or apply markdown normalization fixes.
@@ -38,12 +50,8 @@ export async function POST(request: NextRequest) {
     const mode = body.mode === 'apply' ? 'apply' : 'dry-run';
     const selectedPaths = Array.isArray(body.paths)
       ? body.paths.filter(
-          (path: unknown): path is string => {
-            if (typeof path !== 'string') return false;
-            // Prevent path traversal attacks
-            const normalized = path.replace(/\\/g, '/');
-            return !normalized.includes('../') && !normalized.startsWith('/');
-          }
+          (path: unknown): path is string =>
+            typeof path === 'string' && isSafeLogPath(path)
         )
       : [];
     const options = {

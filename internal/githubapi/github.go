@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"slices"
 	"strings"
 
@@ -277,6 +278,11 @@ func (c *Client) FixLogs(config model.GitHubConfig, request LogDoctorFixRequest)
 	if len(request.Paths) == 0 {
 		return LogDoctorFixResult{}, fmt.Errorf("at least one file path is required")
 	}
+	for _, selectedPath := range request.Paths {
+		if !isSafeLogDoctorPath(selectedPath) {
+			return LogDoctorFixResult{}, fmt.Errorf("invalid file path %q", selectedPath)
+		}
+	}
 	if request.Mode == LogDoctorFixModeApply && len(request.Paths) > maxFixApplyFiles {
 		return LogDoctorFixResult{}, fmt.Errorf("apply requests are limited to %d files", maxFixApplyFiles)
 	}
@@ -320,9 +326,6 @@ func (c *Client) FixLogs(config model.GitHubConfig, request LogDoctorFixRequest)
 		} else {
 			fileResult.ValidationState.After = "invalid"
 			fileResult.ValidationState.Errors = validationErrors
-		}
-		if fileResult.ValidationState.Before == "valid" && len(fileResult.ValidationState.Errors) == 0 {
-			fileResult.ValidationState.Before = "valid"
 		}
 
 		fileResult.Preview = LogDoctorFixPreview{
@@ -370,6 +373,29 @@ func (c *Client) FixLogs(config model.GitHubConfig, request LogDoctorFixRequest)
 		Mode:    request.Mode,
 		Files:   results,
 	}, nil
+}
+
+func isSafeLogDoctorPath(filePath string) bool {
+	trimmed := strings.TrimSpace(filePath)
+	if trimmed == "" || strings.Contains(trimmed, "\x00") {
+		return false
+	}
+	normalized := strings.ReplaceAll(trimmed, "\\", "/")
+	if strings.HasPrefix(normalized, "/") || strings.HasSuffix(normalized, "/") {
+		return false
+	}
+	if !strings.HasPrefix(normalized, "data/") || !strings.HasSuffix(normalized, ".md") {
+		return false
+	}
+	if path.Clean(normalized) != normalized {
+		return false
+	}
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Client) ListSessions(config model.GitHubConfig) ([]model.Session, error) {
