@@ -41,6 +41,28 @@ type SyncAllResult struct {
 	Errors  []string `json:"errors,omitempty"`
 }
 
+type DiagnoseLogsSummary struct {
+	TotalFiles   int `json:"totalFiles"`
+	ValidFiles   int `json:"validFiles"`
+	InvalidFiles int `json:"invalidFiles"`
+}
+
+type DiagnoseLogsFileResult struct {
+	Path   string   `json:"path"`
+	Status string   `json:"status"`
+	Errors []string `json:"errors,omitempty"`
+	ID     string   `json:"id,omitempty"`
+	Date   string   `json:"date,omitempty"`
+}
+
+type DiagnoseLogsResult struct {
+	Success bool                     `json:"success"`
+	Message string                   `json:"message"`
+	Branch  string                   `json:"branch,omitempty"`
+	Summary DiagnoseLogsSummary      `json:"summary"`
+	Files   []DiagnoseLogsFileResult `json:"files"`
+}
+
 type gitHubAPIError struct {
 	Status  int
 	Message string
@@ -125,6 +147,68 @@ func (c *Client) SyncAll(config model.GitHubConfig, sessions []model.Session) (S
 
 	if !result.Success {
 		result.Message = fmt.Sprintf("Bulk sync completed with %d failure(s)", result.Failed)
+	}
+
+	return result, nil
+}
+
+func (c *Client) DiagnoseLogs(config model.GitHubConfig) (DiagnoseLogsResult, error) {
+	branch, err := c.resolveBranch(config)
+	if err != nil {
+		return DiagnoseLogsResult{}, err
+	}
+
+	paths, err := c.listGitHubSessionPaths(config, branch)
+	if err != nil {
+		return DiagnoseLogsResult{}, err
+	}
+
+	files := make([]DiagnoseLogsFileResult, 0, len(paths))
+	summary := DiagnoseLogsSummary{TotalFiles: len(paths)}
+
+	for _, path := range paths {
+		fileResult := DiagnoseLogsFileResult{
+			Path:   path,
+			Status: "valid",
+			Errors: []string{},
+		}
+
+		_, content, err := c.getFile(config, path, branch)
+		if err != nil {
+			fileResult.Status = "invalid"
+			fileResult.Errors = append(fileResult.Errors, fmt.Sprintf("failed to read file: %v", err))
+			summary.InvalidFiles++
+			files = append(files, fileResult)
+			continue
+		}
+
+		session, err := markdown.MarkdownToSession(content)
+		if err != nil {
+			fileResult.Status = "invalid"
+			fileResult.Errors = append(fileResult.Errors, err.Error())
+			id, date := recoverSessionMetadata(content)
+			fileResult.ID = id
+			fileResult.Date = date
+			summary.InvalidFiles++
+			files = append(files, fileResult)
+			continue
+		}
+
+		fileResult.ID = session.ID
+		fileResult.Date = session.Date
+		summary.ValidFiles++
+		files = append(files, fileResult)
+	}
+
+	result := DiagnoseLogsResult{
+		Success: summary.InvalidFiles == 0,
+		Message: fmt.Sprintf("Diagnosed %d markdown file(s)", summary.TotalFiles),
+		Branch:  branch,
+		Summary: summary,
+		Files:   files,
+	}
+	if !result.Success {
+		result.Message = fmt.Sprintf("Diagnosed %d markdown file(s) with %d invalid file(s)", summary.TotalFiles, summary.InvalidFiles)
 	}
 
 	return result, nil
@@ -509,6 +593,47 @@ func (c *Client) getFile(config model.GitHubConfig, filePath string, branch stri
 	}
 
 	return response.SHA, string(decoded), nil
+}
+
+func recoverSessionMetadata(content string) (id string, date string) {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+
+	const marker = "---\n"
+	if !strings.HasPrefix(content, marker) {
+		return "", ""
+	}
+	rest := content[len(marker):]
+	endIndex := strings.Index(rest, "\n---\n")
+	if endIndex < 0 {
+		return "", ""
+	}
+	frontmatter := rest[:endIndex]
+	lines := strings.Split(frontmatter, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "id:"):
+			id = trimFrontmatterStringValue(strings.TrimSpace(strings.TrimPrefix(line, "id:")))
+		case strings.HasPrefix(line, "date:"):
+			date = trimFrontmatterStringValue(strings.TrimSpace(strings.TrimPrefix(line, "date:")))
+		}
+	}
+
+	return strings.TrimSpace(id), strings.TrimSpace(date)
+}
+
+func trimFrontmatterStringValue(raw string) string {
+	if len(raw) < 2 {
+		return raw
+	}
+	if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
+		return strings.TrimSuffix(strings.TrimPrefix(raw, "\""), "\"")
+	}
+	if strings.HasPrefix(raw, "'") && strings.HasSuffix(raw, "'") {
+		return strings.ReplaceAll(raw[1:len(raw)-1], "''", "'")
+	}
+	return raw
 }
 
 func encodePathSegments(path string) string {

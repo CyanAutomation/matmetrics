@@ -91,6 +91,9 @@ func MarkdownToSession(markdown string) (model.Session, error) {
 	if err := validateTitlePresence(content); err != nil {
 		return model.Session{}, err
 	}
+	if err := validateRequiredSections(content); err != nil {
+		return model.Session{}, err
+	}
 
 	description := extractSectionContent(content, "Session Description")
 	notes := extractSectionContent(content, "Notes")
@@ -318,6 +321,26 @@ func validateTitlePresence(content string) error {
 
 	if !strings.HasPrefix(titleLine, "# ") {
 		return fmt.Errorf("markdown content must begin with a level-1 title. Got: %q", titleLine)
+	}
+
+	return nil
+}
+
+func validateRequiredSections(content string) error {
+	requiredHeadings := []string{
+		"## Techniques Practiced",
+		"## Session Description",
+		"## Notes",
+	}
+
+	missing := make([]string, 0, len(requiredHeadings))
+	for _, heading := range requiredHeadings {
+		if !strings.Contains(content, heading) {
+			missing = append(missing, strings.TrimPrefix(heading, "## "))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("markdown content is missing required sections: %s", strings.Join(missing, ", "))
 	}
 
 	return nil
