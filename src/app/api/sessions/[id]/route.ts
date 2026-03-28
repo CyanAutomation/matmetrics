@@ -136,6 +136,23 @@ function validateOptionalVideoUrl(
     };
   }
 
+  // Prevent SSRF attacks by blocking private/internal network ranges
+  const host = parsedUrl.hostname.toLowerCase();
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host.startsWith('10.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+    host.startsWith('192.168.') ||
+    host === '169.254.169.254' // AWS/GCP metadata endpoint
+  ) {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: private or internal network addresses are not allowed',
+    };
+  }
+
   return { valid: true, videoUrl: parsedUrl.toString() };
 }
 
