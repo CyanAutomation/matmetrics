@@ -11,7 +11,7 @@ test('initPlugin registers log-doctor ids exactly once', () => {
     register: (extensionId) => {
       registerCalls.push(extensionId);
     },
-    registerPluginComponent: (componentId) => {
+    registerPluginComponent: (componentId, renderer) => {
       registerComponentCalls.push(componentId);
     },
   });
