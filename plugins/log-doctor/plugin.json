@@ -1,0 +1,28 @@
+{
+  "id": "log-doctor",
+  "name": "Log Doctor Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for log health checks and diagnostics.",
+  "maturity": {
+    "tier": "bronze",
+    "notes": "Baseline maturity. Initial first-party plugin shell with dashboard tab registration and baseline tests.",
+    "lastReviewedAt": "2026-03-28",
+    "uxStates": {
+      "destructiveAction": false
+    }
+  },
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "log-doctor-dashboard-tab",
+      "title": "Log Doctor",
+      "config": {
+        "tabId": "log-doctor",
+        "headerTitle": "Log Doctor",
+        "icon": "stethoscope",
+        "component": "log_doctor"
+      }
+    }
+  ]
+}
