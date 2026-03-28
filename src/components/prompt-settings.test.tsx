@@ -90,7 +90,7 @@ test('reset flow emits success toast for destructive confirmation action', async
   assert.equal(didReset, true);
   assert.deepEqual(toastCalls, [
     {
-      description: 'Prompt reset to default Kodokan standards.',
+      description: 'Prompt reset to default training terminology guidelines.',
     },
   ]);
 });
@@ -157,4 +157,3 @@ test('pending auth and request states keep save/reset controls disabled', () => 
   assert.equal(saving.canSubmitPrompt, false);
   assert.equal(resetting.canSubmitPrompt, false);
 });
-
