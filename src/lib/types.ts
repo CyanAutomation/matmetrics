@@ -49,6 +49,15 @@ export interface GitHubConfig {
   branch?: string; // Optional branch; defaults to repository default branch
 }
 
+export type SessionFileIssueCode = 'parse_failed' | 'read_failed';
+
+export interface SessionFileIssue {
+  source: 'github' | 'local';
+  code: SessionFileIssueCode;
+  filePath: string;
+  message: string;
+}
+
 /**
  * GitHub sync status
  */
