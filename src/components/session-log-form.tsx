@@ -87,6 +87,7 @@ export function SessionLogForm({
     sessionToEdit?.category || 'Technical'
   );
   const [notes, setNotes] = useState(sessionToEdit?.notes || '');
+  const [videoUrl, setVideoUrl] = useState(sessionToEdit?.videoUrl || '');
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,6 +110,7 @@ export function SessionLogForm({
     setEffort(sessionToEdit?.effort || 3);
     setCategory(sessionToEdit?.category || 'Technical');
     setNotes(sessionToEdit?.notes || '');
+    setVideoUrl(sessionToEdit?.videoUrl || '');
     setIsSuggesting(false);
     setIsTransforming(false);
     setIsSubmitting(false);
@@ -313,6 +315,27 @@ export function SessionLogForm({
 
     const parsedDuration =
       duration.trim() !== '' ? parseInt(duration, 10) : undefined;
+    const trimmedVideoUrl = videoUrl.trim();
+
+    if (trimmedVideoUrl) {
+      try {
+        const parsedVideoUrl = new URL(trimmedVideoUrl);
+        if (
+          parsedVideoUrl.protocol !== 'http:' &&
+          parsedVideoUrl.protocol !== 'https:'
+        ) {
+          throw new Error('unsupported protocol');
+        }
+      } catch {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid video URL',
+          description:
+            'Please provide a valid absolute http(s) URL (for example, a YouTube link).',
+        });
+        return;
+      }
+    }
 
     const sessionData: JudoSession = {
       id:
@@ -326,6 +349,7 @@ export function SessionLogForm({
       category,
       description,
       notes,
+      ...(trimmedVideoUrl && { videoUrl: trimmedVideoUrl }),
       ...(Number.isFinite(parsedDuration) && { duration: parsedDuration }),
     };
 
@@ -349,6 +373,7 @@ export function SessionLogForm({
         setTechniques([]);
         setDescription('');
         setNotes('');
+        setVideoUrl('');
         setDuration('');
         setEffort(3);
         setCategory('Technical');
@@ -368,6 +393,25 @@ export function SessionLogForm({
       setIsSubmitting(false);
     }
   };
+
+  const videoUrlValidationMessage = (() => {
+    const trimmedVideoUrl = videoUrl.trim();
+    if (!trimmedVideoUrl) {
+      return '';
+    }
+    try {
+      const parsedVideoUrl = new URL(trimmedVideoUrl);
+      if (
+        parsedVideoUrl.protocol !== 'http:' &&
+        parsedVideoUrl.protocol !== 'https:'
+      ) {
+        return 'Use an absolute URL that starts with http:// or https://.';
+      }
+      return '';
+    } catch {
+      return 'Use a valid absolute URL (for example, https://youtube.com/watch?v=...).';
+    }
+  })();
 
   return (
     <Card
@@ -635,6 +679,35 @@ export function SessionLogForm({
               onChange={(e) => setNotes(e.target.value)}
               className="bg-background"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor={fid('video-url')}
+              className="text-sm font-semibold text-muted-foreground"
+            >
+              Relevant Video URL (Optional)
+            </Label>
+            <Input
+              id={fid('video-url')}
+              name="sessionVideoUrl"
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
+              className="bg-background"
+            />
+            {videoUrlValidationMessage ? (
+              <p className="text-sm text-destructive">
+                {videoUrlValidationMessage}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Paste a public YouTube or other http(s) video link related to
+                this session.
+              </p>
+            )}
           </div>
         </CardContent>
         <CardFooter
