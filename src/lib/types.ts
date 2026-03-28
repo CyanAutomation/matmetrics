@@ -10,6 +10,7 @@ export interface JudoSession {
   category: SessionCategory;
   notes?: string;
   duration?: number; // in minutes
+  videoUrl?: string;
 }
 
 export interface MutationResult {

@@ -19,6 +19,7 @@ type Session struct {
 	Category    SessionCategory `json:"category"`
 	Notes       string          `json:"notes,omitempty"`
 	Duration    *int            `json:"duration,omitempty"`
+	VideoURL    string          `json:"videoUrl,omitempty"`
 }
 
 type GitHubConfig struct {
