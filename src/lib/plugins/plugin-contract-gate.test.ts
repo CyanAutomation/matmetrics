@@ -178,7 +178,12 @@ test('runPluginContractGate emits non-blocking warning when packaged runtime lac
 test('runPluginContractGate accepts README heading contracts for plugin operation docs', async () => {
   const repoRoot = process.cwd();
   const pluginsRoot = path.join(repoRoot, 'plugins');
-  const pluginDirectories = ['tag-manager', 'github-sync', 'prompt-settings'];
+  const pluginDirectories = [
+    'tag-manager',
+    'github-sync',
+    'prompt-settings',
+    'log-doctor',
+  ];
 
   for (const directoryName of pluginDirectories) {
     const manifestPath = path.join(pluginsRoot, directoryName, 'plugin.json');
