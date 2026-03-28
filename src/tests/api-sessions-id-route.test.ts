@@ -641,6 +641,45 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       },
       error: 'Invalid notes: expected a string',
     },
+    {
+      name: 'videoUrl type',
+      sessionId: 'put-invalid-video-url-type',
+      body: {
+        id: 'put-invalid-video-url-type',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: true,
+      },
+      error: 'Invalid videoUrl: expected a string',
+    },
+    {
+      name: 'videoUrl invalid url',
+      sessionId: 'put-invalid-video-url-format',
+      body: {
+        id: 'put-invalid-video-url-format',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: 'not-a-url',
+      },
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    },
+    {
+      name: 'videoUrl unsupported protocol',
+      sessionId: 'put-invalid-video-url-protocol',
+      body: {
+        id: 'put-invalid-video-url-protocol',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: 'ftp://example.com/video.mp4',
+      },
+      error: 'Invalid videoUrl: protocol must be http or https',
+    },
   ];
 
   for (const testCase of cases) {
@@ -663,4 +702,42 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       });
     });
   }
+});
+
+test('PUT accepts valid videoUrl and includes it in updated session', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-valid-video-url';
+      await createLocalSession(makeSession(sessionId, '2025-01-10'));
+
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['uchi-mata'],
+            videoUrl: 'https://example.com/videos/updated',
+          }),
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 4,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: 'https://example.com/videos/updated',
+      });
+    });
+  });
 });

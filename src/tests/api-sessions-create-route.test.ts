@@ -413,6 +413,42 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       },
       error: 'Invalid description: expected a string',
     },
+    {
+      name: 'videoUrl type',
+      body: {
+        id: 'create-invalid-video-url-type',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 123,
+      },
+      error: 'Invalid videoUrl: expected a string',
+    },
+    {
+      name: 'videoUrl invalid url',
+      body: {
+        id: 'create-invalid-video-url-format',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'not-a-url',
+      },
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    },
+    {
+      name: 'videoUrl unsupported protocol',
+      body: {
+        id: 'create-invalid-video-url-protocol',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'ftp://example.com/video.mp4',
+      },
+      error: 'Invalid videoUrl: protocol must be http or https',
+    },
   ];
 
   for (const testCase of cases) {
@@ -434,6 +470,40 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       });
     });
   }
+});
+
+test('POST accepts valid videoUrl and includes it in created session', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: 'create-valid-video-url',
+            date: '2025-01-12',
+            effort: 3,
+            category: 'Technical',
+            techniques: ['osoto-gari'],
+            videoUrl: 'https://example.com/videos/123',
+          }),
+        })
+      );
+
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), {
+        id: 'create-valid-video-url',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'https://example.com/videos/123',
+      });
+    });
+  });
 });
 
 test('POST returns 401 when authorization header is missing', async () => {

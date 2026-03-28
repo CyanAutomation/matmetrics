@@ -106,6 +106,39 @@ function validateOptionalString(
   return { valid: true, value };
 }
 
+function validateOptionalVideoUrl(
+  value: unknown
+):
+  | { valid: true; videoUrl: string | undefined }
+  | { valid: false; error: string } {
+  if (value === undefined) {
+    return { valid: true, videoUrl: undefined };
+  }
+
+  if (typeof value !== 'string') {
+    return { valid: false, error: 'Invalid videoUrl: expected a string' };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(value);
+  } catch {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    };
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: protocol must be http or https',
+    };
+  }
+
+  return { valid: true, videoUrl: parsedUrl.toString() };
+}
+
 function validateDuration(
   value: unknown
 ):
@@ -275,6 +308,14 @@ export async function PUT(
       );
     }
 
+    const videoUrlValidation = validateOptionalVideoUrl(body.videoUrl);
+    if (!videoUrlValidation.valid) {
+      return NextResponse.json(
+        { error: videoUrlValidation.error },
+        { status: 400 }
+      );
+    }
+
     const durationValidation = validateDuration(body.duration);
     if (!durationValidation.valid) {
       return NextResponse.json(
@@ -294,6 +335,9 @@ export async function PUT(
       }),
       ...(notesValidation.value !== undefined && {
         notes: notesValidation.value,
+      }),
+      ...(videoUrlValidation.videoUrl !== undefined && {
+        videoUrl: videoUrlValidation.videoUrl,
       }),
       ...(durationValidation.duration !== undefined && {
         duration: durationValidation.duration,
