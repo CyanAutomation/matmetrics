@@ -502,6 +502,76 @@ func TestDiagnoseLogsPathNotFoundReturnsEmptyReport(t *testing.T) {
 	}
 }
 
+func TestFixLogsDryRunProvidesPreview(t *testing.T) {
+	input := `---
+id: "needs-fix"
+date: "2026-03-20"
+effort: 3
+category: "Technical"
+---
+
+# Needs fix
+
+## Notes
+
+Out of order sections.
+
+## Techniques Practiced
+- Kouchi gari
+`
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/needs-fix.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-1", "content": base64.StdEncoding.EncodeToString([]byte(input))}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	result, err := client.FixLogs(model.GitHubConfig{Owner: "o", Repo: "r"}, LogDoctorFixRequest{
+		Mode:  LogDoctorFixModeDryRun,
+		Paths: []string{"data/2026/03/needs-fix.md"},
+	})
+	if err != nil {
+		t.Fatalf("FixLogs() error = %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success, got %#v", result)
+	}
+	if len(result.Files) != 1 || result.Files[0].Status != "preview" {
+		t.Fatalf("unexpected file result: %#v", result.Files)
+	}
+	if !result.Files[0].Preview.Changed {
+		t.Fatalf("expected changed preview: %#v", result.Files[0].Preview)
+	}
+}
+
+func TestFixLogsApplyRequiresConfirmation(t *testing.T) {
+	client := &Client{
+		BaseURL:    "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) { return jsonResponse(http.StatusOK, `{}`), nil })},
+		Token:      "test-token",
+	}
+
+	_, err := client.FixLogs(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, LogDoctorFixRequest{
+		Mode:  LogDoctorFixModeApply,
+		Paths: []string{"data/2026/03/needs-fix.md"},
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "explicit confirmation") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
