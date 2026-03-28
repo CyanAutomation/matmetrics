@@ -78,6 +78,7 @@ func TestRoundTripSessionMarkdown(t *testing.T) {
 		Description: "Roundtrip description with Z marker",
 		Notes:       "Roundtrip notes ending at file end Z",
 		Duration:    &duration,
+		VideoURL:    "https://example.com/videos/123",
 	}
 
 	rendered, err := SessionToMarkdown(session)
@@ -98,6 +99,40 @@ func TestRoundTripSessionMarkdown(t *testing.T) {
 	}
 	if parsed.Duration == nil || *parsed.Duration != 90 {
 		t.Fatalf("unexpected duration: %#v", parsed.Duration)
+	}
+	if parsed.VideoURL != "https://example.com/videos/123" {
+		t.Fatalf("unexpected video URL: %q", parsed.VideoURL)
+	}
+}
+
+func TestMarkdownToSessionWithoutVideoURLStillParses(t *testing.T) {
+	input := `---
+id: "no-video"
+date: "2026-03-24"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-24 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+No video URL in frontmatter.
+
+## Notes
+
+Older file format.
+`
+
+	parsed, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+	if parsed.VideoURL != "" {
+		t.Fatalf("expected empty video URL, got %q", parsed.VideoURL)
 	}
 }
 
