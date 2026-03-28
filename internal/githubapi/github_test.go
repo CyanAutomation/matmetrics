@@ -302,6 +302,206 @@ func TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix(t *testing.
 	}
 }
 
+func TestDiagnoseLogsHappyPath(t *testing.T) {
+	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
+		ID:         "session-valid",
+		Date:       "2026-03-18",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+	})
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-valid.md","type":"blob"}]}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260318-matmetrics-session-valid.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{
+					"sha":     "sha-valid",
+					"content": base64.StdEncoding.EncodeToString([]byte(validMarkdown)),
+				}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	result, err := client.DiagnoseLogs(model.GitHubConfig{Owner: "o", Repo: "r"})
+	if err != nil {
+		t.Fatalf("DiagnoseLogs() error = %v", err)
+	}
+
+	if !result.Success {
+		t.Fatalf("expected success, got %#v", result)
+	}
+	if result.Summary.TotalFiles != 1 || result.Summary.ValidFiles != 1 || result.Summary.InvalidFiles != 0 {
+		t.Fatalf("unexpected summary: %#v", result.Summary)
+	}
+	if len(result.Files) != 1 || result.Files[0].Status != "valid" || result.Files[0].ID != "session-valid" {
+		t.Fatalf("unexpected files result: %#v", result.Files)
+	}
+}
+
+func TestDiagnoseLogsMixedValidAndInvalidFiles(t *testing.T) {
+	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
+		ID:         "session-valid",
+		Date:       "2026-03-18",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+	})
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	invalidFrontmatter := `---
+id: "bad-frontmatter"
+date "2026-03-19"
+effort: 3
+category: "Technical"
+---
+
+# Broken frontmatter
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+Content
+
+## Notes
+
+Notes`
+
+	missingRequiredSections := `---
+id: "missing-sections"
+date: "2026-03-20"
+effort: 3
+category: "Technical"
+---
+
+# Missing sections`
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-valid.md","type":"blob"},{"path":"data/2026/03/20260319-matmetrics-bad-frontmatter.md","type":"blob"},{"path":"data/2026/03/20260320-matmetrics-missing-sections.md","type":"blob"}]}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260318-matmetrics-session-valid.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-valid", "content": base64.StdEncoding.EncodeToString([]byte(validMarkdown))}), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260319-matmetrics-bad-frontmatter.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-invalid-frontmatter", "content": base64.StdEncoding.EncodeToString([]byte(invalidFrontmatter))}), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260320-matmetrics-missing-sections.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-invalid-sections", "content": base64.StdEncoding.EncodeToString([]byte(missingRequiredSections))}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	result, err := client.DiagnoseLogs(model.GitHubConfig{Owner: "o", Repo: "r"})
+	if err != nil {
+		t.Fatalf("DiagnoseLogs() error = %v", err)
+	}
+
+	if result.Success {
+		t.Fatalf("expected overall failure, got success: %#v", result)
+	}
+	if result.Summary.TotalFiles != 3 || result.Summary.ValidFiles != 1 || result.Summary.InvalidFiles != 2 {
+		t.Fatalf("unexpected summary: %#v", result.Summary)
+	}
+	if len(result.Files) != 3 {
+		t.Fatalf("unexpected file count: %d", len(result.Files))
+	}
+
+	invalidCount := 0
+	for _, file := range result.Files {
+		if file.Status == "invalid" {
+			invalidCount++
+			if len(file.Errors) == 0 {
+				t.Fatalf("expected errors for invalid file: %#v", file)
+			}
+		}
+	}
+	if invalidCount != 2 {
+		t.Fatalf("expected 2 invalid files, got %d", invalidCount)
+	}
+}
+
+func TestDiagnoseLogsRepoNotFound(t *testing.T) {
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			if r.Method == http.MethodGet && r.URL.Path == "/repos/o/r" {
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+			return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+		})},
+		Token: "test-token",
+	}
+
+	_, err := client.DiagnoseLogs(model.GitHubConfig{Owner: "o", Repo: "r"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "Not Found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDiagnoseLogsPathNotFoundReturnsEmptyReport(t *testing.T) {
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[]}`), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	result, err := client.DiagnoseLogs(model.GitHubConfig{Owner: "o", Repo: "r"})
+	if err != nil {
+		t.Fatalf("DiagnoseLogs() error = %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success for empty path, got %#v", result)
+	}
+	if result.Summary.TotalFiles != 0 || result.Summary.ValidFiles != 0 || result.Summary.InvalidFiles != 0 {
+		t.Fatalf("unexpected summary: %#v", result.Summary)
+	}
+}
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
