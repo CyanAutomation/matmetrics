@@ -38,7 +38,12 @@ export async function POST(request: NextRequest) {
     const mode = body.mode === 'apply' ? 'apply' : 'dry-run';
     const selectedPaths = Array.isArray(body.paths)
       ? body.paths.filter(
-          (path: unknown): path is string => typeof path === 'string'
+          (path: unknown): path is string => {
+            if (typeof path !== 'string') return false;
+            // Prevent path traversal attacks
+            const normalized = path.replace(/\\/g, '/');
+            return !normalized.includes('../') && !normalized.startsWith('/');
+          }
         )
       : [];
     const options = {
