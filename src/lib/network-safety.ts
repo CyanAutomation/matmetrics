@@ -99,8 +99,22 @@ function extractMappedIpv4(ipv6: string): string | null {
     return null;
   }
 
-  const possibleIpv4 = normalized.slice(mappedPrefix.length);
-  return isIP(possibleIpv4) === 4 ? possibleIpv4 : null;
+  const remainder = normalized.slice(mappedPrefix.length);
+  
+  // Check for dotted-decimal notation first
+  if (isIP(remainder) === 4) {
+    return remainder;
+  }
+  
+  // Handle hexadecimal notation: ::ffff:c0a8:0001 -> 192.168.0.1
+  const hexMatch = remainder.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hexMatch) {
+    const high = parseInt(hexMatch[1], 16);
+    const low = parseInt(hexMatch[2], 16);
+    return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+  }
+  
+  return null;
 }
 
 function ipv4ToInt(ipv4: string): number {
