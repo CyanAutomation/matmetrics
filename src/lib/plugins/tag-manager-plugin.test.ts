@@ -19,6 +19,11 @@ test.afterEach(() => {
 test('tag-manager manifest contract includes required runtime fields', () => {
   assert.equal(tagManagerManifest.id, 'tag-manager');
   assert.deepEqual(tagManagerManifest.capabilities, ['tag_mutation']);
+  assert.equal(tagManagerManifest.maturity?.uxStates?.loading, true);
+  assert.equal(
+    tagManagerManifest.maturity?.uxCriteria?.loadingStatePresent,
+    true
+  );
   assert.equal(
     tagManagerManifest.uiExtensions[0]?.id,
     'tag-manager-dashboard-tab'
