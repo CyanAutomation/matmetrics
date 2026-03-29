@@ -86,7 +86,9 @@ const isJsonContentType = (contentType: string | null): boolean => {
   }
 
   const normalized = contentType.toLowerCase();
-  return normalized.includes('application/json') || normalized.includes('+json');
+  return (
+    normalized.includes('application/json') || normalized.includes('+json')
+  );
 };
 
 const getRouteHint = (response: Response): string => {
@@ -117,7 +119,9 @@ export const parseApiResponse = async <T,>(response: Response): Promise<T> => {
     if (!response.ok) {
       const maybeMessage =
         payload && typeof payload === 'object' && 'message' in payload
-          ? String((payload as { message?: unknown }).message ?? 'Request failed')
+          ? String(
+              (payload as { message?: unknown }).message ?? 'Request failed'
+            )
           : `Request failed (${statusLabel})`;
       throw new Error(maybeMessage);
     }
@@ -202,9 +206,8 @@ export const LogDoctor = (): React.ReactElement => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
-  const [activeController, setActiveController] = useState<AbortController | null>(
-    null
-  );
+  const [activeController, setActiveController] =
+    useState<AbortController | null>(null);
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
   const [applyConfirmationValue, setApplyConfirmationValue] = useState('');
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
@@ -714,13 +717,13 @@ export const LogDoctor = (): React.ReactElement => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="apply-fixes-confirm-text">
-              Confirmation text
-            </Label>
+            <Label htmlFor="apply-fixes-confirm-text">Confirmation text</Label>
             <Input
               id="apply-fixes-confirm-text"
               value={applyConfirmationValue}
-              onChange={(event) => setApplyConfirmationValue(event.target.value)}
+              onChange={(event) =>
+                setApplyConfirmationValue(event.target.value)
+              }
               placeholder="Type APPLY"
             />
           </div>

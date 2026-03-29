@@ -4,12 +4,15 @@ import test from 'node:test';
 import { parseApiResponse, toErrorReason } from './log-doctor';
 
 test('parseApiResponse surfaces JSON error payload message', async () => {
-  const response = new Response(JSON.stringify({ message: 'Bad request payload' }), {
-    status: 400,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-    },
-  });
+  const response = new Response(
+    JSON.stringify({ message: 'Bad request payload' }),
+    {
+      status: 400,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+      },
+    }
+  );
 
   await assert.rejects(
     () => parseApiResponse(response),

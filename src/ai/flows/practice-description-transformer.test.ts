@@ -26,7 +26,9 @@ test('fallback prompt uses shared default constant with mixed-discipline preserv
     promptRunner
   );
 
-  assert.deepEqual(result, { transformedDescription: 'Structured session entry' });
+  assert.deepEqual(result, {
+    transformedDescription: 'Structured session entry',
+  });
   assert.equal(receivedPromptInput?.description, rawDescription);
   assert.equal(receivedPromptInput?.customPrompt, DEFAULT_TRANSFORMER_PROMPT);
   assert.match(
@@ -53,7 +55,8 @@ test('prompt payload keeps custom prompt override and raw mixed-language input u
 
   const rawDescription =
     'Worked toreando passes to de la Riva counters, then drilled ippon-seoi-nage transitions.';
-  const customPrompt = 'Keep first-person voice and preserve all technique names verbatim.';
+  const customPrompt =
+    'Keep first-person voice and preserve all technique names verbatim.';
 
   await runTransformPracticeDescription(
     {

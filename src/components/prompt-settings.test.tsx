@@ -215,7 +215,10 @@ test('loading criterion anchor: loading state present with loading text and disa
   assert.equal(loadingState.loading, true);
   assert.equal(loadingState.isLoadingSavedSettings, true);
   assert.equal(loadingState.areControlsDisabled, false);
-  assert.equal(PROMPT_SETTINGS_LOADING_TEXT.toLowerCase().includes('loading'), true);
+  assert.equal(
+    PROMPT_SETTINGS_LOADING_TEXT.toLowerCase().includes('loading'),
+    true
+  );
 });
 
 test('loading criterion anchor: loading disables interaction when save or reset is in progress', () => {
@@ -281,7 +284,10 @@ test('error criterion anchor: error state exposes retry recovery action label an
   });
 
   assert.equal(state.hasLoadError, true);
-  assert.equal(PROMPT_SETTINGS_ERROR_RETRY_LABEL.toLowerCase().includes('retry'), true);
+  assert.equal(
+    PROMPT_SETTINGS_ERROR_RETRY_LABEL.toLowerCase().includes('retry'),
+    true
+  );
   assert.equal(didRecover, true);
   assert.equal(recovered, true);
 });
@@ -410,8 +416,14 @@ test('destructive criterion anchor: destructive confirm resets prompt and destru
     currentPrompt: originalPrompt,
   });
 
-  assert.equal(PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'), true);
-  assert.equal(PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL.toLowerCase().includes('reset'), true);
+  assert.equal(
+    PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'),
+    true
+  );
+  assert.equal(
+    PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL.toLowerCase().includes('reset'),
+    true
+  );
   assert.equal(cancelledPrompt, originalPrompt);
   assert.equal(confirmedPrompt, DEFAULT_TRANSFORMER_PROMPT);
 });

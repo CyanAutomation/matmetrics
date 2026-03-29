@@ -78,5 +78,6 @@ const transformPracticeDescriptionFlow = ai.defineFlow(
     inputSchema: TransformPracticeInputSchema,
     outputSchema: TransformPracticeOutputSchema,
   },
-  async (input) => runTransformPracticeDescription(input, transformPracticePrompt)
+  async (input) =>
+    runTransformPracticeDescription(input, transformPracticePrompt)
 );

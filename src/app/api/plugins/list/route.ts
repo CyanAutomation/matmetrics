@@ -17,7 +17,9 @@ import {
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-const asGateManifest = (value: unknown): Pick<PluginManifest, 'uiExtensions'> => {
+const asGateManifest = (
+  value: unknown
+): Pick<PluginManifest, 'uiExtensions'> => {
   if (
     value &&
     typeof value === 'object' &&

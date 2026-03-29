@@ -175,7 +175,10 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     setIsAnalyzingMerge(true);
     setMergeError(null);
     try {
-      const analysis = await tagService.analyzeMerge(mergingTag, targetMergeTag);
+      const analysis = await tagService.analyzeMerge(
+        mergingTag,
+        targetMergeTag
+      );
       setMergeAnalysis(analysis);
 
       if (analysis.conflicts.length > 0) {

@@ -20,9 +20,7 @@
       }
     }
   },
-  "capabilities": [
-    "tag_mutation"
-  ],
+  "capabilities": ["tag_mutation"],
   "enabled": true,
   "uiExtensions": [
     {

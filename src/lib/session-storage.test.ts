@@ -150,10 +150,11 @@ category: "Shiai"
     async () => {
       const sessions = await listSessionsFromGitHub({ owner: 'o', repo: 'r' });
       assert.equal(sessions.length, 3);
-      assert.deepEqual(
-        sessions.map((session) => session.id).sort(),
-        ['session-legacy-base', 'session-legacy-counter', 'session-valid']
-      );
+      assert.deepEqual(sessions.map((session) => session.id).sort(), [
+        'session-legacy-base',
+        'session-legacy-counter',
+        'session-valid',
+      ]);
     }
   );
 });

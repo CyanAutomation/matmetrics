@@ -76,9 +76,12 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
 `,
       'utf8'
     );
-    await mkdir(path.join(process.cwd(), 'plugins', 'tags', 'src', 'components'), {
-      recursive: true,
-    });
+    await mkdir(
+      path.join(process.cwd(), 'plugins', 'tags', 'src', 'components'),
+      {
+        recursive: true,
+      }
+    );
     await writeFile(
       path.join(
         process.cwd(),
@@ -130,10 +133,7 @@ test('GET /api/plugins/list surfaces plugin contract gate violations', async () 
       true
     );
     assert.equal(typeof payload.plugins[0].maturity?.score, 'number');
-    assert.equal(
-      Array.isArray(payload.plugins[0].maturity?.reasons),
-      true
-    );
+    assert.equal(Array.isArray(payload.plugins[0].maturity?.reasons), true);
   });
 });
 
@@ -155,11 +155,15 @@ test('GET /api/plugins/list treats packaged artifact-unavailable contract checks
       (issue: { path: string }) => issue.path.startsWith('contractGate.')
     );
     assert.equal(
-      gateIssues.some((issue: { path: string }) => issue.path === 'contractGate.entrypoint'),
+      gateIssues.some(
+        (issue: { path: string }) => issue.path === 'contractGate.entrypoint'
+      ),
       false
     );
     assert.equal(
-      gateIssues.some((issue: { path: string }) => issue.path === 'contractGate.readme'),
+      gateIssues.some(
+        (issue: { path: string }) => issue.path === 'contractGate.readme'
+      ),
       false
     );
     assert.equal(

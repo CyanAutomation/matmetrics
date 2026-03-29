@@ -170,7 +170,9 @@ test('server-side validation files avoid static bootstrap import chains', async 
   ]);
 
   assert.equal(
-    validateSource.includes("from '@/lib/plugins/runtime-component-validation'"),
+    validateSource.includes(
+      "from '@/lib/plugins/runtime-component-validation'"
+    ),
     false,
     'validate.ts should not statically import runtime-component-validation'
   );

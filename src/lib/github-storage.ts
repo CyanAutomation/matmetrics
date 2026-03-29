@@ -433,7 +433,9 @@ async function githubDeleteWithBranchRetry(
   } catch (error) {
     if (isInvalidBranchWriteError(error) && !config.branch?.trim()) {
       invalidateDefaultBranchCache(config.owner, config.repo);
-      const refreshedBranch = await resolveBranch(config, { forceRefresh: true });
+      const refreshedBranch = await resolveBranch(config, {
+        forceRefresh: true,
+      });
       return requestDelete(refreshedBranch);
     }
 

@@ -59,7 +59,10 @@ test('log-doctor fix route proxies to /api/go/github/log-doctor/fix with expecte
 
     assert.equal(response.status, 200);
     assert.ok(fetchCall);
-    assert.equal(fetchCall?.url, 'http://localhost/api/go/github/log-doctor/fix');
+    assert.equal(
+      fetchCall?.url,
+      'http://localhost/api/go/github/log-doctor/fix'
+    );
     assert.deepEqual(JSON.parse(fetchCall?.body ?? '{}'), {
       owner: 'octocat',
       repo: 'matmetrics',
@@ -178,7 +181,9 @@ test('log-doctor fix route rejects invalid payloads before proxying', async () =
 });
 
 test('log-doctor fix route maps malformed proxy base URL to a configuration-specific 500 message', async () => {
-  const response = buildLogDoctorFixErrorResponse(new Error(INVALID_PROXY_ERROR));
+  const response = buildLogDoctorFixErrorResponse(
+    new Error(INVALID_PROXY_ERROR)
+  );
 
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), {

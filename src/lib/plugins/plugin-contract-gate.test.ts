@@ -28,9 +28,14 @@ const createManifest = (component = 'tag_manager'): PluginManifest => ({
 });
 
 async function withTempPlugin(
-  run: (context: { pluginsRoot: string; directoryName: string }) => Promise<void>
+  run: (context: {
+    pluginsRoot: string;
+    directoryName: string;
+  }) => Promise<void>
 ) {
-  const repoRoot = await mkdtemp(path.join(tmpdir(), 'matmetrics-plugin-gate-'));
+  const repoRoot = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-plugin-gate-')
+  );
   const pluginsRoot = path.join(repoRoot, 'plugins');
   const directoryName = 'tags';
   await mkdir(path.join(pluginsRoot, directoryName), { recursive: true });
@@ -46,7 +51,9 @@ test('runPluginContractGate passes when entrypoint, component, and README checks
   await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
     const pluginRoot = path.join(pluginsRoot, directoryName);
 
-    await mkdir(path.join(pluginRoot, 'src', 'components'), { recursive: true });
+    await mkdir(path.join(pluginRoot, 'src', 'components'), {
+      recursive: true,
+    });
     await writeFile(
       path.join(pluginRoot, 'src', 'index.ts'),
       `export function initPlugin() { return undefined; }\n`,
@@ -91,8 +98,14 @@ test('runPluginContractGate fails when required files and sections are missing',
     });
 
     assert.equal(result.isValid, false);
-    assert.equal(result.issues.some((issue) => issue.path === 'contractGate.entrypoint'), true);
-    assert.equal(result.issues.some((issue) => issue.path === 'contractGate.readme'), true);
+    assert.equal(
+      result.issues.some((issue) => issue.path === 'contractGate.entrypoint'),
+      true
+    );
+    assert.equal(
+      result.issues.some((issue) => issue.path === 'contractGate.readme'),
+      true
+    );
     assert.equal(
       result.issues.some((issue) => issue.path.includes('config.component')),
       true
@@ -104,7 +117,9 @@ test('runPluginContractGate accepts explicit runtime registration from src/index
   await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
     const pluginRoot = path.join(pluginsRoot, directoryName);
 
-    await mkdir(path.join(pluginRoot, 'src', 'components'), { recursive: true });
+    await mkdir(path.join(pluginRoot, 'src', 'components'), {
+      recursive: true,
+    });
     await writeFile(
       path.join(pluginRoot, 'src', 'index.ts'),
       `export function initPlugin(context: { registerPluginComponent: (id: string, renderer: unknown) => void }) {
@@ -132,7 +147,8 @@ test('runPluginContractGate accepts explicit runtime registration from src/index
 test('runPluginContractGate emits non-blocking warning when packaged runtime lacks source artifacts', async () => {
   await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
     const pluginRoot = path.join(pluginsRoot, directoryName);
-    const previousRuntimeMode = process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
+    const previousRuntimeMode =
+      process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
     process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE = 'packaged';
 
     try {
@@ -169,7 +185,8 @@ test('runPluginContractGate emits non-blocking warning when packaged runtime lac
       if (previousRuntimeMode === undefined) {
         delete process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
       } else {
-        process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE = previousRuntimeMode;
+        process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE =
+          previousRuntimeMode;
       }
     }
   });
@@ -187,7 +204,9 @@ test('runPluginContractGate accepts README heading contracts for plugin operatio
 
   for (const directoryName of pluginDirectories) {
     const manifestPath = path.join(pluginsRoot, directoryName, 'plugin.json');
-    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as PluginManifest;
+    const manifest = JSON.parse(
+      await readFile(manifestPath, 'utf8')
+    ) as PluginManifest;
 
     const result = await runPluginContractGate({
       pluginsRoot,
