@@ -3,9 +3,13 @@ import test from 'node:test';
 
 import {
   buildDeleteConfirmationCopy,
+  buildErrorRecoveryDescription,
   deriveDeleteDialogActions,
+  deriveTagManagerEmptyState,
   resolveDeleteDialogCancel,
   runDeleteConfirmation,
+  TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL,
+  TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL,
 } from './tag-manager';
 
 test('loading state is reflected as disabled actions and loading labels during async destructive flow', () => {
@@ -113,4 +117,28 @@ test('destructive safety flow supports open copy, cancel no-op mutation, and con
 
   assert.equal(skippedResult, null);
   assert.equal(destructiveInvocations, 1);
+});
+
+
+test('error criterion anchor: recovery hint is user-visible with refresh and retry affordance wording', () => {
+  const description = buildErrorRecoveryDescription(
+    'Could not analyze this rename. Check the tag name and try again.'
+  );
+
+  assert.match(description, /try again/i);
+  assert.match(description, /refresh/i);
+  assert.match(description, /retry/i);
+});
+
+test('empty criterion anchor: empty state exposes clear call-to-action labels for search and history states', () => {
+  const searchEmptyState = deriveTagManagerEmptyState('uchi');
+  const historyEmptyState = deriveTagManagerEmptyState('');
+
+  assert.match(searchEmptyState.message, /no tags match your search/i);
+  assert.equal(searchEmptyState.ctaLabel, TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL);
+  assert.equal(searchEmptyState.action, 'clearSearch');
+
+  assert.match(historyEmptyState.message, /no technique tags found in your history/i);
+  assert.equal(historyEmptyState.ctaLabel, TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL);
+  assert.equal(historyEmptyState.action, 'refreshTags');
 });

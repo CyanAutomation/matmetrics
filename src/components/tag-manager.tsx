@@ -50,6 +50,34 @@ interface DeleteDialogState {
   isApplyingDelete: boolean;
 }
 
+
+export const TAG_MANAGER_ERROR_RECOVERY_HINT =
+  'If this keeps happening, refresh and retry.';
+export const TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
+export const TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL = 'Refresh tags';
+
+export function buildErrorRecoveryDescription(message: string) {
+  return `${message} ${TAG_MANAGER_ERROR_RECOVERY_HINT}`;
+}
+
+export function deriveTagManagerEmptyState(search: string) {
+  const hasSearch = search.trim().length > 0;
+
+  if (hasSearch) {
+    return {
+      message: 'No tags match your search.',
+      ctaLabel: TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL,
+      action: 'clearSearch' as const,
+    };
+  }
+
+  return {
+    message: 'No technique tags found in your history.',
+    ctaLabel: TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL,
+    action: 'refreshTags' as const,
+  };
+}
+
 export function resolveDeleteDialogCancel(
   state: DeleteDialogState
 ): DeleteDialogState {
@@ -208,7 +236,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       console.error('Rename analysis failed:', error);
       toast({
         title: 'Rename analysis failed',
-        description: `${message} If this keeps happening, refresh and retry.`,
+        description: buildErrorRecoveryDescription(message),
         variant: 'destructive',
       });
     } finally {
@@ -276,7 +304,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       console.error('Merge analysis failed:', error);
       toast({
         title: 'Merge analysis failed',
-        description: `${message} If this keeps happening, refresh and retry.`,
+        description: buildErrorRecoveryDescription(message),
         variant: 'destructive',
       });
     } finally {
@@ -340,7 +368,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       console.error('Delete analysis failed:', error);
       toast({
         title: 'Delete analysis failed',
-        description: `${message} If this keeps happening, refresh and retry.`,
+        description: buildErrorRecoveryDescription(message),
         variant: 'destructive',
       });
     } finally {
@@ -390,6 +418,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   };
 
   const filteredTags = tagService.searchTags(search);
+  const emptyState = deriveTagManagerEmptyState(search);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -420,10 +449,21 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           </div>
 
           {filteredTags.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground bg-secondary/35 rounded-lg border border-dashed border-ghost">
-              {search
-                ? 'No tags match your search.'
-                : 'No technique tags found in your history.'}
+            <div className="text-center py-12 text-muted-foreground bg-secondary/35 rounded-lg border border-dashed border-ghost space-y-4">
+              <p>{emptyState.message}</p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (emptyState.action === 'clearSearch') {
+                    setSearch('');
+                    return;
+                  }
+
+                  refreshTags();
+                }}
+              >
+                {emptyState.ctaLabel}
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
