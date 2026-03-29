@@ -61,6 +61,7 @@ import {
   coreTabs,
   mapDashboardExtensionsToTabs,
   TAB_IDS,
+  type TabDefinition,
   type TabId,
 } from '@/lib/navigation/tab-definitions';
 import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
@@ -82,9 +83,9 @@ export default function Home() {
   } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>(TAB_IDS.dashboard);
   const [sessions, setSessions] = useState<JudoSession[]>([]);
-  const [sessionFileIssues, setSessionFileIssues] = useState<SessionFileIssue[]>(
-    []
-  );
+  const [sessionFileIssues, setSessionFileIssues] = useState<
+    SessionFileIssue[]
+  >([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -101,10 +102,27 @@ export default function Home() {
       : []
   );
 
-  const resolvedPluginTabs = React.useMemo(
-    () => mapDashboardExtensionsToTabs(pluginExtensions),
-    [pluginExtensions]
+  const [resolvedPluginTabs, setResolvedPluginTabs] = useState<TabDefinition[]>(
+    []
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolvePluginTabs = async () => {
+      const tabs = await mapDashboardExtensionsToTabs(pluginExtensions);
+      if (!cancelled) {
+        setResolvedPluginTabs(tabs);
+      }
+    };
+
+    void resolvePluginTabs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pluginExtensions]);
+
   const allTabs = React.useMemo(
     () =>
       resolvedPluginTabs.length > 0
@@ -497,8 +515,8 @@ export default function Home() {
                     <ul className="mt-2 list-disc space-y-1 pl-4 text-xs sm:text-sm">
                       {sessionFileIssues.slice(0, 3).map((issue) => (
                         <li key={`${issue.filePath}-${issue.code}`}>
-                          <span className="font-medium">{issue.filePath}</span>
-                          : {issue.message}
+                          <span className="font-medium">{issue.filePath}</span>:{' '}
+                          {issue.message}
                         </li>
                       ))}
                     </ul>
