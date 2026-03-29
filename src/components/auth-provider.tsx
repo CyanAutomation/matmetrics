@@ -2,6 +2,7 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -34,6 +35,7 @@ import type { AuthenticatedUser, UserPreferences } from '@/lib/types';
 type AuthContextValue = {
   authReady: boolean;
   preferencesReady: boolean;
+  preferencesError: Error | null;
   user: AuthenticatedUser | null;
   preferences: UserPreferences;
   isConfigured: boolean;
@@ -42,6 +44,7 @@ type AuthContextValue = {
   canUseAi: boolean;
   canUseGitHubSync: boolean;
   canSavePreferences: boolean;
+  retryPreferencesLoad: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -68,10 +71,38 @@ function toAuthenticatedUser(user: User): AuthenticatedUser {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [preferencesReady, setPreferencesReady] = useState(false);
+  const [preferencesError, setPreferencesError] = useState<Error | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [preferences, setPreferences] = useState(getCurrentPreferences());
   const isConfigured = isFirebaseConfigured();
   const authLoadGenerationRef = useRef(0);
+
+  const loadPreferencesForUser = useCallback(
+    async (uid: string, generation: number): Promise<void> => {
+      setPreferencesReady(false);
+      setPreferencesError(null);
+
+      try {
+        await initializeUserPreferences(uid, {
+          shouldApply: () => authLoadGenerationRef.current === generation,
+        });
+      } catch (error) {
+        if (authLoadGenerationRef.current === generation) {
+          setPreferencesError(
+            error instanceof Error
+              ? error
+              : new Error('Failed to load saved preferences')
+          );
+        }
+      } finally {
+        if (authLoadGenerationRef.current === generation) {
+          setPreferencesReady(true);
+          setAuthReady(true);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const unsubscribePreferences = subscribeToPreferences((nextPreferences) => {
@@ -94,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveUserId(null);
         clearUserPreferencesState();
         setUser(null);
+        setPreferencesError(null);
         setPreferencesReady(true);
         setAuthReady(true);
         return;
@@ -101,30 +133,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setActiveUserId(nextUser.uid);
       setUser(toAuthenticatedUser(nextUser));
-      setPreferencesReady(false);
-
-      try {
-        await initializeUserPreferences(nextUser.uid, {
-          shouldApply: () => authLoadGenerationRef.current === generation,
-        });
-      } finally {
-        if (authLoadGenerationRef.current === generation) {
-          setPreferencesReady(true);
-          setAuthReady(true);
-        }
-      }
+      await loadPreferencesForUser(nextUser.uid, generation);
     });
 
     return () => {
       unsubscribeAuth();
       unsubscribePreferences();
     };
-  }, [isConfigured]);
+  }, [isConfigured, loadPreferencesForUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       authReady,
       preferencesReady,
+      preferencesError,
       user,
       preferences,
       isConfigured,
@@ -133,6 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canUseAi: !!user && isConfigured,
       canUseGitHubSync: !!user && isConfigured,
       canSavePreferences: !!user && isConfigured,
+      async retryPreferencesLoad() {
+        if (!user) {
+          return;
+        }
+
+        const generation = ++authLoadGenerationRef.current;
+        await loadPreferencesForUser(user.uid, generation);
+      },
       async signInWithGoogle() {
         await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
       },
@@ -161,7 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await signOut(getFirebaseAuth());
       },
     }),
-    [authReady, isConfigured, preferences, preferencesReady, user]
+    [
+      authReady,
+      isConfigured,
+      preferences,
+      preferencesError,
+      preferencesReady,
+      user,
+      loadPreferencesForUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
