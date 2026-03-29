@@ -95,13 +95,13 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
 });
 
 test('canceling delete confirmation preserves data and dismisses dialog', async () => {
-  const initialSessions = [
+  const sessions = [
     { id: 'session-1', techniques: ['seoi-nage', 'uchi-mata'] },
     { id: 'session-2', techniques: ['seoi-nage'] },
   ];
-  const initialTags = ['seoi-nage', 'uchi-mata'];
-  const sessionsBeforeCancel = structuredClone(initialSessions);
-  const tagsBeforeCancel = [...initialTags];
+  const tags = ['seoi-nage', 'uchi-mata'];
+  const sessionsBeforeCancel = structuredClone(sessions);
+  const tagsBeforeCancel = [...tags];
 
   const deleteFlowState: DeleteDialogState = {
     deletingTag: 'seoi-nage',
@@ -120,14 +120,23 @@ test('canceling delete confirmation preserves data and dismisses dialog', async 
   const postCancelAttempt = await runDeleteConfirmation({
     deletingTag: cancelResult.deletingTag,
     deleteAnalysis: cancelResult.deleteAnalysis,
-    deleteTag: async () => {
+    deleteTag: async (tag) => {
       deleteInvocations += 1;
+
+      for (const session of sessions) {
+        session.techniques = session.techniques.filter(
+          (technique) => technique !== tag
+        );
+      }
+      const nextTags = tags.filter((existingTag) => existingTag !== tag);
+      tags.splice(0, tags.length, ...nextTags);
+
       return createDeleteSummary();
     },
   });
 
-  assert.deepEqual(initialSessions, sessionsBeforeCancel);
-  assert.deepEqual(initialTags, tagsBeforeCancel);
+  assert.deepEqual(sessions, sessionsBeforeCancel);
+  assert.deepEqual(tags, tagsBeforeCancel);
   assert.equal(deleteInvocations, 0);
   assert.equal(postCancelAttempt, null);
 
