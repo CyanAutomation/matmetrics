@@ -26,6 +26,7 @@ import {
   getNextCounter,
   getSessionFilePath,
   listSessions,
+  SessionLookupOperationalError,
   SessionUpdateConflictError,
   updateSession,
 } from './file-storage';
@@ -716,6 +717,64 @@ test('findSessionFileById throws DuplicateSessionIdError when multiple files sha
       assert.deepEqual(error.paths, [canonicalPath, duplicatePath].sort());
       return true;
     });
+  });
+});
+
+test('findSessionFileById surfaces permission/read failures as operational errors', async () => {
+  await withTempDataDir(async () => {
+    const originalReadFile = fs.readFile;
+    const session = makeSession({ id: 'session-read-error' });
+    const sessionPath = await createSession(session);
+
+    fs.readFile = (async (...args: Parameters<typeof fs.readFile>) => {
+      const [targetPath] = args;
+      if (targetPath.toString() === sessionPath) {
+        throw Object.assign(new Error('simulated permission denied'), {
+          code: 'EACCES',
+        });
+      }
+      return originalReadFile.call(fs, ...args);
+    }) as typeof fs.readFile;
+
+    try {
+      await assert.rejects(findSessionFileById(session.id), (error: unknown) => {
+        assert.equal(error instanceof SessionLookupOperationalError, true);
+        return true;
+      });
+    } finally {
+      fs.readFile = originalReadFile;
+    }
+  });
+});
+
+test('updateSession and deleteSession surface lookup read failures instead of not-found', async () => {
+  await withTempDataDir(async () => {
+    const originalReadFile = fs.readFile;
+    const session = makeSession({ id: 'session-caller-read-error' });
+    const sessionPath = await createSession(session);
+
+    fs.readFile = (async (...args: Parameters<typeof fs.readFile>) => {
+      const [targetPath] = args;
+      if (targetPath.toString() === sessionPath) {
+        throw Object.assign(new Error('simulated io failure'), {
+          code: 'EIO',
+        });
+      }
+      return originalReadFile.call(fs, ...args);
+    }) as typeof fs.readFile;
+
+    try {
+      await assert.rejects(
+        updateSession({ ...session, notes: 'should fail as operational error' }),
+        SessionLookupOperationalError
+      );
+      await assert.rejects(
+        deleteSession(session.id),
+        SessionLookupOperationalError
+      );
+    } finally {
+      fs.readFile = originalReadFile;
+    }
   });
 });
 

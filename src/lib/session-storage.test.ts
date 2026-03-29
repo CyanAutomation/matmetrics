@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  isSessionNotFoundStorageError,
+  isSessionOperationalStorageError,
   listSessionsFromGitHub,
   normalizeGitHubConfig,
   scanSessionsFromGitHub,
 } from './session-storage';
+import {
+  SessionLookupOperationalError,
+  SessionNotFoundError,
+} from './file-storage';
 
 async function withMockedGitHub(
   handler: typeof fetch,
@@ -322,4 +328,19 @@ test('normalizeGitHubConfig rejects invalid owner/repo traversal and control cha
   assert.equal(traversalOwner, undefined);
   assert.equal(traversalRepo, undefined);
   assert.equal(controlRepo, undefined);
+});
+
+test('session-storage error helpers classify typed local storage errors', () => {
+  assert.equal(
+    isSessionNotFoundStorageError(new SessionNotFoundError('session-1')),
+    true
+  );
+  assert.equal(
+    isSessionOperationalStorageError(
+      new SessionLookupOperationalError('session-1', 'failed')
+    ),
+    true
+  );
+  assert.equal(isSessionNotFoundStorageError(new Error('other')), false);
+  assert.equal(isSessionOperationalStorageError(new Error('other')), false);
 });
