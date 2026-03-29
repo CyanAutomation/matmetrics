@@ -1,14 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -24,6 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth-provider';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import {
   Dialog,
   DialogContent,
@@ -356,7 +350,30 @@ export function PromptSettings() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <PluginPageShell
+      title="AI Transformation Prompt"
+      description="Edit the instructions used to polish your practice descriptions."
+      icon={
+        <div className="rounded-lg bg-primary p-2 text-primary-foreground shadow-md">
+          <BrainCircuit className="h-6 w-6" />
+        </div>
+      }
+      notice={
+        <Alert className="border-primary/20 bg-primary/5">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle className="font-bold text-primary">
+            Customizing the AI
+          </AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            The "AI Transform" button in the log form uses these instructions to
+            rewrite your notes. You can change the tone (e.g., "be more formal"
+            or "be very brief") or define terminology preferences (e.g., Judo
+            terms like "uchi mata" or BJJ terms like "armbar") here.
+          </AlertDescription>
+        </Alert>
+      }
+      className="animate-in slide-in-from-bottom-4 fade-in duration-500"
+    >
       {!canSavePreferences && (
         <Alert className="bg-amber-50 border-amber-200">
           <Info className="h-4 w-4 text-amber-700" />
@@ -371,34 +388,8 @@ export function PromptSettings() {
         </Alert>
       )}
 
-      <Alert className="bg-primary/5 border-primary/20">
-        <Info className="h-4 w-4 text-primary" />
-        <AlertTitle className="text-primary font-bold">
-          Customizing the AI
-        </AlertTitle>
-        <AlertDescription className="text-muted-foreground">
-          The "AI Transform" button in the log form uses these instructions to
-          rewrite your notes. You can change the tone (e.g., "be more formal" or
-          "be very brief") or define terminology preferences (e.g., Judo terms
-          like "uchi mata" or BJJ terms like "armbar") here.
-        </AlertDescription>
-      </Alert>
-
       <Card className="bg-card/95 shadow-sm">
-        <CardHeader className="bg-secondary/45">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-md">
-              <BrainCircuit className="h-6 w-6" />
-            </div>
-            <div>
-              <CardTitle>AI Transformation Prompt</CardTitle>
-              <CardDescription>
-                Edit the instructions used to polish your practice descriptions.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 pt-8 space-y-4">
+        <CardContent className="space-y-4 p-6 pt-8">
           {isLoadingSavedSettings && (
             <div
               className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"
@@ -602,6 +593,6 @@ export function PromptSettings() {
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </PluginPageShell>
   );
 }
