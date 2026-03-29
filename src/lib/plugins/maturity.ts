@@ -251,7 +251,10 @@ const findFilesAssertingCriterionHeuristically = async (
               testFileContents,
               uxStatePatterns.error
             ) &&
-            fileAssertsPatternWithAssertion(testFileContents, uxRecoveryPatterns)
+            fileAssertsPatternWithAssertion(
+              testFileContents,
+              uxRecoveryPatterns
+            )
           : criterion === 'emptyStateWithCta'
             ? fileAssertsPatternWithAssertion(
                 testFileContents,
@@ -266,7 +269,10 @@ const findFilesAssertingCriterionHeuristically = async (
                 testFileContents,
                 uxConfirmationPatterns
               ) &&
-              fileAssertsPatternWithAssertion(testFileContents, uxCancelPatterns);
+              fileAssertsPatternWithAssertion(
+                testFileContents,
+                uxCancelPatterns
+              );
 
     if (doesMatch) {
       matches.push(testFile);
@@ -653,7 +659,8 @@ export const scorePluginMaturity = async ({
   const missingExplicitTestFiles = declaredExplicitTestFiles.filter(
     (relativePath) =>
       !explicitTestEvidenceFiles.some(
-        (absolutePath) => toRepoRelativePath(repoRoot, absolutePath) === relativePath
+        (absolutePath) =>
+          toRepoRelativePath(repoRoot, absolutePath) === relativePath
       )
   );
   const heuristicTestEvidenceFiles =
@@ -903,7 +910,8 @@ export const scorePluginMaturity = async ({
   if (await fileExists(pluginReadmePath)) {
     const readmeContents = await readFile(pluginReadmePath, 'utf8');
     detectedReadmeSections = parseReadmeSections(readmeContents);
-    const normalizedReadmeSections = detectedReadmeSections.map(normalizeHeading);
+    const normalizedReadmeSections =
+      detectedReadmeSections.map(normalizeHeading);
     categoryScores.operability_docs += 4;
     pushUnique(evidence, 'Plugin README is present.');
     if (normalizedReadmeSections.includes('usage')) {

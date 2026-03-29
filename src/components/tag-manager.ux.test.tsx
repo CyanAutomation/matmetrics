@@ -105,7 +105,12 @@ test('destructive safety flow supports open copy, cancel no-op mutation, and con
       return createDeleteSummary({
         affectedSessionCount: 4,
         changedTagCount: 5,
-        affectedSessionIds: ['session-1', 'session-2', 'session-3', 'session-4'],
+        affectedSessionIds: [
+          'session-1',
+          'session-2',
+          'session-3',
+          'session-4',
+        ],
         affectedTags: ['seoi-nage'],
       });
     },
@@ -155,7 +160,10 @@ test('empty criterion anchor: empty state exposes clear call-to-action labels fo
   assert.equal(searchEmptyState.ctaLabel, TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL);
   assert.equal(searchEmptyState.action, 'clearSearch');
 
-  assert.match(historyEmptyState.message, /no technique tags found in your history/i);
+  assert.match(
+    historyEmptyState.message,
+    /no technique tags found in your history/i
+  );
   assert.equal(historyEmptyState.ctaLabel, TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL);
   assert.equal(historyEmptyState.action, 'refreshTags');
 });

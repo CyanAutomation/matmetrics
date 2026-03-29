@@ -523,7 +523,9 @@ export function SessionLogForm({
                     <Select
                       name="sessionCategory"
                       value={category}
-                      onValueChange={(val) => setCategory(val as SessionCategory)}
+                      onValueChange={(val) =>
+                        setCategory(val as SessionCategory)
+                      }
                     >
                       <SelectTrigger
                         id={fid('category')}
@@ -543,7 +545,9 @@ export function SessionLogForm({
                 {/* Row 2: Effort Level (Full Width) */}
                 <div className="space-y-2.5">
                   <div className="h-5 flex items-center justify-between">
-                    <Label className="text-sm font-semibold">Effort Level</Label>
+                    <Label className="text-sm font-semibold">
+                      Effort Level
+                    </Label>
                     <span className="text-xs text-muted-foreground">
                       {EFFORT_LABELS[effort]}
                     </span>

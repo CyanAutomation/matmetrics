@@ -336,9 +336,7 @@ function scheduleRefresh(options?: {
   const cooldownRemainingMs = shouldThrottle
     ? Math.max(
         0,
-        lastSuccessfulRemoteRefreshAt +
-          gitHubRefreshCooldownMs -
-          Date.now()
+        lastSuccessfulRemoteRefreshAt + gitHubRefreshCooldownMs - Date.now()
       )
     : 0;
   const delayMs = immediate
@@ -351,8 +349,7 @@ function scheduleRefresh(options?: {
 
   if (scheduledRefreshTimer) {
     const existingIsStronger =
-      scheduledRefreshAt <= nextRefreshAt &&
-      (scheduledRefreshForce || !force);
+      scheduledRefreshAt <= nextRefreshAt && (scheduledRefreshForce || !force);
     if (existingIsStronger) {
       return;
     }

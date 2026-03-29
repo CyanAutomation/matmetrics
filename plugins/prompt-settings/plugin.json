@@ -30,18 +30,10 @@
         "src/components/prompt-settings.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": [
-          "src/components/prompt-settings.test.tsx"
-        ],
-        "errorStateWithRecovery": [
-          "src/components/prompt-settings.test.tsx"
-        ],
-        "emptyStateWithCta": [
-          "src/components/prompt-settings.test.tsx"
-        ],
-        "destructiveActionSafety": [
-          "src/components/prompt-settings.test.tsx"
-        ]
+        "loadingStatePresent": ["src/components/prompt-settings.test.tsx"],
+        "errorStateWithRecovery": ["src/components/prompt-settings.test.tsx"],
+        "emptyStateWithCta": ["src/components/prompt-settings.test.tsx"],
+        "destructiveActionSafety": ["src/components/prompt-settings.test.tsx"]
       }
     }
   },

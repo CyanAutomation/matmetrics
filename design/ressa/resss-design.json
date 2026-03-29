@@ -71,11 +71,7 @@
   ],
   "brand_alignment": {
     "tone": "Supportive and motivational",
-    "audience": [
-      "Kids",
-      "Teens",
-      "Hobbyist adults"
-    ],
+    "audience": ["Kids", "Teens", "Hobbyist adults"],
     "fit": "Bridges playfulness with discipline, aligning with martial arts themes"
   }
 }
