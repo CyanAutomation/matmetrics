@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  __acquireSessionUpdateLockForTests,
   __shouldReclaimSessionUpdateLockForTests,
   __resetDataDirForTests,
   __setDataDirForTests,
@@ -413,7 +414,10 @@ test('shouldReclaimSessionUpdateLock keeps alive PID locks even when old', async
     const staleAt = new Date(Date.now() - 10 * 60 * 1000);
     await utimes(lockPath, staleAt, staleAt);
 
-    assert.equal(await __shouldReclaimSessionUpdateLockForTests(lockPath), false);
+    assert.equal(
+      await __shouldReclaimSessionUpdateLockForTests(lockPath),
+      false
+    );
   } finally {
     await rm(path.dirname(lockPath), { recursive: true, force: true });
   }
@@ -513,57 +517,165 @@ test(
 );
 
 test(
-  'shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age',
+  'acquireSessionUpdateLock allows same-owner reentrant acquisition',
+  { concurrency: false },
   async () => {
-    const originalKill = process.kill;
-    const lockDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-lock-reclaim-'));
-    const youngLockPath = path.join(lockDir, 'unknown-young.lock');
-    const oldLockPath = path.join(lockDir, 'unknown-old.lock');
-    const unknownPid = 434343;
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-reentrant-owner',
+        date: '2025-01-10',
+      });
+      const sessionPath = await createSession(session);
+      const lockPath = `${sessionPath}.lock`;
+      const ownerId = 'owner-reentrant';
 
-    process.kill = ((pid: number, signal?: number | NodeJS.Signals) => {
-      if (pid === unknownPid) {
-        throw Object.assign(new Error('simulated unknown pid liveness'), {
-          code: 'EINVAL',
-        });
-      }
-      return originalKill(pid, signal);
-    }) as typeof process.kill;
+      const firstRelease = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        ownerId
+      );
+      const secondRelease = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        ownerId
+      );
 
-    try {
-      await fs.writeFile(
-        youngLockPath,
-        `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
-        'utf-8'
-      );
-      const youngAt = new Date(
-        Date.now() -
-          Math.floor(SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS / 2)
-      );
-      await utimes(youngLockPath, youngAt, youngAt);
+      await firstRelease();
+      const lockAfterFirstRelease = await readFile(lockPath, 'utf8');
+      assert.match(lockAfterFirstRelease, /owner=owner-reentrant/);
 
-      await fs.writeFile(
-        oldLockPath,
-        `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
-        'utf-8'
-      );
-      const oldAt = new Date(
-        Date.now() -
-          (SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS + 60 * 1000)
-      );
-      await utimes(oldLockPath, oldAt, oldAt);
-
-      assert.equal(
-        await __shouldReclaimSessionUpdateLockForTests(youngLockPath),
-        false
-      );
-      assert.equal(await __shouldReclaimSessionUpdateLockForTests(oldLockPath), true);
-    } finally {
-      process.kill = originalKill;
-      await rm(lockDir, { recursive: true, force: true });
-    }
+      await secondRelease();
+      await assert.rejects(access(lockPath));
+    });
   }
 );
+
+test(
+  'acquireSessionUpdateLock keeps conflicts for different-owner active locks',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-different-owner-conflict',
+        date: '2025-01-10',
+      });
+      const sessionPath = await createSession(session);
+
+      const release = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        'owner-one'
+      );
+
+      try {
+        await assert.rejects(
+          __acquireSessionUpdateLockForTests(
+            session.id,
+            sessionPath,
+            'owner-two'
+          ),
+          SessionUpdateConflictError
+        );
+      } finally {
+        await release();
+      }
+    });
+  }
+);
+
+test(
+  'reentrant release ordering cannot delete another owner reclaimed lock',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-reentrant-release-order',
+        date: '2025-01-10',
+      });
+      const sessionPath = await createSession(session);
+      const lockPath = `${sessionPath}.lock`;
+
+      const firstRelease = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        'owner-one'
+      );
+      const secondRelease = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        'owner-one'
+      );
+
+      await fs.writeFile(
+        lockPath,
+        `pid=999999;owner=owner-two;token=${crypto.randomUUID()};ts=${Date.now()}
+`,
+        'utf-8'
+      );
+
+      await firstRelease();
+      await secondRelease();
+
+      const lockContent = await readFile(lockPath, 'utf8');
+      assert.match(lockContent, /owner=owner-two/);
+    });
+  }
+);
+
+test('shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age', async () => {
+  const originalKill = process.kill;
+  const lockDir = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-lock-reclaim-')
+  );
+  const youngLockPath = path.join(lockDir, 'unknown-young.lock');
+  const oldLockPath = path.join(lockDir, 'unknown-old.lock');
+  const unknownPid = 434343;
+
+  process.kill = ((pid: number, signal?: number | NodeJS.Signals) => {
+    if (pid === unknownPid) {
+      throw Object.assign(new Error('simulated unknown pid liveness'), {
+        code: 'EINVAL',
+      });
+    }
+    return originalKill(pid, signal);
+  }) as typeof process.kill;
+
+  try {
+    await fs.writeFile(
+      youngLockPath,
+      `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
+    const youngAt = new Date(
+      Date.now() -
+        Math.floor(SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS / 2)
+    );
+    await utimes(youngLockPath, youngAt, youngAt);
+
+    await fs.writeFile(
+      oldLockPath,
+      `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
+    const oldAt = new Date(
+      Date.now() -
+        (SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS + 60 * 1000)
+    );
+    await utimes(oldLockPath, oldAt, oldAt);
+
+    assert.equal(
+      await __shouldReclaimSessionUpdateLockForTests(youngLockPath),
+      false
+    );
+    assert.equal(
+      await __shouldReclaimSessionUpdateLockForTests(oldLockPath),
+      true
+    );
+  } finally {
+    process.kill = originalKill;
+    await rm(lockDir, { recursive: true, force: true });
+  }
+});
 
 test(
   'concurrent date-move updates avoid deadlock and resolve with one winner',
