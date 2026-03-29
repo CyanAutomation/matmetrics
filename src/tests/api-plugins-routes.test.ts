@@ -6,7 +6,11 @@ import test from 'node:test';
 import { NextRequest } from 'next/server';
 
 import { POST as CREATE } from '@/app/api/plugins/create/route';
-import { GET as LIST } from '@/app/api/plugins/list/route';
+import {
+  GET as LIST,
+  dynamic as LIST_DYNAMIC,
+  revalidate as LIST_REVALIDATE,
+} from '@/app/api/plugins/list/route';
 import { POST as TOGGLE } from '@/app/api/plugins/toggle/route';
 import { POST as UPDATE } from '@/app/api/plugins/update/route';
 import { POST as VALIDATE } from '@/app/api/plugins/validate/route';
@@ -18,6 +22,10 @@ test.afterEach(() => {
   resetPluginEnabledOverridesForTests();
   delete process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
 });
+
+const routeAuthHeaders = {
+  authorization: 'Bearer test-token',
+};
 
 const baseManifest = {
   id: 'tags-plugin',
@@ -101,17 +109,25 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
     );
     const response = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
-        headers: { authorization: 'Bearer test-token' },
+        headers: routeAuthHeaders,
       })
     );
 
+    assert.equal(LIST_DYNAMIC, 'force-dynamic');
+    assert.equal(LIST_REVALIDATE, 0);
     assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get('Cache-Control'),
+      'no-store, no-cache, max-age=0, must-revalidate'
+    );
     const payload = await response.json();
     assert.equal(payload.plugins.length, 1);
     assert.equal(payload.fileTreeDiffSummary.mode, 'dry-run');
     assert.equal(payload.fileTreeDiffSummary.files[0].changeType, 'unchanged');
     assert.equal(typeof payload.plugins[0].validation.isValid, 'boolean');
     assert.equal(Array.isArray(payload.plugins[0].validation.rows), true);
+    assert.equal(payload.maturityDebug.responseCachePolicy, 'no-store');
+    assert.equal(typeof payload.maturityDebug.routeGeneratedAt, 'string');
   });
 });
 
@@ -119,7 +135,7 @@ test('GET /api/plugins/list surfaces plugin contract gate violations', async () 
   await withTempRepo(async () => {
     const response = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
-        headers: { authorization: 'Bearer test-token' },
+        headers: routeAuthHeaders,
       })
     );
 
@@ -143,7 +159,7 @@ test('GET /api/plugins/list treats packaged artifact-unavailable contract checks
 
     const response = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
-        headers: { authorization: 'Bearer test-token' },
+        headers: routeAuthHeaders,
       })
     );
 
@@ -210,7 +226,7 @@ test('POST /api/plugins/toggle persists enabled override without mutating plugin
 
     const listResponse = await LIST(
       new NextRequest('http://localhost/api/plugins/list', {
-        headers: { authorization: 'Bearer test-token' },
+        headers: routeAuthHeaders,
       })
     );
 
@@ -258,6 +274,72 @@ test('plugin create/update routes are deprecated and return disabled responses',
     const payload = await response.json();
     assert.equal(payload.code, 'PLUGIN_ROUTE_DISABLED');
     assert.match(payload.error, /deprecated/i);
+  }
+});
+
+test('GET /api/plugins/list returns current maturity scores for bundled plugins', async () => {
+  const response = await LIST(
+    new NextRequest('http://localhost/api/plugins/list', {
+      headers: routeAuthHeaders,
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get('Cache-Control'),
+    'no-store, no-cache, max-age=0, must-revalidate'
+  );
+
+  const payload = await response.json();
+  const pluginsById = new Map(
+    payload.plugins.map(
+      (row: {
+        manifest: { id: string };
+        maturity?: {
+          score: number;
+          tier: string;
+          reasons: string[];
+          nextActions: string[];
+        };
+      }) => [row.manifest.id, row]
+    )
+  );
+
+  const expectedScores = new Map([
+    ['tag-manager', { score: 93, tier: 'silver' }],
+    ['github-sync', { score: 91, tier: 'silver' }],
+    ['prompt-settings', { score: 91, tier: 'silver' }],
+  ]);
+
+  for (const [pluginId, expected] of expectedScores) {
+    const row = pluginsById.get(pluginId);
+    assert.ok(row, `Expected ${pluginId} to be returned by /api/plugins/list.`);
+    assert.equal(row.maturity?.score, expected.score);
+    assert.equal(row.maturity?.tier, expected.tier);
+
+    const staleReason =
+      'Some explicit maturity evidence test files declared in manifest could not be found.';
+    const staleActions = [
+      'Update `maturity.evidence.testFiles` so every declared path exists in the repo.',
+      'Record and test: loading state present.',
+      'Record and test: error state present with recovery.',
+      'Record and test: empty state present with CTA.',
+      'Record and test: destructive action confirmation + cancellation path.',
+    ];
+
+    assert.equal(
+      row.maturity?.reasons.includes(staleReason),
+      false,
+      `${pluginId} should not report missing explicit evidence files.`
+    );
+
+    for (const action of staleActions) {
+      assert.equal(
+        row.maturity?.nextActions.includes(action),
+        false,
+        `${pluginId} should not report stale next action: ${action}`
+      );
+    }
   }
 });
 
