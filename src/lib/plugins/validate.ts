@@ -28,10 +28,18 @@ type ValidateManifestOptions = {
 const validateManifestComponentRenderersAtRuntime = (
   manifest: PluginManifest
 ): PluginValidationIssue[] => {
-  // biome-ignore lint/security/noCommonJs: Runtime-only plugin renderer checks should avoid static server import chains.
-  const { validateManifestComponentRenderers } = require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
+  try {
+    // biome-ignore lint/security/noCommonJs: Runtime-only plugin renderer checks should avoid static server import chains.
+    const { validateManifestComponentRenderers } = require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
 
-  return validateManifestComponentRenderers(manifest);
+    return validateManifestComponentRenderers(manifest);
+  } catch (error) {
+    return [{
+      severity: 'error',
+      path: 'runtime-validation',
+      message: `Failed to load runtime component validation: ${error instanceof Error ? error.message : String(error)}`
+    }];
+  }
 };
 
 const knownExtensionTypes: UIExtensionType[] = [
