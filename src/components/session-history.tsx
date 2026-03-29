@@ -95,15 +95,21 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
     <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
       {sessions.map((session) => {
         let videoHostname: string | null = null;
+        let safeVideoUrl: string | null = null;
 
         if (session.videoUrl) {
           try {
-            videoHostname = new URL(session.videoUrl).hostname.replace(
-              /^www\./,
-              ''
-            );
+            const parsedUrl = new URL(session.videoUrl);
+            if (
+              parsedUrl.protocol === 'http:' ||
+              parsedUrl.protocol === 'https:'
+            ) {
+              safeVideoUrl = parsedUrl.toString();
+              videoHostname = parsedUrl.hostname.replace(/^www\./, '');
+            }
           } catch {
             videoHostname = null;
+            safeVideoUrl = null;
           }
         }
 
@@ -190,25 +196,11 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                 </div>
               </div>
 
-              {(session.description || session.notes || session.videoUrl) && (
+              {(session.description || session.notes || safeVideoUrl) && (
                 <div className="px-5 pb-5 pt-3 space-y-3 bg-secondary/25">
-                  {session.videoUrl && (
+                  {safeVideoUrl && (
                     <a
-                    href={session.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
-                    onClick={(e) => {
-                      try {
-                        const url = new URL(session.videoUrl);
-                        if (!['http:', 'https:'].includes(url.protocol)) {
-                          e.preventDefault();
-                          return;
-                        }
-                      } catch {
-                        e.preventDefault();
-                      }
-                    }}
+                      href={safeVideoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
