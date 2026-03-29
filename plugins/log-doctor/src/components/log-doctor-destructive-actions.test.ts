@@ -10,10 +10,27 @@ import {
 } from './log-doctor-state';
 
 test('apply confirmation requires strong APPLY phrase', () => {
-  assert.equal(canConfirmApplyFixes(''), false);
-  assert.equal(canConfirmApplyFixes('apply now'), false);
-  assert.equal(canConfirmApplyFixes('APPLY'), true);
-  assert.equal(canConfirmApplyFixes('  apply  '), true);
+  const confirmRejectedWhenEmpty = canConfirmApplyFixes('');
+  const confirmRejectedWhenWeakPhrase = canConfirmApplyFixes('apply now');
+  const confirmAcceptedWhenStrongPhrase = canConfirmApplyFixes('APPLY');
+  const confirmAcceptedWhenTrimmed = canConfirmApplyFixes('  apply  ');
+
+  assert.equal(confirmRejectedWhenEmpty, false, 'confirm phrase is required');
+  assert.equal(
+    confirmRejectedWhenWeakPhrase,
+    false,
+    'confirmation rejects weak apply phrase'
+  );
+  assert.equal(
+    confirmAcceptedWhenStrongPhrase,
+    true,
+    'confirm accepts destructive apply keyword'
+  );
+  assert.equal(
+    confirmAcceptedWhenTrimmed,
+    true,
+    'confirmation accepts trimmed apply keyword'
+  );
 });
 
 test('canceling reset confirmation does not mutate diagnostics state', () => {
@@ -30,10 +47,20 @@ test('canceling reset confirmation does not mutate diagnostics state', () => {
     errorMessage: 'previous error',
   };
 
-  const resolved = resolveResetDiagnosticsSnapshot(current, false);
+  const cancelResetResolution = resolveResetDiagnosticsSnapshot(current, false);
+  const cancelConfirmed = false;
 
-  assert.equal(resolved.previous, null);
-  assert.equal(resolved.next, current);
+  assert.equal(cancelConfirmed, false, 'cancel keeps reset confirmation closed');
+  assert.equal(
+    cancelResetResolution.previous,
+    null,
+    'cancelled reset does not create undo snapshot'
+  );
+  assert.equal(
+    cancelResetResolution.next,
+    current,
+    'cancel path preserves destructive reset state'
+  );
 });
 
 test('confirming reset returns empty state and keeps undo snapshot', () => {
@@ -53,11 +80,33 @@ test('confirming reset returns empty state and keeps undo snapshot', () => {
     errorMessage: null,
   };
 
-  const resolved = resolveResetDiagnosticsSnapshot(current, true);
+  const confirmResetResolution = resolveResetDiagnosticsSnapshot(current, true);
   const empty = createEmptyDiagnosticsSnapshot();
+  const resetConfirmationAccepted = true;
+  const destructiveResetKeepsUndoSnapshot =
+    confirmResetResolution.previous !== null;
 
-  assert.deepEqual(resolved.next, empty);
-  assert.notEqual(resolved.previous, null);
-  assert.deepEqual(resolved.previous?.selectedPaths, current.selectedPaths);
-  assert.notEqual(resolved.previous?.selectedPaths, current.selectedPaths);
+  assert.equal(
+    resetConfirmationAccepted,
+    true,
+    'confirmation accepts destructive reset'
+  );
+  assert.deepEqual(
+    confirmResetResolution.next,
+    empty,
+    'confirmed reset clears diagnostics snapshot'
+  );
+  assert.equal(
+    destructiveResetKeepsUndoSnapshot,
+    true,
+    'destructive reset keeps undo for cancel recovery'
+  );
+  assert.deepEqual(
+    confirmResetResolution.previous?.selectedPaths,
+    current.selectedPaths
+  );
+  assert.notEqual(
+    confirmResetResolution.previous?.selectedPaths,
+    current.selectedPaths
+  );
 });
