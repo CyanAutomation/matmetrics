@@ -90,7 +90,11 @@ export class SessionLookupOperationalError extends Error {
   readonly code = 'SESSION_LOOKUP_OPERATIONAL_ERROR';
   readonly sessionId: string;
 
-  constructor(sessionId: string, message: string, options?: { cause?: unknown }) {
+  constructor(
+    sessionId: string,
+    message: string,
+    options?: { cause?: unknown }
+  ) {
     super(message, options);
     this.name = 'SessionLookupOperationalError';
     this.sessionId = sessionId;
@@ -272,13 +276,24 @@ function getSessionUpdateLockPath(targetPath: string): string {
 
 async function releaseSessionUpdateLock(
   lockPath: string,
+  ownerId: string,
   ownerToken: string
 ): Promise<void> {
+  const remainingRefCount = decrementSessionUpdateLockRefCount(
+    lockPath,
+    ownerId
+  );
+  if (remainingRefCount > 0) {
+    return;
+  }
+
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    let lockContent: string;
+    let ownerMetadata: LockOwnerMetadata | null;
     try {
-      lockContent = await fs.readFile(lockPath, 'utf-8');
+      ownerMetadata = parseLockOwnerMetadata(
+        await fs.readFile(lockPath, 'utf-8')
+      );
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
@@ -287,7 +302,11 @@ async function releaseSessionUpdateLock(
       throw error;
     }
 
-    if (lockContent.trim() !== ownerToken) {
+    if (
+      ownerMetadata === null ||
+      ownerMetadata.ownerId !== ownerId ||
+      (ownerMetadata.token !== null && ownerMetadata.token !== ownerToken)
+    ) {
       return;
     }
 
@@ -311,9 +330,53 @@ async function releaseSessionUpdateLock(
 
 type LockOwnerMetadata = {
   pid: number;
+  ownerId: string | null;
   timestampMs: number | null;
   token: string | null;
 };
+
+const sessionUpdateLockReferenceCounts = new Map<string, number>();
+
+function getSessionUpdateLockRefCountKey(
+  lockPath: string,
+  ownerId: string
+): string {
+  return `${lockPath}::${ownerId}`;
+}
+
+function incrementSessionUpdateLockRefCount(
+  lockPath: string,
+  ownerId: string
+): void {
+  const key = getSessionUpdateLockRefCountKey(lockPath, ownerId);
+  const current = sessionUpdateLockReferenceCounts.get(key) ?? 0;
+  sessionUpdateLockReferenceCounts.set(key, current + 1);
+}
+
+function decrementSessionUpdateLockRefCount(
+  lockPath: string,
+  ownerId: string
+): number {
+  const key = getSessionUpdateLockRefCountKey(lockPath, ownerId);
+  const current = sessionUpdateLockReferenceCounts.get(key) ?? 0;
+  if (current <= 1) {
+    sessionUpdateLockReferenceCounts.delete(key);
+    return 0;
+  }
+
+  const next = current - 1;
+  sessionUpdateLockReferenceCounts.set(key, next);
+  return next;
+}
+
+function encodeSessionUpdateLockMetadata(metadata: {
+  pid: number;
+  ownerId: string;
+  token: string;
+  timestampMs: number;
+}): string {
+  return `pid=${metadata.pid};owner=${metadata.ownerId};token=${metadata.token};ts=${metadata.timestampMs}`;
+}
 
 function isValidUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -321,10 +384,64 @@ function isValidUuid(value: string): boolean {
   );
 }
 
+function parseStructuredLockOwnerMetadata(
+  trimmed: string
+): LockOwnerMetadata | null {
+  if (!trimmed.includes('=')) {
+    return null;
+  }
+
+  const entries = trimmed.split(';');
+  const parsed = new Map<string, string>();
+  for (const entry of entries) {
+    const [key, value, ...rest] = entry.split('=');
+    if (!key || value === undefined || rest.length > 0) {
+      return null;
+    }
+    parsed.set(key, value);
+  }
+
+  const pidRaw = parsed.get('pid');
+  const ownerId = parsed.get('owner') ?? null;
+  const token = parsed.get('token') ?? null;
+  const timestampRaw = parsed.get('ts');
+
+  if (!pidRaw || !ownerId || !token || !timestampRaw) {
+    return null;
+  }
+
+  const pid = Number.parseInt(pidRaw, 10);
+  const timestampMs = Number.parseInt(timestampRaw, 10);
+
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return null;
+  }
+
+  if (!Number.isInteger(timestampMs) || timestampMs < 0) {
+    return null;
+  }
+
+  if (!isValidUuid(token)) {
+    return null;
+  }
+
+  return {
+    pid,
+    ownerId,
+    token,
+    timestampMs,
+  };
+}
+
 function parseLockOwnerMetadata(lockContent: string): LockOwnerMetadata | null {
   const trimmed = lockContent.trim();
   if (!trimmed) {
     return null;
+  }
+
+  const structuredMetadata = parseStructuredLockOwnerMetadata(trimmed);
+  if (structuredMetadata !== null) {
+    return structuredMetadata;
   }
 
   const parts = trimmed.split(':');
@@ -366,7 +483,7 @@ function parseLockOwnerMetadata(lockContent: string): LockOwnerMetadata | null {
     return null;
   }
 
-  return { pid, timestampMs, token };
+  return { pid, ownerId: null, timestampMs, token };
 }
 
 function getPidLiveness(pid: number): 'alive' | 'dead' | 'unknown' {
@@ -385,7 +502,9 @@ function getPidLiveness(pid: number): 'alive' | 'dead' | 'unknown' {
   }
 }
 
-async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean> {
+async function shouldReclaimSessionUpdateLock(
+  lockPath: string
+): Promise<boolean> {
   try {
     const [stats, rawLock] = await Promise.all([
       fs.stat(lockPath),
@@ -416,7 +535,10 @@ async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code !== 'ENOENT') {
-      console.warn(`Failed to inspect session update lock at ${lockPath}`, error);
+      console.warn(
+        `Failed to inspect session update lock at ${lockPath}`,
+        error
+      );
       return true;
     }
   }
@@ -430,28 +552,60 @@ export async function __shouldReclaimSessionUpdateLockForTests(
   return shouldReclaimSessionUpdateLock(lockPath);
 }
 
+export async function __acquireSessionUpdateLockForTests(
+  sessionId: string,
+  targetPath: string,
+  ownerId: string
+): Promise<() => Promise<void>> {
+  return acquireSessionUpdateLock(sessionId, targetPath, ownerId);
+}
+
 async function acquireSessionUpdateLock(
   sessionId: string,
-  targetPath: string
+  targetPath: string,
+  ownerId: string
 ): Promise<() => Promise<void>> {
   const lockPath = getSessionUpdateLockPath(targetPath);
-  const ownerToken = `${process.pid}:${randomUUID()}:${Date.now()}`;
+  const ownerToken = randomUUID();
+  const lockMetadata = encodeSessionUpdateLockMetadata({
+    pid: process.pid,
+    ownerId,
+    token: ownerToken,
+    timestampMs: Date.now(),
+  });
   await ensureCreatablePathWithinDataDir(lockPath);
   await fs.mkdir(path.dirname(lockPath), { recursive: true });
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      await fs.writeFile(lockPath, `${ownerToken}\n`, {
+      await fs.writeFile(lockPath, `${lockMetadata}\n`, {
         encoding: 'utf-8',
         flag: 'wx',
       });
+      incrementSessionUpdateLockRefCount(lockPath, ownerId);
       return async () => {
-        await releaseSessionUpdateLock(lockPath, ownerToken);
+        await releaseSessionUpdateLock(lockPath, ownerId, ownerToken);
       };
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code !== 'EEXIST') {
         throw error;
+      }
+
+      const existingMetadata = parseLockOwnerMetadata(
+        await fs.readFile(lockPath, 'utf-8').catch((readError) => {
+          if ((readError as NodeJS.ErrnoException).code === 'ENOENT') {
+            return '';
+          }
+          throw readError;
+        })
+      );
+      if (existingMetadata?.ownerId === ownerId) {
+        incrementSessionUpdateLockRefCount(lockPath, ownerId);
+        const reentrantToken = existingMetadata.token ?? ownerToken;
+        return async () => {
+          await releaseSessionUpdateLock(lockPath, ownerId, reentrantToken);
+        };
       }
 
       const shouldReclaim = await shouldReclaimSessionUpdateLock(lockPath);
@@ -480,10 +634,13 @@ async function acquireSessionUpdateLocks(
     a.localeCompare(b)
   );
   const releases: Array<() => Promise<void>> = [];
+  const ownerId = randomUUID();
 
   try {
     for (const lockTargetPath of uniquePaths) {
-      releases.push(await acquireSessionUpdateLock(sessionId, lockTargetPath));
+      releases.push(
+        await acquireSessionUpdateLock(sessionId, lockTargetPath, ownerId)
+      );
     }
 
     return async () => {
