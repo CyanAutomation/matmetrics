@@ -985,6 +985,22 @@ export const scorePluginMaturity = async ({
   const hasAnyTestEvidence = testEvidenceFiles.length > 0;
   const hasReadme = await fileExists(pluginReadmePath);
   const isExplicitGoldReview = manifest.maturity?.tier === 'gold';
+  const allRelevantUxCriteriaExplicitlyVerified = criteriaToEvaluate.every(
+    (criterion) =>
+      criteriaDetails[criterion].verified &&
+      criteriaDetails[criterion].source === 'explicit'
+  );
+  const hasExplicitTestEvidence = testEvidenceSource === 'explicit';
+  const hasGoldOperabilityDocs =
+    normalizedCategoryScores.operability_docs.earned >= 12;
+  const hasGoldRuntimeIntegration =
+    normalizedCategoryScores.runtime_integration.earned >= 18;
+  const hasGoldFeatureQuality =
+    normalizedCategoryScores.feature_quality.earned >= 20;
+  const normalizedReadmeSections = detectedReadmeSections.map(normalizeHeading);
+  const hasGoldSupportDocs =
+    normalizedReadmeSections.includes('troubleshooting') ||
+    normalizedReadmeSections.includes('known limitations and dependencies');
 
   let tier: PluginMaturityTier = 'bronze';
   if (
@@ -993,6 +1009,12 @@ export const scorePluginMaturity = async ({
     !hasBlockingWarnings &&
     hasAnyTestEvidence &&
     hasReadme &&
+    hasExplicitTestEvidence &&
+    allRelevantUxCriteriaExplicitlyVerified &&
+    hasGoldRuntimeIntegration &&
+    hasGoldFeatureQuality &&
+    hasGoldOperabilityDocs &&
+    hasGoldSupportDocs &&
     isExplicitGoldReview
   ) {
     tier = 'gold';
@@ -1035,6 +1057,70 @@ export const scorePluginMaturity = async ({
     pushUnique(
       nextActions,
       'Only mark a plugin Gold after a deliberate review updates `maturity.tier` to `gold`.'
+    );
+  }
+  if (totalScore >= 85 && isExplicitGoldReview && !hasExplicitTestEvidence) {
+    pushUnique(
+      reasons,
+      'Gold requires explicit test evidence declared in manifest maturity metadata.'
+    );
+    pushUnique(
+      nextActions,
+      'Add `maturity.evidence.testFiles` for Gold candidates instead of relying on heuristic test discovery.'
+    );
+  }
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !allRelevantUxCriteriaExplicitlyVerified
+  ) {
+    pushUnique(
+      reasons,
+      'Gold requires every relevant UX criterion to be explicitly verified by mapped test evidence.'
+    );
+    pushUnique(
+      nextActions,
+      'Map each relevant UX criterion in `maturity.evidence.uxCriteria` to concrete test files and keep them passing.'
+    );
+  }
+  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldRuntimeIntegration) {
+    pushUnique(
+      reasons,
+      'Gold requires a higher runtime integration floor than Silver.'
+    );
+    pushUnique(
+      nextActions,
+      'Raise runtime integration evidence so the plugin clears the Gold floor.'
+    );
+  }
+  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldFeatureQuality) {
+    pushUnique(
+      reasons,
+      'Gold requires a higher feature quality floor than Silver.'
+    );
+    pushUnique(
+      nextActions,
+      'Improve verified UX and behavioral safeguards so the plugin clears the Gold feature-quality floor.'
+    );
+  }
+  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldOperabilityDocs) {
+    pushUnique(
+      reasons,
+      'Gold requires stronger operability documentation than Silver.'
+    );
+    pushUnique(
+      nextActions,
+      'Expand the plugin README so it clears the Gold operability-docs floor.'
+    );
+  }
+  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldSupportDocs) {
+    pushUnique(
+      reasons,
+      'Gold requires an operational support section such as Troubleshooting or Known Limitations and Dependencies.'
+    );
+    pushUnique(
+      nextActions,
+      'Add `## Troubleshooting` or `## Known Limitations and Dependencies` to the plugin README before Gold promotion.'
     );
   }
 

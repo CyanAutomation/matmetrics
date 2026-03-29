@@ -209,7 +209,7 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
       );
       await writeFile(
         path.join(pluginsRoot, 'example-plugin', 'README.md'),
-        '# Example Plugin\n',
+        '# Example Plugin\n\n## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n\n## Troubleshooting\n\nCheck logs.\n',
         'utf8'
       );
       await mkdir(path.join(repoRoot, 'src', 'components'), {
@@ -314,7 +314,7 @@ test('scorePluginMaturity requires explicit manifest gold tier for Gold promotio
       );
       await writeFile(
         path.join(pluginsRoot, 'example-plugin', 'README.md'),
-        '# Example Plugin\n',
+        '# Example Plugin\n\n## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n\n## Troubleshooting\n\nCheck logs.\n',
         'utf8'
       );
       await mkdir(path.join(repoRoot, 'src', 'components'), {
@@ -432,6 +432,228 @@ test('example panel renders with robust ux handling', () => {
       assert.ok(scorecardWithGoldTier.score >= 85);
       assert.equal(scorecardWithGoldTier.tier, 'gold');
       assert.equal(scorecardWithGoldTier.declaredTier, 'gold');
+    }
+  );
+});
+
+test('scorePluginMaturity blocks Gold when evidence is heuristic-only even if review tier is gold', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'README.md'),
+        '# Example Plugin\n\n## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n\n## Troubleshooting\n\nCheck logs.\n',
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'lib', 'plugins'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel renders with robust ux handling', () => {
+  assert.match('loading state', /loading/);
+  assert.match('error state, retry now', /retry/);
+  assert.match('no results, add item', /add/);
+  assert.match('confirm destructive reset', /confirm/);
+  assert.match('cancel destructive reset', /cancel/);
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-route.test.ts'),
+        `test('example plugin route', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'lib', 'plugins', 'example-plugin.test.ts'),
+        `test('example plugin registry', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            tier: 'gold',
+            notes: 'Reviewed and documented.',
+            lastReviewedAt: '2026-03-24',
+            uxCriteria: {
+              loadingStatePresent: true,
+              errorStateWithRecovery: true,
+              emptyStateWithCta: true,
+              destructiveActionSafety: {
+                relevant: true,
+                confirmation: true,
+                cancellation: true,
+              },
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(scorecard.score >= 85);
+      assert.equal(scorecard.tier, 'silver');
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'Gold requires explicit test evidence declared in manifest maturity metadata.'
+          )
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity blocks Gold when support docs are missing', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'README.md'),
+        '# Example Plugin\n\n## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n',
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'lib', 'plugins'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel explicit ux handling', () => {
+  assert.match('loading state', /loading/);
+  assert.match('error state, retry now', /retry/);
+  assert.match('no results, add item', /add/);
+  assert.match('confirm destructive reset', /confirm/);
+  assert.match('cancel destructive reset', /cancel/);
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-route.test.ts'),
+        `test('example plugin route', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'lib', 'plugins', 'example-plugin.test.ts'),
+        `test('example plugin registry', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            tier: 'gold',
+            notes: 'Reviewed and documented.',
+            lastReviewedAt: '2026-03-24',
+            uxCriteria: {
+              loadingStatePresent: true,
+              errorStateWithRecovery: true,
+              emptyStateWithCta: true,
+              destructiveActionSafety: {
+                relevant: true,
+                confirmation: true,
+                cancellation: true,
+              },
+            },
+            evidence: {
+              testFiles: [
+                'src/components/example-panel.test.tsx',
+                'src/tests/example-plugin-route.test.ts',
+                'src/lib/plugins/example-plugin.test.ts',
+              ],
+              uxCriteria: {
+                loadingStatePresent: ['src/components/example-panel.test.tsx'],
+                errorStateWithRecovery: ['src/components/example-panel.test.tsx'],
+                emptyStateWithCta: ['src/components/example-panel.test.tsx'],
+                destructiveActionSafety: ['src/components/example-panel.test.tsx'],
+              },
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.equal(scorecard.tier, 'silver');
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'Gold requires an operational support section such as Troubleshooting or Known Limitations and Dependencies.'
+          )
+        )
+      );
     }
   );
 });
