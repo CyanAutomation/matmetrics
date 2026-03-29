@@ -4,6 +4,13 @@ import test from 'node:test';
 import {
   derivePromptSettingsViewState,
   derivePromptSettingsUiState,
+  PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
+  PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
+  PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
+  PROMPT_SETTINGS_ERROR_RETRY_LABEL,
+  PROMPT_SETTINGS_LOADING_TEXT,
+  resolvePromptAfterDestructiveResetAction,
+  runPromptLoadRecoveryFlow,
   runPromptResetFlow,
   runPromptSaveFlow,
 } from './prompt-settings';
@@ -194,7 +201,7 @@ test('view state marks loading while saved settings are being fetched', () => {
   assert.equal(state.hasLoadError, false);
 });
 
-test('view state loading criterion is machine-checkable with explicit loading alias and anchor', () => {
+test('loading criterion anchor: loading state present with loading text and disabled interaction while loading', () => {
   const loadingState = derivePromptSettingsViewState({
     canSavePreferences: true,
     preferencesReady: false,
@@ -207,6 +214,24 @@ test('view state loading criterion is machine-checkable with explicit loading al
 
   assert.equal(loadingState.loading, true);
   assert.equal(loadingState.isLoadingSavedSettings, true);
+  assert.equal(loadingState.areControlsDisabled, false);
+  assert.equal(PROMPT_SETTINGS_LOADING_TEXT.toLowerCase().includes('loading'), true);
+});
+
+test('loading criterion anchor: loading disables interaction when save or reset is in progress', () => {
+  const loadingAndSaving = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: false,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: true,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+
+  assert.equal(loadingAndSaving.loading, true);
+  assert.equal(loadingAndSaving.areControlsDisabled, true);
+  assert.equal(loadingAndSaving.canSubmitPrompt, false);
 });
 
 test('view state surfaces empty/default profile guidance', () => {
@@ -235,6 +260,58 @@ test('view state captures load errors', () => {
   });
 
   assert.equal(state.hasLoadError, true);
+});
+
+test('error criterion anchor: error state exposes retry recovery action label and callable recover flow', async () => {
+  const state = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: new Error('firestore unavailable'),
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+  let recovered = false;
+
+  const didRecover = await runPromptLoadRecoveryFlow({
+    retryLoad: async () => {
+      recovered = true;
+    },
+  });
+
+  assert.equal(state.hasLoadError, true);
+  assert.equal(PROMPT_SETTINGS_ERROR_RETRY_LABEL.toLowerCase().includes('retry'), true);
+  assert.equal(didRecover, true);
+  assert.equal(recovered, true);
+});
+
+test('error criterion anchor: error recovery handles retry failure without throwing', async () => {
+  const didRecover = await runPromptLoadRecoveryFlow({
+    retryLoad: async () => {
+      throw new Error('retry failed');
+    },
+  });
+
+  assert.equal(didRecover, false);
+});
+
+test('empty criterion anchor: empty/default state includes explicit cta action wording add create configure', () => {
+  const state = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: DEFAULT_TRANSFORMER_PROMPT,
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+  const ctaLower = PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT.toLowerCase();
+
+  assert.equal(state.isUsingDefaultProfile, true);
+  assert.equal(ctaLower.includes('add'), true);
+  assert.equal(ctaLower.includes('create'), true);
+  assert.equal(ctaLower.includes('prompt profile'), true);
 });
 
 test('view state captures save status transitions', () => {
@@ -320,4 +397,21 @@ test('end-to-end style save retry flow fails once then succeeds', async () => {
   assert.equal(toasts.length, 2);
   assert.equal(toasts[0]?.variant, 'destructive');
   assert.equal(toasts[1]?.title, 'Prompt updated');
+});
+
+test('destructive criterion anchor: destructive confirm resets prompt and destructive cancel preserves prompt text', () => {
+  const originalPrompt = 'Use very specific judo terminology.';
+  const cancelledPrompt = resolvePromptAfterDestructiveResetAction({
+    action: 'cancel',
+    currentPrompt: originalPrompt,
+  });
+  const confirmedPrompt = resolvePromptAfterDestructiveResetAction({
+    action: 'confirm',
+    currentPrompt: originalPrompt,
+  });
+
+  assert.equal(PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'), true);
+  assert.equal(PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL.toLowerCase().includes('reset'), true);
+  assert.equal(cancelledPrompt, originalPrompt);
+  assert.equal(confirmedPrompt, DEFAULT_TRANSFORMER_PROMPT);
 });
