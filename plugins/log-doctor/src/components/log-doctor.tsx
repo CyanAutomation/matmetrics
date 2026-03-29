@@ -58,6 +58,120 @@ interface FixResult {
   files: FixFileResult[];
 }
 
+type LogDoctorPhase = 'idle' | 'loading' | 'empty' | 'error' | 'success';
+
+type LogDoctorOperation = 'scan' | 'preview' | 'apply';
+
+type LogDoctorUiState = {
+  phase: LogDoctorPhase;
+  operation: LogDoctorOperation | null;
+  message: string;
+};
+
+const ABORTED_REQUEST_REASON = 'Request canceled';
+
+const toErrorReason = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return ABORTED_REQUEST_REASON;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error &&
+    'name' in error &&
+    (error as { name?: string }).name === 'AbortError'
+  ) {
+    return ABORTED_REQUEST_REASON;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return 'Unexpected response from the service.';
+};
+
+const createErrorMessage = (
+  operation: LogDoctorOperation,
+  reason: string
+): string => {
+  const operationLabel =
+    operation === 'scan'
+      ? 'Scanning'
+      : operation === 'preview'
+        ? 'Previewing fixes'
+        : 'Applying fixes';
+
+  const nextStep =
+    reason === ABORTED_REQUEST_REASON
+      ? 'Run the check again when you are ready.'
+      : operation === 'scan'
+        ? 'Check repository access and retry.'
+        : 'Refresh logs and retry.';
+
+  return `${operationLabel} failed: ${reason} Next step: ${nextStep}`;
+};
+
+export const createUiState = (
+  operation: LogDoctorOperation,
+  phase: LogDoctorPhase,
+  details?: {
+    reason?: string;
+    hasLogs?: boolean;
+    hasFindings?: boolean;
+  }
+): LogDoctorUiState => {
+  if (phase === 'idle') {
+    return {
+      phase,
+      operation: null,
+      message: 'Select a source, then run Log Doctor.',
+    };
+  }
+
+  if (phase === 'loading') {
+    const operationLabel =
+      operation === 'scan'
+        ? 'Fetching logs'
+        : operation === 'preview'
+          ? 'Analyzing findings'
+          : 'Applying fixes';
+
+    return {
+      phase,
+      operation,
+      message: `${operationLabel}… this can take up to 30 seconds for larger repositories.`,
+    };
+  }
+
+  if (phase === 'empty') {
+    const emptyMessage =
+      details?.hasLogs === false
+        ? 'No logs were found for this source. Select source or refresh logs.'
+        : details?.hasFindings === false
+          ? 'No findings to show yet. Refresh logs or run a new scan.'
+          : 'No data is available yet. Select source or refresh logs.';
+    return { phase, operation, message: emptyMessage };
+  }
+
+  if (phase === 'error') {
+    return {
+      phase,
+      operation,
+      message: createErrorMessage(
+        operation,
+        details?.reason ?? 'Unknown request error.'
+      ),
+    };
+  }
+
+  return {
+    phase: 'success',
+    operation,
+    message: 'Findings ready.',
+  };
+};
+
 const parseApiResponse = async <T,>(response: Response): Promise<T> => {
   const payload = (await response.json()) as T;
   if (!response.ok) {
@@ -80,10 +194,16 @@ export const LogDoctor = (): React.ReactElement => {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uiState, setUiState] = useState<LogDoctorUiState>(
+    createUiState('scan', 'idle')
+  );
 
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [activeController, setActiveController] = useState<AbortController | null>(
+    null
+  );
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -130,6 +250,9 @@ export const LogDoctor = (): React.ReactElement => {
     setErrorMessage(null);
     setFixResult(null);
     setIsScanning(true);
+    setUiState(createUiState('scan', 'loading'));
+    const controller = new AbortController();
+    setActiveController(controller);
     try {
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
@@ -137,6 +260,7 @@ export const LogDoctor = (): React.ReactElement => {
       const response = await fetch('/api/github/log-doctor', {
         method: 'POST',
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
           owner: owner.trim(),
           repo: repo.trim(),
@@ -150,10 +274,17 @@ export const LogDoctor = (): React.ReactElement => {
         .filter((file) => file.status === 'invalid')
         .map((file) => file.path);
       setSelectedPaths(defaults);
+      setUiState(
+        payload.summary.totalFiles === 0
+          ? createUiState('scan', 'empty', { hasLogs: false })
+          : createUiState('scan', 'success')
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Scan failed';
+      const message = createErrorMessage('scan', toErrorReason(error));
       setErrorMessage(message);
+      setUiState(createUiState('scan', 'error', { reason: toErrorReason(error) }));
     } finally {
+      setActiveController(null);
       setIsScanning(false);
     }
   };
@@ -166,6 +297,9 @@ export const LogDoctor = (): React.ReactElement => {
 
     setErrorMessage(null);
     setIsPreviewing(true);
+    setUiState(createUiState('preview', 'loading'));
+    const controller = new AbortController();
+    setActiveController(controller);
     try {
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
@@ -173,6 +307,7 @@ export const LogDoctor = (): React.ReactElement => {
       const response = await fetch('/api/github/log-doctor/fix', {
         method: 'POST',
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
           owner: owner.trim(),
           repo: repo.trim(),
@@ -188,11 +323,21 @@ export const LogDoctor = (): React.ReactElement => {
         }),
       });
 
-      setFixResult(await parseApiResponse<FixResult>(response));
+      const payload = await parseApiResponse<FixResult>(response);
+      setFixResult(payload);
+      setUiState(
+        payload.files.length === 0
+          ? createUiState('preview', 'empty', { hasFindings: false })
+          : createUiState('preview', 'success')
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Preview failed';
+      const message = createErrorMessage('preview', toErrorReason(error));
       setErrorMessage(message);
+      setUiState(
+        createUiState('preview', 'error', { reason: toErrorReason(error) })
+      );
     } finally {
+      setActiveController(null);
       setIsPreviewing(false);
     }
   };
@@ -212,6 +357,9 @@ export const LogDoctor = (): React.ReactElement => {
 
     setErrorMessage(null);
     setIsApplying(true);
+    setUiState(createUiState('apply', 'loading'));
+    const controller = new AbortController();
+    setActiveController(controller);
     try {
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
@@ -219,6 +367,7 @@ export const LogDoctor = (): React.ReactElement => {
       const response = await fetch('/api/github/log-doctor/fix', {
         method: 'POST',
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
           owner: owner.trim(),
           repo: repo.trim(),
@@ -234,14 +383,28 @@ export const LogDoctor = (): React.ReactElement => {
         }),
       });
 
-      setFixResult(await parseApiResponse<FixResult>(response));
+      const payload = await parseApiResponse<FixResult>(response);
+      setFixResult(payload);
+      setUiState(
+        payload.files.length === 0
+          ? createUiState('apply', 'empty', { hasFindings: false })
+          : createUiState('apply', 'success')
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Apply failed';
+      const message = createErrorMessage('apply', toErrorReason(error));
       setErrorMessage(message);
+      setUiState(createUiState('apply', 'error', { reason: toErrorReason(error) }));
     } finally {
+      setActiveController(null);
       setIsApplying(false);
     }
   };
+
+  const handleCancelActiveOperation = (): void => {
+    activeController?.abort();
+  };
+
+  const isBusy = isScanning || isPreviewing || isApplying;
 
   return (
     <section className="space-y-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
@@ -301,12 +464,33 @@ export const LogDoctor = (): React.ReactElement => {
         >
           {isApplying ? 'Applying…' : 'Apply fixes'}
         </Button>
+        {isBusy ? (
+          <Button variant="outline" onClick={handleCancelActiveOperation}>
+            Cancel current check
+          </Button>
+        ) : null}
       </div>
+
+      <Alert>
+        <AlertTitle>
+          {uiState.phase === 'loading'
+            ? 'Log Doctor is running'
+            : uiState.phase === 'error'
+              ? 'Recovery available'
+              : 'Status'}
+        </AlertTitle>
+        <AlertDescription>{uiState.message}</AlertDescription>
+      </Alert>
 
       {errorMessage ? (
         <Alert variant="destructive">
           <AlertTitle>Log Doctor error</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
+          <div className="mt-2">
+            <Button size="sm" variant="outline" onClick={handleScan}>
+              Retry
+            </Button>
+          </div>
         </Alert>
       ) : null}
 
@@ -330,9 +514,28 @@ export const LogDoctor = (): React.ReactElement => {
             </div>
 
             {invalidFiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No invalid files found.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No invalid files found.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleScan}>
+                    Refresh logs
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setScanResult(null);
+                      setFixResult(null);
+                      setSelectedPaths([]);
+                      setUiState(createUiState('scan', 'idle'));
+                    }}
+                  >
+                    Select source
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
                 {invalidFiles.map((file) => {
