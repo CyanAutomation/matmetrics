@@ -3,6 +3,7 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { getScopedStorageKey, setActiveUserId } from './client-identity';
 import {
+  __setGitHubRefreshTimingForTests,
   __renewSyncLeaseForTests,
   __setSyncLeaseTimingForTests,
   __setStorageDependencyOverridesForTests,
@@ -156,6 +157,27 @@ async function flushSyncLoopWork(): Promise<void> {
   await flushAsyncWork();
 }
 
+function installGitHubPreferencesOverride() {
+  const preferenceState = {
+    ...DEFAULT_USER_PREFERENCES,
+    gitHub: {
+      ...DEFAULT_USER_PREFERENCES.gitHub,
+      enabled: true,
+      config: {
+        owner: 'octocat',
+        repo: 'hello-world',
+        branch: 'main',
+      },
+    },
+  };
+
+  __setStorageDependencyOverridesForTests({
+    readPreferences: () => preferenceState,
+  });
+
+  return preferenceState;
+}
+
 serialTest('stale refresh does not overwrite an optimistic create while the create request is in flight', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
@@ -200,6 +222,85 @@ serialTest('stale refresh does not overwrite an optimistic create while the crea
     teardownStorageListeners();
     __resetStorageStateForTests();
     global.fetch = originalFetch;
+  }
+});
+
+serialTest('getSessions does not repeatedly refresh GitHub-backed data while cache is warm', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  installGitHubPreferencesOverride();
+  __setGitHubRefreshTimingForTests({ cooldownMs: 60_000, debounceMs: 0 });
+
+  let listRequests = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('/api/sessions/list')) {
+      listRequests += 1;
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    initializeStorage();
+    getSessions();
+    await flushAsyncWork();
+
+    getSessions();
+    getSessions();
+    await flushAsyncWork();
+
+    assert.equal(listRequests, 1);
+  } finally {
+    global.fetch = originalFetch;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+serialTest('successful GitHub-backed mutations coalesce into one deferred refresh', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  installGitHubPreferencesOverride();
+  __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+
+  let createRequests = 0;
+  let listRequests = 0;
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/api/sessions/create')) {
+      createRequests += 1;
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    if (url.includes('/api/sessions/list')) {
+      listRequests += 1;
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await saveSession(makeSession('session-batched-1'));
+    await saveSession(makeSession('session-batched-2'));
+
+    assert.equal(createRequests, 2);
+    assert.equal(listRequests, 0);
+
+    await delay(40);
+    await flushAsyncWork();
+
+    assert.equal(listRequests, 1);
+  } finally {
+    global.fetch = originalFetch;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
   }
 });
 

@@ -38,6 +38,8 @@ const DEFAULT_SYNC_LOCK_TTL_MS = 45_000;
 const MIN_SYNC_LOCK_TTL_MS = 1_000;
 const DEFAULT_SYNC_LOCK_HEARTBEAT_MS = 5_000;
 const MIN_SYNC_LOCK_HEARTBEAT_MS = 1_000;
+const DEFAULT_GITHUB_REFRESH_COOLDOWN_MS = 30_000;
+const DEFAULT_GITHUB_REFRESH_DEBOUNCE_MS = 750;
 
 function parseSyncLeaseTimingMs(
   value: string | undefined,
@@ -65,6 +67,16 @@ let syncLockHeartbeatMs = parseSyncLeaseTimingMs(
   ),
   MIN_SYNC_LOCK_HEARTBEAT_MS
 );
+let gitHubRefreshCooldownMs = parseSyncLeaseTimingMs(
+  process.env.NEXT_PUBLIC_GITHUB_REFRESH_COOLDOWN_MS,
+  DEFAULT_GITHUB_REFRESH_COOLDOWN_MS,
+  0
+);
+let gitHubRefreshDebounceMs = parseSyncLeaseTimingMs(
+  process.env.NEXT_PUBLIC_GITHUB_REFRESH_DEBOUNCE_MS,
+  DEFAULT_GITHUB_REFRESH_DEBOUNCE_MS,
+  0
+);
 
 function getSessionsStorageKey(): string {
   return getScopedStorageKey(STORAGE_KEY_BASE);
@@ -88,6 +100,11 @@ let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
 let mutationVersion = 0;
+let inFlightRefresh: Promise<void> | null = null;
+let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+let scheduledRefreshAt = 0;
+let scheduledRefreshForce = false;
+let lastSuccessfulRemoteRefreshAt = 0;
 const syncOwnerId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -281,6 +298,74 @@ function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[] {
 function commitLocalSessions(sessions: JudoSession[]): void {
   sessionCache = sessions;
   updateLocalStorageCache(sessions);
+}
+
+function clearScheduledRefresh(): void {
+  if (scheduledRefreshTimer) {
+    clearTimeout(scheduledRefreshTimer);
+    scheduledRefreshTimer = null;
+  }
+  scheduledRefreshAt = 0;
+  scheduledRefreshForce = false;
+}
+
+function shouldThrottleGitHubRefresh(): boolean {
+  return !!getGitHubConfig() && isGitHubEnabled();
+}
+
+function hasFreshRemoteRefresh(): boolean {
+  if (!shouldThrottleGitHubRefresh()) {
+    return false;
+  }
+
+  return Date.now() - lastSuccessfulRemoteRefreshAt < gitHubRefreshCooldownMs;
+}
+
+function scheduleRefresh(options?: {
+  force?: boolean;
+  immediate?: boolean;
+}): void {
+  if (typeof window === 'undefined' || !isOnline || isGuestMode()) {
+    return;
+  }
+
+  const force = options?.force === true;
+  const immediate = options?.immediate === true;
+  const shouldThrottle = shouldThrottleGitHubRefresh() && !force;
+
+  const cooldownRemainingMs = shouldThrottle
+    ? Math.max(
+        0,
+        lastSuccessfulRemoteRefreshAt +
+          gitHubRefreshCooldownMs -
+          Date.now()
+      )
+    : 0;
+  const delayMs = immediate
+    ? cooldownRemainingMs
+    : Math.max(
+        shouldThrottle ? gitHubRefreshDebounceMs : 0,
+        cooldownRemainingMs
+      );
+  const nextRefreshAt = Date.now() + delayMs;
+
+  if (scheduledRefreshTimer) {
+    const existingIsStronger =
+      scheduledRefreshAt <= nextRefreshAt &&
+      (scheduledRefreshForce || !force);
+    if (existingIsStronger) {
+      return;
+    }
+
+    clearScheduledRefresh();
+  }
+
+  scheduledRefreshAt = nextRefreshAt;
+  scheduledRefreshForce = force;
+  scheduledRefreshTimer = setTimeout(() => {
+    clearScheduledRefresh();
+    void refreshSessionsFromAPI({ force });
+  }, delayMs);
 }
 
 function readSyncLease(): SyncLease | null {
@@ -606,7 +691,7 @@ async function syncRequest(
 
 async function reconcilePermanentFailure(): Promise<void> {
   if (isOnline && !isGuestMode()) {
-    await refreshSessionsFromAPI();
+    await refreshSessionsFromAPI({ force: true });
     return;
   }
 
@@ -658,6 +743,11 @@ export function initializeStorage(): void {
   // Try to sync if we have pending operations
   if (!isGuestMode() && isOnline && hasPendingOperations()) {
     void syncPendingOperations();
+    return;
+  }
+
+  if (shouldThrottleGitHubRefresh()) {
+    scheduleRefresh({ immediate: true });
   }
 }
 
@@ -682,8 +772,7 @@ export function getSessions(): JudoSession[] {
 
   // If cache is populated, return it (even if online, we'll refresh in the background)
   if (sessionCache !== null) {
-    // Refresh from API in the background if online
-    if (isOnline && !guestMode) {
+    if (isOnline && !guestMode && !shouldThrottleGitHubRefresh()) {
       void refreshSessionsFromAPI();
     }
     return sessionCache;
@@ -701,8 +790,13 @@ export function getSessions(): JudoSession[] {
   const cached = getLocalStorageCache();
   sessionCache = cached;
 
-  // Refresh from API in background
-  void refreshSessionsFromAPI();
+  if (shouldThrottleGitHubRefresh()) {
+    if (!hasFreshRemoteRefresh()) {
+      scheduleRefresh({ immediate: true });
+    }
+  } else {
+    void refreshSessionsFromAPI();
+  }
 
   return cached;
 }
@@ -759,7 +853,11 @@ export async function saveSession(
       );
     }
 
-    void refreshSessionsFromAPI();
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 
@@ -825,7 +923,11 @@ export async function updateSession(
       );
     }
 
-    void refreshSessionsFromAPI();
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 
@@ -882,7 +984,11 @@ export async function deleteSession(id: string): Promise<MutationResult> {
       );
     }
 
-    void refreshSessionsFromAPI();
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 
@@ -1113,8 +1219,11 @@ function handleOnline(): void {
     return;
   }
 
-  // No pending operations, so refresh immediately.
-  void refreshSessionsFromAPI();
+  if (shouldThrottleGitHubRefresh()) {
+    scheduleRefresh();
+  } else {
+    void refreshSessionsFromAPI();
+  }
 }
 
 function handleOffline(): void {
@@ -1142,67 +1251,91 @@ function handleStorageEvent(event: StorageEvent): void {
   }
 }
 
-async function refreshSessionsFromAPI(): Promise<void> {
+async function refreshSessionsFromAPI(options?: {
+  force?: boolean;
+}): Promise<void> {
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+  if (
+    options?.force !== true &&
+    shouldThrottleGitHubRefresh() &&
+    hasFreshRemoteRefresh()
+  ) {
+    return;
+  }
 
-  const seq = ++refreshSeq;
+  inFlightRefresh = (async () => {
+    const seq = ++refreshSeq;
 
-  try {
-    const gitHubConfig = getGitHubConfig();
-    const url = new URL('/api/sessions/list', window.location.origin);
-    if (gitHubConfig && isGitHubEnabled()) {
-      url.searchParams.set('owner', gitHubConfig.owner);
-      url.searchParams.set('repo', gitHubConfig.repo);
-      if (gitHubConfig.branch) {
-        url.searchParams.set('branch', gitHubConfig.branch);
+    try {
+      const gitHubConfig = getGitHubConfig();
+      const url = new URL('/api/sessions/list', window.location.origin);
+      if (gitHubConfig && isGitHubEnabled()) {
+        url.searchParams.set('owner', gitHubConfig.owner);
+        url.searchParams.set('repo', gitHubConfig.repo);
+        if (gitHubConfig.branch) {
+          url.searchParams.set('branch', gitHubConfig.branch);
+        }
+        if (options?.force) {
+          url.searchParams.set('force', '1');
+        }
       }
-    }
 
-    const headers = await getAuthHeaders();
-    const res = await fetch(url.toString(), { headers });
-    if (!res.ok) {
-      console.warn(
-        `Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`
-      );
-      return;
-    }
+      const headers = await getAuthHeaders();
+      const res = await fetch(url.toString(), { headers });
+      if (!res.ok) {
+        console.warn(
+          `Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`
+        );
+        return;
+      }
 
-    const payload = await res.json();
-    const sessions: JudoSession[] = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.sessions)
-        ? payload.sessions
+      const payload = await res.json();
+      const sessions: JudoSession[] = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.sessions)
+          ? payload.sessions
+          : [];
+      const sessionFileIssues: SessionFileIssue[] = Array.isArray(
+        payload?.issues
+      )
+        ? payload.issues
         : [];
-    const sessionFileIssues: SessionFileIssue[] = Array.isArray(payload?.issues)
-      ? payload.issues
-      : [];
-    if (seq < latestAppliedSeq) {
-      return;
-    }
+      if (seq < latestAppliedSeq) {
+        return;
+      }
 
-    const mergedSessions = getOptimisticSessions(sessions);
+      const mergedSessions = getOptimisticSessions(sessions);
 
-    for (const [id, mutation] of dirtyMutations.entries()) {
-      if (mutation.type === 'DELETE') {
-        if (!sessions.some((session) => session.id === id)) {
+      for (const [id, mutation] of dirtyMutations.entries()) {
+        if (mutation.type === 'DELETE') {
+          if (!sessions.some((session) => session.id === id)) {
+            dirtyMutations.delete(id);
+          }
+          continue;
+        }
+
+        const remoteSession = sessions.find((session) => session.id === id);
+        if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
           dirtyMutations.delete(id);
         }
-        continue;
       }
 
-      const remoteSession = sessions.find((session) => session.id === id);
-      if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
-        dirtyMutations.delete(id);
-      }
+      latestAppliedSeq = seq;
+      lastSuccessfulRemoteRefreshAt = Date.now();
+      sessionFileIssuesCache = sessionFileIssues;
+      commitLocalSessions(mergedSessions);
+      dispatchStorageSync(mergedSessions);
+    } catch (error) {
+      console.error('Error refreshing sessions from API', error);
+    } finally {
+      inFlightRefresh = null;
     }
+  })();
 
-    latestAppliedSeq = seq;
-    sessionFileIssuesCache = sessionFileIssues;
-    commitLocalSessions(mergedSessions);
-    dispatchStorageSync(mergedSessions);
-  } catch (error) {
-    console.error('Error refreshing sessions from API', error);
-  }
+  return inFlightRefresh;
 }
 
 async function syncPendingOperations(): Promise<void> {
@@ -1363,7 +1496,11 @@ async function syncPendingOperations(): Promise<void> {
       clearQueue(queue);
 
       // Refresh sessions from API to ensure cache is up-to-date
-      await refreshSessionsFromAPI();
+      if (shouldThrottleGitHubRefresh()) {
+        scheduleRefresh();
+      } else {
+        await refreshSessionsFromAPI();
+      }
     } finally {
       if (leaseHeartbeat) {
         clearInterval(leaseHeartbeat);
@@ -1385,6 +1522,9 @@ export function __resetStorageStateForTests(): void {
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
+  inFlightRefresh = null;
+  clearScheduledRefresh();
+  lastSuccessfulRemoteRefreshAt = 0;
   listenersInitialized = false;
   refreshSeq = 0;
   latestAppliedSeq = 0;
@@ -1453,5 +1593,24 @@ export function __setSyncLeaseTimingForTests(overrides: {
       MIN_SYNC_LOCK_HEARTBEAT_MS,
       overrides.heartbeatMs
     );
+  }
+}
+
+export function __setGitHubRefreshTimingForTests(overrides: {
+  cooldownMs?: number;
+  debounceMs?: number;
+}): void {
+  if (
+    typeof overrides.cooldownMs === 'number' &&
+    Number.isFinite(overrides.cooldownMs)
+  ) {
+    gitHubRefreshCooldownMs = Math.max(0, overrides.cooldownMs);
+  }
+
+  if (
+    typeof overrides.debounceMs === 'number' &&
+    Number.isFinite(overrides.debounceMs)
+  ) {
+    gitHubRefreshDebounceMs = Math.max(0, overrides.debounceMs);
   }
 }

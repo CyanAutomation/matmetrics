@@ -31,7 +31,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, err := client.ListSessions(config)
+	force := r.URL.Query().Get("force") == "1"
+
+	sessions, err := client.ListSessions(config, force)
 	if err != nil {
 		httpapi.WriteError(w, http.StatusInternalServerError, "Failed to list sessions")
 		return
