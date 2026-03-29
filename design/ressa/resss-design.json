@@ -1,0 +1,81 @@
+{
+  "name": "Ressa",
+  "species": "Red Panda",
+  "role": "Mascot / Guide Character",
+  "personality_traits": [
+    "Friendly",
+    "Encouraging",
+    "Disciplined",
+    "Playful",
+    "Confident",
+    "Respectful"
+  ],
+  "visual_description": {
+    "body_proportions": "Chibi style with a large head, small rounded body, and short limbs",
+    "face": {
+      "eyes": "Large, glossy black eyes with strong highlights for expressiveness",
+      "expression": "Soft, cheerful smile with subtle blush on cheeks",
+      "markings": "Classic red panda white facial mask with symmetrical patterns and small eyebrow spots"
+    },
+    "fur": {
+      "primary_color": "Vibrant orange-red",
+      "secondary_color": "Cream/white (face, inner ears, muzzle, belly)",
+      "accents": "Darker orange gradients on tail and outer edges",
+      "texture_style": "Soft gradient shading with clean vector edges"
+    },
+    "ears": "Rounded triangular ears with white inner fur details",
+    "tail": "Thick, fluffy tail with subtle banding and gradient shading"
+  },
+  "outfit": {
+    "type": "Judo gi",
+    "color": "White",
+    "belt": "Black belt tied at the waist",
+    "fit": "Simplified and stylized to match chibi proportions",
+    "details": "Minimal folds and clean lines to maintain readability at small sizes"
+  },
+  "pose_variations": [
+    "Pointing upward (instructional / teaching)",
+    "Neutral stance (default / idle)",
+    "Arms crossed (confident / evaluative)",
+    "Celebratory pose (arms raised)",
+    "Fighting stance (martial readiness)",
+    "Bow (respect / etiquette)"
+  ],
+  "design_style": {
+    "category": "Chibi / Mascot Illustration",
+    "influences": [
+      "Kawaii character design",
+      "Mobile game mascots",
+      "Modern vector illustration",
+      "Japanese-inspired character aesthetics"
+    ],
+    "line_work": "Clean, bold outlines with consistent stroke weight",
+    "coloring": "Flat colors combined with soft gradients for depth",
+    "shading": "Minimal, with gentle highlights and subtle shadowing",
+    "complexity": "Low to medium detail for scalability and clarity",
+    "readability": "Highly readable at small sizes, suitable for UI and icons"
+  },
+  "intended_use": [
+    "App mascot",
+    "User guidance and onboarding",
+    "Feedback and rewards system",
+    "Instructional cues (e.g., technique prompts)",
+    "Gamification elements"
+  ],
+  "emotional_range": [
+    "Happy",
+    "Focused",
+    "Encouraging",
+    "Respectful",
+    "Determined"
+  ],
+  "brand_alignment": {
+    "tone": "Supportive and motivational",
+    "audience": [
+      "Kids",
+      "Teens",
+      "Hobbyist adults"
+    ],
+    "fit": "Bridges playfulness with discipline, aligning with martial arts themes"
+  }
+}
