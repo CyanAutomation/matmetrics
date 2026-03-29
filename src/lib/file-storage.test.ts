@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  __shouldReclaimSessionUpdateLockForTests,
   __resetDataDirForTests,
   __setDataDirForTests,
   createSession,
@@ -49,6 +50,8 @@ async function wait(ms: number): Promise<void> {
     setTimeout(resolve, ms);
   });
 }
+
+const SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
 // NOTE: dataDir override and any monkeypatched fs.* methods are process-global,
 // so tests that use withTempDataDir must run serially (non-concurrently).
@@ -395,40 +398,29 @@ test(
   }
 );
 
-test(
-  'updateSession does not reclaim active same-path lock even when stale-by-age',
-  { concurrency: false },
-  async () => {
-    await withTempDataDir(async () => {
-      const session = makeSession({
-        id: 'session-stale-lock',
-        date: '2025-01-10',
-        notes: 'before stale active lock conflict',
-      });
-      const sessionPath = await createSession(session);
-      const lockPath = `${sessionPath}.lock`;
+test('shouldReclaimSessionUpdateLock keeps alive PID locks even when old', async () => {
+  const lockPath = path.join(
+    await mkdtemp(path.join(tmpdir(), 'matmetrics-lock-reclaim-')),
+    'alive.lock'
+  );
 
-      await fs.writeFile(
-        lockPath,
-        `${process.pid}:${crypto.randomUUID()}:${Date.now()}\n`,
-        'utf-8'
-      );
-      const staleAt = new Date(Date.now() - 5000);
-      await utimes(lockPath, staleAt, staleAt);
+  try {
+    await fs.writeFile(
+      lockPath,
+      `${process.pid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
+    const staleAt = new Date(Date.now() - 10 * 60 * 1000);
+    await utimes(lockPath, staleAt, staleAt);
 
-      await assert.rejects(
-        updateSession({
-          ...session,
-          notes: 'should still be blocked by active stale lock',
-        }),
-        SessionUpdateConflictError
-      );
-    });
+    assert.equal(await __shouldReclaimSessionUpdateLockForTests(lockPath), false);
+  } finally {
+    await rm(path.dirname(lockPath), { recursive: true, force: true });
   }
-);
+});
 
 test(
-  'updateSession reclaims same-path lock when owner PID is dead',
+  'updateSession reclaims same-path lock when owner PID is dead regardless of age',
   { concurrency: false },
   async () => {
     await withTempDataDir(async () => {
@@ -446,6 +438,8 @@ test(
         `${deadPid}:${crypto.randomUUID()}:${Date.now()}\n`,
         'utf-8'
       );
+      const youngAt = new Date(Date.now() - 1000);
+      await utimes(lockPath, youngAt, youngAt);
 
       const updatedPath = await updateSession({
         ...session,
@@ -515,6 +509,59 @@ test(
         SessionUpdateConflictError
       );
     });
+  }
+);
+
+test(
+  'shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age',
+  async () => {
+    const originalKill = process.kill;
+    const lockDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-lock-reclaim-'));
+    const youngLockPath = path.join(lockDir, 'unknown-young.lock');
+    const oldLockPath = path.join(lockDir, 'unknown-old.lock');
+    const unknownPid = 434343;
+
+    process.kill = ((pid: number, signal?: number | NodeJS.Signals) => {
+      if (pid === unknownPid) {
+        throw Object.assign(new Error('simulated unknown pid liveness'), {
+          code: 'EINVAL',
+        });
+      }
+      return originalKill(pid, signal);
+    }) as typeof process.kill;
+
+    try {
+      await fs.writeFile(
+        youngLockPath,
+        `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
+        'utf-8'
+      );
+      const youngAt = new Date(
+        Date.now() -
+          Math.floor(SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS / 2)
+      );
+      await utimes(youngLockPath, youngAt, youngAt);
+
+      await fs.writeFile(
+        oldLockPath,
+        `${unknownPid}:${crypto.randomUUID()}:${Date.now()}\n`,
+        'utf-8'
+      );
+      const oldAt = new Date(
+        Date.now() -
+          (SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS + 60 * 1000)
+      );
+      await utimes(oldLockPath, oldAt, oldAt);
+
+      assert.equal(
+        await __shouldReclaimSessionUpdateLockForTests(youngLockPath),
+        false
+      );
+      assert.equal(await __shouldReclaimSessionUpdateLockForTests(oldLockPath), true);
+    } finally {
+      process.kill = originalKill;
+      await rm(lockDir, { recursive: true, force: true });
+    }
   }
 );
 
