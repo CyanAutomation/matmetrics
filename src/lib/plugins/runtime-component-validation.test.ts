@@ -12,15 +12,15 @@ test.afterEach(() => {
   resetPluginComponentRegistryInitializationForTests();
 });
 
-test('validateManifestComponentRenderers resolves declared github-sync component id', () => {
-  const issues = validateManifestComponentRenderers(
+test('validateManifestComponentRenderers resolves declared github-sync component id', async () => {
+  const issues = await validateManifestComponentRenderers(
     githubSyncManifest as PluginManifest
   );
 
   assert.deepEqual(issues, []);
 });
 
-test('validateManifestComponentRenderers flags unresolved component id predictably', () => {
+test('validateManifestComponentRenderers flags unresolved component id predictably', async () => {
   const manifest: PluginManifest = {
     id: 'broken-runtime-plugin',
     name: 'Broken Runtime Plugin',
@@ -41,7 +41,7 @@ test('validateManifestComponentRenderers flags unresolved component id predictab
     ],
   };
 
-  const issues = validateManifestComponentRenderers(manifest);
+  const issues = await validateManifestComponentRenderers(manifest);
 
   assert.deepEqual(issues, [
     {
