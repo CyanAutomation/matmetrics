@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 
 import {
@@ -13,6 +14,8 @@ import {
 import { resetPluginComponentRegistryInitializationForTests } from '@/lib/plugins/plugin-component-bootstrap';
 import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
 import type { ResolvedDashboardTabExtension } from '@/lib/plugins/types';
+
+const requireFromTest = createRequire(import.meta.url);
 
 const createDashboardTabExtensionFixture = (
   overrides: Partial<ResolvedDashboardTabExtension> = {}
@@ -34,8 +37,8 @@ const createDashboardTabExtensionFixture = (
   },
 });
 
-test('maps dashboard tab extension fixture into plugin tab metadata', () => {
-  const tabs = mapDashboardExtensionsToTabs([
+test('maps dashboard tab extension fixture into plugin tab metadata', async () => {
+  const tabs = await mapDashboardExtensionsToTabs([
     createDashboardTabExtensionFixture({
       pluginId: 'tag-manager-plugin',
       extension: {
@@ -58,8 +61,8 @@ test('maps dashboard tab extension fixture into plugin tab metadata', () => {
   assert.equal(tabs[0]?.section, 'plugins');
 });
 
-test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', () => {
-  const tabs = mapDashboardExtensionsToTabs(
+test('integration: loadEnabledDashboardTabExtensions wires into tab mapping', async () => {
+  const tabs = await mapDashboardExtensionsToTabs(
     loadEnabledDashboardTabExtensions()
   );
 
@@ -83,7 +86,7 @@ test('plugins is the last core navigation item', () => {
   assert.equal(coreTabs[coreTabs.length - 1]?.title, 'Plugins');
 });
 
-test('resolves plugin tab when renderer is registered in the registry', () => {
+test('resolves plugin tab when renderer is registered in the registry', async () => {
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
 
@@ -92,7 +95,7 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
     () => 'rendered-custom-component'
   );
 
-  const { tabs, warnings } = resolveDashboardExtensionsToTabs([
+  const { tabs, warnings } = await resolveDashboardExtensionsToTabs([
     createDashboardTabExtensionFixture({
       pluginId: 'custom-plugin',
       capabilities: [],
@@ -115,14 +118,14 @@ test('resolves plugin tab when renderer is registered in the registry', () => {
   assert.equal(tabs[0]?.id, 'custom-plugin-tab');
 });
 
-test('captures structured runtime warning when plugin component cannot be resolved', () => {
+test('captures structured runtime warning when plugin component cannot be resolved', async () => {
   const warningsCaptured = [] as Array<{
     code: string;
     path: string;
     message: string;
   }>;
 
-  const tabs = mapDashboardExtensionsToTabs(
+  const tabs = await mapDashboardExtensionsToTabs(
     [
       createDashboardTabExtensionFixture({
         pluginId: 'missing-renderer-plugin',
@@ -155,14 +158,14 @@ test('captures structured runtime warning when plugin component cannot be resolv
   );
 });
 
-test('captures runtime warning and skips tab when required capability is missing', () => {
+test('captures runtime warning and skips tab when required capability is missing', async () => {
   const warningsCaptured = [] as Array<{
     code: string;
     path: string;
     message: string;
   }>;
 
-  const tabs = mapDashboardExtensionsToTabs(
+  const tabs = await mapDashboardExtensionsToTabs(
     [
       createDashboardTabExtensionFixture({
         pluginId: 'missing-capability-plugin',
@@ -193,4 +196,68 @@ test('captures runtime warning and skips tab when required capability is missing
     warningsCaptured[0]?.path ?? '',
     /plugins\.missing-capability-plugin\.capabilities/
   );
+});
+
+test('awaits async plugin init before resolving renderers to avoid timing warnings', async () => {
+  clearDashboardTabRendererRegistryForTests();
+  resetPluginComponentRegistryInitializationForTests();
+
+  const tagManagerModulePath = requireFromTest.resolve(
+    '../../../plugins/tag-manager/src/index'
+  );
+  const originalCacheEntry = requireFromTest.cache[tagManagerModulePath];
+  requireFromTest.cache[tagManagerModulePath] = {
+    id: tagManagerModulePath,
+    filename: tagManagerModulePath,
+    loaded: true,
+    exports: {
+      initPlugin: async (context: {
+        register?: (extensionId: string) => void;
+        registerPluginComponent?: typeof registerPluginComponent;
+      }) => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        context.register?.('tag-manager-dashboard-tab');
+        context.registerPluginComponent?.(
+          'tag_manager',
+          () => 'async-rendered-tag-manager'
+        );
+      },
+    },
+  } as NodeModule;
+
+  try {
+    const warningsCaptured: Array<{ code: string }> = [];
+    const tabs = await mapDashboardExtensionsToTabs(
+      [
+        createDashboardTabExtensionFixture({
+          pluginId: 'tag-manager-plugin',
+          extension: {
+            type: 'dashboard_tab',
+            id: 'tag-manager-dashboard-tab',
+            title: 'Tag Manager',
+            config: {
+              tabId: 'tag-manager',
+              headerTitle: 'Manage Tags',
+              component: 'tag_manager',
+              icon: 'tags',
+            },
+          },
+        }),
+      ],
+      {
+        onWarning: (warning) => {
+          warningsCaptured.push({ code: warning.code });
+        },
+      }
+    );
+
+    assert.equal(tabs.length, 1);
+    assert.equal(warningsCaptured.length, 0);
+  } finally {
+    if (originalCacheEntry) {
+      requireFromTest.cache[tagManagerModulePath] = originalCacheEntry;
+    } else {
+      delete requireFromTest.cache[tagManagerModulePath];
+    }
+  }
 });

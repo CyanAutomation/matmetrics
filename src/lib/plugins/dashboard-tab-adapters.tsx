@@ -23,12 +23,17 @@ export const registerPluginComponent = (
   return { componentId, renderer };
 };
 
-export const resolveDashboardTabRenderer = (
+export const resolveDashboardTabRenderer = async (
   componentId: string
-): DashboardTabRenderer | null => {
-  initializePluginComponentRegistry();
-  return dashboardTabRenderers.get(componentId) ?? null;
+): Promise<DashboardTabRenderer | null> => {
+  await initializePluginComponentRegistry();
+  return getDashboardTabRenderer(componentId);
 };
+
+export const getDashboardTabRenderer = (
+  componentId: string
+): DashboardTabRenderer | null =>
+  dashboardTabRenderers.get(componentId) ?? null;
 
 export const createUnresolvedDashboardComponentWarning = (
   componentId: string,

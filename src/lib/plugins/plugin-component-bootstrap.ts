@@ -1,6 +1,7 @@
 import { registerPluginComponent } from '@/lib/plugins/dashboard-tab-adapters';
 
 let pluginComponentRegistryInitialized = false;
+let pluginComponentRegistryInitializationInFlight: Promise<void> | null = null;
 
 type PluginInitializer = (context: {
   register: () => undefined;
@@ -16,7 +17,7 @@ type PluginInitializer = (context: {
  * 2. Export an initPlugin function that accepts the registration context
  * 3. Add an import here and call initializePluginComponent with the plugin ID
  */
-const initializePluginsStatically = (): void => {
+const initializePluginsStatically = async (): Promise<void> => {
   // Initialize tag-manager plugin
   try {
     // Use synchronous require for test/runtime compatibility
@@ -27,10 +28,13 @@ const initializePluginsStatically = (): void => {
       | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
-      initPlugin({
+      const initializationResult = initPlugin({
         register: () => undefined,
         registerPluginComponent,
       });
+      if (initializationResult instanceof Promise) {
+        await initializationResult;
+      }
     }
   } catch (error) {
     console.warn('Failed to initialize tag-manager plugin:', error);
@@ -45,10 +49,13 @@ const initializePluginsStatically = (): void => {
       | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
-      initPlugin({
+      const initializationResult = initPlugin({
         register: () => undefined,
         registerPluginComponent,
       });
+      if (initializationResult instanceof Promise) {
+        await initializationResult;
+      }
     }
   } catch (error) {
     console.warn('Failed to initialize github-sync plugin:', error);
@@ -63,10 +70,13 @@ const initializePluginsStatically = (): void => {
       | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
-      initPlugin({
+      const initializationResult = initPlugin({
         register: () => undefined,
         registerPluginComponent,
       });
+      if (initializationResult instanceof Promise) {
+        await initializationResult;
+      }
     }
   } catch (error) {
     console.warn('Failed to initialize prompt-settings plugin:', error);
@@ -76,13 +86,18 @@ const initializePluginsStatically = (): void => {
     // Use synchronous require for test/runtime compatibility
     // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
     const logDoctorModule = require('../../../plugins/log-doctor/src/index');
-    const initPlugin = logDoctorModule.initPlugin as PluginInitializer | undefined;
+    const initPlugin = logDoctorModule.initPlugin as
+      | PluginInitializer
+      | undefined;
 
     if (initPlugin && typeof initPlugin === 'function') {
-      initPlugin({
+      const initializationResult = initPlugin({
         register: () => undefined,
         registerPluginComponent,
       });
+      if (initializationResult instanceof Promise) {
+        await initializationResult;
+      }
     }
   } catch (error) {
     console.warn('Failed to initialize log-doctor plugin:', error);
@@ -106,16 +121,26 @@ const initializePluginsStatically = (): void => {
   // }
 };
 
-export const initializePluginComponentRegistry = (): void => {
+export const initializePluginComponentRegistry = async (): Promise<void> => {
   if (pluginComponentRegistryInitialized) {
     return;
   }
 
-  initializePluginsStatically();
+  if (pluginComponentRegistryInitializationInFlight) {
+    return pluginComponentRegistryInitializationInFlight;
+  }
 
-  pluginComponentRegistryInitialized = true;
+  pluginComponentRegistryInitializationInFlight = (async () => {
+    await initializePluginsStatically();
+    pluginComponentRegistryInitialized = true;
+  })().finally(() => {
+    pluginComponentRegistryInitializationInFlight = null;
+  });
+
+  return pluginComponentRegistryInitializationInFlight;
 };
 
 export const resetPluginComponentRegistryInitializationForTests = (): void => {
   pluginComponentRegistryInitialized = false;
+  pluginComponentRegistryInitializationInFlight = null;
 };

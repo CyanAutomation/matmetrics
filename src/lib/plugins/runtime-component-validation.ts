@@ -1,4 +1,4 @@
-import { resolveDashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
+import { getDashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 import { initializePluginComponentRegistry } from '@/lib/plugins/plugin-component-bootstrap';
 import type {
   PluginManifest,
@@ -45,11 +45,11 @@ const extractDeclaredManifestComponents = (
 export const validateManifestComponentRenderers = (
   manifest: PluginManifest
 ): PluginValidationIssue[] => {
-  initializePluginComponentRegistry();
+  void initializePluginComponentRegistry();
 
   return extractDeclaredManifestComponents(manifest).flatMap(
     ({ componentId, extensionId, path }) =>
-      resolveDashboardTabRenderer(componentId)
+      getDashboardTabRenderer(componentId)
         ? []
         : [
             {
