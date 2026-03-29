@@ -295,6 +295,132 @@ test('example panel renders with robust ux handling', () => {
   );
 });
 
+test('scorePluginMaturity requires explicit manifest gold tier for Gold promotion', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'README.md'),
+        '# Example Plugin\n',
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'lib', 'plugins'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  const disabled = false;
+  const toast = () => disabled;
+  return toast() ? null : null;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel renders with robust ux handling', () => {
+  assert.match('loading state', /loading/);
+  assert.match('error state, retry now', /retry/);
+  assert.match('no results, add item', /add/);
+  assert.match('confirm destructive reset', /confirm/);
+  assert.match('cancel destructive reset', /cancel/);
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-route.test.ts'),
+        `test('example plugin route', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'lib', 'plugins', 'example-plugin.test.ts'),
+        `test('example plugin registry', () => {
+  'example-plugin';
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const maturityWithoutGoldTier = {
+        tier: 'silver',
+        notes: 'Reviewed and documented.',
+        lastReviewedAt: '2026-03-24',
+        uxCriteria: {
+          loadingStatePresent: true,
+          errorStateWithRecovery: true,
+          emptyStateWithCta: true,
+          destructiveActionSafety: {
+            relevant: true,
+            confirmation: true,
+            cancellation: true,
+          },
+        },
+      } satisfies PluginManifestMaturityMetadata;
+
+      const scorecardWithoutGoldTier = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: maturityWithoutGoldTier,
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(scorecardWithoutGoldTier.score >= 85);
+      assert.notEqual(scorecardWithoutGoldTier.tier, 'gold');
+      assert.ok(
+        scorecardWithoutGoldTier.reasons.some((reason) =>
+          reason.includes(
+            'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
+          )
+        )
+      );
+
+      const scorecardWithGoldTier = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            ...maturityWithoutGoldTier,
+            tier: 'gold',
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(scorecardWithGoldTier.score >= 85);
+      assert.equal(scorecardWithGoldTier.tier, 'gold');
+      assert.equal(scorecardWithGoldTier.declaredTier, 'gold');
+    }
+  );
+});
+
 test('scorePluginMaturity awards feature-quality points for test-asserted UX states even with different implementation text', async () => {
   await withPluginFixture(
     async (pluginsRoot, repoRoot) => {
