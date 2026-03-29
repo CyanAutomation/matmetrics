@@ -19,6 +19,8 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestSessionGitHubPathEncodesIdentifiers(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	a, err := SessionGitHubPath(model.Session{
 		ID:         "a/b",
 		Date:       "2025-03-14",
@@ -49,6 +51,8 @@ func TestSessionGitHubPathEncodesIdentifiers(t *testing.T) {
 }
 
 func TestValidateUsesDefaultBranchWhenBranchUnset(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL: "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -73,6 +77,8 @@ func TestValidateUsesDefaultBranchWhenBranchUnset(t *testing.T) {
 }
 
 func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	var putCount int
 	stableMarkdown, err := markdown.SessionToMarkdown(model.Session{
 		ID:         "stable",
@@ -128,7 +134,136 @@ func TestSyncAllSkipsUnchangedAndPushesChangedSessions(t *testing.T) {
 	}
 }
 
+func TestListSessionsUsesRecentCache(t *testing.T) {
+	resetListSessionsCacheForTests()
+
+	var treeRequests int
+	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
+		ID:         "session-valid",
+		Date:       "2026-03-18",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+	})
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				treeRequests++
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-valid.md","type":"blob"}]}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260318-matmetrics-session-valid.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{
+					"sha":     "sha-valid",
+					"content": base64.StdEncoding.EncodeToString([]byte(validMarkdown)),
+				}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	first, err := client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	if err != nil {
+		t.Fatalf("ListSessions() first call error = %v", err)
+	}
+	second, err := client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	if err != nil {
+		t.Fatalf("ListSessions() second call error = %v", err)
+	}
+
+	if len(first) != 1 || len(second) != 1 {
+		t.Fatalf("unexpected sessions lengths: %d %d", len(first), len(second))
+	}
+	if treeRequests != 1 {
+		t.Fatalf("expected one tree request, got %d", treeRequests)
+	}
+}
+
+func TestCreateSessionInvalidatesListSessionsCache(t *testing.T) {
+	resetListSessionsCacheForTests()
+
+	var treeRequests int
+	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
+		ID:         "session-valid",
+		Date:       "2026-03-18",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+	})
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+				return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				treeRequests++
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-valid.md","type":"blob"}]}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260318-matmetrics-session-valid.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{
+					"sha":     "sha-valid",
+					"content": base64.StdEncoding.EncodeToString([]byte(validMarkdown)),
+				}), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260319-matmetrics-session-new.md"):
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			case r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/contents/data/2026/03/20260319-matmetrics-session-new.md"):
+				return jsonResponse(http.StatusOK, `{"content":{"sha":"sha-new"}}`), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	_, err = client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	if err != nil {
+		t.Fatalf("ListSessions() priming call error = %v", err)
+	}
+
+	_, err = client.CreateSession(model.GitHubConfig{Owner: "o", Repo: "r"}, model.Session{
+		ID:         "session-new",
+		Date:       "2026-03-19",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Harai goshi"},
+	})
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	_, err = client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	if err != nil {
+		t.Fatalf("ListSessions() after invalidation error = %v", err)
+	}
+
+	if treeRequests != 3 {
+		t.Fatalf("expected cache invalidation plus create path lookup to issue three tree requests, got %d", treeRequests)
+	}
+}
+
 func TestGetFileEncodesPathSegmentsAndRefQuery(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	var gotPath string
 	var gotQuery string
 
@@ -160,6 +295,8 @@ func TestGetFileEncodesPathSegmentsAndRefQuery(t *testing.T) {
 }
 
 func TestListTreeEntriesFromContentsAPIEncodesPathAndRef(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	var gotPath string
 	var gotQuery string
 
@@ -191,6 +328,8 @@ func TestListTreeEntriesFromContentsAPIEncodesPathAndRef(t *testing.T) {
 }
 
 func TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	cases := []struct {
 		name       string
 		branch     string
@@ -245,6 +384,8 @@ func TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames(t 
 }
 
 func TestGetTreeEntriesForPathReturnsNon404BranchRefError(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL: "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -272,6 +413,8 @@ func TestGetTreeEntriesForPathReturnsNon404BranchRefError(t *testing.T) {
 }
 
 func TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL: "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -303,6 +446,8 @@ func TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix(t *testing.
 }
 
 func TestDiagnoseLogsHappyPath(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
 		ID:         "session-valid",
 		Date:       "2026-03-18",
@@ -355,6 +500,8 @@ func TestDiagnoseLogsHappyPath(t *testing.T) {
 }
 
 func TestDiagnoseLogsMixedValidAndInvalidFiles(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	validMarkdown, err := markdown.SessionToMarkdown(model.Session{
 		ID:         "session-valid",
 		Date:       "2026-03-18",
@@ -450,6 +597,8 @@ category: "Technical"
 }
 
 func TestDiagnoseLogsRepoNotFound(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL: "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -471,6 +620,8 @@ func TestDiagnoseLogsRepoNotFound(t *testing.T) {
 }
 
 func TestDiagnoseLogsPathNotFoundReturnsEmptyReport(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL: "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -503,6 +654,8 @@ func TestDiagnoseLogsPathNotFoundReturnsEmptyReport(t *testing.T) {
 }
 
 func TestFixLogsDryRunProvidesPreview(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	input := `---
 id: "needs-fix"
 date: "2026-03-20"
@@ -554,6 +707,8 @@ Out of order sections.
 }
 
 func TestFixLogsApplyRequiresConfirmation(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL:    "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) { return jsonResponse(http.StatusOK, `{}`), nil })},
@@ -573,6 +728,8 @@ func TestFixLogsApplyRequiresConfirmation(t *testing.T) {
 }
 
 func TestFixLogsRejectsUnsafePath(t *testing.T) {
+	resetListSessionsCacheForTests()
+
 	client := &Client{
 		BaseURL:    "https://example.test",
 		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) { return jsonResponse(http.StatusOK, `{}`), nil })},

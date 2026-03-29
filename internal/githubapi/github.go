@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,6 +13,8 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"matmetrics/internal/markdown"
 	"matmetrics/internal/model"
@@ -19,6 +22,28 @@ import (
 )
 
 var apiBaseURL = "https://api.github.com"
+
+const listSessionsCacheTTL = 30 * time.Second
+
+type cachedSessionsEntry struct {
+	Sessions []model.Session
+	CachedAt time.Time
+}
+
+type listSessionsCall struct {
+	done     chan struct{}
+	sessions []model.Session
+	err      error
+}
+
+var listSessionsCacheState = struct {
+	mu       sync.Mutex
+	entries  map[string]cachedSessionsEntry
+	inflight map[string]*listSessionsCall
+}{
+	entries:  make(map[string]cachedSessionsEntry),
+	inflight: make(map[string]*listSessionsCall),
+}
 
 type Client struct {
 	BaseURL    string
@@ -200,6 +225,8 @@ func (c *Client) SyncAll(config model.GitHubConfig, sessions []model.Session) (S
 	if !result.Success {
 		result.Message = fmt.Sprintf("Bulk sync completed with %d failure(s)", result.Failed)
 	}
+
+	c.invalidateListSessionsCache(config, branch)
 
 	return result, nil
 }
@@ -398,12 +425,34 @@ func isSafeLogDoctorPath(filePath string) bool {
 	return true
 }
 
-func (c *Client) ListSessions(config model.GitHubConfig) ([]model.Session, error) {
+func (c *Client) ListSessions(config model.GitHubConfig, force bool) ([]model.Session, error) {
 	branch, err := c.resolveBranch(config)
 	if err != nil {
 		return nil, err
 	}
 
+	cacheKey := c.listSessionsCacheKey(config, branch)
+	if !force {
+		if sessions, ok := loadCachedSessions(cacheKey); ok {
+			return cloneSessions(sessions), nil
+		}
+	}
+
+	call, leader := beginListSessionsCall(cacheKey, force)
+	if !leader {
+		<-call.done
+		return cloneSessions(call.sessions), call.err
+	}
+
+	sessions, err := c.listSessionsUncached(config, branch)
+	if err == nil {
+		storeCachedSessions(cacheKey, sessions)
+	}
+	finishListSessionsCall(cacheKey, call, sessions, err)
+	return cloneSessions(sessions), err
+}
+
+func (c *Client) listSessionsUncached(config model.GitHubConfig, branch string) ([]model.Session, error) {
 	paths, err := c.listGitHubSessionPaths(config, branch)
 	if err != nil {
 		return nil, err
@@ -471,6 +520,7 @@ func (c *Client) CreateSession(config model.GitHubConfig, session model.Session)
 	if outcome != "pushed" && outcome != "skipped" {
 		return nil, fmt.Errorf("unexpected create outcome %q", outcome)
 	}
+	c.invalidateListSessionsCache(config, branch)
 
 	return &session, nil
 }
@@ -484,6 +534,7 @@ func (c *Client) UpdateSession(config model.GitHubConfig, session model.Session)
 	if _, err := c.upsertSession(config, branch, session); err != nil {
 		return nil, err
 	}
+	c.invalidateListSessionsCache(config, branch)
 
 	return &session, nil
 }
@@ -515,6 +566,9 @@ func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) 
 		"branch":  branch,
 		"sha":     sha,
 	})
+	if err == nil {
+		c.invalidateListSessionsCache(config, branch)
+	}
 	return err
 }
 
@@ -921,6 +975,89 @@ func (c *Client) resolveBranch(config model.GitHubConfig) (string, error) {
 	}
 
 	return repo.DefaultBranch, nil
+}
+
+func (c *Client) listSessionsCacheKey(config model.GitHubConfig, branch string) string {
+	return fmt.Sprintf("%s/%s/%s/%s", config.Owner, config.Repo, branch, tokenFingerprint(c.Token))
+}
+
+func (c *Client) invalidateListSessionsCache(config model.GitHubConfig, branch string) {
+	listSessionsCacheState.mu.Lock()
+	delete(listSessionsCacheState.entries, c.listSessionsCacheKey(config, branch))
+	listSessionsCacheState.mu.Unlock()
+}
+
+func tokenFingerprint(token string) string {
+	hasher := fnv.New64a()
+	_, _ = hasher.Write([]byte(token))
+	return fmt.Sprintf("%x", hasher.Sum64())
+}
+
+func cloneSessions(sessions []model.Session) []model.Session {
+	cloned := make([]model.Session, len(sessions))
+	for index, session := range sessions {
+		cloned[index] = session
+		if session.Techniques != nil {
+			cloned[index].Techniques = append([]string(nil), session.Techniques...)
+		}
+	}
+	return cloned
+}
+
+func loadCachedSessions(key string) ([]model.Session, bool) {
+	listSessionsCacheState.mu.Lock()
+	defer listSessionsCacheState.mu.Unlock()
+
+	entry, ok := listSessionsCacheState.entries[key]
+	if !ok {
+		return nil, false
+	}
+	if time.Since(entry.CachedAt) >= listSessionsCacheTTL {
+		delete(listSessionsCacheState.entries, key)
+		return nil, false
+	}
+
+	return cloneSessions(entry.Sessions), true
+}
+
+func storeCachedSessions(key string, sessions []model.Session) {
+	listSessionsCacheState.mu.Lock()
+	listSessionsCacheState.entries[key] = cachedSessionsEntry{
+		Sessions: cloneSessions(sessions),
+		CachedAt: time.Now(),
+	}
+	listSessionsCacheState.mu.Unlock()
+}
+
+func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
+	listSessionsCacheState.mu.Lock()
+	defer listSessionsCacheState.mu.Unlock()
+
+	if !force {
+		if call, ok := listSessionsCacheState.inflight[key]; ok {
+			return call, false
+		}
+	}
+
+	call := &listSessionsCall{done: make(chan struct{})}
+	listSessionsCacheState.inflight[key] = call
+	return call, true
+}
+
+func finishListSessionsCall(key string, call *listSessionsCall, sessions []model.Session, err error) {
+	listSessionsCacheState.mu.Lock()
+	call.sessions = cloneSessions(sessions)
+	call.err = err
+	delete(listSessionsCacheState.inflight, key)
+	close(call.done)
+	listSessionsCacheState.mu.Unlock()
+}
+
+func resetListSessionsCacheForTests() {
+	listSessionsCacheState.mu.Lock()
+	listSessionsCacheState.entries = make(map[string]cachedSessionsEntry)
+	listSessionsCacheState.inflight = make(map[string]*listSessionsCall)
+	listSessionsCacheState.mu.Unlock()
 }
 
 func (c *Client) apiRequest(method string, path string, body any) ([]byte, error) {

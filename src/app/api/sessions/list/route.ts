@@ -37,10 +37,14 @@ export async function GET(request: NextRequest) {
     const gitHubConfig = authzResult.config;
 
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
+      const searchParams = buildGitHubSearchParams(gitHubConfig);
+      if (request.nextUrl.searchParams.get('force') === '1') {
+        searchParams.set('force', '1');
+      }
       return proxyGoFunction(request, {
         path: '/api/go/sessions/list',
         method: 'GET',
-        searchParams: buildGitHubSearchParams(gitHubConfig),
+        searchParams,
       });
     }
 
