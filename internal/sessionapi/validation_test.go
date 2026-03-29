@@ -8,13 +8,25 @@ import (
 	"matmetrics/internal/model"
 )
 
-func validSession() model.Session {
-	return model.Session{
+func validSession(options ...func(*model.Session)) model.Session {
+	session := model.Session{
 		ID:         "session-1",
 		Date:       "2025-01-12",
 		Effort:     3,
 		Category:   model.CategoryTechnical,
 		Techniques: []string{"osoto-gari"},
+	}
+
+	for _, option := range options {
+		option(&session)
+	}
+
+	return session
+}
+
+func withVideoURL(videoURL string) func(*model.Session) {
+	return func(session *model.Session) {
+		session.VideoURL = videoURL
 	}
 }
 
@@ -79,8 +91,7 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			session := validSession()
-			session.VideoURL = tc.videoURL
+			session := validSession(withVideoURL(tc.videoURL))
 
 			err := ValidateSession(session)
 			if tc.wantErr == "" {
@@ -97,6 +108,14 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 				t.Fatalf("ValidateSession() error = %q, want %q", got, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestValidateSessionAllowsMissingVideoURL(t *testing.T) {
+	session := validSession()
+
+	if err := ValidateSession(session); err != nil {
+		t.Fatalf("ValidateSession() error = %v, want nil", err)
 	}
 }
 

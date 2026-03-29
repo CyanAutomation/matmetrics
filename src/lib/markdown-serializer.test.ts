@@ -135,6 +135,49 @@ test('Roundtrip preserves videoUrl when present', () => {
   assert.equal(parsed.videoUrl, 'https://example.com/videos/123');
 });
 
+test('sessionToMarkdown writes videoUrl in frontmatter when present', () => {
+  const markdown = sessionToMarkdown({
+    id: 'video-frontmatter-write',
+    date: '2026-03-23',
+    effort: 3,
+    category: 'Technical',
+    techniques: [],
+    videoUrl: 'https://example.com/videos/frontmatter',
+  });
+
+  assert.match(
+    markdown,
+    /videoUrl: ['"]https:\/\/example\.com\/videos\/frontmatter['"]/
+  );
+});
+
+test('markdownToSession reads videoUrl from frontmatter when present', () => {
+  const markdownWithVideoUrl = `---
+id: "video-frontmatter-read"
+date: "2026-03-23"
+effort: 2
+category: "Technical"
+videoUrl: "https://example.com/videos/frontmatter-read"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+Has video URL in frontmatter.
+
+## Notes
+
+Read test.`;
+
+  const parsed = markdownToSession(markdownWithVideoUrl);
+
+  assert.equal(parsed.videoUrl, 'https://example.com/videos/frontmatter-read');
+});
+
 test('markdown without videoUrl still parses', () => {
   const markdownWithoutVideoUrl = `---
 id: "no-video"
