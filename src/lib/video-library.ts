@@ -1,5 +1,4 @@
 import type { JudoSession } from '@/lib/types';
-import { isBlockedNetworkHostname } from '@/lib/network-safety';
 
 export const STARTER_VIDEO_ALLOWED_DOMAINS = [
   'youtube.com',
@@ -34,6 +33,43 @@ export interface VideoLinkCheckResult {
   checkedAt: string;
   httpStatus?: number;
   error?: string;
+}
+
+function isLikelyBlockedClientHostname(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (!normalized) {
+    return true;
+  }
+
+  if (
+    normalized === 'localhost' ||
+    normalized === 'metadata.google.internal' ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.localdomain') ||
+    normalized === '::1' ||
+    normalized === '0.0.0.0'
+  ) {
+    return true;
+  }
+
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(normalized)) {
+    const parts = normalized.split('.').map(Number);
+    const [a, b] = parts;
+
+    if (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function normalizeVideoDomainInput(input: string): string | null {
@@ -114,7 +150,7 @@ export function deriveVideoLibraryEntries(
       const parsedUrl = new URL(trimmedUrl);
       if (
         (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') ||
-        isBlockedNetworkHostname(parsedUrl.hostname)
+        isLikelyBlockedClientHostname(parsedUrl.hostname)
       ) {
         return {
           session,
