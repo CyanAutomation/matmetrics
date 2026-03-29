@@ -30,6 +30,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { GitHubConfig } from '@/lib/types';
+import {
+  runLoadGitHubSyncHistory,
+  SyncResultsDetailPane,
+  SyncResultsHistoryList,
+  SyncResultsMainPanel,
+  type GitHubSyncHistoryData,
+  type GitHubSyncSurfaceState,
+} from '@/components/github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
@@ -61,6 +69,12 @@ export function GitHubSettings() {
   const [isClearing, setIsClearing] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [syncHistoryState, setSyncHistoryState] = useState<
+    GitHubSyncSurfaceState<GitHubSyncHistoryData>
+  >({ status: 'idle' });
+  const [selectedHistoryPath, setSelectedHistoryPath] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -358,6 +372,29 @@ export function GitHubSettings() {
     }
   };
 
+  const handleLoadSyncHistory = async () => {
+    if (!owner || !repo) {
+      setSyncHistoryState({
+        status: 'error',
+        message: 'Add a repository owner and name before loading sync history.',
+      });
+      return;
+    }
+
+    await runLoadGitHubSyncHistory({
+      owner,
+      repo,
+      branch: branch.trim() || undefined,
+      getHeaders: getAuthHeaders,
+      onStateChange: (nextState) => {
+        setSyncHistoryState(nextState);
+        if (nextState.status === 'success') {
+          setSelectedHistoryPath(nextState.data.files[0]?.path ?? null);
+        }
+      },
+    });
+  };
+
   const controlState = deriveGitHubSettingsControlState({
     canUseGitHubSync,
     owner,
@@ -638,6 +675,66 @@ export function GitHubSettings() {
                 </>
               )}
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {isEnabled && (
+        <Card className="bg-card/95 shadow-sm">
+          <CardHeader className="bg-secondary/45">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Sync History & Results</CardTitle>
+                <CardDescription>
+                  Inspect sync results and per-file diagnostics.
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => void handleLoadSyncHistory()}
+                disabled={syncHistoryState.status === 'loading'}
+                className="gap-2"
+              >
+                {syncHistoryState.status === 'loading' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh history
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <SyncResultsMainPanel
+              state={syncHistoryState}
+              onRetry={() => void handleLoadSyncHistory()}
+              onRunSync={() => void handleBulkSync()}
+            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h4 className="mb-2 text-sm font-semibold">History list</h4>
+                <SyncResultsHistoryList
+                  state={syncHistoryState}
+                  selectedPath={selectedHistoryPath}
+                  onSelect={setSelectedHistoryPath}
+                  onRetry={() => void handleLoadSyncHistory()}
+                  onRunSync={() => void handleBulkSync()}
+                />
+              </div>
+              <div>
+                <h4 className="mb-2 text-sm font-semibold">Detail pane</h4>
+                <SyncResultsDetailPane
+                  state={syncHistoryState}
+                  selectedPath={selectedHistoryPath}
+                  onRetry={() => void handleLoadSyncHistory()}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
