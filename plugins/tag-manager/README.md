@@ -55,7 +55,7 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
 
 ### Operator/developer preflight checks
 
-Run these checks before manual validation to confirm discovery and contract-gate integrity:
+Run these checks before manual validation to confirm discovery and contract-gate integrity. Automated destructive confirmation + cancel coverage is enforced in `src/components/tag-manager.destructive.test.tsx` for machine-checkable safety criteria:
 
 ```bash
 npm test -- src/lib/plugins/plugin-contract-gate.test.ts
