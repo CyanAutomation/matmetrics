@@ -45,6 +45,7 @@ type PromptSettingsUiState = {
 };
 
 type PromptSettingsViewState = PromptSettingsUiState & {
+  loading: boolean;
   isLoadingSavedSettings: boolean;
   hasLoadError: boolean;
   isUsingDefaultProfile: boolean;
@@ -171,6 +172,7 @@ export function derivePromptSettingsViewState({
 
   return {
     ...uiState,
+    loading: canSavePreferences && !preferencesReady,
     isLoadingSavedSettings: canSavePreferences && !preferencesReady,
     hasLoadError: canSavePreferences && preferencesError !== null,
     isUsingDefaultProfile:

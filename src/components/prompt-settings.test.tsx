@@ -188,8 +188,25 @@ test('view state marks loading while saved settings are being fetched', () => {
     saveStatus: 'idle',
   });
 
+  const loading = state.loading;
+  assert.equal(loading, true);
   assert.equal(state.isLoadingSavedSettings, true);
   assert.equal(state.hasLoadError, false);
+});
+
+test('view state loading criterion is machine-checkable with explicit loading alias and anchor', () => {
+  const loadingState = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: false,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+
+  assert.equal(loadingState.loading, true);
+  assert.equal(loadingState.isLoadingSavedSettings, true);
 });
 
 test('view state surfaces empty/default profile guidance', () => {
