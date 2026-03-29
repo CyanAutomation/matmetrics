@@ -381,6 +381,19 @@ test('example panel renders with robust ux handling', () => {
             cancellation: true,
           },
         },
+        evidence: {
+          testFiles: [
+            'src/components/example-panel.test.tsx',
+            'src/tests/example-plugin-route.test.ts',
+            'src/lib/plugins/example-plugin.test.ts',
+          ],
+          uxCriteria: {
+            loadingStatePresent: ['src/components/example-panel.test.tsx'],
+            errorStateWithRecovery: ['src/components/example-panel.test.tsx'],
+            emptyStateWithCta: ['src/components/example-panel.test.tsx'],
+            destructiveActionSafety: ['src/components/example-panel.test.tsx'],
+          },
+        },
       } satisfies PluginManifestMaturityMetadata;
 
       const scorecardWithoutGoldTier = await scorePluginMaturity({
@@ -1117,6 +1130,156 @@ test('scorePluginMaturity counts src/lib/tags/service.test.ts as evidence for ta
         )
       );
       assert.ok(scorecard.categoryScores.test_coverage.earned >= 12);
+    }
+  );
+});
+
+test('scorePluginMaturity accepts explicit ux evidence without heuristic keywords in tests', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'README.md'),
+        '## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n',
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel behavior', () => {
+  assert.equal(true, true);
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            tier: 'silver',
+            notes: 'Reviewed with explicit evidence.',
+            lastReviewedAt: '2026-03-29',
+            uxCriteria: {
+              loadingStatePresent: true,
+            },
+            evidence: {
+              testFiles: ['src/components/example-panel.test.tsx'],
+              uxCriteria: {
+                loadingStatePresent: ['src/components/example-panel.test.tsx'],
+              },
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.equal(
+        scorecard.verificationDetails.uxCriteria.loadingStatePresent.source,
+        'explicit'
+      );
+      assert.equal(
+        scorecard.verificationDetails.uxCriteria.loadingStatePresent.verified,
+        true
+      );
+      assert.ok(scorecard.categoryScores.feature_quality.earned >= 17);
+    }
+  );
+});
+
+test('scorePluginMaturity exposes heuristic verification details when explicit evidence is absent', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'README.md'),
+        '## Usage\n\nRun it.\n\n## Verification\n\nnode --test\n',
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return null;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel loading state', () => {
+  assert.match('loading spinner', /loading/);
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            tier: 'bronze',
+            notes: 'Reviewed with fallback evidence.',
+            lastReviewedAt: '2026-03-29',
+            uxCriteria: {
+              loadingStatePresent: true,
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.equal(scorecard.verificationDetails.testEvidenceSource, 'heuristic');
+      assert.equal(
+        scorecard.verificationDetails.uxCriteria.loadingStatePresent.source,
+        'heuristic'
+      );
     }
   );
 });

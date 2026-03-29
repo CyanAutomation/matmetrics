@@ -285,6 +285,13 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
           cancellation: true,
         },
       },
+      evidence: {
+        testFiles: ['src/components/mature-plugin.test.tsx'],
+        uxCriteria: {
+          loadingStatePresent: ['src/components/mature-plugin.test.tsx'],
+          errorStateWithRecovery: ['src/components/mature-plugin.test.tsx'],
+        },
+      },
     },
     uiExtensions: [
       {
@@ -313,6 +320,10 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
       result.manifest.maturity?.uxCriteria?.destructiveActionSafety
         ?.cancellation,
       true
+    );
+    assert.equal(
+      result.manifest.maturity?.evidence?.testFiles?.[0],
+      'src/components/mature-plugin.test.tsx'
     );
   }
 });

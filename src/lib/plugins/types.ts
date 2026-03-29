@@ -85,6 +85,19 @@ export type PluginManifest = {
 
 export type PluginMaturityTier = 'bronze' | 'silver' | 'gold';
 
+export type PluginMaturityUxCriterion =
+  | 'loadingStatePresent'
+  | 'errorStateWithRecovery'
+  | 'emptyStateWithCta'
+  | 'destructiveActionSafety';
+
+export type PluginMaturityEvidenceSource = 'explicit' | 'heuristic' | 'none';
+
+export type PluginManifestMaturityEvidence = {
+  testFiles?: string[];
+  uxCriteria?: Partial<Record<PluginMaturityUxCriterion, string[]>>;
+};
+
 export type PluginManifestMaturityMetadata = {
   tier?: PluginMaturityTier;
   notes?: string;
@@ -101,10 +114,11 @@ export type PluginManifestMaturityMetadata = {
     emptyStateWithCta?: boolean;
     destructiveActionSafety?: {
       relevant?: boolean;
-      confirmation?: boolean;
-      cancellation?: boolean;
+        confirmation?: boolean;
+        cancellation?: boolean;
+      };
     };
-  };
+  evidence?: PluginManifestMaturityEvidence;
 };
 
 export type PluginMaturityCategory =
@@ -127,6 +141,22 @@ export type PluginMaturityScorecard = {
   reasons: string[];
   nextActions: string[];
   evidence: string[];
+  verificationDetails: {
+    testEvidenceSource: PluginMaturityEvidenceSource;
+    testEvidenceFiles: string[];
+    readmeSections: string[];
+    uxCriteria: Record<
+      PluginMaturityUxCriterion,
+      {
+        label: string;
+        relevant: boolean;
+        declared: boolean;
+        verified: boolean;
+        source: PluginMaturityEvidenceSource;
+        files: string[];
+      }
+    >;
+  };
   declaredTier?: PluginMaturityTier;
 };
 

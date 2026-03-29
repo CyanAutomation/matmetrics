@@ -20,6 +20,29 @@
         "confirmation": true,
         "cancellation": true
       }
+    },
+    "evidence": {
+      "testFiles": [
+        "plugins/github-sync/plugin.test.ts",
+        "plugins/github-sync/src/index.test.ts",
+        "src/lib/plugins/github-sync-plugin.test.ts",
+        "src/components/github-settings.ux.test.tsx",
+        "src/components/github-settings.destructive.test.tsx"
+      ],
+      "uxCriteria": {
+        "loadingStatePresent": [
+          "src/components/github-settings.ux.test.tsx"
+        ],
+        "errorStateWithRecovery": [
+          "src/components/github-settings.ux.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "src/components/github-settings.ux.test.tsx"
+        ],
+        "destructiveActionSafety": [
+          "src/components/github-settings.destructive.test.tsx"
+        ]
+      }
     }
   },
   "enabled": true,

@@ -22,6 +22,30 @@
         "confirmation": true,
         "cancellation": true
       }
+    },
+    "evidence": {
+      "testFiles": [
+        "plugins/log-doctor/plugin.test.ts",
+        "plugins/log-doctor/src/index.test.ts",
+        "plugins/log-doctor/src/components/log-doctor-state.test.ts",
+        "plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts",
+        "plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx"
+      ],
+      "uxCriteria": {
+        "loadingStatePresent": [
+          "plugins/log-doctor/src/components/log-doctor-state.test.ts"
+        ],
+        "errorStateWithRecovery": [
+          "plugins/log-doctor/src/components/log-doctor-state.test.ts",
+          "plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "plugins/log-doctor/src/components/log-doctor-state.test.ts"
+        ],
+        "destructiveActionSafety": [
+          "plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts"
+        ]
+      }
     }
   },
   "enabled": true,
