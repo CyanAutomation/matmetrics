@@ -17,8 +17,8 @@
       "emptyStateWithCta": false,
       "destructiveActionSafety": {
         "relevant": true,
-        "confirmation": false,
-        "cancellation": false
+        "confirmation": true,
+        "cancellation": true
       }
     }
   },

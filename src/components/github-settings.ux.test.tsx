@@ -8,18 +8,23 @@ const githubSettingsSource = readFileSync(
   'utf8'
 );
 
-test('GitHubSettings keeps explicit loading assertions for pending actions', () => {
+test('loading state exposes user-visible loading spinner label and disabled semantics', () => {
   assert.match(
     githubSettingsSource,
-    /isTesting|isSyncing|Loader2|Testing\.\.\.|Syncing\.\.\.|Loading…/i
+    /disabled=\{syncHistoryState\.status === 'loading'\}[\s\S]*?Loader2[\s\S]*?Loading…/i,
+    'loading state should disable control and show loading indicator text'
+  );
+
+  assert.match(
+    githubSettingsSource,
+    /\{isTesting \? \([\s\S]*?Loader2[\s\S]*?\{controlState\.testConnectionLabel\}[\s\S]*?\) :/i,
+    'loading state should show test button loading spinner and loading label'
   );
 });
 
-test('GitHubSettings includes an error plus recovery signal in one assertion context', () => {
+test('error messaging includes deterministic recovery guidance', () => {
   assert.match(
     githubSettingsSource,
     /Sync failed due to an unexpected server response\. Please try again\./i
   );
-
-});
 });
