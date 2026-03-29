@@ -12,7 +12,10 @@ function isMessageState(
 ): state is
   | Extract<GitHubSyncSurfaceState<GitHubSyncHistoryData>, { message: string }>
   | Extract<GitHubSyncSurfaceState<GitHubSyncHistoryData>, { status: 'error' }>
-  | Extract<GitHubSyncSurfaceState<GitHubSyncHistoryData>, { status: 'empty' }> {
+  | Extract<
+      GitHubSyncSurfaceState<GitHubSyncHistoryData>,
+      { status: 'empty' }
+    > {
   return 'message' in state;
 }
 
@@ -120,7 +123,10 @@ test('runLoadGitHubSyncHistory maps summary payload fields and warnings into suc
   assert.equal(successState.data.totalFiles, 2);
   assert.equal(successState.data.invalidFiles, 1);
   assert.equal(successState.data.files.length, 2);
-  assert.match(successState.warnings[0] ?? '', /1 file have validation issues/i);
+  assert.match(
+    successState.warnings[0] ?? '',
+    /1 file have validation issues/i
+  );
   assert.match(
     successState.warnings[1] ?? '',
     /data\/2026\/03\/20260301-matmetrics\.md: duplicate id/
@@ -141,32 +147,39 @@ test('runLoadGitHubSyncHistory supports retry callback behavior by allowing a se
     });
   };
 
-  await runLoad(async () =>
-    new Response(JSON.stringify({ message: 'Temporary upstream outage' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  );
-
-  await runLoad(async () =>
-    new Response(
-      JSON.stringify({
-        message: 'Sync history loaded.',
-        summary: { totalFiles: 1, invalidFiles: 0 },
-        files: [
-          {
-            path: 'data/2026/03/20260303-matmetrics.md',
-            status: 'valid',
-            errors: [],
-          },
-        ],
-      }),
-      {
-        status: 200,
+  await runLoad(
+    async () =>
+      new Response(JSON.stringify({ message: 'Temporary upstream outage' }), {
+        status: 503,
         headers: { 'Content-Type': 'application/json' },
-      }
-    )
+      })
   );
 
-  assert.deepEqual(failureThenRetry, ['loading', 'error', 'loading', 'success']);
+  await runLoad(
+    async () =>
+      new Response(
+        JSON.stringify({
+          message: 'Sync history loaded.',
+          summary: { totalFiles: 1, invalidFiles: 0 },
+          files: [
+            {
+              path: 'data/2026/03/20260303-matmetrics.md',
+              status: 'valid',
+              errors: [],
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+  );
+
+  assert.deepEqual(failureThenRetry, [
+    'loading',
+    'error',
+    'loading',
+    'success',
+  ]);
 });
