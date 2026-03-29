@@ -68,6 +68,40 @@ export function isSessionUpdateConflictError(
   return error instanceof SessionUpdateConflictError;
 }
 
+export class SessionNotFoundError extends Error {
+  readonly code = 'SESSION_NOT_FOUND';
+  readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super(`Session with ID ${sessionId} not found`);
+    this.name = 'SessionNotFoundError';
+    this.sessionId = sessionId;
+  }
+}
+
+export function isSessionNotFoundError(
+  error: unknown
+): error is SessionNotFoundError {
+  return error instanceof SessionNotFoundError;
+}
+
+export class SessionLookupOperationalError extends Error {
+  readonly code = 'SESSION_LOOKUP_OPERATIONAL_ERROR';
+  readonly sessionId: string;
+
+  constructor(sessionId: string, message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'SessionLookupOperationalError';
+    this.sessionId = sessionId;
+  }
+}
+
+export function isSessionLookupOperationalError(
+  error: unknown
+): error is SessionLookupOperationalError {
+  return error instanceof SessionLookupOperationalError;
+}
+
 function getDataDir(): string {
   return dataDir;
 }
@@ -817,7 +851,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
   // Find the session by ID
   const existingPath = await findSessionFileById(session.id);
   if (!existingPath) {
-    throw new Error(`Session with ID ${session.id} not found`);
+    throw new SessionNotFoundError(session.id);
   }
   await ensureExistingPathWithinDataDir(existingPath);
 
@@ -920,7 +954,7 @@ export async function updateSession(session: JudoSession): Promise<string> {
 export async function deleteSession(id: string): Promise<void> {
   const initialPath = await findSessionFileById(id);
   if (!initialPath) {
-    throw new Error(`Session with ID ${id} not found`);
+    throw new SessionNotFoundError(id);
   }
 
   await ensureExistingPathWithinDataDir(initialPath);
@@ -980,74 +1014,146 @@ export async function findSessionFileById(id: string): Promise<string | null> {
         matchingPaths.add(indexedRecord.path);
       }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        console.warn(`Failed to validate indexed session for ${safeId}`, error);
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        // Stale index record; continue to full scan.
+      } else if (
+        error instanceof Error &&
+        error.message.includes('escapes data directory')
+      ) {
+        console.warn(`Ignoring unsafe index entry for ${safeId}`, error);
+      } else {
+        throw new SessionLookupOperationalError(
+          safeId,
+          `Failed to validate indexed session for ${safeId}`,
+          { cause: error }
+        );
       }
     }
   }
 
+  const rootDir = getDataDir();
+  let years: string[];
   try {
-    const rootDir = getDataDir();
-    const years = await fs.readdir(rootDir);
+    years = await fs.readdir(rootDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw new SessionLookupOperationalError(
+      safeId,
+      `Failed to scan session directory for ${safeId}`,
+      { cause: error }
+    );
+  }
 
-    for (const year of years) {
-      if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
-      const yearPath = path.join(rootDir, year);
-      let safeYearPath: string;
-      try {
-        safeYearPath = await ensureNonSymlinkDirectory(yearPath);
-      } catch {
+  for (const year of years) {
+    if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
+    const yearPath = path.join(rootDir, year);
+    let safeYearPath: string;
+    try {
+      safeYearPath = await ensureNonSymlinkDirectory(yearPath);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.startsWith('Unsafe session directory:') ||
+          error.message.includes('escapes data directory'))
+      ) {
         continue;
       }
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        continue;
+      }
+      throw new SessionLookupOperationalError(
+        safeId,
+        `Failed to inspect session year directory ${yearPath}`,
+        { cause: error }
+      );
+    }
 
-      const months = await fs.readdir(safeYearPath);
-      for (const month of months) {
-        if (!isMonthDirName(month)) continue;
-        const monthPath = path.join(safeYearPath, month);
-        let safeMonthPath: string;
-        try {
-          safeMonthPath = await ensureNonSymlinkDirectory(monthPath);
-        } catch {
+    let months: string[];
+    try {
+      months = await fs.readdir(safeYearPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        continue;
+      }
+      throw new SessionLookupOperationalError(
+        safeId,
+        `Failed to read session year directory ${safeYearPath}`,
+        { cause: error }
+      );
+    }
+    for (const month of months) {
+      if (!isMonthDirName(month)) continue;
+      const monthPath = path.join(safeYearPath, month);
+      let safeMonthPath: string;
+      try {
+        safeMonthPath = await ensureNonSymlinkDirectory(monthPath);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.startsWith('Unsafe session directory:') ||
+            error.message.includes('escapes data directory'))
+        ) {
           continue;
         }
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue;
+        }
+        throw new SessionLookupOperationalError(
+          safeId,
+          `Failed to inspect session month directory ${monthPath}`,
+          { cause: error }
+        );
+      }
 
-        const files = await fs.readdir(safeMonthPath);
-        for (const file of files) {
-          if (!file.endsWith('.md')) continue;
-          try {
-            const filePath = await ensureExistingPathWithinDataDir(
-              path.join(safeMonthPath, file)
-            );
-            const markdown = await fs.readFile(filePath, 'utf-8');
-            const parsedSession = markdownToSession(markdown);
-            if (parsedSession.id === safeId) {
-              matchingPaths.add(filePath);
-            }
-          } catch {
-            // Skip files that can't be parsed
+      let files: string[];
+      try {
+        files = await fs.readdir(safeMonthPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue;
+        }
+        throw new SessionLookupOperationalError(
+          safeId,
+          `Failed to read session month directory ${safeMonthPath}`,
+          { cause: error }
+        );
+      }
+      for (const file of files) {
+        if (!file.endsWith('.md')) continue;
+        try {
+          const filePath = await ensureExistingPathWithinDataDir(
+            path.join(safeMonthPath, file)
+          );
+          const markdown = await fs.readFile(filePath, 'utf-8');
+          const parsedSession = markdownToSession(markdown);
+          if (parsedSession.id === safeId) {
+            matchingPaths.add(filePath);
           }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            continue;
+          }
+          throw new SessionLookupOperationalError(
+            safeId,
+            `Failed while scanning session file ${path.join(safeMonthPath, file)}`,
+            { cause: error }
+          );
         }
       }
     }
+  }
 
-    const uniqueMatches = [...matchingPaths].sort();
-    if (uniqueMatches.length === 0) {
-      return null;
-    }
-    if (uniqueMatches.length === 1) {
-      return uniqueMatches[0];
-    }
-    throw new DuplicateSessionIdError(safeId, uniqueMatches);
-  } catch (e) {
-    if (isDuplicateSessionIdError(e)) {
-      throw e;
-    }
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-      return null;
-    }
-    console.error('Error finding session file by ID', e);
+  const uniqueMatches = [...matchingPaths].sort();
+  if (uniqueMatches.length === 0) {
     return null;
   }
+  if (uniqueMatches.length === 1) {
+    return uniqueMatches[0];
+  }
+  throw new DuplicateSessionIdError(safeId, uniqueMatches);
 }
 
 /**

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JudoSession, GitHubConfig } from '@/lib/types';
 import {
   deleteSessionForConfig,
+  isSessionNotFoundStorageError,
   normalizeGitHubConfig,
   readSessionByIdForConfig,
   updateSessionForConfig,
@@ -167,20 +168,6 @@ function validateDuration(
   return { valid: true, duration: value as number };
 }
 
-function isSessionNotFoundError(error: unknown): boolean {
-  if (error instanceof Error) {
-    return (
-      /Session with ID .* not found/.test(error.message) ||
-      /GitHub session not found/.test(error.message)
-    );
-  }
-
-  if (typeof error === 'string') {
-    return /Session with ID .* not found/.test(error);
-  }
-
-  return false;
-}
 
 /**
  * GET /api/sessions/[id]
@@ -376,7 +363,7 @@ export async function PUT(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
-    if (isSessionNotFoundError(error)) {
+    if (isSessionNotFoundStorageError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     if (isDuplicateSessionIdError(error)) {
@@ -437,7 +424,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
-    if (isSessionNotFoundError(error)) {
+    if (isSessionNotFoundStorageError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     if (isDuplicateSessionIdError(error)) {

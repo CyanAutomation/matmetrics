@@ -3,6 +3,8 @@ import {
   createSession as createLocalSession,
   deleteSession as deleteLocalSession,
   findSessionFileById as findLocalSessionFileById,
+  isSessionLookupOperationalError as isLocalSessionLookupOperationalError,
+  isSessionNotFoundError as isLocalSessionNotFoundError,
   listSessions as listLocalSessions,
   updateSession as updateLocalSession,
 } from './file-storage';
@@ -120,6 +122,17 @@ export function shouldUseGitHubStorage(
   config: GitHubConfig | undefined
 ): config is GitHubConfig {
   return !!config && isGitHubConfigured();
+}
+
+export function isSessionNotFoundStorageError(error: unknown): boolean {
+  return (
+    isLocalSessionNotFoundError(error) ||
+    (error instanceof Error && /GitHub session not found/.test(error.message))
+  );
+}
+
+export function isSessionOperationalStorageError(error: unknown): boolean {
+  return isLocalSessionLookupOperationalError(error);
 }
 
 async function readGitHubFileContent(
