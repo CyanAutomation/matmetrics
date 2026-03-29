@@ -365,28 +365,83 @@ test('updateSession releases same-path lock when commit rename fails', async () 
   });
 });
 
-test('updateSession reclaims stale same-path lock and succeeds', async () => {
+test('updateSession does not reclaim active same-path lock even when stale-by-age', async () => {
   await withTempDataDir(async () => {
     const session = makeSession({
       id: 'session-stale-lock',
       date: '2025-01-10',
-      notes: 'before stale lock reclaim',
+      notes: 'before stale active lock conflict',
     });
     const sessionPath = await createSession(session);
     const lockPath = `${sessionPath}.lock`;
 
-    await fs.writeFile(lockPath, `${process.pid}\n`, 'utf-8');
+    await fs.writeFile(
+      lockPath,
+      `${process.pid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
     const staleAt = new Date(Date.now() - 5000);
     await utimes(lockPath, staleAt, staleAt);
 
+    await assert.rejects(
+      updateSession({
+        ...session,
+        notes: 'should still be blocked by active stale lock',
+      }),
+      SessionUpdateConflictError
+    );
+  });
+});
+
+test('updateSession reclaims same-path lock when owner PID is dead', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-dead-pid-lock',
+      date: '2025-01-10',
+      notes: 'before dead pid lock reclaim',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+    const deadPid = 999999;
+
+    await fs.writeFile(
+      lockPath,
+      `${deadPid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
+
     const updatedPath = await updateSession({
       ...session,
-      notes: 'after stale lock reclaim',
+      notes: 'after dead pid lock reclaim',
     });
 
     assert.equal(updatedPath, sessionPath);
     const markdown = await readFile(sessionPath, 'utf8');
-    assert.match(markdown, /after stale lock reclaim/);
+    assert.match(markdown, /after dead pid lock reclaim/);
+    await assert.rejects(access(lockPath));
+  });
+});
+
+test('updateSession reclaims malformed same-path lock metadata', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-malformed-lock',
+      date: '2025-01-10',
+      notes: 'before malformed lock reclaim',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+
+    await fs.writeFile(lockPath, `malformed-lock-token\n`, 'utf-8');
+
+    const updatedPath = await updateSession({
+      ...session,
+      notes: 'after malformed lock reclaim',
+    });
+
+    assert.equal(updatedPath, sessionPath);
+    const markdown = await readFile(sessionPath, 'utf8');
+    assert.match(markdown, /after malformed lock reclaim/);
     await assert.rejects(access(lockPath));
   });
 });
@@ -401,7 +456,11 @@ test('updateSession keeps conflict behavior when same-path lock is active', asyn
     const sessionPath = await createSession(session);
     const lockPath = `${sessionPath}.lock`;
 
-    await fs.writeFile(lockPath, `${process.pid}\n`, 'utf-8');
+    await fs.writeFile(
+      lockPath,
+      `${process.pid}:${crypto.randomUUID()}:${Date.now()}\n`,
+      'utf-8'
+    );
 
     await assert.rejects(
       updateSession({
