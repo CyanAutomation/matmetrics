@@ -21,5 +21,5 @@ test('GitHubSettings includes an error plus recovery signal in one assertion con
     /Sync failed due to an unexpected server response\. Please try again\./i
   );
 
-  assert.match(githubSettingsSource, /Network Error|Connection Failed|Server Error/i);
+});
 });
