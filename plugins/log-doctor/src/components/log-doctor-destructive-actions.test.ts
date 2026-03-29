@@ -48,13 +48,11 @@ test('canceling reset confirmation does not mutate diagnostics state', () => {
   };
 
   const cancelResetResolution = resolveResetDiagnosticsSnapshot(current, false);
-  const cancelConfirmed = false;
 
-  assert.equal(cancelConfirmed, false, 'cancel keeps reset confirmation closed');
   assert.equal(
     cancelResetResolution.previous,
     null,
-    'cancelled reset does not create undo snapshot'
+    'cancel keeps reset confirmation closed'
   );
   assert.equal(
     cancelResetResolution.next,
@@ -82,15 +80,9 @@ test('confirming reset returns empty state and keeps undo snapshot', () => {
 
   const confirmResetResolution = resolveResetDiagnosticsSnapshot(current, true);
   const empty = createEmptyDiagnosticsSnapshot();
-  const resetConfirmationAccepted = true;
   const destructiveResetKeepsUndoSnapshot =
     confirmResetResolution.previous !== null;
 
-  assert.equal(
-    resetConfirmationAccepted,
-    true,
-    'confirmation accepts destructive reset'
-  );
   assert.deepEqual(
     confirmResetResolution.next,
     empty,
@@ -103,10 +95,12 @@ test('confirming reset returns empty state and keeps undo snapshot', () => {
   );
   assert.deepEqual(
     confirmResetResolution.previous?.selectedPaths,
-    current.selectedPaths
+    current.selectedPaths,
+    'confirmation keeps undo snapshot values for reset recovery'
   );
-  assert.notEqual(
+  assert.notStrictEqual(
     confirmResetResolution.previous?.selectedPaths,
-    current.selectedPaths
+    current.selectedPaths,
+    'confirmation copies undo snapshot array for destructive reset isolation'
   );
 });
