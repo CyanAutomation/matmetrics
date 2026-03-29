@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-03-29T19:54:15.793Z",
+  "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
+  "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
+  "cacheKey": "aa8ae027193549f37f41c783fda662b3cfdd79939864cfaa6fcb07658fc03a30",
+  "plugins": [
+    {
+      "id": "github-sync",
+      "score": 91,
+      "tier": "silver",
+      "declaredTier": "bronze",
+      "manifestLastReviewedAt": "2026-03-29",
+      "manifestEvidenceHash": "922f40246310a4a73fe296233330c2b96c186964fe09a0a5904f901e5f7f7cc0"
+    },
+    {
+      "id": "prompt-settings",
+      "score": 91,
+      "tier": "silver",
+      "declaredTier": "bronze",
+      "manifestLastReviewedAt": "2026-03-24",
+      "manifestEvidenceHash": "f9bb1a504895ded1d34ffe5779d2d19f241c8cecf030255d8eae3a894e8cc11f"
+    },
+    {
+      "id": "tag-manager",
+      "score": 93,
+      "tier": "silver",
+      "declaredTier": "bronze",
+      "manifestLastReviewedAt": "2026-03-24",
+      "manifestEvidenceHash": "843136a6cd05072e90c7f44a3af9b970bfc5baa9572d93850e01b7ffa672544f"
+    }
+  ]
+}
