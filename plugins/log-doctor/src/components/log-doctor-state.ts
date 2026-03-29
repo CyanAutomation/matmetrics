@@ -54,12 +54,26 @@ export type LogDoctorUiState = {
   message: string;
 };
 
+export interface AuditSessionResult {
+  sessionId: string;
+  sessionDate: string;
+  flags: import('@/lib/types').AuditFlag[];
+  reviewedAt?: string;
+  ignoredRules: import('@/lib/types').AuditFlagCode[];
+}
+
+export interface AuditRunResult {
+  sessions: AuditSessionResult[];
+  ranAt: string; // ISO timestamp
+}
+
 export type DiagnosticsSnapshot = {
   scanResult: ScanResult | null;
   fixResult: FixResult | null;
   selectedPaths: string[];
   uiState: LogDoctorUiState;
   errorMessage: string | null;
+  auditResult: AuditRunResult | null;
 };
 
 const ABORTED_REQUEST_REASON = 'Request canceled';
@@ -204,6 +218,7 @@ export const createEmptyDiagnosticsSnapshot = (): DiagnosticsSnapshot => ({
   selectedPaths: [],
   uiState: createUiState('scan', 'idle'),
   errorMessage: null,
+  auditResult: null,
 });
 
 export const canConfirmApplyFixes = (value: string): boolean =>

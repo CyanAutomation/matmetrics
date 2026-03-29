@@ -78,6 +78,8 @@ export interface UserPreferences {
   transformerPrompt: string;
   gitHub: GitHubSettings;
   migratedLocalSettingsAt?: string;
+  sessionAudits?: Record<string, SessionAudit>; // sessionId -> audit state
+  auditConfig?: AuditConfig;
 }
 
 export interface AuthenticatedUser {
@@ -86,3 +88,64 @@ export interface AuthenticatedUser {
   displayName: string | null;
   photoURL: string | null;
 }
+
+/**
+ * Session audit: data quality checks and user review state
+ */
+export type AuditFlagCode =
+  | 'no_techniques_high_effort'
+  | 'empty_description'
+  | 'empty_notes'
+  | 'duration_outlier';
+
+export type AuditSeverity = 'info' | 'warning' | 'error';
+
+export interface AuditFlag {
+  code: AuditFlagCode;
+  severity: AuditSeverity;
+  message: string;
+}
+
+export interface AuditRuleConfig {
+  code: AuditFlagCode;
+  enabled: boolean;
+  effortThreshold?: number; // for no_techniques_high_effort: effort level that triggers (default 4)
+  durationStdDevMultiplier?: number; // for duration_outlier: std dev threshold (default 2)
+}
+
+export interface SessionAudit {
+  sessionId: string;
+  flags: AuditFlag[];
+  reviewedAt?: string; // ISO timestamp when user marked as reviewed
+  ignoredRules: AuditFlagCode[]; // rules user chose to ignore for this session
+}
+
+export interface AuditConfig {
+  rules: AuditRuleConfig[];
+}
+
+/**
+ * Default audit configuration
+ */
+export const DEFAULT_AUDIT_CONFIG: AuditConfig = {
+  rules: [
+    {
+      code: 'no_techniques_high_effort',
+      enabled: true,
+      effortThreshold: 4,
+    },
+    {
+      code: 'empty_description',
+      enabled: true,
+    },
+    {
+      code: 'empty_notes',
+      enabled: true,
+    },
+    {
+      code: 'duration_outlier',
+      enabled: true,
+      durationStdDevMultiplier: 2,
+    },
+  ],
+};

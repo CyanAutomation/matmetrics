@@ -11,7 +11,14 @@ import {
 import { DEFAULT_TRANSFORMER_PROMPT } from './ai-prompts';
 import { getFirebaseDb } from './firebase-client';
 import { getScopedStorageKey } from './client-identity';
-import type { GitHubConfig, GitHubSettings, UserPreferences } from './types';
+import type {
+  AuditConfig,
+  GitHubConfig,
+  GitHubSettings,
+  SessionAudit,
+  UserPreferences,
+} from './types';
+import { DEFAULT_AUDIT_CONFIG } from './types';
 
 export { DEFAULT_TRANSFORMER_PROMPT };
 
@@ -28,6 +35,8 @@ export const DEFAULT_GITHUB_SETTINGS: GitHubSettings = {
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   transformerPrompt: DEFAULT_TRANSFORMER_PROMPT,
   gitHub: DEFAULT_GITHUB_SETTINGS,
+  sessionAudits: {},
+  auditConfig: DEFAULT_AUDIT_CONFIG,
 };
 
 type PreferencesListener = (preferences: UserPreferences) => void;
@@ -58,6 +67,10 @@ function cloneDefaults(): UserPreferences {
   return {
     transformerPrompt: DEFAULT_TRANSFORMER_PROMPT,
     gitHub: { ...DEFAULT_GITHUB_SETTINGS },
+    sessionAudits: {},
+    auditConfig: {
+      rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
+    },
   };
 }
 
@@ -100,6 +113,81 @@ function normalizeGitHubSettings(value: unknown): GitHubSettings {
   };
 }
 
+function normalizeAuditConfig(value: unknown): AuditConfig {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('rules' in value) ||
+    !Array.isArray((value as Record<string, unknown>).rules)
+  ) {
+    return {
+      rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
+    };
+  }
+
+  const input = value as Partial<AuditConfig>;
+  return {
+    rules: (input.rules || []).map((rule) => ({
+      code:
+        rule?.code &&
+        [
+          'no_techniques_high_effort',
+          'empty_description',
+          'empty_notes',
+          'duration_outlier',
+        ].includes(rule.code)
+          ? rule.code
+          : 'no_techniques_high_effort',
+      enabled: rule?.enabled !== false,
+      ...(typeof rule?.effortThreshold === 'number'
+        ? { effortThreshold: rule.effortThreshold }
+        : {}),
+      ...(typeof rule?.durationStdDevMultiplier === 'number'
+        ? { durationStdDevMultiplier: rule.durationStdDevMultiplier }
+        : {}),
+    })),
+  };
+}
+
+function normalizeSessionAudits(
+  value: unknown
+): Record<string, SessionAudit> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const audits: Record<string, SessionAudit> = {};
+  const input = value as Record<string, unknown>;
+
+  for (const [sessionId, auditData] of Object.entries(input)) {
+    if (
+      auditData &&
+      typeof auditData === 'object' &&
+      'flags' in auditData &&
+      Array.isArray((auditData as Record<string, unknown>).flags)
+    ) {
+      const audit = auditData as Partial<SessionAudit>;
+      audits[sessionId] = {
+        sessionId,
+        flags: (audit.flags || []).map((flag) => ({
+          code: flag?.code || 'no_techniques_high_effort',
+          severity: ['info', 'warning', 'error'].includes(flag?.severity)
+            ? (flag.severity as 'info' | 'warning' | 'error')
+            : 'warning',
+          message: typeof flag?.message === 'string' ? flag.message : '',
+        })),
+        reviewedAt:
+          typeof audit.reviewedAt === 'string' ? audit.reviewedAt : undefined,
+        ignoredRules: Array.isArray(audit.ignoredRules)
+          ? audit.ignoredRules.filter((code) => typeof code === 'string')
+          : [],
+      };
+    }
+  }
+
+  return audits;
+}
+
 function normalizePreferences(value: unknown): UserPreferences {
   if (!value || typeof value !== 'object') {
     return cloneDefaults();
@@ -118,6 +206,8 @@ function normalizePreferences(value: unknown): UserPreferences {
       typeof input.migratedLocalSettingsAt === 'string'
         ? input.migratedLocalSettingsAt
         : undefined,
+    sessionAudits: normalizeSessionAudits(input.sessionAudits),
+    auditConfig: normalizeAuditConfig(input.auditConfig),
   };
 }
 
@@ -255,6 +345,17 @@ export async function initializeUserPreferences(
       ...(mergedPreferences.migratedLocalSettingsAt
         ? { migratedLocalSettingsAt: mergedPreferences.migratedLocalSettingsAt }
         : {}),
+      ...(mergedPreferences.sessionAudits &&
+      Object.keys(mergedPreferences.sessionAudits).length > 0
+        ? {
+            sessionAudits: serializeSessionAudits(
+              mergedPreferences.sessionAudits
+            ),
+          }
+        : {}),
+      ...(mergedPreferences.auditConfig
+        ? { auditConfig: serializeAuditConfig(mergedPreferences.auditConfig) }
+        : {}),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -352,4 +453,142 @@ export async function clearGitHubConfigPreference(uid: string): Promise<void> {
       { merge: true }
     );
   });
+}
+
+/**
+ * Audit Management
+ */
+
+function serializeAuditConfig(config: AuditConfig): Record<string, unknown> {
+  return {
+    rules: config.rules.map((rule) => ({
+      code: rule.code,
+      enabled: rule.enabled,
+      ...(typeof rule.effortThreshold === 'number'
+        ? { effortThreshold: rule.effortThreshold }
+        : {}),
+      ...(typeof rule.durationStdDevMultiplier === 'number'
+        ? { durationStdDevMultiplier: rule.durationStdDevMultiplier }
+        : {}),
+    })),
+  };
+}
+
+function serializeSessionAudits(
+  audits: Record<string, SessionAudit>
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [sessionId, audit] of Object.entries(audits)) {
+    result[sessionId] = {
+      sessionId: audit.sessionId,
+      flags: audit.flags.map((flag) => ({
+        code: flag.code,
+        severity: flag.severity,
+        message: flag.message,
+      })),
+      ...(audit.reviewedAt ? { reviewedAt: audit.reviewedAt } : {}),
+      ignoredRules: audit.ignoredRules,
+    };
+  }
+
+  return result;
+}
+
+export function getSessionAudit(sessionId: string): SessionAudit | undefined {
+  return currentPreferences.sessionAudits?.[sessionId];
+}
+
+export async function saveSessionAudit(
+  uid: string,
+  sessionId: string,
+  audit: SessionAudit
+): Promise<void> {
+  const audits = currentPreferences.sessionAudits || {};
+  const updated = {
+    ...audits,
+    [sessionId]: audit,
+  };
+
+  currentPreferences = {
+    ...currentPreferences,
+    sessionAudits: updated,
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    {
+      sessionAudits: serializeSessionAudits(updated),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function deleteSessionAudit(
+  uid: string,
+  sessionId: string
+): Promise<void> {
+  const audits = { ...currentPreferences.sessionAudits };
+  delete audits[sessionId];
+
+  currentPreferences = {
+    ...currentPreferences,
+    sessionAudits: audits,
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  // Update Firestore with the remaining audits or delete the field if empty
+  if (Object.keys(audits).length === 0) {
+    await updateDoc(getPreferencesDocRef(uid), {
+      sessionAudits: deleteField(),
+      updatedAt: serverTimestamp(),
+    }).catch(async () => {
+      await setDoc(
+        getPreferencesDocRef(uid),
+        {
+          sessionAudits: {},
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+  } else {
+    await setDoc(
+      getPreferencesDocRef(uid),
+      {
+        sessionAudits: serializeSessionAudits(audits),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+}
+
+export function getAuditConfig(): AuditConfig {
+  return currentPreferences.auditConfig || DEFAULT_AUDIT_CONFIG;
+}
+
+export async function saveAuditConfig(
+  uid: string,
+  config: AuditConfig
+): Promise<void> {
+  currentPreferences = {
+    ...currentPreferences,
+    auditConfig: config,
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    {
+      auditConfig: serializeAuditConfig(config),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
