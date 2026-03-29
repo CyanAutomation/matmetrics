@@ -26,7 +26,18 @@ test('TagManager keeps explicit loading flags for async tag operations', () => {
   );
   assert.match(
     source,
+    /\bisApplyingMerge\b/,
+    'Tag Manager should keep a loading signal during merge apply.'
+  );
+  assert.match(
+    source,
+    /\bisAnalyzingDelete\b/,
+    'Tag Manager should keep a loading signal during delete analysis.'
+  );
+  assert.match(
+    source,
     /\bisApplyingDelete\b/,
     'Tag Manager should keep a loading signal during delete apply.'
   );
+});
 });
