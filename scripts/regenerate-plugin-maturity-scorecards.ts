@@ -86,7 +86,7 @@ const buildArtifact = async (): Promise<ScoreArtifact> => {
             declaredTier: scorecard.declaredTier,
             manifestLastReviewedAt:
               validation.manifest.maturity?.lastReviewedAt ?? undefined,
-            manifestEvidenceHash: digest(validation.manifest.maturity),
+            manifestEvidenceHash: digest(validation.manifest.maturity ?? null),
           } satisfies ScoreArtifactRow;
         }
       )
