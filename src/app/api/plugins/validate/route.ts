@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
 
     const pluginRows = await Promise.all(
       manifests.map(async (entry) => {
-        const validation = toValidationTable(entry.manifest);
+        const validation = toValidationTable(entry.manifest, {
+          validateDeclaredComponentsAtRuntime: false,
+        });
         const gateResult = await runPluginContractGate({
           pluginsRoot,
           directoryName: entry.directoryName,

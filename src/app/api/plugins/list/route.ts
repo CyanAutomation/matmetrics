@@ -76,7 +76,9 @@ export async function GET(request: NextRequest) {
         );
         const { manifest: processedManifest, autoDisabledWithWarnings } =
           autoDisablePluginIfNeeded(effectiveManifest);
-        const validation = toValidationTable(processedManifest);
+        const validation = toValidationTable(processedManifest, {
+          validateDeclaredComponentsAtRuntime: false,
+        });
 
         const gateResult = await runPluginContractGate({
           pluginsRoot,

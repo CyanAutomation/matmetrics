@@ -88,7 +88,9 @@ export async function POST(request: NextRequest) {
       enabled,
     };
 
-    const validationTable = toValidationTable(effectiveManifest);
+    const validationTable = toValidationTable(effectiveManifest, {
+      validateDeclaredComponentsAtRuntime: false,
+    });
     if (!validationTable.isValid) {
       return NextResponse.json(
         {
