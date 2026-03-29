@@ -7,8 +7,39 @@ import test from 'node:test';
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
 import type {
   PluginManifest,
+  PluginManifestMaturityMetadata,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
+
+type FeatureUxCriterion = keyof NonNullable<
+  PluginManifestMaturityMetadata['uxCriteria']
+>;
+
+type Assert<T extends true> = T;
+type IsAssignable<From, To> = [From] extends [To] ? true : false;
+
+// Compile-time regression guard for the maturity criteria filter.
+// If the predicate loses its type guard, this widens to string[] and the
+// assertions below fail during typecheck.
+const allCriteriaForTypeCheck = [
+  'loadingStatePresent',
+  'errorStateWithRecovery',
+  'emptyStateWithCta',
+  'destructiveActionSafety',
+] as const satisfies readonly FeatureUxCriterion[];
+const destructiveActionRelevantForTypeCheck = true;
+const criteriaToEvaluateForTypeCheck = allCriteriaForTypeCheck.filter(
+  (criterion): criterion is FeatureUxCriterion =>
+    criterion !== 'destructiveActionSafety' ||
+    destructiveActionRelevantForTypeCheck
+);
+const _criteriaMustBeFeatureUxCriterionArray: FeatureUxCriterion[] =
+  criteriaToEvaluateForTypeCheck;
+type _criteriaMustNotWidenToStringArray = Assert<
+  IsAssignable<string[], typeof criteriaToEvaluateForTypeCheck> extends true
+    ? false
+    : true
+>;
 
 const baseManifest: PluginManifest = {
   id: 'example-plugin',
