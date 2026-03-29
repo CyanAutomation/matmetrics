@@ -137,6 +137,58 @@ Older file format.
 	}
 }
 
+func TestSessionToMarkdownWritesVideoURLFrontmatter(t *testing.T) {
+	session := model.Session{
+		ID:         "write-video-frontmatter",
+		Date:       "2026-03-24",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+		VideoURL:   "https://example.com/videos/frontmatter",
+	}
+
+	rendered, err := SessionToMarkdown(session)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	if !strings.Contains(rendered, `videoUrl: "https://example.com/videos/frontmatter"`) {
+		t.Fatalf("expected rendered markdown to include videoUrl frontmatter, got %q", rendered)
+	}
+}
+
+func TestMarkdownToSessionRejectsInvalidVideoURL(t *testing.T) {
+	input := `---
+id: "invalid-video"
+date: "2026-03-24"
+effort: 3
+category: "Technical"
+videoUrl: "ftp://example.com/video.mp4"
+---
+
+# 2026-03-24 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+
+## Session Description
+
+Invalid video URL.
+
+## Notes
+
+Should fail validation.
+`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatalf("MarkdownToSession() error = nil, want non-nil")
+	}
+	if got, want := err.Error(), "invalid videoUrl: protocol must be http or https"; got != want {
+		t.Fatalf("unexpected error = %q, want %q", got, want)
+	}
+}
+
 func TestMarkdownParserHandlesEndOfFileWithoutTrailingNewline(t *testing.T) {
 	input := `---
 id: "edge-1"
