@@ -1,30 +1,41 @@
 # Plugin Maturity Score Changelog (2026-03-29)
 
-This changelog captures the score deltas after tightening UX maturity criteria in `scorePluginMaturity`.
+This changelog tracks the published plugin maturity score artifact generated from the same scoring path used by the plugin manager API (`src/app/api/plugins/list/route.ts` → `scorePluginMaturity`).
 
-## What changed
+## Score generation entrypoints and reporting source
 
-- Added explicit machine-checkable UX criteria in plugin manifest metadata:
-  - `loadingStatePresent`
-  - `errorStateWithRecovery`
-  - `emptyStateWithCta`
-  - `destructiveActionSafety` (`relevant`, `confirmation`, `cancellation`)
-- Updated maturity scoring to require both:
-  - explicit manifest declaration (`maturity.uxCriteria`), and
-  - automated test evidence
-    for each relevant UX criterion.
-- Missing criteria now apply direct feature-quality penalties, so gaps materially reduce total score.
+- Runtime scoring entrypoint: `GET /api/plugins/list` computes each plugin scorecard with `scorePluginMaturity`.
+- Published reporting artifact: `docs/plugin-maturity-scorecards.json` (generated via `npm run plugin:maturity:regenerate`).
+- Regression guard: `src/lib/plugins/plugin-maturity-regression.test.ts` recomputes scores and manifest evidence hashes, then fails if published artifact rows diverge.
 
-## Regenerated scores
+## Regenerated score snapshot
 
-| Plugin            | Previous | New | Delta | Tier change         |
-| ----------------- | -------: | --: | ----: | ------------------- |
-| `github-sync`     |       87 |  62 |   -25 | `silver` → `bronze` |
-| `log-doctor`      |       87 |  67 |   -20 | `silver` → `bronze` |
-| `prompt-settings` |       82 |  62 |   -20 | `silver` → `bronze` |
+Source artifact cache key: `aa8ae027193549f37f41c783fda662b3cfdd79939864cfaa6fcb07658fc03a30`
 
-## Short delta notes
+| Plugin            | Score | Tier     | Declared tier | Manifest reviewed |
+| ----------------- | ----: | -------- | ------------- | ----------------- |
+| `tag-manager`     |    93 | `silver` | `bronze`      | `2026-03-24`      |
+| `github-sync`     |    91 | `silver` | `bronze`      | `2026-03-29`      |
+| `prompt-settings` |    91 | `silver` | `bronze`      | `2026-03-24`      |
 
-- `github-sync`: now penalized for missing machine-checkable loading/error/empty coverage and destructive-action confirmation/cancel safeguards.
-- `log-doctor`: score remains comparatively stronger, but still loses points because stricter evaluator requires explicit error recovery, empty-state CTA, and destructive confirmation/cancel test assertions.
-- `prompt-settings`: loses points for the same stricter machine-checkable UX criteria; existing tests and declarations do not yet satisfy all rubric checks.
+## Reproducible regeneration steps
+
+1. Recompute and publish the artifact:
+
+   ```bash
+   npm run plugin:maturity:regenerate
+   ```
+
+2. Verify the artifact has not drifted from current manifest evidence:
+
+   ```bash
+   node --import tsx --test src/lib/plugins/plugin-maturity-regression.test.ts
+   ```
+
+3. Commit both files when scores or manifest evidence hashes change:
+   - `docs/plugin-maturity-scorecards.json`
+   - `docs/plugin-maturity-score-changelog.md`
+
+## Cache invalidation rule
+
+`docs/plugin-maturity-scorecards.json` includes a `cacheKey` derived from plugin score + tier + declared tier + manifest evidence hash. Any relevant manifest or rubric change produces a new key, so stale published results can be invalidated deterministically.
