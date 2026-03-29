@@ -167,7 +167,10 @@ async function readGitHubFileContent(
       payload && typeof payload.message === 'string'
         ? payload.message
         : response.statusText;
-    throw new Error(`GitHub API error ${response.status}: ${message}`);
+    throw new GitHubHttpError(
+      response.status,
+      `GitHub API error ${response.status}: ${message}`
+    );
   }
 
   const payload = await response.json();
@@ -185,6 +188,17 @@ type GitHubContentsEntry = {
   path: string;
   type: 'file' | 'dir';
 };
+
+class GitHubHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'GitHubHttpError';
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.status = status;
+  }
+}
 
 async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
   const token = process.env.GITHUB_TOKEN;
@@ -224,7 +238,10 @@ async function listGitHubSessionPaths(config: GitHubConfig): Promise<string[]> {
         payload && typeof payload.message === 'string'
           ? payload.message
           : response.statusText;
-      throw new Error(`GitHub API error ${response.status}: ${message}`);
+      throw new GitHubHttpError(
+        response.status,
+        `GitHub API error ${response.status}: ${message}`
+      );
     }
 
     const payload = await response.json();
@@ -272,23 +289,107 @@ function createGitHubSessionFileIssue(
   };
 }
 
+const DEFAULT_GITHUB_SCAN_CONCURRENCY = 6;
+const DEFAULT_GITHUB_READ_RETRY_ATTEMPTS = 2;
+const DEFAULT_GITHUB_READ_RETRY_BASE_DELAY_MS = 50;
+
+function isRetryableGitHubReadError(error: unknown): boolean {
+  if (error instanceof GitHubHttpError) {
+    return error.status === 429 || (error.status >= 500 && error.status <= 599);
+  }
+
+  if (error instanceof Error) {
+    const match = error.message.match(/^GitHub API error (\d+):/);
+    if (match) {
+      const status = Number(match[1]);
+      return status === 429 || (status >= 500 && status <= 599);
+    }
+  }
+
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readGitHubFileContentWithRetry(
+  config: GitHubConfig,
+  filePath: string,
+  maxRetries = DEFAULT_GITHUB_READ_RETRY_ATTEMPTS,
+  baseDelayMs = DEFAULT_GITHUB_READ_RETRY_BASE_DELAY_MS
+): Promise<string> {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await readGitHubFileContent(config, filePath);
+    } catch (error) {
+      if (!isRetryableGitHubReadError(error) || attempt >= maxRetries) {
+        throw error;
+      }
+
+      const delayMs = baseDelayMs * 2 ** attempt;
+      await sleep(delayMs);
+      attempt += 1;
+    }
+  }
+}
+
 export async function scanSessionsFromGitHub(
-  config: GitHubConfig
+  config: GitHubConfig,
+  options?: {
+    concurrency?: number;
+    readRetryAttempts?: number;
+    readRetryBaseDelayMs?: number;
+  }
 ): Promise<GitHubSessionScanResult> {
   const markdownPaths = await listGitHubSessionPaths(config);
-  const sessionResults = await Promise.all(
-    markdownPaths.map(async (filePath) => {
+
+  const concurrency = Math.max(
+    1,
+    options?.concurrency ?? DEFAULT_GITHUB_SCAN_CONCURRENCY
+  );
+  const readRetryAttempts = Math.max(
+    0,
+    options?.readRetryAttempts ?? DEFAULT_GITHUB_READ_RETRY_ATTEMPTS
+  );
+  const readRetryBaseDelayMs = Math.max(
+    0,
+    options?.readRetryBaseDelayMs ?? DEFAULT_GITHUB_READ_RETRY_BASE_DELAY_MS
+  );
+
+  const sessionResults: Array<{
+    session: JudoSession | null;
+    issue: SessionFileIssue | null;
+  }> = new Array(markdownPaths.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (true) {
+      const currentIndex = nextIndex++;
+      if (currentIndex >= markdownPaths.length) {
+        return;
+      }
+
+      const filePath = markdownPaths[currentIndex];
+
       try {
-        const markdown = await readGitHubFileContent(config, filePath);
+        const markdown = await readGitHubFileContentWithRetry(
+          config,
+          filePath,
+          readRetryAttempts,
+          readRetryBaseDelayMs
+        );
         try {
-          return {
+          sessionResults[currentIndex] = {
             session: markdownToSession(markdown),
             issue: null,
           };
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
-          return {
+          sessionResults[currentIndex] = {
             session: null,
             issue: createGitHubSessionFileIssue(
               filePath,
@@ -299,13 +400,16 @@ export async function scanSessionsFromGitHub(
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return {
+        sessionResults[currentIndex] = {
           session: null,
           issue: createGitHubSessionFileIssue(filePath, 'read_failed', message),
         };
       }
-    })
-  );
+    }
+  };
+
+  const workerCount = Math.min(concurrency, markdownPaths.length || 1);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const sessions = sessionResults
     .map((result) => result.session)
