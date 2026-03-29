@@ -96,9 +96,11 @@ Use seeded session data that contains at least two tags with overlap opportuniti
 ### Warning: unresolved component renderer
 
 Symptom:
+
 - Dashboard tab does not render, and plugin runtime warns that a dashboard component is not registered.
 
 Checks:
+
 1. In `plugins/tag-manager/plugin.json`, verify `uiExtensions[].config.component` is `tag_manager`.
 2. In `plugins/tag-manager/src/index.ts`, verify `registerPluginComponent('tag_manager', ...)` is present.
 3. Ensure plugin initialization executes (i.e., plugin module is included in build/runtime path).
@@ -106,9 +108,11 @@ Checks:
 ### Warning: capability mismatch
 
 Symptom:
+
 - Plugin extension is discovered but not rendered due to missing capability warning.
 
 Checks:
+
 1. In `plugins/tag-manager/plugin.json`, verify `capabilities` includes `tag_mutation`.
 2. Ensure no typo/case mismatch in capability string.
 3. Re-enable plugin after manifest updates to refresh discovery/runtime state.

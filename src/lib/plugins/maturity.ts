@@ -603,13 +603,18 @@ export const scorePluginMaturity = async ({
     const testFileContents = await readFile(testEvidenceFile, 'utf8');
     if (!assertedUxCriteria.errorStateWithRecovery) {
       assertedUxCriteria.errorStateWithRecovery =
-        fileAssertsPatternWithAssertion(testFileContents, uxStatePatterns.error) &&
+        fileAssertsPatternWithAssertion(
+          testFileContents,
+          uxStatePatterns.error
+        ) &&
         fileAssertsPatternWithAssertion(testFileContents, uxRecoveryPatterns);
     }
     if (!assertedUxCriteria.emptyStateWithCta) {
       assertedUxCriteria.emptyStateWithCta =
-        fileAssertsPatternWithAssertion(testFileContents, uxStatePatterns.empty) &&
-        fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns);
+        fileAssertsPatternWithAssertion(
+          testFileContents,
+          uxStatePatterns.empty
+        ) && fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns);
     }
     if (!assertedUxCriteria.destructiveActionSafety) {
       assertedUxCriteria.destructiveActionSafety =

@@ -1,7 +1,10 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { type PluginManifest, type PluginValidationIssue } from '@/lib/plugins/types';
+import {
+  type PluginManifest,
+  type PluginValidationIssue,
+} from '@/lib/plugins/types';
 
 const COMPONENT_REGISTRATION_PATTERN =
   /registerPluginComponent(?:\?\.|\.)?\(\s*['\"]([^'\"]+)['\"]/g;
@@ -38,7 +41,10 @@ const extractDeclaredComponentIds = (
     const maybeComponent =
       'component' in extension.config ? extension.config.component : undefined;
 
-    if (typeof maybeComponent !== 'string' || maybeComponent.trim().length === 0) {
+    if (
+      typeof maybeComponent !== 'string' ||
+      maybeComponent.trim().length === 0
+    ) {
       return [];
     }
 
@@ -85,18 +91,17 @@ export const runPluginContractGate = async ({
 
   const issues: PluginValidationIssue[] = [];
   const packagedRuntimeMode = isPackagedRuntimeArtifactMode();
-  const [manifestExists, srcRootExists, indexExists, readmeExists] = await Promise.all([
-    exists(manifestPath),
-    exists(srcRoot),
-    exists(indexPath),
-    exists(readmePath),
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [manifestExists, _srcRootExists, indexExists, readmeExists] =
+    await Promise.all([
+      exists(manifestPath),
+      exists(srcRoot),
+      exists(indexPath),
+      exists(readmePath),
+    ]);
 
   const artifactsUnavailableInPackagedRuntime =
-    packagedRuntimeMode &&
-    manifestExists &&
-    !indexExists &&
-    !readmeExists;
+    packagedRuntimeMode && manifestExists && !indexExists && !readmeExists;
 
   if (artifactsUnavailableInPackagedRuntime) {
     issues.push({
@@ -130,7 +135,9 @@ export const runPluginContractGate = async ({
   if (indexExists) {
     try {
       const indexSource = await readFile(indexPath, 'utf8');
-      for (const componentId of extractRuntimeRegisteredComponentIds(indexSource)) {
+      for (const componentId of extractRuntimeRegisteredComponentIds(
+        indexSource
+      )) {
         runtimeRegisteredComponentIds.add(componentId);
       }
     } catch {

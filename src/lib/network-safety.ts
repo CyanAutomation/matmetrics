@@ -1,9 +1,6 @@
 import { isIP } from 'node:net';
 
-const BLOCKED_HOST_LABELS = new Set([
-  'localhost',
-  'metadata.google.internal',
-]);
+const BLOCKED_HOST_LABELS = new Set(['localhost', 'metadata.google.internal']);
 const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.localdomain'];
 
 const IPV4_BLOCKED_CIDRS: Array<[number, number]> = [
@@ -103,12 +100,12 @@ function extractMappedIpv4(ipv6: string): string | null {
   }
 
   const remainder = normalized.slice(mappedPrefix.length);
-  
+
   // Check for dotted-decimal notation first
   if (isIP(remainder) === 4) {
     return remainder;
   }
-  
+
   // Handle hexadecimal notation: ::ffff:c0a8:0001 -> 192.168.0.1
   const hexMatch = remainder.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
   if (hexMatch) {
@@ -116,17 +113,20 @@ function extractMappedIpv4(ipv6: string): string | null {
     const low = parseInt(hexMatch[2], 16);
     return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
   }
-  
+
   return null;
 }
 
 function ipv4ToInt(ipv4: string): number {
   const octets = ipv4.split('.').map((part) => Number(part));
-  
-  if (octets.length !== 4 || octets.some((octet) => isNaN(octet) || octet < 0 || octet > 255)) {
+
+  if (
+    octets.length !== 4 ||
+    octets.some((octet) => isNaN(octet) || octet < 0 || octet > 255)
+  ) {
     throw new Error(`Invalid IPv4 address: ${ipv4}`);
   }
-  
+
   return (
     (((octets[0] << 24) >>> 0) |
       ((octets[1] << 16) >>> 0) |
@@ -143,14 +143,15 @@ function isInIPv4Cidr(value: number, network: number, prefix: number): boolean {
 
 function ipv6ToBigInt(ipv6: string): bigint {
   const parts = ipv6.split('::');
-  
+
   // IPv6 can only have one occurrence of '::'
   if (parts.length > 2) {
     throw new Error('Invalid IPv6 address: multiple :: sequences');
   }
-  
+
   const headParts = parts[0] ? parts[0].split(':').filter(Boolean) : [];
-  const tailParts = parts[1] !== undefined ? parts[1].split(':').filter(Boolean) : [];
+  const tailParts =
+    parts[1] !== undefined ? parts[1].split(':').filter(Boolean) : [];
 
   const expandedHead = expandIpv6Parts(headParts);
   const expandedTail = expandIpv6Parts(tailParts);
@@ -190,7 +191,6 @@ function isInIPv6Cidr(value: bigint, network: bigint, prefix: number): boolean {
   const mask =
     prefix === 0
       ? BigInt(0)
-      : ((BigInt(1) << bits) - BigInt(1)) ^
-        ((BigInt(1) << shift) - BigInt(1));
+      : ((BigInt(1) << bits) - BigInt(1)) ^ ((BigInt(1) << shift) - BigInt(1));
   return (value & mask) === (network & mask);
 }

@@ -11,7 +11,8 @@ test('initPlugin registers log-doctor ids exactly once', () => {
     register: (extensionId) => {
       registerCalls.push(extensionId);
     },
-    registerPluginComponent: (componentId, renderer) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    registerPluginComponent: (componentId, _renderer) => {
       registerComponentCalls.push(componentId);
     },
   });

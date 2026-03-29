@@ -180,7 +180,9 @@ function validateDuration(value: unknown): number | undefined {
     return undefined;
   }
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new Error('Invalid "duration" in frontmatter: must be a non-negative integer');
+    throw new Error(
+      'Invalid "duration" in frontmatter: must be a non-negative integer'
+    );
   }
 
   return value;

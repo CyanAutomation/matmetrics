@@ -426,7 +426,9 @@ export function PromptSettings() {
                     onClick={() => void handleRetryLoad()}
                     disabled={isRetryingLoad}
                   >
-                    {isRetryingLoad ? 'Retrying…' : PROMPT_SETTINGS_ERROR_RETRY_LABEL}
+                    {isRetryingLoad
+                      ? 'Retrying…'
+                      : PROMPT_SETTINGS_ERROR_RETRY_LABEL}
                   </Button>
                   <details className="text-xs">
                     <summary className="cursor-pointer">Error details</summary>

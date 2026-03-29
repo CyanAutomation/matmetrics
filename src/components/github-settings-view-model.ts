@@ -36,7 +36,9 @@ export const deriveGitHubSettingsControlState = (
       state.canUseGitHubSync && !state.isDisabling && !state.isClearing,
     canConfirmClear: !state.isClearing,
     testConnectionLabel: state.isTesting ? 'Testing...' : 'Test Connection',
-    syncAllLabel: state.isSyncing ? 'Syncing...' : 'Sync All Sessions to GitHub',
+    syncAllLabel: state.isSyncing
+      ? 'Syncing...'
+      : 'Sync All Sessions to GitHub',
     disableLabel: state.isDisabling ? 'Disabling...' : 'Disable Sync',
     clearLabel: state.isClearing ? 'Clearing...' : 'Clear',
     clearConfirmationLabel: state.isClearing

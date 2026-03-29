@@ -22,7 +22,9 @@ test('createUiState returns empty state for no logs and no findings', () => {
   assert.equal(logsEmpty.phase, 'empty');
   assert.match(logsEmpty.message, /No logs were found/i);
 
-  const findingsEmpty = createUiState('preview', 'empty', { hasFindings: false });
+  const findingsEmpty = createUiState('preview', 'empty', {
+    hasFindings: false,
+  });
   assert.equal(findingsEmpty.phase, 'empty');
   assert.match(findingsEmpty.message, /No findings/i);
 });

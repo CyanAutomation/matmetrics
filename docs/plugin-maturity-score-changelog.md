@@ -12,16 +12,16 @@ This changelog captures the score deltas after tightening UX maturity criteria i
 - Updated maturity scoring to require both:
   - explicit manifest declaration (`maturity.uxCriteria`), and
   - automated test evidence
-  for each relevant UX criterion.
+    for each relevant UX criterion.
 - Missing criteria now apply direct feature-quality penalties, so gaps materially reduce total score.
 
 ## Regenerated scores
 
-| Plugin | Previous | New | Delta | Tier change |
-| --- | ---: | ---: | ---: | --- |
-| `github-sync` | 87 | 62 | -25 | `silver` → `bronze` |
-| `log-doctor` | 87 | 67 | -20 | `silver` → `bronze` |
-| `prompt-settings` | 82 | 62 | -20 | `silver` → `bronze` |
+| Plugin            | Previous | New | Delta | Tier change         |
+| ----------------- | -------: | --: | ----: | ------------------- |
+| `github-sync`     |       87 |  62 |   -25 | `silver` → `bronze` |
+| `log-doctor`      |       87 |  67 |   -20 | `silver` → `bronze` |
+| `prompt-settings` |       82 |  62 |   -20 | `silver` → `bronze` |
 
 ## Short delta notes
 

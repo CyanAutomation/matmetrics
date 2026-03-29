@@ -16,7 +16,9 @@ function isSafeLogPath(path: string): boolean {
   if (!normalized.endsWith('.md')) return false;
 
   const segments = normalized.split('/');
-  return segments.every(segment => segment !== '' && segment !== '.' && segment !== '..');
+  return segments.every(
+    (segment) => segment !== '' && segment !== '.' && segment !== '..'
+  );
 }
 
 /**

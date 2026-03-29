@@ -168,7 +168,6 @@ function validateDuration(
   return { valid: true, duration: value as number };
 }
 
-
 /**
  * GET /api/sessions/[id]
  * Retrieve a specific session by ID

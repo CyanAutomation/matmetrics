@@ -37,8 +37,10 @@ const criteriaToEvaluateForTypeCheck = allCriteriaForTypeCheck.filter(
   (criterion): criterion is FeatureUxCriterion =>
     uxCriterionRelevanceForTypeCheck[criterion]
 );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _criteriaMustBeFeatureUxCriterionArray: FeatureUxCriterion[] =
   criteriaToEvaluateForTypeCheck;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _criteriaMustNotWidenToStringArray = Assert<
   IsAssignable<string[], typeof criteriaToEvaluateForTypeCheck> extends true
     ? false
@@ -862,7 +864,9 @@ test('scorePluginMaturity static scan matches optional/non-optional and spacing 
               !action.includes(
                 'Keep registerPluginComponent calls aligned with manifest component ids for maintainability.'
               ) &&
-              !action.includes('Keep component ids and component files aligned.')
+              !action.includes(
+                'Keep component ids and component files aligned.'
+              )
           )
         );
       }
