@@ -10,6 +10,9 @@ type ProxyOptions = {
 
 type GitHubConfigLike = Partial<GitHubConfig> | null | undefined;
 
+export const INVALID_GO_PROXY_BASE_URL_MESSAGE =
+  'Invalid MATMETRICS_GO_PROXY_BASE_URL; expected absolute URL such as https://host:port';
+
 function isJsonContentType(contentType: string | null): boolean {
   if (!contentType) {
     return false;
@@ -46,10 +49,17 @@ export async function proxyGoFunction(
   request: NextRequest,
   options: ProxyOptions
 ): Promise<NextResponse> {
-  const targetURL = new URL(
-    options.path,
-    process.env.MATMETRICS_GO_PROXY_BASE_URL || request.nextUrl.origin
-  );
+  const baseUrl = process.env.MATMETRICS_GO_PROXY_BASE_URL;
+
+  if (baseUrl) {
+    try {
+      new URL(baseUrl);
+    } catch {
+      throw new Error(INVALID_GO_PROXY_BASE_URL_MESSAGE);
+    }
+  }
+
+  const targetURL = new URL(options.path, baseUrl || request.nextUrl.origin);
 
   if (options.searchParams) {
     targetURL.search = options.searchParams.toString();
