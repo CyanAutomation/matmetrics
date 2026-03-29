@@ -33,7 +33,7 @@ const validateManifestComponentRenderersAtRuntime = (
     const { validateManifestComponentRenderers } =
       require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
 
-    const runtimeIssues = validateManifestComponentRenderers(manifest);
+    const runtimeIssues = await validateManifestComponentRenderers(manifest);
 
     if (Array.isArray(runtimeIssues)) {
       return runtimeIssues;
