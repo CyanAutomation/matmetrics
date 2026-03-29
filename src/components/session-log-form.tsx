@@ -586,6 +586,35 @@ export function SessionLogForm({
             />
 
             <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label
+                  htmlFor={fid('video-url')}
+                  className="text-sm font-semibold text-muted-foreground"
+                >
+                  Relevant Video URL (Optional)
+                </Label>
+                <Input
+                  id={fid('video-url')}
+                  name="sessionVideoUrl"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
+                  className="bg-background"
+                />
+                {videoUrlValidationMessage ? (
+                  <p className="text-sm text-destructive">
+                    {videoUrlValidationMessage}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Paste a public YouTube or other http(s) video link related
+                    to this session.
+                  </p>
+                )}
+              </div>
+
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Technique Tags
@@ -679,35 +708,6 @@ export function SessionLogForm({
               onChange={(e) => setNotes(e.target.value)}
               className="bg-background"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor={fid('video-url')}
-              className="text-sm font-semibold text-muted-foreground"
-            >
-              Relevant Video URL (Optional)
-            </Label>
-            <Input
-              id={fid('video-url')}
-              name="sessionVideoUrl"
-              type="url"
-              placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
-              className="bg-background"
-            />
-            {videoUrlValidationMessage ? (
-              <p className="text-sm text-destructive">
-                {videoUrlValidationMessage}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Paste a public YouTube or other http(s) video link related to
-                this session.
-              </p>
-            )}
           </div>
         </CardContent>
         <CardFooter
