@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
   saveTransformerPromptPreference,
 } from '@/lib/user-preferences';
@@ -41,6 +42,14 @@ type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
   areControlsDisabled: boolean;
   canSubmitPrompt: boolean;
+};
+
+type PromptSettingsViewState = PromptSettingsUiState & {
+  isLoadingSavedSettings: boolean;
+  hasLoadError: boolean;
+  isUsingDefaultProfile: boolean;
+  hasSaveError: boolean;
+  hasSaveSuccess: boolean;
 };
 
 type PromptSettingsToast = {
@@ -107,7 +116,8 @@ export async function runPromptResetFlow({
     feedback.toast({
       variant: 'destructive',
       title: 'Could not reset prompt',
-      description: 'We could not reset your prompt right now. Please try again.',
+      description:
+        'We could not reset your prompt right now. Please try again.',
     });
 
     return false;
@@ -126,8 +136,7 @@ export function derivePromptSettingsUiState({
   isResetting: boolean;
 }): PromptSettingsUiState {
   const isPromptMeaningful = prompt.trim().length > 0;
-  const areControlsDisabled =
-    !canSavePreferences || isSaving || isResetting;
+  const areControlsDisabled = !canSavePreferences || isSaving || isResetting;
 
   return {
     isPromptMeaningful,
@@ -136,24 +145,84 @@ export function derivePromptSettingsUiState({
   };
 }
 
+export function derivePromptSettingsViewState({
+  canSavePreferences,
+  preferencesReady,
+  preferencesError,
+  prompt,
+  isSaving,
+  isResetting,
+  saveStatus,
+}: {
+  canSavePreferences: boolean;
+  preferencesReady: boolean;
+  preferencesError: Error | null;
+  prompt: string;
+  isSaving: boolean;
+  isResetting: boolean;
+  saveStatus: 'idle' | 'success' | 'error';
+}): PromptSettingsViewState {
+  const uiState = derivePromptSettingsUiState({
+    prompt,
+    canSavePreferences,
+    isSaving,
+    isResetting,
+  });
+
+  return {
+    ...uiState,
+    isLoadingSavedSettings: canSavePreferences && !preferencesReady,
+    hasLoadError: canSavePreferences && preferencesError !== null,
+    isUsingDefaultProfile:
+      canSavePreferences &&
+      preferencesReady &&
+      prompt.trim() === DEFAULT_TRANSFORMER_PROMPT.trim(),
+    hasSaveError: saveStatus === 'error',
+    hasSaveSuccess: saveStatus === 'success',
+  };
+}
+
 export function PromptSettings() {
   const { toast } = useToast();
-  const { user, preferences, canSavePreferences, authAvailable } = useAuth();
+  const {
+    user,
+    preferences,
+    preferencesReady,
+    preferencesError,
+    canSavePreferences,
+    authAvailable,
+    retryPreferencesLoad,
+  } = useAuth();
   const [prompt, setPrompt] = useState('');
-  const [isSaved, setIsSaved] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>(
+    'idle'
+  );
+  const [saveError, setSaveError] = useState<Error | null>(null);
+  const [isRetryingLoad, setIsRetryingLoad] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const { isPromptMeaningful, areControlsDisabled, canSubmitPrompt } =
-    derivePromptSettingsUiState({
-      prompt,
-      canSavePreferences,
-      isSaving,
-      isResetting,
-    });
+  const {
+    isPromptMeaningful,
+    areControlsDisabled,
+    canSubmitPrompt,
+    isLoadingSavedSettings,
+    hasLoadError,
+    isUsingDefaultProfile,
+    hasSaveError,
+    hasSaveSuccess,
+  } = derivePromptSettingsViewState({
+    prompt,
+    canSavePreferences,
+    preferencesReady,
+    preferencesError,
+    isSaving,
+    isResetting,
+    saveStatus,
+  });
 
   useEffect(() => {
     setPrompt(preferences.transformerPrompt);
@@ -171,6 +240,8 @@ export function PromptSettings() {
     if (!user || !isPromptMeaningful || isSaving || isResetting) return;
 
     setIsSaving(true);
+    setSaveStatus('idle');
+    setSaveError(null);
     try {
       const didSave = await runPromptSaveFlow({
         uid: user.uid,
@@ -184,15 +255,19 @@ export function PromptSettings() {
         },
       });
 
-      if (!didSave) return;
+      if (!didSave) {
+        setSaveStatus('error');
+        setSaveError(new Error('Save request failed.'));
+        return;
+      }
 
-      setIsSaved(true);
+      setSaveStatus('success');
       if (savedIndicatorTimeoutRef.current !== null) {
         clearTimeout(savedIndicatorTimeoutRef.current);
       }
       savedIndicatorTimeoutRef.current = setTimeout(() => {
         savedIndicatorTimeoutRef.current = null;
-        setIsSaved(false);
+        setSaveStatus('idle');
       }, 3000);
     } finally {
       setIsSaving(false);
@@ -217,6 +292,15 @@ export function PromptSettings() {
     } finally {
       setIsResetDialogOpen(false);
       setIsResetting(false);
+    }
+  };
+
+  const handleRetryLoad = async () => {
+    setIsRetryingLoad(true);
+    try {
+      await retryPreferencesLoad();
+    } finally {
+      setIsRetryingLoad(false);
     }
   };
 
@@ -264,30 +348,125 @@ export function PromptSettings() {
           </div>
         </CardHeader>
         <CardContent className="p-6 pt-8 space-y-4">
-          <div className="space-y-3">
-            <Label
-              htmlFor="custom-prompt"
-              className="text-sm font-bold flex items-center gap-2"
+          {isLoadingSavedSettings && (
+            <div
+              className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"
+              aria-live="polite"
             >
-              System Instructions
-              <span className="text-xs font-normal text-muted-foreground">
-                (Requires Handlebars syntax for context)
-              </span>
-            </Label>
-            <Textarea
-              id="custom-prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Enter your custom instructions here..."
-              disabled={areControlsDisabled}
-              className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
-            />
-            <p className="text-[11px] text-muted-foreground italic">
-              {isPromptMeaningful
-                ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
-                : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
-            </p>
-          </div>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading saved prompt settings...
+            </div>
+          )}
+
+          {hasLoadError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Could not load saved prompt profile</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  We could not load your saved settings. Retry to fetch the
+                  latest prompt profile.
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRetryLoad()}
+                    disabled={isRetryingLoad}
+                  >
+                    {isRetryingLoad ? 'Retrying…' : 'Retry'}
+                  </Button>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer">Error details</summary>
+                    <p className="mt-1 break-words">
+                      {preferencesError?.message ?? 'Unknown load error'}
+                    </p>
+                  </details>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isUsingDefaultProfile && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Start your first prompt profile</AlertTitle>
+              <AlertDescription>
+                You are currently using the default prompt. Add instructions or
+                import a profile snippet, then save to create your first custom
+                prompt profile.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasSaveError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Prompt save failed</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>Your changes were not saved. Retry when you are ready.</p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleSave()}
+                    disabled={!canSubmitPrompt}
+                  >
+                    Retry save
+                  </Button>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer">Error details</summary>
+                    <p className="mt-1">
+                      {saveError?.message ?? 'Unknown save error'}
+                    </p>
+                  </details>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasSaveSuccess && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Prompt saved</AlertTitle>
+              <AlertDescription>
+                Your prompt profile is up to date.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!isLoadingSavedSettings && (
+            <div className="space-y-3">
+              <Label
+                htmlFor="custom-prompt"
+                className="text-sm font-bold flex items-center gap-2"
+              >
+                System Instructions
+                <span className="text-xs font-normal text-muted-foreground">
+                  (Requires Handlebars syntax for context)
+                </span>
+              </Label>
+              <Textarea
+                id="custom-prompt"
+                value={prompt}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  setSaveStatus('idle');
+                  setSaveError(null);
+                }}
+                placeholder="Enter your custom instructions here..."
+                disabled={areControlsDisabled}
+                className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
+              />
+              <p className="text-[11px] text-muted-foreground italic">
+                {isPromptMeaningful
+                  ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
+                  : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
+              </p>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="bg-secondary/45 p-6 flex justify-between items-center">
           <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
@@ -354,12 +533,12 @@ export function PromptSettings() {
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isSaved ? (
+            ) : hasSaveSuccess ? (
               <CheckCircle2 className="h-4 w-4" />
             ) : (
               <Save className="h-4 w-4" />
             )}
-            {isSaving ? 'Saving…' : isSaved ? 'Saved!' : 'Save Prompt'}
+            {isSaving ? 'Saving…' : hasSaveSuccess ? 'Saved!' : 'Save Prompt'}
           </Button>
         </CardFooter>
       </Card>

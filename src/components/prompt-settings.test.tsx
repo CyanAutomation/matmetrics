@@ -2,13 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  derivePromptSettingsViewState,
   derivePromptSettingsUiState,
   runPromptResetFlow,
   runPromptSaveFlow,
 } from './prompt-settings';
+import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/user-preferences';
 
 test('save flow emits success toast when preference write succeeds', async () => {
-  const toastCalls: Array<{ title?: string; description?: string; variant?: string }> = [];
+  const toastCalls: Array<{
+    title?: string;
+    description?: string;
+    variant?: string;
+  }> = [];
 
   const didSave = await runPromptSaveFlow({
     uid: 'user-123',
@@ -35,7 +41,11 @@ test('save flow emits success toast when preference write succeeds', async () =>
 });
 
 test('save flow emits destructive toast and logs error when preference write fails', async () => {
-  const toastCalls: Array<{ title?: string; description?: string; variant?: string }> = [];
+  const toastCalls: Array<{
+    title?: string;
+    description?: string;
+    variant?: string;
+  }> = [];
   const errorLogs: Array<{ message: string; error: unknown }> = [];
   const saveError = new Error('save failed');
 
@@ -72,7 +82,11 @@ test('save flow emits destructive toast and logs error when preference write fai
 });
 
 test('reset flow emits success toast for destructive confirmation action', async () => {
-  const toastCalls: Array<{ title?: string; description?: string; variant?: string }> = [];
+  const toastCalls: Array<{
+    title?: string;
+    description?: string;
+    variant?: string;
+  }> = [];
 
   const didReset = await runPromptResetFlow({
     uid: 'user-123',
@@ -96,7 +110,11 @@ test('reset flow emits success toast for destructive confirmation action', async
 });
 
 test('reset flow emits destructive toast and logs error when destructive action fails', async () => {
-  const toastCalls: Array<{ title?: string; description?: string; variant?: string }> = [];
+  const toastCalls: Array<{
+    title?: string;
+    description?: string;
+    variant?: string;
+  }> = [];
   const errorLogs: Array<{ message: string; error: unknown }> = [];
   const resetError = new Error('reset failed');
 
@@ -126,7 +144,8 @@ test('reset flow emits destructive toast and logs error when destructive action 
     {
       variant: 'destructive',
       title: 'Could not reset prompt',
-      description: 'We could not reset your prompt right now. Please try again.',
+      description:
+        'We could not reset your prompt right now. Please try again.',
     },
   ]);
 });
@@ -156,4 +175,132 @@ test('pending auth and request states keep save/reset controls disabled', () => 
   assert.equal(resetting.areControlsDisabled, true);
   assert.equal(saving.canSubmitPrompt, false);
   assert.equal(resetting.canSubmitPrompt, false);
+});
+
+test('view state marks loading while saved settings are being fetched', () => {
+  const state = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: false,
+    preferencesError: null,
+    prompt: '',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+
+  assert.equal(state.isLoadingSavedSettings, true);
+  assert.equal(state.hasLoadError, false);
+});
+
+test('view state surfaces empty/default profile guidance', () => {
+  const state = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: DEFAULT_TRANSFORMER_PROMPT,
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+
+  assert.equal(state.isUsingDefaultProfile, true);
+});
+
+test('view state captures load errors', () => {
+  const state = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: new Error('firestore unavailable'),
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+
+  assert.equal(state.hasLoadError, true);
+});
+
+test('view state captures save status transitions', () => {
+  const savingState = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: true,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
+  const saveErrorState = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'error',
+  });
+  const saveSuccessState = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'success',
+  });
+
+  assert.equal(savingState.areControlsDisabled, true);
+  assert.equal(saveErrorState.hasSaveError, true);
+  assert.equal(saveSuccessState.hasSaveSuccess, true);
+});
+
+test('end-to-end style save retry flow fails once then succeeds', async () => {
+  const toasts: Array<{
+    title?: string;
+    description?: string;
+    variant?: string;
+  }> = [];
+  const errors: Array<{ message: string; error: unknown }> = [];
+  let attempts = 0;
+
+  const savePreference = async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      throw new Error('transient network failure');
+    }
+  };
+
+  const firstAttempt = await runPromptSaveFlow({
+    uid: 'user-123',
+    prompt: 'Use domain terminology',
+    savePreference,
+    feedback: {
+      toast: (config) => {
+        toasts.push(config);
+      },
+      logError: (message, error) => {
+        errors.push({ message, error });
+      },
+    },
+  });
+  const secondAttempt = await runPromptSaveFlow({
+    uid: 'user-123',
+    prompt: 'Use domain terminology',
+    savePreference,
+    feedback: {
+      toast: (config) => {
+        toasts.push(config);
+      },
+      logError: (message, error) => {
+        errors.push({ message, error });
+      },
+    },
+  });
+
+  assert.equal(firstAttempt, false);
+  assert.equal(secondAttempt, true);
+  assert.equal(errors.length, 1);
+  assert.equal(toasts.length, 2);
+  assert.equal(toasts[0]?.variant, 'destructive');
+  assert.equal(toasts[1]?.title, 'Prompt updated');
 });
