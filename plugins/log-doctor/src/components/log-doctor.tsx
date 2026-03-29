@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
+import { Stethoscope } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { createDomSafePathId } from './dom-safe-id';
@@ -492,7 +493,10 @@ export const LogDoctor = (): React.ReactElement => {
 
   return (
     <section className="space-y-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <h2 className="text-lg font-semibold">Log Doctor</h2>
+      <div className="flex items-center gap-2">
+        <Stethoscope className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Log Doctor</h2>
+      </div>
       <p className="text-sm text-muted-foreground">
         Scan, preview, and optionally apply markdown normalization fixes in two
         steps.
