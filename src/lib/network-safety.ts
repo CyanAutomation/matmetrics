@@ -1,6 +1,9 @@
 import { isIP } from 'node:net';
 
-const BLOCKED_HOST_LABELS = new Set(['localhost']);
+const BLOCKED_HOST_LABELS = new Set([
+  'localhost',
+  'metadata.google.internal',
+]);
 const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.localdomain'];
 
 const IPV4_BLOCKED_CIDRS: Array<[number, number]> = [
@@ -62,7 +65,7 @@ export function isBlockedNetworkHostname(hostname: string): boolean {
 }
 
 function normalizeHostname(hostname: string): string {
-  const lowered = hostname.trim().toLowerCase();
+  const lowered = hostname.trim().toLowerCase().replace(/\.+$/, '');
   if (lowered.startsWith('[') && lowered.endsWith(']')) {
     return lowered.slice(1, -1);
   }

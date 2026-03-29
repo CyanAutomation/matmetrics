@@ -5,8 +5,10 @@ import { isBlockedNetworkHostname } from './network-safety';
 
 test('blocks hostname policy for localhost and local domains', () => {
   assert.equal(isBlockedNetworkHostname('localhost'), true);
+  assert.equal(isBlockedNetworkHostname('localhost.'), true);
   assert.equal(isBlockedNetworkHostname('service.local'), true);
   assert.equal(isBlockedNetworkHostname('service.localdomain'), true);
+  assert.equal(isBlockedNetworkHostname('metadata.google.internal'), true);
   assert.equal(isBlockedNetworkHostname('example.com'), false);
 });
 
@@ -15,6 +17,7 @@ test('blocks URL bypass targets across ipv4 and ipv6', () => {
     'http://127.0.0.2/path',
     'http://[::1]/path',
     'http://[::ffff:127.0.0.1]/path',
+    'http://[::ffff:c0a8:0001]/path',
     'http://169.254.1.1/path',
   ];
 
