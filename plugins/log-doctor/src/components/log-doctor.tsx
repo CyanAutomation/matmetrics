@@ -22,163 +22,18 @@ import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { createDomSafePathId } from './dom-safe-id';
 
-interface ScanFileResult {
-  path: string;
-  status: 'valid' | 'invalid';
-  errors?: string[];
-  id?: string;
-  date?: string;
-}
-
-interface ScanResult {
-  success: boolean;
-  message: string;
-  branch?: string;
-  summary: {
-    totalFiles: number;
-    validFiles: number;
-    invalidFiles: number;
-  };
-  files: ScanFileResult[];
-}
-
-interface FixFileResult {
-  path: string;
-  status: 'preview' | 'unchanged' | 'applied' | 'error';
-  message?: string;
-  commitSha?: string;
-  validationState: {
-    before: string;
-    after: string;
-    errors?: string[];
-  };
-  preview: {
-    changed: boolean;
-    diff: string;
-    originalBytes: number;
-    updatedBytes: number;
-  };
-}
-
-interface FixResult {
-  success: boolean;
-  message: string;
-  mode: 'dry-run' | 'apply';
-  branch?: string;
-  files: FixFileResult[];
-}
-
-type LogDoctorPhase = 'idle' | 'loading' | 'empty' | 'error' | 'success';
-
-type LogDoctorOperation = 'scan' | 'preview' | 'apply';
-
-type LogDoctorUiState = {
-  phase: LogDoctorPhase;
-  operation: LogDoctorOperation | null;
-  message: string;
-};
+import {
+  canConfirmApplyFixes,
+  createUiState,
+  resolveResetDiagnosticsSnapshot,
+  type DiagnosticsSnapshot,
+  type FixResult,
+  type LogDoctorUiState,
+  type ScanResult,
+} from './log-doctor-state';
 
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
-
-export type DiagnosticsSnapshot = {
-  scanResult: ScanResult | null;
-  fixResult: FixResult | null;
-  selectedPaths: string[];
-  uiState: LogDoctorUiState;
-  errorMessage: string | null;
-};
-
-export const createUiState = (
-  operation: LogDoctorOperation,
-  phase: LogDoctorPhase,
-  details?: {
-    reason?: string;
-    hasLogs?: boolean;
-    hasFindings?: boolean;
-  }
-): LogDoctorUiState => {
-  if (phase === 'idle') {
-    return {
-      phase,
-      operation: null,
-      message: 'Select a source, then run Log Doctor.',
-    };
-  }
-
-  if (phase === 'loading') {
-    const operationLabel =
-      operation === 'scan'
-        ? 'Fetching logs'
-        : operation === 'preview'
-          ? 'Analyzing findings'
-          : 'Applying fixes';
-
-    return {
-      phase,
-      operation,
-      message: `${operationLabel}… this can take up to 30 seconds for larger repositories.`,
-    };
-  }
-
-  if (phase === 'empty') {
-    const emptyMessage =
-      details?.hasLogs === false
-        ? 'No logs were found for this source. Select source or refresh logs.'
-        : details?.hasFindings === false
-          ? 'No findings to show yet. Refresh logs or run a new scan.'
-          : 'No data is available yet. Select source or refresh logs.';
-    return { phase, operation, message: emptyMessage };
-  }
-
-  if (phase === 'error') {
-    return {
-      phase,
-      operation,
-      message: createErrorMessage(
-        operation,
-        details?.reason ?? 'Unknown request error.'
-      ),
-    };
-  }
-
-  return {
-    phase: 'success',
-    operation,
-    message: 'Findings ready.',
-  };
-};
-
-export const createEmptyDiagnosticsSnapshot = (): DiagnosticsSnapshot => ({
-  scanResult: null,
-  fixResult: null,
-  selectedPaths: [],
-  uiState: createUiState('scan', 'idle'),
-  errorMessage: null,
-});
-
-export const canConfirmApplyFixes = (value: string): boolean =>
-  value.trim().toUpperCase() === 'APPLY';
-
-export const resolveResetDiagnosticsSnapshot = (
-  current: DiagnosticsSnapshot,
-  confirmed: boolean
-): {
-  next: DiagnosticsSnapshot;
-  previous: DiagnosticsSnapshot | null;
-} => {
-  if (!confirmed) {
-    return { next: current, previous: null };
-  }
-
-  return {
-    next: createEmptyDiagnosticsSnapshot(),
-    previous: {
-      ...current,
-      selectedPaths: [...current.selectedPaths],
-    },
-  };
-};
 
 const emitDestructiveActionEvent = (
   action: LogDoctorDestructiveAction,
@@ -221,87 +76,6 @@ const toErrorReason = (error: unknown): string => {
   }
 
   return 'Unexpected response from the service.';
-};
-
-const createErrorMessage = (
-  operation: LogDoctorOperation,
-  reason: string
-): string => {
-  const operationLabel =
-    operation === 'scan'
-      ? 'Scanning'
-      : operation === 'preview'
-        ? 'Previewing fixes'
-        : 'Applying fixes';
-
-  const nextStep =
-    reason === ABORTED_REQUEST_REASON
-      ? 'Run the check again when you are ready.'
-      : operation === 'scan'
-        ? 'Check repository access and retry.'
-        : 'Refresh logs and retry.';
-
-  return `${operationLabel} failed: ${reason} Next step: ${nextStep}`;
-};
-
-export const createUiState = (
-  operation: LogDoctorOperation,
-  phase: LogDoctorPhase,
-  details?: {
-    reason?: string;
-    hasLogs?: boolean;
-    hasFindings?: boolean;
-  }
-): LogDoctorUiState => {
-  if (phase === 'idle') {
-    return {
-      phase,
-      operation: null,
-      message: 'Select a source, then run Log Doctor.',
-    };
-  }
-
-  if (phase === 'loading') {
-    const operationLabel =
-      operation === 'scan'
-        ? 'Fetching logs'
-        : operation === 'preview'
-          ? 'Analyzing findings'
-          : 'Applying fixes';
-
-    return {
-      phase,
-      operation,
-      message: `${operationLabel}… this can take up to 30 seconds for larger repositories.`,
-    };
-  }
-
-  if (phase === 'empty') {
-    const emptyMessage =
-      details?.hasLogs === false
-        ? 'No logs were found for this source. Select source or refresh logs.'
-        : details?.hasFindings === false
-          ? 'No findings to show yet. Refresh logs or run a new scan.'
-          : 'No data is available yet. Select source or refresh logs.';
-    return { phase, operation, message: emptyMessage };
-  }
-
-  if (phase === 'error') {
-    return {
-      phase,
-      operation,
-      message: createErrorMessage(
-        operation,
-        details?.reason ?? 'Unknown request error.'
-      ),
-    };
-  }
-
-  return {
-    phase: 'success',
-    operation,
-    message: 'Findings ready.',
-  };
 };
 
 const parseApiResponse = async <T,>(response: Response): Promise<T> => {
@@ -416,9 +190,9 @@ export const LogDoctor = (): React.ReactElement => {
           : createUiState('scan', 'success')
       );
     } catch (error) {
-      const message = createErrorMessage('scan', toErrorReason(error));
-      setErrorMessage(message);
-      setUiState(createUiState('scan', 'error', { reason: toErrorReason(error) }));
+      const reason = toErrorReason(error);
+      setErrorMessage(createUiState('scan', 'error', { reason }).message);
+      setUiState(createUiState('scan', 'error', { reason }));
     } finally {
       setActiveController(null);
       setIsScanning(false);
@@ -467,11 +241,9 @@ export const LogDoctor = (): React.ReactElement => {
           : createUiState('preview', 'success')
       );
     } catch (error) {
-      const message = createErrorMessage('preview', toErrorReason(error));
-      setErrorMessage(message);
-      setUiState(
-        createUiState('preview', 'error', { reason: toErrorReason(error) })
-      );
+      const reason = toErrorReason(error);
+      setErrorMessage(createUiState('preview', 'error', { reason }).message);
+      setUiState(createUiState('preview', 'error', { reason }));
     } finally {
       setActiveController(null);
       setIsPreviewing(false);
@@ -520,9 +292,9 @@ export const LogDoctor = (): React.ReactElement => {
           : createUiState('apply', 'success')
       );
     } catch (error) {
-      const message = createErrorMessage('apply', toErrorReason(error));
-      setErrorMessage(message);
-      setUiState(createUiState('apply', 'error', { reason: toErrorReason(error) }));
+      const reason = toErrorReason(error);
+      setErrorMessage(createUiState('apply', 'error', { reason }).message);
+      setUiState(createUiState('apply', 'error', { reason }));
     } finally {
       setActiveController(null);
       setIsApplying(false);
