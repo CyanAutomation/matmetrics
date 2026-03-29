@@ -13,6 +13,7 @@ import { getFirebaseDb } from './firebase-client';
 import { getScopedStorageKey } from './client-identity';
 import type {
   AuditConfig,
+  AuditRunResult,
   GitHubConfig,
   GitHubSettings,
   SessionAudit,
@@ -43,6 +44,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   videoLibrary: DEFAULT_VIDEO_LIBRARY_PREFERENCES,
   sessionAudits: {},
   auditConfig: DEFAULT_AUDIT_CONFIG,
+  lastAuditRun: undefined,
 };
 
 type PreferencesListener = (preferences: UserPreferences) => void;
@@ -78,6 +80,7 @@ function cloneDefaults(): UserPreferences {
     auditConfig: {
       rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
     },
+    lastAuditRun: undefined,
   };
 }
 
@@ -215,6 +218,38 @@ function normalizeSessionAudits(
   return audits;
 }
 
+function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const input = value as Partial<AuditRunResult>;
+
+  if (
+    !Array.isArray(input.sessions) ||
+    typeof input.ranAt !== 'string'
+  ) {
+    return undefined;
+  }
+
+  return {
+    sessions: input.sessions.map((session) => ({
+      sessionId: typeof session?.sessionId === 'string' ? session.sessionId : '',
+      sessionDate: typeof session?.sessionDate === 'string' ? session.sessionDate : '',
+      flags: Array.isArray(session?.flags)
+        ? session.flags.map((flag) => ({
+            code: flag?.code || 'no_techniques_high_effort',
+            severity: ['info', 'warning', 'error'].includes(flag?.severity)
+              ? (flag.severity as 'info' | 'warning' | 'error')
+              : 'warning',
+            message: typeof flag?.message === 'string' ? flag.message : '',
+          }))
+        : [],
+    })),
+    ranAt: input.ranAt,
+  };
+}
+
 function normalizePreferences(value: unknown): UserPreferences {
   if (!value || typeof value !== 'object') {
     return cloneDefaults();
@@ -236,6 +271,7 @@ function normalizePreferences(value: unknown): UserPreferences {
         : undefined,
     sessionAudits: normalizeSessionAudits(input.sessionAudits),
     auditConfig: normalizeAuditConfig(input.auditConfig),
+    lastAuditRun: normalizeLastAuditRun(input.lastAuditRun),
   };
 }
 
@@ -401,6 +437,9 @@ export async function initializeUserPreferences(
       ...(mergedPreferences.auditConfig
         ? { auditConfig: serializeAuditConfig(mergedPreferences.auditConfig) }
         : {}),
+      ...(mergedPreferences.lastAuditRun
+        ? { lastAuditRun: serializeLastAuditRun(mergedPreferences.lastAuditRun) }
+        : {}),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -563,6 +602,21 @@ function serializeSessionAudits(
   return result;
 }
 
+function serializeLastAuditRun(result: AuditRunResult): Record<string, unknown> {
+  return {
+    sessions: result.sessions.map((session) => ({
+      sessionId: session.sessionId,
+      sessionDate: session.sessionDate,
+      flags: session.flags.map((flag) => ({
+        code: flag.code,
+        severity: flag.severity,
+        message: flag.message,
+      })),
+    })),
+    ranAt: result.ranAt,
+  };
+}
+
 export function getSessionAudit(sessionId: string): SessionAudit | undefined {
   return currentPreferences.sessionAudits?.[sessionId];
 }
@@ -655,6 +709,31 @@ export async function saveAuditConfig(
     getPreferencesDocRef(uid),
     {
       auditConfig: serializeAuditConfig(config),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export function getLastAuditRun(): AuditRunResult | undefined {
+  return currentPreferences.lastAuditRun;
+}
+
+export async function saveLastAuditRun(
+  uid: string,
+  result: AuditRunResult
+): Promise<void> {
+  currentPreferences = {
+    ...currentPreferences,
+    lastAuditRun: result,
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    {
+      lastAuditRun: serializeLastAuditRun(result),
       updatedAt: serverTimestamp(),
     },
     { merge: true }

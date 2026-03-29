@@ -78,6 +78,15 @@ export interface VideoLibraryPreferences {
   customAllowedDomains: string[];
 }
 
+export interface AuditRunResult {
+  sessions: Array<{
+    sessionId: string;
+    sessionDate: string;
+    flags: AuditFlag[];
+  }>;
+  ranAt: string; // ISO timestamp
+}
+
 export interface UserPreferences {
   transformerPrompt: string;
   gitHub: GitHubSettings;
@@ -85,6 +94,7 @@ export interface UserPreferences {
   migratedLocalSettingsAt?: string;
   sessionAudits?: Record<string, SessionAudit>; // sessionId -> audit state
   auditConfig?: AuditConfig;
+  lastAuditRun?: AuditRunResult; // cached result from last audit run
 }
 
 export interface AuthenticatedUser {
