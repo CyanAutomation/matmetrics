@@ -93,7 +93,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	client, err := newGitHubClient()
 	if err != nil {
-		httpapi.WriteJSON(w, http.StatusBadRequest, map[string]any{
+		httpapi.WriteJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
 			"message": err.Error(),
 		})
