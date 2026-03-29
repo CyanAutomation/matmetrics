@@ -1,23 +1,10 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { testPluginRegistrationContract } from '../../test-plugin-registration-contract';
 
 import { initPlugin } from './index';
 
-test('initPlugin registers prompt-settings ids exactly once', () => {
-  const registerCalls: string[] = [];
-  const registerComponentCalls: string[] = [];
-
-  initPlugin({
-    register: (extensionId) => {
-      registerCalls.push(extensionId);
-    },
-    registerPluginComponent: (componentId) => {
-      registerComponentCalls.push(componentId);
-    },
-  });
-
-  assert.equal(registerCalls.length, 1);
-  assert.equal(registerComponentCalls.length, 1);
-  assert.deepEqual(registerCalls, ['prompt-settings-dashboard-tab']);
-  assert.deepEqual(registerComponentCalls, ['prompt_settings']);
+testPluginRegistrationContract({
+  pluginId: 'prompt-settings',
+  dashboardExtensionId: 'prompt-settings-dashboard-tab',
+  componentId: 'prompt_settings',
+  initPlugin,
 });
