@@ -87,3 +87,28 @@ test('proxyGoFunction preserves empty non-JSON responses', async () => {
     global.fetch = originalFetch;
   }
 });
+
+test('proxyGoFunction throws a controlled error for malformed MATMETRICS_GO_PROXY_BASE_URL', async () => {
+  const originalBaseUrl = process.env.MATMETRICS_GO_PROXY_BASE_URL;
+  process.env.MATMETRICS_GO_PROXY_BASE_URL = '://invalid-base-url';
+
+  try {
+    await assert.rejects(
+      () =>
+        proxyGoFunction(buildRequest(), {
+          path: '/api/go/sessions/list',
+          method: 'GET',
+        }),
+      {
+        message:
+          'Invalid MATMETRICS_GO_PROXY_BASE_URL; expected absolute URL such as https://host:port',
+      }
+    );
+  } finally {
+    if (originalBaseUrl === undefined) {
+      delete process.env.MATMETRICS_GO_PROXY_BASE_URL;
+    } else {
+      process.env.MATMETRICS_GO_PROXY_BASE_URL = originalBaseUrl;
+    }
+  }
+});

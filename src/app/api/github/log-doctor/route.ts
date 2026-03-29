@@ -1,8 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isGitHubConfigured } from '@/lib/github-storage';
-import { proxyGoFunction } from '@/lib/go-function-proxy';
+import {
+  INVALID_GO_PROXY_BASE_URL_MESSAGE,
+  proxyGoFunction,
+} from '@/lib/go-function-proxy';
 import { GitHubConfig } from '@/lib/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+
+export function buildLogDoctorErrorResponse(error: unknown): NextResponse {
+  if (
+    error instanceof Error &&
+    error.message === INVALID_GO_PROXY_BASE_URL_MESSAGE
+  ) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          'Log diagnosis failed: MATMETRICS_GO_PROXY_BASE_URL is invalid. This is a server configuration issue; update the proxy base URL to an absolute URL such as https://host:port.',
+      },
+      { status: 500 }
+    );
+  }
+
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  return NextResponse.json(
+    { success: false, message: `Log diagnosis failed: ${message}` },
+    { status: 500 }
+  );
+}
 
 /**
  * POST /api/github/log-doctor
@@ -53,10 +78,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in log diagnosis', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { success: false, message: `Log diagnosis failed: ${message}` },
-      { status: 500 }
-    );
+    return buildLogDoctorErrorResponse(error);
   }
 }
