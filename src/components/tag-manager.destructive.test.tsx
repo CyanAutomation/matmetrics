@@ -1,31 +1,101 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
 
-const tagManagerSource = readFileSync(
-  path.join(process.cwd(), 'src', 'components', 'tag-manager.tsx'),
-  'utf8'
-);
+import {
+  buildDeleteConfirmationCopy,
+  deriveDeleteDialogActions,
+  resolveDeleteDialogCancel,
+  runDeleteConfirmation,
+} from './tag-manager';
 
-test('TagManager destructive confirmation path is explicit before apply', () => {
-  assert.match(
-    tagManagerSource,
-    /Delete Technique Tag[\s\S]{0,280}Are you sure[\s\S]{0,120}cannot be undone/i
+test('delete flow requires explicit confirmation before destructive apply', async () => {
+  const initialState = {
+    deletingTag: null,
+    deleteAnalysis: null,
+    isAnalyzingDelete: false,
+    isApplyingDelete: false,
+  };
+
+  // 1) user initiates delete
+  const initiatedState = {
+    ...initialState,
+    deletingTag: 'uchi-mata',
+  };
+
+  // 2) confirmation modal copy appears for initiated deletion
+  const confirmationCopy = buildDeleteConfirmationCopy(
+    initiatedState.deletingTag,
+    initiatedState.deleteAnalysis
   );
+  assert.match(confirmationCopy, /Are you sure you want to remove/i);
+  assert.match(confirmationCopy, /This cannot be undone/i);
 
-  assert.match(tagManagerSource, /deleteAnalysis/i);
-  assert.match(tagManagerSource, /'Apply'/i);
-  assert.match(tagManagerSource, /'Analyze'/i);
-  assert.match(tagManagerSource, /variant=\"destructive\"/i);
+  // 3) apply is blocked until confirmation/analyze produces safe result
+  const actionsBeforeAnalysis = deriveDeleteDialogActions(initiatedState);
+  assert.equal(actionsBeforeAnalysis.mode, 'analyze');
+  assert.equal(actionsBeforeAnalysis.primaryLabel, 'Analyze');
+
+  let deleteInvocations = 0;
+  const preConfirmResult = await runDeleteConfirmation({
+    deletingTag: initiatedState.deletingTag,
+    deleteAnalysis: initiatedState.deleteAnalysis,
+    deleteTag: async () => {
+      deleteInvocations += 1;
+      return {
+        affectedSessionCount: 1,
+        changedTagCount: 1,
+        conflicts: [],
+      };
+    },
+  });
+
+  assert.equal(preConfirmResult, null);
+  assert.equal(deleteInvocations, 0);
+
+  // 4) destructive action executes only after confirm (analysis exists, no conflicts)
+  const confirmedState = {
+    ...initiatedState,
+    deleteAnalysis: {
+      affectedSessionCount: 2,
+      changedTagCount: 3,
+      conflicts: [],
+    },
+  };
+
+  const actionsAfterAnalysis = deriveDeleteDialogActions(confirmedState);
+  assert.equal(actionsAfterAnalysis.mode, 'apply');
+  assert.equal(actionsAfterAnalysis.primaryLabel, 'Apply');
+
+  const confirmedResult = await runDeleteConfirmation({
+    deletingTag: confirmedState.deletingTag,
+    deleteAnalysis: confirmedState.deleteAnalysis,
+    deleteTag: async (tag) => {
+      deleteInvocations += 1;
+      assert.equal(tag, 'uchi-mata');
+      return {
+        affectedSessionCount: 2,
+        changedTagCount: 3,
+        conflicts: [],
+      };
+    },
+  });
+
+  assert.equal(deleteInvocations, 1);
+  assert.deepEqual(confirmedResult, confirmedState.deleteAnalysis);
 });
 
-test('TagManager cancel path exists and keeps state unchanged safety copy', () => {
-  assert.match(
-    tagManagerSource,
-    /Could not apply this deletion\. Your tags are unchanged\./i
-  );
+test('canceling delete confirmation clears pending destructive state when idle', () => {
+  const cancelResult = resolveDeleteDialogCancel({
+    deletingTag: 'seoi-nage',
+    deleteAnalysis: {
+      affectedSessionCount: 2,
+      changedTagCount: 2,
+      conflicts: [],
+    },
+    isAnalyzingDelete: false,
+    isApplyingDelete: false,
+  });
 
-  assert.match(tagManagerSource, /Cancel/i);
-  assert.match(tagManagerSource, /(cannot be undone|undone|unchanged)/i);
+  assert.equal(cancelResult.deletingTag, null);
+  assert.equal(cancelResult.deleteAnalysis, null);
 });
