@@ -94,7 +94,6 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
       {sessions.map((session) => {
-        let videoHostname: string | null = null;
         let safeVideoUrl: string | null = null;
 
         if (session.videoUrl) {
@@ -105,10 +104,8 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
               parsedUrl.protocol === 'https:'
             ) {
               safeVideoUrl = parsedUrl.toString();
-              videoHostname = parsedUrl.hostname.replace(/^www\./, '');
             }
           } catch {
-            videoHostname = null;
             safeVideoUrl = null;
           }
         }
@@ -198,22 +195,34 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
 
               {(session.description || session.notes || safeVideoUrl) && (
                 <div className="px-5 pb-5 pt-3 space-y-3 bg-secondary/25">
-                  {safeVideoUrl && (
-                    <a
-                      href={safeVideoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
-                    >
-                      <ExternalLink className="h-4 w-4 shrink-0" />
-                      <span className="truncate">Watch relevant video</span>
-                      {videoHostname && (
-                        <span className="truncate text-xs font-normal text-muted-foreground">
-                          ({videoHostname})
-                        </span>
-                      )}
-                    </a>
-                  )}
+                  {(() => {
+                    const videoUrl = safeVideoUrl;
+                    if (!videoUrl) {
+                      return null;
+                    }
+
+                    const videoHostname = new URL(videoUrl).hostname.replace(
+                      /^www\./,
+                      ''
+                    );
+
+                    return (
+                      <a
+                        href={videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
+                      >
+                        <ExternalLink className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Watch relevant video</span>
+                        {videoHostname && (
+                          <span className="truncate text-xs font-normal text-muted-foreground">
+                            ({videoHostname})
+                          </span>
+                        )}
+                      </a>
+                    );
+                  })()}
                   {session.description && (
                     <p className="text-sm text-foreground/90 pt-3 whitespace-pre-wrap">
                       {session.description}
