@@ -47,7 +47,11 @@ async function withStoredGitHubConfig(
   }
 }
 
-function makeSession(id: string, date: string): JudoSession {
+function makeSession(
+  id: string,
+  date: string,
+  options: { videoUrl?: string } = {}
+): JudoSession {
   return {
     id,
     date,
@@ -56,6 +60,7 @@ function makeSession(id: string, date: string): JudoSession {
     category: 'Technical',
     notes: 'test',
     techniques: [],
+    ...(options.videoUrl !== undefined && { videoUrl: options.videoUrl }),
   };
 }
 
@@ -90,6 +95,23 @@ test('GET returns the local markdown session when present', async () => {
 
       const payload = await response.json();
       assert.deepEqual(payload, makeSession('target', '2025-01-10'));
+    });
+  });
+});
+
+test('GET returns local session videoUrl when present', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession('target-with-video', '2025-01-10', {
+        videoUrl: 'https://example.com/videos/local',
+      });
+      await createLocalSession(session);
+
+      const response = await makeGetRequest('target-with-video');
+      assert.equal(response.status, 200);
+
+      const payload = await response.json();
+      assert.equal(payload.videoUrl, 'https://example.com/videos/local');
     });
   });
 });
@@ -679,6 +701,20 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
         videoUrl: 'ftp://example.com/video.mp4',
       },
       error: 'Invalid videoUrl: protocol must be http or https',
+    },
+    {
+      name: 'videoUrl private network host',
+      sessionId: 'put-invalid-video-url-private-host',
+      body: {
+        id: 'put-invalid-video-url-private-host',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: 'https://127.0.0.1/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
     },
   ];
 
