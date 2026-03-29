@@ -194,7 +194,21 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                 <div className="px-5 pb-5 pt-3 space-y-3 bg-secondary/25">
                   {session.videoUrl && (
                     <a
-                      href={session.videoUrl}
+                    href={session.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
+                    onClick={(e) => {
+                      try {
+                        const url = new URL(session.videoUrl);
+                        if (!['http:', 'https:'].includes(url.protocol)) {
+                          e.preventDefault();
+                          return;
+                        }
+                      } catch {
+                        e.preventDefault();
+                      }
+                    }}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
