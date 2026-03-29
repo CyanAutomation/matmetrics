@@ -43,6 +43,79 @@ interface TagManagerProps {
   onRefresh: () => void;
 }
 
+interface DeleteDialogState {
+  deletingTag: string | null;
+  deleteAnalysis: TagOperationSummary | null;
+  isAnalyzingDelete: boolean;
+  isApplyingDelete: boolean;
+}
+
+export function resolveDeleteDialogCancel(
+  state: DeleteDialogState
+): DeleteDialogState {
+  if (state.isAnalyzingDelete || state.isApplyingDelete) {
+    return state;
+  }
+
+  return {
+    ...state,
+    deletingTag: null,
+    deleteAnalysis: null,
+  };
+}
+
+export function deriveDeleteDialogActions(state: DeleteDialogState) {
+  const cancelDisabled = state.isAnalyzingDelete || state.isApplyingDelete;
+
+  if (state.deleteAnalysis) {
+    return {
+      cancelDisabled,
+      primaryLabel: state.isApplyingDelete ? 'Applying...' : 'Apply',
+      primaryDisabled:
+        state.deleteAnalysis.conflicts.length > 0 ||
+        state.isAnalyzingDelete ||
+        state.isApplyingDelete,
+      mode: 'apply' as const,
+    };
+  }
+
+  return {
+    cancelDisabled,
+    primaryLabel: state.isAnalyzingDelete ? 'Analyzing...' : 'Analyze',
+    primaryDisabled: state.isAnalyzingDelete || state.isApplyingDelete,
+    mode: 'analyze' as const,
+  };
+}
+
+export function buildDeleteConfirmationCopy(
+  deletingTag: string | null,
+  deleteAnalysis: TagOperationSummary | null
+) {
+  const base = `Are you sure you want to remove "${deletingTag}" from all your sessions? This cannot be undone.`;
+
+  if (!deleteAnalysis || deleteAnalysis.conflicts.length > 0) {
+    return base;
+  }
+
+  return `${base} Impact: ${deleteAnalysis.affectedSessionCount} session(s), ${deleteAnalysis.changedTagCount} tag change(s).`;
+}
+
+export async function runDeleteConfirmation({
+  deletingTag,
+  deleteAnalysis,
+  deleteTag,
+}: {
+  deletingTag: string | null;
+  deleteAnalysis: TagOperationSummary | null;
+  deleteTag: (tag: string) => Promise<TagOperationSummary>;
+}) {
+  if (!deletingTag || !deleteAnalysis || deleteAnalysis.conflicts.length > 0) {
+    return null;
+  }
+
+  return deleteTag(deletingTag);
+}
+
 export function TagManager({ onRefresh }: TagManagerProps) {
   const { toast } = useToast();
   const [tags, setTags] = useState<string[]>([]);
@@ -96,10 +169,18 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   };
 
   const resetDeleteDialog = () => {
-    if (isAnalyzingDelete || isApplyingDelete) return;
-    setDeletingTag(null);
-    setDeleteAnalysis(null);
-    setDeleteError(null);
+    const nextState = resolveDeleteDialogCancel({
+      deletingTag,
+      deleteAnalysis,
+      isAnalyzingDelete,
+      isApplyingDelete,
+    });
+
+    setDeletingTag(nextState.deletingTag);
+    setDeleteAnalysis(nextState.deleteAnalysis);
+    if (nextState.deletingTag === null) {
+      setDeleteError(null);
+    }
   };
 
   const handleAnalyzeRename = async () => {
@@ -276,7 +357,15 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     setIsApplyingDelete(true);
     setDeleteError(null);
     try {
-      const result = await tagService.deleteTag(deletingTag);
+      const result = await runDeleteConfirmation({
+        deletingTag,
+        deleteAnalysis,
+        deleteTag: tagService.deleteTag,
+      });
+
+      if (!result) {
+        return;
+      }
       toast({
         title: 'Tag deleted',
         description: `"${deletingTag}" was removed from ${result.affectedSessionCount} session(s), with ${result.changedTagCount} tag change(s).`,
@@ -590,34 +679,38 @@ export function TagManager({ onRefresh }: TagManagerProps) {
             </Alert>
           )}
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={resetDeleteDialog}
-              disabled={isAnalyzingDelete || isApplyingDelete}
-            >
-              Cancel
-            </Button>
-            {deleteAnalysis ? (
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={
-                  deleteAnalysis.conflicts.length > 0 ||
-                  isAnalyzingDelete ||
-                  isApplyingDelete
-                }
-              >
-                {isApplyingDelete ? 'Applying...' : 'Apply'}
-              </Button>
-            ) : (
-              <Button
-                variant="destructive"
-                onClick={handleAnalyzeDelete}
-                disabled={isAnalyzingDelete || isApplyingDelete}
-              >
-                {isAnalyzingDelete ? 'Analyzing...' : 'Analyze'}
-              </Button>
-            )}
+            {(() => {
+              const deleteDialogState = {
+                deletingTag,
+                deleteAnalysis,
+                isAnalyzingDelete,
+                isApplyingDelete,
+              };
+              const actions = deriveDeleteDialogActions(deleteDialogState);
+
+              return (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={resetDeleteDialog}
+                    disabled={actions.cancelDisabled}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={
+                      actions.mode === 'apply'
+                        ? handleDelete
+                        : handleAnalyzeDelete
+                    }
+                    disabled={actions.primaryDisabled}
+                  >
+                    {actions.primaryLabel}
+                  </Button>
+                </>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
