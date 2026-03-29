@@ -198,7 +198,8 @@ test('POST returns row-friendly per-session payloads for mixed result sets', asy
         const payload = await response.json();
         assert.equal(payload.results.length, 2);
         assert.deepEqual(
-          payload.results.map(
+          payload.results
+            .map(
             (result: {
               sessionId: string;
               hostname: string;
@@ -210,18 +211,34 @@ test('POST returns row-friendly per-session payloads for mixed result sets', asy
               status: result.status,
               hasCheckedAt: typeof result.checkedAt === 'string',
             })
-          ),
+          )
+            .sort(
+              (
+                left: {
+                  sessionId: string;
+                  hostname: string;
+                  status: string;
+                  hasCheckedAt: boolean;
+                },
+                right: {
+                  sessionId: string;
+                  hostname: string;
+                  status: string;
+                  hasCheckedAt: boolean;
+                }
+              ) => left.sessionId.localeCompare(right.sessionId)
+            ),
           [
-            {
-              sessionId: 'reachable',
-              hostname: 'youtube.com',
-              status: 'reachable',
-              hasCheckedAt: true,
-            },
             {
               sessionId: 'disallowed',
               hostname: 'example.com',
               status: 'disallowed_domain',
+              hasCheckedAt: true,
+            },
+            {
+              sessionId: 'reachable',
+              hostname: 'youtube.com',
+              status: 'reachable',
               hasCheckedAt: true,
             },
           ]
