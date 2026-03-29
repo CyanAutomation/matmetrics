@@ -45,6 +45,7 @@ test('canceling reset confirmation does not mutate diagnostics state', () => {
     selectedPaths: ['data/2026/03/test.md'],
     uiState: createUiState('scan', 'success'),
     errorMessage: 'previous error',
+    auditResult: null,
   };
 
   const cancelResetResolution = resolveResetDiagnosticsSnapshot(current, false);
@@ -76,6 +77,7 @@ test('confirming reset returns empty state and keeps undo snapshot', () => {
     selectedPaths: ['data/2026/03/invalid.md'],
     uiState: createUiState('preview', 'success'),
     errorMessage: null,
+    auditResult: null,
   };
 
   const confirmResetResolution = resolveResetDiagnosticsSnapshot(current, true);

@@ -10,7 +10,7 @@ test('returns required capability for extension types covered by policy', () => 
     name: string;
     rationale: string;
     extension: UIExtension;
-    expectedCapability: 'tag_mutation';
+    expectedCapability: 'tag_mutation' | 'video_audit';
   }> = [
     {
       name: 'dashboard_tab',
@@ -27,6 +27,22 @@ test('returns required capability for extension types covered by policy', () => 
         },
       },
       expectedCapability: 'tag_mutation',
+    },
+    {
+      name: 'video-library-dashboard_tab',
+      rationale:
+        'Dashboard tabs that render Video Library can run live video audits and must require video_audit.',
+      extension: {
+        type: 'dashboard_tab',
+        id: 'video-library-dashboard-tab',
+        title: 'Video Library',
+        config: {
+          tabId: 'video-library',
+          headerTitle: 'Video Library',
+          component: 'video_library',
+        },
+      },
+      expectedCapability: 'video_audit',
     },
     {
       name: 'session_action',

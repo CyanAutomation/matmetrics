@@ -1,11 +1,15 @@
 import type { UIExtension } from '@/lib/plugins/types';
 
-export const KNOWN_PLUGIN_CAPABILITIES = ['tag_mutation'] as const;
+export const KNOWN_PLUGIN_CAPABILITIES = [
+  'tag_mutation',
+  'video_audit',
+] as const;
 
 export type KnownPluginCapability = (typeof KNOWN_PLUGIN_CAPABILITIES)[number];
 
 const dashboardComponentCapabilityRequirements = {
   tag_manager: 'tag_mutation',
+  video_library: 'video_audit',
 } as const satisfies Record<string, KnownPluginCapability>;
 
 const sessionActionCapabilityRequirements = {
