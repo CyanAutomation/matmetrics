@@ -98,7 +98,10 @@ function getTokenFingerprint(token: string): string {
 }
 
 function getDefaultBranchCacheKey(owner: string, repo: string): string {
-  const token = process.env.GITHUB_TOKEN ?? '';
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error('GITHUB_TOKEN environment variable not set');
+  }
   return `${owner}/${repo}/${getTokenFingerprint(token)}`;
 }
 
