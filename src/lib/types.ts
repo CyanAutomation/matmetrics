@@ -76,6 +76,22 @@ export interface GitHubSettings {
 
 export interface VideoLibraryPreferences {
   customAllowedDomains: string[];
+  linkChecksBySessionId: Record<string, VideoLinkCheckSnapshot>;
+}
+
+export type VideoLinkCheckStatus =
+  | 'reachable'
+  | 'broken'
+  | 'disallowed_domain'
+  | 'check_failed';
+
+export interface VideoLinkCheckSnapshot {
+  url: string;
+  hostname: string;
+  status: VideoLinkCheckStatus;
+  checkedAt: string;
+  httpStatus?: number;
+  error?: string;
 }
 
 export interface AuditRunResult {

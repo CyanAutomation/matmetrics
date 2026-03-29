@@ -1,18 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { JudoSession } from '@/lib/types';
+import type { JudoSession, VideoLinkCheckSnapshot } from '@/lib/types';
 import {
+  areVideoLinkCheckMapsEqual,
   deriveVideoLibraryEntries,
+  deriveVideoLibraryRows,
+  filterVideoLibraryRows,
   getAllowedVideoDomains,
+  getVideoDomainRemovalImpact,
+  getVideoLibraryTabCounts,
   matchesAllowedVideoDomain,
+  mergeVideoLinkCheckResults,
   normalizeVideoDomainInput,
+  reconcileVideoLinkChecks,
 } from '@/lib/video-library';
 
-function makeSession(
-  id: string,
-  videoUrl?: string
-): JudoSession {
+function makeSession(id: string, videoUrl?: string): JudoSession {
   return {
     id,
     date: '2026-03-29',
@@ -20,6 +24,18 @@ function makeSession(
     category: 'Technical',
     techniques: ['uchi-mata'],
     ...(videoUrl ? { videoUrl } : {}),
+  };
+}
+
+function makeSnapshot(
+  overrides: Partial<VideoLinkCheckSnapshot> = {}
+): VideoLinkCheckSnapshot {
+  return {
+    url: 'https://youtube.com/watch?v=123',
+    hostname: 'youtube.com',
+    status: 'reachable',
+    checkedAt: '2026-03-29T10:00:00.000Z',
+    ...overrides,
   };
 }
 
@@ -70,12 +86,179 @@ test('deriveVideoLibraryEntries classifies missing, allowed, and disallowed doma
   );
 });
 
-test('deriveVideoLibraryEntries accepts custom allowlist domains', () => {
-  const [entry] = deriveVideoLibraryEntries(
-    [makeSession('custom', 'https://media.club.example.com/videos/42')],
-    ['club.example.com']
+test('reconcileVideoLinkChecks drops stale entries when session URL changes or becomes invalid', () => {
+  const reconciled = reconcileVideoLinkChecks({
+    sessions: [
+      makeSession('same', 'https://youtube.com/watch?v=123'),
+      makeSession('changed', 'https://youtube.com/watch?v=999'),
+      makeSession('invalid', 'not-a-url'),
+    ],
+    customAllowedDomains: [],
+    linkChecksBySessionId: {
+      same: makeSnapshot(),
+      changed: makeSnapshot(),
+      invalid: makeSnapshot({ url: 'https://youtube.com/watch?v=invalid' }),
+    },
+  });
+
+  assert.deepEqual(Object.keys(reconciled), ['same']);
+});
+
+test('reconcileVideoLinkChecks invalidates disallowed-domain snapshots when custom allowlist changes', () => {
+  const disallowedSnapshot = makeSnapshot({
+    url: 'https://coach.example.com/video/42',
+    hostname: 'coach.example.com',
+    status: 'disallowed_domain',
+  });
+
+  const reconciled = reconcileVideoLinkChecks({
+    sessions: [makeSession('coach', 'https://coach.example.com/video/42')],
+    customAllowedDomains: ['example.com'],
+    linkChecksBySessionId: {
+      coach: disallowedSnapshot,
+    },
+  });
+
+  assert.deepEqual(reconciled, {});
+});
+
+test('deriveVideoLibraryRows merges persisted latest checks and review state', () => {
+  const rows = deriveVideoLibraryRows({
+    sessions: [
+      makeSession('reachable', 'https://youtube.com/watch?v=123'),
+      makeSession('broken', 'https://youtube.com/watch?v=456'),
+      makeSession('missing'),
+    ],
+    customAllowedDomains: [],
+    linkChecksBySessionId: {
+      reachable: makeSnapshot(),
+      broken: makeSnapshot({
+        url: 'https://youtube.com/watch?v=456',
+        status: 'broken',
+        checkedAt: '2026-03-29T11:00:00.000Z',
+      }),
+    },
+  });
+
+  assert.equal(rows[0]?.displayStatus, 'reachable');
+  assert.equal(rows[1]?.needsReview, true);
+  assert.equal(rows[2]?.displayStatus, 'missing');
+});
+
+test('filterVideoLibraryRows respects tab, search, status, and checked filters', () => {
+  const rows = deriveVideoLibraryRows({
+    sessions: [
+      makeSession('reachable', 'https://youtube.com/watch?v=123'),
+      makeSession('broken', 'https://youtube.com/watch?v=456'),
+      makeSession('missing'),
+    ],
+    customAllowedDomains: [],
+    linkChecksBySessionId: {
+      reachable: makeSnapshot(),
+      broken: makeSnapshot({
+        url: 'https://youtube.com/watch?v=456',
+        status: 'broken',
+      }),
+    },
+  });
+
+  const reviewRows = filterVideoLibraryRows(rows, {
+    tab: 'review',
+    search: '',
+    status: 'all',
+    category: 'all',
+    hostname: '',
+    checked: 'all',
+  });
+  assert.deepEqual(
+    reviewRows.map((row) => row.session.id),
+    ['broken', 'missing']
   );
 
-  assert.equal(entry.status, 'allowed_unchecked');
-  assert.equal(entry.hostname, 'media.club.example.com');
+  const checkedBrokenRows = filterVideoLibraryRows(rows, {
+    tab: 'all',
+    search: 'youtube',
+    status: 'broken',
+    category: 'all',
+    hostname: '',
+    checked: 'checked',
+  });
+  assert.deepEqual(
+    checkedBrokenRows.map((row) => row.session.id),
+    ['broken']
+  );
+});
+
+test('getVideoLibraryTabCounts returns grouped counts', () => {
+  const rows = deriveVideoLibraryRows({
+    sessions: [
+      makeSession('reachable', 'https://youtube.com/watch?v=123'),
+      makeSession('broken', 'https://youtube.com/watch?v=456'),
+      makeSession('missing'),
+    ],
+    customAllowedDomains: [],
+    linkChecksBySessionId: {
+      reachable: makeSnapshot(),
+      broken: makeSnapshot({
+        url: 'https://youtube.com/watch?v=456',
+        status: 'broken',
+      }),
+    },
+  });
+
+  assert.deepEqual(getVideoLibraryTabCounts(rows), {
+    all: 3,
+    missing: 1,
+    review: 2,
+    checked: 2,
+  });
+});
+
+test('getVideoDomainRemovalImpact counts sessions that would become disallowed', () => {
+  const impact = getVideoDomainRemovalImpact({
+    domain: 'club.example.com',
+    sessions: [
+      makeSession('club', 'https://media.club.example.com/one'),
+      makeSession('youtube', 'https://youtube.com/watch?v=123'),
+    ],
+    customAllowedDomains: ['club.example.com'],
+  });
+
+  assert.equal(impact.affectedSessionCount, 1);
+  assert.deepEqual(impact.affectedSessionIds, ['club']);
+});
+
+test('mergeVideoLinkCheckResults and equality helper support persisted updates', () => {
+  const existing = {
+    keep: makeSnapshot(),
+  };
+  const merged = mergeVideoLinkCheckResults({
+    existing,
+    results: [
+      {
+        sessionId: 'new',
+        url: 'https://youtube.com/watch?v=789',
+        hostname: 'youtube.com',
+        status: 'check_failed',
+        checkedAt: '2026-03-29T12:00:00.000Z',
+        error: 'timeout',
+      },
+    ],
+  });
+
+  assert.equal(areVideoLinkCheckMapsEqual(existing, merged), false);
+  assert.equal(merged.new?.status, 'check_failed');
+  assert.equal(
+    areVideoLinkCheckMapsEqual(merged, {
+      keep: makeSnapshot(),
+      new: {
+        url: 'https://youtube.com/watch?v=789',
+        hostname: 'youtube.com',
+        status: 'check_failed',
+        checkedAt: '2026-03-29T12:00:00.000Z',
+        error: 'timeout',
+      },
+    }),
+    true
+  );
 });

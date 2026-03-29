@@ -29,14 +29,16 @@ import {
   getAuditConfig,
   getLastAuditRun,
   saveLastAuditRun,
+  saveAuditConfig,
 } from '@/lib/user-preferences';
 import {
   runAuditRulesForAllSessions,
 } from '../lib/audit-rules';
-import type { AuditFlagCode, AuditRunResult, JudoSession, SessionAudit } from '@/lib/types';
+import type { AuditConfig, AuditFlagCode, AuditRunResult, JudoSession, SessionAudit } from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
 import { AuditReviewDialog } from './log-doctor-review-dialog';
+import { AuditSettings } from './log-doctor-audit-settings';
 
 import {
   canConfirmApplyFixes,
@@ -238,6 +240,7 @@ export const LogDoctor = (): React.ReactElement => {
     startLoading: startAuditLoading,
     showSuccess: showAuditSuccess,
   } = useActionFeedback();
+  const [auditConfig, setAuditConfig] = useState(getAuditConfig());
   const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
@@ -301,8 +304,7 @@ export const LogDoctor = (): React.ReactElement => {
     startAuditLoading();
     try {
       const sessions: JudoSession[] = getSessions();
-      const config = getAuditConfig();
-      const rawResults = runAuditRulesForAllSessions(sessions, config);
+      const rawResults = runAuditRulesForAllSessions(sessions, auditConfig);
 
       // Merge with persisted audit state (reviews, ignored rules)
       const merged: AuditSessionResult[] = rawResults.map((result) => {
@@ -338,7 +340,7 @@ export const LogDoctor = (): React.ReactElement => {
       showAuditSuccess();
     } finally {
     }
-  }, [user?.uid, startAuditLoading, showAuditSuccess]);
+  }, [user?.uid, auditConfig, startAuditLoading, showAuditSuccess]);
 
   const handleReviewSession = (sessionId: string): void => {
     setReviewSessionId(sessionId);
@@ -346,6 +348,12 @@ export const LogDoctor = (): React.ReactElement => {
 
   const handleCloseReview = (): void => {
     setReviewSessionId(null);
+  };
+
+  const handleUpdateAuditConfig = async (newConfig: typeof auditConfig): Promise<void> => {
+    if (!user?.uid) return;
+    await saveAuditConfig(user.uid, newConfig);
+    setAuditConfig(newConfig);
   };
 
   const handleMarkReviewed = async (sessionId: string): Promise<void> => {
@@ -361,10 +369,22 @@ export const LogDoctor = (): React.ReactElement => {
       ignoredRules: existing.ignoredRules,
     };
 
-    await saveSessionAudit(user.uid, sessionId, audit);
-    setAuditResults((prev) =>
-      prev.map((r) => (r.sessionId === sessionId ? { ...r, reviewedAt: now } : r))
-    );
+    try {
+      await saveSessionAudit(user.uid, sessionId, audit);
+      setAuditResults((prev) =>
+        prev.map((r) => (r.sessionId === sessionId ? { ...r, reviewedAt: now } : r))
+      );
+      toast({
+        title: 'Marked as reviewed',
+        description: `Session from ${existing.sessionDate} has been reviewed.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to mark session as reviewed.',
+      });
+    }
   };
 
   const handleClearReview = async (sessionId: string): Promise<void> => {
@@ -379,12 +399,24 @@ export const LogDoctor = (): React.ReactElement => {
       ignoredRules: existing.ignoredRules,
     };
 
-    await saveSessionAudit(user.uid, sessionId, audit);
-    setAuditResults((prev) =>
-      prev.map((r) =>
-        r.sessionId === sessionId ? { ...r, reviewedAt: undefined } : r
-      )
-    );
+    try {
+      await saveSessionAudit(user.uid, sessionId, audit);
+      setAuditResults((prev) =>
+        prev.map((r) =>
+          r.sessionId === sessionId ? { ...r, reviewedAt: undefined } : r
+        )
+      );
+      toast({
+        title: 'Review cleared',
+        description: `Session from ${existing.sessionDate} review has been cleared.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to clear review.',
+      });
+    }
   };
 
   const handleIgnoreRule = async (
@@ -406,12 +438,24 @@ export const LogDoctor = (): React.ReactElement => {
       ignoredRules: updatedIgnored,
     };
 
-    await saveSessionAudit(user.uid, sessionId, audit);
-    setAuditResults((prev) =>
-      prev.map((r) =>
-        r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
-      )
-    );
+    try {
+      await saveSessionAudit(user.uid, sessionId, audit);
+      setAuditResults((prev) =>
+        prev.map((r) =>
+          r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
+        )
+      );
+      toast({
+        title: 'Rule ignored',
+        description: 'This rule will no longer flag this session.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to ignore rule.',
+      });
+    }
   };
 
   const handleUnignoreRule = async (
@@ -431,12 +475,24 @@ export const LogDoctor = (): React.ReactElement => {
       ignoredRules: updatedIgnored,
     };
 
-    await saveSessionAudit(user.uid, sessionId, audit);
-    setAuditResults((prev) =>
-      prev.map((r) =>
-        r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
-      )
-    );
+    try {
+      await saveSessionAudit(user.uid, sessionId, audit);
+      setAuditResults((prev) =>
+        prev.map((r) =>
+          r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
+        )
+      );
+      toast({
+        title: 'Rule unignored',
+        description: 'This rule will now flag this session again.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to unignore rule.',
+      });
+    }
   };
 
   const handleScan = async (): Promise<void> => {
@@ -934,10 +990,14 @@ export const LogDoctor = (): React.ReactElement => {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               onClick={handleRunAudit}
-              disabled={isRunningAudit}
+              disabled={auditFeedbackState === 'loading'}
               aria-label="Run session audit checks"
             >
-              {isRunningAudit ? 'Running audit…' : 'Run audit'}
+              {auditFeedbackState === 'loading'
+                ? 'Running audit…'
+                : auditFeedbackState === 'success'
+                  ? 'Audit complete ✓'
+                  : 'Run audit'}
             </Button>
             {auditRanAt ? (
               <span className="text-xs text-muted-foreground">
@@ -950,12 +1010,43 @@ export const LogDoctor = (): React.ReactElement => {
               </span>
             )}
           </div>
-          {auditRanAt ? (
+
+          <AuditSettings
+            config={auditConfig}
+            sessionCount={getSessions().filter((s) => typeof s.duration === 'number' && s.duration > 0).length}
+            onConfigChange={handleUpdateAuditConfig}
+          />
+
+          {auditResults.length > 0 ? (
             <AuditResults
               results={auditResults}
               onReview={handleReviewSession}
             />
-          ) : null}
+          ) : auditRanAt ? (
+            <Card className="border border-dashed border-ghost bg-secondary/20">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <DrLogImage pose={1} size="medium" alt="No issues found" />
+                <p className="mt-3 text-center text-muted-foreground">
+                  All sessions passed quality checks!
+                </p>
+                <p className="mt-1 text-center text-sm text-muted-foreground">
+                  No issues detected.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border border-dashed border-ghost bg-secondary/20">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <DrLogImage pose={2} size="medium" alt="No audit run yet" />
+                <p className="mt-3 text-center text-muted-foreground">
+                  Haven't run an audit yet
+                </p>
+                <p className="mt-1 text-center text-sm text-muted-foreground">
+                  Click &quot;Run audit&quot; above to get started.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : null}
 

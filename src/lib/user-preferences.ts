@@ -19,6 +19,7 @@ import type {
   SessionAudit,
   UserPreferences,
   VideoLibraryPreferences,
+  VideoLinkCheckSnapshot,
 } from './types';
 import { DEFAULT_AUDIT_CONFIG } from './types';
 
@@ -36,6 +37,7 @@ export const DEFAULT_GITHUB_SETTINGS: GitHubSettings = {
 
 export const DEFAULT_VIDEO_LIBRARY_PREFERENCES: VideoLibraryPreferences = {
   customAllowedDomains: [],
+  linkChecksBySessionId: {},
 };
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -174,8 +176,53 @@ function normalizeVideoLibraryPreferences(
         .filter((domain) => domain.length > 0)
     : [];
 
+  const linkChecksBySessionId: Record<string, VideoLinkCheckSnapshot> = {};
+  if (
+    input.linkChecksBySessionId &&
+    typeof input.linkChecksBySessionId === 'object'
+  ) {
+    for (const [sessionId, value] of Object.entries(input.linkChecksBySessionId)) {
+      if (!value || typeof value !== 'object') {
+        continue;
+      }
+
+      const snapshot = value as Partial<VideoLinkCheckSnapshot>;
+      if (
+        typeof snapshot.url !== 'string' ||
+        typeof snapshot.hostname !== 'string' ||
+        typeof snapshot.status !== 'string' ||
+        typeof snapshot.checkedAt !== 'string'
+      ) {
+        continue;
+      }
+
+      if (
+        ![
+          'reachable',
+          'broken',
+          'disallowed_domain',
+          'check_failed',
+        ].includes(snapshot.status)
+      ) {
+        continue;
+      }
+
+      linkChecksBySessionId[sessionId] = {
+        url: snapshot.url,
+        hostname: snapshot.hostname,
+        status: snapshot.status,
+        checkedAt: snapshot.checkedAt,
+        ...(typeof snapshot.httpStatus === 'number'
+          ? { httpStatus: snapshot.httpStatus }
+          : {}),
+        ...(typeof snapshot.error === 'string' ? { error: snapshot.error } : {}),
+      };
+    }
+  }
+
   return {
     customAllowedDomains: Array.from(new Set(customAllowedDomains)).sort(),
+    linkChecksBySessionId,
   };
 }
 
@@ -306,6 +353,25 @@ function serializeVideoLibraryPreferences(
           .filter((domain) => domain.length > 0)
       )
     ).sort(),
+    linkChecksBySessionId: Object.fromEntries(
+      Object.entries(videoLibrary.linkChecksBySessionId || {})
+        .filter(([, snapshot]) => !!snapshot)
+        .map(([sessionId, snapshot]) => [
+          sessionId,
+          {
+            url: snapshot.url,
+            hostname: snapshot.hostname,
+            status: snapshot.status,
+            checkedAt: snapshot.checkedAt,
+            ...(typeof snapshot.httpStatus === 'number'
+              ? { httpStatus: snapshot.httpStatus }
+              : {}),
+            ...(typeof snapshot.error === 'string'
+              ? { error: snapshot.error }
+              : {}),
+          },
+        ])
+    ),
   };
 }
 

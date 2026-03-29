@@ -28,7 +28,9 @@
         "plugins/video-library/plugin.test.ts",
         "plugins/video-library/src/index.test.ts",
         "src/lib/video-library.test.ts",
-        "src/tests/api-video-library-check-links-route.test.ts"
+        "src/tests/api-video-library-check-links-route.test.ts",
+        "src/components/video-library.ux.test.tsx",
+        "src/components/video-library.destructive.test.tsx"
       ]
     }
   },

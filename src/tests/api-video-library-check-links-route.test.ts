@@ -169,3 +169,66 @@ test('POST classifies remote failures as check_failed', async () => {
     });
   });
 });
+
+test('POST returns row-friendly per-session payloads for mixed result sets', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(
+        makeSession('reachable', 'https://youtube.com/watch?v=123')
+      );
+      await createLocalSession(
+        makeSession('disallowed', 'https://example.com/video/123')
+      );
+
+      const originalFetch = global.fetch;
+      global.fetch = (async () => new Response(null, { status: 200 })) as typeof fetch;
+
+      try {
+        const response = await POST(
+          new NextRequest('http://localhost/api/video-library/check-links', {
+            method: 'POST',
+            headers: { authorization: 'Bearer test-token' },
+            body: JSON.stringify({
+              sessionIds: ['reachable', 'disallowed'],
+            }),
+          })
+        );
+
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(payload.results.length, 2);
+        assert.deepEqual(
+          payload.results.map(
+            (result: {
+              sessionId: string;
+              hostname: string;
+              status: string;
+              checkedAt: string;
+            }) => ({
+              sessionId: result.sessionId,
+              hostname: result.hostname,
+              status: result.status,
+              hasCheckedAt: typeof result.checkedAt === 'string',
+            })
+          ),
+          [
+            {
+              sessionId: 'reachable',
+              hostname: 'youtube.com',
+              status: 'reachable',
+              hasCheckedAt: true,
+            },
+            {
+              sessionId: 'disallowed',
+              hostname: 'example.com',
+              status: 'disallowed_domain',
+              hasCheckedAt: true,
+            },
+          ]
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+});
