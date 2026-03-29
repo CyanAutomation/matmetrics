@@ -637,6 +637,21 @@ export const scorePluginMaturity = async ({
     manifestUxCriteria?.destructiveActionSafety?.relevant ??
     declaredUxStates.destructiveAction ??
     assertedUxStates.destructiveAction;
+  const loadingStateUniversallyRequired = false;
+  const loadingStateRelevant =
+    loadingStateUniversallyRequired ||
+    declaredUxCriteria.loadingStatePresent ||
+    declaredUxStates.loading;
+  const errorStateRelevant =
+    declaredUxCriteria.errorStateWithRecovery || declaredUxStates.error;
+  const emptyStateRelevant =
+    declaredUxCriteria.emptyStateWithCta || declaredUxStates.empty;
+  const uxCriterionRelevance: Record<FeatureUxCriterion, boolean> = {
+    loadingStatePresent: loadingStateRelevant,
+    errorStateWithRecovery: errorStateRelevant,
+    emptyStateWithCta: emptyStateRelevant,
+    destructiveActionSafety: destructiveActionRelevant,
+  };
 
   const allCriteria = [
     'loadingStatePresent',
@@ -646,7 +661,7 @@ export const scorePluginMaturity = async ({
   ] as const;
   const criteriaToEvaluate = allCriteria.filter(
     (criterion): criterion is FeatureUxCriterion =>
-      criterion !== 'destructiveActionSafety' || destructiveActionRelevant
+      uxCriterionRelevance[criterion]
   );
 
   let metCriteriaCount = 0;
