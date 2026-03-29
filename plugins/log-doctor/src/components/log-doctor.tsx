@@ -24,6 +24,7 @@ import { createDomSafePathId } from './dom-safe-id';
 
 import {
   canConfirmApplyFixes,
+  createEmptyDiagnosticsSnapshot,
   createUiState,
   resolveResetDiagnosticsSnapshot,
   type DiagnosticsSnapshot,
@@ -56,6 +57,7 @@ const emitDestructiveActionEvent = (
 };
 
 const ABORTED_REQUEST_REASON = 'Request canceled';
+const EMPTY_DIAGNOSTICS_SNAPSHOT = createEmptyDiagnosticsSnapshot();
 
 const toErrorReason = (error: unknown): string => {
   if (error instanceof DOMException && error.name === 'AbortError') {
@@ -102,7 +104,7 @@ export const LogDoctor = (): React.ReactElement => {
   const [isApplying, setIsApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uiState, setUiState] = useState<LogDoctorUiState>(
-    createUiState('scan', 'idle')
+    EMPTY_DIAGNOSTICS_SNAPSHOT.uiState
   );
 
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
@@ -379,7 +381,7 @@ export const LogDoctor = (): React.ReactElement => {
             setFixResult(resolved.previous?.fixResult ?? null);
             setSelectedPaths(resolved.previous?.selectedPaths ?? []);
             setUiState(
-              resolved.previous?.uiState ?? createUiState('scan', 'idle')
+              resolved.previous?.uiState ?? EMPTY_DIAGNOSTICS_SNAPSHOT.uiState
             );
             setErrorMessage(resolved.previous?.errorMessage ?? null);
             emitDestructiveActionEvent('reset-diagnostics-state', 'undone');
