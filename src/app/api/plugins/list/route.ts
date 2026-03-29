@@ -17,6 +17,9 @@ import {
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const asGateManifest = (
   value: unknown
 ): Pick<PluginManifest, 'uiExtensions'> => {
@@ -36,6 +39,15 @@ const hasScorableManifestShape = (
   value: unknown
 ): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const jsonNoStore = (body: unknown, init?: ResponseInit) =>
+  NextResponse.json(body, {
+    ...init,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      ...(init?.headers ?? {}),
+    },
+  });
 
 export async function GET(request: NextRequest) {
   try {
@@ -122,6 +134,10 @@ export async function GET(request: NextRequest) {
 
     const response = {
       plugins: pluginRows,
+      maturityDebug: {
+        routeGeneratedAt: new Date().toISOString(),
+        responseCachePolicy: 'no-store',
+      },
       ...createContractPayload({
         fileTreeDiffSummary: {
           mode: 'dry-run' as const,
@@ -145,13 +161,13 @@ export async function GET(request: NextRequest) {
       }),
     };
 
-    return NextResponse.json(response, {
+    return jsonNoStore(response, {
       status: discoveryErrors.length > 0 ? 206 : 200, // 206 Partial Content if there were discovery errors
     });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Error listing plugins:', errMsg);
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error: 'Failed to list plugins',
         details: errMsg,
