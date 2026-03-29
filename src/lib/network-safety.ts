@@ -162,7 +162,10 @@ function ipv6ToBigInt(ipv6: string): bigint {
     ...expandedTail,
   ];
 
-  return groups.reduce((acc, group) => (acc << 16n) | BigInt(group), 0n);
+  return groups.reduce(
+    (acc, group) => (acc << BigInt(16)) | BigInt(group),
+    BigInt(0)
+  );
 }
 
 function expandIpv6Parts(parts: string[]): number[] {
@@ -182,8 +185,12 @@ function expandIpv6Parts(parts: string[]): number[] {
 }
 
 function isInIPv6Cidr(value: bigint, network: bigint, prefix: number): boolean {
-  const bits = 128n;
+  const bits = BigInt(128);
   const shift = bits - BigInt(prefix);
-  const mask = prefix === 0 ? 0n : ((1n << bits) - 1n) ^ ((1n << shift) - 1n);
+  const mask =
+    prefix === 0
+      ? BigInt(0)
+      : ((BigInt(1) << bits) - BigInt(1)) ^
+        ((BigInt(1) << shift) - BigInt(1));
   return (value & mask) === (network & mask);
 }
