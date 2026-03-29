@@ -12,7 +12,12 @@
       "destructiveAction": true
     },
     "uxCriteria": {
-      "loadingStatePresent": true
+      "loadingStatePresent": true,
+      "destructiveActionSafety": {
+        "relevant": true,
+        "confirmation": true,
+        "cancellation": true
+      }
     }
   },
   "capabilities": [
