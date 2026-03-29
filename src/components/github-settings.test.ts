@@ -24,59 +24,219 @@ test('returns a validation error when owner or repo are missing', () => {
   );
 });
 
-test('derives loading labels and disables actions while test/sync operations are pending', () => {
-  const testingState = deriveGitHubSettingsControlState({
-    canUseGitHubSync: true,
-    owner: 'cyan-automation',
-    repo: 'judo-notes',
-    isEnabled: true,
-    isTesting: true,
-    isSyncing: false,
-    isSyncHistoryLoading: false,
-    isDisabling: false,
-    isClearing: false,
-    isClearDialogOpen: false,
-  });
+test('deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations', () => {
+  const cases = [
+    {
+      name: 'auth blocked disables all GitHub actions even when identity exists',
+      input: {
+        canUseGitHubSync: false,
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        isEnabled: true,
+        isTesting: false,
+        isSyncing: false,
+        isSyncHistoryLoading: false,
+        isDisabling: false,
+        isClearing: false,
+        isClearDialogOpen: false,
+      },
+      expected: {
+        canTestConnection: false,
+        canRunSyncAll: false,
+        canRefreshHistory: false,
+        canDisableSync: false,
+        canOpenClearDialog: false,
+        canConfirmClear: true,
+        hasRepoIdentity: true,
+        showConnectedState: true,
+        testConnectionLabel: 'Test Connection',
+        syncAllLabel: 'Sync All Sessions to GitHub',
+        disableLabel: 'Disable Sync',
+        clearLabel: 'Clear',
+      },
+    },
+    {
+      name: 'testing in-flight keeps sync available but disables test button and shows loading label',
+      input: {
+        canUseGitHubSync: true,
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        isEnabled: true,
+        isTesting: true,
+        isSyncing: false,
+        isSyncHistoryLoading: false,
+        isDisabling: false,
+        isClearing: false,
+        isClearDialogOpen: false,
+      },
+      expected: {
+        canTestConnection: false,
+        canRunSyncAll: true,
+        canRefreshHistory: true,
+        canDisableSync: true,
+        canOpenClearDialog: true,
+        canConfirmClear: true,
+        hasRepoIdentity: true,
+        showConnectedState: true,
+        testConnectionLabel: 'Testing...',
+        syncAllLabel: 'Sync All Sessions to GitHub',
+        disableLabel: 'Disable Sync',
+        clearLabel: 'Clear',
+      },
+    },
+    {
+      name: 'syncing in-flight disables sync action and shows syncing label',
+      input: {
+        canUseGitHubSync: true,
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        isEnabled: true,
+        isTesting: false,
+        isSyncing: true,
+        isSyncHistoryLoading: false,
+        isDisabling: false,
+        isClearing: false,
+        isClearDialogOpen: false,
+      },
+      expected: {
+        canTestConnection: true,
+        canRunSyncAll: false,
+        canRefreshHistory: true,
+        canDisableSync: true,
+        canOpenClearDialog: true,
+        canConfirmClear: true,
+        hasRepoIdentity: true,
+        showConnectedState: true,
+        testConnectionLabel: 'Test Connection',
+        syncAllLabel: 'Syncing...',
+        disableLabel: 'Disable Sync',
+        clearLabel: 'Clear',
+      },
+    },
+    {
+      name: 'disabling in-flight disables destructive buttons and updates disable label',
+      input: {
+        canUseGitHubSync: true,
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        isEnabled: true,
+        isTesting: false,
+        isSyncing: false,
+        isSyncHistoryLoading: false,
+        isDisabling: true,
+        isClearing: false,
+        isClearDialogOpen: true,
+      },
+      expected: {
+        canTestConnection: true,
+        canRunSyncAll: true,
+        canRefreshHistory: true,
+        canDisableSync: false,
+        canOpenClearDialog: false,
+        canConfirmClear: true,
+        hasRepoIdentity: true,
+        showConnectedState: true,
+        testConnectionLabel: 'Test Connection',
+        syncAllLabel: 'Sync All Sessions to GitHub',
+        disableLabel: 'Disabling...',
+        clearLabel: 'Clear',
+      },
+    },
+    {
+      name: 'clearing in-flight disables destructive controls and updates clear labels',
+      input: {
+        canUseGitHubSync: true,
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        isEnabled: true,
+        isTesting: false,
+        isSyncing: false,
+        isSyncHistoryLoading: false,
+        isDisabling: false,
+        isClearing: true,
+        isClearDialogOpen: true,
+      },
+      expected: {
+        canTestConnection: true,
+        canRunSyncAll: true,
+        canRefreshHistory: true,
+        canDisableSync: false,
+        canOpenClearDialog: false,
+        canConfirmClear: false,
+        hasRepoIdentity: true,
+        showConnectedState: true,
+        testConnectionLabel: 'Test Connection',
+        syncAllLabel: 'Sync All Sessions to GitHub',
+        disableLabel: 'Disable Sync',
+        clearLabel: 'Clearing...',
+      },
+    },
+  ] as const;
 
-  assert.equal(testingState.canTestConnection, false);
-  assert.equal(testingState.testConnectionLabel, 'Testing...');
+  for (const testCase of cases) {
+    const result = deriveGitHubSettingsControlState(testCase.input);
 
-  const syncingState = deriveGitHubSettingsControlState({
-    canUseGitHubSync: true,
-    owner: 'cyan-automation',
-    repo: 'judo-notes',
-    isEnabled: true,
-    isTesting: false,
-    isSyncing: true,
-    isSyncHistoryLoading: false,
-    isDisabling: false,
-    isClearing: false,
-    isClearDialogOpen: false,
-  });
-
-  assert.equal(syncingState.canRunSyncAll, false);
-  assert.equal(syncingState.syncAllLabel, 'Syncing...');
-});
-
-test('encodes loading criterion via isLoading flag and Loading... pending text', () => {
-  const loadingState = deriveGitHubSettingsControlState({
-    canUseGitHubSync: true,
-    owner: 'cyan-automation',
-    repo: 'judo-notes',
-    isEnabled: true,
-    isTesting: true,
-    isSyncing: false,
-    isSyncHistoryLoading: false,
-    isDisabling: false,
-    isClearing: false,
-    isClearDialogOpen: false,
-  });
-
-  const isLoading = loadingState.testConnectionLabel.includes('...');
-  const loading = `${loadingState.testConnectionLabel} pending`;
-
-  assert.equal(isLoading, true);
-  assert.match(loading, /Loading\.\.\.|pending|Testing\.\.\./i);
+    assert.equal(
+      result.canTestConnection,
+      testCase.expected.canTestConnection,
+      `${testCase.name}: canTestConnection`
+    );
+    assert.equal(
+      result.canRunSyncAll,
+      testCase.expected.canRunSyncAll,
+      `${testCase.name}: canRunSyncAll`
+    );
+    assert.equal(
+      result.canRefreshHistory,
+      testCase.expected.canRefreshHistory,
+      `${testCase.name}: canRefreshHistory`
+    );
+    assert.equal(
+      result.canDisableSync,
+      testCase.expected.canDisableSync,
+      `${testCase.name}: canDisableSync`
+    );
+    assert.equal(
+      result.canOpenClearDialog,
+      testCase.expected.canOpenClearDialog,
+      `${testCase.name}: canOpenClearDialog`
+    );
+    assert.equal(
+      result.canConfirmClear,
+      testCase.expected.canConfirmClear,
+      `${testCase.name}: canConfirmClear`
+    );
+    assert.equal(
+      result.hasRepoIdentity,
+      testCase.expected.hasRepoIdentity,
+      `${testCase.name}: hasRepoIdentity`
+    );
+    assert.equal(
+      result.showConnectedState,
+      testCase.expected.showConnectedState,
+      `${testCase.name}: showConnectedState`
+    );
+    assert.equal(
+      result.testConnectionLabel,
+      testCase.expected.testConnectionLabel,
+      `${testCase.name}: testConnectionLabel`
+    );
+    assert.equal(
+      result.syncAllLabel,
+      testCase.expected.syncAllLabel,
+      `${testCase.name}: syncAllLabel`
+    );
+    assert.equal(
+      result.disableLabel,
+      testCase.expected.disableLabel,
+      `${testCase.name}: disableLabel`
+    );
+    assert.equal(
+      result.clearLabel,
+      testCase.expected.clearLabel,
+      `${testCase.name}: clearLabel`
+    );
+  }
 });
 
 test('builds failure messages for API/network errors', () => {
@@ -94,66 +254,115 @@ test('builds failure messages for API/network errors', () => {
   );
 });
 
-test('applies destructive-action outcomes for disable and clear', () => {
-  const baseState = {
-    owner: 'cyan-automation',
-    repo: 'judo-notes',
-    branch: 'main',
-    isEnabled: true,
-    migrationDone: true,
-    isClearDialogOpen: true,
-    testResult: {
-      success: false,
-      message: 'Failed',
+test('deriveDisableOutcome returns deterministic results for edge destructive states', () => {
+  const cases = [
+    {
+      name: 'disable preserves config while toggling isEnabled off',
+      input: {
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        branch: 'main',
+        isEnabled: true,
+        migrationDone: true,
+        isClearDialogOpen: true,
+        testResult: {
+          success: false,
+          message: 'Failed',
+        },
+      },
+      expected: {
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        branch: 'main',
+        isEnabled: false,
+        migrationDone: true,
+        isClearDialogOpen: true,
+        testResult: {
+          success: false,
+          message: 'Failed',
+        },
+      },
     },
-  };
+    {
+      name: 'disable is idempotent when already disabled',
+      input: {
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        branch: 'dev',
+        isEnabled: false,
+        migrationDone: false,
+        isClearDialogOpen: false,
+        testResult: null,
+      },
+      expected: {
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        branch: 'dev',
+        isEnabled: false,
+        migrationDone: false,
+        isClearDialogOpen: false,
+        testResult: null,
+      },
+    },
+  ] as const;
 
-  const disabled = deriveDisableOutcome(baseState);
-  assert.equal(disabled.isEnabled, false);
-  assert.equal(disabled.owner, 'cyan-automation');
-
-  const cleared = deriveClearOutcome(baseState);
-  assert.equal(cleared.owner, '');
-  assert.equal(cleared.repo, '');
-  assert.equal(cleared.branch, '');
-  assert.equal(cleared.isEnabled, false);
-  assert.equal(cleared.migrationDone, false);
-  assert.equal(cleared.isClearDialogOpen, false);
-  assert.equal(cleared.testResult, null);
+  for (const testCase of cases) {
+    const result = deriveDisableOutcome(testCase.input);
+    assert.deepEqual(result, testCase.expected, testCase.name);
+  }
 });
 
-test('keeps tests isolated by using mocked auth + network dependencies', async () => {
-  const mockUseAuth = () => ({
-    user: { uid: 'user-1' },
-    canUseGitHubSync: true,
-  });
-  const mockGetAuthHeaders = async () => ({ Authorization: 'Bearer test' });
-  const originalFetch = global.fetch;
+test('deriveClearOutcome returns deterministic results for edge destructive states', () => {
+  const cases = [
+    {
+      name: 'clear removes all connection identity and test state',
+      input: {
+        owner: 'cyan-automation',
+        repo: 'judo-notes',
+        branch: 'main',
+        isEnabled: true,
+        migrationDone: true,
+        isClearDialogOpen: true,
+        testResult: {
+          success: true,
+          message: 'Connected',
+        },
+      },
+      expected: {
+        owner: '',
+        repo: '',
+        branch: '',
+        isEnabled: false,
+        migrationDone: false,
+        isClearDialogOpen: false,
+        testResult: null,
+      },
+    },
+    {
+      name: 'clear is stable from partially-cleared state',
+      input: {
+        owner: '',
+        repo: 'judo-notes',
+        branch: '',
+        isEnabled: false,
+        migrationDone: true,
+        isClearDialogOpen: true,
+        testResult: null,
+      },
+      expected: {
+        owner: '',
+        repo: '',
+        branch: '',
+        isEnabled: false,
+        migrationDone: false,
+        isClearDialogOpen: false,
+        testResult: null,
+      },
+    },
+  ] as const;
 
-  const fetchCalls: Array<{ input: string; init?: RequestInit }> = [];
-  global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    fetchCalls.push({ input: String(input), init });
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }) as typeof fetch;
-
-  try {
-    const auth = mockUseAuth();
-    const headers = await mockGetAuthHeaders();
-    await fetch('/api/github/validate', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ owner: 'cyan-automation', repo: 'judo-notes' }),
-    });
-
-    assert.equal(auth.canUseGitHubSync, true);
-    assert.equal(fetchCalls.length, 1);
-    assert.equal(fetchCalls[0]?.input, '/api/github/validate');
-  } catch (error) {
-    global.fetch = originalFetch;
-    throw error;
+  for (const testCase of cases) {
+    const result = deriveClearOutcome(testCase.input);
+    assert.deepEqual(result, testCase.expected, testCase.name);
   }
-  global.fetch = originalFetch;
 });
