@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { SessionLogForm } from '@/components/session-log-form';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -612,7 +613,15 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <PluginPageShell
+      title="Video Library"
+      description="Audit session video coverage, persist the latest check results, and manage approved providers."
+      icon={
+        <div className="rounded-lg bg-primary p-2 text-primary-foreground">
+          <Film className="h-6 w-6" />
+        </div>
+      }
+    >
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -642,13 +651,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Film className="h-5 w-5" />
-            Video Library
-          </CardTitle>
+          <CardTitle>Inventory & filters</CardTitle>
           <CardDescription>
-            Audit session video coverage, persist the latest check results, and
-            manage approved providers.
+            Filter by status, category, hostname, and link-check state.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1151,6 +1156,6 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PluginPageShell>
   );
 }
