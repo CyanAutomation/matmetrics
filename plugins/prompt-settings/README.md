@@ -92,6 +92,19 @@ npm test -- src/lib/navigation/tab-definitions.test.ts
 
 If you add dedicated tests for this plugin, include them in this section (for example: `plugins/prompt-settings/**/*.test.ts` or `src/components/prompt-settings.test.tsx`).
 
+### UX criteria to automated tests
+
+- **Loading state present** → `src/components/prompt-settings.test.tsx`
+  - `loading criterion anchor: loading state present with loading text and disabled interaction while loading`
+  - `loading criterion anchor: loading disables interaction when save or reset is in progress`
+- **Error state with recovery** → `src/components/prompt-settings.test.tsx`
+  - `error criterion anchor: error state exposes retry recovery action label and callable recover flow`
+  - `error criterion anchor: error recovery handles retry failure without throwing`
+- **Empty/default state with CTA** → `src/components/prompt-settings.test.tsx`
+  - `empty criterion anchor: empty/default state includes explicit cta action wording add create configure`
+- **Destructive reset safety (confirm + cancel)** → `src/components/prompt-settings.test.tsx`
+  - `destructive criterion anchor: destructive confirm resets prompt and destructive cancel preserves prompt text`
+
 ### Manual verification checklist
 
 Because this feature is auth- and backend-dependent, verify in a running app (`npm run dev`) with realistic sign-in state:
