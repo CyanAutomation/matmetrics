@@ -78,11 +78,7 @@
     "glasses": "Dark brown or black",
     "stethoscope": "Dark tubing with metallic silver ends",
     "leaf_accent": "Fresh medium green",
-    "secondary_accents": [
-      "Soft green",
-      "Muted beige",
-      "Warm tan"
-    ]
+    "secondary_accents": ["Soft green", "Muted beige", "Warm tan"]
   },
   "emotional_range": [
     "Calm",
@@ -95,11 +91,7 @@
   "brand_alignment": {
     "tone": "Supportive, restorative, and trustworthy",
     "function": "Balances Ressa's action-focused energy with a sense of care, recovery, and reflection",
-    "audience": [
-      "Kids",
-      "Teens",
-      "Hobbyist adults"
-    ],
+    "audience": ["Kids", "Teens", "Hobbyist adults"],
     "fit": "Works well as a wellness, recovery, safety, or learning-support mascot within the same visual world as Ressa"
   },
   "intended_use": [
