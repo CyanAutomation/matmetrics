@@ -12,6 +12,7 @@ import {
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import crypto from 'crypto';
+import { isBlockedNetworkHostname } from '@/lib/network-safety';
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CREATE_CONFLICT_SIGNATURES = ['already exists with different content'];
@@ -137,20 +138,11 @@ function validateOptionalVideoUrl(
     };
   }
 
-  // Prevent SSRF attacks by blocking private/internal network ranges
-  const host = parsedUrl.hostname.toLowerCase();
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === '::1' ||
-    host.startsWith('10.') ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
-    host.startsWith('192.168.') ||
-    host === '169.254.169.254' // AWS/GCP metadata endpoint
-  ) {
+  if (isBlockedNetworkHostname(parsedUrl.hostname)) {
     return {
       valid: false,
-      error: 'Invalid videoUrl: private or internal network addresses are not allowed',
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
     };
   }
 
