@@ -120,9 +120,15 @@ function isInIPv4Cidr(value: number, network: number, prefix: number): boolean {
 }
 
 function ipv6ToBigInt(ipv6: string): bigint {
-  const [head, tail] = ipv6.split('::');
-  const headParts = head ? head.split(':').filter(Boolean) : [];
-  const tailParts = tail ? tail.split(':').filter(Boolean) : [];
+  const parts = ipv6.split('::');
+  
+  // IPv6 can only have one occurrence of '::'
+  if (parts.length > 2) {
+    throw new Error('Invalid IPv6 address: multiple :: sequences');
+  }
+  
+  const headParts = parts[0] ? parts[0].split(':').filter(Boolean) : [];
+  const tailParts = parts[1] !== undefined ? parts[1].split(':').filter(Boolean) : [];
 
   const expandedHead = expandIpv6Parts(headParts);
   const expandedTail = expandIpv6Parts(tailParts);
