@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { TagOperationSummary } from '@/lib/tags';
 import {
   buildDeleteConfirmationCopy,
   deriveDeleteDialogActions,
@@ -8,8 +9,25 @@ import {
   runDeleteConfirmation,
 } from './tag-manager';
 
+type DeleteDialogState = Parameters<typeof deriveDeleteDialogActions>[0];
+
+function createDeleteSummary(
+  overrides: Partial<TagOperationSummary> = {}
+): TagOperationSummary {
+  return {
+    dryRun: false,
+    affectedSessionCount: 2,
+    changedTagCount: 3,
+    affectedSessionIds: ['session-1', 'session-2'],
+    failedSessionIds: [],
+    affectedTags: ['uchi-mata'],
+    conflicts: [],
+    ...overrides,
+  };
+}
+
 test('delete flow requires explicit confirmation before destructive apply', async () => {
-  const initialState = {
+  const initialState: DeleteDialogState = {
     deletingTag: null,
     deleteAnalysis: null,
     isAnalyzingDelete: false,
@@ -41,11 +59,11 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
     deleteAnalysis: initiatedState.deleteAnalysis,
     deleteTag: async () => {
       deleteInvocations += 1;
-      return {
+      return createDeleteSummary({
         affectedSessionCount: 1,
         changedTagCount: 1,
-        conflicts: [],
-      };
+        affectedSessionIds: ['session-1'],
+      });
     },
   });
 
@@ -53,13 +71,9 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
   assert.equal(deleteInvocations, 0);
 
   // 4) destructive action executes only after confirm (analysis exists, no conflicts)
-  const confirmedState = {
+  const confirmedState: DeleteDialogState = {
     ...initiatedState,
-    deleteAnalysis: {
-      affectedSessionCount: 2,
-      changedTagCount: 3,
-      conflicts: [],
-    },
+    deleteAnalysis: createDeleteSummary(),
   };
 
   const actionsAfterAnalysis = deriveDeleteDialogActions(confirmedState);
@@ -72,11 +86,7 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
     deleteTag: async (tag) => {
       deleteInvocations += 1;
       assert.equal(tag, 'uchi-mata');
-      return {
-        affectedSessionCount: 2,
-        changedTagCount: 3,
-        conflicts: [],
-      };
+      return createDeleteSummary();
     },
   });
 
@@ -87,11 +97,10 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
 test('canceling delete confirmation clears pending destructive state when idle', () => {
   const cancelResult = resolveDeleteDialogCancel({
     deletingTag: 'seoi-nage',
-    deleteAnalysis: {
-      affectedSessionCount: 2,
+    deleteAnalysis: createDeleteSummary({
       changedTagCount: 2,
-      conflicts: [],
-    },
+      affectedTags: ['seoi-nage'],
+    }),
     isAnalyzingDelete: false,
     isApplyingDelete: false,
   });

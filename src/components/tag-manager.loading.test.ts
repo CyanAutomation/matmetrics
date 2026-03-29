@@ -1,22 +1,31 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { TagOperationSummary } from '@/lib/tags';
 import {
   deriveDeleteDialogActions,
   runDeleteConfirmation
 } from './tag-manager';
 
-type DeleteFlowState = {
-  deletingTag: string | null;
-  deleteAnalysis: {
-    affectedSessionCount: number;
-    changedTagCount: number;
-    conflicts: Array<{ message: string }>;
-  } | null;
-  isAnalyzingDelete: boolean;
-  isApplyingDelete: boolean;
+type DeleteDialogState = Parameters<typeof deriveDeleteDialogActions>[0];
+type DeleteFlowState = DeleteDialogState & {
   deleteError: string | null;
 };
+
+function createDeleteSummary(
+  overrides: Partial<TagOperationSummary> = {}
+): TagOperationSummary {
+  return {
+    dryRun: false,
+    affectedSessionCount: 3,
+    changedTagCount: 4,
+    affectedSessionIds: ['session-1', 'session-2', 'session-3'],
+    failedSessionIds: [],
+    affectedTags: ['uchi-mata'],
+    conflicts: [],
+    ...overrides,
+  };
+}
 
 function createDeleteFlowHarness() {
   const state: DeleteFlowState = {
@@ -34,11 +43,7 @@ function createDeleteFlowHarness() {
       state.deleteError = null;
     },
     analyzeSuccess() {
-      state.deleteAnalysis = {
-        affectedSessionCount: 3,
-        changedTagCount: 4,
-        conflicts: [],
-      };
+      state.deleteAnalysis = createDeleteSummary();
       state.isAnalyzingDelete = false;
     },
     analyzeFail(error: unknown) {
@@ -47,7 +52,7 @@ function createDeleteFlowHarness() {
       state.isAnalyzingDelete = false;
       return error;
     },
-    async apply(deleteTag: (tag: string) => Promise<DeleteFlowState['deleteAnalysis']>) {
+    async apply(deleteTag: (tag: string) => Promise<TagOperationSummary>) {
       state.isApplyingDelete = true;
       state.deleteError = null;
 
@@ -57,11 +62,7 @@ function createDeleteFlowHarness() {
           deleteAnalysis: state.deleteAnalysis,
           deleteTag: async (tag) => {
             const result = await deleteTag(tag);
-            return {
-              affectedSessionCount: result?.affectedSessionCount ?? 0,
-              changedTagCount: result?.changedTagCount ?? 0,
-              conflicts: result?.conflicts ?? [],
-            };
+            return result;
           },
         });
       } catch (error) {
@@ -132,11 +133,7 @@ test('delete flow surfaces recoverable errors and supports retry after apply fai
   assert.equal(retryActions.cancelDisabled, false);
 
   // retry path transitions applying state correctly and clears prior error on retry start
-  const retryResult = await harness.apply(async () => ({
-    affectedSessionCount: 3,
-    changedTagCount: 4,
-    conflicts: [],
-  }));
+  const retryResult = await harness.apply(async () => createDeleteSummary());
 
   assert.equal(retryResult, null);
   assert.equal(harness.state.isApplyingDelete, false);

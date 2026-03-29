@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { RessaImage } from '@/components/ressa-image';
 import {
   Brain,
   X,
@@ -55,6 +56,7 @@ interface SessionLogFormProps {
   sessionToEdit?: JudoSession;
   onCancel?: () => void;
   hideHeader?: boolean;
+  showAvatar?: boolean;
 }
 
 export function SessionLogForm({
@@ -62,6 +64,7 @@ export function SessionLogForm({
   sessionToEdit,
   onCancel,
   hideHeader = false,
+  showAvatar = true,
 }: SessionLogFormProps) {
   const { toast } = useToast();
   const { canUseAi, authAvailable } = useAuth();
@@ -448,100 +451,127 @@ export function SessionLogForm({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            <div className="md:col-span-3 space-y-2.5">
-              <Label
-                htmlFor={fid('date')}
-                className="text-sm font-semibold block h-5"
-              >
-                Session Date
-              </Label>
-              <Input
-                id={fid('date')}
-                name="sessionDate"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-background h-11"
-              />
-            </div>
-            <div className="md:col-span-2 space-y-2.5">
-              <Label
-                htmlFor={fid('duration')}
-                className="text-sm font-semibold block h-5"
-              >
-                Duration (min)
-              </Label>
-              <Input
-                id={fid('duration')}
-                name="sessionDuration"
-                type="number"
-                min="1"
-                max="999"
-                placeholder="90"
-                title="How long was your practice session in minutes?"
-                aria-label="Session duration in minutes"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="bg-background h-11"
-              />
-            </div>
-            <div className="md:col-span-3 space-y-2.5">
-              <Label
-                htmlFor={fid('category')}
-                className="text-sm font-semibold block h-5"
-              >
-                Session Type
-              </Label>
-              <Select
-                name="sessionCategory"
-                value={category}
-                onValueChange={(val) => setCategory(val as SessionCategory)}
-              >
-                <SelectTrigger
-                  id={fid('category')}
-                  className="bg-background h-11"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Technical">Technical</SelectItem>
-                  <SelectItem value="Randori">Randori</SelectItem>
-                  <SelectItem value="Shiai">Shiai</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-4 space-y-2.5">
-              <div className="h-5 flex items-center justify-between">
-                <Label className="text-sm font-semibold">Effort Level</Label>
-                <span className="text-xs text-muted-foreground">
-                  {EFFORT_LABELS[effort]}
-                </span>
-              </div>
-              <div className="flex gap-2 h-11 bg-background/90 rounded-md p-1.5">
-                {[1, 2, 3, 4, 5].map((val) => {
-                  const effortVal = val as EffortLevel;
-                  const isSelected = effort === effortVal;
-                  return (
-                    <Button
-                      key={fid(`effort-${val}`)}
-                      type="button"
-                      onClick={() => setEffort(effortVal)}
-                      className={cn(
-                        'flex-1 px-0 font-semibold transition-all duration-200',
-                        isSelected
-                          ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
-                          : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
-                      )}
-                      title={EFFORT_LABELS[effortVal]}
-                      aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
-                      aria-pressed={isSelected}
+          {/* Header Section: Avatar + Session Controls */}
+          <div className="bg-secondary/25 rounded-lg p-6 -mx-6 -mt-6 lg:-mx-0 lg:rounded-lg lg:p-6 lg:bg-secondary/25">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+              {/* Avatar - Hidden on mobile, visible on lg and above */}
+              {showAvatar && (
+                <div className="hidden lg:flex shrink-0">
+                  <RessaImage
+                    pose={1}
+                    size="medium"
+                    alt="Ressa in coach mode, ready to help log your training session"
+                    className="shrink-0"
+                  />
+                </div>
+              )}
+
+              {/* Session Control Fields */}
+              <div className="flex-1 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
+                  {/* Session Date */}
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={fid('date')}
+                      className="text-sm font-semibold block h-5"
                     >
-                      {val}
-                    </Button>
-                  );
-                })}
+                      Session Date
+                    </Label>
+                    <Input
+                      id={fid('date')}
+                      name="sessionDate"
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                      className="bg-background h-11"
+                    />
+                  </div>
+
+                  {/* Duration */}
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={fid('duration')}
+                      className="text-sm font-semibold block h-5"
+                    >
+                      Duration (min)
+                    </Label>
+                    <Input
+                      id={fid('duration')}
+                      name="sessionDuration"
+                      type="number"
+                      min="1"
+                      max="999"
+                      placeholder="90"
+                      title="How long was your practice session in minutes?"
+                      aria-label="Session duration in minutes"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="bg-background h-11"
+                    />
+                  </div>
+
+                  {/* Session Type */}
+                  <div className="space-y-2.5">
+                    <Label
+                      htmlFor={fid('category')}
+                      className="text-sm font-semibold block h-5"
+                    >
+                      Session Type
+                    </Label>
+                    <Select
+                      name="sessionCategory"
+                      value={category}
+                      onValueChange={(val) => setCategory(val as SessionCategory)}
+                    >
+                      <SelectTrigger
+                        id={fid('category')}
+                        className="bg-background h-11"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Technical">Technical</SelectItem>
+                        <SelectItem value="Randori">Randori</SelectItem>
+                        <SelectItem value="Shiai">Shiai</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Effort Level */}
+                  <div className="space-y-2.5">
+                    <div className="h-5 flex items-center justify-between">
+                      <Label className="text-sm font-semibold">Effort Level</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {EFFORT_LABELS[effort]}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 h-11 bg-background/90 rounded-md p-1.5">
+                      {[1, 2, 3, 4, 5].map((val) => {
+                        const effortVal = val as EffortLevel;
+                        const isSelected = effort === effortVal;
+                        return (
+                          <Button
+                            key={fid(`effort-${val}`)}
+                            type="button"
+                            onClick={() => setEffort(effortVal)}
+                            className={cn(
+                              'flex-1 px-0 font-semibold transition-all duration-200 text-xs',
+                              isSelected
+                                ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
+                                : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                            )}
+                            title={EFFORT_LABELS[effortVal]}
+                            aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
+                            aria-pressed={isSelected}
+                          >
+                            {val}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
