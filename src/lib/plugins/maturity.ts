@@ -5,8 +5,10 @@ import type {
   PluginManifest,
   PluginMaturityCategory,
   PluginMaturityCategoryScore,
+  PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
   PluginMaturityTier,
+  PluginMaturityUxCriterion,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
 
@@ -19,6 +21,8 @@ type ScorePluginMaturityOptions = {
 };
 
 type CategoryAccumulator = Record<PluginMaturityCategory, number>;
+type FeatureUxState = 'loading' | 'error' | 'empty' | 'destructiveAction';
+type FeatureUxCriterion = PluginMaturityUxCriterion;
 
 const categoryLabels: Record<PluginMaturityCategory, string> = {
   contract_metadata: 'Contract & Metadata',
@@ -78,16 +82,30 @@ const pushUnique = (values: string[], value: string): void => {
   }
 };
 
+const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
+  path.relative(repoRoot, filePath).split(path.sep).join('/');
+
+const fromRepoRelativePath = (repoRoot: string, relativePath: string): string =>
+  path.join(repoRoot, ...relativePath.split('/'));
+
+const normalizeHeading = (heading: string): string =>
+  heading.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const parseReadmeSections = (contents: string): string[] => {
+  const headings = new Set<string>();
+  for (const match of contents.matchAll(/^##\s+(.+)$/gm)) {
+    const heading = match[1]?.trim();
+    if (heading) {
+      headings.add(heading);
+    }
+  }
+
+  return [...headings];
+};
+
 const capabilityCandidateRoots: Record<string, string[]> = {
   tag_mutation: [path.join('src', 'lib', 'tags')],
 };
-
-type FeatureUxState = 'loading' | 'error' | 'empty' | 'destructiveAction';
-type FeatureUxCriterion =
-  | 'loadingStatePresent'
-  | 'errorStateWithRecovery'
-  | 'emptyStateWithCta'
-  | 'destructiveActionSafety';
 
 const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
   loading: [
@@ -201,6 +219,63 @@ const fileAssertsPatternWithAssertion = (
   return false;
 };
 
+const findFilesAssertingUxState = async (
+  testFiles: string[],
+  state: FeatureUxState
+): Promise<string[]> => {
+  const matches: string[] = [];
+
+  for (const testFile of testFiles) {
+    const testFileContents = await readFile(testFile, 'utf8');
+    if (fileAssertsUxState(testFileContents, state)) {
+      matches.push(testFile);
+    }
+  }
+
+  return matches;
+};
+
+const findFilesAssertingCriterionHeuristically = async (
+  testFiles: string[],
+  criterion: FeatureUxCriterion
+): Promise<string[]> => {
+  const matches: string[] = [];
+
+  for (const testFile of testFiles) {
+    const testFileContents = await readFile(testFile, 'utf8');
+    const doesMatch =
+      criterion === 'loadingStatePresent'
+        ? fileAssertsUxState(testFileContents, 'loading')
+        : criterion === 'errorStateWithRecovery'
+          ? fileAssertsPatternWithAssertion(
+              testFileContents,
+              uxStatePatterns.error
+            ) &&
+            fileAssertsPatternWithAssertion(testFileContents, uxRecoveryPatterns)
+          : criterion === 'emptyStateWithCta'
+            ? fileAssertsPatternWithAssertion(
+                testFileContents,
+                uxStatePatterns.empty
+              ) &&
+              fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns)
+            : fileAssertsPatternWithAssertion(
+                testFileContents,
+                uxStatePatterns.destructiveAction
+              ) &&
+              fileAssertsPatternWithAssertion(
+                testFileContents,
+                uxConfirmationPatterns
+              ) &&
+              fileAssertsPatternWithAssertion(testFileContents, uxCancelPatterns);
+
+    if (doesMatch) {
+      matches.push(testFile);
+    }
+  }
+
+  return matches;
+};
+
 const collectTestFiles = async (root: string): Promise<string[]> => {
   const results: string[] = [];
   const entries = await readdir(root, { withFileTypes: true });
@@ -229,6 +304,27 @@ const collectTestFiles = async (root: string): Promise<string[]> => {
   }
 
   return results;
+};
+
+const resolveExplicitEvidenceFiles = async (
+  repoRoot: string,
+  relativePaths: string[]
+): Promise<string[]> => {
+  const resolved: string[] = [];
+
+  for (const relativePath of relativePaths) {
+    const normalizedRelativePath = relativePath.trim();
+    if (!normalizedRelativePath) {
+      continue;
+    }
+
+    const absolutePath = fromRepoRelativePath(repoRoot, normalizedRelativePath);
+    if (await fileExists(absolutePath)) {
+      resolved.push(absolutePath);
+    }
+  }
+
+  return resolved;
 };
 
 const findTestEvidenceFiles = async (
@@ -381,6 +477,14 @@ export const scorePluginMaturity = async ({
     pushUnique(
       nextActions,
       'Add `maturity.tier`, `maturity.notes`, and `maturity.lastReviewedAt`.'
+    );
+  }
+
+  if (manifest.maturity?.evidence) {
+    categoryScores.contract_metadata += 2;
+    pushUnique(
+      evidence,
+      'Manifest includes explicit maturity evidence for tests and verified UX criteria.'
     );
   }
 
@@ -540,19 +644,51 @@ export const scorePluginMaturity = async ({
     );
   }
 
-  const testEvidenceFiles = await findTestEvidenceFiles(
+  const declaredEvidence = manifest.maturity?.evidence;
+  const declaredExplicitTestFiles = declaredEvidence?.testFiles ?? [];
+  const explicitTestEvidenceFiles = await resolveExplicitEvidenceFiles(
     repoRoot,
-    manifest.id,
-    componentBasenames,
-    componentIds,
-    manifest.capabilities ?? []
+    declaredExplicitTestFiles
   );
+  const missingExplicitTestFiles = declaredExplicitTestFiles.filter(
+    (relativePath) =>
+      !explicitTestEvidenceFiles.some(
+        (absolutePath) => toRepoRelativePath(repoRoot, absolutePath) === relativePath
+      )
+  );
+  const heuristicTestEvidenceFiles =
+    explicitTestEvidenceFiles.length === 0
+      ? await findTestEvidenceFiles(
+          repoRoot,
+          manifest.id,
+          componentBasenames,
+          componentIds,
+          manifest.capabilities ?? []
+        )
+      : [];
+  const testEvidenceFiles =
+    explicitTestEvidenceFiles.length > 0
+      ? explicitTestEvidenceFiles
+      : heuristicTestEvidenceFiles;
+  const testEvidenceSource: PluginMaturityEvidenceSource =
+    explicitTestEvidenceFiles.length > 0
+      ? 'explicit'
+      : heuristicTestEvidenceFiles.length > 0
+        ? 'heuristic'
+        : 'none';
   if (testEvidenceFiles.length > 0) {
     categoryScores.test_coverage += 12;
     pushUnique(
       evidence,
       `Found automated test evidence in ${testEvidenceFiles.length} file(s).`
     );
+    if (testEvidenceSource === 'explicit') {
+      categoryScores.test_coverage += 4;
+      pushUnique(
+        evidence,
+        'Manifest explicitly maps plugin maturity checks to test evidence files.'
+      );
+    }
   } else {
     pushUnique(
       reasons,
@@ -561,6 +697,16 @@ export const scorePluginMaturity = async ({
     pushUnique(
       nextActions,
       'Add plugin-specific tests for manifest, runtime wiring, and primary feature behavior.'
+    );
+  }
+  if (missingExplicitTestFiles.length > 0) {
+    pushUnique(
+      reasons,
+      'Some explicit maturity evidence test files declared in manifest could not be found.'
+    );
+    pushUnique(
+      nextActions,
+      'Update `maturity.evidence.testFiles` so every declared path exists in the repo.'
     );
   }
 
@@ -578,57 +724,15 @@ export const scorePluginMaturity = async ({
     destructiveAction: manifestUxStates?.destructiveAction === true,
   };
 
-  const assertedUxStates = {
-    loading: false,
-    error: false,
-    empty: false,
-    destructiveAction: false,
+  const assertedUxStateFiles = {
+    loading: await findFilesAssertingUxState(testEvidenceFiles, 'loading'),
+    error: await findFilesAssertingUxState(testEvidenceFiles, 'error'),
+    empty: await findFilesAssertingUxState(testEvidenceFiles, 'empty'),
+    destructiveAction: await findFilesAssertingUxState(
+      testEvidenceFiles,
+      'destructiveAction'
+    ),
   };
-  for (const testEvidenceFile of testEvidenceFiles) {
-    const testFileContents = await readFile(testEvidenceFile, 'utf8');
-    for (const state of Object.keys(assertedUxStates) as FeatureUxState[]) {
-      if (assertedUxStates[state]) {
-        continue;
-      }
-      assertedUxStates[state] = fileAssertsUxState(testFileContents, state);
-    }
-  }
-  const assertedUxCriteria = {
-    loadingStatePresent: assertedUxStates.loading,
-    errorStateWithRecovery: false,
-    emptyStateWithCta: false,
-    destructiveActionSafety: false,
-  };
-  for (const testEvidenceFile of testEvidenceFiles) {
-    const testFileContents = await readFile(testEvidenceFile, 'utf8');
-    if (!assertedUxCriteria.errorStateWithRecovery) {
-      assertedUxCriteria.errorStateWithRecovery =
-        fileAssertsPatternWithAssertion(
-          testFileContents,
-          uxStatePatterns.error
-        ) &&
-        fileAssertsPatternWithAssertion(testFileContents, uxRecoveryPatterns);
-    }
-    if (!assertedUxCriteria.emptyStateWithCta) {
-      assertedUxCriteria.emptyStateWithCta =
-        fileAssertsPatternWithAssertion(
-          testFileContents,
-          uxStatePatterns.empty
-        ) && fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns);
-    }
-    if (!assertedUxCriteria.destructiveActionSafety) {
-      assertedUxCriteria.destructiveActionSafety =
-        fileAssertsPatternWithAssertion(
-          testFileContents,
-          uxStatePatterns.destructiveAction
-        ) &&
-        fileAssertsPatternWithAssertion(
-          testFileContents,
-          uxConfirmationPatterns
-        ) &&
-        fileAssertsPatternWithAssertion(testFileContents, uxCancelPatterns);
-    }
-  }
 
   const declaredUxCriteria = {
     loadingStatePresent: manifestUxCriteria?.loadingStatePresent === true,
@@ -641,7 +745,7 @@ export const scorePluginMaturity = async ({
   const destructiveActionRelevant =
     manifestUxCriteria?.destructiveActionSafety?.relevant ??
     declaredUxStates.destructiveAction ??
-    assertedUxStates.destructiveAction;
+    assertedUxStateFiles.destructiveAction.length > 0;
   const loadingStateUniversallyRequired = false;
   const loadingStateRelevant =
     loadingStateUniversallyRequired ||
@@ -670,13 +774,77 @@ export const scorePluginMaturity = async ({
   );
 
   let metCriteriaCount = 0;
+  let explicitCriteriaCount = 0;
   const missingUxCriteria: FeatureUxCriterion[] = [];
+  const criteriaDetails = Object.fromEntries(
+    (
+      [
+        'loadingStatePresent',
+        'errorStateWithRecovery',
+        'emptyStateWithCta',
+        'destructiveActionSafety',
+      ] as const
+    ).map((criterion) => [
+      criterion,
+      {
+        label: uxCriterionLabels[criterion],
+        relevant: uxCriterionRelevance[criterion],
+        declared: declaredUxCriteria[criterion],
+        verified: false,
+        source: 'none' as PluginMaturityEvidenceSource,
+        files: [] as string[],
+      },
+    ])
+  ) as PluginMaturityScorecard['verificationDetails']['uxCriteria'];
 
   for (const criterion of criteriaToEvaluate) {
     const isDeclared = declaredUxCriteria[criterion];
-    const isAsserted = assertedUxCriteria[criterion];
-    if (isDeclared && isAsserted && runtimeAssertionsSatisfied) {
+    const explicitCriterionFiles = await resolveExplicitEvidenceFiles(
+      repoRoot,
+      declaredEvidence?.uxCriteria?.[criterion] ?? []
+    );
+    const heuristicCriterionFiles =
+      explicitCriterionFiles.length === 0
+        ? await findFilesAssertingCriterionHeuristically(
+            testEvidenceFiles,
+            criterion
+          )
+        : [];
+    const verifiedCriterionFiles =
+      explicitCriterionFiles.length > 0
+        ? explicitCriterionFiles
+        : heuristicCriterionFiles;
+    const verificationSource: PluginMaturityEvidenceSource =
+      explicitCriterionFiles.length > 0
+        ? 'explicit'
+        : heuristicCriterionFiles.length > 0
+          ? 'heuristic'
+          : 'none';
+    criteriaDetails[criterion] = {
+      label: uxCriterionLabels[criterion],
+      relevant: true,
+      declared: isDeclared,
+      verified: verifiedCriterionFiles.length > 0,
+      source: verificationSource,
+      files: verifiedCriterionFiles.map((filePath) =>
+        toRepoRelativePath(repoRoot, filePath)
+      ),
+    };
+
+    if (
+      isDeclared &&
+      verifiedCriterionFiles.length > 0 &&
+      runtimeAssertionsSatisfied
+    ) {
       metCriteriaCount += 1;
+      if (verificationSource === 'explicit') {
+        explicitCriteriaCount += 1;
+      } else {
+        pushUnique(
+          nextActions,
+          `Promote heuristic UX verification for ${uxCriterionLabels[criterion]} to explicit \`maturity.evidence.uxCriteria\` file mappings.`
+        );
+      }
       continue;
     }
 
@@ -698,6 +866,13 @@ export const scorePluginMaturity = async ({
       'Manifest UX criteria and automated tests jointly validate key UX safeguards.'
     );
   }
+  if (explicitCriteriaCount > 0) {
+    categoryScores.feature_quality += Math.min(2, explicitCriteriaCount);
+    pushUnique(
+      evidence,
+      'Explicit UX evidence links criteria to concrete test files instead of relying only on heuristic detection.'
+    );
+  }
 
   if (missingUxCriteria.length > 0) {
     categoryScores.feature_quality -= missingUxCriteria.length * 4;
@@ -711,12 +886,56 @@ export const scorePluginMaturity = async ({
       filePath.includes(path.join('src', 'lib', 'plugins'))
     )
   ) {
-    categoryScores.test_coverage += 8;
+    categoryScores.test_coverage += 4;
+  }
+  if (
+    testEvidenceFiles.some((filePath) =>
+      filePath.includes(path.join('plugins', manifest.id))
+    ) ||
+    testEvidenceFiles.some((filePath) =>
+      filePath.includes(path.join('src', 'components'))
+    )
+  ) {
+    categoryScores.test_coverage += 4;
   }
 
+  let detectedReadmeSections: string[] = [];
   if (await fileExists(pluginReadmePath)) {
-    categoryScores.operability_docs += 8;
+    const readmeContents = await readFile(pluginReadmePath, 'utf8');
+    detectedReadmeSections = parseReadmeSections(readmeContents);
+    const normalizedReadmeSections = detectedReadmeSections.map(normalizeHeading);
+    categoryScores.operability_docs += 4;
     pushUnique(evidence, 'Plugin README is present.');
+    if (normalizedReadmeSections.includes('usage')) {
+      categoryScores.operability_docs += 2;
+      pushUnique(evidence, 'Plugin README documents usage guidance.');
+    } else {
+      pushUnique(reasons, 'Plugin README is missing a Usage section.');
+      pushUnique(
+        nextActions,
+        'Add a `## Usage` section to each plugin README with operator steps.'
+      );
+    }
+    if (normalizedReadmeSections.includes('verification')) {
+      categoryScores.operability_docs += 2;
+      pushUnique(evidence, 'Plugin README documents verification steps.');
+    } else {
+      pushUnique(reasons, 'Plugin README is missing a Verification section.');
+      pushUnique(
+        nextActions,
+        'Add a `## Verification` section to each plugin README with exact test commands.'
+      );
+    }
+    if (
+      normalizedReadmeSections.includes('troubleshooting') ||
+      normalizedReadmeSections.includes('known limitations and dependencies')
+    ) {
+      categoryScores.operability_docs += 2;
+      pushUnique(
+        evidence,
+        'Plugin README includes operational support sections beyond baseline usage/verification.'
+      );
+    }
   } else {
     pushUnique(reasons, 'Plugin README is missing.');
     pushUnique(
@@ -826,6 +1045,14 @@ export const scorePluginMaturity = async ({
     reasons: reasons.slice(0, 5),
     nextActions: nextActions.slice(0, 5),
     evidence: evidence.slice(0, 5),
+    verificationDetails: {
+      testEvidenceSource,
+      testEvidenceFiles: testEvidenceFiles.map((filePath) =>
+        toRepoRelativePath(repoRoot, filePath)
+      ),
+      readmeSections: detectedReadmeSections,
+      uxCriteria: criteriaDetails,
+    },
     declaredTier: manifest.maturity?.tier,
   };
 };

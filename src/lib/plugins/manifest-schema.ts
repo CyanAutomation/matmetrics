@@ -53,6 +53,19 @@ export const pluginManifestSchema = z.object({
             .optional(),
         })
         .optional(),
+      evidence: z
+        .object({
+          testFiles: z.array(z.string().min(1)).optional(),
+          uxCriteria: z
+            .object({
+              loadingStatePresent: z.array(z.string().min(1)).optional(),
+              errorStateWithRecovery: z.array(z.string().min(1)).optional(),
+              emptyStateWithCta: z.array(z.string().min(1)).optional(),
+              destructiveActionSafety: z.array(z.string().min(1)).optional(),
+            })
+            .optional(),
+        })
+        .optional(),
     })
     .optional(),
 });

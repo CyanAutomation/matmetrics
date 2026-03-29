@@ -18,6 +18,23 @@
         "confirmation": true,
         "cancellation": true
       }
+    },
+    "evidence": {
+      "testFiles": [
+        "plugins/tag-manager/plugin.test.ts",
+        "plugins/tag-manager/src/index.test.ts",
+        "src/lib/plugins/tag-manager-plugin.test.ts",
+        "src/components/tag-manager.loading.test.ts",
+        "src/components/tag-manager.destructive.test.tsx"
+      ],
+      "uxCriteria": {
+        "loadingStatePresent": [
+          "src/components/tag-manager.loading.test.ts"
+        ],
+        "destructiveActionSafety": [
+          "src/components/tag-manager.destructive.test.tsx"
+        ]
+      }
     }
   },
   "capabilities": ["tag_mutation"],
