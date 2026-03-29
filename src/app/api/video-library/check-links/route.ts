@@ -104,7 +104,10 @@ export async function POST(request: NextRequest) {
       return user;
     }
 
-    const body = await request.json().catch(() => ({}));
+    const body = (await request.json().catch(() => ({}))) as {
+      gitHubConfig?: unknown;
+      sessionIds?: unknown[];
+    };
     const requestedGitHubConfig = normalizeGitHubConfig(
       body.gitHubConfig as GitHubConfig | undefined
     );
@@ -118,7 +121,8 @@ export async function POST(request: NextRequest) {
 
     const requestedSessionIds = Array.isArray(body.sessionIds)
       ? body.sessionIds.filter(
-          (sessionId): sessionId is string => typeof sessionId === 'string'
+          (sessionId: unknown): sessionId is string =>
+            typeof sessionId === 'string'
         )
       : null;
 

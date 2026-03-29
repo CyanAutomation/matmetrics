@@ -291,7 +291,18 @@ test('GET /api/plugins/list returns current maturity scores for bundled plugins'
   );
 
   const payload = await response.json();
-  const pluginsById = new Map(
+  const pluginsById = new Map<
+    string,
+    {
+      manifest: { id: string };
+      maturity?: {
+        score: number;
+        tier: string;
+        reasons: string[];
+        nextActions: string[];
+      };
+    }
+  >(
     payload.plugins.map(
       (row: {
         manifest: { id: string };
