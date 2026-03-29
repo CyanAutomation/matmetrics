@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAuthHeaders } from '@/lib/auth-session';
+import { createDomSafePathId } from './dom-safe-id';
 
 interface ScanFileResult {
   path: string;
@@ -96,6 +97,23 @@ export const LogDoctor = (): React.ReactElement => {
   const invalidFiles = useMemo(
     () => scanResult?.files.filter((file) => file.status === 'invalid') ?? [],
     [scanResult]
+  );
+  const invalidFileSelectIds = useMemo(
+    () =>
+      invalidFiles.map((file, rowIndex) => ({
+        path: file.path,
+        selectId: createDomSafePathId(file.path, rowIndex),
+      })),
+    [invalidFiles]
+  );
+  const selectIdByPath = useMemo(
+    () =>
+      new Map(
+        invalidFileSelectIds.map(
+          (entry) => [entry.path, entry.selectId] as const
+        )
+      ),
+    [invalidFileSelectIds]
   );
 
   const selectedCount = selectedPaths.length;
@@ -317,37 +335,42 @@ export const LogDoctor = (): React.ReactElement => {
               </p>
             ) : (
               <div className="space-y-2">
-                {invalidFiles.map((file) => (
-                  <div
-                    key={file.path}
-                    className="rounded-md border p-3 text-sm space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id={`select-${file.path}`}
-                          checked={selectedPaths.includes(file.path)}
-                          onChange={() => togglePath(file.path)}
-                        />
-                        <Label
-                          className="cursor-pointer break-all"
-                          htmlFor={`select-${file.path}`}
-                        >
-                          {file.path}
-                        </Label>
+                {invalidFiles.map((file) => {
+                  const selectId = selectIdByPath.get(file.path);
+                  if (!selectId) return null;
+
+                  return (
+                    <div
+                      key={file.path}
+                      className="rounded-md border p-3 text-sm space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={selectId}
+                            checked={selectedPaths.includes(file.path)}
+                            onChange={() => togglePath(file.path)}
+                          />
+                          <Label
+                            className="cursor-pointer break-all"
+                            htmlFor={selectId}
+                          >
+                            {file.path}
+                          </Label>
+                        </div>
+                        <Badge variant="destructive">invalid</Badge>
                       </div>
-                      <Badge variant="destructive">invalid</Badge>
+                      {(file.errors ?? []).length > 0 ? (
+                        <ul className="list-disc pl-5 text-destructive">
+                          {file.errors?.map((entry) => (
+                            <li key={`${file.path}-${entry}`}>{entry}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
-                    {(file.errors ?? []).length > 0 ? (
-                      <ul className="list-disc pl-5 text-destructive">
-                        {file.errors?.map((entry) => (
-                          <li key={`${file.path}-${entry}`}>{entry}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
