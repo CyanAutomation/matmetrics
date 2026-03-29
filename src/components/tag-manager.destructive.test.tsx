@@ -94,16 +94,42 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
   assert.deepEqual(confirmedResult, confirmedState.deleteAnalysis);
 });
 
-test('canceling delete confirmation clears pending destructive state when idle', () => {
-  const cancelResult = resolveDeleteDialogCancel({
+test('canceling delete confirmation preserves data and dismisses dialog', async () => {
+  const initialSessions = [
+    { id: 'session-1', techniques: ['seoi-nage', 'uchi-mata'] },
+    { id: 'session-2', techniques: ['seoi-nage'] },
+  ];
+  const initialTags = ['seoi-nage', 'uchi-mata'];
+  const sessionsBeforeCancel = structuredClone(initialSessions);
+  const tagsBeforeCancel = [...initialTags];
+
+  const deleteFlowState: DeleteDialogState = {
     deletingTag: 'seoi-nage',
     deleteAnalysis: createDeleteSummary({
+      affectedSessionCount: 2,
       changedTagCount: 2,
+      affectedSessionIds: ['session-1', 'session-2'],
       affectedTags: ['seoi-nage'],
     }),
     isAnalyzingDelete: false,
     isApplyingDelete: false,
+  };
+
+  const cancelResult = resolveDeleteDialogCancel(deleteFlowState);
+  let deleteInvocations = 0;
+  const postCancelAttempt = await runDeleteConfirmation({
+    deletingTag: cancelResult.deletingTag,
+    deleteAnalysis: cancelResult.deleteAnalysis,
+    deleteTag: async () => {
+      deleteInvocations += 1;
+      return createDeleteSummary();
+    },
   });
+
+  assert.deepEqual(initialSessions, sessionsBeforeCancel);
+  assert.deepEqual(initialTags, tagsBeforeCancel);
+  assert.equal(deleteInvocations, 0);
+  assert.equal(postCancelAttempt, null);
 
   assert.equal(cancelResult.deletingTag, null);
   assert.equal(cancelResult.deleteAnalysis, null);
