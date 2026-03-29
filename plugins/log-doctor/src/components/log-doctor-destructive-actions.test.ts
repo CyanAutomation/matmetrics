@@ -7,7 +7,7 @@ import {
   createUiState,
   resolveResetDiagnosticsSnapshot,
   type DiagnosticsSnapshot,
-} from './log-doctor';
+} from './log-doctor-state';
 
 test('apply confirmation requires strong APPLY phrase', () => {
   assert.equal(canConfirmApplyFixes(''), false);
