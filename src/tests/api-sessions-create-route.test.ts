@@ -44,6 +44,31 @@ async function withStoredGitHubConfig(
   }
 }
 
+function makeSession(
+  id: string,
+  overrides: Partial<{
+    date: string;
+    effort: number;
+    category: 'Technical' | 'Randori' | 'Shiai';
+    techniques: string[];
+    videoUrl: string;
+  }> = {}
+) {
+  const base = {
+    id,
+    date: '2025-01-12',
+    effort: 3,
+    category: 'Technical' as const,
+    techniques: ['osoto-gari'],
+  };
+
+  return {
+    ...base,
+    ...overrides,
+    ...(overrides.videoUrl !== undefined && { videoUrl: overrides.videoUrl }),
+  };
+}
+
 test('POST persists the session to local markdown storage when GitHub is not configured', async () => {
   await withStoredGitHubConfig('null', async () => {
     await withTempDataDir(async () => {
@@ -54,24 +79,12 @@ test('POST persists the session to local markdown storage when GitHub is not con
             authorization: 'Bearer test-token',
             'content-type': 'application/json',
           },
-          body: JSON.stringify({
-            id: 'create-local-id',
-            date: '2025-01-12',
-            effort: 3,
-            category: 'Technical',
-            techniques: ['osoto-gari'],
-          }),
+          body: JSON.stringify(makeSession('create-local-id')),
         })
       );
 
       assert.equal(response.status, 201);
-      assert.deepEqual(await response.json(), {
-        id: 'create-local-id',
-        date: '2025-01-12',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['osoto-gari'],
-      });
+      assert.deepEqual(await response.json(), makeSession('create-local-id'));
 
       const filePath = getSessionFilePath(
         '2025-01-12',
@@ -449,6 +462,19 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       },
       error: 'Invalid videoUrl: protocol must be http or https',
     },
+    {
+      name: 'videoUrl private network host',
+      body: {
+        id: 'create-invalid-video-url-private-host',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'https://localhost/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    },
   ];
 
   for (const testCase of cases) {
@@ -482,26 +508,21 @@ test('POST accepts valid videoUrl and includes it in created session', async () 
             authorization: 'Bearer test-token',
             'content-type': 'application/json',
           },
-          body: JSON.stringify({
-            id: 'create-valid-video-url',
-            date: '2025-01-12',
-            effort: 3,
-            category: 'Technical',
-            techniques: ['osoto-gari'],
-            videoUrl: 'https://example.com/videos/123',
-          }),
+          body: JSON.stringify(
+            makeSession('create-valid-video-url', {
+              videoUrl: 'https://example.com/videos/123',
+            })
+          ),
         })
       );
 
       assert.equal(response.status, 201);
-      assert.deepEqual(await response.json(), {
-        id: 'create-valid-video-url',
-        date: '2025-01-12',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['osoto-gari'],
-        videoUrl: 'https://example.com/videos/123',
-      });
+      assert.deepEqual(
+        await response.json(),
+        makeSession('create-valid-video-url', {
+          videoUrl: 'https://example.com/videos/123',
+        })
+      );
     });
   });
 });
