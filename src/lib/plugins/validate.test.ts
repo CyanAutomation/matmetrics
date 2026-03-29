@@ -275,6 +275,16 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
         empty: true,
         destructiveAction: true,
       },
+      uxCriteria: {
+        loadingStatePresent: true,
+        errorStateWithRecovery: true,
+        emptyStateWithCta: true,
+        destructiveActionSafety: {
+          relevant: true,
+          confirmation: true,
+          cancellation: true,
+        },
+      },
     },
     uiExtensions: [
       {
@@ -295,6 +305,15 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
     assert.equal(result.manifest.owner, 'Matmetrics');
     assert.equal(result.manifest.maturity?.tier, 'bronze');
     assert.equal(result.manifest.maturity?.uxStates?.destructiveAction, true);
+    assert.equal(
+      result.manifest.maturity?.uxCriteria?.errorStateWithRecovery,
+      true
+    );
+    assert.equal(
+      result.manifest.maturity?.uxCriteria?.destructiveActionSafety
+        ?.cancellation,
+      true
+    );
   }
 });
 

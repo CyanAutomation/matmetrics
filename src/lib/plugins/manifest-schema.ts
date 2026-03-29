@@ -39,6 +39,20 @@ export const pluginManifestSchema = z.object({
           destructiveAction: z.boolean().optional(),
         })
         .optional(),
+      uxCriteria: z
+        .object({
+          loadingStatePresent: z.boolean().optional(),
+          errorStateWithRecovery: z.boolean().optional(),
+          emptyStateWithCta: z.boolean().optional(),
+          destructiveActionSafety: z
+            .object({
+              relevant: z.boolean().optional(),
+              confirmation: z.boolean().optional(),
+              cancellation: z.boolean().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
     })
     .optional(),
 });
