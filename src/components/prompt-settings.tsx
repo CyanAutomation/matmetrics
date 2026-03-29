@@ -53,6 +53,13 @@ type PromptSettingsViewState = PromptSettingsUiState & {
   hasSaveSuccess: boolean;
 };
 
+export const PROMPT_SETTINGS_LOADING_TEXT = 'Loading saved prompt settings...';
+export const PROMPT_SETTINGS_ERROR_RETRY_LABEL = 'Retry';
+export const PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT =
+  'Add instructions or import a profile snippet, then save to create your first custom prompt profile.';
+export const PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL = 'Yes, reset prompt';
+export const PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
+
 type PromptSettingsToast = {
   variant?: 'destructive';
   title?: string;
@@ -123,6 +130,35 @@ export async function runPromptResetFlow({
 
     return false;
   }
+}
+
+export async function runPromptLoadRecoveryFlow({
+  retryLoad,
+}: {
+  retryLoad: () => Promise<void>;
+}): Promise<boolean> {
+  try {
+    await retryLoad();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resolvePromptAfterDestructiveResetAction({
+  action,
+  currentPrompt,
+  defaultPrompt = DEFAULT_TRANSFORMER_PROMPT,
+}: {
+  action: 'confirm' | 'cancel';
+  currentPrompt: string;
+  defaultPrompt?: string;
+}): string {
+  if (action === 'confirm') {
+    return defaultPrompt;
+  }
+
+  return currentPrompt;
 }
 
 export function derivePromptSettingsUiState({
@@ -281,7 +317,7 @@ export function PromptSettings() {
 
     setIsResetting(true);
     try {
-      await runPromptResetFlow({
+      const didReset = await runPromptResetFlow({
         uid: user.uid,
         resetPreference: resetTransformerPromptPreference,
         feedback: {
@@ -291,6 +327,17 @@ export function PromptSettings() {
           },
         },
       });
+
+      if (didReset) {
+        setPrompt((currentPrompt) =>
+          resolvePromptAfterDestructiveResetAction({
+            action: 'confirm',
+            currentPrompt,
+          })
+        );
+        setSaveStatus('idle');
+        setSaveError(null);
+      }
     } finally {
       setIsResetDialogOpen(false);
       setIsResetting(false);
@@ -300,7 +347,9 @@ export function PromptSettings() {
   const handleRetryLoad = async () => {
     setIsRetryingLoad(true);
     try {
-      await retryPreferencesLoad();
+      await runPromptLoadRecoveryFlow({
+        retryLoad: retryPreferencesLoad,
+      });
     } finally {
       setIsRetryingLoad(false);
     }
@@ -356,7 +405,7 @@ export function PromptSettings() {
               aria-live="polite"
             >
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading saved prompt settings...
+              {PROMPT_SETTINGS_LOADING_TEXT}
             </div>
           )}
 
@@ -377,7 +426,7 @@ export function PromptSettings() {
                     onClick={() => void handleRetryLoad()}
                     disabled={isRetryingLoad}
                   >
-                    {isRetryingLoad ? 'Retrying…' : 'Retry'}
+                    {isRetryingLoad ? 'Retrying…' : PROMPT_SETTINGS_ERROR_RETRY_LABEL}
                   </Button>
                   <details className="text-xs">
                     <summary className="cursor-pointer">Error details</summary>
@@ -395,9 +444,8 @@ export function PromptSettings() {
               <Info className="h-4 w-4" />
               <AlertTitle>Start your first prompt profile</AlertTitle>
               <AlertDescription>
-                You are currently using the default prompt. Add instructions or
-                import a profile snippet, then save to create your first custom
-                prompt profile.
+                You are currently using the default prompt.{' '}
+                {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
               </AlertDescription>
             </Alert>
           )}
@@ -501,10 +549,18 @@ export function PromptSettings() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsResetDialogOpen(false)}
+                  onClick={() => {
+                    setPrompt((currentPrompt) =>
+                      resolvePromptAfterDestructiveResetAction({
+                        action: 'cancel',
+                        currentPrompt,
+                      })
+                    );
+                    setIsResetDialogOpen(false);
+                  }}
                   disabled={isResetting}
                 >
-                  Cancel
+                  {PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
                 </Button>
                 <Button
                   type="button"
@@ -521,7 +577,7 @@ export function PromptSettings() {
                   ) : (
                     <>
                       <RotateCcw className="h-4 w-4" />
-                      Yes, reset prompt
+                      {PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL}
                     </>
                   )}
                 </Button>
