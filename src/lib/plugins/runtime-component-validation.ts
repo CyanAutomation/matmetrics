@@ -42,9 +42,9 @@ const extractDeclaredManifestComponents = (
     ];
   });
 
-export const validateManifestComponentRenderers = (
+export const validateManifestComponentRenderers = async (
   manifest: PluginManifest
-): PluginValidationIssue[] => {
+): Promise<PluginValidationIssue[]> => {
   void initializePluginComponentRegistry();
 
   return extractDeclaredManifestComponents(manifest).flatMap(
