@@ -52,3 +52,24 @@ test('createUiState interruption flow uses cancellation next step guidance', () 
   assert.match(state.message, /Request canceled/);
   assert.match(state.message, /Run the check again when you are ready/i);
 });
+
+test('createUiState error for config issues uses server/proxy guidance', () => {
+  const state = createUiState('scan', 'error', {
+    reason:
+      'Missing MATMETRICS_GO_PROXY_BASE_URL while forwarding request to upstream proxy',
+  });
+
+  assert.equal(state.phase, 'error');
+  assert.match(state.message, /MATMETRICS_GO_PROXY_BASE_URL/);
+  assert.match(state.message, /Check server\/proxy configuration and retry/i);
+});
+
+test('createUiState error for generic preview failures keeps refresh guidance', () => {
+  const state = createUiState('preview', 'error', {
+    reason: 'Preview generation failed for selected markdown file.',
+  });
+
+  assert.equal(state.phase, 'error');
+  assert.match(state.message, /Preview generation failed/);
+  assert.match(state.message, /Refresh logs and retry/i);
+});
