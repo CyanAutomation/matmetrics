@@ -130,61 +130,61 @@ const pluginTabIcons: Record<string, LucideIcon> = {
   github: Github,
 };
 
-export const resolveDashboardExtensionsToTabs = (
+export const resolveDashboardExtensionsToTabs = async (
   extensions: ResolvedDashboardTabExtension[]
-): DashboardTabResolutionResult => {
+): Promise<DashboardTabResolutionResult> => {
   const warnings: PluginRuntimeWarning[] = [];
 
-  const tabs: TabDefinition[] = extensions.flatMap(
-    ({ extension, pluginId, capabilities }) => {
-      const requiredCapability = getRequiredCapabilityForExtension(extension);
-      if (
-        requiredCapability &&
-        !hasCapability(capabilities, requiredCapability)
-      ) {
-        warnings.push(
-          createMissingCapabilityDashboardWarning(
-            requiredCapability,
-            pluginId,
-            extension.id
-          )
-        );
-        return [];
-      }
+  const tabs: TabDefinition[] = [];
 
-      const render = resolveDashboardTabRenderer(extension.config.component);
-      if (!render) {
-        warnings.push(
-          createUnresolvedDashboardComponentWarning(
-            extension.config.component,
-            pluginId,
-            extension.id
-          )
-        );
-        return [];
-      }
-
-      return [
-        {
-          id: extension.config.tabId,
-          title: extension.title,
-          headerTitle: extension.config.headerTitle,
-          icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
-          section: 'plugins',
-          render,
-        },
-      ];
+  for (const { extension, pluginId, capabilities } of extensions) {
+    const requiredCapability = getRequiredCapabilityForExtension(extension);
+    if (
+      requiredCapability &&
+      !hasCapability(capabilities, requiredCapability)
+    ) {
+      warnings.push(
+        createMissingCapabilityDashboardWarning(
+          requiredCapability,
+          pluginId,
+          extension.id
+        )
+      );
+      continue;
     }
-  );
+
+    const render = await resolveDashboardTabRenderer(
+      extension.config.component
+    );
+    if (!render) {
+      warnings.push(
+        createUnresolvedDashboardComponentWarning(
+          extension.config.component,
+          pluginId,
+          extension.id
+        )
+      );
+      continue;
+    }
+
+    tabs.push({
+      id: extension.config.tabId,
+      title: extension.title,
+      headerTitle: extension.config.headerTitle,
+      icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
+      section: 'plugins',
+      render,
+    });
+  }
 
   return { tabs, warnings };
 };
 
-export const mapDashboardExtensionsToTabs = (
+export const mapDashboardExtensionsToTabs = async (
   extensions: ResolvedDashboardTabExtension[],
   options: MapDashboardExtensionsOptions = {}
-): TabDefinition[] => {
-  const { tabs, warnings } = resolveDashboardExtensionsToTabs(extensions);
+): Promise<TabDefinition[]> => {
+  const { tabs, warnings } = await resolveDashboardExtensionsToTabs(extensions);
   warnings.forEach((warning) => {
     options.onWarning?.(warning);
     console.warn('Plugin runtime warning', warning);

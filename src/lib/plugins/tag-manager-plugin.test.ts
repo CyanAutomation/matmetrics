@@ -19,7 +19,10 @@ test.afterEach(() => {
 test('tag-manager manifest contract includes required runtime fields', () => {
   assert.equal(tagManagerManifest.id, 'tag-manager');
   assert.deepEqual(tagManagerManifest.capabilities, ['tag_mutation']);
-  assert.equal(tagManagerManifest.uiExtensions[0]?.id, 'tag-manager-dashboard-tab');
+  assert.equal(
+    tagManagerManifest.uiExtensions[0]?.id,
+    'tag-manager-dashboard-tab'
+  );
   assert.equal(
     tagManagerManifest.uiExtensions[0]?.config.component,
     'tag_manager'
@@ -58,6 +61,9 @@ test('tag-manager renderer returns TagManager and forwards refreshSessions as on
   });
 
   assert.ok(capturedRenderer, 'Expected tag-manager to register a renderer.');
+  if (!capturedRenderer) {
+    throw new Error('Expected tag-manager to register a renderer.');
+  }
 
   const refreshSessions = () => undefined;
   const rendered = capturedRenderer({
@@ -72,16 +78,22 @@ test('tag-manager renderer returns TagManager and forwards refreshSessions as on
     'Expected renderer to return a React element-like object.'
   );
 
-  const element = rendered as { type?: unknown; props?: { onRefresh?: unknown } };
+  const element = rendered as {
+    type?: unknown;
+    props?: { onRefresh?: unknown };
+  };
   assert.equal(element.type, TagManager);
   assert.equal(element.props?.onRefresh, refreshSessions);
 });
 
-test('tag-manager dashboard renderer resolves after plugin bootstrap', () => {
+test('tag-manager dashboard renderer resolves after plugin bootstrap', async () => {
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
 
-  const renderer = resolveDashboardTabRenderer('tag_manager');
+  const renderer = await resolveDashboardTabRenderer('tag_manager');
 
-  assert.ok(renderer, 'Expected tag-manager renderer to resolve after bootstrap.');
+  assert.ok(
+    renderer,
+    'Expected tag-manager renderer to resolve after bootstrap.'
+  );
 });
