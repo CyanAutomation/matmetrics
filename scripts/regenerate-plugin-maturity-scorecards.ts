@@ -51,10 +51,14 @@ const stableNormalize = (value: unknown): unknown => {
   return value;
 };
 
-const digest = (value: unknown): string =>
-  createHash('sha256')
-    .update(JSON.stringify(stableNormalize(value)))
-    .digest('hex');
+const digest = async (value: unknown): Promise<string> => {
+  const normalized = JSON.stringify(stableNormalize(value));
+  const bytes = new TextEncoder().encode(normalized);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
 
 const buildArtifact = async (): Promise<ScoreArtifact> => {
   const pluginsRoot = path.join(process.cwd(), 'plugins');
