@@ -7,8 +7,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { createDomSafePathId } from './dom-safe-id';
 
@@ -66,6 +76,128 @@ type LogDoctorUiState = {
   phase: LogDoctorPhase;
   operation: LogDoctorOperation | null;
   message: string;
+};
+
+type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
+type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
+
+export type DiagnosticsSnapshot = {
+  scanResult: ScanResult | null;
+  fixResult: FixResult | null;
+  selectedPaths: string[];
+  uiState: LogDoctorUiState;
+  errorMessage: string | null;
+};
+
+export const createUiState = (
+  operation: LogDoctorOperation,
+  phase: LogDoctorPhase,
+  details?: {
+    reason?: string;
+    hasLogs?: boolean;
+    hasFindings?: boolean;
+  }
+): LogDoctorUiState => {
+  if (phase === 'idle') {
+    return {
+      phase,
+      operation: null,
+      message: 'Select a source, then run Log Doctor.',
+    };
+  }
+
+  if (phase === 'loading') {
+    const operationLabel =
+      operation === 'scan'
+        ? 'Fetching logs'
+        : operation === 'preview'
+          ? 'Analyzing findings'
+          : 'Applying fixes';
+
+    return {
+      phase,
+      operation,
+      message: `${operationLabel}… this can take up to 30 seconds for larger repositories.`,
+    };
+  }
+
+  if (phase === 'empty') {
+    const emptyMessage =
+      details?.hasLogs === false
+        ? 'No logs were found for this source. Select source or refresh logs.'
+        : details?.hasFindings === false
+          ? 'No findings to show yet. Refresh logs or run a new scan.'
+          : 'No data is available yet. Select source or refresh logs.';
+    return { phase, operation, message: emptyMessage };
+  }
+
+  if (phase === 'error') {
+    return {
+      phase,
+      operation,
+      message: createErrorMessage(
+        operation,
+        details?.reason ?? 'Unknown request error.'
+      ),
+    };
+  }
+
+  return {
+    phase: 'success',
+    operation,
+    message: 'Findings ready.',
+  };
+};
+
+export const createEmptyDiagnosticsSnapshot = (): DiagnosticsSnapshot => ({
+  scanResult: null,
+  fixResult: null,
+  selectedPaths: [],
+  uiState: createUiState('scan', 'idle'),
+  errorMessage: null,
+});
+
+export const canConfirmApplyFixes = (value: string): boolean =>
+  value.trim().toUpperCase() === 'APPLY';
+
+export const resolveResetDiagnosticsSnapshot = (
+  current: DiagnosticsSnapshot,
+  confirmed: boolean
+): {
+  next: DiagnosticsSnapshot;
+  previous: DiagnosticsSnapshot | null;
+} => {
+  if (!confirmed) {
+    return { next: current, previous: null };
+  }
+
+  return {
+    next: createEmptyDiagnosticsSnapshot(),
+    previous: {
+      ...current,
+      selectedPaths: [...current.selectedPaths],
+    },
+  };
+};
+
+const emitDestructiveActionEvent = (
+  action: LogDoctorDestructiveAction,
+  stage: LogDoctorDestructiveStage,
+  metadata?: Record<string, string | number | boolean>
+): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('logDoctorDestructiveAction', {
+      detail: {
+        action,
+        stage,
+        metadata: metadata ?? {},
+      },
+    })
+  );
 };
 
 const ABORTED_REQUEST_REASON = 'Request canceled';
@@ -186,6 +318,7 @@ const parseApiResponse = async <T,>(response: Response): Promise<T> => {
 
 export const LogDoctor = (): React.ReactElement => {
   const { preferences } = useAuth();
+  const { toast } = useToast();
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState('');
@@ -204,6 +337,9 @@ export const LogDoctor = (): React.ReactElement => {
   const [activeController, setActiveController] = useState<AbortController | null>(
     null
   );
+  const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
+  const [applyConfirmationValue, setApplyConfirmationValue] = useState('');
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -342,16 +478,9 @@ export const LogDoctor = (): React.ReactElement => {
     }
   };
 
-  const handleApplyFixes = async (): Promise<void> => {
+  const executeApplyFixes = async (): Promise<void> => {
     if (selectedPaths.length === 0) {
       setErrorMessage('Select at least one file before applying fixes.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Apply normalization fixes to ${selectedPaths.length} selected file(s) on ${branch.trim() || 'default branch'}?`
-    );
-    if (!confirmed) {
       return;
     }
 
@@ -400,8 +529,94 @@ export const LogDoctor = (): React.ReactElement => {
     }
   };
 
+  const handleApplyFixes = (): void => {
+    setApplyConfirmationValue('');
+    setShowApplyConfirmation(true);
+    emitDestructiveActionEvent('apply-fixes', 'opened', {
+      selectedCount,
+      branch: branch.trim() || 'default branch',
+    });
+  };
+
+  const handleCancelApplyConfirmation = (): void => {
+    setShowApplyConfirmation(false);
+    setApplyConfirmationValue('');
+    emitDestructiveActionEvent('apply-fixes', 'canceled', {
+      selectedCount,
+    });
+  };
+
+  const handleConfirmApplyFixes = async (): Promise<void> => {
+    if (!canConfirmApplyFixes(applyConfirmationValue)) {
+      setErrorMessage('Type APPLY to confirm this irreversible action.');
+      return;
+    }
+
+    emitDestructiveActionEvent('apply-fixes', 'confirmed', {
+      selectedCount,
+      branch: branch.trim() || 'default branch',
+    });
+    setShowApplyConfirmation(false);
+    setApplyConfirmationValue('');
+    await executeApplyFixes();
+  };
+
   const handleCancelActiveOperation = (): void => {
     activeController?.abort();
+  };
+
+  const handleResetDiagnosticsState = (): void => {
+    setShowResetConfirmation(true);
+    emitDestructiveActionEvent('reset-diagnostics-state', 'opened');
+  };
+
+  const handleCancelResetConfirmation = (): void => {
+    setShowResetConfirmation(false);
+    emitDestructiveActionEvent('reset-diagnostics-state', 'canceled');
+  };
+
+  const handleConfirmResetDiagnosticsState = (): void => {
+    const currentSnapshot: DiagnosticsSnapshot = {
+      scanResult,
+      fixResult,
+      selectedPaths,
+      uiState,
+      errorMessage,
+    };
+    const resolved = resolveResetDiagnosticsSnapshot(currentSnapshot, true);
+    setShowResetConfirmation(false);
+    setScanResult(resolved.next.scanResult);
+    setFixResult(resolved.next.fixResult);
+    setSelectedPaths(resolved.next.selectedPaths);
+    setUiState(resolved.next.uiState);
+    setErrorMessage(resolved.next.errorMessage);
+    emitDestructiveActionEvent('reset-diagnostics-state', 'confirmed');
+
+    if (!resolved.previous) {
+      return;
+    }
+
+    toast({
+      title: 'Diagnostics state reset',
+      description: 'Cleared current scan and fix results. Undo is available.',
+      action: (
+        <ToastAction
+          altText="Undo reset diagnostics state"
+          onClick={() => {
+            setScanResult(resolved.previous?.scanResult ?? null);
+            setFixResult(resolved.previous?.fixResult ?? null);
+            setSelectedPaths(resolved.previous?.selectedPaths ?? []);
+            setUiState(
+              resolved.previous?.uiState ?? createUiState('scan', 'idle')
+            );
+            setErrorMessage(resolved.previous?.errorMessage ?? null);
+            emitDestructiveActionEvent('reset-diagnostics-state', 'undone');
+          }}
+        >
+          Undo
+        </ToastAction>
+      ),
+    });
   };
 
   const isBusy = isScanning || isPreviewing || isApplying;
@@ -458,9 +673,10 @@ export const LogDoctor = (): React.ReactElement => {
           {isPreviewing ? 'Previewing…' : 'Preview fixes'}
         </Button>
         <Button
-          variant="default"
+          variant="destructive"
           onClick={handleApplyFixes}
           disabled={isApplying || selectedCount === 0}
+          aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
         >
           {isApplying ? 'Applying…' : 'Apply fixes'}
         </Button>
@@ -524,13 +740,9 @@ export const LogDoctor = (): React.ReactElement => {
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setScanResult(null);
-                      setFixResult(null);
-                      setSelectedPaths([]);
-                      setUiState(createUiState('scan', 'idle'));
-                    }}
+                    variant="destructive"
+                    aria-label="Reset diagnostics state and select a different source"
+                    onClick={handleResetDiagnosticsState}
                   >
                     Select source
                   </Button>
@@ -630,6 +842,90 @@ export const LogDoctor = (): React.ReactElement => {
           </CardContent>
         </Card>
       ) : null}
+
+      <Dialog
+        open={showApplyConfirmation}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancelApplyConfirmation();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              Confirm apply fixes
+            </DialogTitle>
+            <DialogDescription>
+              This will commit normalization fixes for {selectedCount} selected
+              file(s) on{' '}
+              <strong>{branch.trim() || 'the default branch'}</strong>. Undo is
+              not available in Log Doctor. Type <strong>APPLY</strong> to
+              continue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="apply-fixes-confirm-text">
+              Confirmation text
+            </Label>
+            <Input
+              id="apply-fixes-confirm-text"
+              value={applyConfirmationValue}
+              onChange={(event) => setApplyConfirmationValue(event.target.value)}
+              placeholder="Type APPLY"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelApplyConfirmation}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleConfirmApplyFixes();
+              }}
+              aria-label="Confirm apply fixes and create commits"
+              disabled={!canConfirmApplyFixes(applyConfirmationValue)}
+            >
+              Confirm apply fixes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showResetConfirmation}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancelResetConfirmation();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              Reset diagnostics state?
+            </DialogTitle>
+            <DialogDescription>
+              This clears current scan findings, fix previews, and selected
+              files from the Log Doctor panel. You can undo this reset from the
+              toast after confirming.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelResetConfirmation}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmResetDiagnosticsState}
+              aria-label="Confirm resetting diagnostics state"
+            >
+              Reset diagnostics state
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
