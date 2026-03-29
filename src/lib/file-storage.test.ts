@@ -8,6 +8,7 @@ import {
   rm,
   utimes,
 } from 'node:fs/promises';
+import crypto from 'node:crypto';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -550,6 +551,49 @@ test('updateSession release lock is robust on normal and ENOENT cleanup paths', 
     await assert.rejects(access(lockPath));
     const markdown = await readFile(sessionPath, 'utf8');
     assert.match(markdown, /release ENOENT path/);
+  });
+});
+
+test('late release does not delete a reclaimed lock owned by another caller', async () => {
+  await withTempDataDir(async () => {
+    const originalUnlink = fs.unlink;
+    const session = makeSession({
+      id: 'session-lock-owner-guard',
+      date: '2025-01-10',
+      notes: 'before owner guard regression',
+    });
+    const sessionPath = await createSession(session);
+    const lockPath = `${sessionPath}.lock`;
+    let injectedBusyRetry = false;
+    let replacementToken = '';
+
+    fs.unlink = (async (...args: Parameters<typeof fs.unlink>) => {
+      const [targetPath] = args;
+      const targetPathString = targetPath.toString();
+      if (!injectedBusyRetry && targetPathString === lockPath) {
+        injectedBusyRetry = true;
+        replacementToken = `999999:${crypto.randomUUID()}:${Date.now()}`;
+        await fs.writeFile(lockPath, `${replacementToken}\n`, 'utf-8');
+        throw Object.assign(new Error('simulated lock busy on release'), {
+          code: 'EBUSY',
+        });
+      }
+      return originalUnlink.call(fs, ...args);
+    }) as typeof fs.unlink;
+
+    try {
+      const updatedPath = await updateSession({
+        ...session,
+        notes: 'after owner guard regression',
+      });
+      assert.equal(updatedPath, sessionPath);
+    } finally {
+      fs.unlink = originalUnlink;
+    }
+
+    assert.equal(injectedBusyRetry, true);
+    const lockContent = await readFile(lockPath, 'utf8');
+    assert.equal(lockContent.trim(), replacementToken);
   });
 });
 
