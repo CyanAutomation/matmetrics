@@ -28,6 +28,7 @@ import {
   SessionUpdateConflictError,
   updateSession,
 } from './file-storage';
+import { sessionToMarkdown } from './markdown-serializer';
 import type { JudoSession } from './types';
 
 function makeSession(overrides: Partial<JudoSession> = {}): JudoSession {
@@ -129,14 +130,13 @@ test('findSessionFileById locates a session even when the file path month no lon
   });
 });
 
-test('updateSession rejects a conflicting interleaved write to nextPath and preserves the original file', async () => {
+test('updateSession rejects a conflicting destination file and preserves the original file', async () => {
   await withTempDataDir(async () => {
-    const originalWriteFile = fs.writeFile;
     const session = makeSession();
     const originalPath = await createSession(session);
     const nextSession = makeSession({
       date: '2025-02-12',
-      notes: 'should fail due to interleaved conflict',
+      notes: 'should fail due to destination conflict',
     });
     const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
     const conflictingMarkdown = [
@@ -163,38 +163,14 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
       'conflict',
       '',
     ].join('\n');
-    let injectedConflict = false;
+    await fs.mkdir(path.dirname(nextPath), { recursive: true });
+    await fs.writeFile(nextPath, conflictingMarkdown, 'utf-8');
 
-    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
-      const [targetPath, , options] = args;
-      const targetPathString = targetPath.toString();
-      const flag =
-        typeof options === 'object' && options !== null && 'flag' in options
-          ? options.flag
-          : undefined;
-      if (!injectedConflict && targetPathString === nextPath && flag === 'wx') {
-        injectedConflict = true;
-        await originalWriteFile.call(
-          fs,
-          nextPath,
-          conflictingMarkdown,
-          'utf-8'
-        );
-      }
+    await assert.rejects(
+      updateSession(nextSession),
+      /another session already exists there/
+    );
 
-      return originalWriteFile.call(fs, ...args);
-    }) as typeof fs.writeFile;
-
-    try {
-      await assert.rejects(
-        updateSession(nextSession),
-        /another session already exists there/
-      );
-    } finally {
-      fs.writeFile = originalWriteFile;
-    }
-
-    assert.equal(injectedConflict, true);
     const originalMarkdown = await readFile(originalPath, 'utf8');
     assert.match(originalMarkdown, /date: '2025-01-10'/);
     const conflictingAtNextPath = await readFile(nextPath, 'utf8');
@@ -207,40 +183,40 @@ test('updateSession rejects a conflicting interleaved write to nextPath and pres
   });
 });
 
-test('updateSession overwrites an existing destination file when interleaved write has the same session ID with stale content', async () => {
+test('updateSession overwrites an existing destination file when it has the same session ID with stale content', async () => {
   await withTempDataDir(async () => {
     const originalWriteFile = fs.writeFile;
     const session = makeSession();
     const originalPath = await createSession(session);
     const nextSession = makeSession({
       date: '2025-02-12',
-      notes: 'same-id interleaving should still succeed',
+      notes: 'same-id destination should still succeed',
     });
     const nextPath = getSessionFilePath('2025-02-12', undefined, 'session-1');
     let injectedSameIdWrite = false;
 
     fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
       const [targetPath, data, options] = args;
-      const targetPathString = targetPath.toString();
       const flag =
         typeof options === 'object' && options !== null && 'flag' in options
           ? options.flag
           : undefined;
+
       if (
         !injectedSameIdWrite &&
-        targetPathString === nextPath &&
+        targetPath.toString().startsWith(`${nextPath}.tmp-`) &&
         flag === 'wx' &&
         typeof data === 'string'
       ) {
         injectedSameIdWrite = true;
-        const staleSameIdMarkdown = data.replace(
-          'same-id interleaving should still succeed',
-          'stale destination content'
-        );
+        await fs.mkdir(path.dirname(nextPath), { recursive: true });
         await originalWriteFile.call(
           fs,
           nextPath,
-          staleSameIdMarkdown,
+          sessionToMarkdown({
+            ...nextSession,
+            notes: 'stale destination content',
+          }),
           'utf-8'
         );
       }
@@ -248,18 +224,19 @@ test('updateSession overwrites an existing destination file when interleaved wri
       return originalWriteFile.call(fs, ...args);
     }) as typeof fs.writeFile;
 
+    let updatedPath: string;
     try {
-      const updatedPath = await updateSession(nextSession);
-      assert.equal(updatedPath, nextPath);
+      updatedPath = await updateSession(nextSession);
     } finally {
       fs.writeFile = originalWriteFile;
     }
 
     assert.equal(injectedSameIdWrite, true);
+    assert.equal(updatedPath, nextPath);
     await assert.rejects(access(originalPath));
     const nextMarkdown = await readFile(nextPath, 'utf8');
     assert.match(nextMarkdown, /id: session-1/);
-    assert.match(nextMarkdown, /same-id interleaving should still succeed/);
+    assert.match(nextMarkdown, /same-id destination should still succeed/);
     assert.doesNotMatch(nextMarkdown, /stale destination content/);
   });
 });
@@ -431,6 +408,99 @@ test('updateSession keeps conflict behavior when same-path lock is active', asyn
       }),
       SessionUpdateConflictError
     );
+  });
+});
+
+test('concurrent date-move updates avoid deadlock and resolve with one winner', async () => {
+  await withTempDataDir(async () => {
+    const session = makeSession({
+      id: 'session-move-deadlock',
+      date: '2025-01-10',
+      notes: 'baseline',
+    });
+    await createSession(session);
+
+    const moveToFebruary = updateSession({
+      ...session,
+      date: '2025-02-11',
+      notes: 'move-to-february',
+    });
+    const moveToMarch = updateSession({
+      ...session,
+      date: '2025-03-12',
+      notes: 'move-to-march',
+    });
+
+    const [firstResult, secondResult] = await Promise.allSettled([
+      moveToFebruary,
+      moveToMarch,
+    ]);
+
+    const fulfilled = [firstResult, secondResult].filter(
+      (result): result is PromiseFulfilledResult<string> =>
+        result.status === 'fulfilled'
+    );
+    const rejected = [firstResult, secondResult].filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+
+    assert.equal(fulfilled.length, 1);
+    assert.equal(rejected.length, 1);
+    assert.equal(
+      rejected[0].reason instanceof SessionUpdateConflictError,
+      true
+    );
+
+    const winningPath = fulfilled[0].value;
+    assert.equal(await findSessionFileById(session.id), winningPath);
+    const markdown = await readFile(winningPath, 'utf8');
+    assert.match(markdown, /move-to-(february|march)/);
+    await assert.rejects(access(getSessionFilePath('2025-01-10', undefined, session.id)));
+  });
+});
+
+test('deleteSession racing with date move yields deterministic deleted state', async () => {
+  await withTempDataDir(async () => {
+    const originalUnlink = fs.unlink;
+    const session = makeSession({
+      id: 'session-move-delete-race',
+      date: '2025-01-10',
+      notes: 'baseline',
+    });
+    const sourcePath = await createSession(session);
+    const targetPath = getSessionFilePath('2025-02-12', undefined, session.id);
+    let startedNestedDelete = false;
+    let nestedDeleteError: unknown = null;
+
+    fs.unlink = (async (...args: Parameters<typeof fs.unlink>) => {
+      const [targetPathArg] = args;
+      if (!startedNestedDelete && targetPathArg.toString() === sourcePath) {
+        startedNestedDelete = true;
+        try {
+          await deleteSession(session.id);
+        } catch (error) {
+          nestedDeleteError = error;
+        }
+      }
+      return originalUnlink.call(fs, ...args);
+    }) as typeof fs.unlink;
+
+    try {
+      await updateSession({
+        ...session,
+        date: '2025-02-12',
+        notes: 'move while delete races',
+      });
+    } finally {
+      fs.unlink = originalUnlink;
+    }
+
+    assert.equal(startedNestedDelete, true);
+    assert.equal(nestedDeleteError instanceof DuplicateSessionIdError, true);
+    await assert.rejects(access(sourcePath));
+    const movedMarkdown = await readFile(targetPath, 'utf8');
+    assert.match(movedMarkdown, /move while delete races/);
+    assert.equal(await findSessionFileById(session.id), targetPath);
   });
 });
 
