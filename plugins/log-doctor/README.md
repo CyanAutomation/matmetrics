@@ -36,3 +36,13 @@ Manual verification:
 1. Start the app with `npm run dev`.
 2. Open Dashboard and verify the **Log Doctor** tab appears.
 3. Open the tab and confirm the Log Doctor panel content renders.
+
+## Maturity governance (promotion to Gold)
+
+Gold promotion is never automatic from score alone. Even when maturity scoring is `>= 85`, promotion requires a deliberate reviewer decision.
+
+When approving Gold promotion, the reviewer must update plugin manifest maturity metadata with all of the following:
+
+- `maturity.tier: gold`
+- `maturity.lastReviewedAt` (review date)
+- `maturity.notes` (review rationale and scope)
