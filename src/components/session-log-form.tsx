@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import {
   Brain,
@@ -28,6 +27,7 @@ import {
 import {
   EffortLevel,
   EFFORT_LABELS,
+  EFFORT_COLORS,
   JudoSession,
   SessionCategory,
 } from '@/lib/types';
@@ -516,33 +516,33 @@ export function SessionLogForm({
               <div className="h-5 flex items-center justify-between">
                 <Label className="text-sm font-semibold">Effort Level</Label>
                 <span className="text-xs text-muted-foreground">
-                  1 = Easy, 5 = Intense
+                  {EFFORT_LABELS[effort]}
                 </span>
               </div>
-              <RadioGroup
-                name="sessionEffort"
-                value={effort.toString()}
-                onValueChange={(val) => setEffort(parseInt(val) as EffortLevel)}
-                className="flex items-center justify-around h-11 px-2 bg-background/90 rounded-md"
-              >
-                {[1, 2, 3, 4, 5].map((val) => (
-                  <div
-                    key={fid(`effort-${val}`)}
-                    className="flex items-center space-x-1"
-                  >
-                    <RadioGroupItem
-                      value={val.toString()}
-                      id={fid(`effort-radio-${val}`)}
-                    />
-                    <Label
-                      htmlFor={fid(`effort-radio-${val}`)}
-                      className="cursor-pointer font-medium text-[11px] leading-none whitespace-nowrap"
+              <div className="flex gap-2 h-11 bg-background/90 rounded-md p-1.5">
+                {[1, 2, 3, 4, 5].map((val) => {
+                  const effortVal = val as EffortLevel;
+                  const isSelected = effort === effortVal;
+                  return (
+                    <Button
+                      key={fid(`effort-${val}`)}
+                      type="button"
+                      onClick={() => setEffort(effortVal)}
+                      className={cn(
+                        'flex-1 px-0 font-semibold transition-all duration-200',
+                        isSelected
+                          ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
+                          : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                      )}
+                      title={EFFORT_LABELS[effortVal]}
+                      aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
+                      aria-pressed={isSelected}
                     >
-                      {EFFORT_LABELS[val as EffortLevel]}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+                      {val}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
