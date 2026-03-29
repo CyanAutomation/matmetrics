@@ -475,6 +475,58 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       error:
         'Invalid videoUrl: private or internal network addresses are not allowed',
     },
+    {
+      name: 'videoUrl blocks loopback alias 127.0.0.2',
+      body: {
+        id: 'create-invalid-video-url-loopback-alias',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'http://127.0.0.2/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    },
+    {
+      name: 'videoUrl blocks ipv6 loopback ::1',
+      body: {
+        id: 'create-invalid-video-url-ipv6-loopback',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'http://[::1]/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    },
+    {
+      name: 'videoUrl blocks mapped ipv4 loopback',
+      body: {
+        id: 'create-invalid-video-url-ipv6-mapped-loopback',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'http://[::ffff:127.0.0.1]/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    },
+    {
+      name: 'videoUrl blocks ipv4 link-local range',
+      body: {
+        id: 'create-invalid-video-url-link-local',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: 'http://169.254.1.1/video.mp4',
+      },
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    },
   ];
 
   for (const testCase of cases) {
