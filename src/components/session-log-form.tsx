@@ -467,8 +467,9 @@ export function SessionLogForm({
               )}
 
               {/* Session Control Fields */}
-              <div className="flex-1 w-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
+              <div className="flex-1 w-full space-y-4 lg:space-y-5">
+                {/* Row 1: Date, Duration, Type */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
                   {/* Session Date */}
                   <div className="space-y-2.5">
                     <Label
@@ -537,39 +538,39 @@ export function SessionLogForm({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
 
-                  {/* Effort Level */}
-                  <div className="space-y-2.5">
-                    <div className="h-5 flex items-center justify-between">
-                      <Label className="text-sm font-semibold">Effort Level</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {EFFORT_LABELS[effort]}
-                      </span>
-                    </div>
-                    <div className="flex gap-1.5 h-11 bg-background/90 rounded-md p-1.5">
-                      {[1, 2, 3, 4, 5].map((val) => {
-                        const effortVal = val as EffortLevel;
-                        const isSelected = effort === effortVal;
-                        return (
-                          <Button
-                            key={fid(`effort-${val}`)}
-                            type="button"
-                            onClick={() => setEffort(effortVal)}
-                            className={cn(
-                              'flex-1 px-0 font-semibold transition-all duration-200 text-xs',
-                              isSelected
-                                ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
-                                : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
-                            )}
-                            title={EFFORT_LABELS[effortVal]}
-                            aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
-                            aria-pressed={isSelected}
-                          >
-                            {val}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                {/* Row 2: Effort Level (Full Width) */}
+                <div className="space-y-2.5">
+                  <div className="h-5 flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Effort Level</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {EFFORT_LABELS[effort]}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 h-11 bg-background/90 rounded-md p-1.5">
+                    {[1, 2, 3, 4, 5].map((val) => {
+                      const effortVal = val as EffortLevel;
+                      const isSelected = effort === effortVal;
+                      return (
+                        <Button
+                          key={fid(`effort-${val}`)}
+                          type="button"
+                          onClick={() => setEffort(effortVal)}
+                          className={cn(
+                            'flex-1 px-0 font-semibold transition-all duration-200 text-sm',
+                            isSelected
+                              ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
+                              : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                          )}
+                          title={EFFORT_LABELS[effortVal]}
+                          aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
+                          aria-pressed={isSelected}
+                        >
+                          {val}
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
