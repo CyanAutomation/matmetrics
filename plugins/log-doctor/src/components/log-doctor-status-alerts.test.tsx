@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { LogDoctorStatusAlerts } from './log-doctor';
+import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 import { createUiState } from './log-doctor-state';
 
 test('LogDoctorStatusAlerts error snapshot renders one detailed error block with retry action', () => {
