@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Convert Ressa PNG images to WebP for better web delivery
+ * Convert character PNG images to WebP for better web delivery
+ * Processes both Ressa and Dr. Log characters
  * Usage: node scripts/convert-images.js
  */
 
@@ -9,10 +10,15 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-const sourceDir = path.join(__dirname, '../design/ressa');
-const targetDir = path.join(__dirname, '../public/images/ressa');
+async function convertCharacterImages(name, pattern) {
+  const sourceDir = path.join(__dirname, `../design/${name}`);
+  const targetDir = path.join(__dirname, `../public/images/${name}`);
 
-async function convertImages() {
+  if (!fs.existsSync(sourceDir)) {
+    console.log(`⊘ Skipped ${name}: design directory not found`);
+    return;
+  }
+
   try {
     // Create target directory if it doesn't exist
     if (!fs.existsSync(targetDir)) {
@@ -21,8 +27,14 @@ async function convertImages() {
 
     const pngFiles = fs
       .readdirSync(sourceDir)
-      .filter((file) => file.match(/^ressa-pose-\d+\.png$/));
+      .filter((file) => file.match(pattern));
 
+    if (pngFiles.length === 0) {
+      console.log(`⊘ No files found for ${name} matching pattern`);
+      return;
+    }
+
+    console.log(`\nProcessing ${name}...`);
     console.log(`Found ${pngFiles.length} PNG files to convert...`);
 
     for (const file of pngFiles) {
@@ -44,13 +56,25 @@ async function convertImages() {
       }
     }
 
-    console.log('\n✓ Image conversion complete!');
-    console.log(`  WebP files: ${targetDir}/ressa-pose-*.webp`);
-    console.log(`  PNG fallbacks: ${targetDir}/ressa-pose-*.png`);
+    console.log(`✓ ${name} conversion complete!`);
+  } catch (err) {
+    console.error(`Error processing ${name}:`, err);
+  }
+}
+
+async function convertAllCharacters() {
+  try {
+    // Convert Ressa character
+    await convertCharacterImages('ressa', /^ressa-pose-\d+\.png$/);
+
+    // Convert Dr. Log character
+    await convertCharacterImages('drlog', /^drlog-pose-\d+\.png$/);
+
+    console.log('\n✓ All image conversions complete!');
   } catch (err) {
     console.error('Error:', err);
     process.exit(1);
   }
 }
 
-convertImages();
+convertAllCharacters();
