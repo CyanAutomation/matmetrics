@@ -551,36 +551,15 @@ export default function Home() {
       </div>
 
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           {isLogModalOpen && (
-            <>
-              <div className="flex flex-col sm:flex-row items-start gap-6 mb-2">
-                <RessaImage
-                  pose={1}
-                  size="medium"
-                  className="shrink-0 mt-1"
-                  alt="Ressa in coach mode, ready to help log your training session"
-                />
-                <div className="flex-1">
-                  <DialogHeader className="mb-4">
-                    <DialogTitle className="text-2xl font-bold">
-                      Log Practice Session
-                    </DialogTitle>
-                    <DialogDescription>
-                      Record your techniques and reflections.
-                    </DialogDescription>
-                  </DialogHeader>
-                </div>
-              </div>
-              <div className="py-2">
-                <SessionLogForm
-                  key="quick-log-instance"
-                  onSuccess={handleSessionAdded}
-                  onCancel={() => setIsLogModalOpen(false)}
-                  hideHeader={true}
-                />
-              </div>
-            </>
+            <SessionLogForm
+              key="quick-log-instance"
+              onSuccess={handleSessionAdded}
+              onCancel={() => setIsLogModalOpen(false)}
+              hideHeader={true}
+              showAvatar={true}
+            />
           )}
         </DialogContent>
       </Dialog>

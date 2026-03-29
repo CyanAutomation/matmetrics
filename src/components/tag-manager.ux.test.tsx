@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { TagOperationSummary } from '@/lib/tags';
 import {
   buildDeleteConfirmationCopy,
   buildErrorRecoveryDescription,
@@ -12,8 +13,25 @@ import {
   TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL,
 } from './tag-manager';
 
+type DeleteDialogState = Parameters<typeof deriveDeleteDialogActions>[0];
+
+function createDeleteSummary(
+  overrides: Partial<TagOperationSummary> = {}
+): TagOperationSummary {
+  return {
+    dryRun: false,
+    affectedSessionCount: 2,
+    changedTagCount: 3,
+    affectedSessionIds: ['session-1', 'session-2'],
+    failedSessionIds: [],
+    affectedTags: ['uchi-mata'],
+    conflicts: [],
+    ...overrides,
+  };
+}
+
 test('loading state is reflected as disabled actions and loading labels during async destructive flow', () => {
-  const analyzingState = {
+  const analyzingState: DeleteDialogState = {
     deletingTag: 'uchi-mata',
     deleteAnalysis: null,
     isAnalyzingDelete: true,
@@ -27,13 +45,9 @@ test('loading state is reflected as disabled actions and loading labels during a
   assert.equal(analyzingActions.cancelDisabled, true);
   assert.equal(analyzingActions.primaryDisabled, true);
 
-  const applyingState = {
+  const applyingState: DeleteDialogState = {
     deletingTag: 'uchi-mata',
-    deleteAnalysis: {
-      affectedSessionCount: 2,
-      changedTagCount: 3,
-      conflicts: [],
-    },
+    deleteAnalysis: createDeleteSummary(),
     isAnalyzingDelete: false,
     isApplyingDelete: true,
   };
@@ -47,13 +61,14 @@ test('loading state is reflected as disabled actions and loading labels during a
 });
 
 test('destructive safety flow supports open copy, cancel no-op mutation, and confirm invokes destructive handler path', async () => {
-  const openState = {
+  const openState: DeleteDialogState = {
     deletingTag: 'seoi-nage',
-    deleteAnalysis: {
+    deleteAnalysis: createDeleteSummary({
       affectedSessionCount: 4,
       changedTagCount: 5,
-      conflicts: [],
-    },
+      affectedSessionIds: ['session-1', 'session-2', 'session-3', 'session-4'],
+      affectedTags: ['seoi-nage'],
+    }),
     isAnalyzingDelete: false,
     isApplyingDelete: false,
   };
@@ -87,11 +102,12 @@ test('destructive safety flow supports open copy, cancel no-op mutation, and con
     deleteTag: async (tag) => {
       destructiveInvocations += 1;
       assert.equal(tag, 'seoi-nage');
-      return {
+      return createDeleteSummary({
         affectedSessionCount: 4,
         changedTagCount: 5,
-        conflicts: [],
-      };
+        affectedSessionIds: ['session-1', 'session-2', 'session-3', 'session-4'],
+        affectedTags: ['seoi-nage'],
+      });
     },
   });
 
@@ -100,25 +116,26 @@ test('destructive safety flow supports open copy, cancel no-op mutation, and con
 
   const skippedResult = await runDeleteConfirmation({
     deletingTag: openState.deletingTag,
-    deleteAnalysis: {
+    deleteAnalysis: createDeleteSummary({
       affectedSessionCount: 0,
       changedTagCount: 0,
-      conflicts: [{ message: 'Cannot delete' }],
-    },
+      affectedSessionIds: [],
+      affectedTags: ['seoi-nage'],
+      conflicts: [{ code: 'tag_not_found', message: 'Cannot delete' }],
+    }),
     deleteTag: async () => {
       destructiveInvocations += 1;
-      return {
+      return createDeleteSummary({
         affectedSessionCount: 0,
         changedTagCount: 0,
-        conflicts: [],
-      };
+        affectedSessionIds: [],
+      });
     },
   });
 
   assert.equal(skippedResult, null);
   assert.equal(destructiveInvocations, 1);
 });
-
 
 test('error criterion anchor: recovery hint is user-visible with refresh and retry affordance wording', () => {
   const description = buildErrorRecoveryDescription(
