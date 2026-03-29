@@ -474,28 +474,96 @@ test('updateSession keeps conflict behavior when same-path lock is active', asyn
 
 test('concurrent date-move updates avoid deadlock and resolve with one winner', async () => {
   await withTempDataDir(async () => {
+    const originalWriteFile = fs.writeFile;
     const session = makeSession({
       id: 'session-move-deadlock',
       date: '2025-01-10',
       notes: 'baseline',
     });
-    await createSession(session);
-
-    const moveToFebruary = updateSession({
-      ...session,
-      date: '2025-02-11',
-      notes: 'move-to-february',
+    const sourcePath = await createSession(session);
+    const sourceLockPath = `${sourcePath}.lock`;
+    const februaryPath = getSessionFilePath('2025-02-11', undefined, session.id);
+    let sourceLockAcquiredResolve: (() => void) | null = null;
+    const sourceLockAcquired = new Promise<void>((resolve) => {
+      sourceLockAcquiredResolve = resolve;
     });
-    const moveToMarch = updateSession({
-      ...session,
-      date: '2025-03-12',
-      notes: 'move-to-march',
+    let pauseFirstWriterResolve: (() => void) | null = null;
+    const pauseFirstWriter = new Promise<void>((resolve) => {
+      pauseFirstWriterResolve = resolve;
     });
+    let delayedFirstWriter = false;
+    let sawFirstSourceLockWrite = false;
+    let injectedSecondLockConflict = false;
 
-    const [firstResult, secondResult] = await Promise.allSettled([
-      moveToFebruary,
-      moveToMarch,
-    ]);
+    fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+      const [targetPath, data, options] = args;
+      const targetPathString = targetPath.toString();
+      const flag =
+        typeof options === 'object' && options !== null && 'flag' in options
+          ? options.flag
+          : undefined;
+
+      if (targetPathString === sourceLockPath && flag === 'wx') {
+        if (!sawFirstSourceLockWrite) {
+          sawFirstSourceLockWrite = true;
+          const writeResult = await originalWriteFile.call(fs, ...args);
+          sourceLockAcquiredResolve?.();
+          return writeResult;
+        }
+
+        injectedSecondLockConflict = true;
+        const conflictError = new Error(
+          'simulated source-lock contention'
+        ) as NodeJS.ErrnoException;
+        conflictError.code = 'EEXIST';
+        throw conflictError;
+      }
+
+      if (
+        !delayedFirstWriter &&
+        targetPathString.startsWith(`${februaryPath}.tmp-`) &&
+        typeof data === 'string' &&
+        data.includes('move-to-february')
+      ) {
+        delayedFirstWriter = true;
+        await pauseFirstWriter;
+      }
+
+      return originalWriteFile.call(fs, ...args);
+    }) as typeof fs.writeFile;
+
+    let firstResult: PromiseSettledResult<string>;
+    let secondResult: PromiseSettledResult<string>;
+    try {
+      const moveToFebruary = updateSession({
+        ...session,
+        date: '2025-02-11',
+        notes: 'move-to-february',
+      });
+
+      await sourceLockAcquired;
+
+      const moveToMarch = updateSession({
+        ...session,
+        date: '2025-03-12',
+        notes: 'move-to-march',
+      });
+
+      secondResult = await Promise.allSettled([moveToMarch]).then(
+        ([result]) => result
+      );
+      pauseFirstWriterResolve?.();
+      firstResult = await Promise.allSettled([moveToFebruary]).then(
+        ([result]) => result
+      );
+    } finally {
+      pauseFirstWriterResolve?.();
+      fs.writeFile = originalWriteFile;
+    }
+
+    assert.equal(delayedFirstWriter, true);
+    assert.equal(sawFirstSourceLockWrite, true);
+    assert.equal(injectedSecondLockConflict, true);
 
     const fulfilled = [firstResult, secondResult].filter(
       (result): result is PromiseFulfilledResult<string> =>
