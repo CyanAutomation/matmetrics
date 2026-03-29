@@ -290,6 +290,171 @@ category: "Technical"
   );
 });
 
+test('scanSessionsFromGitHub bounds concurrent GitHub file reads', async () => {
+  const fileCount = 20;
+  const concurrencyLimit = 4;
+  const filePaths = Array.from(
+    { length: fileCount },
+    (_, index) =>
+      `data/2025/03/202503${String(index + 1).padStart(2, '0')}-matmetrics-session-${index + 1}.md`
+  );
+
+  const dirListing: Record<
+    string,
+    Array<{ path: string; type: 'file' | 'dir'; name: string }>
+  > = {
+    data: [{ name: '2025', path: 'data/2025', type: 'dir' }],
+    'data/2025': [{ name: '03', path: 'data/2025/03', type: 'dir' }],
+    'data/2025/03': filePaths.map((path) => ({
+      name: path.split('/').at(-1) ?? '',
+      path,
+      type: 'file' as const,
+    })),
+  };
+
+  let activeReads = 0;
+  let maxActiveReads = 0;
+  let fileFetchCalls = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const marker = '/contents/';
+      const path = decodeURIComponent(
+        parsed.pathname.slice(parsed.pathname.indexOf(marker) + marker.length)
+      );
+
+      if (path in dirListing) {
+        return new Response(JSON.stringify(dirListing[path]), { status: 200 });
+      }
+
+      if (filePaths.includes(path)) {
+        fileFetchCalls += 1;
+        activeReads += 1;
+        maxActiveReads = Math.max(maxActiveReads, activeReads);
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        activeReads -= 1;
+
+        const markdown = `---
+id: "session-${fileFetchCalls}"
+date: "2025-03-14"
+effort: 3
+category: "Technical"
+---
+
+# 2025-03-14 - Judo Session: Technical
+
+## Techniques Practiced
+- O soto gari
+`;
+        return new Response(JSON.stringify(toContentsPayload(markdown)), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ message: `Not found: ${path}` }), {
+        status: 404,
+      });
+    }) as typeof fetch,
+    async () => {
+      const result = await scanSessionsFromGitHub(
+        { owner: 'o', repo: 'r' },
+        { concurrency: concurrencyLimit, readRetryAttempts: 0 }
+      );
+
+      assert.equal(result.sessions.length, fileCount);
+      assert.equal(result.issues.length, 0);
+    }
+  );
+
+  assert.equal(fileFetchCalls, fileCount);
+  assert.equal(activeReads, 0);
+  assert.ok(maxActiveReads <= concurrencyLimit);
+});
+
+test('scanSessionsFromGitHub retries retryable GitHub read failures before read_failed', async () => {
+  const targetPath = 'data/2025/03/20250314-matmetrics-retryable.md';
+  const dirListing: Record<
+    string,
+    Array<{ path: string; type: 'file' | 'dir'; name: string }>
+  > = {
+    data: [{ name: '2025', path: 'data/2025', type: 'dir' }],
+    'data/2025': [{ name: '03', path: 'data/2025/03', type: 'dir' }],
+    'data/2025/03': [
+      {
+        name: '20250314-matmetrics-retryable.md',
+        path: targetPath,
+        type: 'file',
+      },
+    ],
+  };
+
+  let targetReadCalls = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const marker = '/contents/';
+      const path = decodeURIComponent(
+        parsed.pathname.slice(parsed.pathname.indexOf(marker) + marker.length)
+      );
+
+      if (path in dirListing) {
+        return new Response(JSON.stringify(dirListing[path]), { status: 200 });
+      }
+
+      if (path === targetPath) {
+        targetReadCalls += 1;
+        if (targetReadCalls === 1) {
+          return new Response(
+            JSON.stringify({ message: 'Server overloaded' }),
+            {
+              status: 503,
+            }
+          );
+        }
+
+        const markdown = `---
+id: "session-retried"
+date: "2025-03-14"
+effort: 4
+category: "Technical"
+---
+
+# 2025-03-14 - Judo Session: Technical
+
+## Techniques Practiced
+- Tai otoshi
+`;
+        return new Response(JSON.stringify(toContentsPayload(markdown)), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ message: `Not found: ${path}` }), {
+        status: 404,
+      });
+    }) as typeof fetch,
+    async () => {
+      const result = await scanSessionsFromGitHub(
+        { owner: 'o', repo: 'r' },
+        {
+          concurrency: 2,
+          readRetryAttempts: 2,
+          readRetryBaseDelayMs: 1,
+        }
+      );
+
+      assert.equal(result.sessions.length, 1);
+      assert.equal(result.sessions[0]?.id, 'session-retried');
+      assert.equal(result.issues.length, 0);
+    }
+  );
+
+  assert.equal(targetReadCalls, 2);
+});
+
 test('normalizeGitHubConfig rejects owner names longer than 39 characters', () => {
   const config = normalizeGitHubConfig({
     owner: `o${'a'.repeat(39)}`,
