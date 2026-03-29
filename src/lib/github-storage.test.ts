@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { beforeEach } from 'node:test';
 import test from 'node:test';
 import {
+  __resetDefaultBranchCacheForTests,
   bulkPushSessions,
   createSessionOnGitHub,
   findSessionPathOnGitHubById,
@@ -42,6 +44,10 @@ async function withMockedGitHub(
     }
   }
 }
+
+beforeEach(() => {
+  __resetDefaultBranchCacheForTests();
+});
 
 test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs', () => {
   const idA = 'a/b';
@@ -417,6 +423,170 @@ test('updateSessionOnGitHub moves the file when the session date changes', async
               '/repos/o/r/contents/data/2025/01/20250110-matmetrics-session-1.md'
         )
       );
+    }
+  );
+});
+
+test('resolveBranch cache is isolated by token fingerprint', async () => {
+  let repoLookupCount = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+
+      if (path === '/repos/o/r') {
+        repoLookupCount += 1;
+        return new Response(
+          JSON.stringify({
+            default_branch:
+              process.env.GITHUB_TOKEN === 'token-b' ? 'dev' : 'main',
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (path.includes('/contents/')) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
+
+      return new Response(JSON.stringify({ message: 'Unexpected path' }), {
+        status: 500,
+      });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r' };
+      const session = makeSession('token-specific');
+
+      process.env.GITHUB_TOKEN = 'token-a';
+      await createSessionOnGitHub(session, config);
+      await createSessionOnGitHub(session, config);
+
+      process.env.GITHUB_TOKEN = 'token-b';
+      await createSessionOnGitHub(session, config);
+
+      assert.equal(repoLookupCount, 2);
+    }
+  );
+});
+
+test('default branch cache expires after TTL', async () => {
+  const originalNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  let repoLookupCount = 0;
+
+  try {
+    await withMockedGitHub(
+      (async (url: string | URL | Request) => {
+        const parsed = new URL(String(url));
+        const path = parsed.pathname;
+
+        if (path === '/repos/o/r') {
+          repoLookupCount += 1;
+          return new Response(JSON.stringify({ default_branch: 'main' }), {
+            status: 200,
+          });
+        }
+
+        if (path.includes('/contents/')) {
+          return new Response(JSON.stringify({ message: 'Not Found' }), {
+            status: 404,
+          });
+        }
+
+        return new Response(JSON.stringify({ message: 'Unexpected path' }), {
+          status: 500,
+        });
+      }) as typeof fetch,
+      async () => {
+        const config = { owner: 'o', repo: 'r' };
+        const session = makeSession('ttl');
+
+        await createSessionOnGitHub(session, config);
+        now += 60 * 1000;
+        await createSessionOnGitHub(session, config);
+        now += 5 * 60 * 1000;
+        await createSessionOnGitHub(session, config);
+
+        assert.equal(repoLookupCount, 2);
+      }
+    );
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('createSessionOnGitHub invalidates stale default branch cache and retries once on invalid ref write failure', async () => {
+  const session = makeSession('branch-rename');
+  let repoLookupCount = 0;
+  let putCount = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+      const method = init?.method ?? 'GET';
+
+      if (path === '/repos/o/r') {
+        repoLookupCount += 1;
+        return new Response(
+          JSON.stringify({
+            default_branch: repoLookupCount === 1 ? 'main' : 'trunk',
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-branch-rename.md' &&
+        method === 'GET'
+      ) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-branch-rename.md' &&
+        method === 'PUT'
+      ) {
+        putCount += 1;
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+
+        if (body.branch === 'main') {
+          return new Response(
+            JSON.stringify({ message: 'No commit found for the ref main' }),
+            { status: 422 }
+          );
+        }
+
+        if (body.branch === 'trunk') {
+          return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), {
+            status: 200,
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ message: `Unexpected request: ${method} ${path}` }),
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const result = await createSessionOnGitHub(session, {
+        owner: 'o',
+        repo: 'r',
+      });
+
+      assert.equal(result.success, true);
+      assert.equal(result.branch, 'trunk');
+      assert.equal(repoLookupCount, 2);
+      assert.equal(putCount, 2);
     }
   );
 });

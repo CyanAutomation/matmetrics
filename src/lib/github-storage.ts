@@ -15,7 +15,13 @@ export interface GitHubSyncResult {
   branch?: string;
 }
 
-const defaultBranchCache = new Map<string, string>();
+interface DefaultBranchCacheEntry {
+  branch: string;
+  cachedAt: number;
+}
+
+const DEFAULT_BRANCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const defaultBranchCache = new Map<string, DefaultBranchCacheEntry>();
 const GITHUB_SESSION_ROOT = 'data';
 
 interface GitHubTreeEntry {
@@ -79,6 +85,32 @@ function validateSessionIdLength(sessionId: string): void {
 function encodeSessionId(sessionId: string): string {
   validateSessionIdLength(sessionId);
   return encodeURIComponent(sessionId);
+}
+
+function getTokenFingerprint(token: string): string {
+  let hash = 0;
+
+  for (let index = 0; index < token.length; index++) {
+    hash = (hash * 31 + token.charCodeAt(index)) >>> 0;
+  }
+
+  return hash.toString(16);
+}
+
+function getDefaultBranchCacheKey(owner: string, repo: string): string {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error('GITHUB_TOKEN environment variable not set');
+  }
+  return `${owner}/${repo}/${getTokenFingerprint(token)}`;
+}
+
+function invalidateDefaultBranchCache(owner: string, repo: string): void {
+  defaultBranchCache.delete(getDefaultBranchCacheKey(owner, repo));
+}
+
+export function __resetDefaultBranchCacheForTests(): void {
+  defaultBranchCache.clear();
 }
 
 /**
@@ -319,15 +351,26 @@ async function listTreeEntriesFromContentsApi(
   return treeEntries;
 }
 
-async function resolveBranch(config: GitHubConfig): Promise<string> {
+async function resolveBranch(
+  config: GitHubConfig,
+  options?: { forceRefresh?: boolean }
+): Promise<string> {
   if (config.branch?.trim()) {
     return config.branch.trim();
   }
 
-  const cacheKey = `${config.owner}/${config.repo}`;
-  const cachedBranch = defaultBranchCache.get(cacheKey);
-  if (cachedBranch) {
-    return cachedBranch;
+  const cacheKey = getDefaultBranchCacheKey(config.owner, config.repo);
+
+  if (!options?.forceRefresh) {
+    const cachedBranch = defaultBranchCache.get(cacheKey);
+    if (cachedBranch) {
+      const ageMs = Date.now() - cachedBranch.cachedAt;
+      if (ageMs < DEFAULT_BRANCH_CACHE_TTL_MS) {
+        return cachedBranch.branch;
+      }
+
+      defaultBranchCache.delete(cacheKey);
+    }
   }
 
   try {
@@ -341,7 +384,10 @@ async function resolveBranch(config: GitHubConfig): Promise<string> {
       throw new Error('Repository default branch is unavailable');
     }
 
-    defaultBranchCache.set(cacheKey, defaultBranch);
+    defaultBranchCache.set(cacheKey, {
+      branch: defaultBranch,
+      cachedAt: Date.now(),
+    });
     return defaultBranch;
   } catch (error) {
     const errorMessage =
@@ -349,6 +395,49 @@ async function resolveBranch(config: GitHubConfig): Promise<string> {
     throw new Error(
       `Unable to resolve repository branch for ${config.owner}/${config.repo}: ${errorMessage}`
     );
+  }
+}
+
+function isInvalidBranchWriteError(error: unknown): boolean {
+  if (!isGitHubApiError(error)) {
+    return false;
+  }
+
+  if (error.status !== 404 && error.status !== 422) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+
+  return (
+    normalizedMessage.includes('branch') ||
+    normalizedMessage.includes('ref') ||
+    normalizedMessage.includes('no commit found')
+  );
+}
+
+async function githubDeleteWithBranchRetry(
+  config: GitHubConfig,
+  filePath: string,
+  body: { message: string; branch: string; sha: string }
+): Promise<any> {
+  const requestDelete = async (branch: string) =>
+    githubApiRequest(
+      'DELETE',
+      `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
+      { ...body, branch }
+    );
+
+  try {
+    return await requestDelete(body.branch);
+  } catch (error) {
+    if (isInvalidBranchWriteError(error) && !config.branch?.trim()) {
+      invalidateDefaultBranchCache(config.owner, config.repo);
+      const refreshedBranch = await resolveBranch(config, { forceRefresh: true });
+      return requestDelete(refreshedBranch);
+    }
+
+    throw error;
   }
 }
 
@@ -407,20 +496,35 @@ async function putFile(
 ): Promise<GitHubSyncResult> {
   try {
     const contentBase64 = Buffer.from(content).toString('base64');
-    const branch = await resolveBranch(config);
+    let branch = await resolveBranch(config);
 
-    const body = {
-      message,
-      content: contentBase64,
-      branch,
-      ...(sha && { sha }),
+    const writeFile = async (resolvedBranch: string) => {
+      const body = {
+        message,
+        content: contentBase64,
+        branch: resolvedBranch,
+        ...(sha && { sha }),
+      };
+
+      return githubApiRequest(
+        'PUT',
+        `/repos/${config.owner}/${config.repo}/contents/${path}`,
+        body
+      );
     };
 
-    const data = await githubApiRequest(
-      'PUT',
-      `/repos/${config.owner}/${config.repo}/contents/${path}`,
-      body
-    );
+    let data;
+    try {
+      data = await writeFile(branch);
+    } catch (error) {
+      if (isInvalidBranchWriteError(error) && !config.branch?.trim()) {
+        invalidateDefaultBranchCache(config.owner, config.repo);
+        branch = await resolveBranch(config, { forceRefresh: true });
+        data = await writeFile(branch);
+      } else {
+        throw error;
+      }
+    }
 
     return {
       success: true,
@@ -566,9 +670,9 @@ export async function updateSessionOnGitHub(
         return createResult;
       }
 
-      const deleteResult = await githubApiRequest(
-        'DELETE',
-        `/repos/${config.owner}/${config.repo}/contents/${discoveredPath}`,
+      const deleteResult = await githubDeleteWithBranchRetry(
+        config,
+        discoveredPath,
         {
           message: `Move session: ${session.date}`,
           branch,
@@ -635,15 +739,11 @@ export async function deleteSessionOnGitHub(
       };
     }
 
-    await githubApiRequest(
-      'DELETE',
-      `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
-      {
-        message: `Delete session: ${session.date}`,
-        branch,
-        sha,
-      }
-    );
+    await githubDeleteWithBranchRetry(config, filePath, {
+      message: `Delete session: ${session.date}`,
+      branch,
+      sha,
+    });
 
     return {
       success: true,
@@ -688,15 +788,11 @@ export async function deleteSessionOnGitHubById(
       };
     }
 
-    await githubApiRequest(
-      'DELETE',
-      `/repos/${config.owner}/${config.repo}/contents/${filePath}`,
-      {
-        message: `Delete session by id: ${sessionId}`,
-        branch,
-        sha,
-      }
-    );
+    await githubDeleteWithBranchRetry(config, filePath, {
+      message: `Delete session by id: ${sessionId}`,
+      branch,
+      sha,
+    });
 
     return {
       success: true,
