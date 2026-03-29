@@ -9,6 +9,16 @@
     "lastReviewedAt": "2026-03-24",
     "uxStates": {
       "destructiveAction": true
+    },
+    "uxCriteria": {
+      "loadingStatePresent": false,
+      "errorStateWithRecovery": false,
+      "emptyStateWithCta": false,
+      "destructiveActionSafety": {
+        "relevant": true,
+        "confirmation": false,
+        "cancellation": false
+      }
     }
   },
   "enabled": true,

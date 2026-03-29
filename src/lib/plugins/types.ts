@@ -95,6 +95,16 @@ export type PluginManifestMaturityMetadata = {
     empty?: boolean;
     destructiveAction?: boolean;
   };
+  uxCriteria?: {
+    loadingStatePresent?: boolean;
+    errorStateWithRecovery?: boolean;
+    emptyStateWithCta?: boolean;
+    destructiveActionSafety?: {
+      relevant?: boolean;
+      confirmation?: boolean;
+      cancellation?: boolean;
+    };
+  };
 };
 
 export type PluginMaturityCategory =
