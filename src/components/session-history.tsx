@@ -201,10 +201,15 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
                       return null;
                     }
 
-                    const videoHostname = new URL(videoUrl).hostname.replace(
-                      /^www\./,
-                      ''
-                    );
+                    let videoHostname = '';
+                    try {
+                      videoHostname = new URL(videoUrl).hostname.replace(
+                        /^www\./,
+                        ''
+                      );
+                    } catch {
+                      videoHostname = '';
+                    }
 
                     return (
                       <a
