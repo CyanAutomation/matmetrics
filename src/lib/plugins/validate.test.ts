@@ -445,6 +445,10 @@ test('runtime component renderer checks run only when explicitly enabled', () =>
   if (runtimeResult.isValid) {
     assert.equal(runtimeResult.issues.length, 1);
     assert.equal(runtimeResult.issues[0].severity, 'warning');
-    assert.match(runtimeResult.issues[0].message, /no dashboard renderer/);
+    assert.equal(runtimeResult.issues[0].path, 'runtime-validation');
+    assert.match(
+      runtimeResult.issues[0].message,
+      /renderer checks were skipped/
+    );
   }
 });
