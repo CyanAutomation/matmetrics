@@ -493,16 +493,16 @@ export const LogDoctor = (): React.ReactElement => {
 
   return (
     <section className="space-y-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <div className="flex items-start gap-6">
+        <div className="hidden lg:flex shrink-0">
+          <DrLogImage pose={1} size="large" />
+        </div>
         <div className="flex-1 space-y-2">
           <h2 className="text-lg font-semibold">Log Doctor</h2>
           <p className="text-sm text-muted-foreground">
             Scan, preview, and optionally apply markdown normalization fixes in
             two steps.
           </p>
-        </div>
-        <div className="flex justify-center sm:justify-end">
-          <DrLogImage pose={1} size="compact" />
         </div>
       </div>
 
