@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildLogDoctorFixErrorResponse } from './route';
+import { buildLogDoctorFixErrorResponse } from './error-response';
 
 const INVALID_PROXY_ERROR =
   'Invalid MATMETRICS_GO_PROXY_BASE_URL; expected absolute URL such as https://host:port';
