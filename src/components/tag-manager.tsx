@@ -1,13 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -420,22 +415,16 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const emptyState = deriveTagManagerEmptyState(search);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <PluginPageShell
+      title="Technique Library"
+      description="Manage your technique tags. Changes apply globally to all logged sessions."
+      icon={
+        <div className="rounded-lg bg-primary p-2 text-primary-foreground">
+          <Tags className="h-6 w-6" />
+        </div>
+      }
+    >
       <Card className="bg-card/95">
-        <CardHeader className="bg-secondary/45">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary text-primary-foreground rounded-lg">
-              <Tags className="h-6 w-6" />
-            </div>
-            <div>
-              <CardTitle>Technique Library</CardTitle>
-              <CardDescription>
-                Manage your technique tags. Changes apply globally to all logged
-                sessions.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
         <CardContent className="p-6">
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -753,6 +742,6 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PluginPageShell>
   );
 }

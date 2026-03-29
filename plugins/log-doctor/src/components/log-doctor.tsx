@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -699,20 +700,16 @@ export const LogDoctor = (): React.ReactElement => {
   const isBusy = isScanning || isPreviewing || isApplying;
 
   return (
-    <section className="space-y-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <div className="flex items-start gap-6">
-        <div className="hidden lg:flex shrink-0">
+    <PluginPageShell
+      title="Log Doctor"
+      description="Scan, preview, and optionally apply markdown normalization fixes. Use Session Audit to detect data quality issues."
+      icon={
+        <div className="hidden shrink-0 lg:flex">
           <DrLogImage pose={1} size="large" />
         </div>
-        <div className="flex-1 space-y-2">
-          <h2 className="text-lg font-semibold">Log Doctor</h2>
-          <p className="text-sm text-muted-foreground">
-            Scan, preview, and optionally apply markdown normalization fixes.
-            Use Session Audit to detect data quality issues.
-          </p>
-        </div>
-      </div>
-
+      }
+      contentClassName="space-y-4"
+    >
       {/* Tab switcher */}
       <div className="flex gap-2 border-b pb-2">
         <Button
@@ -1119,6 +1116,6 @@ export const LogDoctor = (): React.ReactElement => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </PluginPageShell>
   );
 };
