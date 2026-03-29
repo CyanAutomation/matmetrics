@@ -75,10 +75,13 @@ export async function resolveAuthorizedGitHubConfig(
     };
   }
 
+  const effectiveRequestedBranch =
+    requestedConfig.branch ?? storedConfig.branch;
+
   if (
     requestedConfig.owner !== storedConfig.owner ||
     requestedConfig.repo !== storedConfig.repo ||
-    requestedConfig.branch !== storedConfig.branch
+    effectiveRequestedBranch !== storedConfig.branch
   ) {
     return {
       forbiddenResponse: NextResponse.json(
