@@ -104,7 +104,9 @@ export const AuditReviewDialog = ({
 
         <div className="space-y-3 py-2">
           {session.flags.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No flags to display.</p>
+            <p className="text-sm text-muted-foreground">
+              No flags to display.
+            </p>
           ) : (
             session.flags.map((flag) => {
               const isIgnored = session.ignoredRules.includes(flag.code);
@@ -135,7 +137,9 @@ export const AuditReviewDialog = ({
                     variant={isIgnored ? 'secondary' : 'outline'}
                     className="shrink-0"
                     onClick={() =>
-                      isIgnored ? handleUnignore(flag.code) : handleIgnore(flag.code)
+                      isIgnored
+                        ? handleUnignore(flag.code)
+                        : handleIgnore(flag.code)
                     }
                     aria-label={
                       isIgnored

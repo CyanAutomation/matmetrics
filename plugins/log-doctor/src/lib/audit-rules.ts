@@ -34,9 +34,7 @@ export function detectNoTechniquesHighEffort(
 /**
  * Check if session has empty or missing description
  */
-export function detectEmptyDescription(
-  session: JudoSession
-): AuditFlag | null {
+export function detectEmptyDescription(session: JudoSession): AuditFlag | null {
   if (!session.description || session.description.trim().length === 0) {
     return {
       code: 'empty_description',
@@ -128,8 +126,14 @@ export function runAuditRules(
   > = {
     no_techniques_high_effort: (session, config) =>
       detectNoTechniquesHighEffort(session, config),
-    empty_description: (session, _config) => detectEmptyDescription(session),
-    empty_notes: (session, _config) => detectEmptyNotes(session),
+    empty_description: (session, config) => {
+      void config;
+      return detectEmptyDescription(session);
+    },
+    empty_notes: (session, config) => {
+      void config;
+      return detectEmptyNotes(session);
+    },
     duration_outlier: (session, config) =>
       detectDurationOutlier(session, allSessions, config),
   };

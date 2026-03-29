@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isBlockedNetworkHostname } from '@/lib/network-safety';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
-import { listSessionsForConfigWithIssues, normalizeGitHubConfig } from '@/lib/session-storage';
+import {
+  listSessionsForConfigWithIssues,
+  normalizeGitHubConfig,
+} from '@/lib/session-storage';
 import type { GitHubConfig } from '@/lib/types';
 import {
   isAllowedVideoHostname,
@@ -30,7 +33,8 @@ async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
     return [];
   }
 
-  const customAllowedDomains = snapshot.data()?.videoLibrary?.customAllowedDomains;
+  const customAllowedDomains =
+    snapshot.data()?.videoLibrary?.customAllowedDomains;
   return Array.isArray(customAllowedDomains)
     ? customAllowedDomains.filter(
         (domain): domain is string => typeof domain === 'string'
@@ -81,7 +85,9 @@ async function checkVideoLink(
       url,
       hostname,
       status:
-        response.status >= 200 && response.status < 400 ? 'reachable' : 'broken',
+        response.status >= 200 && response.status < 400
+          ? 'reachable'
+          : 'broken',
       checkedAt,
       httpStatus: response.status,
     };
@@ -126,7 +132,9 @@ export async function POST(request: NextRequest) {
         )
       : null;
 
-    const { sessions } = await listSessionsForConfigWithIssues(authzResult.config);
+    const { sessions } = await listSessionsForConfigWithIssues(
+      authzResult.config
+    );
     const customAllowedDomains = await getAllowedDomainsForUser(user.uid);
 
     const candidateSessions = sessions.filter((session) => {

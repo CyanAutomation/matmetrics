@@ -181,7 +181,9 @@ function normalizeVideoLibraryPreferences(
     input.linkChecksBySessionId &&
     typeof input.linkChecksBySessionId === 'object'
   ) {
-    for (const [sessionId, value] of Object.entries(input.linkChecksBySessionId)) {
+    for (const [sessionId, value] of Object.entries(
+      input.linkChecksBySessionId
+    )) {
       if (!value || typeof value !== 'object') {
         continue;
       }
@@ -197,12 +199,9 @@ function normalizeVideoLibraryPreferences(
       }
 
       if (
-        ![
-          'reachable',
-          'broken',
-          'disallowed_domain',
-          'check_failed',
-        ].includes(snapshot.status)
+        !['reachable', 'broken', 'disallowed_domain', 'check_failed'].includes(
+          snapshot.status
+        )
       ) {
         continue;
       }
@@ -215,7 +214,9 @@ function normalizeVideoLibraryPreferences(
         ...(typeof snapshot.httpStatus === 'number'
           ? { httpStatus: snapshot.httpStatus }
           : {}),
-        ...(typeof snapshot.error === 'string' ? { error: snapshot.error } : {}),
+        ...(typeof snapshot.error === 'string'
+          ? { error: snapshot.error }
+          : {}),
       };
     }
   }
@@ -226,9 +227,7 @@ function normalizeVideoLibraryPreferences(
   };
 }
 
-function normalizeSessionAudits(
-  value: unknown
-): Record<string, SessionAudit> {
+function normalizeSessionAudits(value: unknown): Record<string, SessionAudit> {
   if (!value || typeof value !== 'object') {
     return {};
   }
@@ -272,17 +271,16 @@ function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
 
   const input = value as Partial<AuditRunResult>;
 
-  if (
-    !Array.isArray(input.sessions) ||
-    typeof input.ranAt !== 'string'
-  ) {
+  if (!Array.isArray(input.sessions) || typeof input.ranAt !== 'string') {
     return undefined;
   }
 
   return {
     sessions: input.sessions.map((session) => ({
-      sessionId: typeof session?.sessionId === 'string' ? session.sessionId : '',
-      sessionDate: typeof session?.sessionDate === 'string' ? session.sessionDate : '',
+      sessionId:
+        typeof session?.sessionId === 'string' ? session.sessionId : '',
+      sessionDate:
+        typeof session?.sessionDate === 'string' ? session.sessionDate : '',
       flags: Array.isArray(session?.flags)
         ? session.flags.map((flag) => ({
             code: flag?.code || 'no_techniques_high_effort',
@@ -504,7 +502,9 @@ export async function initializeUserPreferences(
         ? { auditConfig: serializeAuditConfig(mergedPreferences.auditConfig) }
         : {}),
       ...(mergedPreferences.lastAuditRun
-        ? { lastAuditRun: serializeLastAuditRun(mergedPreferences.lastAuditRun) }
+        ? {
+            lastAuditRun: serializeLastAuditRun(mergedPreferences.lastAuditRun),
+          }
         : {}),
       updatedAt: serverTimestamp(),
     },
@@ -668,7 +668,9 @@ function serializeSessionAudits(
   return result;
 }
 
-function serializeLastAuditRun(result: AuditRunResult): Record<string, unknown> {
+function serializeLastAuditRun(
+  result: AuditRunResult
+): Record<string, unknown> {
   return {
     sessions: result.sessions.map((session) => ({
       sessionId: session.sessionId,

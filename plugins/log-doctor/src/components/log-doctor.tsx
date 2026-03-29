@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,10 +30,13 @@ import {
   saveLastAuditRun,
   saveAuditConfig,
 } from '@/lib/user-preferences';
-import {
-  runAuditRulesForAllSessions,
-} from '../lib/audit-rules';
-import type { AuditConfig, AuditFlagCode, AuditRunResult, JudoSession, SessionAudit } from '@/lib/types';
+import { runAuditRulesForAllSessions } from '../lib/audit-rules';
+import type {
+  AuditFlagCode,
+  AuditRunResult,
+  JudoSession,
+  SessionAudit,
+} from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
 import { AuditReviewDialog } from './log-doctor-review-dialog';
@@ -301,7 +303,9 @@ export const LogDoctor = (): React.ReactElement => {
     setReviewSessionId(null);
   };
 
-  const handleUpdateAuditConfig = async (newConfig: typeof auditConfig): Promise<void> => {
+  const handleUpdateAuditConfig = async (
+    newConfig: typeof auditConfig
+  ): Promise<void> => {
     if (!user?.uid) return;
     await saveAuditConfig(user.uid, newConfig);
     setAuditConfig(newConfig);
@@ -323,13 +327,15 @@ export const LogDoctor = (): React.ReactElement => {
     try {
       await saveSessionAudit(user.uid, sessionId, audit);
       setAuditResults((prev) =>
-        prev.map((r) => (r.sessionId === sessionId ? { ...r, reviewedAt: now } : r))
+        prev.map((r) =>
+          r.sessionId === sessionId ? { ...r, reviewedAt: now } : r
+        )
       );
       toast({
         title: 'Marked as reviewed',
         description: `Session from ${existing.sessionDate} has been reviewed.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -361,7 +367,7 @@ export const LogDoctor = (): React.ReactElement => {
         title: 'Review cleared',
         description: `Session from ${existing.sessionDate} review has been cleared.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -400,7 +406,7 @@ export const LogDoctor = (): React.ReactElement => {
         title: 'Rule ignored',
         description: 'This rule will no longer flag this session.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -437,7 +443,7 @@ export const LogDoctor = (): React.ReactElement => {
         title: 'Rule unignored',
         description: 'This rule will now flag this session again.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -682,9 +688,8 @@ export const LogDoctor = (): React.ReactElement => {
     });
   };
 
-  const reviewSession = auditResults.find(
-    (r) => r.sessionId === reviewSessionId
-  ) ?? null;
+  const reviewSession =
+    auditResults.find((r) => r.sessionId === reviewSessionId) ?? null;
 
   const auditNeedsAttentionCount = auditResults.filter(
     (r) =>
@@ -740,198 +745,206 @@ export const LogDoctor = (): React.ReactElement => {
             <CardHeader>
               <CardTitle className="text-base">Repository target</CardTitle>
             </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1">
-            <Label htmlFor="log-doctor-owner">Owner</Label>
-            <Input
-              id="log-doctor-owner"
-              value={owner}
-              onChange={(event) => setOwner(event.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="log-doctor-repo">Repository</Label>
-            <Input
-              id="log-doctor-repo"
-              value={repo}
-              onChange={(event) => setRepo(event.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="log-doctor-branch">Branch (optional)</Label>
-            <Input
-              id="log-doctor-branch"
-              value={branch}
-              onChange={(event) => setBranch(event.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={handleScan} disabled={isScanning || !owner || !repo}>
-          {isScanning ? 'Scanning…' : 'Scan repository'}
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={handlePreviewFixes}
-          disabled={isPreviewing || selectedCount === 0}
-        >
-          {isPreviewing ? 'Previewing…' : 'Preview fixes'}
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={handleApplyFixes}
-          disabled={isApplying || selectedCount === 0}
-          aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
-        >
-          {isApplying ? 'Applying…' : 'Apply fixes'}
-        </Button>
-        {isBusy ? (
-          <Button variant="outline" onClick={handleCancelActiveOperation}>
-            Cancel current check
-          </Button>
-        ) : null}
-      </div>
-
-      <LogDoctorStatusAlerts
-        uiState={uiState}
-        errorMessage={errorMessage}
-        onRetry={handleScan}
-      />
-
-      {scanResult ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Scan results</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2 text-sm">
-              <Badge variant="outline">
-                Total: {scanResult.summary.totalFiles}
-              </Badge>
-              <Badge variant="outline">
-                Valid: {scanResult.summary.validFiles}
-              </Badge>
-              <Badge variant="destructive">
-                Invalid: {scanResult.summary.invalidFiles}
-              </Badge>
-              <Badge variant="secondary">Selected: {selectedCount}</Badge>
-            </div>
-
-            {invalidFiles.length === 0 ? (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  No invalid files found.
-                </p>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleScan}>
-                    Refresh logs
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    aria-label="Reset diagnostics state and select a different source"
-                    onClick={handleResetDiagnosticsState}
-                  >
-                    Select source
-                  </Button>
-                </div>
+            <CardContent className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor="log-doctor-owner">Owner</Label>
+                <Input
+                  id="log-doctor-owner"
+                  value={owner}
+                  onChange={(event) => setOwner(event.target.value)}
+                />
               </div>
-            ) : (
-              <div className="space-y-2">
-                {invalidFiles.map((file) => {
-                  const selectId = selectIdByPath.get(file.path);
-                  if (!selectId) return null;
-
-                  return (
-                    <div
-                      key={file.path}
-                      className="rounded-md border p-3 text-sm space-y-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id={selectId}
-                            checked={selectedPaths.includes(file.path)}
-                            onChange={() => togglePath(file.path)}
-                          />
-                          <Label
-                            className="cursor-pointer break-all"
-                            htmlFor={selectId}
-                          >
-                            {file.path}
-                          </Label>
-                        </div>
-                        <Badge variant="destructive">invalid</Badge>
-                      </div>
-                      {(file.errors ?? []).length > 0 ? (
-                        <ul className="list-disc pl-5 text-destructive">
-                          {file.errors?.map((entry) => (
-                            <li key={`${file.path}-${entry}`}>{entry}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                  );
-                })}
+              <div className="space-y-1">
+                <Label htmlFor="log-doctor-repo">Repository</Label>
+                <Input
+                  id="log-doctor-repo"
+                  value={repo}
+                  onChange={(event) => setRepo(event.target.value)}
+                />
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+              <div className="space-y-1">
+                <Label htmlFor="log-doctor-branch">Branch (optional)</Label>
+                <Input
+                  id="log-doctor-branch"
+                  value={branch}
+                  onChange={(event) => setBranch(event.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {fixResult ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Fix result ({fixResult.mode})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">{fixResult.message}</p>
-            {fixResult.files.map((file) => (
-              <div key={`fix-${file.path}`} className="rounded-md border p-3">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium break-all">
-                    {file.path}
-                  </span>
-                  <Badge
-                    variant={
-                      file.status === 'error' ? 'destructive' : 'outline'
-                    }
-                  >
-                    {file.status}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleScan}
+              disabled={isScanning || !owner || !repo}
+            >
+              {isScanning ? 'Scanning…' : 'Scan repository'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handlePreviewFixes}
+              disabled={isPreviewing || selectedCount === 0}
+            >
+              {isPreviewing ? 'Previewing…' : 'Preview fixes'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleApplyFixes}
+              disabled={isApplying || selectedCount === 0}
+              aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
+            >
+              {isApplying ? 'Applying…' : 'Apply fixes'}
+            </Button>
+            {isBusy ? (
+              <Button variant="outline" onClick={handleCancelActiveOperation}>
+                Cancel current check
+              </Button>
+            ) : null}
+          </div>
+
+          <LogDoctorStatusAlerts
+            uiState={uiState}
+            errorMessage={errorMessage}
+            onRetry={handleScan}
+          />
+
+          {scanResult ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Scan results</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <Badge variant="outline">
+                    Total: {scanResult.summary.totalFiles}
                   </Badge>
+                  <Badge variant="outline">
+                    Valid: {scanResult.summary.validFiles}
+                  </Badge>
+                  <Badge variant="destructive">
+                    Invalid: {scanResult.summary.invalidFiles}
+                  </Badge>
+                  <Badge variant="secondary">Selected: {selectedCount}</Badge>
                 </div>
-                {file.message ? (
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    {file.message}
-                  </p>
-                ) : null}
-                {file.validationState.errors?.length ? (
-                  <ul className="mb-2 list-disc pl-5 text-xs text-destructive">
-                    {file.validationState.errors.map((entry) => (
-                      <li key={`${file.path}-err-${entry}`}>{entry}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                <div className="mb-2 text-xs text-muted-foreground">
-                  Validation: {file.validationState.before} →{' '}
-                  {file.validationState.after}
-                  {file.commitSha ? ` · commit ${file.commitSha}` : ''}
-                </div>
-                <div className="max-h-56 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
-                  <pre className="whitespace-pre-wrap break-words">
-                    {file.preview.diff}
-                  </pre>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+
+                {invalidFiles.length === 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      No invalid files found.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={handleScan}>
+                        Refresh logs
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        aria-label="Reset diagnostics state and select a different source"
+                        onClick={handleResetDiagnosticsState}
+                      >
+                        Select source
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {invalidFiles.map((file) => {
+                      const selectId = selectIdByPath.get(file.path);
+                      if (!selectId) return null;
+
+                      return (
+                        <div
+                          key={file.path}
+                          className="rounded-md border p-3 text-sm space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id={selectId}
+                                checked={selectedPaths.includes(file.path)}
+                                onChange={() => togglePath(file.path)}
+                              />
+                              <Label
+                                className="cursor-pointer break-all"
+                                htmlFor={selectId}
+                              >
+                                {file.path}
+                              </Label>
+                            </div>
+                            <Badge variant="destructive">invalid</Badge>
+                          </div>
+                          {(file.errors ?? []).length > 0 ? (
+                            <ul className="list-disc pl-5 text-destructive">
+                              {file.errors?.map((entry) => (
+                                <li key={`${file.path}-${entry}`}>{entry}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {fixResult ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Fix result ({fixResult.mode})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {fixResult.message}
+                </p>
+                {fixResult.files.map((file) => (
+                  <div
+                    key={`fix-${file.path}`}
+                    className="rounded-md border p-3"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium break-all">
+                        {file.path}
+                      </span>
+                      <Badge
+                        variant={
+                          file.status === 'error' ? 'destructive' : 'outline'
+                        }
+                      >
+                        {file.status}
+                      </Badge>
+                    </div>
+                    {file.message ? (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        {file.message}
+                      </p>
+                    ) : null}
+                    {file.validationState.errors?.length ? (
+                      <ul className="mb-2 list-disc pl-5 text-xs text-destructive">
+                        {file.validationState.errors.map((entry) => (
+                          <li key={`${file.path}-err-${entry}`}>{entry}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <div className="mb-2 text-xs text-muted-foreground">
+                      Validation: {file.validationState.before} →{' '}
+                      {file.validationState.after}
+                      {file.commitSha ? ` · commit ${file.commitSha}` : ''}
+                    </div>
+                    <div className="max-h-56 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
+                      <pre className="whitespace-pre-wrap break-words">
+                        {file.preview.diff}
+                      </pre>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
         </> /* end File Validation tab */
       ) : null}
 
@@ -964,7 +977,11 @@ export const LogDoctor = (): React.ReactElement => {
 
           <AuditSettings
             config={auditConfig}
-            sessionCount={getSessions().filter((s) => typeof s.duration === 'number' && s.duration > 0).length}
+            sessionCount={
+              getSessions().filter(
+                (s) => typeof s.duration === 'number' && s.duration > 0
+              ).length
+            }
             onConfigChange={handleUpdateAuditConfig}
           />
 

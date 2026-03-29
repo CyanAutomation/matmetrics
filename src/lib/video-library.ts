@@ -69,7 +69,10 @@ export interface VideoDomainRemovalImpact {
 }
 
 function isLikelyBlockedClientHostname(hostname: string): boolean {
-  const normalized = hostname.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  const normalized = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
   if (!normalized) {
     return true;
   }
@@ -234,7 +237,9 @@ export function deriveVideoLibraryEntries(
 }
 
 export function canCheckVideoEntry(entry: VideoLibraryEntry): boolean {
-  return entry.status === 'allowed_unchecked' && !!entry.url && !!entry.hostname;
+  return (
+    entry.status === 'allowed_unchecked' && !!entry.url && !!entry.hostname
+  );
 }
 
 export function reconcileVideoLinkChecks({
@@ -264,7 +269,8 @@ export function reconcileVideoLinkChecks({
       customAllowedDomains
     );
     const matchesCurrentResource =
-      existing.url === normalized.url && existing.hostname === normalized.hostname;
+      existing.url === normalized.url &&
+      existing.hostname === normalized.hostname;
 
     if (!matchesCurrentResource) {
       continue;
@@ -437,7 +443,10 @@ export function filterVideoLibraryRows(
       return false;
     }
 
-    if (filters.category !== 'all' && row.session.category !== filters.category) {
+    if (
+      filters.category !== 'all' &&
+      row.session.category !== filters.category
+    ) {
       return false;
     }
 
@@ -450,7 +459,9 @@ export function filterVideoLibraryRows(
     }
 
     if (filters.status !== 'all') {
-      const statuses = [row.entry.status, row.latestCheck?.status].filter(Boolean);
+      const statuses = [row.entry.status, row.latestCheck?.status].filter(
+        Boolean
+      );
       if (!statuses.includes(filters.status)) {
         return false;
       }

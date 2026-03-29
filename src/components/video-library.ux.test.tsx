@@ -22,9 +22,7 @@ function makeSession(id: string): JudoSession {
   };
 }
 
-function makeRow(
-  overrides: Partial<VideoLibraryRow> = {}
-): VideoLibraryRow {
+function makeRow(overrides: Partial<VideoLibraryRow> = {}): VideoLibraryRow {
   return {
     session: makeSession('session-1'),
     entry: {

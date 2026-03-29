@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ExternalLink,
   Film,
-  Link2Off,
   Loader2,
   Pencil,
   Plus,
@@ -167,7 +166,8 @@ export function deriveVideoLibraryEmptyState({
 
   return {
     title: 'No sessions yet',
-    description: 'Add a video to your next session log to populate the library.',
+    description:
+      'Add a video to your next session log to populate the library.',
     ctaLabel: VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
     action: 'editSession',
   };
@@ -186,8 +186,12 @@ export function deriveVideoLibraryBulkActionState({
   return {
     canCheckFiltered: !isCheckingLinks && checkableRows.length > 0,
     canCheckUnchecked: !isCheckingLinks && uncheckedRows.length > 0,
-    checkFilteredLabel: isCheckingLinks ? VIDEO_LIBRARY_LOADING_LABEL : 'Check filtered',
-    checkUncheckedLabel: isCheckingLinks ? VIDEO_LIBRARY_LOADING_LABEL : 'Check unchecked',
+    checkFilteredLabel: isCheckingLinks
+      ? VIDEO_LIBRARY_LOADING_LABEL
+      : 'Check filtered',
+    checkUncheckedLabel: isCheckingLinks
+      ? VIDEO_LIBRARY_LOADING_LABEL
+      : 'Check unchecked',
   };
 }
 
@@ -228,7 +232,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const { toast } = useToast();
   const { user, preferences, canSavePreferences, authAvailable } = useAuth();
   const [sessions, setSessions] = useState<JudoSession[]>([]);
-  const [editingSession, setEditingSession] = useState<JudoSession | null>(null);
+  const [editingSession, setEditingSession] = useState<JudoSession | null>(
+    null
+  );
   const [sessionPendingClear, setSessionPendingClear] =
     useState<JudoSession | null>(null);
   const [domainPendingRemoval, setDomainPendingRemoval] =
@@ -247,15 +253,23 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     checked: 'all',
   });
 
-  const videoLibraryPreferences =
-    preferences.videoLibrary ??
-    ({
-      customAllowedDomains: [],
-      linkChecksBySessionId: {},
-    } satisfies VideoLibraryPreferences);
-  const customAllowedDomains = videoLibraryPreferences.customAllowedDomains ?? [];
-  const persistedLinkChecks =
-    videoLibraryPreferences.linkChecksBySessionId ?? {};
+  const videoLibraryPreferences = useMemo(
+    () =>
+      preferences.videoLibrary ??
+      ({
+        customAllowedDomains: [],
+        linkChecksBySessionId: {},
+      } satisfies VideoLibraryPreferences),
+    [preferences.videoLibrary]
+  );
+  const customAllowedDomains = useMemo(
+    () => videoLibraryPreferences.customAllowedDomains ?? [],
+    [videoLibraryPreferences.customAllowedDomains]
+  );
+  const persistedLinkChecks = useMemo(
+    () => videoLibraryPreferences.linkChecksBySessionId ?? {},
+    [videoLibraryPreferences.linkChecksBySessionId]
+  );
 
   const refreshInventory = (nextSessions?: JudoSession[]) => {
     setSessions(nextSessions ?? getSessions());
@@ -641,26 +655,24 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           <div className="space-y-2">
             <Label>Review tabs</Label>
             <div className="flex flex-wrap gap-2">
-              {(['missing', 'review', 'checked', 'all'] as VideoLibraryTab[]).map(
-                (tab) => (
-                  <Button
-                    key={tab}
-                    type="button"
-                    variant={filters.tab === tab ? 'default' : 'outline'}
-                    onClick={() =>
-                      setFilters((current) => ({ ...current, tab }))
-                    }
+              {(
+                ['missing', 'review', 'checked', 'all'] as VideoLibraryTab[]
+              ).map((tab) => (
+                <Button
+                  key={tab}
+                  type="button"
+                  variant={filters.tab === tab ? 'default' : 'outline'}
+                  onClick={() => setFilters((current) => ({ ...current, tab }))}
+                >
+                  {getTabLabel(tab)}
+                  <Badge
+                    variant="outline"
+                    className="ml-1 border-current/30 bg-transparent"
                   >
-                    {getTabLabel(tab)}
-                    <Badge
-                      variant="outline"
-                      className="ml-1 border-current/30 bg-transparent"
-                    >
-                      {tabCounts[tab]}
-                    </Badge>
-                  </Button>
-                )
-              )}
+                    {tabCounts[tab]}
+                  </Badge>
+                </Button>
+              ))}
             </div>
           </div>
 
@@ -853,7 +865,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           <CardContent className="space-y-4">
             <div className="grid gap-3 md:grid-cols-[1fr_auto]">
               <div className="space-y-2">
-                <Label htmlFor="video-library-domain">Custom allowed domain</Label>
+                <Label htmlFor="video-library-domain">
+                  Custom allowed domain
+                </Label>
                 <Input
                   id="video-library-domain"
                   value={newDomain}
@@ -1001,7 +1015,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => void handleCheckLinks([row.session.id])}
+                            onClick={() =>
+                              void handleCheckLinks([row.session.id])
+                            }
                             disabled={isCheckingLinks}
                           >
                             <RefreshCcw className="h-4 w-4" />

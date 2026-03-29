@@ -38,8 +38,7 @@ export const AuditResults = ({
   const reviewedCount = results.filter((r) => r.reviewedAt).length;
   const unfilteredCount = results.filter(
     (r) =>
-      !r.reviewedAt &&
-      r.flags.some((f) => !r.ignoredRules.includes(f.code))
+      !r.reviewedAt && r.flags.some((f) => !r.ignoredRules.includes(f.code))
   ).length;
 
   if (results.length === 0) {
