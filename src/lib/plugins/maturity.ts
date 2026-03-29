@@ -638,13 +638,14 @@ export const scorePluginMaturity = async ({
     declaredUxStates.destructiveAction ??
     assertedUxStates.destructiveAction;
 
-  const criteriaToEvaluate: FeatureUxCriterion[] = [
+  const allCriteria = [
     'loadingStatePresent',
     'errorStateWithRecovery',
     'emptyStateWithCta',
     'destructiveActionSafety',
-  ].filter(
-    (criterion) =>
+  ] as const;
+  const criteriaToEvaluate = allCriteria.filter(
+    (criterion): criterion is FeatureUxCriterion =>
       criterion !== 'destructiveActionSafety' || destructiveActionRelevant
   );
 
