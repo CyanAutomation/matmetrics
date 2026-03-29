@@ -119,6 +119,11 @@ function extractMappedIpv4(ipv6: string): string | null {
 
 function ipv4ToInt(ipv4: string): number {
   const octets = ipv4.split('.').map((part) => Number(part));
+  
+  if (octets.length !== 4 || octets.some((octet) => isNaN(octet) || octet < 0 || octet > 255)) {
+    throw new Error(`Invalid IPv4 address: ${ipv4}`);
+  }
+  
   return (
     (((octets[0] << 24) >>> 0) |
       ((octets[1] << 16) >>> 0) |
