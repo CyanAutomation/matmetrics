@@ -27,11 +27,15 @@ const allCriteriaForTypeCheck = [
   'emptyStateWithCta',
   'destructiveActionSafety',
 ] as const satisfies readonly FeatureUxCriterion[];
-const destructiveActionRelevantForTypeCheck = true;
+const uxCriterionRelevanceForTypeCheck: Record<FeatureUxCriterion, boolean> = {
+  loadingStatePresent: true,
+  errorStateWithRecovery: true,
+  emptyStateWithCta: true,
+  destructiveActionSafety: true,
+};
 const criteriaToEvaluateForTypeCheck = allCriteriaForTypeCheck.filter(
   (criterion): criterion is FeatureUxCriterion =>
-    criterion !== 'destructiveActionSafety' ||
-    destructiveActionRelevantForTypeCheck
+    uxCriterionRelevanceForTypeCheck[criterion]
 );
 const _criteriaMustBeFeatureUxCriterionArray: FeatureUxCriterion[] =
   criteriaToEvaluateForTypeCheck;
@@ -361,7 +365,7 @@ test('panel state handling', () => {
   );
 });
 
-test('scorePluginMaturity next actions identify only missing UX states', async () => {
+test('scorePluginMaturity does not require undeclared error/empty criteria when policy gates relevance', async () => {
   await withPluginFixture(
     async (pluginsRoot, repoRoot) => {
       await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
@@ -411,6 +415,10 @@ test('panel state handling', () => {
             uxStates: {
               loading: true,
             },
+            uxCriteria: {
+              errorStateWithRecovery: false,
+              emptyStateWithCta: false,
+            },
           },
         },
         validationIssues: [],
@@ -419,20 +427,26 @@ test('panel state handling', () => {
       });
 
       assert.ok(
-        scorecard.nextActions.some((action) =>
-          action.includes('Record and test: error state present with recovery.')
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes(
+              'Missing machine-checkable UX criterion: error state present with recovery.'
+            )
         )
       );
       assert.ok(
-        scorecard.nextActions.some((action) =>
-          action.includes('Record and test: empty state present with CTA.')
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes(
+              'Missing machine-checkable UX criterion: empty state present with CTA.'
+            )
         )
       );
     }
   );
 });
 
-test('scorePluginMaturity ignores keyword-only component false positives without structured UX-state signals', async () => {
+test('scorePluginMaturity ignores keyword-only UX matches when no criterion is relevant', async () => {
   await withPluginFixture(
     async (pluginsRoot, repoRoot) => {
       await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
@@ -479,13 +493,143 @@ test('scorePluginMaturity ignores keyword-only component false positives without
       });
 
       assert.ok(
-        scorecard.reasons.some((reason) =>
-          reason.includes(
-            'Missing machine-checkable UX criterion: loading state present.'
-          )
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes('Missing machine-checkable UX criterion:')
         )
       );
       assert.ok(scorecard.categoryScores.feature_quality.earned <= 15);
+    }
+  );
+});
+
+test('scorePluginMaturity still warns when declared error criterion lacks test assertion evidence', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return <section data-state='ready'>Panel body</section>;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-state.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('panel state handling', () => {
+  assert.equal('request failed', 'request failed');
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            uxCriteria: {
+              errorStateWithRecovery: true,
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.some((reason) =>
+          reason.includes(
+            'Missing machine-checkable UX criterion: error state present with recovery.'
+          )
+        )
+      );
+    }
+  );
+});
+
+test('scorePluginMaturity preserves destructive-action relevance gating when no signal marks it relevant', async () => {
+  await withPluginFixture(
+    async (pluginsRoot, repoRoot) => {
+      await mkdir(path.join(pluginsRoot, 'example-plugin', 'src'), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(pluginsRoot, 'example-plugin', 'src', 'index.ts'),
+        `export const initPlugin = (context: { register?: (id: string) => void; registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.register?.('example-dashboard-tab');
+  context.registerPluginComponent?.('example_panel', () => null);
+};
+`,
+        'utf8'
+      );
+      await mkdir(path.join(repoRoot, 'src', 'components'), {
+        recursive: true,
+      });
+      await mkdir(path.join(repoRoot, 'src', 'tests'), { recursive: true });
+      await writeFile(
+        path.join(repoRoot, 'src', 'components', 'example-panel.tsx'),
+        `export function ExamplePanel() {
+  return <section data-state='ready'>Panel body</section>;
+}
+`,
+        'utf8'
+      );
+      await writeFile(
+        path.join(repoRoot, 'src', 'tests', 'example-plugin-state.test.tsx'),
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('panel state handling', () => {
+  assert.match('loading state', /loading/);
+});
+`,
+        'utf8'
+      );
+    },
+    async (pluginsRoot) => {
+      const scorecard = await scorePluginMaturity({
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            uxCriteria: {
+              loadingStatePresent: true,
+            },
+          },
+        },
+        validationIssues: [],
+        pluginDirectoryName: 'example-plugin',
+        pluginsRoot,
+      });
+
+      assert.ok(
+        scorecard.reasons.every(
+          (reason) =>
+            !reason.includes(
+              'Missing machine-checkable UX criterion: destructive action confirmation + cancellation path.'
+            )
+        )
+      );
     }
   );
 });
