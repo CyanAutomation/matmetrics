@@ -314,6 +314,7 @@ async function acquireSessionUpdateLock(
 ): Promise<() => Promise<void>> {
   const lockPath = getSessionUpdateLockPath(targetPath);
   await ensureCreatablePathWithinDataDir(lockPath);
+  await fs.mkdir(path.dirname(lockPath), { recursive: true });
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -346,6 +347,33 @@ async function acquireSessionUpdateLock(
   }
 
   throw new SessionUpdateConflictError(sessionId, targetPath);
+}
+
+async function acquireSessionUpdateLocks(
+  sessionId: string,
+  targetPaths: string[]
+): Promise<() => Promise<void>> {
+  const uniquePaths = Array.from(new Set(targetPaths)).sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const releases: Array<() => Promise<void>> = [];
+
+  try {
+    for (const lockTargetPath of uniquePaths) {
+      releases.push(await acquireSessionUpdateLock(sessionId, lockTargetPath));
+    }
+
+    return async () => {
+      for (let index = releases.length - 1; index >= 0; index -= 1) {
+        await releases[index]();
+      }
+    };
+  } catch (error) {
+    for (let index = releases.length - 1; index >= 0; index -= 1) {
+      await releases[index]().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function readSessionIndex(
@@ -777,10 +805,9 @@ export async function updateSession(session: JudoSession): Promise<string> {
   const markdown = sessionToMarkdown(session);
 
   if (existingPath === nextPath) {
-    const releaseLock = await acquireSessionUpdateLock(
-      session.id,
-      existingPath
-    );
+    const releaseLock = await acquireSessionUpdateLocks(session.id, [
+      existingPath,
+    ]);
     try {
       const priorMarkdown = await fs.readFile(
         await ensureExistingPathWithinDataDir(existingPath),
@@ -810,44 +837,23 @@ export async function updateSession(session: JudoSession): Promise<string> {
     return existingPath;
   }
 
-  await ensureCreatablePathWithinDataDir(nextPath);
-  await fs.mkdir(path.dirname(nextPath), { recursive: true });
+  const releaseLock = await acquireSessionUpdateLocks(session.id, [
+    existingPath,
+    nextPath,
+  ]);
   try {
-    const existingNextMarkdown = await fs.readFile(
-      await ensureExistingPathWithinDataDir(nextPath),
+    const sourceMarkdown = await fs.readFile(
+      await ensureExistingPathWithinDataDir(existingPath),
       'utf-8'
     );
-    const existingNextSession = markdownToSession(existingNextMarkdown);
-    if (existingNextSession.id !== session.id) {
-      throw new Error(
-        `Cannot move session ${session.id} to ${nextPath} because another session already exists there`
-      );
+    const sourceSession = markdownToSession(sourceMarkdown);
+    if (sourceSession.id !== session.id) {
+      throw new SessionUpdateConflictError(session.id, existingPath);
     }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw error;
-    }
-  }
 
-  const tempPath = getTempPathForTarget(nextPath);
-
-  try {
-    await ensureCreatablePathWithinDataDir(tempPath);
-    await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
-
-    let committedAtNextPath = false;
+    await ensureCreatablePathWithinDataDir(nextPath);
+    await fs.mkdir(path.dirname(nextPath), { recursive: true });
     try {
-      await ensureCreatablePathWithinDataDir(nextPath);
-      await fs.writeFile(nextPath, markdown, {
-        encoding: 'utf-8',
-        flag: 'wx',
-      });
-      committedAtNextPath = true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw error;
-      }
-
       const existingNextMarkdown = await fs.readFile(
         await ensureExistingPathWithinDataDir(nextPath),
         'utf-8'
@@ -858,16 +864,18 @@ export async function updateSession(session: JudoSession): Promise<string> {
           `Cannot move session ${session.id} to ${nextPath} because another session already exists there`
         );
       }
-      if (existingNextMarkdown !== markdown) {
-        await ensureCreatablePathWithinDataDir(nextPath);
-        await fs.writeFile(nextPath, markdown, {
-          encoding: 'utf-8',
-        });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
       }
-      committedAtNextPath = true;
     }
 
-    if (committedAtNextPath) {
+    const tempPath = getTempPathForTarget(nextPath);
+    try {
+      await ensureCreatablePathWithinDataDir(tempPath);
+      await fs.writeFile(tempPath, markdown, { encoding: 'utf-8', flag: 'wx' });
+      await ensureCreatablePathWithinDataDir(nextPath);
+      await fs.rename(tempPath, nextPath);
       try {
         await fs.unlink(await ensureExistingPathWithinDataDir(existingPath));
       } catch (error) {
@@ -876,11 +884,11 @@ export async function updateSession(session: JudoSession): Promise<string> {
         }
       }
       await updateSessionIndexPath(session.id, nextPath);
+    } finally {
+      await fs.unlink(tempPath).catch(() => undefined);
     }
-  } catch (error) {
-    throw error;
   } finally {
-    await fs.unlink(tempPath).catch(() => undefined);
+    await releaseLock();
   }
 
   return nextPath;
