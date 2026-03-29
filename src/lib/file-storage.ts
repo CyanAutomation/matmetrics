@@ -10,9 +10,9 @@ const SESSION_INDEX_DIR = '.index';
 const SESSION_INDEX_RESOLVE_TIMEOUT_MS = 3000;
 const SESSION_INDEX_INITIAL_BACKOFF_MS = 10;
 const SESSION_INDEX_MAX_BACKOFF_MS = 250;
-// Same-path session update lock is treated as stale after this timeout.
-const SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS = 3000;
-const SESSION_UPDATE_LOCK_UNVERIFIED_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+// Unknown PID liveness locks are only reclaimed after this safety timeout.
+// Active PID locks are never reclaimed by age alone.
+const SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 const YEAR_DIR_PATTERN = /^\d{4}$/;
 const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
@@ -342,8 +342,8 @@ function parseLockOwnerMetadata(lockContent: string): LockOwnerMetadata | null {
 
   for (let index = 1; index < parts.length; index += 1) {
     const part = parts[index];
-    const parsedTimestamp = Number.parseInt(part, 10);
-    if (Number.isInteger(parsedTimestamp) && parsedTimestamp > 0) {
+    if (/^\d+$/.test(part)) {
+      const parsedTimestamp = Number.parseInt(part, 10);
       if (timestampMs !== null) {
         return null;
       }
@@ -399,17 +399,18 @@ async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean
 
     const pidLiveness = getPidLiveness(ownerMetadata.pid);
     if (pidLiveness === 'dead') {
+      // PID no longer exists, so the lock owner cannot release this lock.
       return true;
     }
 
     if (pidLiveness === 'alive') {
+      // Active owner process: never reclaim by age.
       return false;
     }
 
-    const hasLegacyStaleAge = lockAgeMs >= SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS;
-    const exceedsUnverifiedSafetyAge =
-      lockAgeMs >= SESSION_UPDATE_LOCK_UNVERIFIED_PID_RECLAIM_TIMEOUT_MS;
-    if (hasLegacyStaleAge && exceedsUnverifiedSafetyAge) {
+    // Unknown liveness (for example, permission/runtime anomalies): reclaim only
+    // after a conservative timeout to avoid deleting an actively-owned lock.
+    if (lockAgeMs >= SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS) {
       return true;
     }
   } catch (error) {
@@ -421,6 +422,12 @@ async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean
   }
 
   return false;
+}
+
+export async function __shouldReclaimSessionUpdateLockForTests(
+  lockPath: string
+): Promise<boolean> {
+  return shouldReclaimSessionUpdateLock(lockPath);
 }
 
 async function acquireSessionUpdateLock(
