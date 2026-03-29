@@ -36,7 +36,14 @@ const validateManifestComponentRenderersAtRuntime = (
     const runtimeIssues = validateManifestComponentRenderers(manifest);
 
     if (runtimeIssues instanceof Promise) {
-      return [];
+      return [
+        {
+          severity: 'warning',
+          path: 'runtime-validation',
+          message:
+            'Runtime component validation returned a Promise in a synchronous path, so renderer checks were skipped.',
+        },
+      ];
     }
 
     if (Array.isArray(runtimeIssues)) {
