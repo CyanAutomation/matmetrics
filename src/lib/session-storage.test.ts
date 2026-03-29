@@ -39,7 +39,7 @@ function toContentsPayload(markdown: string) {
   };
 }
 
-test('listSessionsFromGitHub only includes canonical matmetrics session markdown files', async () => {
+test('listSessionsFromGitHub includes modern and legacy matmetrics session markdown paths', async () => {
   const dirListing: Record<
     string,
     Array<{ path: string; type: 'file' | 'dir'; name: string }>
@@ -50,6 +50,16 @@ test('listSessionsFromGitHub only includes canonical matmetrics session markdown
       {
         name: '20250314-matmetrics-valid-session.md',
         path: 'data/2025/03/20250314-matmetrics-valid-session.md',
+        type: 'file',
+      },
+      {
+        name: '20250313-matmetrics.md',
+        path: 'data/2025/03/20250313-matmetrics.md',
+        type: 'file',
+      },
+      {
+        name: '20250312-matmetrics-01.md',
+        path: 'data/2025/03/20250312-matmetrics-01.md',
         type: 'file',
       },
       {
@@ -67,6 +77,11 @@ test('listSessionsFromGitHub only includes canonical matmetrics session markdown
         path: 'data/2025/03/20250214-matmetrics-wrong-month.md',
         type: 'file',
       },
+      {
+        name: '20250311.md',
+        path: 'data/2025/03/20250311.md',
+        type: 'file',
+      },
     ],
   };
 
@@ -82,6 +97,30 @@ category: "Technical"
 
 ## Techniques Practiced
 - O soto gari
+`,
+    'data/2025/03/20250313-matmetrics.md': `---
+id: "session-legacy-base"
+date: "2025-03-13"
+effort: 2
+category: "Technical"
+---
+
+# 2025-03-13 - Judo Session: Technical
+
+## Techniques Practiced
+- Ko uchi gari
+`,
+    'data/2025/03/20250312-matmetrics-01.md': `---
+id: "session-legacy-counter"
+date: "2025-03-12"
+effort: 5
+category: "Shiai"
+---
+
+# 2025-03-12 - Judo Session: Shiai
+
+## Techniques Practiced
+- Seoi nage
 `,
   };
 
@@ -110,8 +149,11 @@ category: "Technical"
     }) as typeof fetch,
     async () => {
       const sessions = await listSessionsFromGitHub({ owner: 'o', repo: 'r' });
-      assert.equal(sessions.length, 1);
-      assert.equal(sessions[0]?.id, 'session-valid');
+      assert.equal(sessions.length, 3);
+      assert.deepEqual(
+        sessions.map((session) => session.id).sort(),
+        ['session-legacy-base', 'session-legacy-counter', 'session-valid']
+      );
     }
   );
 });

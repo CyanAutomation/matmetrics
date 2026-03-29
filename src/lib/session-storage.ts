@@ -27,7 +27,7 @@ import { compareDateOnlyDesc } from './utils';
 
 const GITHUB_SESSION_ROOT = 'data';
 const GITHUB_SESSION_PATH_REGEX = new RegExp(
-  `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics-[^/]+\\.md$`
+  `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics(?:-(?:[A-Za-z0-9_-]+|\\d+))?\\.md$`
 );
 
 function isValidGitHubOwner(name: string): boolean {
