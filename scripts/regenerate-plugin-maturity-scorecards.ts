@@ -90,14 +90,16 @@ const buildArtifact = async (): Promise<ScoreArtifact> => {
             declaredTier: scorecard.declaredTier,
             manifestLastReviewedAt:
               validation.manifest.maturity?.lastReviewedAt ?? undefined,
-            manifestEvidenceHash: digest(validation.manifest.maturity ?? null),
+            manifestEvidenceHash: await digest(
+              validation.manifest.maturity ?? null
+            ),
           } satisfies ScoreArtifactRow;
         }
       )
     )
   ).sort((a, b) => a.id.localeCompare(b.id));
 
-  const cacheKey = digest(
+  const cacheKey = await digest(
     plugins.map((plugin) => ({
       id: plugin.id,
       score: plugin.score,
