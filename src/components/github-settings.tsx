@@ -44,6 +44,7 @@ import {
   clearGitHubConfigPreference,
   saveGitHubSettingsPreference,
 } from '@/lib/user-preferences';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import {
   buildGitHubNetworkErrorMessage,
   deriveDisableOutcome,
@@ -413,7 +414,29 @@ export function GitHubSettings() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <PluginPageShell
+      title="GitHub Repository Configuration"
+      description="Configure where your training sessions will be synced."
+      icon={
+        <div className="rounded-lg bg-blue-600 p-2 text-white shadow-md">
+          <Github className="h-6 w-6" />
+        </div>
+      }
+      notice={
+        <Alert className="border-blue-200 bg-blue-50">
+          <Github className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="font-bold text-blue-900">
+            GitHub Sync
+          </AlertTitle>
+          <AlertDescription className="text-blue-800">
+            Sync your Judo training sessions to a personal GitHub repository.
+            Sessions are stored as markdown files and synced automatically when
+            you create or update entries.
+          </AlertDescription>
+        </Alert>
+      }
+      className="animate-in slide-in-from-bottom-4 fade-in duration-500"
+    >
       {!canUseGitHubSync && (
         <Alert className="bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-700" />
@@ -428,31 +451,8 @@ export function GitHubSettings() {
         </Alert>
       )}
 
-      <Alert className="bg-blue-50 border-blue-200">
-        <Github className="h-4 w-4 text-blue-600" />
-        <AlertTitle className="text-blue-900 font-bold">GitHub Sync</AlertTitle>
-        <AlertDescription className="text-blue-800">
-          Sync your Judo training sessions to a personal GitHub repository.
-          Sessions are stored as markdown files and synced automatically when
-          you create or update entries.
-        </AlertDescription>
-      </Alert>
-
       <Card className="bg-card/95 shadow-sm">
-        <CardHeader className="bg-secondary/45">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 text-white rounded-lg shadow-md">
-              <Github className="h-6 w-6" />
-            </div>
-            <div>
-              <CardTitle>GitHub Repository Configuration</CardTitle>
-              <CardDescription>
-                Configure where your training sessions will be synced.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 pt-8 space-y-6">
+        <CardContent className="space-y-6 p-6 pt-8">
           {/* Configuration Information */}
           <div className="bg-amber-50/85 border border-amber-200/40 rounded-lg p-4">
             <p className="text-sm text-amber-900 font-semibold mb-2">
@@ -828,6 +828,6 @@ export function GitHubSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PluginPageShell>
   );
 }
