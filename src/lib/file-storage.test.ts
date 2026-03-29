@@ -699,7 +699,7 @@ test(
       const sourceLockAcquired = new Promise<void>((resolve) => {
         sourceLockAcquiredResolve = resolve;
       });
-      let pauseFirstWriterResolve: (() => void) | null = null;
+      let pauseFirstWriterResolve!: () => void;
       const pauseFirstWriter = new Promise<void>((resolve) => {
         pauseFirstWriterResolve = resolve;
       });
@@ -764,12 +764,12 @@ test(
         secondResult = await Promise.allSettled([moveToMarch]).then(
           ([result]) => result
         );
-        pauseFirstWriterResolve?.();
+        pauseFirstWriterResolve();
         firstResult = await Promise.allSettled([moveToFebruary]).then(
           ([result]) => result
         );
       } finally {
-        pauseFirstWriterResolve?.();
+        pauseFirstWriterResolve();
         fs.writeFile = originalWriteFile;
       }
 

@@ -46,10 +46,11 @@ import {
 } from '@/lib/user-preferences';
 import {
   buildGitHubNetworkErrorMessage,
-  deriveClearOutcome,
   deriveDisableOutcome,
   deriveGitHubSettingsControlState,
+  GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
   getGitHubSettingsValidationError,
+  resolveClearDialogOutcome,
 } from '@/components/github-settings-view-model';
 
 export function GitHubSettings() {
@@ -340,15 +341,18 @@ export function GitHubSettings() {
     setIsClearing(true);
     try {
       await clearGitHubConfigPreference(user.uid);
-      const nextState = deriveClearOutcome({
-        owner,
-        repo,
-        branch,
-        isEnabled,
-        migrationDone,
-        isClearDialogOpen,
-        testResult,
-      });
+      const nextState = resolveClearDialogOutcome(
+        {
+          owner,
+          repo,
+          branch,
+          isEnabled,
+          migrationDone,
+          isClearDialogOpen,
+          testResult,
+        },
+        'confirm'
+      );
       setOwner(nextState.owner);
       setRepo(nextState.repo);
       setBranch(nextState.branch);
@@ -402,6 +406,7 @@ export function GitHubSettings() {
     isEnabled,
     isTesting,
     isSyncing,
+    isSyncHistoryLoading: syncHistoryState.status === 'loading',
     isDisabling,
     isClearing,
     isClearDialogOpen,
@@ -692,18 +697,18 @@ export function GitHubSettings() {
               <Button
                 variant="outline"
                 onClick={() => void handleLoadSyncHistory()}
-                disabled={syncHistoryState.status === 'loading'}
+                disabled={!controlState.canRefreshHistory}
                 className="gap-2"
               >
                 {syncHistoryState.status === 'loading' ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading…
+                    {controlState.refreshHistoryLabel}
                   </>
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4" />
-                    Refresh history
+                    {controlState.refreshHistoryLabel}
                   </>
                 )}
               </Button>
@@ -776,10 +781,30 @@ export function GitHubSettings() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsClearDialogOpen(false)}
+              onClick={() => {
+                const nextState = resolveClearDialogOutcome(
+                  {
+                    owner,
+                    repo,
+                    branch,
+                    isEnabled,
+                    migrationDone,
+                    isClearDialogOpen,
+                    testResult,
+                  },
+                  'cancel'
+                );
+                setOwner(nextState.owner);
+                setRepo(nextState.repo);
+                setBranch(nextState.branch);
+                setIsEnabled(nextState.isEnabled);
+                setMigrationDone(nextState.migrationDone);
+                setTestResult(nextState.testResult);
+                setIsClearDialogOpen(nextState.isClearDialogOpen);
+              }}
               disabled={!controlState.canConfirmClear}
             >
-              Cancel
+              {GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
             </Button>
             <Button
               type="button"

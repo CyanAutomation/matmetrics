@@ -218,12 +218,12 @@ function validateVideoUrl(value: unknown): string | undefined {
     );
   }
 
-  const host = parsedUrl.hostname;
+  // Remove brackets for IPv6 addresses (URL.hostname includes them)
+  const host = parsedUrl.hostname.replace(/^\[|\]$/g, '');
   if (
     host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '::1' ||
-    host.startsWith('10.') ||
     host.startsWith('10.') ||
     host.startsWith('172.16.') ||
     host.startsWith('172.17.') ||

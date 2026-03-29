@@ -69,9 +69,10 @@ test('tag-manager renderer returns TagManager and forwards refreshSessions as on
   if (!capturedRenderer) {
     throw new Error('Expected tag-manager to register a renderer.');
   }
+  const renderer = capturedRenderer as (context: TabRenderContext) => unknown;
 
   const refreshSessions = () => undefined;
-  const rendered = capturedRenderer({
+  const rendered = renderer({
     sessions: [],
     refreshSessions,
     refreshPluginExtensions: () => undefined,

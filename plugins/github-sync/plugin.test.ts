@@ -20,8 +20,12 @@ test('github-sync manifest validates and exposes expected dashboard tab contract
   if (!dashboardTab) {
     return;
   }
+  const dashboardTabConfig = dashboardTab.config as {
+    tabId: string;
+    component: string;
+  };
   assert.equal(validation.manifest.id, 'github-sync');
   assert.equal(dashboardTab.id, 'github-sync-dashboard-tab');
-  assert.equal(dashboardTab.config.tabId, 'github-sync');
-  assert.equal(dashboardTab.config.component, 'github_settings');
+  assert.equal(dashboardTabConfig.tabId, 'github-sync');
+  assert.equal(dashboardTabConfig.component, 'github_settings');
 });

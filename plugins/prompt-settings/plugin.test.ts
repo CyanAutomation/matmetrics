@@ -17,8 +17,15 @@ test('prompt-settings manifest validates and exposes expected dashboard tab cont
   );
 
   assert.ok(dashboardTab, 'Expected a dashboard_tab extension in the manifest');
+  if (!dashboardTab) {
+    return;
+  }
+  const dashboardTabConfig = dashboardTab.config as {
+    tabId: string;
+    component: string;
+  };
   assert.equal(validation.manifest.id, 'prompt-settings');
   assert.equal(dashboardTab.id, 'prompt-settings-dashboard-tab');
-  assert.equal(dashboardTab.config.tabId, 'prompt-settings');
-  assert.equal(dashboardTab.config.component, 'prompt_settings');
+  assert.equal(dashboardTabConfig.tabId, 'prompt-settings');
+  assert.equal(dashboardTabConfig.component, 'prompt_settings');
 });
