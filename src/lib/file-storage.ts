@@ -12,6 +12,7 @@ const SESSION_INDEX_INITIAL_BACKOFF_MS = 10;
 const SESSION_INDEX_MAX_BACKOFF_MS = 250;
 // Same-path session update lock is treated as stale after this timeout.
 const SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS = 3000;
+const SESSION_UPDATE_LOCK_UNVERIFIED_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 const YEAR_DIR_PATTERN = /^\d{4}$/;
 const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
@@ -308,32 +309,79 @@ async function releaseSessionUpdateLock(
   }
 }
 
-function parseLockPid(lockContent: string): number | null {
+type LockOwnerMetadata = {
+  pid: number;
+  timestampMs: number | null;
+  token: string | null;
+};
+
+function isValidUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function parseLockOwnerMetadata(lockContent: string): LockOwnerMetadata | null {
   const trimmed = lockContent.trim();
   if (!trimmed) {
     return null;
   }
-  const pidCandidate = trimmed.split(':', 1)[0];
-  const parsed = Number.parseInt(pidCandidate, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
+
+  const parts = trimmed.split(':');
+  if (parts.length < 2 || parts.length > 3) {
     return null;
   }
-  return parsed;
+
+  const pid = Number.parseInt(parts[0], 10);
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return null;
+  }
+
+  let timestampMs: number | null = null;
+  let token: string | null = null;
+
+  for (let index = 1; index < parts.length; index += 1) {
+    const part = parts[index];
+    const parsedTimestamp = Number.parseInt(part, 10);
+    if (Number.isInteger(parsedTimestamp) && parsedTimestamp > 0) {
+      if (timestampMs !== null) {
+        return null;
+      }
+      timestampMs = parsedTimestamp;
+      continue;
+    }
+
+    if (isValidUuid(part)) {
+      if (token !== null) {
+        return null;
+      }
+      token = part;
+      continue;
+    }
+
+    return null;
+  }
+
+  if (timestampMs === null && token === null) {
+    return null;
+  }
+
+  return { pid, timestampMs, token };
 }
 
-function isPidAlive(pid: number): boolean {
+function getPidLiveness(pid: number): 'alive' | 'dead' | 'unknown' {
   try {
     process.kill(pid, 0);
-    return true;
+    return 'alive';
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'ESRCH') {
-      return false;
+      return 'dead';
     }
     if (code === 'EPERM') {
-      return true;
+      return 'alive';
     }
-    return true;
+    return 'unknown';
   }
 }
 
@@ -344,17 +392,31 @@ async function shouldReclaimSessionUpdateLock(lockPath: string): Promise<boolean
       fs.readFile(lockPath, 'utf-8'),
     ]);
     const lockAgeMs = Date.now() - stats.mtimeMs;
-    if (lockAgeMs >= SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS) {
+    const ownerMetadata = parseLockOwnerMetadata(rawLock);
+    if (ownerMetadata === null) {
       return true;
     }
 
-    const lockPid = parseLockPid(rawLock);
-    if (lockPid !== null && !isPidAlive(lockPid)) {
+    const pidLiveness = getPidLiveness(ownerMetadata.pid);
+    if (pidLiveness === 'dead') {
+      return true;
+    }
+
+    if (pidLiveness === 'alive') {
+      return false;
+    }
+
+    const hasLegacyStaleAge = lockAgeMs >= SESSION_UPDATE_LOCK_STALE_TIMEOUT_MS;
+    const exceedsUnverifiedSafetyAge =
+      lockAgeMs >= SESSION_UPDATE_LOCK_UNVERIFIED_PID_RECLAIM_TIMEOUT_MS;
+    if (hasLegacyStaleAge && exceedsUnverifiedSafetyAge) {
       return true;
     }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') {
       console.warn(`Failed to inspect session update lock at ${lockPath}`, error);
+      return true;
     }
   }
 
