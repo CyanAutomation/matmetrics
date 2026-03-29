@@ -377,6 +377,7 @@ export function deriveVideoLibraryRows({
     const latestCheck = linkChecksBySessionId[entry.session.id];
     const displayStatus = latestCheck?.status ?? entry.status;
     const needsReview =
+      entry.status === 'missing' ||
       entry.status === 'invalid_url' ||
       entry.status === 'disallowed_domain' ||
       latestCheck?.status === 'broken' ||
