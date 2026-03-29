@@ -104,7 +104,7 @@ test('delete flow exposes loading labels and disabled actions while async work i
   assert.equal(applyingActions.cancelDisabled, true);
 });
 
-test('delete flow transitions idle → analyzing/applying → idle and recovers after failure', async () => {
+test('delete flow surfaces recoverable errors and supports retry after apply failure', async () => {
   const harness = createDeleteFlowHarness();
 
   // idle -> analyzing -> idle
@@ -113,20 +113,32 @@ test('delete flow transitions idle → analyzing/applying → idle and recovers 
   harness.analyzeSuccess();
   assert.equal(harness.state.isAnalyzingDelete, false);
 
-  // idle (ready to apply) -> applying -> idle with failure recovery
+  // ready to apply -> applying -> idle with recoverable failure
   const failure = await harness.apply(async () => {
     throw new Error('network issue');
   });
 
   assert.ok(failure instanceof Error);
   assert.equal(harness.state.isApplyingDelete, false);
-  assert.equal(
-    harness.state.deleteError,
-    'Could not apply this deletion. Your tags are unchanged. Please try again.'
-  );
+  assert.ok(harness.state.deleteError);
+  assert.match(harness.state.deleteError, /could not apply/i);
+  assert.match(harness.state.deleteError, /unchanged/i);
+  assert.match(harness.state.deleteError, /try again/i);
 
-  const postFailureActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(postFailureActions.primaryLabel, 'Apply');
-  assert.equal(postFailureActions.primaryDisabled, false);
-  assert.equal(postFailureActions.cancelDisabled, false);
+  // recovery action remains present and actionable
+  const retryActions = deriveDeleteDialogActions(harness.state);
+  assert.equal(retryActions.primaryLabel, 'Apply');
+  assert.equal(retryActions.primaryDisabled, false);
+  assert.equal(retryActions.cancelDisabled, false);
+
+  // retry path transitions applying state correctly and clears prior error on retry start
+  const retryResult = await harness.apply(async () => ({
+    affectedSessionCount: 3,
+    changedTagCount: 4,
+    conflicts: [],
+  }));
+
+  assert.equal(retryResult, null);
+  assert.equal(harness.state.isApplyingDelete, false);
+  assert.equal(harness.state.deleteError, null);
 });
