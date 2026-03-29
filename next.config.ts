@@ -1,7 +1,14 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  webpack(config) {
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      '@opentelemetry/exporter-jaeger': false,
+    };
+
+    return config;
+  },
   outputFileTracingIncludes: {
     '/api/plugins/list': [
       './plugins/**/plugin.json',
