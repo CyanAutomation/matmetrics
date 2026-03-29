@@ -552,6 +552,7 @@ export default function Home() {
 
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Log practice session</DialogTitle>
           {isLogModalOpen && (
             <SessionLogForm
               key="quick-log-instance"
@@ -566,6 +567,7 @@ export default function Home() {
 
       <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Sign in to MatMetrics</DialogTitle>
           <SignInScreen onContinueAsGuest={() => setIsAuthDialogOpen(false)} />
         </DialogContent>
       </Dialog>
