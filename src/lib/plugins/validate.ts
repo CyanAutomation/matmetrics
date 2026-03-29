@@ -30,15 +30,24 @@ const validateManifestComponentRenderersAtRuntime = (
 ): PluginValidationIssue[] => {
   try {
     // biome-ignore lint/security/noCommonJs: Runtime-only plugin renderer checks should avoid static server import chains.
-    const { validateManifestComponentRenderers } = require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
+    const { validateManifestComponentRenderers } =
+      require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
 
-    return validateManifestComponentRenderers(manifest);
+    const runtimeIssues = await validateManifestComponentRenderers(manifest);
+
+    if (Array.isArray(runtimeIssues)) {
+      return runtimeIssues;
+    }
+
+    return [];
   } catch (error) {
-    return [{
-      severity: 'error',
-      path: 'runtime-validation',
-      message: `Failed to load runtime component validation: ${error instanceof Error ? error.message : String(error)}`
-    }];
+    return [
+      {
+        severity: 'error',
+        path: 'runtime-validation',
+        message: `Failed to load runtime component validation: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ];
   }
 };
 
