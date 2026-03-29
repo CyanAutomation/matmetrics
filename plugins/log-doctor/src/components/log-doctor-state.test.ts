@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createUiState } from './log-doctor';
+import { createUiState } from './log-doctor-state';
 
 test('createUiState returns idle state copy', () => {
   const state = createUiState('scan', 'idle');
