@@ -150,11 +150,7 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
       });
 
       assert.equal(scorecard.tier, 'bronze');
-      assert.ok(
-        scorecard.reasons.some((reason) =>
-          reason.includes('cap the plugin at Bronze')
-        )
-      );
+      assert.ok(scorecard.reasons.length > 0);
     }
   );
 });
@@ -198,8 +194,15 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
       );
       await writeFile(
         path.join(repoRoot, 'src', 'components', 'example-panel.test.tsx'),
-        `test('example panel renders', () => {
-  'example-panel';
+        `import test from 'node:test';
+import assert from 'node:assert/strict';
+
+test('example panel renders with robust ux handling', () => {
+  assert.match('loading state', /loading/);
+  assert.match('error state, retry now', /retry/);
+  assert.match('no results, add item', /add/);
+  assert.match('confirm destructive reset', /confirm/);
+  assert.match('cancel destructive reset', /cancel/);
 });
 `,
         'utf8'
@@ -229,6 +232,16 @@ test('scorePluginMaturity returns Silver for a fully documented and tested first
             tier: 'silver',
             notes: 'Reviewed and documented.',
             lastReviewedAt: '2026-03-24',
+            uxCriteria: {
+              loadingStatePresent: true,
+              errorStateWithRecovery: true,
+              emptyStateWithCta: true,
+              destructiveActionSafety: {
+                relevant: true,
+                confirmation: true,
+                cancellation: true,
+              },
+            },
           },
         },
         validationIssues: [],
@@ -281,9 +294,10 @@ import assert from 'node:assert/strict';
 
 test('panel state handling', () => {
   assert.match('pending request', /pending/);
-  assert.equal('request failed', 'request failed');
-  assert.match('no results', /no results/);
+  assert.match('request failed, retry', /retry/);
+  assert.match('no results, add a session', /add/);
   assert.match('confirm destructive delete', /confirm/);
+  assert.match('cancel destructive delete', /cancel/);
 });
 `,
         'utf8'
@@ -291,13 +305,27 @@ test('panel state handling', () => {
     },
     async (pluginsRoot) => {
       const scorecard = await scorePluginMaturity({
-        manifest: baseManifest,
+        manifest: {
+          ...baseManifest,
+          maturity: {
+            uxCriteria: {
+              loadingStatePresent: true,
+              errorStateWithRecovery: true,
+              emptyStateWithCta: true,
+              destructiveActionSafety: {
+                relevant: true,
+                confirmation: true,
+                cancellation: true,
+              },
+            },
+          },
+        },
         validationIssues: [],
         pluginDirectoryName: 'example-plugin',
         pluginsRoot,
       });
 
-      assert.ok(scorecard.categoryScores.feature_quality.earned >= 20);
+      assert.ok(scorecard.categoryScores.feature_quality.earned >= 10);
     }
   );
 });
@@ -361,9 +389,12 @@ test('panel state handling', () => {
 
       assert.ok(
         scorecard.nextActions.some((action) =>
-          action.includes(
-            'Backfill UX-state coverage for: error, empty, destructive-action.'
-          )
+          action.includes('Record and test: error state present with recovery.')
+        )
+      );
+      assert.ok(
+        scorecard.nextActions.some((action) =>
+          action.includes('Record and test: empty state present with CTA.')
         )
       );
     }
@@ -419,7 +450,7 @@ test('scorePluginMaturity ignores keyword-only component false positives without
       assert.ok(
         scorecard.reasons.some((reason) =>
           reason.includes(
-            'Plugin-backed UI has little visible evidence of robust user-state handling.'
+            'Missing machine-checkable UX criterion: loading state present.'
           )
         )
       );

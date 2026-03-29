@@ -6,9 +6,22 @@
   "maturity": {
     "tier": "bronze",
     "notes": "Baseline maturity. Initial first-party plugin shell with dashboard tab registration and baseline tests.",
-    "lastReviewedAt": "2026-03-28",
+    "lastReviewedAt": "2026-03-29",
     "uxStates": {
-      "destructiveAction": false
+      "loading": true,
+      "error": true,
+      "empty": true,
+      "destructiveAction": true
+    },
+    "uxCriteria": {
+      "loadingStatePresent": true,
+      "errorStateWithRecovery": true,
+      "emptyStateWithCta": true,
+      "destructiveActionSafety": {
+        "relevant": true,
+        "confirmation": true,
+        "cancellation": true
+      }
     }
   },
   "enabled": true,
