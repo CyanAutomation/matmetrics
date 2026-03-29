@@ -5,6 +5,7 @@ export const createDomSafePathId = (path: string, rowIndex: number): string => {
     hash = Math.imul(hash, 16777619);
   }
 
-  const shortHash = (hash >>> 0).toString(36).slice(0, 8);
+  const shortHash = (hash >>> 0).toString(36);
+  return `select-file-${rowIndex}-${shortHash}`;
   return `select-file-${rowIndex}-${shortHash}`;
 };
