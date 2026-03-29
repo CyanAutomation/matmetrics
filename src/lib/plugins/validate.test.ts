@@ -391,3 +391,41 @@ test('plugin without explicit minVersion passes regardless of version', () => {
     assert.equal(result.issues.length, 0);
   }
 });
+
+test('runtime component renderer checks run only when explicitly enabled', () => {
+  const manifest = {
+    id: 'runtime-check-plugin',
+    name: 'Runtime Check Plugin',
+    version: '1.0.0',
+    description: 'Validates runtime renderer resolution',
+    capabilities: ['tag_mutation'],
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'runtime-check-tab',
+        title: 'Runtime Check',
+        config: {
+          tabId: 'runtime-check',
+          headerTitle: 'Runtime Check',
+          component: 'definitely_not_registered',
+        },
+      },
+    ],
+  };
+
+  const serverSafeResult = validatePluginManifest(manifest);
+  assert.equal(serverSafeResult.isValid, true);
+  if (serverSafeResult.isValid) {
+    assert.deepEqual(serverSafeResult.issues, []);
+  }
+
+  const runtimeResult = validatePluginManifest(manifest, {
+    validateDeclaredComponentsAtRuntime: true,
+  });
+  assert.equal(runtimeResult.isValid, true);
+  if (runtimeResult.isValid) {
+    assert.equal(runtimeResult.issues.length, 1);
+    assert.equal(runtimeResult.issues[0].severity, 'warning');
+    assert.match(runtimeResult.issues[0].message, /no dashboard renderer/);
+  }
+});

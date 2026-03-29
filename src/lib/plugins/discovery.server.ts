@@ -86,11 +86,7 @@ export const discoverValidatedPluginManifests = async (
     options.enabledOverrides ?? (await loadPluginEnabledOverrides());
 
   return candidates
-    .map((candidate) =>
-      validatePluginManifest(candidate, {
-        validateDeclaredComponentsAtRuntime: true,
-      })
-    )
+    .map((candidate) => validatePluginManifest(candidate))
     .flatMap((result) =>
       result.isValid
         ? [

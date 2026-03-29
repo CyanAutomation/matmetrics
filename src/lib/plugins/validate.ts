@@ -9,7 +9,6 @@ import {
   pluginManifestSchema,
   type PluginManifestSchema,
 } from '@/lib/plugins/manifest-schema';
-import { validateManifestComponentRenderers } from '@/lib/plugins/runtime-component-validation';
 import { meetsMinimumVersion } from '@/lib/plugins/version-utils';
 import type {
   PluginManifest,
@@ -24,6 +23,15 @@ type ValidateManifestOptions = {
   allowExperimentalTypes?: boolean;
   currentVersion?: string;
   validateDeclaredComponentsAtRuntime?: boolean;
+};
+
+const validateManifestComponentRenderersAtRuntime = (
+  manifest: PluginManifest
+): PluginValidationIssue[] => {
+  // biome-ignore lint/security/noCommonJs: Runtime-only plugin renderer checks should avoid static server import chains.
+  const { validateManifestComponentRenderers } = require('@/lib/plugins/runtime-component-validation') as typeof import('@/lib/plugins/runtime-component-validation');
+
+  return validateManifestComponentRenderers(manifest);
 };
 
 const knownExtensionTypes: UIExtensionType[] = [
@@ -238,9 +246,9 @@ export const validatePluginManifest = (
     }
   }
 
-  if (options.validateDeclaredComponentsAtRuntime) {
+  if (options.validateDeclaredComponentsAtRuntime === true) {
     issues.push(
-      ...validateManifestComponentRenderers(manifest as PluginManifest)
+      ...validateManifestComponentRenderersAtRuntime(manifest as PluginManifest)
     );
   }
 

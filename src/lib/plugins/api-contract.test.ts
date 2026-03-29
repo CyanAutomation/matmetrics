@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+const loadApiContract = async () => import('@/lib/plugins/api-contract');
 
-import { autoDisablePluginIfNeeded } from '@/lib/plugins/api-contract';
-
-test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', () => {
+test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
   const manifest = {
     id: 'test-plugin',
     name: 'Test Plugin',
@@ -30,7 +31,8 @@ test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', () =
   assert.equal(result.autoDisabledWithWarnings, undefined);
 });
 
-test('autoDisablePluginIfNeeded - disables plugin with missing capabilities', () => {
+test('autoDisablePluginIfNeeded - disables plugin with missing capabilities', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
   const manifest = {
     id: 'test-plugin',
     name: 'Test Plugin',
@@ -62,7 +64,8 @@ test('autoDisablePluginIfNeeded - disables plugin with missing capabilities', ()
   );
 });
 
-test('autoDisablePluginIfNeeded - disables plugin with version mismatch', () => {
+test('autoDisablePluginIfNeeded - disables plugin with version mismatch', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
   const manifest = {
     id: 'test-plugin',
     name: 'Test Plugin',
@@ -95,7 +98,8 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', () => 
   );
 });
 
-test('autoDisablePluginIfNeeded - respects already disabled plugins', () => {
+test('autoDisablePluginIfNeeded - respects already disabled plugins', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
   const manifest = {
     id: 'test-plugin',
     name: 'Test Plugin',
@@ -121,7 +125,8 @@ test('autoDisablePluginIfNeeded - respects already disabled plugins', () => {
   assert.equal(result.autoDisabledWithWarnings, undefined);
 });
 
-test('autoDisablePluginIfNeeded - handles non-object manifests gracefully', () => {
+test('autoDisablePluginIfNeeded - handles non-object manifests gracefully', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
   const result1 = autoDisablePluginIfNeeded(null);
   assert.equal(result1.manifest, null);
 
@@ -130,4 +135,48 @@ test('autoDisablePluginIfNeeded - handles non-object manifests gracefully', () =
 
   const result3 = autoDisablePluginIfNeeded(undefined);
   assert.equal(result3.manifest, undefined);
+});
+
+test('toValidationTable skips runtime renderer checks by default (server-safe)', async () => {
+  const { toValidationTable } = await loadApiContract();
+  const result = toValidationTable({
+    id: 'server-safe-validation-plugin',
+    name: 'Server Safe Validation Plugin',
+    version: '1.0.0',
+    description: 'Used for API validation',
+    capabilities: ['tag_mutation'],
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'server-safe-tab',
+        title: 'Server Safe',
+        config: {
+          tabId: 'server-safe',
+          headerTitle: 'Server Safe',
+          component: 'non_registered_component',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  assert.deepEqual(result.rows, []);
+});
+
+test('server-side validation files avoid static bootstrap import chains', async () => {
+  const [validateSource, apiContractSource] = await Promise.all([
+    readFile(new URL('./validate.ts', import.meta.url), 'utf8'),
+    readFile(new URL('./api-contract.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.equal(
+    validateSource.includes("from '@/lib/plugins/runtime-component-validation'"),
+    false,
+    'validate.ts should not statically import runtime-component-validation'
+  );
+  assert.equal(
+    apiContractSource.includes('validateDeclaredComponentsAtRuntime: true'),
+    false,
+    'api-contract.ts should not force runtime component validation in server paths'
+  );
 });
