@@ -5,10 +5,17 @@ export type GitHubSettingsControlState = {
   isEnabled: boolean;
   isTesting: boolean;
   isSyncing: boolean;
+  isSyncHistoryLoading: boolean;
   isDisabling: boolean;
   isClearing: boolean;
   isClearDialogOpen: boolean;
 };
+
+export const GITHUB_SYNC_HISTORY_REFRESH_LABEL = 'Refresh history';
+export const GITHUB_SYNC_HISTORY_REFRESH_LOADING_LABEL = 'Loading history…';
+export const GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
+export const GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL =
+  'Clear Configuration';
 
 export const getGitHubSettingsValidationError = (
   owner: string,
@@ -30,6 +37,8 @@ export const deriveGitHubSettingsControlState = (
     canTestConnection:
       state.canUseGitHubSync && !state.isTesting && hasRepoIdentity,
     canRunSyncAll: state.canUseGitHubSync && !state.isSyncing,
+    canRefreshHistory:
+      state.canUseGitHubSync && !state.isSyncHistoryLoading,
     canDisableSync:
       state.canUseGitHubSync && !state.isDisabling && !state.isClearing,
     canOpenClearDialog:
@@ -41,9 +50,12 @@ export const deriveGitHubSettingsControlState = (
       : 'Sync All Sessions to GitHub',
     disableLabel: state.isDisabling ? 'Disabling...' : 'Disable Sync',
     clearLabel: state.isClearing ? 'Clearing...' : 'Clear',
+    refreshHistoryLabel: state.isSyncHistoryLoading
+      ? GITHUB_SYNC_HISTORY_REFRESH_LOADING_LABEL
+      : GITHUB_SYNC_HISTORY_REFRESH_LABEL,
     clearConfirmationLabel: state.isClearing
       ? 'Clearing...'
-      : 'Clear Configuration',
+      : GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
     isClearDialogOpen: state.isClearDialogOpen,
     hasRepoIdentity,
     showConnectedState: state.isEnabled,
@@ -87,3 +99,14 @@ export const deriveClearOutcome = (
   migrationDone: false,
   isClearDialogOpen: false,
 });
+
+export const resolveClearDialogOutcome = (
+  state: GitHubSettingsDestructiveState,
+  action: 'confirm' | 'cancel'
+): GitHubSettingsDestructiveState =>
+  action === 'confirm'
+    ? deriveClearOutcome(state)
+    : {
+        ...state,
+        isClearDialogOpen: false,
+      };

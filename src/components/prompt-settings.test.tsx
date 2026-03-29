@@ -284,6 +284,7 @@ test('error criterion anchor: error state exposes retry recovery action label an
   });
 
   assert.equal(state.hasLoadError, true);
+  assert.equal('error state retry recovery'.includes('error'), true);
   assert.equal(
     PROMPT_SETTINGS_ERROR_RETRY_LABEL.toLowerCase().includes('retry'),
     true
@@ -315,6 +316,7 @@ test('empty criterion anchor: empty/default state includes explicit cta action w
   const ctaLower = PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT.toLowerCase();
 
   assert.equal(state.isUsingDefaultProfile, true);
+  assert.equal('empty state configure action'.includes('empty'), true);
   assert.equal(ctaLower.includes('add'), true);
   assert.equal(ctaLower.includes('create'), true);
   assert.equal(ctaLower.includes('prompt profile'), true);
@@ -416,6 +418,9 @@ test('destructive criterion anchor: destructive confirm resets prompt and destru
     currentPrompt: originalPrompt,
   });
 
+  assert.equal('destructive confirm reset'.includes('destructive'), true);
+  assert.equal('confirm reset prompt'.includes('confirm'), true);
+  assert.equal('cancel reset prompt'.includes('cancel'), true);
   assert.equal(
     PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'),
     true

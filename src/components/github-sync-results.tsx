@@ -40,6 +40,10 @@ export type LoadGitHubSyncHistoryOptions = {
   onStateChange: (state: GitHubSyncSurfaceState<GitHubSyncHistoryData>) => void;
 };
 
+export const GITHUB_SYNC_RESULTS_LOADING_TEXT = 'Loading sync results…';
+export const GITHUB_SYNC_RESULTS_ERROR_RETRY_LABEL = 'Retry';
+export const GITHUB_SYNC_RESULTS_EMPTY_CTA_LABEL = 'Run sync';
+
 const parseErrorMessage = async (
   response: Response,
   fallback: string
@@ -217,7 +221,7 @@ export function SyncResultsMainPanel({
             className="text-sm text-muted-foreground flex items-center gap-2"
           >
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading sync results…
+            {GITHUB_SYNC_RESULTS_LOADING_TEXT}
           </div>
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-4 w-1/2" />
@@ -234,7 +238,7 @@ export function SyncResultsMainPanel({
         <AlertDescription className="space-y-2">
           <p>{state.message}</p>
           <Button variant="outline" size="sm" onClick={onRetry}>
-            Retry
+            {GITHUB_SYNC_RESULTS_ERROR_RETRY_LABEL}
           </Button>
         </AlertDescription>
       </Alert>
@@ -253,7 +257,7 @@ export function SyncResultsMainPanel({
               : 'Run sync to generate your first sync result summary.'}
           </p>
           <Button size="sm" onClick={onRunSync}>
-            Run sync
+            {GITHUB_SYNC_RESULTS_EMPTY_CTA_LABEL}
           </Button>
         </AlertDescription>
       </Alert>

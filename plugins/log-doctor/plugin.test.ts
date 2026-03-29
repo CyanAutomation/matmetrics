@@ -20,9 +20,13 @@ test('log-doctor manifest validates and exposes expected dashboard tab contract'
   if (!dashboardTab) {
     return;
   }
+  const dashboardTabConfig = dashboardTab.config as {
+    tabId: string;
+    component: string;
+  };
 
   assert.equal(validation.manifest.id, 'log-doctor');
   assert.equal(dashboardTab.id, 'log-doctor-dashboard-tab');
-  assert.equal(dashboardTab.config.tabId, 'log-doctor');
-  assert.equal(dashboardTab.config.component, 'log_doctor');
+  assert.equal(dashboardTabConfig.tabId, 'log-doctor');
+  assert.equal(dashboardTabConfig.component, 'log_doctor');
 });

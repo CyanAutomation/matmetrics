@@ -20,8 +20,12 @@ test('tag-manager manifest validates and exposes expected dashboard tab contract
   if (!dashboardTab) {
     return;
   }
+  const dashboardTabConfig = dashboardTab.config as {
+    tabId: string;
+    component: string;
+  };
   assert.equal(validation.manifest.id, 'tag-manager');
   assert.equal(dashboardTab.id, 'tag-manager-dashboard-tab');
-  assert.equal(dashboardTab.config.tabId, 'tag-manager');
-  assert.equal(dashboardTab.config.component, 'tag_manager');
+  assert.equal(dashboardTabConfig.tabId, 'tag-manager');
+  assert.equal(dashboardTabConfig.component, 'tag_manager');
 });

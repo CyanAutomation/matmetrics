@@ -128,6 +128,17 @@ Use this checklist for plugin changes:
 - [ ] Validate and sync endpoints handle missing/invalid inputs.
 - [ ] Success/failure UI states for test/sync are visible and actionable.
 
+### UX criteria to automated tests
+
+- **Loading state present** → `src/components/github-settings.ux.test.tsx`
+  - `loading criterion anchor: loading state present with loading text and disabled interaction while loading`
+- **Error state with recovery** → `src/components/github-settings.ux.test.tsx`
+  - `error criterion anchor: error state exposes retry recovery action label and callable recover flow`
+- **Empty state with CTA** → `src/components/github-settings.ux.test.tsx`
+  - `empty criterion anchor: empty state present with cta action wording run sync configure`
+- **Destructive action safety (confirm + cancel)** → `src/components/github-settings.destructive.test.tsx`
+  - `destructive criterion anchor: destructive confirm clears configuration and destructive cancel preserves prior values`
+
 ### Exact test commands
 
 Current targeted checks that cover plugin integration points:

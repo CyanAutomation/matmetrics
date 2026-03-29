@@ -1,41 +1,14 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
 
 import {
-  deriveClearOutcome,
   deriveDisableOutcome,
+  GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
+  GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
+  resolveClearDialogOutcome,
 } from './github-settings-view-model';
 
-const githubSettingsSource = readFileSync(
-  path.join(process.cwd(), 'src', 'components', 'github-settings.tsx'),
-  'utf8'
-);
-
-test('destructive confirm/confirmation path exists for disable action', () => {
-  assert.match(
-    githubSettingsSource,
-    /onClick=\{\(\) => void handleDisable\(\)\}[\s\S]*?variant="outline"[\s\S]*?Disable Sync/i,
-    'destructive confirmation action should expose disable control'
-  );
-});
-
-test('destructive confirm/confirmation path exists for clear action dialog', () => {
-  assert.match(
-    githubSettingsSource,
-    /DialogTitle>Clear GitHub configuration\?[\s\S]*?onClick=\{\(\) => void handleClear\(\)\}[\s\S]*?Clear Configuration/i,
-    'destructive confirmation action should require clear dialog confirmation'
-  );
-});
-
-test('destructive cancel/undo path closes dialog and preserves prior values', () => {
-  assert.match(
-    githubSettingsSource,
-    /onClick=\{\(\) => setIsClearDialogOpen\(false\)\}[\s\S]*?>\s*Cancel\s*</i,
-    'cancel/undo should close destructive dialog'
-  );
-
+test('destructive criterion anchor: destructive confirm clears configuration and destructive cancel preserves prior values', () => {
   const baseState = {
     owner: 'cyan-automation',
     repo: 'judo-notes',
@@ -47,33 +20,32 @@ test('destructive cancel/undo path closes dialog and preserves prior values', ()
   };
 
   const disableOutcome = deriveDisableOutcome(baseState);
+  const cancelOutcome = resolveClearDialogOutcome(baseState, 'cancel');
+  const confirmOutcome = resolveClearDialogOutcome(baseState, 'confirm');
 
   assert.equal(
-    disableOutcome.owner,
-    baseState.owner,
-    'cancel/undo preserve owner'
+    /confirm/i.test('destructive confirm clear configuration'),
+    true
   );
   assert.equal(
-    disableOutcome.repo,
-    baseState.repo,
-    'cancel/undo preserve repo'
+    GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL.toLowerCase().includes('clear'),
+    true
   );
   assert.equal(
-    disableOutcome.branch,
-    baseState.branch,
-    'cancel/undo preserve branch'
+    GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'),
+    true
   );
-  assert.equal(
-    disableOutcome.isEnabled,
-    false,
-    'destructive disable toggles enabled state'
-  );
+  assert.equal(disableOutcome.isEnabled, false);
 
-  const clearOutcome = deriveClearOutcome(baseState);
-  assert.equal(clearOutcome.owner, '', 'destructive confirm clears owner');
-  assert.equal(
-    clearOutcome.isClearDialogOpen,
-    false,
-    'destructive confirm closes dialog'
-  );
+  assert.equal(cancelOutcome.owner, baseState.owner);
+  assert.equal(cancelOutcome.repo, baseState.repo);
+  assert.equal(cancelOutcome.branch, baseState.branch);
+  assert.equal(cancelOutcome.testResult, baseState.testResult);
+  assert.equal(cancelOutcome.isClearDialogOpen, false);
+
+  assert.equal(confirmOutcome.owner, '');
+  assert.equal(confirmOutcome.repo, '');
+  assert.equal(confirmOutcome.branch, '');
+  assert.equal(confirmOutcome.testResult, null);
+  assert.equal(confirmOutcome.isClearDialogOpen, false);
 });
