@@ -8,10 +8,11 @@
     "notes": "Baseline maturity. Valid plugin shell and working feature, but still missing plugin-specific docs and stronger test evidence.",
     "lastReviewedAt": "2026-03-24",
     "uxStates": {
-      "destructiveAction": true
+      "destructiveAction": true,
+      "loading": true
     },
     "uxCriteria": {
-      "loadingStatePresent": false,
+      "loadingStatePresent": true,
       "errorStateWithRecovery": false,
       "emptyStateWithCta": false,
       "destructiveActionSafety": {

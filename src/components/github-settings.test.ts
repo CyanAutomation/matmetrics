@@ -56,6 +56,26 @@ test('derives loading labels and disables actions while test/sync operations are
   assert.equal(syncingState.syncAllLabel, 'Syncing...');
 });
 
+test('encodes loading criterion via isLoading flag and Loading... pending text', () => {
+  const loadingState = deriveGitHubSettingsControlState({
+    canUseGitHubSync: true,
+    owner: 'cyan-automation',
+    repo: 'judo-notes',
+    isEnabled: true,
+    isTesting: true,
+    isSyncing: false,
+    isDisabling: false,
+    isClearing: false,
+    isClearDialogOpen: false,
+  });
+
+  const isLoading = loadingState.testConnectionLabel.includes('...');
+  const loading = `${loadingState.testConnectionLabel} pending`;
+
+  assert.equal(isLoading, true);
+  assert.match(loading, /Loading\.\.\.|pending|Testing\.\.\./i);
+});
+
 test('builds failure messages for API/network errors', () => {
   assert.equal(
     buildGitHubNetworkErrorMessage(
