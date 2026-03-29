@@ -89,6 +89,66 @@ export type DiagnosticsSnapshot = {
   errorMessage: string | null;
 };
 
+export const createUiState = (
+  operation: LogDoctorOperation,
+  phase: LogDoctorPhase,
+  details?: {
+    reason?: string;
+    hasLogs?: boolean;
+    hasFindings?: boolean;
+  }
+): LogDoctorUiState => {
+  if (phase === 'idle') {
+    return {
+      phase,
+      operation: null,
+      message: 'Select a source, then run Log Doctor.',
+    };
+  }
+
+  if (phase === 'loading') {
+    const operationLabel =
+      operation === 'scan'
+        ? 'Fetching logs'
+        : operation === 'preview'
+          ? 'Analyzing findings'
+          : 'Applying fixes';
+
+    return {
+      phase,
+      operation,
+      message: `${operationLabel}… this can take up to 30 seconds for larger repositories.`,
+    };
+  }
+
+  if (phase === 'empty') {
+    const emptyMessage =
+      details?.hasLogs === false
+        ? 'No logs were found for this source. Select source or refresh logs.'
+        : details?.hasFindings === false
+          ? 'No findings to show yet. Refresh logs or run a new scan.'
+          : 'No data is available yet. Select source or refresh logs.';
+    return { phase, operation, message: emptyMessage };
+  }
+
+  if (phase === 'error') {
+    return {
+      phase,
+      operation,
+      message: createErrorMessage(
+        operation,
+        details?.reason ?? 'Unknown request error.'
+      ),
+    };
+  }
+
+  return {
+    phase: 'success',
+    operation,
+    message: 'Findings ready.',
+  };
+};
+
 export const createEmptyDiagnosticsSnapshot = (): DiagnosticsSnapshot => ({
   scanResult: null,
   fixResult: null,
