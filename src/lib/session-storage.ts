@@ -367,11 +367,10 @@ export async function scanSessionsFromGitHub(
 
   const worker = async () => {
     while (true) {
-      const currentIndex = nextIndex;
+      const currentIndex = nextIndex++;
       if (currentIndex >= markdownPaths.length) {
         return;
       }
-      nextIndex += 1;
 
       const filePath = markdownPaths[currentIndex];
 
