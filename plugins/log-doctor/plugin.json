@@ -1,8 +1,8 @@
 {
   "id": "log-doctor",
   "name": "Log Doctor Plugin",
-  "version": "1.0.0",
-  "description": "Provides a dashboard tab for log health checks and diagnostics.",
+  "version": "1.1.0",
+  "description": "Provides a dashboard tab for log health checks, diagnostics, and automated session auditing.",
   "maturity": {
     "tier": "bronze",
     "notes": "Baseline maturity. Initial first-party plugin shell with dashboard tab registration and baseline tests.",
@@ -29,7 +29,8 @@
         "plugins/log-doctor/src/index.test.ts",
         "plugins/log-doctor/src/components/log-doctor-state.test.ts",
         "plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts",
-        "plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx"
+        "plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx",
+        "plugins/log-doctor/src/lib/audit-rules.test.ts"
       ],
       "uxCriteria": {
         "loadingStatePresent": [

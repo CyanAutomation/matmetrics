@@ -1,0 +1,50 @@
+{
+  "id": "video-library",
+  "name": "Video Library Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for auditing session videos, link checks, and domain allowlists.",
+  "maturity": {
+    "tier": "bronze",
+    "notes": "Baseline maturity. Initial Video Library dashboard tab with targeted fix flows, allowlist management, and live link check support.",
+    "lastReviewedAt": "2026-03-29",
+    "uxStates": {
+      "loading": true,
+      "error": true,
+      "empty": true,
+      "destructiveAction": true
+    },
+    "uxCriteria": {
+      "loadingStatePresent": true,
+      "errorStateWithRecovery": true,
+      "emptyStateWithCta": true,
+      "destructiveActionSafety": {
+        "relevant": true,
+        "confirmation": true,
+        "cancellation": true
+      }
+    },
+    "evidence": {
+      "testFiles": [
+        "plugins/video-library/plugin.test.ts",
+        "plugins/video-library/src/index.test.ts",
+        "src/lib/video-library.test.ts",
+        "src/tests/api-video-library-check-links-route.test.ts"
+      ]
+    }
+  },
+  "capabilities": ["video_audit"],
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "video-library-dashboard-tab",
+      "title": "Video Library",
+      "config": {
+        "tabId": "video-library",
+        "headerTitle": "Video Library",
+        "icon": "film",
+        "component": "video_library"
+      }
+    }
+  ]
+}

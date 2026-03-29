@@ -257,6 +257,33 @@ test('known capability declaration passes without warnings', () => {
   }
 });
 
+test('video audit capability declaration passes without warnings', () => {
+  const result = validatePluginManifest({
+    id: 'video-library-plugin',
+    name: 'Video Library Plugin',
+    version: '1.0.0',
+    description: 'Contains the video audit capability declaration.',
+    capabilities: ['video_audit'],
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'video-library-dashboard-tab',
+        title: 'Video Library',
+        config: {
+          tabId: 'video-library',
+          headerTitle: 'Video Library',
+          component: 'video_library',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.issues.length, 0);
+  }
+});
+
 test('manifest accepts optional first-party metadata and maturity metadata', () => {
   const result = validatePluginManifest({
     id: 'mature-plugin',

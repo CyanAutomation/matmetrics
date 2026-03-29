@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -21,13 +21,26 @@ import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { DrLogImage } from '@/components/drlog-image';
+import { getSessions } from '@/lib/storage';
+import {
+  getSessionAudit,
+  saveSessionAudit,
+  getAuditConfig,
+} from '@/lib/user-preferences';
+import {
+  runAuditRulesForAllSessions,
+} from '../lib/audit-rules';
+import type { AuditFlagCode, JudoSession, SessionAudit } from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
+import { AuditResults } from './log-doctor-audit-results';
+import { AuditReviewDialog } from './log-doctor-review-dialog';
 
 import {
   canConfirmApplyFixes,
   createEmptyDiagnosticsSnapshot,
   createUiState,
   resolveResetDiagnosticsSnapshot,
+  type AuditSessionResult,
   type DiagnosticsSnapshot,
   type FixResult,
   type LogDoctorUiState,
@@ -190,7 +203,7 @@ export const LogDoctorStatusAlerts = ({
 };
 
 export const LogDoctor = (): React.ReactElement => {
-  const { preferences } = useAuth();
+  const { preferences, user } = useAuth();
   const { toast } = useToast();
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
@@ -212,6 +225,15 @@ export const LogDoctor = (): React.ReactElement => {
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
   const [applyConfirmationValue, setApplyConfirmationValue] = useState('');
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+
+  // Audit tab state
+  const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
+    'validation'
+  );
+  const [isRunningAudit, setIsRunningAudit] = useState(false);
+  const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -251,6 +273,131 @@ export const LogDoctor = (): React.ReactElement => {
       current.includes(path)
         ? current.filter((item) => item !== path)
         : [...current, path]
+    );
+  };
+
+  const handleRunAudit = useCallback((): void => {
+    setIsRunningAudit(true);
+    try {
+      const sessions: JudoSession[] = getSessions();
+      const config = getAuditConfig();
+      const rawResults = runAuditRulesForAllSessions(sessions, config);
+
+      // Merge with persisted audit state (reviews, ignored rules)
+      const merged: AuditSessionResult[] = rawResults.map((result) => {
+        const persisted = getSessionAudit(result.sessionId);
+        return {
+          sessionId: result.sessionId,
+          sessionDate: result.sessionDate,
+          flags: result.flags,
+          reviewedAt: persisted?.reviewedAt,
+          ignoredRules: persisted?.ignoredRules ?? [],
+        };
+      });
+
+      setAuditResults(merged);
+      setAuditRanAt(new Date().toISOString());
+    } finally {
+      setIsRunningAudit(false);
+    }
+  }, []);
+
+  const handleReviewSession = (sessionId: string): void => {
+    setReviewSessionId(sessionId);
+  };
+
+  const handleCloseReview = (): void => {
+    setReviewSessionId(null);
+  };
+
+  const handleMarkReviewed = async (sessionId: string): Promise<void> => {
+    if (!user?.uid) return;
+    const existing = auditResults.find((r) => r.sessionId === sessionId);
+    if (!existing) return;
+
+    const now = new Date().toISOString();
+    const audit: SessionAudit = {
+      sessionId,
+      flags: existing.flags,
+      reviewedAt: now,
+      ignoredRules: existing.ignoredRules,
+    };
+
+    await saveSessionAudit(user.uid, sessionId, audit);
+    setAuditResults((prev) =>
+      prev.map((r) => (r.sessionId === sessionId ? { ...r, reviewedAt: now } : r))
+    );
+  };
+
+  const handleClearReview = async (sessionId: string): Promise<void> => {
+    if (!user?.uid) return;
+    const existing = auditResults.find((r) => r.sessionId === sessionId);
+    if (!existing) return;
+
+    const audit: SessionAudit = {
+      sessionId,
+      flags: existing.flags,
+      reviewedAt: undefined,
+      ignoredRules: existing.ignoredRules,
+    };
+
+    await saveSessionAudit(user.uid, sessionId, audit);
+    setAuditResults((prev) =>
+      prev.map((r) =>
+        r.sessionId === sessionId ? { ...r, reviewedAt: undefined } : r
+      )
+    );
+  };
+
+  const handleIgnoreRule = async (
+    sessionId: string,
+    code: AuditFlagCode
+  ): Promise<void> => {
+    if (!user?.uid) return;
+    const existing = auditResults.find((r) => r.sessionId === sessionId);
+    if (!existing) return;
+
+    const updatedIgnored = existing.ignoredRules.includes(code)
+      ? existing.ignoredRules
+      : [...existing.ignoredRules, code];
+
+    const audit: SessionAudit = {
+      sessionId,
+      flags: existing.flags,
+      reviewedAt: existing.reviewedAt,
+      ignoredRules: updatedIgnored,
+    };
+
+    await saveSessionAudit(user.uid, sessionId, audit);
+    setAuditResults((prev) =>
+      prev.map((r) =>
+        r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
+      )
+    );
+  };
+
+  const handleUnignoreRule = async (
+    sessionId: string,
+    code: AuditFlagCode
+  ): Promise<void> => {
+    if (!user?.uid) return;
+    const existing = auditResults.find((r) => r.sessionId === sessionId);
+    if (!existing) return;
+
+    const updatedIgnored = existing.ignoredRules.filter((c) => c !== code);
+
+    const audit: SessionAudit = {
+      sessionId,
+      flags: existing.flags,
+      reviewedAt: existing.reviewedAt,
+      ignoredRules: updatedIgnored,
+    };
+
+    await saveSessionAudit(user.uid, sessionId, audit);
+    setAuditResults((prev) =>
+      prev.map((r) =>
+        r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
+      )
     );
   };
 
@@ -452,6 +599,7 @@ export const LogDoctor = (): React.ReactElement => {
       selectedPaths,
       uiState,
       errorMessage,
+      auditResult: null,
     };
     const resolved = resolveResetDiagnosticsSnapshot(currentSnapshot, true);
     setShowResetConfirmation(false);
@@ -489,6 +637,15 @@ export const LogDoctor = (): React.ReactElement => {
     });
   };
 
+  const reviewSession = auditResults.find(
+    (r) => r.sessionId === reviewSessionId
+  ) ?? null;
+
+  const auditNeedsAttentionCount = auditResults.filter(
+    (r) =>
+      !r.reviewedAt && r.flags.some((f) => !r.ignoredRules.includes(f.code))
+  ).length;
+
   const isBusy = isScanning || isPreviewing || isApplying;
 
   return (
@@ -500,16 +657,44 @@ export const LogDoctor = (): React.ReactElement => {
         <div className="flex-1 space-y-2">
           <h2 className="text-lg font-semibold">Log Doctor</h2>
           <p className="text-sm text-muted-foreground">
-            Scan, preview, and optionally apply markdown normalization fixes in
-            two steps.
+            Scan, preview, and optionally apply markdown normalization fixes.
+            Use Session Audit to detect data quality issues.
           </p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Repository target</CardTitle>
-        </CardHeader>
+      {/* Tab switcher */}
+      <div className="flex gap-2 border-b pb-2">
+        <Button
+          variant={activeTab === 'validation' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('validation')}
+          aria-pressed={activeTab === 'validation'}
+        >
+          File Validation
+        </Button>
+        <Button
+          variant={activeTab === 'audit' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('audit')}
+          aria-pressed={activeTab === 'audit'}
+        >
+          Session Audit
+          {auditNeedsAttentionCount > 0 ? (
+            <Badge variant="destructive" className="ml-2">
+              {auditNeedsAttentionCount}
+            </Badge>
+          ) : null}
+        </Button>
+      </div>
+
+      {/* File Validation Tab */}
+      {activeTab === 'validation' ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Repository target</CardTitle>
+            </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1">
             <Label htmlFor="log-doctor-owner">Owner</Label>
@@ -702,6 +887,57 @@ export const LogDoctor = (): React.ReactElement => {
           </CardContent>
         </Card>
       ) : null}
+        </> /* end File Validation tab */
+      ) : null}
+
+      {/* Session Audit Tab */}
+      {activeTab === 'audit' ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={handleRunAudit}
+              disabled={isRunningAudit}
+              aria-label="Run session audit checks"
+            >
+              {isRunningAudit ? 'Running audit…' : 'Run audit'}
+            </Button>
+            {auditRanAt ? (
+              <span className="text-xs text-muted-foreground">
+                Last run: {new Date(auditRanAt).toLocaleTimeString()}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Click &quot;Run audit&quot; to check your sessions for data
+                quality issues.
+              </span>
+            )}
+          </div>
+          {auditRanAt ? (
+            <AuditResults
+              results={auditResults}
+              onReview={handleReviewSession}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      <AuditReviewDialog
+        session={reviewSession}
+        open={reviewSessionId !== null}
+        onClose={handleCloseReview}
+        onMarkReviewed={(id) => {
+          void handleMarkReviewed(id);
+        }}
+        onIgnoreRule={(id, code) => {
+          void handleIgnoreRule(id, code);
+        }}
+        onUnignoreRule={(id, code) => {
+          void handleUnignoreRule(id, code);
+        }}
+        onClearReview={(id) => {
+          void handleClearReview(id);
+        }}
+      />
 
       <Dialog
         open={showApplyConfirmation}

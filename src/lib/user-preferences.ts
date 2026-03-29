@@ -17,6 +17,7 @@ import type {
   GitHubSettings,
   SessionAudit,
   UserPreferences,
+  VideoLibraryPreferences,
 } from './types';
 import { DEFAULT_AUDIT_CONFIG } from './types';
 
@@ -32,9 +33,14 @@ export const DEFAULT_GITHUB_SETTINGS: GitHubSettings = {
   syncStatus: 'idle',
 };
 
+export const DEFAULT_VIDEO_LIBRARY_PREFERENCES: VideoLibraryPreferences = {
+  customAllowedDomains: [],
+};
+
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   transformerPrompt: DEFAULT_TRANSFORMER_PROMPT,
   gitHub: DEFAULT_GITHUB_SETTINGS,
+  videoLibrary: DEFAULT_VIDEO_LIBRARY_PREFERENCES,
   sessionAudits: {},
   auditConfig: DEFAULT_AUDIT_CONFIG,
 };
@@ -67,6 +73,7 @@ function cloneDefaults(): UserPreferences {
   return {
     transformerPrompt: DEFAULT_TRANSFORMER_PROMPT,
     gitHub: { ...DEFAULT_GITHUB_SETTINGS },
+    videoLibrary: { ...DEFAULT_VIDEO_LIBRARY_PREFERENCES },
     sessionAudits: {},
     auditConfig: {
       rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
@@ -149,6 +156,26 @@ function normalizeAuditConfig(value: unknown): AuditConfig {
   };
 }
 
+function normalizeVideoLibraryPreferences(
+  value: unknown
+): VideoLibraryPreferences {
+  if (!value || typeof value !== 'object') {
+    return { ...DEFAULT_VIDEO_LIBRARY_PREFERENCES };
+  }
+
+  const input = value as Partial<VideoLibraryPreferences>;
+  const customAllowedDomains = Array.isArray(input.customAllowedDomains)
+    ? input.customAllowedDomains
+        .filter((domain): domain is string => typeof domain === 'string')
+        .map((domain) => domain.trim().toLowerCase())
+        .filter((domain) => domain.length > 0)
+    : [];
+
+  return {
+    customAllowedDomains: Array.from(new Set(customAllowedDomains)).sort(),
+  };
+}
+
 function normalizeSessionAudits(
   value: unknown
 ): Record<string, SessionAudit> {
@@ -202,6 +229,7 @@ function normalizePreferences(value: unknown): UserPreferences {
         ? input.transformerPrompt
         : DEFAULT_TRANSFORMER_PROMPT,
     gitHub: normalizeGitHubSettings(input.gitHub),
+    videoLibrary: normalizeVideoLibraryPreferences(input.videoLibrary),
     migratedLocalSettingsAt:
       typeof input.migratedLocalSettingsAt === 'string'
         ? input.migratedLocalSettingsAt
@@ -228,6 +256,20 @@ function serializeGitHubSettings(
         }
       : {}),
     ...(gitHub.lastSyncTime ? { lastSyncTime: gitHub.lastSyncTime } : {}),
+  };
+}
+
+function serializeVideoLibraryPreferences(
+  videoLibrary: VideoLibraryPreferences
+): Record<string, unknown> {
+  return {
+    customAllowedDomains: Array.from(
+      new Set(
+        videoLibrary.customAllowedDomains
+          .map((domain) => domain.trim().toLowerCase())
+          .filter((domain) => domain.length > 0)
+      )
+    ).sort(),
   };
 }
 
@@ -342,6 +384,9 @@ export async function initializeUserPreferences(
     {
       transformerPrompt: mergedPreferences.transformerPrompt,
       gitHub: serializeGitHubSettings(mergedPreferences.gitHub),
+      videoLibrary: serializeVideoLibraryPreferences(
+        mergedPreferences.videoLibrary
+      ),
       ...(mergedPreferences.migratedLocalSettingsAt
         ? { migratedLocalSettingsAt: mergedPreferences.migratedLocalSettingsAt }
         : {}),
@@ -427,6 +472,29 @@ export async function saveGitHubConfigPreference(
     config,
     enabled: true,
   });
+}
+
+export async function saveVideoLibraryPreference(
+  uid: string,
+  videoLibrary: VideoLibraryPreferences
+): Promise<void> {
+  currentPreferences = {
+    ...currentPreferences,
+    videoLibrary: normalizeVideoLibraryPreferences(videoLibrary),
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    {
+      videoLibrary: serializeVideoLibraryPreferences(
+        currentPreferences.videoLibrary
+      ),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 export async function clearGitHubConfigPreference(uid: string): Promise<void> {

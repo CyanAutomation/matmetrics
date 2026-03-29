@@ -103,6 +103,27 @@ const initializePluginsStatically = async (): Promise<void> => {
     console.warn('Failed to initialize log-doctor plugin:', error);
   }
 
+  try {
+    // Use synchronous require for test/runtime compatibility
+    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
+    const videoLibraryModule = require('../../../plugins/video-library/src/index');
+    const initPlugin = videoLibraryModule.initPlugin as
+      | PluginInitializer
+      | undefined;
+
+    if (initPlugin && typeof initPlugin === 'function') {
+      const initializationResult = initPlugin({
+        register: () => undefined,
+        registerPluginComponent,
+      });
+      if (initializationResult instanceof Promise) {
+        await initializationResult;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to initialize video-library plugin:', error);
+  }
+
   // To add more plugins:
   // 1. Create plugins/my-plugin/src/index.ts with initPlugin export
   // 2. Add another try-catch block here to initialize it:

@@ -74,9 +74,14 @@ export interface GitHubSettings {
   syncStatus: GitHubSyncStatus;
 }
 
+export interface VideoLibraryPreferences {
+  customAllowedDomains: string[];
+}
+
 export interface UserPreferences {
   transformerPrompt: string;
   gitHub: GitHubSettings;
+  videoLibrary: VideoLibraryPreferences;
   migratedLocalSettingsAt?: string;
   sessionAudits?: Record<string, SessionAudit>; // sessionId -> audit state
   auditConfig?: AuditConfig;
