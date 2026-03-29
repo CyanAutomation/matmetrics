@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
+import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { DrLogImage } from '@/components/drlog-image';
 import { getSessions } from '@/lib/storage';
@@ -26,11 +27,13 @@ import {
   getSessionAudit,
   saveSessionAudit,
   getAuditConfig,
+  getLastAuditRun,
+  saveLastAuditRun,
 } from '@/lib/user-preferences';
 import {
   runAuditRulesForAllSessions,
 } from '../lib/audit-rules';
-import type { AuditFlagCode, JudoSession, SessionAudit } from '@/lib/types';
+import type { AuditFlagCode, AuditRunResult, JudoSession, SessionAudit } from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
 import { AuditReviewDialog } from './log-doctor-review-dialog';
@@ -230,7 +233,11 @@ export const LogDoctor = (): React.ReactElement => {
   const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
     'validation'
   );
-  const [isRunningAudit, setIsRunningAudit] = useState(false);
+  const {
+    feedbackState: auditFeedbackState,
+    startLoading: startAuditLoading,
+    showSuccess: showAuditSuccess,
+  } = useActionFeedback();
   const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
@@ -243,6 +250,20 @@ export const LogDoctor = (): React.ReactElement => {
     setRepo(config.repo);
     setBranch(config.branch ?? '');
   }, [preferences.gitHub.config]);
+
+  // Load persisted audit results on mount
+  useEffect(() => {
+    const lastRun = getLastAuditRun();
+    if (lastRun) {
+      const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({
+        ...session,
+        reviewedAt: undefined,
+        ignoredRules: [],
+      }));
+      setAuditResults(results);
+      setAuditRanAt(lastRun.ranAt);
+    }
+  }, []);
 
   const invalidFiles = useMemo(
     () => scanResult?.files.filter((file) => file.status === 'invalid') ?? [],
@@ -277,7 +298,7 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleRunAudit = useCallback((): void => {
-    setIsRunningAudit(true);
+    startAuditLoading();
     try {
       const sessions: JudoSession[] = getSessions();
       const config = getAuditConfig();
@@ -295,12 +316,29 @@ export const LogDoctor = (): React.ReactElement => {
         };
       });
 
+      const now = new Date().toISOString();
+      const runResult: AuditRunResult = {
+        sessions: merged.map((m) => ({
+          sessionId: m.sessionId,
+          sessionDate: m.sessionDate,
+          flags: m.flags,
+        })),
+        ranAt: now,
+      };
+
+      // Save to Firebase and localStorage
+      if (user?.uid) {
+        saveLastAuditRun(user.uid, runResult).catch((err) => {
+          console.error('Failed to save audit result:', err);
+        });
+      }
+
       setAuditResults(merged);
-      setAuditRanAt(new Date().toISOString());
+      setAuditRanAt(now);
+      showAuditSuccess();
     } finally {
-      setIsRunningAudit(false);
     }
-  }, []);
+  }, [user?.uid, startAuditLoading, showAuditSuccess]);
 
   const handleReviewSession = (sessionId: string): void => {
     setReviewSessionId(sessionId);
