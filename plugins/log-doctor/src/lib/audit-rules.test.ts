@@ -13,7 +13,6 @@ import {
 
 // Helper to create test sessions
 function makeSession(overrides?: Partial<JudoSession>): JudoSession {
-  const data = new Date('2026-03-18');
   return {
     id: `session-${Math.random().toString(36).slice(2)}`,
     date: '2026-03-18',
@@ -396,10 +395,7 @@ test('runAuditRulesForAllSessions: returns flagged sessions only', () => {
 });
 
 test('runAuditRulesForAllSessions: includes sessions with no flags in original list', () => {
-  const sessions = [
-    makeSession({ id: '1' }),
-    makeSession({ id: '2' }),
-  ];
+  const sessions = [makeSession({ id: '1' }), makeSession({ id: '2' })];
 
   const results = runAuditRulesForAllSessions(sessions);
 

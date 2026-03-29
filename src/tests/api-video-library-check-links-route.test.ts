@@ -181,7 +181,8 @@ test('POST returns row-friendly per-session payloads for mixed result sets', asy
       );
 
       const originalFetch = global.fetch;
-      global.fetch = (async () => new Response(null, { status: 200 })) as typeof fetch;
+      global.fetch = (async () =>
+        new Response(null, { status: 200 })) as typeof fetch;
 
       try {
         const response = await POST(
@@ -200,18 +201,18 @@ test('POST returns row-friendly per-session payloads for mixed result sets', asy
         assert.deepEqual(
           payload.results
             .map(
-            (result: {
-              sessionId: string;
-              hostname: string;
-              status: string;
-              checkedAt: string;
-            }) => ({
-              sessionId: result.sessionId,
-              hostname: result.hostname,
-              status: result.status,
-              hasCheckedAt: typeof result.checkedAt === 'string',
-            })
-          )
+              (result: {
+                sessionId: string;
+                hostname: string;
+                status: string;
+                checkedAt: string;
+              }) => ({
+                sessionId: result.sessionId,
+                hostname: result.hostname,
+                status: result.status,
+                hasCheckedAt: typeof result.checkedAt === 'string',
+              })
+            )
             .sort(
               (
                 left: {

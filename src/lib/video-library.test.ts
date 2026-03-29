@@ -41,7 +41,10 @@ function makeSnapshot(
 
 test('normalizeVideoDomainInput accepts bare hostnames only', () => {
   assert.equal(normalizeVideoDomainInput('YouTube.com'), 'youtube.com');
-  assert.equal(normalizeVideoDomainInput('https://youtube.com/watch?v=1'), null);
+  assert.equal(
+    normalizeVideoDomainInput('https://youtube.com/watch?v=1'),
+    null
+  );
   assert.equal(normalizeVideoDomainInput('example.com:443'), null);
   assert.equal(normalizeVideoDomainInput(''), null);
 });
@@ -57,11 +60,11 @@ test('getAllowedVideoDomains merges starter and custom domains', () => {
 
 test('matchesAllowedVideoDomain supports exact and subdomain suffix matches', () => {
   assert.equal(matchesAllowedVideoDomain('youtube.com', 'youtube.com'), true);
+  assert.equal(matchesAllowedVideoDomain('m.youtube.com', 'youtube.com'), true);
   assert.equal(
-    matchesAllowedVideoDomain('m.youtube.com', 'youtube.com'),
-    true
+    matchesAllowedVideoDomain('notyoutube.com', 'youtube.com'),
+    false
   );
-  assert.equal(matchesAllowedVideoDomain('notyoutube.com', 'youtube.com'), false);
 });
 
 test('deriveVideoLibraryEntries classifies missing, allowed, and disallowed domains', () => {

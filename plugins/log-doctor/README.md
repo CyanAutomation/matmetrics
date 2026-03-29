@@ -31,12 +31,12 @@ Automatically detects quality issues across all logged sessions using rule-based
 
 **Audit rules:**
 
-| Rule | Severity | Trigger |
-|------|----------|---------|
-| `no_techniques_high_effort` | warning | Effort ≥ 4 but no techniques recorded |
-| `empty_description` | info | Session description is blank or missing |
-| `empty_notes` | info | Session notes section is blank or missing |
-| `duration_outlier` | info | Session duration is a statistical outlier (outside mean ± N×stddev across all sessions; requires ≥ 3 sessions) |
+| Rule                        | Severity | Trigger                                                                                                        |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `no_techniques_high_effort` | warning  | Effort ≥ 4 but no techniques recorded                                                                          |
+| `empty_description`         | info     | Session description is blank or missing                                                                        |
+| `empty_notes`               | info     | Session notes section is blank or missing                                                                      |
+| `duration_outlier`          | info     | Session duration is a statistical outlier (outside mean ± N×stddev across all sessions; requires ≥ 3 sessions) |
 
 **Review workflow:**
 

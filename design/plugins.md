@@ -1,4 +1,5 @@
 High-Impact Plugins
+
 1. Training Analytics & Insights Plugin
 
 Complement the dashboard's current basic metrics with deeper analysis
@@ -40,4 +41,3 @@ Lesser Priority (But Useful)
 7. Technique Library & Video Linking — Link YouTube tutorials or coaching videos to techniques
 
 8. Sparring Partner Tracking — Log who you trained with and notes about matches/rolls
-

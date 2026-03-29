@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-import type { AuditConfig, AuditRuleConfig } from '@/lib/types';
+import type { AuditConfig } from '@/lib/types';
 
 export type AuditSettingsProps = {
   config: AuditConfig;
@@ -25,26 +25,28 @@ export type AuditSettingsProps = {
   onConfigChange: (config: AuditConfig) => Promise<void>;
 };
 
-const RULE_DESCRIPTIONS: Record<string, { label: string; description: string }> =
-  {
-    no_techniques_high_effort: {
-      label: 'No techniques (high effort)',
-      description: 'Flag sessions with high effort but no techniques recorded.',
-    },
-    empty_description: {
-      label: 'Missing description',
-      description: 'Flag sessions without a description.',
-    },
-    empty_notes: {
-      label: 'Missing notes',
-      description: 'Flag sessions without notes.',
-    },
-    duration_outlier: {
-      label: 'Unusual duration',
-      description:
-        'Flag sessions with durations far from the average. Requires at least 3 sessions with duration data.',
-    },
-  };
+const RULE_DESCRIPTIONS: Record<
+  string,
+  { label: string; description: string }
+> = {
+  no_techniques_high_effort: {
+    label: 'No techniques (high effort)',
+    description: 'Flag sessions with high effort but no techniques recorded.',
+  },
+  empty_description: {
+    label: 'Missing description',
+    description: 'Flag sessions without a description.',
+  },
+  empty_notes: {
+    label: 'Missing notes',
+    description: 'Flag sessions without notes.',
+  },
+  duration_outlier: {
+    label: 'Unusual duration',
+    description:
+      'Flag sessions with durations far from the average. Requires at least 3 sessions with duration data.',
+  },
+};
 
 export const AuditSettings: React.FC<AuditSettingsProps> = ({
   config,
@@ -89,7 +91,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
         title: 'Settings saved',
         description: 'Audit rule configuration has been updated.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -119,7 +121,9 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base">Audit Settings</CardTitle>
-            <CardDescription>Customize audit rules and detection thresholds</CardDescription>
+            <CardDescription>
+              Customize audit rules and detection thresholds
+            </CardDescription>
           </div>
           {isExpanded ? (
             <ChevronUp className="h-5 w-5 text-muted-foreground" />
@@ -138,7 +142,10 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
               isDurationOutlier && rule.enabled && sessionCount < 3;
 
             return (
-              <div key={rule.code} className="space-y-3 border-b pb-4 last:border-b-0">
+              <div
+                key={rule.code}
+                className="space-y-3 border-b pb-4 last:border-b-0"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <Label className="block font-medium">{desc.label}</Label>
@@ -159,7 +166,8 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                   <Alert className="border-yellow-200 bg-yellow-50">
                     <AlertDescription className="text-sm text-yellow-800">
                       This rule requires at least 3 sessions with duration data.
-                      You currently have {sessionCount} session{sessionCount !== 1 ? 's' : ''}.
+                      You currently have {sessionCount} session
+                      {sessionCount !== 1 ? 's' : ''}.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -227,11 +235,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
 
           {hasChanges && (
             <div className="flex gap-2 pt-4">
-              <Button
-                onClick={handleSave}
-                disabled={isSaving}
-                size="sm"
-              >
+              <Button onClick={handleSave} disabled={isSaving} size="sm">
                 {isSaving ? 'Saving…' : 'Save changes'}
               </Button>
               <Button
