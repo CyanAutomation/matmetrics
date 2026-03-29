@@ -83,13 +83,11 @@ const capabilityCandidateRoots: Record<string, string[]> = {
 };
 
 type FeatureUxState = 'loading' | 'error' | 'empty' | 'destructiveAction';
-
-const featureUxStateLabels: Record<FeatureUxState, string> = {
-  loading: 'loading',
-  error: 'error',
-  empty: 'empty',
-  destructiveAction: 'destructive-action',
-};
+type FeatureUxCriterion =
+  | 'loadingStatePresent'
+  | 'errorStateWithRecovery'
+  | 'emptyStateWithCta'
+  | 'destructiveActionSafety';
 
 const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
   loading: [
@@ -109,6 +107,34 @@ const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
     /\bremove\b/i,
     /\bdanger\b/i,
   ],
+};
+
+const uxRecoveryPatterns = [
+  /\bretry\b/i,
+  /\brecover(?:y)?\b/i,
+  /\brefresh\b/i,
+  /\btry again\b/i,
+];
+
+const uxCtaPatterns = [
+  /\bcta\b/i,
+  /\baction\b/i,
+  /\badd\b/i,
+  /\bcreate\b/i,
+  /\bconfigure\b/i,
+  /\bretry\b/i,
+  /\bsync\b/i,
+];
+
+const uxCancelPatterns = [/\bcancel(?:ed|lation)?\b/i, /\bundo\b/i];
+const uxConfirmationPatterns = [/\bconfirm(?:ation)?\b/i];
+
+const uxCriterionLabels: Record<FeatureUxCriterion, string> = {
+  loadingStatePresent: 'loading state present',
+  errorStateWithRecovery: 'error state present with recovery',
+  emptyStateWithCta: 'empty state present with CTA',
+  destructiveActionSafety:
+    'destructive action confirmation + cancellation path',
 };
 
 const assertionAnchorPattern =
@@ -142,6 +168,32 @@ const fileAssertsUxState = (
   const broadWindowPattern = /expect\s*\([\s\S]{0,180}\)/g;
   for (const match of fileContents.matchAll(broadWindowPattern)) {
     if (patterns.some((pattern) => pattern.test(match[0]))) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const fileAssertsPatternWithAssertion = (
+  fileContents: string,
+  patterns: RegExp[]
+): boolean => {
+  if (!assertionAnchorPattern.test(fileContents)) {
+    return false;
+  }
+
+  const lines = fileContents.split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const localWindow = [
+      lines[index - 1] ?? '',
+      lines[index] ?? '',
+      lines[index + 1] ?? '',
+    ].join(' ');
+    if (
+      assertionAnchorPattern.test(localWindow) &&
+      patterns.some((pattern) => pattern.test(localWindow))
+    ) {
       return true;
     }
   }
@@ -518,6 +570,7 @@ export const scorePluginMaturity = async ({
     resolvedComponentCount === componentIds.length &&
     unresolvedRuntimeComponentWarnings.length === 0;
   const manifestUxStates = manifest.maturity?.uxStates;
+  const manifestUxCriteria = manifest.maturity?.uxCriteria;
   const declaredUxStates = {
     loading: manifestUxStates?.loading === true,
     error: manifestUxStates?.error === true,
@@ -540,58 +593,93 @@ export const scorePluginMaturity = async ({
       assertedUxStates[state] = fileAssertsUxState(testFileContents, state);
     }
   }
+  const assertedUxCriteria = {
+    loadingStatePresent: assertedUxStates.loading,
+    errorStateWithRecovery: false,
+    emptyStateWithCta: false,
+    destructiveActionSafety: false,
+  };
+  for (const testEvidenceFile of testEvidenceFiles) {
+    const testFileContents = await readFile(testEvidenceFile, 'utf8');
+    if (!assertedUxCriteria.errorStateWithRecovery) {
+      assertedUxCriteria.errorStateWithRecovery =
+        fileAssertsPatternWithAssertion(testFileContents, uxStatePatterns.error) &&
+        fileAssertsPatternWithAssertion(testFileContents, uxRecoveryPatterns);
+    }
+    if (!assertedUxCriteria.emptyStateWithCta) {
+      assertedUxCriteria.emptyStateWithCta =
+        fileAssertsPatternWithAssertion(testFileContents, uxStatePatterns.empty) &&
+        fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns);
+    }
+    if (!assertedUxCriteria.destructiveActionSafety) {
+      assertedUxCriteria.destructiveActionSafety =
+        fileAssertsPatternWithAssertion(
+          testFileContents,
+          uxStatePatterns.destructiveAction
+        ) &&
+        fileAssertsPatternWithAssertion(
+          testFileContents,
+          uxConfirmationPatterns
+        ) &&
+        fileAssertsPatternWithAssertion(testFileContents, uxCancelPatterns);
+    }
+  }
 
-  const assertedStateCount = Object.values(assertedUxStates).filter(Boolean)
-    .length;
-  const missingUxStates = (
-    Object.keys(featureUxStateLabels) as FeatureUxState[]
-  ).filter((state) => !declaredUxStates[state] && !assertedUxStates[state]);
+  const declaredUxCriteria = {
+    loadingStatePresent: manifestUxCriteria?.loadingStatePresent === true,
+    errorStateWithRecovery: manifestUxCriteria?.errorStateWithRecovery === true,
+    emptyStateWithCta: manifestUxCriteria?.emptyStateWithCta === true,
+    destructiveActionSafety:
+      manifestUxCriteria?.destructiveActionSafety?.confirmation === true &&
+      manifestUxCriteria?.destructiveActionSafety?.cancellation === true,
+  };
+  const destructiveActionRelevant =
+    manifestUxCriteria?.destructiveActionSafety?.relevant ??
+    declaredUxStates.destructiveAction ??
+    assertedUxStates.destructiveAction;
 
-  if (assertedStateCount > 0) {
-    categoryScores.feature_quality += clampScore(assertedStateCount * 3, 12);
+  const criteriaToEvaluate: FeatureUxCriterion[] = [
+    'loadingStatePresent',
+    'errorStateWithRecovery',
+    'emptyStateWithCta',
+    'destructiveActionSafety',
+  ].filter(
+    (criterion) =>
+      criterion !== 'destructiveActionSafety' || destructiveActionRelevant
+  );
+
+  let metCriteriaCount = 0;
+  const missingUxCriteria: FeatureUxCriterion[] = [];
+
+  for (const criterion of criteriaToEvaluate) {
+    const isDeclared = declaredUxCriteria[criterion];
+    const isAsserted = assertedUxCriteria[criterion];
+    if (isDeclared && isAsserted && runtimeAssertionsSatisfied) {
+      metCriteriaCount += 1;
+      continue;
+    }
+
+    missingUxCriteria.push(criterion);
     pushUnique(
-      evidence,
-      'Automated tests assert loading/error/empty/destructive-action user states for plugin-backed UX.'
+      reasons,
+      `Missing machine-checkable UX criterion: ${uxCriterionLabels[criterion]}.`
+    );
+    pushUnique(
+      nextActions,
+      `Record and test: ${uxCriterionLabels[criterion]}.`
     );
   }
 
-  const declaredStateCount = Object.values(declaredUxStates).filter(Boolean)
-    .length;
-  if (declaredStateCount > 0 && runtimeAssertionsSatisfied) {
-    categoryScores.feature_quality += clampScore(declaredStateCount * 2, 10);
+  if (metCriteriaCount > 0) {
+    categoryScores.feature_quality += metCriteriaCount * 2;
     pushUnique(
       evidence,
-      'Manifest declares supported loading/error/empty/destructive-action UX states and runtime wiring checks passed.'
-    );
-  } else if (declaredStateCount > 0 && !runtimeAssertionsSatisfied) {
-    pushUnique(
-      reasons,
-      'Manifest declares UX states, but runtime wiring checks are incomplete.'
-    );
-    pushUnique(
-      nextActions,
-      'Keep declared UX-state metadata aligned with component files and runtime renderer registration.'
+      'Manifest UX criteria and automated tests jointly validate key UX safeguards.'
     );
   }
 
-  if (assertedStateCount === 0 && declaredStateCount === 0) {
-    pushUnique(
-      reasons,
-      'Plugin-backed UI has little visible evidence of robust user-state handling.'
-    );
-    pushUnique(
-      nextActions,
-      `Add explicit ${missingUxStates
-        .map((state) => featureUxStateLabels[state])
-        .join(', ')} handling where relevant.`
-    );
-  } else if (missingUxStates.length > 0) {
-    pushUnique(
-      nextActions,
-      `Backfill UX-state coverage for: ${missingUxStates
-        .map((state) => featureUxStateLabels[state])
-        .join(', ')}.`
-    );
+  if (missingUxCriteria.length > 0) {
+    categoryScores.feature_quality -= missingUxCriteria.length * 4;
   }
 
   if (

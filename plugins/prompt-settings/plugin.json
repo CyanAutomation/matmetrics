@@ -8,7 +8,20 @@
     "notes": "Baseline maturity. Stable plugin shape with a simple feature surface, but still needs plugin-specific docs and deeper automated coverage.",
     "lastReviewedAt": "2026-03-24",
     "uxStates": {
+      "loading": true,
+      "error": true,
+      "empty": true,
       "destructiveAction": true
+    },
+    "uxCriteria": {
+      "loadingStatePresent": true,
+      "errorStateWithRecovery": true,
+      "emptyStateWithCta": true,
+      "destructiveActionSafety": {
+        "relevant": true,
+        "confirmation": true,
+        "cancellation": true
+      }
     }
   },
   "enabled": true,
