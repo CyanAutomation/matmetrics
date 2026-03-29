@@ -420,8 +420,7 @@ export function SessionLogForm({
     <Card
       className={cn(
         'max-w-4xl mx-auto shadow-lg bg-card/95',
-        !shouldHideHeader && CARD_INTERACTION_CLASS,
-        shouldHideHeader && 'shadow-none border-0 bg-transparent'
+        !shouldHideHeader && CARD_INTERACTION_CLASS
       )}
     >
       {!shouldHideHeader && (
@@ -748,7 +747,7 @@ export function SessionLogForm({
         <CardFooter
           className={cn(
             'flex justify-end gap-3',
-            !shouldHideHeader ? 'bg-secondary/45 p-8' : 'p-0 pt-6'
+            !shouldHideHeader ? 'bg-secondary/45 p-8' : 'bg-secondary/45 p-8'
           )}
         >
           {onCancel && (
