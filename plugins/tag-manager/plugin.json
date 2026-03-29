@@ -8,7 +8,11 @@
     "notes": "Baseline maturity. Strongest current plugin feature set, but still missing dedicated plugin docs and stronger explicit tests.",
     "lastReviewedAt": "2026-03-24",
     "uxStates": {
+      "loading": true,
       "destructiveAction": true
+    },
+    "uxCriteria": {
+      "loadingStatePresent": true
     }
   },
   "capabilities": [
