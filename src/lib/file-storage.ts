@@ -235,9 +235,27 @@ function getSessionUpdateLockPath(targetPath: string): string {
   return ensureResolvedPathWithinDataDir(`${targetPath}.lock`);
 }
 
-async function releaseSessionUpdateLock(lockPath: string): Promise<void> {
+async function releaseSessionUpdateLock(
+  lockPath: string,
+  ownerToken: string
+): Promise<void> {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let lockContent: string;
+    try {
+      lockContent = await fs.readFile(lockPath, 'utf-8');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        return;
+      }
+      throw error;
+    }
+
+    if (lockContent.trim() !== ownerToken) {
+      return;
+    }
+
     try {
       await fs.unlink(lockPath);
       return;
@@ -261,7 +279,8 @@ function parseLockPid(lockContent: string): number | null {
   if (!trimmed) {
     return null;
   }
-  const parsed = Number.parseInt(trimmed, 10);
+  const pidCandidate = trimmed.split(':', 1)[0];
+  const parsed = Number.parseInt(pidCandidate, 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     return null;
   }
@@ -313,17 +332,18 @@ async function acquireSessionUpdateLock(
   targetPath: string
 ): Promise<() => Promise<void>> {
   const lockPath = getSessionUpdateLockPath(targetPath);
+  const ownerToken = `${process.pid}:${randomUUID()}:${Date.now()}`;
   await ensureCreatablePathWithinDataDir(lockPath);
   await fs.mkdir(path.dirname(lockPath), { recursive: true });
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      await fs.writeFile(lockPath, `${process.pid}\n`, {
+      await fs.writeFile(lockPath, `${ownerToken}\n`, {
         encoding: 'utf-8',
         flag: 'wx',
       });
       return async () => {
-        await releaseSessionUpdateLock(lockPath);
+        await releaseSessionUpdateLock(lockPath, ownerToken);
       };
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
