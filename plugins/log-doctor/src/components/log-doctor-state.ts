@@ -64,6 +64,56 @@ export type DiagnosticsSnapshot = {
 
 const ABORTED_REQUEST_REASON = 'Request canceled';
 
+type ErrorCategory = 'aborted' | 'config' | 'network' | 'state';
+
+const CONFIG_ERROR_HINTS = [
+  'matmetrics_go_proxy_base_url',
+  'proxy',
+  'configuration',
+  'misconfigured',
+  'env',
+  'environment variable',
+  'upstream',
+  'gateway',
+  '502',
+  '503',
+  '504',
+  'auth',
+  'unauthorized',
+  'forbidden',
+  '401',
+  '403',
+  'credential',
+  'token',
+];
+
+const NETWORK_ERROR_HINTS = [
+  'failed to fetch',
+  'network',
+  'timeout',
+  'timed out',
+  'econnrefused',
+  'connection reset',
+  'dns',
+];
+
+const classifyErrorReason = (reason: string): ErrorCategory => {
+  if (reason === ABORTED_REQUEST_REASON) {
+    return 'aborted';
+  }
+
+  const normalizedReason = reason.toLowerCase();
+  if (CONFIG_ERROR_HINTS.some((hint) => normalizedReason.includes(hint))) {
+    return 'config';
+  }
+
+  if (NETWORK_ERROR_HINTS.some((hint) => normalizedReason.includes(hint))) {
+    return 'network';
+  }
+
+  return 'state';
+};
+
 const createErrorMessage = (
   operation: LogDoctorOperation,
   reason: string
@@ -75,12 +125,15 @@ const createErrorMessage = (
         ? 'Previewing fixes'
         : 'Applying fixes';
 
+  const errorCategory = classifyErrorReason(reason);
   const nextStep =
-    reason === ABORTED_REQUEST_REASON
+    errorCategory === 'aborted'
       ? 'Run the check again when you are ready.'
-      : operation === 'scan'
-        ? 'Check repository access and retry.'
-        : 'Refresh logs and retry.';
+      : errorCategory === 'config' || errorCategory === 'network'
+        ? 'Check server/proxy configuration and retry.'
+        : operation === 'scan'
+          ? 'Check repository access and retry.'
+          : 'Refresh logs and retry.';
 
   return `${operationLabel} failed: ${reason} Next step: ${nextStep}`;
 };
