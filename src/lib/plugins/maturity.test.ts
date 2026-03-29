@@ -634,9 +634,13 @@ test('example panel explicit ux handling', () => {
               ],
               uxCriteria: {
                 loadingStatePresent: ['src/components/example-panel.test.tsx'],
-                errorStateWithRecovery: ['src/components/example-panel.test.tsx'],
+                errorStateWithRecovery: [
+                  'src/components/example-panel.test.tsx',
+                ],
                 emptyStateWithCta: ['src/components/example-panel.test.tsx'],
-                destructiveActionSafety: ['src/components/example-panel.test.tsx'],
+                destructiveActionSafety: [
+                  'src/components/example-panel.test.tsx',
+                ],
               },
             },
           },
@@ -1497,7 +1501,10 @@ test('example panel loading state', () => {
         pluginsRoot,
       });
 
-      assert.equal(scorecard.verificationDetails.testEvidenceSource, 'heuristic');
+      assert.equal(
+        scorecard.verificationDetails.testEvidenceSource,
+        'heuristic'
+      );
       assert.equal(
         scorecard.verificationDetails.uxCriteria.loadingStatePresent.source,
         'heuristic'

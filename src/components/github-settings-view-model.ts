@@ -14,8 +14,7 @@ export type GitHubSettingsControlState = {
 export const GITHUB_SYNC_HISTORY_REFRESH_LABEL = 'Refresh history';
 export const GITHUB_SYNC_HISTORY_REFRESH_LOADING_LABEL = 'Loading history…';
 export const GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
-export const GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL =
-  'Clear Configuration';
+export const GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL = 'Clear Configuration';
 
 export const getGitHubSettingsValidationError = (
   owner: string,
@@ -37,8 +36,7 @@ export const deriveGitHubSettingsControlState = (
     canTestConnection:
       state.canUseGitHubSync && !state.isTesting && hasRepoIdentity,
     canRunSyncAll: state.canUseGitHubSync && !state.isSyncing,
-    canRefreshHistory:
-      state.canUseGitHubSync && !state.isSyncHistoryLoading,
+    canRefreshHistory: state.canUseGitHubSync && !state.isSyncHistoryLoading,
     canDisableSync:
       state.canUseGitHubSync && !state.isDisabling && !state.isClearing,
     canOpenClearDialog:

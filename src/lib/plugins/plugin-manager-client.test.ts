@@ -326,7 +326,8 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
                       files: [],
                     },
                     destructiveActionSafety: {
-                      label: 'destructive action confirmation + cancellation path',
+                      label:
+                        'destructive action confirmation + cancellation path',
                       relevant: false,
                       declared: false,
                       verified: false,

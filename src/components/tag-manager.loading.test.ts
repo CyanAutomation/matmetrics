@@ -4,7 +4,7 @@ import test from 'node:test';
 import type { TagOperationSummary } from '@/lib/tags';
 import {
   deriveDeleteDialogActions,
-  runDeleteConfirmation
+  runDeleteConfirmation,
 } from './tag-manager';
 
 type DeleteDialogState = Parameters<typeof deriveDeleteDialogActions>[0];

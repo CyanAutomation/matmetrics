@@ -83,7 +83,9 @@ test('published maturity scorecard artifact matches current manifest evidence', 
             declaredTier: scorecard.declaredTier,
             manifestLastReviewedAt:
               validation.manifest.maturity?.lastReviewedAt ?? undefined,
-            manifestEvidenceHash: await digest(validation.manifest.maturity ?? null),
+            manifestEvidenceHash: await digest(
+              validation.manifest.maturity ?? null
+            ),
           } satisfies PublishedScorecardRow;
         }
       )

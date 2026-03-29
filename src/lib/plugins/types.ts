@@ -114,10 +114,10 @@ export type PluginManifestMaturityMetadata = {
     emptyStateWithCta?: boolean;
     destructiveActionSafety?: {
       relevant?: boolean;
-        confirmation?: boolean;
-        cancellation?: boolean;
-      };
+      confirmation?: boolean;
+      cancellation?: boolean;
     };
+  };
   evidence?: PluginManifestMaturityEvidence;
 };
 
