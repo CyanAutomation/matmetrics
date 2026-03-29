@@ -25,6 +25,10 @@ import type { SyncOperation } from './sync-queue';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
 
+function serialTest(name: string, fn: any): ReturnType<typeof test> {
+  return test(name, { concurrency: false }, fn);
+}
+
 function assertCreateOperation(
   operation: SyncOperation | undefined
 ): asserts operation is Extract<SyncOperation, { type: 'CREATE' }> {
@@ -146,7 +150,13 @@ async function flushAsyncWork(): Promise<void> {
   await delay(0);
 }
 
-test('stale refresh does not overwrite an optimistic create while the create request is in flight', async () => {
+async function flushSyncLoopWork(): Promise<void> {
+  await flushAsyncWork();
+  await delay(25);
+  await flushAsyncWork();
+}
+
+serialTest('stale refresh does not overwrite an optimistic create while the create request is in flight', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -193,7 +203,7 @@ test('stale refresh does not overwrite an optimistic create while the create req
   }
 });
 
-test('non-retryable create failures are not queued and optimistic state is reconciled away', async () => {
+serialTest('non-retryable create failures are not queued and optimistic state is reconciled away', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -229,7 +239,7 @@ test('non-retryable create failures are not queued and optimistic state is recon
   }
 });
 
-test('refreshSessionsFromAPI preserves valid sessions and exposes file-level issues from list payload', async () => {
+serialTest('refreshSessionsFromAPI preserves valid sessions and exposes file-level issues from list payload', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -281,7 +291,7 @@ test('refreshSessionsFromAPI preserves valid sessions and exposes file-level iss
   }
 });
 
-test('retryable create failures remain queued for later sync', async () => {
+serialTest('retryable create failures remain queued for later sync', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -318,7 +328,7 @@ test('retryable create failures remain queued for later sync', async () => {
   }
 });
 
-test('429 replay failure keeps failed and later queued operations', async () => {
+serialTest('429 replay failure keeps failed and later queued operations', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -353,7 +363,7 @@ test('429 replay failure keeps failed and later queued operations', async () => 
   try {
     initializeStorage();
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.equal(createRequests, 1);
     assert.deepEqual(getQueue(), [
@@ -367,7 +377,7 @@ test('429 replay failure keeps failed and later queued operations', async () => 
   }
 });
 
-test('non-retryable queued create failures are removed during sync replay', async () => {
+serialTest('non-retryable queued create failures are removed during sync replay', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -397,7 +407,7 @@ test('non-retryable queued create failures are removed during sync replay', asyn
   try {
     initializeStorage();
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.deepEqual(getQueue(), []);
     assert.deepEqual(getSessions(), []);
@@ -408,7 +418,7 @@ test('non-retryable queued create failures are removed during sync replay', asyn
   }
 });
 
-test('successful create clears dirty state even when immediate refresh fails', async () => {
+serialTest('successful create clears dirty state even when immediate refresh fails', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -459,7 +469,7 @@ test('successful create clears dirty state even when immediate refresh fails', a
   }
 });
 
-test('successful update clears dirty state even when immediate refresh fails', async () => {
+serialTest('successful update clears dirty state even when immediate refresh fails', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -513,7 +523,7 @@ test('successful update clears dirty state even when immediate refresh fails', a
   }
 });
 
-test('successful delete clears dirty state even when immediate refresh fails', async () => {
+serialTest('successful delete clears dirty state even when immediate refresh fails', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -566,7 +576,7 @@ test('successful delete clears dirty state even when immediate refresh fails', a
   }
 });
 
-test('guest create does not leak dirty mutation into later authenticated refresh merge', async () => {
+serialTest('guest create does not leak dirty mutation into later authenticated refresh merge', async () => {
   installBrowserEnv();
   setActiveUserId('guest');
   __resetStorageStateForTests();
@@ -605,7 +615,7 @@ test('guest create does not leak dirty mutation into later authenticated refresh
   }
 });
 
-test('guest update does not leak dirty mutation into later authenticated refresh merge', async () => {
+serialTest('guest update does not leak dirty mutation into later authenticated refresh merge', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('guest');
   __resetStorageStateForTests();
@@ -646,7 +656,7 @@ test('guest update does not leak dirty mutation into later authenticated refresh
   }
 });
 
-test('guest delete does not leak dirty mutation into later authenticated refresh merge', async () => {
+serialTest('guest delete does not leak dirty mutation into later authenticated refresh merge', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('guest');
   __resetStorageStateForTests();
@@ -689,7 +699,7 @@ test('guest delete does not leak dirty mutation into later authenticated refresh
   }
 });
 
-test('offline non-guest mutations remain queued and keep optimistic state until replay succeeds', async () => {
+serialTest('offline non-guest mutations remain queued and keep optimistic state until replay succeeds', async () => {
   const originalNavigator = globalThis.navigator;
   installBrowserEnv();
   setActiveUserId('user-1');
@@ -730,7 +740,7 @@ test('offline non-guest mutations remain queued and keep optimistic state until 
       value: { onLine: true },
     });
     window.dispatchEvent(new Event('online'));
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.deepEqual(getQueue(), []);
     assert.deepEqual(getSessions(), []);
@@ -745,7 +755,7 @@ test('offline non-guest mutations remain queued and keep optimistic state until 
   }
 });
 
-test('retryable queued create remains visible until replay succeeds', async () => {
+serialTest('retryable queued create remains visible until replay succeeds', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -788,7 +798,7 @@ test('retryable queued create remains visible until replay succeeds', async () =
 
     createShouldFail = false;
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.deepEqual(getQueue(), []);
     assert.deepEqual(getSessions(), []);
@@ -798,7 +808,7 @@ test('retryable queued create remains visible until replay succeeds', async () =
     global.fetch = originalFetch;
   }
 });
-test('sync lease prevents replay when another tab already owns the queue flush', async () => {
+serialTest('sync lease prevents replay when another tab already owns the queue flush', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -833,7 +843,7 @@ test('sync lease prevents replay when another tab already owns the queue flush',
   try {
     initializeStorage();
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.equal(requestCount, 0);
     assert.equal(getQueue().length, 1);
@@ -844,7 +854,7 @@ test('sync lease prevents replay when another tab already owns the queue flush',
   }
 });
 
-test('sync lease acquisition retries when competing lease expires during backoff', async () => {
+serialTest('sync lease acquisition retries when competing lease expires during backoff', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -877,7 +887,7 @@ test('sync lease acquisition retries when competing lease expires during backoff
   }
 });
 
-test('sync lease owner can renew its own lease', async () => {
+serialTest('sync lease owner can renew its own lease', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -904,7 +914,7 @@ test('sync lease owner can renew its own lease', async () => {
   }
 });
 
-test('stale sync lease owner cannot renew after another owner acquires lease', async () => {
+serialTest('stale sync lease owner cannot renew after another owner acquires lease', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -934,7 +944,7 @@ test('stale sync lease owner cannot renew after another owner acquires lease', a
   }
 });
 
-test('sync loop exits when lease renewal fails mid-flight', async () => {
+serialTest('sync loop exits when lease renewal fails mid-flight', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -984,7 +994,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   try {
     assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.ok(requestCount >= 1);
     assert.equal(getQueue().length, 2);
@@ -1002,7 +1012,7 @@ test('sync loop exits when lease renewal fails mid-flight', async () => {
   }
 });
 
-test('sync loop heartbeat cadence uses configured sync heartbeat value', async () => {
+serialTest('sync loop heartbeat cadence uses configured sync heartbeat value', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1046,7 +1056,7 @@ test('sync loop heartbeat cadence uses configured sync heartbeat value', async (
 
   try {
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.deepEqual(intervals, [7_777]);
   } finally {
@@ -1058,7 +1068,7 @@ test('sync loop heartbeat cadence uses configured sync heartbeat value', async (
   }
 });
 
-test('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
+serialTest('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1102,7 +1112,7 @@ test('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
 
   try {
     retryCloudSync();
-    await flushAsyncWork();
+    await flushSyncLoopWork();
 
     assert.deepEqual(intervals, [3_000]);
   } finally {
@@ -1114,7 +1124,7 @@ test('sync loop heartbeat cadence is clamped by ttl safety bound', async () => {
   }
 });
 
-test('sync loop aborts safely when lease expires during a delayed sync request', async () => {
+serialTest('sync loop aborts safely when lease expires during a delayed sync request', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1174,7 +1184,7 @@ test('sync loop aborts safely when lease expires during a delayed sync request',
   }
 });
 
-test('compare-and-verify lease acquisition retries under interleaving writes', async () => {
+serialTest('compare-and-verify lease acquisition retries under interleaving writes', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1220,7 +1230,7 @@ test('compare-and-verify lease acquisition retries under interleaving writes', a
   }
 });
 
-test('fallback lease acquisition aborts ownership when storage event signals immediate overwrite', async () => {
+serialTest('fallback lease acquisition aborts ownership when storage event signals immediate overwrite', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1260,7 +1270,7 @@ test('fallback lease acquisition aborts ownership when storage event signals imm
   }
 });
 
-test('simultaneous fallback contenders allow only one sync critical-section owner', async () => {
+serialTest('simultaneous fallback contenders allow only one sync critical-section owner', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1316,7 +1326,7 @@ test('simultaneous fallback contenders allow only one sync critical-section owne
   }
 });
 
-test('only one contender acquires web lock when racing simultaneously', async () => {
+serialTest('only one contender acquires web lock when racing simultaneously', async () => {
   const { lockManager } = installBrowserEnv({ withLocks: true });
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1349,7 +1359,7 @@ test('only one contender acquires web lock when racing simultaneously', async ()
   }
 });
 
-test('clearAllData clears scoped sync queue and lock keys and emits storage sync event', () => {
+serialTest('clearAllData clears scoped sync queue and lock keys and emits storage sync event', () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1387,7 +1397,7 @@ test('clearAllData clears scoped sync queue and lock keys and emits storage sync
   }
 });
 
-test('setGitHubSyncStatus persists via preferences and remains observable after reload/init', async () => {
+serialTest('setGitHubSyncStatus persists via preferences and remains observable after reload/init', async () => {
   const { localStorage } = installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
@@ -1439,7 +1449,7 @@ test('setGitHubSyncStatus persists via preferences and remains observable after 
   }
 });
 
-test('setGitHubSyncStatus warns and no-ops when no authenticated user is available', async () => {
+serialTest('setGitHubSyncStatus warns and no-ops when no authenticated user is available', async () => {
   installBrowserEnv();
   setActiveUserId('user-1');
   __resetStorageStateForTests();
