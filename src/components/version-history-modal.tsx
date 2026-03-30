@@ -88,8 +88,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
             : 'Unable to load release history.'
         );
       } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
+        setIsLoading(false);
         }
       }
     };
