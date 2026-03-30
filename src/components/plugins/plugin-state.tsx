@@ -12,7 +12,7 @@ type PluginStateFrameProps = {
   actions?: React.ReactNode;
   tone?: 'default' | 'destructive';
   className?: string;
-};
+} & React.HTMLAttributes<HTMLDivElement>;
 
 const PluginStateFrame = ({
   icon,
@@ -21,6 +21,7 @@ const PluginStateFrame = ({
   actions,
   tone = 'default',
   className,
+  ...props
 }: PluginStateFrameProps): React.ReactElement => {
   const toneClassName =
     tone === 'destructive'
@@ -33,6 +34,7 @@ const PluginStateFrame = ({
         className ?? ''
       }`.trim()}
       aria-live="polite"
+      {...props}
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 text-muted-foreground">{icon}</div>
@@ -50,16 +52,18 @@ export const PluginLoadingState = ({
   title = 'Loading',
   description,
   className,
+  ...props
 }: {
   title?: string;
   description: React.ReactNode;
   className?: string;
-}): React.ReactElement => (
+} & React.HTMLAttributes<HTMLDivElement>): React.ReactElement => (
   <PluginStateFrame
     title={title}
     description={description}
     className={className}
     icon={<Loader2 className="h-4 w-4 animate-spin" />}
+    {...props}
   />
 );
 
@@ -71,6 +75,7 @@ export const PluginErrorState = ({
   details,
   className,
   retryAriaLabel,
+  ...props
 }: {
   title?: string;
   message: React.ReactNode;
@@ -79,7 +84,7 @@ export const PluginErrorState = ({
   details?: React.ReactNode;
   className?: string;
   retryAriaLabel?: string;
-}): React.ReactElement => (
+} & React.HTMLAttributes<HTMLDivElement>): React.ReactElement => (
   <PluginStateFrame
     title={title}
     description={
@@ -109,6 +114,7 @@ export const PluginErrorState = ({
         </Button>
       ) : null
     }
+    {...props}
   />
 );
 
@@ -119,6 +125,7 @@ export const PluginEmptyState = ({
   onCta,
   className,
   icon,
+  ...props
 }: {
   title: string;
   description: React.ReactNode;
@@ -126,7 +133,7 @@ export const PluginEmptyState = ({
   onCta?: () => void;
   className?: string;
   icon?: React.ReactNode;
-}): React.ReactElement => (
+} & React.HTMLAttributes<HTMLDivElement>): React.ReactElement => (
   <PluginStateFrame
     title={title}
     description={description}
@@ -139,6 +146,7 @@ export const PluginEmptyState = ({
         </Button>
       ) : null
     }
+    {...props}
   />
 );
 
@@ -147,16 +155,18 @@ export const PluginSuccessState = ({
   description,
   icon,
   className,
+  ...props
 }: {
   title: string;
   description: React.ReactNode;
   icon?: React.ReactNode;
   className?: string;
-}): React.ReactElement => (
+} & React.HTMLAttributes<HTMLDivElement>): React.ReactElement => (
   <PluginStateFrame
     title={title}
     description={description}
     className={className}
     icon={icon ?? <Inbox className="h-4 w-4" />}
+    {...props}
   />
 );
