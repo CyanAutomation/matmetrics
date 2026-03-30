@@ -113,6 +113,7 @@ export const discoverEnabledDashboardTabExtensions = async (
           pluginId: manifest.id,
           capabilities: manifest.capabilities ?? [],
           extension,
+          uiContract: manifest.uiContract,
         }))
     );
 };
