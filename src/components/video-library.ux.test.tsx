@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   deriveVideoLibraryBulkActionState,
   deriveVideoLibraryEmptyState,
+  getVideoLibraryReviewAlertDescription,
   VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL,
@@ -116,4 +117,11 @@ test('bulk actions only enable when rows are checkable and unchecked state exist
   assert.equal(state.canCheckUnchecked, true);
   assert.equal(state.checkFilteredLabel, 'Check filtered');
   assert.equal(state.checkUncheckedLabel, 'Check unchecked');
+});
+
+test('review alert copy focuses on actionable link issues instead of optional missing videos', () => {
+  assert.equal(
+    getVideoLibraryReviewAlertDescription(3),
+    '3 session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.'
+  );
 });

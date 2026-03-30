@@ -107,6 +107,10 @@ export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
 
+export function getVideoLibraryReviewAlertDescription(reviewCount: number) {
+  return `${reviewCount} session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.`;
+}
+
 function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
   switch (status) {
     case 'missing':
@@ -901,8 +905,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Video link attention items</AlertTitle>
           <AlertDescription>
-            {summaryCounts.review} session(s) are missing videos, use disallowed
-            domains, or have broken/failed link checks.
+            {getVideoLibraryReviewAlertDescription(summaryCounts.review)}
           </AlertDescription>
         </Alert>
       ) : null}
