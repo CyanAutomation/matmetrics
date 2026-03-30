@@ -62,7 +62,7 @@ const collectRenderedHelperNames = (node: React.ReactNode): Set<string> => {
       return;
     }
 
-    if (!React.isValidElement(value)) {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(value)) {
       return;
     }
 
@@ -71,8 +71,8 @@ const collectRenderedHelperNames = (node: React.ReactNode): Set<string> => {
       names.add(typeName);
     }
 
-    const childNodes = value.props ? (value.props.children as React.ReactNode) : undefined;
-    if (childNodes) {
+    const childNodes = value.props.children;
+    if (childNodes !== undefined && childNodes !== null) {
       walk(childNodes);
     }
   };
