@@ -202,7 +202,8 @@ export type PluginRuntimeWarningCode =
   | 'dashboard_tab_renderer_unresolved'
   | 'dashboard_tab_missing_capability'
   | 'dashboard_tab_surface_layout_variant_unknown'
-  | 'dashboard_tab_required_ux_state_helper_missing';
+  | 'dashboard_tab_required_ux_state_helper_missing'
+  | 'dashboard_tab_design_token_variants_missing';
 
 export type PluginRuntimeWarning = PluginValidationIssue & {
   code: PluginRuntimeWarningCode;

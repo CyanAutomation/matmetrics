@@ -30,6 +30,29 @@ Use shared state primitives instead of custom one-off state fragments where poss
 
 If a plugin manifest declares required UX states in `uiContract.requiredUxStates`, plugin UI should include matching standard helpers in its render flow.
 
+## `uiContract.designTokenVariants` mapping requirements
+
+Dashboard tabs must declare `uiContract.designTokenVariants` and ensure each declared variant maps to concrete shared classes/tokens used by the rendered UI.
+
+- Runtime now emits a `dashboard_tab_design_token_variants_missing` warning when the field is absent or empty.
+- Variants should map to classes from the centralized style policy (`src/components/plugins/plugin-style-policy.ts`) rather than ad-hoc palette utilities.
+
+Current required mappings:
+
+- `layout.standard` → plugin surface uses the standard shell width token (`max-w-4xl`).
+- `layout.wide` → plugin surface uses the wide shell width token (`max-w-6xl`).
+- `surface.githubSync` → use shared plugin info/surface tokens (for example `bg-primary/5`, `border-primary/25`).
+- `surface.promptSettings` → use shared card/surface tokens (for example `bg-card/95`, `border-primary/20`).
+- `surface.tagManager` → use shared tag-manager tokens (for example `bg-card/95`, `bg-primary`).
+- `surface.videoLibrary` → use shared video-library typography/surface tokens (for example `bg-card/95`, `text-muted-foreground`).
+- `surface.logDoctor` → use shared diagnostics surface tokens (for example `bg-secondary/20`, `border-ghost`).
+
+When adding a new `designTokenVariants` value:
+
+1. Add/update the variant entry in `src/components/plugins/plugin-style-policy.ts`.
+2. Update plugin UI to consume only mapped shared tokens/utilities.
+3. Update plugin tests (including `plugins/plugin-ui-color-classes.test.ts`) if scan coverage changes.
+
 ## Destructive flow requirements
 
 For destructive actions (delete/reset/clear/replace):
