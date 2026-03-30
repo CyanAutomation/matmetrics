@@ -1,8 +1,17 @@
 import { testPluginRegistrationContract } from './test-plugin-registration-contract';
 
+import { initPlugin as initGithubSyncPlugin } from './github-sync/src';
 import { initPlugin as initLogDoctorPlugin } from './log-doctor/src';
 import { initPlugin as initPromptSettingsPlugin } from './prompt-settings/src';
 import { initPlugin as initTagManagerPlugin } from './tag-manager/src';
+import { initPlugin as initVideoLibraryPlugin } from './video-library/src';
+
+testPluginRegistrationContract({
+  pluginId: 'github-sync',
+  dashboardExtensionId: 'github-sync-dashboard-tab',
+  componentId: 'github_settings',
+  initPlugin: initGithubSyncPlugin,
+});
 
 testPluginRegistrationContract({
   pluginId: 'log-doctor',
@@ -23,4 +32,11 @@ testPluginRegistrationContract({
   dashboardExtensionId: 'tag-manager-dashboard-tab',
   componentId: 'tag_manager',
   initPlugin: initTagManagerPlugin,
+});
+
+testPluginRegistrationContract({
+  pluginId: 'video-library',
+  dashboardExtensionId: 'video-library-dashboard-tab',
+  componentId: 'video_library',
+  initPlugin: initVideoLibraryPlugin,
 });

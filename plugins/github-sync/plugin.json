@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing GitHub sync settings.",
   "maturity": {
-    "tier": "bronze",
-    "notes": "Reviewed against stricter UX maturity scoring. The plugin now declares and tests loading, error recovery, empty-state CTA, and destructive confirmation/cancellation safeguards.",
-    "lastReviewedAt": "2026-03-29",
+    "tier": "silver",
+    "notes": "Silver review completed. The plugin now uses plugin-local manifest and registration tests alongside explicit UX evidence for loading, recovery, empty-state CTA, and destructive confirmation/cancellation safeguards.",
+    "lastReviewedAt": "2026-03-30",
     "uxStates": {
       "destructiveAction": true,
       "loading": true
@@ -23,9 +23,8 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/plugin-manifest-contract.test.ts",
+        "plugins/github-sync/plugin.test.ts",
         "plugins/github-sync/src/index.test.ts",
-        "src/lib/plugins/github-sync-plugin.test.ts",
         "src/components/github-settings.ux.test.tsx",
         "src/components/github-settings.destructive.test.tsx"
       ],

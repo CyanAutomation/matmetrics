@@ -57,6 +57,8 @@ Run baseline checks:
 npm test -- plugins/log-doctor/plugin.test.ts
 npm test -- plugins/log-doctor/src/index.test.ts
 npm test -- plugins/log-doctor/src/lib/audit-rules.test.ts
+npm test -- plugins/log-doctor/src/components/log-doctor-state.test.ts
+npm test -- plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts
 npm test -- src/lib/plugins/plugin-contract-gate.test.ts
 ```
 

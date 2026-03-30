@@ -25,7 +25,7 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/plugin-manifest-contract.test.ts",
+        "plugins/log-doctor/plugin.test.ts",
         "plugins/log-doctor/src/index.test.ts",
         "plugins/log-doctor/src/components/log-doctor-state.test.ts",
         "plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts",
