@@ -38,7 +38,13 @@ const digest = async (value: unknown): Promise<string> => {
 };
 
 const buildArtifact = async (): Promise<PluginUiMigrationArtifact> => {
-  const plugins = await scanPluginUiMigration();
+  let plugins: Awaited<ReturnType<typeof scanPluginUiMigration>>;
+  try {
+    plugins = await scanPluginUiMigration();
+  } catch (error) {
+    console.error('Failed to scan plugin UI migration:', error);
+    throw error;
+  }
   const cacheKey = await digest(
     plugins.map((plugin) => ({
       id: plugin.id,
@@ -67,11 +73,17 @@ const main = async () => {
     );
     const artifact = await buildArtifact();
     await mkdir(path.dirname(artifactPath), { recursive: true });
-    await writeFile(`${artifactPath}`, `${JSON.stringify(artifact, null, 2)}\n`);
+    await writeFile(
+      `${artifactPath}`,
+      `${JSON.stringify(artifact, null, 2)}\n`
+    );
     console.log(`Wrote ${artifactPath}`);
     console.log(`cacheKey=${artifact.cacheKey}`);
   } catch (error) {
-    console.error('Failed to regenerate plugin UI migration scorecards:', error);
+    console.error(
+      'Failed to regenerate plugin UI migration scorecards:',
+      error
+    );
     process.exit(1);
   }
 };
