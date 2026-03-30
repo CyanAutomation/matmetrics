@@ -1,5 +1,5 @@
 /**
  * Application version constant
- * This should match the version in package.json
+ * This must match package.json and the latest entry in CHANGELOG.md.
  */
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '1.2.0';
