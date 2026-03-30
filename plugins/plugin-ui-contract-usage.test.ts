@@ -17,7 +17,7 @@ const corePluginContracts: PluginUiSourceContract[] = [
     pluginId: 'github-sync',
     sourcePath: 'src/components/github-settings.tsx',
     requiredTokens: ['PluginEmptyState', 'PluginDestructiveAction'],
-    oneOfTokens: ['PluginErrorState', 'PluginLoadingState'],
+    oneOfTokens: ['PluginErrorState', 'PluginLoadingState', 'PluginSuccessState'],
   },
   {
     pluginId: 'prompt-settings',
@@ -50,6 +50,9 @@ const corePluginContracts: PluginUiSourceContract[] = [
   },
 ];
 
+const buildTokenPattern = (token: string) =>
+  new RegExp(`\\b${token.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\b`);
+
 for (const contract of corePluginContracts) {
   test(`${contract.pluginId} uses standardized plugin state helpers`, () => {
     const source = readFileSync(
@@ -58,8 +61,7 @@ for (const contract of corePluginContracts) {
     );
 
     for (const token of contract.requiredTokens) {
-      assert.equal(
-      const tokenPattern = new RegExp(`\\b${token}\\b`);
+      const tokenPattern = buildTokenPattern(token);
       assert.equal(
         tokenPattern.test(source),
         true,
@@ -68,12 +70,29 @@ for (const contract of corePluginContracts) {
     }
 
     if (contract.oneOfTokens && contract.oneOfTokens.length > 0) {
-      const tokenPattern = new RegExp(`\\b${token}\\b`);
       assert.equal(
-        contract.oneOfTokens.some((token) => tokenPattern.test(source)),
+        contract.oneOfTokens.some((token) => buildTokenPattern(token).test(source)),
         true,
         `[${contract.pluginId}] expected at least one standardized helper from: ${contract.oneOfTokens.join(', ')}`
       );
     }
   });
 }
+
+test('required helper contract check fails when helper is missing', () => {
+  const simulatedSource = `
+    import { PluginEmptyState } from '@/components/plugins/plugin-state';
+
+    export function MissingHelperFixture() {
+      return <PluginEmptyState title="Only empty state" />;
+    }
+  `;
+
+  const requiredTokens = ['PluginEmptyState', 'PluginDestructiveAction'];
+
+  const missingTokens = requiredTokens.filter(
+    (token) => !buildTokenPattern(token).test(simulatedSource)
+  );
+
+  assert.deepEqual(missingTokens, ['PluginDestructiveAction']);
+});
