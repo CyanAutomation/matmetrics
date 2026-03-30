@@ -37,6 +37,16 @@ type FetchInstalledPluginsOptions = {
   endpoint?: string;
 };
 
+export type PluginMaturityDebugMetadata = {
+  routeGeneratedAt?: string;
+  responseCachePolicy?: string;
+};
+
+export type FetchInstalledPluginsResult = {
+  rows: InstalledPluginManifestRow[];
+  maturityDebug: PluginMaturityDebugMetadata;
+};
+
 type ToggleInstalledPluginOptions = {
   pluginId: string;
   enabled: boolean;
@@ -129,7 +139,7 @@ export const fetchInstalledPlugins = async ({
   getHeaders = defaultAuthHeadersLoader,
   endpoint = '/api/plugins/list',
 }: FetchInstalledPluginsOptions = {}): Promise<
-  InstalledPluginManifestRow[]
+  FetchInstalledPluginsResult
 > => {
   const headers = await getHeaders();
   const response = await fetchImpl(endpoint, {
@@ -144,13 +154,31 @@ export const fetchInstalledPlugins = async ({
   const payload = (await response.json()) as {
     plugins?: PluginListRow[];
     error?: string;
+    maturityDebug?: {
+      routeGeneratedAt?: unknown;
+      responseCachePolicy?: unknown;
+    };
   };
 
   if (!Array.isArray(payload.plugins)) {
     throw new Error(payload.error ?? 'Invalid plugins list response.');
   }
 
-  return normalizeInstalledPluginRows(payload.plugins);
+  const maturityDebug = {
+    routeGeneratedAt:
+      typeof payload.maturityDebug?.routeGeneratedAt === 'string'
+        ? payload.maturityDebug.routeGeneratedAt
+        : undefined,
+    responseCachePolicy:
+      typeof payload.maturityDebug?.responseCachePolicy === 'string'
+        ? payload.maturityDebug.responseCachePolicy
+        : undefined,
+  };
+
+  return {
+    rows: normalizeInstalledPluginRows(payload.plugins),
+    maturityDebug,
+  };
 };
 
 export const toggleInstalledPlugin = async ({
