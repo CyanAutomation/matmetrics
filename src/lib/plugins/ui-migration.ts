@@ -135,10 +135,16 @@ export const scanPluginUiMigration = async (
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
-  const rows = await Promise.all(
+  const rows = (await Promise.all(
     pluginDirs.map(async (pluginId) => {
       const entrypoint = path.join(pluginsRoot, pluginId, 'src', 'index.ts');
-      const uiEntrypoints = await getUiEntrypoints(entrypoint, repoRoot);
+      let uiEntrypoints: string[];
+      try {
+        uiEntrypoints = await getUiEntrypoints(entrypoint, repoRoot);
+      } catch (error) {
+        console.warn(`Skipping plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+      }
       const checks = defaultChecks();
 
       for (const uiFile of uiEntrypoints) {
@@ -167,7 +173,7 @@ export const scanPluginUiMigration = async (
         missing,
       } satisfies PluginUiMigrationRow;
     })
-  );
+  )).filter((row): row is PluginUiMigrationRow => row !== null);
 
   return rows;
 };
