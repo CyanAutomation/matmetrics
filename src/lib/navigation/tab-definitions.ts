@@ -21,6 +21,7 @@ import {
   createUnresolvedDashboardComponentWarning,
   resolveDashboardTabRenderer,
 } from '@/lib/plugins/dashboard-tab-adapters';
+import { createPluginSurfaceRenderer } from '@/lib/plugins/plugin-surface';
 import {
   getRequiredCapabilityForExtension,
   hasCapability,
@@ -139,7 +140,7 @@ export const resolveDashboardExtensionsToTabs = async (
 
   const tabs: TabDefinition[] = [];
 
-  for (const { extension, pluginId, capabilities } of extensions) {
+  for (const { extension, pluginId, capabilities, uiContract } of extensions) {
     const requiredCapability = getRequiredCapabilityForExtension(extension);
     if (
       requiredCapability &&
@@ -169,13 +170,23 @@ export const resolveDashboardExtensionsToTabs = async (
       continue;
     }
 
+    const wrappedRender = createPluginSurfaceRenderer({
+      pluginId,
+      extensionId: extension.id,
+      uiContract,
+      renderer: render,
+      onWarning: (warning) => {
+        warnings.push(warning);
+      },
+    });
+
     tabs.push({
       id: extension.config.tabId,
       title: extension.title,
       headerTitle: extension.config.headerTitle,
       icon: pluginTabIcons[extension.config.icon ?? ''] ?? Tags,
       section: 'plugins',
-      render,
+      render: wrappedRender,
     });
   }
 
