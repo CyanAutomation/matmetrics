@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -98,13 +99,25 @@ type EmptyStateDescriptor = {
   action: 'clearSearch' | 'switchToAll' | 'editSession';
 };
 
+type VideoLibraryPresentationMode = 'table' | 'lounge';
+type VideoLibrarySortOption =
+  | 'newest'
+  | 'oldest'
+  | 'recently_checked'
+  | 'provider';
+
 export const VIDEO_LIBRARY_LOADING_LABEL = 'Checking...';
+export const VIDEO_LIBRARY_MODE_TABLE_LABEL = 'Table';
+export const VIDEO_LIBRARY_MODE_LOUNGE_LABEL = 'Lounge';
 export const VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL = 'View all sessions';
 export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
   'Log sessions as usual; add videos when useful';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
+export const VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE = 'No linked videos in this view';
+export const VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION =
+  'This filtered set has sessions, but none currently have a playable URL.';
 
 export function getVideoLibraryReviewAlertDescription(reviewCount: number) {
   return `${reviewCount} session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.`;
@@ -133,14 +146,131 @@ function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
 
 function getStatusVariant(status: VideoLibraryStatusFilter) {
   switch (status) {
+    case 'broken':
+    case 'invalid_url':
+    case 'disallowed_domain':
+      return 'destructive';
     case 'reachable':
-      return 'default';
+      return 'secondary';
     case 'allowed_unchecked':
+    case 'check_failed':
     case 'all':
       return 'outline';
     default:
-      return 'destructive';
+      return 'outline';
   }
+}
+
+function getPresentationLabel(mode: VideoLibraryPresentationMode) {
+  return mode === 'table'
+    ? VIDEO_LIBRARY_MODE_TABLE_LABEL
+    : VIDEO_LIBRARY_MODE_LOUNGE_LABEL;
+}
+
+function getSortLabel(sort: VideoLibrarySortOption) {
+  switch (sort) {
+    case 'newest':
+      return 'Newest';
+    case 'oldest':
+      return 'Oldest';
+    case 'recently_checked':
+      return 'Recently checked';
+    case 'provider':
+      return 'Provider';
+  }
+}
+
+function toTimestamp(value?: string): number {
+  if (!value) {
+    return 0;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+export function sortVideoLibraryRows(
+  rows: VideoLibraryRow[],
+  sort: VideoLibrarySortOption
+): VideoLibraryRow[] {
+  return [...rows].sort((left, right) => {
+    const leftDate = toTimestamp(left.session.date);
+    const rightDate = toTimestamp(right.session.date);
+    const leftCheckedAt = toTimestamp(left.latestCheck?.checkedAt);
+    const rightCheckedAt = toTimestamp(right.latestCheck?.checkedAt);
+    const leftHost = (
+      left.entry.hostname ??
+      left.latestCheck?.hostname ??
+      ''
+    ).trim();
+    const rightHost = (
+      right.entry.hostname ??
+      right.latestCheck?.hostname ??
+      ''
+    ).trim();
+
+    switch (sort) {
+      case 'newest':
+        return (
+          rightDate - leftDate ||
+          left.session.id.localeCompare(right.session.id)
+        );
+      case 'oldest':
+        return (
+          leftDate - rightDate ||
+          left.session.id.localeCompare(right.session.id)
+        );
+      case 'recently_checked':
+        return (
+          rightCheckedAt - leftCheckedAt ||
+          rightDate - leftDate ||
+          left.session.id.localeCompare(right.session.id)
+        );
+      case 'provider':
+        return (
+          leftHost.localeCompare(rightHost) ||
+          rightDate - leftDate ||
+          left.session.id.localeCompare(right.session.id)
+        );
+    }
+  });
+}
+
+export function deriveVideoLibraryBrowseState({
+  mode,
+  filteredRowCount,
+  loungeRowCount,
+  emptyState,
+}: {
+  mode: VideoLibraryPresentationMode;
+  filteredRowCount: number;
+  loungeRowCount: number;
+  emptyState: EmptyStateDescriptor;
+}): Pick<
+  EmptyStateDescriptor,
+  'title' | 'description' | 'ctaLabel' | 'action'
+> & {
+  hasRows: boolean;
+} {
+  if (mode === 'lounge') {
+    if (loungeRowCount > 0) {
+      return { ...emptyState, hasRows: true };
+    }
+
+    if (filteredRowCount > 0) {
+      return {
+        title: VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE,
+        description: VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION,
+        ctaLabel: emptyState.ctaLabel,
+        action: emptyState.action,
+        hasRows: false,
+      };
+    }
+  }
+
+  return {
+    ...emptyState,
+    hasRows: filteredRowCount > 0,
+  };
 }
 
 export function deriveVideoLibraryEmptyState({
@@ -250,6 +380,10 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [newDomain, setNewDomain] = useState('');
   const [isSavingDomains, setIsSavingDomains] = useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
+  const [presentationMode, setPresentationMode] =
+    useState<VideoLibraryPresentationMode>('table');
+  const [sortOrder, setSortOrder] = useState<VideoLibrarySortOption>('newest');
+  const [playNextEnabled, setPlayNextEnabled] = useState(false);
   const [filters, setFilters] = useState<VideoLibraryFilters>({
     tab: 'watchable',
     search: '',
@@ -349,6 +483,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     () => filterVideoLibraryRows(rows, filters),
     [rows, filters]
   );
+  const sortedFilteredRows = useMemo(
+    () => sortVideoLibraryRows(filteredRows, sortOrder),
+    [filteredRows, sortOrder]
+  );
+  const loungeRows = useMemo(
+    () => sortedFilteredRows.filter((row) => !!row.entry.url),
+    [sortedFilteredRows]
+  );
 
   const tabCounts = useMemo(() => getVideoLibraryTabCounts(rows), [rows]);
   const allowedDomains = useMemo(
@@ -380,6 +522,12 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const emptyState = deriveVideoLibraryEmptyState({
     tab: filters.tab,
     search: filters.search,
+  });
+  const browseState = deriveVideoLibraryBrowseState({
+    mode: presentationMode,
+    filteredRowCount: sortedFilteredRows.length,
+    loungeRowCount: loungeRows.length,
+    emptyState,
   });
 
   const handleEditSuccess = () => {
@@ -601,12 +749,12 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   };
 
   const handleEmptyStateAction = () => {
-    if (emptyState.action === 'clearSearch') {
+    if (browseState.action === 'clearSearch') {
       setFilters((current) => ({ ...current, search: '' }));
       return;
     }
 
-    if (emptyState.action === 'switchToAll') {
+    if (browseState.action === 'switchToAll') {
       setFilters((current) => ({ ...current, tab: 'all' }));
       return;
     }
@@ -767,7 +915,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
         </div>
 
-        <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+        <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto_auto]">
           <div className="space-y-2">
             <Label>Hostname filter</Label>
             <Select
@@ -791,6 +939,70 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Mode</Label>
+            <div
+              className="inline-flex rounded-md border p-1"
+              role="group"
+              aria-label="Presentation mode"
+            >
+              {(['table', 'lounge'] as VideoLibraryPresentationMode[]).map(
+                (mode) => (
+                  <Button
+                    key={mode}
+                    type="button"
+                    size="sm"
+                    variant={presentationMode === mode ? 'default' : 'ghost'}
+                    aria-pressed={presentationMode === mode}
+                    onClick={() => setPresentationMode(mode)}
+                  >
+                    {getPresentationLabel(mode)}
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Sort</Label>
+            <Select
+              value={sortOrder}
+              onValueChange={(value) =>
+                setSortOrder(value as VideoLibrarySortOption)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sort rows" />
+              </SelectTrigger>
+              <SelectContent>
+                {(
+                  [
+                    'newest',
+                    'oldest',
+                    'recently_checked',
+                    'provider',
+                  ] as VideoLibrarySortOption[]
+                ).map((sort) => (
+                  <SelectItem key={sort} value={sort}>
+                    {getSortLabel(sort)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video-library-play-next">Play next</Label>
+            <div className="flex min-h-10 items-center">
+              <Switch
+                id="video-library-play-next"
+                checked={playNextEnabled}
+                onCheckedChange={setPlayNextEnabled}
+                aria-label="Enable play next suggestions"
+              />
+            </div>
           </div>
 
           <div className="flex items-end">
@@ -912,100 +1124,176 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       <PluginTableSection
         title="Video Lounge"
         description="Filter by tab, status, category, or host to focus the current audit task."
-        hasRows={filteredRows.length > 0}
-        emptyTitle={emptyState.title}
-        emptyDescription={emptyState.description}
-        emptyCtaLabel={emptyState.ctaLabel}
+        hasRows={browseState.hasRows}
+        emptyTitle={browseState.title}
+        emptyDescription={browseState.description}
+        emptyCtaLabel={browseState.ctaLabel}
         onEmptyCta={handleEmptyStateAction}
         emptyIcon={<AlertCircle className="h-4 w-4" />}
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Host</TableHead>
-              <TableHead>Check age</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRows.map((row) => (
-              <TableRow key={row.session.id}>
-                <TableCell className="font-medium">
-                  <div>{row.session.date}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {row.session.category}
+        {presentationMode === 'table' ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Host</TableHead>
+                <TableHead>Check age</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedFilteredRows.map((row) => (
+                <TableRow key={row.session.id}>
+                  <TableCell className="font-medium">
+                    <div>{row.session.date}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.session.category}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusVariant(row.displayStatus)}>
+                      {getEntryStatusLabel(row.displayStatus)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[220px] truncate">
+                    {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
+                  </TableCell>
+                  <TableCell>
+                    {row.latestCheck ? (
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(row.latestCheck.checkedAt).toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Not checked
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-2">
+                      {row.entry.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                        >
+                          <a
+                            href={row.entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : null}
+                      {row.isCheckable ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            void handleCheckLinks([row.session.id])
+                          }
+                          disabled={isCheckingLinks}
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingSession(row.session)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {row.entry.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          interaction="destructive"
+                          onClick={() => setSessionPendingClear(row.session)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {loungeRows.map((row, index) => {
+              const nextRow = playNextEnabled
+                ? loungeRows[index + 1]
+                : undefined;
+              return (
+                <article
+                  key={row.session.id}
+                  className="space-y-3 rounded-lg border bg-card p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{row.session.date}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {row.session.category}
+                      </p>
+                    </div>
+                    <Badge variant={getStatusVariant(row.displayStatus)}>
+                      {getEntryStatusLabel(row.displayStatus)}
+                    </Badge>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getStatusVariant(row.displayStatus)}>
-                    {getEntryStatusLabel(row.displayStatus)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="max-w-[220px] truncate">
-                  {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
-                </TableCell>
-                <TableCell>
-                  {row.latestCheck ? (
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(row.latestCheck.checkedAt).toLocaleString()}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      Not checked
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-2">
-                    {row.entry.url ? (
-                      <Button type="button" variant="ghost" size="icon" asChild>
+                  <p className="text-sm text-muted-foreground">
+                    {row.session.techniques.join(', ') ||
+                      'No techniques listed'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {row.entry.hostname ??
+                        row.latestCheck?.hostname ??
+                        'unknown host'}
+                    </Badge>
+                    <Badge variant="secondary">
+                      {row.latestCheck
+                        ? `Checked ${new Date(
+                            row.latestCheck.checkedAt
+                          ).toLocaleDateString()}`
+                        : 'Not checked yet'}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" asChild>
+                      <a
+                        href={row.entry.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Watch
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    </Button>
+                    {nextRow?.entry.url ? (
+                      <Button type="button" variant="outline" asChild>
                         <a
-                          href={row.entry.url}
+                          href={nextRow.entry.url}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          Play next
                         </a>
                       </Button>
                     ) : null}
-                    {row.isCheckable ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => void handleCheckLinks([row.session.id])}
-                        disabled={isCheckingLinks}
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditingSession(row.session)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {row.entry.url ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        interaction="destructive"
-                        onClick={() => setSessionPendingClear(row.session)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    ) : null}
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </PluginTableSection>
 
       <Dialog
