@@ -238,6 +238,7 @@ test('normalizeInstalledPluginRows keeps maturity when contract gate errors exis
 
 test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', async () => {
   let requestedAuthorization: string | null = null;
+  let requestedCache: RequestCache | undefined;
 
   const result = await fetchInstalledPlugins({
     getHeaders: async (headers?: HeadersInit) => {
@@ -247,6 +248,7 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
     },
     fetchImpl: async (_input, init) => {
       requestedAuthorization = new Headers(init?.headers).get('Authorization');
+      requestedCache = init?.cache;
       return new Response(
         JSON.stringify({
           plugins: [
@@ -353,6 +355,7 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
   });
 
   assert.equal(requestedAuthorization, 'Bearer test-token');
+  assert.equal(requestedCache, 'no-store');
   assert.equal(result.rows.length, 1);
   assert.equal(result.rows[0]?.manifest.id, 'tag-manager');
   assert.equal(result.rows[0]?.maturity?.tier, 'bronze');
@@ -414,6 +417,7 @@ test('fetchInstalledPlugins surfaces API error payloads for auth failures', asyn
 test('toggleInstalledPlugin sends auth headers and toggle payload', async () => {
   let requestedAuthorization: string | null = null;
   let requestedContentType: string | null = null;
+  let requestedCache: RequestCache | undefined;
   let requestedBody = '';
 
   await toggleInstalledPlugin({
@@ -428,6 +432,7 @@ test('toggleInstalledPlugin sends auth headers and toggle payload', async () => 
       const headers = new Headers(init?.headers);
       requestedAuthorization = headers.get('Authorization');
       requestedContentType = headers.get('Content-Type');
+      requestedCache = init?.cache;
       requestedBody = String(init?.body ?? '');
       return new Response(JSON.stringify({ persisted: true }), {
         status: 200,
@@ -438,6 +443,7 @@ test('toggleInstalledPlugin sends auth headers and toggle payload', async () => 
 
   assert.equal(requestedAuthorization, 'Bearer test-token');
   assert.equal(requestedContentType, 'application/json');
+  assert.equal(requestedCache, undefined);
   assert.deepEqual(JSON.parse(requestedBody), {
     id: 'tag-manager',
     enabled: false,

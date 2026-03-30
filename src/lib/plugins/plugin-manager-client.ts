@@ -143,6 +143,7 @@ export const fetchInstalledPlugins = async ({
   const response = await fetchImpl(endpoint, {
     method: 'GET',
     headers,
+    cache: 'no-store',
   });
 
   if (!response.ok) {
