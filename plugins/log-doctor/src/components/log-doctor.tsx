@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { DrLogImage } from '@/components/drlog-image';
+import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { getSessions } from '@/lib/storage';
 import {
   getSessionAudit,
@@ -990,25 +991,27 @@ export const LogDoctor = (): React.ReactElement => {
           ) : auditRanAt ? (
             <Card className="border border-dashed border-ghost bg-secondary/20">
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <DrLogImage pose={1} size="medium" alt="No issues found" />
-                <p className="mt-3 text-center text-muted-foreground">
-                  All sessions passed quality checks!
-                </p>
-                <p className="mt-1 text-center text-sm text-muted-foreground">
-                  No issues detected.
-                </p>
+                <PluginEmptyState
+                  title="All sessions passed quality checks!"
+                  description="No issues detected."
+                  icon={
+                    <DrLogImage pose={1} size="medium" alt="No issues found" />
+                  }
+                  className="w-full border-dashed bg-secondary/20"
+                />
               </CardContent>
             </Card>
           ) : (
             <Card className="border border-dashed border-ghost bg-secondary/20">
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <DrLogImage pose={2} size="medium" alt="No audit run yet" />
-                <p className="mt-3 text-center text-muted-foreground">
-                  Haven't run an audit yet
-                </p>
-                <p className="mt-1 text-center text-sm text-muted-foreground">
-                  Click &quot;Run audit&quot; above to get started.
-                </p>
+                <PluginEmptyState
+                  title="Haven't run an audit yet"
+                  description='Click "Run audit" above to get started.'
+                  icon={
+                    <DrLogImage pose={2} size="medium" alt="No audit run yet" />
+                  }
+                  className="w-full border-dashed bg-secondary/20"
+                />
               </CardContent>
             </Card>
           )}

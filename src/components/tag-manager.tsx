@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginEmptyState } from '@/components/plugins/plugin-state';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -437,22 +438,21 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           </div>
 
           {filteredTags.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground bg-secondary/35 rounded-lg border border-dashed border-ghost space-y-4">
-              <p>{emptyState.message}</p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (emptyState.action === 'clearSearch') {
-                    setSearch('');
-                    return;
-                  }
+            <PluginEmptyState
+              title="No tags to display"
+              description={emptyState.message}
+              ctaLabel={emptyState.ctaLabel}
+              onCta={() => {
+                if (emptyState.action === 'clearSearch') {
+                  setSearch('');
+                  return;
+                }
 
-                  refreshTags();
-                }}
-              >
-                {emptyState.ctaLabel}
-              </Button>
-            </div>
+                refreshTags();
+              }}
+              className="border-dashed bg-secondary/35"
+              icon={<Search className="h-4 w-4" />}
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filteredTags.map((tag) => (
