@@ -213,12 +213,12 @@ export function buildVideoDomainRemovalConfirmationDescription(
 
 function getTabLabel(tab: VideoLibraryTab) {
   switch (tab) {
-    case 'missing':
-      return 'Missing';
-    case 'review':
-      return 'Needs Review';
-    case 'checked':
-      return 'Checked';
+    case 'watchable':
+      return 'Watchable';
+    case 'attention':
+      return 'Needs attention';
+    case 'no_video':
+      return 'No video';
     case 'all':
       return 'All';
   }
@@ -251,7 +251,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [isSavingDomains, setIsSavingDomains] = useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
   const [filters, setFilters] = useState<VideoLibraryFilters>({
-    tab: 'all',
+    tab: 'watchable',
     search: '',
     status: 'all',
     category: 'all',
@@ -366,11 +366,11 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const summaryCounts = useMemo(
     () => ({
       attached: rows.filter((row) => !!row.entry.url).length,
-      missing: tabCounts.missing,
-      review: tabCounts.review,
-      checked: tabCounts.checked,
+      missing: tabCounts.no_video,
+      review: tabCounts.attention,
+      checked: rows.filter((row) => row.isChecked).length,
     }),
-    [rows, tabCounts]
+    [rows, tabCounts.no_video, tabCounts.attention]
   );
 
   const bulkActionState = deriveVideoLibraryBulkActionState({
@@ -643,26 +643,26 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         contentClassName="space-y-4"
       >
         <div className="space-y-2">
-          <Label>Review tabs</Label>
+          <Label>Browse tabs</Label>
           <div className="flex flex-wrap gap-2">
-            {(['missing', 'review', 'checked', 'all'] as VideoLibraryTab[]).map(
-              (tab) => (
-                <Button
-                  key={tab}
-                  type="button"
-                  variant={filters.tab === tab ? 'default' : 'outline'}
-                  onClick={() => setFilters((current) => ({ ...current, tab }))}
+            {(
+              ['watchable', 'attention', 'all', 'no_video'] as VideoLibraryTab[]
+            ).map((tab) => (
+              <Button
+                key={tab}
+                type="button"
+                variant={filters.tab === tab ? 'default' : 'outline'}
+                onClick={() => setFilters((current) => ({ ...current, tab }))}
+              >
+                {getTabLabel(tab)}
+                <Badge
+                  variant="outline"
+                  className="ml-1 border-current/30 bg-transparent"
                 >
-                  {getTabLabel(tab)}
-                  <Badge
-                    variant="outline"
-                    className="ml-1 border-current/30 bg-transparent"
-                  >
-                    {tabCounts[tab]}
-                  </Badge>
-                </Button>
-              )
-            )}
+                  {tabCounts[tab]}
+                </Badge>
+              </Button>
+            ))}
           </div>
         </div>
 
