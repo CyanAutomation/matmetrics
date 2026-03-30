@@ -16,7 +16,7 @@ type PluginUiSourceContract = {
 const corePluginContracts: PluginUiSourceContract[] = [
   {
     pluginId: 'github-sync',
-    sourcePath: 'src/components/github-settings.tsx',
+    sourcePath: 'plugins/github-sync/src/components/github-settings.tsx',
     requiredTokens: [
       'PluginEmptyState',
       'PluginDestructiveAction',
@@ -30,7 +30,7 @@ const corePluginContracts: PluginUiSourceContract[] = [
   },
   {
     pluginId: 'prompt-settings',
-    sourcePath: 'src/components/prompt-settings.tsx',
+    sourcePath: 'plugins/prompt-settings/src/components/prompt-settings.tsx',
     requiredTokens: [
       'PluginLoadingState',
       'PluginErrorState',
@@ -40,13 +40,13 @@ const corePluginContracts: PluginUiSourceContract[] = [
   },
   {
     pluginId: 'tag-manager',
-    sourcePath: 'src/components/tag-manager.tsx',
+    sourcePath: 'plugins/tag-manager/src/components/tag-manager.tsx',
     requiredTokens: ['PluginConfirmationDialog', 'PluginLoadingState'],
     oneOfRequiredTokenGroups: [['PluginEmptyState', 'PluginTableSection']],
   },
   {
     pluginId: 'video-library',
-    sourcePath: 'src/components/video-library.tsx',
+    sourcePath: 'plugins/video-library/src/components/video-library.tsx',
     requiredTokens: ['PluginDestructiveAction', 'PluginLoadingState'],
     oneOfRequiredTokenGroups: [['PluginEmptyState', 'PluginTableSection']],
   },

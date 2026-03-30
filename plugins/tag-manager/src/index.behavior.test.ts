@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TagManager } from '@/components/tag-manager';
+import { TagManager } from './components/tag-manager';
 import type { DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 import type { TabRenderContext } from '@/lib/navigation/tab-definitions';
 

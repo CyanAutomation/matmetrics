@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { PromptSettings } from '@/components/prompt-settings';
+import { PromptSettings } from './components/prompt-settings';
 import { type DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 
 export type PluginContext = {
