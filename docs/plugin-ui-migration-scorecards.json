@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-30T07:09:06.126Z",
+  "generatedAt": "2026-03-30T08:40:59.112Z",
   "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
   "sourceEntrypoint": "plugins/*/src/index.ts",
-  "cacheKey": "c41bb4d8a71421596d9ea236bb45444d572621e57b700b07fbb6ff399333c9c6",
+  "cacheKey": "94fce05eb6c0808e4483cbef7c4d04c1988bac9e28134bbc2df966acb0844b9f",
   "plugins": [
     {
       "id": "github-sync",
@@ -14,11 +14,11 @@
       "checks": {
         "sharedShell": true,
         "sharedState": true,
-        "sharedDestructiveConfirmation": true
+        "sharedDestructiveConfirmation": false
       },
-      "score": 3,
+      "score": 2,
       "maxScore": 3,
-      "missing": []
+      "missing": ["sharedDestructiveConfirmation"]
     },
     {
       "id": "log-doctor",

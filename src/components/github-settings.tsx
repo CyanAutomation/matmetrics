@@ -20,7 +20,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { GitHubConfig } from '@/lib/types';
 import {
   runLoadGitHubSyncHistory,
@@ -37,7 +36,9 @@ import {
   saveGitHubSettingsPreference,
 } from '@/lib/user-preferences';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import { PluginNotice } from '@/components/plugins/plugin-notice';
+import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 import {
   buildGitHubNetworkErrorMessage,
@@ -47,7 +48,6 @@ import {
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from '@/components/github-settings-view-model';
-import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import {
   PluginEmptyState,
   PluginErrorState,
@@ -453,15 +453,13 @@ export function GitHubSettings() {
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canUseGitHubSync && (
-        <Alert className={theme.warningTone}>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle className="font-bold">Sign-in required</AlertTitle>
-          <AlertDescription className="text-current/90">
-            {authAvailable
-              ? 'GitHub sync is only available for signed-in accounts because repository settings are stored per user.'
-              : 'GitHub sync is unavailable because Firebase authentication is not configured for this deployment.'}
-          </AlertDescription>
-        </Alert>
+        <PluginAuthGateNotice
+          className={theme.warningTone}
+          isAuthenticated={Boolean(user)}
+          authAvailable={authAvailable}
+          signedInDescription="GitHub sync is only available for signed-in accounts because repository settings are stored per user."
+          signedOutDescription="GitHub sync is unavailable because Firebase authentication is not configured for this deployment."
+        />
       )}
 
       <Card className="bg-card/95 shadow-sm">
@@ -770,7 +768,7 @@ export function GitHubSettings() {
         </Card>
       )}
 
-      <PluginConfirmationDialog
+      <PluginDestructiveAction
         open={controlState.isClearDialogOpen}
         onOpenChange={setIsClearDialogOpen}
         title="Clear GitHub configuration?"
