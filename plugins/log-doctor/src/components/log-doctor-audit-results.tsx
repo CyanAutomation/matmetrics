@@ -65,7 +65,7 @@ export const AuditResults = ({
             <Badge variant="outline">Sessions flagged: {results.length}</Badge>
             <Badge variant="outline">Total issues: {totalFlags}</Badge>
             {reviewedCount > 0 ? (
-              <Badge variant="secondary">Reviewed: {reviewedCount}</Badge>
+              <Badge variant="secondary">Resolved: {reviewedCount}</Badge>
             ) : null}
             {unfilteredCount > 0 ? (
               <Badge variant="destructive">
@@ -96,11 +96,11 @@ export const AuditResults = ({
                   </span>
                   {isReviewed ? (
                     <Badge variant="outline" className="text-xs">
-                      Reviewed
+                      Resolved
                     </Badge>
                   ) : allIgnored ? (
                     <Badge variant="secondary" className="text-xs">
-                      All ignored
+                      Dismissed for now
                     </Badge>
                   ) : (
                     <Badge variant="destructive" className="text-xs">
@@ -113,9 +113,9 @@ export const AuditResults = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onReview(result.sessionId)}
-                  aria-label={`Review audit flags for session ${result.sessionDate}`}
+                  aria-label={`Open audit actions for session ${result.sessionDate}`}
                 >
-                  Review
+                  Open
                 </Button>
               </div>
 
@@ -145,7 +145,7 @@ export const AuditResults = ({
 
               {result.ignoredRules.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Ignored rules:{' '}
+                  Dismissed checks:{' '}
                   {result.ignoredRules
                     .map((code) => FLAG_CODE_LABEL[code])
                     .join(', ')}

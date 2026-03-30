@@ -313,7 +313,7 @@ export const LogDoctor = (): React.ReactElement => {
     setAuditConfig(newConfig);
   };
 
-  const handleMarkReviewed = async (sessionId: string): Promise<void> => {
+  const handleMarkResolved = async (sessionId: string): Promise<void> => {
     if (!user?.uid) return;
     const existing = auditResults.find((r) => r.sessionId === sessionId);
     if (!existing) return;
@@ -334,46 +334,50 @@ export const LogDoctor = (): React.ReactElement => {
         )
       );
       toast({
-        title: 'Marked as reviewed',
-        description: `Session from ${existing.sessionDate} has been reviewed.`,
+        title: 'Marked fixed',
+        description: `Session from ${existing.sessionDate} is marked as fixed.`,
       });
     } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to mark session as reviewed.',
+        description: 'Failed to mark session as fixed.',
       });
     }
   };
 
-  const handleClearReview = async (sessionId: string): Promise<void> => {
+  const handleDismissForNow = async (sessionId: string): Promise<void> => {
     if (!user?.uid) return;
     const existing = auditResults.find((r) => r.sessionId === sessionId);
     if (!existing) return;
+
+    const dismissedRules = existing.flags.map((flag) => flag.code);
 
     const audit: SessionAudit = {
       sessionId,
       flags: existing.flags,
       reviewedAt: undefined,
-      ignoredRules: existing.ignoredRules,
+      ignoredRules: dismissedRules,
     };
 
     try {
       await saveSessionAudit(user.uid, sessionId, audit);
       setAuditResults((prev) =>
         prev.map((r) =>
-          r.sessionId === sessionId ? { ...r, reviewedAt: undefined } : r
+          r.sessionId === sessionId
+            ? { ...r, reviewedAt: undefined, ignoredRules: dismissedRules }
+            : r
         )
       );
       toast({
-        title: 'Review cleared',
-        description: `Session from ${existing.sessionDate} review has been cleared.`,
+        title: 'Dismissed for now',
+        description: `All checks for ${existing.sessionDate} are dismissed for now.`,
       });
     } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to clear review.',
+        description: 'Failed to dismiss checks for now.',
       });
     }
   };
@@ -405,14 +409,14 @@ export const LogDoctor = (): React.ReactElement => {
         )
       );
       toast({
-        title: 'Rule ignored',
-        description: 'This rule will no longer flag this session.',
+        title: 'Check dismissed',
+        description: 'This check will no longer flag this session.',
       });
     } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to ignore rule.',
+        description: 'Failed to dismiss check.',
       });
     }
   };
@@ -442,14 +446,14 @@ export const LogDoctor = (): React.ReactElement => {
         )
       );
       toast({
-        title: 'Rule unignored',
-        description: 'This rule will now flag this session again.',
+        title: 'Check undismissed',
+        description: 'This check will now flag this session again.',
       });
     } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to unignore rule.',
+        description: 'Failed to undismiss check.',
       });
     }
   };
@@ -998,17 +1002,17 @@ export const LogDoctor = (): React.ReactElement => {
         session={reviewSession}
         open={reviewSessionId !== null}
         onClose={handleCloseReview}
-        onMarkReviewed={(id) => {
-          void handleMarkReviewed(id);
+        onMarkResolved={(id) => {
+          void handleMarkResolved(id);
+        }}
+        onDismissForNow={(id) => {
+          void handleDismissForNow(id);
         }}
         onIgnoreRule={(id, code) => {
           void handleIgnoreRule(id, code);
         }}
         onUnignoreRule={(id, code) => {
           void handleUnignoreRule(id, code);
-        }}
-        onClearReview={(id) => {
-          void handleClearReview(id);
         }}
       />
 
