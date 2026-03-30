@@ -83,9 +83,8 @@ for (const { manifest, expectations } of pluginManifestFixtures) {
   test(`${expectations.pluginId} manifest contract`, () => {
     const validation = validatePluginManifest(manifest);
 
-    assert.equal(validation.isValid, true);
     if (!validation.isValid) {
-      return;
+      assert.fail('Expected valid plugin manifest');
     }
 
     assert.equal(validation.manifest.id, expectations.pluginId);
