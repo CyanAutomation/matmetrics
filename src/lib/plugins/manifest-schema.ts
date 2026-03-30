@@ -13,7 +13,7 @@ const pluginUiContractSchema = z.object({
   layoutVariant: z.string().min(1),
   requiredUxStates: z
     .array(z.enum(['loading', 'error', 'empty', 'destructive']))
-    .min(1),
+    .nonempty('requiredUxStates must contain at least one state'),
   designTokenVariants: z.array(z.string().min(1)).optional(),
 });
 
