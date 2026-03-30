@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
+import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -724,37 +726,35 @@ export const LogDoctor = (): React.ReactElement => {
       {/* File Validation Tab */}
       {activeTab === 'validation' ? (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Repository target</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="log-doctor-owner">Owner</Label>
-                <Input
-                  id="log-doctor-owner"
-                  value={owner}
-                  onChange={(event) => setOwner(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="log-doctor-repo">Repository</Label>
-                <Input
-                  id="log-doctor-repo"
-                  value={repo}
-                  onChange={(event) => setRepo(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="log-doctor-branch">Branch (optional)</Label>
-                <Input
-                  id="log-doctor-branch"
-                  value={branch}
-                  onChange={(event) => setBranch(event.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <PluginSectionCard
+            title={<span className="text-base">Repository target</span>}
+            contentClassName="grid gap-3 md:grid-cols-3"
+          >
+            <div className="space-y-1">
+              <Label htmlFor="log-doctor-owner">Owner</Label>
+              <Input
+                id="log-doctor-owner"
+                value={owner}
+                onChange={(event) => setOwner(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="log-doctor-repo">Repository</Label>
+              <Input
+                id="log-doctor-repo"
+                value={repo}
+                onChange={(event) => setRepo(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="log-doctor-branch">Branch (optional)</Label>
+              <Input
+                id="log-doctor-branch"
+                value={branch}
+                onChange={(event) => setBranch(event.target.value)}
+              />
+            </div>
+          </PluginSectionCard>
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -1050,7 +1050,7 @@ export const LogDoctor = (): React.ReactElement => {
         }}
       />
 
-      <PluginConfirmationDialog
+      <PluginDestructiveAction
         open={showResetConfirmation}
         onOpenChange={(open) => {
           if (!open) {

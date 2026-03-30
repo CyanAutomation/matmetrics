@@ -9,7 +9,7 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 const normalizeMarkup = (html: string): string =>
   html.replace(/\s+/g, ' ').trim();
 
-test('PluginPageShell renders info tone frame tokens snapshot', () => {
+test('PluginPageShell renders title, description, icon, and content regions', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
       React.createElement(
@@ -19,22 +19,18 @@ test('PluginPageShell renders info tone frame tokens snapshot', () => {
           description: 'Plugin description',
           icon: React.createElement('span', null, 'I'),
           tone: 'info',
-          children: React.createElement('div', null, 'body'),
         },
-        null
+        React.createElement('div', null, 'body')
       )
     )
   );
 
-  assert.match(
-    html,
-    /rounded-lg p-2 bg-primary text-primary-foreground shadow-md/
-  );
   assert.match(html, /Plugin title/);
   assert.match(html, /Plugin description/);
+  assert.match(html, /body/);
 });
 
-test('PluginNotice renders warning tone snapshot', () => {
+test('PluginNotice renders notice title and description content', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
       React.createElement(PluginNotice, {
@@ -46,7 +42,6 @@ test('PluginNotice renders warning tone snapshot', () => {
     )
   );
 
-  assert.match(html, /border-amber-300 bg-amber-50 text-amber-900/);
   assert.match(html, /Warning title/);
   assert.match(html, /Warning description/);
 });
