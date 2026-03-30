@@ -35,6 +35,12 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
+import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
+import {
+  PluginActionRow,
+  PluginActionPrimary,
+} from '@/components/plugins/plugin-action-row';
+import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -454,21 +460,23 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         emptyIcon={<Search className="h-4 w-4" />}
         contentClassName="p-6"
       >
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search techniques..."
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <PluginFilterBar className="mb-6">
+          <div className="relative lg:col-span-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search techniques..."
+              className="pl-10"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </PluginFilterBar>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {filteredTags.map((tag) => (
             <div
               key={tag}
-              className="group flex items-center justify-between rounded-lg bg-background/80 p-3 transition-colors hover:bg-secondary/35"
+              className="group flex items-center justify-between rounded-lg bg-background/80 p-3 transition-colors hover:bg-background"
             >
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-sm font-semibold">
@@ -479,7 +487,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  className="h-8 w-8"
                   onClick={() => {
                     setEditingTag(tag);
                     setNewTagName(tag);
@@ -490,7 +498,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-accent"
+                  className="h-8 w-8"
                   onClick={() => setMergingTag(tag)}
                 >
                   <Combine className="h-4 w-4" />
@@ -498,7 +506,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8"
                   onClick={() => setDeletingTag(tag)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -638,46 +646,49 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               </AlertDescription>
             </Alert>
             {mergeError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Merge failed</AlertTitle>
-                <AlertDescription>{mergeError}</AlertDescription>
-              </Alert>
+              <PluginInlineMessage
+                tone="error"
+                icon={<AlertCircle className="h-4 w-4" />}
+                title="Merge failed"
+                description={mergeError}
+              />
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={resetMergeDialog}
-              disabled={isAnalyzingMerge || isApplyingMerge}
-            >
-              Cancel
-            </Button>
-            {mergeAnalysis ? (
+            <PluginActionRow>
               <Button
-                variant="default"
-                onClick={handleMerge}
-                disabled={
-                  mergeAnalysis.conflicts.length > 0 ||
-                  isAnalyzingMerge ||
-                  isApplyingMerge
-                }
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                variant="ghost"
+                onClick={resetMergeDialog}
+                disabled={isAnalyzingMerge || isApplyingMerge}
               >
-                {isApplyingMerge ? 'Applying...' : 'Apply'}
+                Cancel
               </Button>
-            ) : (
-              <Button
-                variant="default"
-                onClick={handleAnalyzeMerge}
-                disabled={
-                  !targetMergeTag || isAnalyzingMerge || isApplyingMerge
-                }
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
-              >
-                {isAnalyzingMerge ? 'Analyzing...' : 'Analyze'}
-              </Button>
-            )}
+              <PluginActionPrimary>
+                {mergeAnalysis ? (
+                  <Button
+                    variant="default"
+                    onClick={handleMerge}
+                    disabled={
+                      mergeAnalysis.conflicts.length > 0 ||
+                      isAnalyzingMerge ||
+                      isApplyingMerge
+                    }
+                  >
+                    {isApplyingMerge ? 'Applying...' : 'Apply'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    onClick={handleAnalyzeMerge}
+                    disabled={
+                      !targetMergeTag || isAnalyzingMerge || isApplyingMerge
+                    }
+                  >
+                    {isAnalyzingMerge ? 'Analyzing...' : 'Analyze'}
+                  </Button>
+                )}
+              </PluginActionPrimary>
+            </PluginActionRow>
           </DialogFooter>
         </DialogContent>
       </Dialog>
