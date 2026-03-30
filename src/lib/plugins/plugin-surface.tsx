@@ -1,0 +1,218 @@
+import React from 'react';
+
+import { cn } from '@/lib/utils';
+import type {
+  PluginRuntimeWarning,
+  PluginUIContract,
+  PluginUIContractState,
+} from '@/lib/plugins/types';
+import type { TabRenderContext } from '@/lib/navigation/tab-definitions';
+
+export type PluginSurfaceRenderer = (
+  context: TabRenderContext
+) => React.ReactNode;
+
+const SURFACE_LAYOUT_CLASSNAMES = {
+  standard: 'mx-auto w-full max-w-4xl px-4 py-4 sm:px-6 lg:px-8',
+  wide: 'mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 lg:px-8',
+} as const;
+
+const UX_STATE_HELPER_NAMES: Record<
+  PluginUIContractState,
+  ReadonlySet<string>
+> = {
+  loading: new Set(['PluginLoadingState']),
+  error: new Set(['PluginErrorState']),
+  empty: new Set(['PluginEmptyState']),
+  destructive: new Set(['PluginConfirmationDialog']),
+};
+
+const extractElementTypeName = (element: React.ReactElement): string | null => {
+  const elementType = element.type as
+    | string
+    | {
+        displayName?: string;
+        name?: string;
+        render?: { displayName?: string; name?: string };
+      };
+
+  if (typeof elementType === 'string') {
+    return elementType;
+  }
+
+  return (
+    elementType.displayName ??
+    elementType.name ??
+    elementType.render?.displayName ??
+    elementType.render?.name ??
+    null
+  );
+};
+
+const collectRenderedHelperNames = (node: React.ReactNode): Set<string> => {
+  const names = new Set<string>();
+
+  const walk = (value: React.ReactNode): void => {
+    if (!value) {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+
+    if (!React.isValidElement(value)) {
+      return;
+    }
+
+    const typeName = extractElementTypeName(value);
+    if (typeName) {
+      names.add(typeName);
+    }
+
+    const childNodes = value.props?.children as React.ReactNode;
+    if (childNodes) {
+      walk(childNodes);
+    }
+  };
+
+  walk(node);
+  return names;
+};
+
+const resolveLayoutClassName = (
+  uiContract: PluginUIContract | undefined,
+  pluginId: string,
+  extensionId: string
+): { className: string; warnings: PluginRuntimeWarning[] } => {
+  const layoutVariant = uiContract?.layoutVariant ?? 'standard';
+
+  if (layoutVariant in SURFACE_LAYOUT_CLASSNAMES) {
+    return {
+      className:
+        SURFACE_LAYOUT_CLASSNAMES[
+          layoutVariant as keyof typeof SURFACE_LAYOUT_CLASSNAMES
+        ],
+      warnings: [],
+    };
+  }
+
+  return {
+    className: SURFACE_LAYOUT_CLASSNAMES.standard,
+    warnings: [
+      {
+        code: 'dashboard_tab_surface_layout_variant_unknown',
+        severity: 'warning',
+        path: `plugins.${pluginId}.uiContract.layoutVariant`,
+        message: `Dashboard extension "${extensionId}" declares unknown layoutVariant "${layoutVariant}". Falling back to "standard" shell layout.`,
+        pluginId,
+        extensionId,
+      },
+    ],
+  };
+};
+
+const buildMissingUxStateWarnings = (
+  renderedNode: React.ReactNode,
+  uiContract: PluginUIContract | undefined,
+  pluginId: string,
+  extensionId: string
+): PluginRuntimeWarning[] => {
+  if (!uiContract?.requiredUxStates?.length) {
+    return [];
+  }
+
+  const renderedHelperNames = collectRenderedHelperNames(renderedNode);
+
+  return uiContract.requiredUxStates.flatMap((requiredState) => {
+    const stateHelpers = UX_STATE_HELPER_NAMES[requiredState];
+    if (!stateHelpers) {
+      return [];
+    }
+
+    const matched = [...stateHelpers].some((helperName) =>
+      renderedHelperNames.has(helperName)
+    );
+
+    if (matched) {
+      return [];
+    }
+
+    return [
+      {
+        code: 'dashboard_tab_required_ux_state_helper_missing',
+        severity: 'warning',
+        path: `plugins.${pluginId}.uiContract.requiredUxStates`,
+        message: `Dashboard extension "${extensionId}" requires "${requiredState}" UX state but did not render expected helper component(s): ${[
+          ...stateHelpers,
+        ].join(', ')}.`,
+        pluginId,
+        extensionId,
+      } satisfies PluginRuntimeWarning,
+    ];
+  });
+};
+
+const emitPluginSurfaceWarning = (
+  warning: PluginRuntimeWarning,
+  onWarning?: (warning: PluginRuntimeWarning) => void
+): void => {
+  onWarning?.(warning);
+  console.warn('Plugin runtime warning', warning);
+};
+
+export const createPluginSurfaceRenderer = ({
+  pluginId,
+  extensionId,
+  uiContract,
+  renderer,
+  onWarning,
+}: {
+  pluginId: string;
+  extensionId: string;
+  uiContract?: PluginUIContract;
+  renderer: PluginSurfaceRenderer;
+  onWarning?: (warning: PluginRuntimeWarning) => void;
+}): PluginSurfaceRenderer => {
+  const layoutResult = resolveLayoutClassName(
+    uiContract,
+    pluginId,
+    extensionId
+  );
+  layoutResult.warnings.forEach((warning) =>
+    emitPluginSurfaceWarning(warning, onWarning)
+  );
+
+  return (context) => {
+    const renderedNode = renderer(context);
+    const runtimeWarnings = buildMissingUxStateWarnings(
+      renderedNode,
+      uiContract,
+      pluginId,
+      extensionId
+    );
+    runtimeWarnings.forEach((warning) =>
+      emitPluginSurfaceWarning(warning, onWarning)
+    );
+
+    return React.createElement(
+      'div',
+      {
+        className: cn(layoutResult.className),
+        'data-plugin-surface': `${pluginId}:${extensionId}`,
+        'data-layout-variant': uiContract?.layoutVariant ?? 'standard',
+      },
+      renderedNode
+    );
+  };
+};
+
+export const getPluginSurfaceLayoutClassName = (
+  layoutVariant: string | undefined
+): string =>
+  layoutVariant && layoutVariant in SURFACE_LAYOUT_CLASSNAMES
+    ? SURFACE_LAYOUT_CLASSNAMES[
+        layoutVariant as keyof typeof SURFACE_LAYOUT_CLASSNAMES
+      ]
+    : SURFACE_LAYOUT_CLASSNAMES.standard;

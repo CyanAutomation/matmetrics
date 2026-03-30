@@ -200,7 +200,9 @@ export type PluginManifestValidationResult =
 
 export type PluginRuntimeWarningCode =
   | 'dashboard_tab_renderer_unresolved'
-  | 'dashboard_tab_missing_capability';
+  | 'dashboard_tab_missing_capability'
+  | 'dashboard_tab_surface_layout_variant_unknown'
+  | 'dashboard_tab_required_ux_state_helper_missing';
 
 export type PluginRuntimeWarning = PluginValidationIssue & {
   code: PluginRuntimeWarningCode;
@@ -212,4 +214,5 @@ export type ResolvedDashboardTabExtension = {
   pluginId: string;
   capabilities: string[];
   extension: DashboardTabExtension;
+  uiContract?: PluginUIContract;
 };
