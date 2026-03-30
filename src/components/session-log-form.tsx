@@ -440,7 +440,7 @@ export function SessionLogForm({
       )}
       <form onSubmit={handleSubmit} autoComplete="off">
         <CardContent
-          className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-0')}
+          className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-4 sm:p-6')}
         >
           {!canUseAi && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -451,7 +451,12 @@ export function SessionLogForm({
           )}
 
           {/* Header Section: Avatar + Session Controls */}
-          <div className="bg-secondary/25 rounded-lg p-6 -mx-6 -mt-6 lg:-mx-0 lg:rounded-lg lg:p-6 lg:bg-secondary/25">
+          <div
+            className={cn(
+              'bg-secondary/25 rounded-lg p-6 lg:-mx-0 lg:rounded-lg lg:p-6 lg:bg-secondary/25',
+              !shouldHideHeader && '-mx-6 -mt-6'
+            )}
+          >
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
               {/* Avatar - Hidden on mobile, visible on lg and above */}
               {showAvatar && (
