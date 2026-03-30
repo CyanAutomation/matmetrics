@@ -22,9 +22,8 @@ test('github-sync runtime wiring registers a renderer that returns GitHubSetting
   });
 
   assert.ok(capturedRenderer, 'Expected github-sync to register a renderer.');
-  if (!capturedRenderer) {
-    throw new Error('Expected github-sync to register a renderer.');
-  }
+
+  const renderer = capturedRenderer as (context: TabRenderContext) => unknown;
 
   const renderer = capturedRenderer as (context: TabRenderContext) => unknown;
   const rendered = renderer({
