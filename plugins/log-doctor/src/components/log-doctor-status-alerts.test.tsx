@@ -6,10 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 import { createUiState } from './log-doctor-state';
 
-test('LogDoctorStatusAlerts error snapshot renders one detailed error block with retry action', () => {
+test('LogDoctorStatusAlerts exposes one actionable alert, retry control, and recovery guidance in error state', () => {
   const uiState = createUiState('scan', 'error', {
     reason: 'Downstream service unavailable',
   });
+
   const markup = renderToStaticMarkup(
     <LogDoctorStatusAlerts
       uiState={uiState}
@@ -18,11 +19,11 @@ test('LogDoctorStatusAlerts error snapshot renders one detailed error block with
     />
   );
 
-  const detailedErrorCount =
-    markup.match(/Downstream service unavailable/g)?.length ?? 0;
+  const actionableAlerts = markup.match(/<h3[^>]*>Log Doctor error<\/h3>/g) ?? [];
 
-  assert.equal(detailedErrorCount, 1);
-  assert.match(markup, /An actionable error is shown below/);
+  assert.equal(actionableAlerts.length, 1, 'expected a single actionable alert');
+  assert.match(markup, /An actionable error is shown below\. Use Retry to run the scan again\./);
   assert.match(markup, /Log Doctor error/);
-  assert.match(markup, /aria-label="Retry log doctor scan"/);
+  assert.match(markup, /<button[^>]*aria-label="Retry log doctor scan"[^>]*>/);
+  assert.match(markup, />Retry<\/button>/);
 });
