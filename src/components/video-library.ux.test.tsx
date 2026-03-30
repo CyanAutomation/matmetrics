@@ -2,13 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  deriveVideoLibraryBrowseState,
   deriveVideoLibraryBulkActionState,
   deriveVideoLibraryEmptyState,
   getVideoLibraryReviewAlertDescription,
+  sortVideoLibraryRows,
   VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL,
+  VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE,
   VIDEO_LIBRARY_LOADING_LABEL,
+  VIDEO_LIBRARY_MODE_LOUNGE_LABEL,
+  VIDEO_LIBRARY_MODE_TABLE_LABEL,
 } from './video-library';
 import type { VideoLibraryRow } from '@/lib/video-library';
 import type { JudoSession } from '@/lib/types';
@@ -123,5 +128,109 @@ test('review alert copy focuses on actionable link issues instead of optional mi
   assert.equal(
     getVideoLibraryReviewAlertDescription(3),
     '3 session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.'
+  );
+});
+
+test('mode toggle labels remain stable for table and lounge presentation modes', () => {
+  const rows = [
+    makeRow({
+      session: {
+        ...makeSession('older'),
+        date: '2026-03-01',
+      },
+    }),
+  ];
+  const tableBrowse = deriveVideoLibraryBrowseState({
+    mode: 'table',
+    filteredRowCount: rows.length,
+    loungeRowCount: rows.length,
+    emptyState: deriveVideoLibraryEmptyState({ tab: 'all', search: '' }),
+  });
+  const loungeBrowse = deriveVideoLibraryBrowseState({
+    mode: 'lounge',
+    filteredRowCount: rows.length,
+    loungeRowCount: rows.length,
+    emptyState: deriveVideoLibraryEmptyState({ tab: 'all', search: '' }),
+  });
+
+  assert.equal(VIDEO_LIBRARY_MODE_TABLE_LABEL, 'Table');
+  assert.equal(VIDEO_LIBRARY_MODE_LOUNGE_LABEL, 'Lounge');
+  assert.equal(tableBrowse.hasRows, true);
+  assert.equal(loungeBrowse.hasRows, true);
+});
+
+test('browse-state empty behavior in lounge mode prioritizes no-playable-url guidance', () => {
+  const baseEmpty = deriveVideoLibraryEmptyState({
+    tab: 'all',
+    search: '',
+  });
+
+  const browseState = deriveVideoLibraryBrowseState({
+    mode: 'lounge',
+    filteredRowCount: 2,
+    loungeRowCount: 0,
+    emptyState: baseEmpty,
+  });
+
+  assert.equal(browseState.hasRows, false);
+  assert.equal(browseState.title, VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE);
+  assert.equal(browseState.ctaLabel, VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL);
+});
+
+test('lounge sorting supports newest, oldest, recently checked, and provider modes', () => {
+  const rows = [
+    makeRow({
+      session: {
+        ...makeSession('mid'),
+        date: '2026-03-15',
+      },
+      entry: {
+        session: makeSession('mid'),
+        status: 'allowed_unchecked',
+        url: 'https://youtube.com/watch?v=mid',
+        hostname: 'youtube.com',
+      },
+      latestCheck: {
+        url: 'https://youtube.com/watch?v=mid',
+        hostname: 'youtube.com',
+        checkedAt: '2026-03-16T10:00:00.000Z',
+        status: 'reachable',
+      },
+    }),
+    makeRow({
+      session: {
+        ...makeSession('new'),
+        date: '2026-03-20',
+      },
+      entry: {
+        session: makeSession('new'),
+        status: 'allowed_unchecked',
+        url: 'https://vimeo.com/123',
+        hostname: 'vimeo.com',
+      },
+      latestCheck: {
+        url: 'https://vimeo.com/123',
+        hostname: 'vimeo.com',
+        checkedAt: '2026-03-25T10:00:00.000Z',
+        status: 'reachable',
+      },
+    }),
+  ];
+
+  assert.deepEqual(
+    sortVideoLibraryRows(rows, 'newest').map((row) => row.session.id),
+    ['new', 'mid']
+  );
+  assert.deepEqual(
+    sortVideoLibraryRows(rows, 'oldest').map((row) => row.session.id),
+    ['mid', 'new']
+  );
+  assert.deepEqual(
+    sortVideoLibraryRows(rows, 'recently_checked').map((row) => row.session.id),
+    ['new', 'mid']
+  );
+  assert.deepEqual(
+    sortVideoLibraryRows(rows, 'provider').map((row) => row.entry.hostname),
+    ['vimeo.com', 'youtube.com']
   );
 });
