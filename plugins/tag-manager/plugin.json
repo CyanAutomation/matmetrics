@@ -33,24 +33,19 @@
         "src/components/tag-manager.ux.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": [
-          "src/components/tag-manager.ux.test.tsx"
-        ],
-        "destructiveActionSafety": [
-          "src/components/tag-manager.ux.test.tsx"
-        ],
-        "errorStateWithRecovery": [
-          "src/components/tag-manager.ux.test.tsx"
-        ],
-        "emptyStateWithCta": [
-          "src/components/tag-manager.ux.test.tsx"
-        ]
+        "loadingStatePresent": ["src/components/tag-manager.ux.test.tsx"],
+        "destructiveActionSafety": ["src/components/tag-manager.ux.test.tsx"],
+        "errorStateWithRecovery": ["src/components/tag-manager.ux.test.tsx"],
+        "emptyStateWithCta": ["src/components/tag-manager.ux.test.tsx"]
       }
     }
   },
-  "capabilities": [
-    "tag_mutation"
-  ],
+  "capabilities": ["tag_mutation"],
+  "uiContract": {
+    "layoutVariant": "standard",
+    "requiredUxStates": ["loading", "error", "empty", "destructive"],
+    "designTokenVariants": ["layout.standard", "surface.tagManager"]
+  },
   "enabled": true,
   "uiExtensions": [
     {

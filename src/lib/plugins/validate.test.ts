@@ -490,3 +490,77 @@ test('runtime component renderer checks run only when explicitly enabled', () =>
     );
   }
 });
+
+test('manifest accepts uiContract metadata', () => {
+  const result = validatePluginManifest({
+    id: 'ui-contract-plugin',
+    name: 'UI Contract Plugin',
+    version: '1.0.0',
+    description: 'Includes uiContract metadata.',
+    uiContract: {
+      layoutVariant: 'wide',
+      requiredUxStates: ['loading', 'error', 'empty', 'destructive'],
+      designTokenVariants: ['surface.dashboard', 'spacing.compact'],
+    },
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'ui-contract-dashboard-tab',
+        title: 'UI Contract',
+        config: {
+          tabId: 'ui-contract',
+          headerTitle: 'UI Contract',
+          component: 'ui_contract',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.manifest.uiContract?.layoutVariant, 'wide');
+    assert.deepEqual(result.manifest.uiContract?.requiredUxStates, [
+      'loading',
+      'error',
+      'empty',
+      'destructive',
+    ]);
+  }
+});
+
+test('malformed uiContract is rejected', () => {
+  const result = validatePluginManifest({
+    id: 'broken-ui-contract-plugin',
+    name: 'Broken UI Contract Plugin',
+    version: '1.0.0',
+    description: 'Contains malformed uiContract metadata.',
+    uiContract: {
+      layoutVariant: '',
+      requiredUxStates: ['loading', 'unknown_state'],
+      designTokenVariants: ['valid-token', ''],
+    },
+    uiExtensions: [
+      {
+        type: 'menu_item',
+        id: 'broken-ui-contract-menu-item',
+        title: 'Broken UI Contract',
+        config: {
+          route: '/broken-ui-contract',
+          location: 'sidebar',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, false);
+  if (!result.isValid) {
+    assert.deepEqual(
+      result.issues.map((issue) => issue.path),
+      [
+        'uiContract.layoutVariant',
+        'uiContract.requiredUxStates.1',
+        'uiContract.designTokenVariants.1',
+      ]
+    );
+  }
+});

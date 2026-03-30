@@ -7,7 +7,10 @@ import promptSettingsManifest from './prompt-settings/plugin.json';
 import tagManagerManifest from './tag-manager/plugin.json';
 import videoLibraryManifest from './video-library/plugin.json';
 import { validatePluginManifest } from '@/lib/plugins/validate';
-import type { DashboardTabExtension, PluginManifest } from '@/lib/plugins/types';
+import type {
+  DashboardTabExtension,
+  PluginManifest,
+} from '@/lib/plugins/types';
 
 type ManifestExpectations = {
   pluginId: string;
@@ -105,6 +108,18 @@ for (const { manifest, expectations } of pluginManifestFixtures) {
       dashboardTab.config.component,
       expectations.dashboardComponentId,
       `[${expectations.pluginId}] dashboard component id mismatch`
+    );
+    assert.ok(
+      validation.manifest.uiContract,
+      `[${expectations.pluginId}] expected uiContract metadata`
+    );
+    assert.ok(
+      validation.manifest.uiContract?.layoutVariant,
+      `[${expectations.pluginId}] uiContract.layoutVariant must be set`
+    );
+    assert.ok(
+      validation.manifest.uiContract?.requiredUxStates.includes('loading'),
+      `[${expectations.pluginId}] uiContract.requiredUxStates should include loading`
     );
   });
 }
