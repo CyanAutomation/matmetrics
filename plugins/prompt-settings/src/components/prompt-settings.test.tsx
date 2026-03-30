@@ -265,8 +265,8 @@ test('view state captures load errors', () => {
   assert.equal(state.hasLoadError, true);
 });
 
-test('error criterion anchor: error state exposes retry recovery action label and callable recover flow', async () => {
-  const state = derivePromptSettingsViewState({
+test('error criterion anchor: error state recover flow retries once and transitions to recovered ready state', async () => {
+  const stateBeforeRetry = derivePromptSettingsViewState({
     canSavePreferences: true,
     preferencesReady: true,
     preferencesError: new Error('firestore unavailable'),
@@ -275,22 +275,30 @@ test('error criterion anchor: error state exposes retry recovery action label an
     isResetting: false,
     saveStatus: 'idle',
   });
-  let recovered = false;
+  let retryInvocations = 0;
 
   const didRecover = await runPromptLoadRecoveryFlow({
     retryLoad: async () => {
-      recovered = true;
+      retryInvocations += 1;
     },
   });
+  const stateAfterRetry = derivePromptSettingsViewState({
+    canSavePreferences: true,
+    preferencesReady: true,
+    preferencesError: null,
+    prompt: 'Custom prompt',
+    isSaving: false,
+    isResetting: false,
+    saveStatus: 'idle',
+  });
 
-  assert.equal(state.hasLoadError, true);
-  assert.equal('error state retry recovery'.includes('error'), true);
-  assert.equal(
-    PROMPT_SETTINGS_ERROR_RETRY_LABEL.toLowerCase().includes('retry'),
-    true
-  );
+  assert.equal(stateBeforeRetry.hasLoadError, true);
+  assert.equal(stateAfterRetry.hasLoadError, false);
+  assert.equal(stateAfterRetry.loading, false);
+  assert.equal(stateAfterRetry.isLoadingSavedSettings, false);
+  assert.equal(PROMPT_SETTINGS_ERROR_RETRY_LABEL, 'Retry');
   assert.equal(didRecover, true);
-  assert.equal(recovered, true);
+  assert.equal(retryInvocations, 1);
 });
 
 test('error criterion anchor: error recovery handles retry failure without throwing', async () => {
