@@ -4,83 +4,75 @@ import { NextRequest } from 'next/server';
 
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+const AUTH_TEST_MODE_ENV = 'MATMETRICS_AUTH_TEST_MODE';
+const requestForAuthorization = (authorization?: string) =>
+  new NextRequest('http://localhost/api/test', {
+    headers: authorization ? { authorization } : undefined,
+  });
 
-test('requireAuthenticatedUser accepts Authorization Bearer scheme', async () => {
-  const result = await requireAuthenticatedUser(
-    new NextRequest('http://localhost/api/test', {
-      headers: { authorization: 'Bearer test-token' },
-    })
-  );
-
-  assert.equal('status' in result, false);
-  if ('status' in result) {
-    assert.fail('Expected decoded token for valid Bearer header');
+const assertUnauthorizedResponse = async (
+  result: Awaited<ReturnType<typeof requireAuthenticatedUser>>,
+  expectedError: string
+) => {
+  assert.equal('status' in result, true);
+  if (!('status' in result)) {
+    assert.fail('Expected unauthorized response');
   }
 
-  assert.equal(result.uid, 'test-user');
+  assert.equal(result.status, 401);
+  const body = await result.json();
+  assert.deepEqual(body, { error: expectedError });
+};
+
+test.before(() => {
+  process.env[AUTH_TEST_MODE_ENV] = 'true';
 });
 
-test('requireAuthenticatedUser accepts lowercase bearer scheme', async () => {
-  const result = await requireAuthenticatedUser(
-    new NextRequest('http://localhost/api/test', {
-      headers: { authorization: 'bearer test-token' },
-    })
-  );
-
-  assert.equal('status' in result, false);
-  if ('status' in result) {
-    assert.fail('Expected decoded token for lowercase bearer header');
-  }
-
-  assert.equal(result.uid, 'test-user');
+test.after(() => {
+  delete process.env[AUTH_TEST_MODE_ENV];
 });
 
-test('requireAuthenticatedUser rejects malformed authorization headers', async () => {
-  const malformedHeaders = [
-    'Bearer',
-    'Basic test-token',
-    'Token test-token',
-    'test-token',
+test('requireAuthenticatedUser accepts valid Bearer authorization variants', async () => {
+  const validHeaders = [
+    { name: 'canonical bearer scheme', authorization: 'Bearer test-token' },
+    { name: 'lowercase bearer scheme', authorization: 'bearer test-token' },
   ];
 
-  for (const authorization of malformedHeaders) {
+  for (const { name, authorization } of validHeaders) {
     const result = await requireAuthenticatedUser(
-      new NextRequest('http://localhost/api/test', {
-        headers: { authorization },
-      })
+      requestForAuthorization(authorization)
     );
 
-    assert.equal(
-      'status' in result,
-      true,
-      `${authorization} should be rejected`
-    );
-    if (!('status' in result)) {
-      assert.fail(
-        `Expected NextResponse for malformed header: ${authorization}`
-      );
+    assert.equal('status' in result, false, `${name} should authenticate`);
+    if ('status' in result) {
+      assert.fail(`Expected decoded token for ${name}`);
     }
 
-    assert.equal(result.status, 401);
-    const body = await result.json();
-    assert.equal(body.error, 'Authentication required');
+    assert.equal(result.uid, 'test-user');
+  }
+});
+
+test('requireAuthenticatedUser rejects malformed authorization header variants', async () => {
+  const malformedHeaders = [
+    { authorization: 'Bearer', error: 'Authentication required' },
+    { authorization: 'Basic test-token', error: 'Authentication required' },
+    { authorization: 'Token test-token', error: 'Authentication required' },
+    { authorization: 'test-token', error: 'Authentication required' },
+  ];
+
+  for (const { authorization, error } of malformedHeaders) {
+    const result = await requireAuthenticatedUser(
+      requestForAuthorization(authorization)
+    );
+
+    await assertUnauthorizedResponse(result, error);
   }
 });
 
 test('requireAuthenticatedUser rejects invalid test-mode token', async () => {
   const result = await requireAuthenticatedUser(
-    new NextRequest('http://localhost/api/test', {
-      headers: { authorization: 'Bearer invalid' },
-    })
+    requestForAuthorization('Bearer invalid')
   );
 
-  assert.equal('status' in result, true);
-  if (!('status' in result)) {
-    assert.fail('Expected NextResponse for invalid test token');
-  }
-
-  assert.equal(result.status, 401);
-  const body = await result.json();
-  assert.equal(body.error, 'Invalid authentication token');
+  await assertUnauthorizedResponse(result, 'Invalid authentication token');
 });
