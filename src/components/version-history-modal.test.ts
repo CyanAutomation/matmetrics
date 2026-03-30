@@ -147,7 +147,7 @@ test('VersionHistoryModal clears loading and renders release content after a suc
 test('VersionHistoryModal clears loading and surfaces an error message after a failed fetch', async () => {
   const deferred = createDeferred<Response>();
   const harness = await renderWithMockedHooks({
-    fetchImpl: (() => deferred.promise) as typeof fetch,
+    fetchImpl: ((input: RequestInfo | URL, init?: RequestInit) => deferred.promise) as typeof fetch,
   });
 
   try {
