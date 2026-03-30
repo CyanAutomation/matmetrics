@@ -34,11 +34,13 @@ const isRecentReleasesResponse = (
 interface VersionHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  disableDialogWrapper?: boolean;
 }
 
 export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   open,
   onOpenChange,
+  disableDialogWrapper = false,
 }) => {
   const [releases, setReleases] = useState<ReleaseEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,7 +80,10 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         }
         setReleases(payload.releases);
       } catch (fetchError) {
-        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+        if (
+          fetchError instanceof DOMException &&
+          fetchError.name === 'AbortError'
+        ) {
           return;
         }
 
@@ -89,7 +94,6 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         );
       } finally {
         setIsLoading(false);
-        }
       }
     };
 
@@ -100,6 +104,66 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
     };
   }, [open, releases.length]);
 
+  const body = (
+    <div className="overflow-y-auto pr-4 space-y-6">
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">
+          Loading recent releases...
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-destructive">
+          Unable to load release history. {error}
+        </p>
+      ) : null}
+      {!isLoading && !error
+        ? releases.map((entry) => (
+            <div key={entry.version}>
+              <div className="mb-3">
+                <h3 className="font-semibold text-sm">v{entry.version}</h3>
+                <p className="text-xs text-muted-foreground">{entry.date}</p>
+              </div>
+              <div className="space-y-3">
+                {entry.sections.map((section) => (
+                  <div key={`${entry.version}-${section.label}`}>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                      {section.label}
+                    </h4>
+                    <ul className="space-y-1 ml-3">
+                      {section.items.map((item) => (
+                        <li
+                          key={`${entry.version}-${section.label}-${item}`}
+                          className="text-xs leading-relaxed"
+                        >
+                          <span className="inline-block w-1 h-1 bg-muted-foreground rounded-full mr-2 align-middle"></span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        : null}
+      {!isLoading && !error && releases.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No recent releases are available.
+        </p>
+      ) : null}
+    </div>
+  );
+
+  if (disableDialogWrapper) {
+    return (
+      <section>
+        <h2>Version History</h2>
+        <p>Recent changes across the three most recent versions</p>
+        {body}
+      </section>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-96">
@@ -109,55 +173,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
             Recent changes across the three most recent versions
           </DialogDescription>
         </DialogHeader>
-        <div className="overflow-y-auto pr-4 space-y-6">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">
-              Loading recent releases...
-            </p>
-          ) : null}
-          {error ? (
-            <p className="text-sm text-destructive">
-              Unable to load release history. {error}
-            </p>
-          ) : null}
-          {!isLoading && !error
-            ? releases.map((entry) => (
-                <div key={entry.version}>
-                  <div className="mb-3">
-                    <h3 className="font-semibold text-sm">v{entry.version}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.date}
-                    </p>
-                  </div>
-                  <div className="space-y-3">
-                    {entry.sections.map((section) => (
-                      <div key={`${entry.version}-${section.label}`}>
-                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                          {section.label}
-                        </h4>
-                        <ul className="space-y-1 ml-3">
-                          {section.items.map((item) => (
-                            <li
-                              key={`${entry.version}-${section.label}-${item}`}
-                              className="text-xs leading-relaxed"
-                            >
-                              <span className="inline-block w-1 h-1 bg-muted-foreground rounded-full mr-2 align-middle"></span>
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            : null}
-          {!isLoading && !error && releases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No recent releases are available.
-            </p>
-          ) : null}
-        </div>
+        {body}
       </DialogContent>
     </Dialog>
   );
