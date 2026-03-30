@@ -617,11 +617,8 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     <PluginPageShell
       title="Video Library"
       description="Audit session video coverage, persist the latest check results, and manage approved providers."
-      icon={
-        <div className="rounded-lg bg-primary p-2 text-primary-foreground">
-          <Film className="h-6 w-6" />
-        </div>
-      }
+      tone="info"
+      icon={<Film className="h-6 w-6" />}
     >
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
