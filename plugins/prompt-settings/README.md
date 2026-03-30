@@ -2,6 +2,8 @@
 
 ## Purpose and Scope
 
+- UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+
 The `prompt-settings` plugin adds a dedicated **Prompt Settings** dashboard tab where users can manage the AI transformation instructions used when polishing session notes.
 
 - **Plugin scope**: per-user prompt customization for the AI transform workflow.
