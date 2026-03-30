@@ -5,11 +5,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
+import {
+  PluginStatusPanel,
+  PluginTableSection,
+} from '@/components/plugins/plugin-kit';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
@@ -17,7 +20,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { DrLogImage } from '@/components/drlog-image';
-import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { getSessions } from '@/lib/storage';
 import {
   getSessionAudit,
@@ -792,11 +794,12 @@ export const LogDoctor = (): React.ReactElement => {
           />
 
           {scanResult ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Scan results</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <PluginTableSection
+              title="Scan results"
+              hasRows
+              emptyTitle="No scan results"
+              emptyDescription="Run a scan to inspect repository diagnostics."
+            >
                 <div className="flex flex-wrap gap-2 text-sm">
                   <Badge variant="outline">
                     Total: {scanResult.summary.totalFiles}
@@ -869,18 +872,16 @@ export const LogDoctor = (): React.ReactElement => {
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+            </PluginTableSection>
           ) : null}
 
           {fixResult ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Fix result ({fixResult.mode})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <PluginTableSection
+              title={`Fix result (${fixResult.mode})`}
+              hasRows
+              emptyTitle="No fix result"
+              emptyDescription="Preview or apply fixes to view result details."
+            >
                 <p className="text-sm text-muted-foreground">
                   {fixResult.message}
                 </p>
@@ -925,8 +926,7 @@ export const LogDoctor = (): React.ReactElement => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+            </PluginTableSection>
           ) : null}
         </> /* end File Validation tab */
       ) : null}
@@ -974,31 +974,19 @@ export const LogDoctor = (): React.ReactElement => {
               onReview={handleReviewSession}
             />
           ) : auditRanAt ? (
-            <Card className="border border-dashed border-ghost bg-secondary/20">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <PluginEmptyState
-                  title="All sessions passed quality checks!"
-                  description="No issues detected."
-                  icon={
-                    <DrLogImage pose={1} size="medium" alt="No issues found" />
-                  }
-                  className="w-full border-dashed bg-secondary/20"
-                />
-              </CardContent>
-            </Card>
+            <PluginStatusPanel
+              variant="success"
+              title="All sessions passed quality checks!"
+              description="No issues detected."
+              className="border-dashed bg-secondary/20"
+            />
           ) : (
-            <Card className="border border-dashed border-ghost bg-secondary/20">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <PluginEmptyState
-                  title="Haven't run an audit yet"
-                  description='Click "Run audit" above to get started.'
-                  icon={
-                    <DrLogImage pose={2} size="medium" alt="No audit run yet" />
-                  }
-                  className="w-full border-dashed bg-secondary/20"
-                />
-              </CardContent>
-            </Card>
+            <PluginStatusPanel
+              variant="warning"
+              title="Haven't run an audit yet"
+              description='Click "Run audit" above to get started.'
+              className="border-dashed bg-secondary/20"
+            />
           )}
         </div>
       ) : null}

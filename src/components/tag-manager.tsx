@@ -32,9 +32,8 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
-import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
-import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
+import { PluginTableSection } from '@/components/plugins/plugin-kit';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -420,13 +419,26 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     <PluginPageShell
       title="Technique Library"
       description="Manage your technique tags. Changes apply globally to all logged sessions."
-      icon={
-        <div className="rounded-lg bg-primary p-2 text-primary-foreground">
-          <Tags className="h-6 w-6" />
-        </div>
-      }
+      icon={<Tags className="h-6 w-6" />}
     >
-      <PluginSectionCard className="bg-card/95" contentClassName="p-6">
+      <PluginTableSection
+        title="Tag inventory"
+        description="Search, rename, merge, or remove techniques."
+        hasRows={filteredTags.length > 0}
+        emptyTitle="No tags to display"
+        emptyDescription={emptyState.message}
+        emptyCtaLabel={emptyState.ctaLabel}
+        onEmptyCta={() => {
+          if (emptyState.action === 'clearSearch') {
+            setSearch('');
+            return;
+          }
+
+          refreshTags();
+        }}
+        emptyIcon={<Search className="h-4 w-4" />}
+        contentClassName="p-6"
+      >
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -437,68 +449,50 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           />
         </div>
 
-        {filteredTags.length === 0 ? (
-          <PluginEmptyState
-            title="No tags to display"
-            description={emptyState.message}
-            ctaLabel={emptyState.ctaLabel}
-            onCta={() => {
-              if (emptyState.action === 'clearSearch') {
-                setSearch('');
-                return;
-              }
-
-              refreshTags();
-            }}
-            className="border-dashed bg-secondary/35"
-            icon={<Search className="h-4 w-4" />}
-          />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredTags.map((tag) => (
-              <div
-                key={tag}
-                className="flex items-center justify-between p-3 rounded-lg bg-background/80 hover:bg-secondary/35 transition-colors group"
-              >
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="font-semibold text-sm">
-                    {tag}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                    onClick={() => {
-                      setEditingTag(tag);
-                      setNewTagName(tag);
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-accent"
-                    onClick={() => setMergingTag(tag)}
-                  >
-                    <Combine className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setDeletingTag(tag)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {filteredTags.map((tag) => (
+            <div
+              key={tag}
+              className="group flex items-center justify-between rounded-lg bg-background/80 p-3 transition-colors hover:bg-secondary/35"
+            >
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-sm font-semibold">
+                  {tag}
+                </Badge>
               </div>
-            ))}
-          </div>
-        )}
-      </PluginSectionCard>
+              <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={() => {
+                    setEditingTag(tag);
+                    setNewTagName(tag);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-accent"
+                  onClick={() => setMergingTag(tag)}
+                >
+                  <Combine className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => setDeletingTag(tag)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </PluginTableSection>
 
       {/* Rename Dialog */}
       <Dialog

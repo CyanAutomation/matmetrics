@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -31,6 +30,10 @@ import {
   PluginSuccessState,
 } from '@/components/plugins/plugin-state';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
+import {
+  PluginFormSection,
+  PluginStatusPanel,
+} from '@/components/plugins/plugin-kit';
 
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
@@ -378,8 +381,45 @@ export function PromptSettings() {
         </Alert>
       )}
 
-      <Card className="bg-card/95 shadow-sm">
-        <CardContent className="space-y-4 p-6 pt-8">
+      <PluginFormSection
+        title="Prompt profile"
+        description="Define system instructions used by the AI transform action."
+        className="shadow-sm"
+        contentClassName="p-6 pt-8"
+        footerClassName="p-6"
+        footerActions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsResetDialogOpen(true)}
+              disabled={areControlsDisabled}
+              className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
+            >
+              {isResetting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              {isResetting ? 'Resetting…' : 'Reset to Default'}
+            </Button>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={!canSubmitPrompt}
+              className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : hasSaveSuccess ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isSaving ? 'Saving…' : hasSaveSuccess ? 'Saved!' : 'Save Prompt'}
+            </Button>
+          </>
+        }
+      >
           {isLoadingSavedSettings && (
             <PluginLoadingState description={PROMPT_SETTINGS_LOADING_TEXT} />
           )}
@@ -410,12 +450,16 @@ export function PromptSettings() {
           )}
 
           {hasSaveError && (
-            <PluginErrorState
+            <PluginStatusPanel
+              variant="error"
               title="Prompt save failed"
-              message="Your changes were not saved. Retry when you are ready."
-              onRetry={() => void handleSave()}
-              retryLabel="Retry save"
-              details={saveError?.message ?? 'Unknown save error'}
+              description={
+                saveError?.message
+                  ? `Your changes were not saved. ${saveError.message}`
+                  : 'Your changes were not saved. Retry when you are ready.'
+              }
+              onCta={() => void handleSave()}
+              ctaLabel="Retry save"
             />
           )}
 
@@ -457,58 +501,27 @@ export function PromptSettings() {
               </p>
             </div>
           )}
-        </CardContent>
-        <CardFooter className="bg-secondary/45 p-6 flex justify-between items-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsResetDialogOpen(true)}
-            disabled={areControlsDisabled}
-            className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-          >
-            {isResetting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw className="h-4 w-4" />
-            )}
-            {isResetting ? 'Resetting…' : 'Reset to Default'}
-          </Button>
-          <PluginConfirmationDialog
-            open={isResetDialogOpen}
-            onOpenChange={setIsResetDialogOpen}
-            title="Reset custom prompt?"
-            description="This will replace your custom instructions with the default prompt. You can still edit it again afterward."
-            confirmLabel={PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL}
-            pendingLabel="Resetting…"
-            cancelLabel={PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
-            onCancel={() => {
-              setPrompt((currentPrompt) =>
-                resolvePromptAfterDestructiveResetAction({
-                  action: 'cancel',
-                  currentPrompt,
-                })
-              );
-              setIsResetDialogOpen(false);
-            }}
-            onConfirm={() => void handleReset()}
-            isPending={isResetting}
-          />
-          <Button
-            onClick={() => void handleSave()}
-            disabled={!canSubmitPrompt}
-            className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : hasSaveSuccess ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {isSaving ? 'Saving…' : hasSaveSuccess ? 'Saved!' : 'Save Prompt'}
-          </Button>
-        </CardFooter>
-      </Card>
+      </PluginFormSection>
+      <PluginConfirmationDialog
+        open={isResetDialogOpen}
+        onOpenChange={setIsResetDialogOpen}
+        title="Reset custom prompt?"
+        description="This will replace your custom instructions with the default prompt. You can still edit it again afterward."
+        confirmLabel={PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL}
+        pendingLabel="Resetting…"
+        cancelLabel={PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
+        onCancel={() => {
+          setPrompt((currentPrompt) =>
+            resolvePromptAfterDestructiveResetAction({
+              action: 'cancel',
+              currentPrompt,
+            })
+          );
+          setIsResetDialogOpen(false);
+        }}
+        onConfirm={() => void handleReset()}
+        isPending={isResetting}
+      />
     </PluginPageShell>
   );
 }

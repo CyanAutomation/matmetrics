@@ -16,15 +16,14 @@ import {
 } from 'lucide-react';
 
 import { SessionLogForm } from '@/components/session-log-form';
-import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
+import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import {
   PluginStatCard,
   PluginStatsGrid,
 } from '@/components/plugins/plugin-stats-grid';
-import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -910,115 +909,104 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         </Alert>
       ) : null}
 
-      <PluginSectionCard
+      <PluginTableSection
         title="Video Lounge"
         description="Filter by tab, status, category, or host to focus the current audit task."
+        hasRows={filteredRows.length > 0}
+        emptyTitle={emptyState.title}
+        emptyDescription={emptyState.description}
+        emptyCtaLabel={emptyState.ctaLabel}
+        onEmptyCta={handleEmptyStateAction}
+        emptyIcon={<AlertCircle className="h-4 w-4" />}
       >
-        {filteredRows.length === 0 ? (
-          <PluginEmptyState
-            title={emptyState.title}
-            description={emptyState.description}
-            ctaLabel={emptyState.ctaLabel}
-            onCta={handleEmptyStateAction}
-            icon={<AlertCircle className="h-4 w-4" />}
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Host</TableHead>
-                <TableHead>Check age</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRows.map((row) => (
-                <TableRow key={row.session.id}>
-                  <TableCell className="font-medium">
-                    <div>{row.session.date}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {row.session.category}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(row.displayStatus)}>
-                      {getEntryStatusLabel(row.displayStatus)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[220px] truncate">
-                    {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    {row.latestCheck ? (
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(row.latestCheck.checkedAt).toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        Not checked
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      {row.entry.url ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          asChild
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Host</TableHead>
+              <TableHead>Check age</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRows.map((row) => (
+              <TableRow key={row.session.id}>
+                <TableCell className="font-medium">
+                  <div>{row.session.date}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.session.category}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={getStatusVariant(row.displayStatus)}>
+                    {getEntryStatusLabel(row.displayStatus)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[220px] truncate">
+                  {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
+                </TableCell>
+                <TableCell>
+                  {row.latestCheck ? (
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(row.latestCheck.checkedAt).toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Not checked
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    {row.entry.url ? (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a
+                          href={row.entry.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          <a
-                            href={row.entry.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : null}
-                      {row.isCheckable ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            void handleCheckLinks([row.session.id])
-                          }
-                          disabled={isCheckingLinks}
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                      ) : null}
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    ) : null}
+                    {row.isCheckable ? (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => setEditingSession(row.session)}
+                        onClick={() => void handleCheckLinks([row.session.id])}
+                        disabled={isCheckingLinks}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <RefreshCcw className="h-4 w-4" />
                       </Button>
-                      {row.entry.url ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          interaction="destructive"
-                          onClick={() => setSessionPendingClear(row.session)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </PluginSectionCard>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingSession(row.session)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {row.entry.url ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        interaction="destructive"
+                        onClick={() => setSessionPendingClear(row.session)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </PluginTableSection>
 
       <Dialog
         open={!!editingSession}
