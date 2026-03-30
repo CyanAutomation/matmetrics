@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -319,24 +326,67 @@ test('GET /api/plugins/list returns current maturity scores for bundled plugins'
   const expectedScores = new Map([
     ['tag-manager', { score: 93, tier: 'silver' }],
     ['github-sync', { score: 91, tier: 'silver' }],
+    ['log-doctor', { score: 89, tier: 'silver' }],
     ['prompt-settings', { score: 91, tier: 'silver' }],
+    ['video-library', { score: 91, tier: 'silver' }],
   ]);
+  const bundledPluginDirectoryEntries = await readdir(
+    path.join(process.cwd(), 'plugins'),
+    { withFileTypes: true }
+  );
+  const bundledPluginIds = new Set<string>();
+  for (const entry of bundledPluginDirectoryEntries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const manifestPath = path.join(
+      process.cwd(),
+      'plugins',
+      entry.name,
+      'plugin.json'
+    );
+    try {
+      const rawManifest = await readFile(manifestPath, 'utf8');
+      const parsedManifest = JSON.parse(rawManifest) as { id?: unknown };
+      if (typeof parsedManifest.id === 'string') {
+        bundledPluginIds.add(parsedManifest.id);
+      }
+    } catch {
+      // Ignore entries that are missing plugin.json or are not valid manifests.
+    }
+  }
+  assert.deepEqual(
+    new Set(expectedScores.keys()),
+    bundledPluginIds,
+    'expectedScores should cover every bundled plugin manifest id.'
+  );
+
+  const payloadPluginIds = new Set(
+    payload.plugins.map((row: { manifest: { id: string } }) => row.manifest.id)
+  );
+  for (const expectedPluginId of expectedScores.keys()) {
+    assert.equal(
+      payloadPluginIds.has(expectedPluginId),
+      true,
+      `Expected ${expectedPluginId} to be present in payload.plugins.`
+    );
+  }
+
+  const staleReason =
+    'Some explicit maturity evidence test files declared in manifest could not be found.';
+  const staleActions = [
+    'Update `maturity.evidence.testFiles` so every declared path exists in the repo.',
+    'Record and test: loading state present.',
+    'Record and test: error state present with recovery.',
+    'Record and test: empty state present with CTA.',
+    'Record and test: destructive action confirmation + cancellation path.',
+  ];
 
   for (const [pluginId, expected] of expectedScores) {
     const row = pluginsById.get(pluginId);
     assert.ok(row, `Expected ${pluginId} to be returned by /api/plugins/list.`);
     assert.equal(row.maturity?.score, expected.score);
     assert.equal(row.maturity?.tier, expected.tier);
-
-    const staleReason =
-      'Some explicit maturity evidence test files declared in manifest could not be found.';
-    const staleActions = [
-      'Update `maturity.evidence.testFiles` so every declared path exists in the repo.',
-      'Record and test: loading state present.',
-      'Record and test: error state present with recovery.',
-      'Record and test: empty state present with CTA.',
-      'Record and test: destructive action confirmation + cancellation path.',
-    ];
 
     assert.equal(
       row.maturity?.reasons.includes(staleReason),
