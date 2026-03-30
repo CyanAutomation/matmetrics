@@ -31,6 +31,14 @@ Scans markdown session files for structural issues (missing fields, format viola
 
 Automatically detects quality issues across all logged sessions using rule-based analysis.
 
+**Simplified flow:**
+
+1. **Run check** – run audit rules against all sessions.
+2. **Review findings** – inspect flagged sessions and understand why each was flagged.
+3. **Mark resolved/dismissed** – open a session review and mark it fixed or dismiss checks for now.
+
+The status card at the top shows how many sessions currently need attention and suggests the next primary action. Advanced rule settings are available under the **Advanced** disclosure.
+
 **Audit rules:**
 
 | Rule                        | Severity | Trigger                                                                                                        |
@@ -40,14 +48,12 @@ Automatically detects quality issues across all logged sessions using rule-based
 | `empty_notes`               | info     | Session notes section is blank or missing                                                                      |
 | `duration_outlier`          | info     | Session duration is a statistical outlier (outside mean ± N×stddev across all sessions; requires ≥ 3 sessions) |
 
-**Review workflow:**
+**Review details:**
 
-1. Click **Run Audit** to analyse all sessions.
-2. Sessions with active flags appear in the results list with severity badges.
-3. Click **Review** on any flagged session to open the review dialog.
-4. In the dialog: ignore individual rules for that session, or mark the entire session as reviewed.
-5. Reviewed sessions are excluded from the "needs attention" count but remain visible in results.
-6. Ignored rules are stored per-session and persist across audits.
+- Sessions with active flags appear in the results list with severity badges.
+- In session review, you can dismiss individual checks, dismiss all checks for now, or mark the session fixed.
+- Reviewed sessions are excluded from the "needs attention" count but remain visible in results.
+- Ignored rules are stored per-session and persist across audits.
 
 ## Verification
 

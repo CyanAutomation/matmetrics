@@ -13,6 +13,7 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
@@ -57,6 +58,7 @@ import {
 
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
+type AuditStep = 'run-check' | 'review-findings' | 'resolve-findings';
 
 const emitDestructiveActionEvent = (
   action: LogDoctorDestructiveAction,
@@ -197,6 +199,7 @@ export const LogDoctor = (): React.ReactElement => {
   const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
+  const [auditStep, setAuditStep] = useState<AuditStep>('run-check');
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -218,6 +221,7 @@ export const LogDoctor = (): React.ReactElement => {
       }));
       setAuditResults(results);
       setAuditRanAt(lastRun.ranAt);
+      setAuditStep('review-findings');
     }
   }, []);
 
@@ -290,12 +294,14 @@ export const LogDoctor = (): React.ReactElement => {
 
       setAuditResults(merged);
       setAuditRanAt(now);
+      setAuditStep('review-findings');
       showAuditSuccess();
     } finally {
     }
   }, [user?.uid, auditConfig, startAuditLoading, showAuditSuccess]);
 
   const handleReviewSession = (sessionId: string): void => {
+    setAuditStep('resolve-findings');
     setReviewSessionId(sessionId);
   };
 
@@ -695,6 +701,49 @@ export const LogDoctor = (): React.ReactElement => {
   ).length;
 
   const isBusy = isScanning || isPreviewing || isApplying;
+  const firstSessionNeedingAttention = auditResults.find(
+    (r) =>
+      !r.reviewedAt && r.flags.some((f) => !r.ignoredRules.includes(f.code))
+  );
+
+  const summaryAction = useMemo(() => {
+    if (!auditRanAt) {
+      return {
+        label: 'Run check',
+        onClick: handleRunAudit,
+        disabled: auditFeedbackState === 'loading',
+      };
+    }
+
+    if (auditNeedsAttentionCount > 0) {
+      if (auditStep === 'resolve-findings' && firstSessionNeedingAttention) {
+        return {
+          label: 'Mark resolved/dismissed',
+          onClick: () =>
+            handleReviewSession(firstSessionNeedingAttention.sessionId),
+          disabled: false,
+        };
+      }
+      return {
+        label: 'Review findings',
+        onClick: () => setAuditStep('review-findings'),
+        disabled: false,
+      };
+    }
+
+    return {
+      label: 'Run check again',
+      onClick: handleRunAudit,
+      disabled: auditFeedbackState === 'loading',
+    };
+  }, [
+    auditFeedbackState,
+    auditNeedsAttentionCount,
+    auditRanAt,
+    auditStep,
+    firstSessionNeedingAttention,
+    handleRunAudit,
+  ]);
 
   return (
     <PluginPageShell
@@ -940,18 +989,71 @@ export const LogDoctor = (): React.ReactElement => {
       {/* Session Audit Tab */}
       {activeTab === 'audit' ? (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Session audit status</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
+              <div>
+                <p className="text-sm font-medium">
+                  {auditNeedsAttentionCount} session
+                  {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {!auditRanAt
+                    ? 'Run an audit check to detect quality issues.'
+                    : 'Follow the next action to move through the audit flow.'}
+                </p>
+              </div>
+              <Button
+                onClick={summaryAction.onClick}
+                disabled={summaryAction.disabled}
+              >
+                {summaryAction.label}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              onClick={handleRunAudit}
-              disabled={auditFeedbackState === 'loading'}
-              aria-label="Run session audit checks"
+              variant={auditStep === 'run-check' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAuditStep('run-check')}
             >
-              {auditFeedbackState === 'loading'
-                ? 'Running audit…'
-                : auditFeedbackState === 'success'
-                  ? 'Audit complete ✓'
-                  : 'Run audit'}
+              1. Run check
             </Button>
+            <Button
+              variant={auditStep === 'review-findings' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAuditStep('review-findings')}
+              disabled={!auditRanAt}
+            >
+              2. Review findings
+            </Button>
+            <Button
+              variant={auditStep === 'resolve-findings' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAuditStep('resolve-findings')}
+              disabled={!auditRanAt || auditResults.length === 0}
+            >
+              3. Mark resolved/dismissed
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {auditStep === 'run-check' ? (
+              <Button
+                onClick={handleRunAudit}
+                disabled={auditFeedbackState === 'loading'}
+                aria-label="Run session audit checks"
+              >
+                {auditFeedbackState === 'loading'
+                  ? 'Running audit…'
+                  : auditFeedbackState === 'success'
+                    ? 'Audit complete ✓'
+                    : 'Run audit'}
+              </Button>
+            ) : null}
             {auditRanAt ? (
               <span className="text-xs text-muted-foreground">
                 Last run: {new Date(auditRanAt).toLocaleTimeString()}
@@ -964,57 +1066,71 @@ export const LogDoctor = (): React.ReactElement => {
             )}
           </div>
 
-          <AuditSettings
-            mode={auditMode}
-            config={auditConfig}
-            sessionCount={
-              getSessions().filter(
-                (s) => typeof s.duration === 'number' && s.duration > 0
-              ).length
-            }
-            onConfigChange={handleUpdateAuditConfig}
-          />
+          {auditStep === 'run-check' ? (
+            <details className="rounded-md border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Advanced
+              </summary>
+              <div className="mt-3">
+                <AuditSettings
+                  mode={auditMode}
+                  config={auditConfig}
+                  sessionCount={
+                    getSessions().filter(
+                      (s) => typeof s.duration === 'number' && s.duration > 0
+                    ).length
+                  }
+                  onConfigChange={handleUpdateAuditConfig}
+                />
+              </div>
+            </details>
+          ) : null}
 
-          {auditResults.length > 0 ? (
-            <AuditResults
-              results={auditResults}
-              onReview={handleReviewSession}
-            />
-          ) : auditRanAt ? (
-            <PluginStatusPanel
-              variant="success"
-              title="All sessions passed quality checks!"
-              description="No issues detected."
-              className="border-dashed bg-secondary/20"
-            />
-          ) : (
-            <PluginStatusPanel
-              variant="warning"
-              title="Haven't run an audit yet"
-              description='Click "Run audit" above to get started.'
-              className="border-dashed bg-secondary/20"
-            />
-          )}
+          {auditStep === 'review-findings' ||
+          auditStep === 'resolve-findings' ? (
+            auditResults.length > 0 ? (
+              <AuditResults
+                results={auditResults}
+                onReview={handleReviewSession}
+              />
+            ) : auditRanAt ? (
+              <PluginStatusPanel
+                variant="success"
+                title="All sessions passed quality checks!"
+                description="No issues detected."
+                className="border-dashed bg-secondary/20"
+              />
+            ) : (
+              <PluginStatusPanel
+                variant="warning"
+                title="Haven't run an audit yet"
+                description='Click "Run audit" above to get started.'
+                className="border-dashed bg-secondary/20"
+              />
+            )
+          ) : null}
         </div>
       ) : null}
 
-      <AuditReviewDialog
-        session={reviewSession}
-        open={reviewSessionId !== null}
-        onClose={handleCloseReview}
-        onMarkResolved={(id) => {
-          void handleMarkResolved(id);
-        }}
-        onDismissForNow={(id) => {
-          void handleDismissForNow(id);
-        }}
-        onIgnoreRule={(id, code) => {
-          void handleIgnoreRule(id, code);
-        }}
-        onUnignoreRule={(id, code) => {
-          void handleUnignoreRule(id, code);
-        }}
-      />
+      {auditStep === 'resolve-findings' ? (
+        <AuditReviewDialog
+          session={reviewSession}
+          open={reviewSessionId !== null}
+          onClose={handleCloseReview}
+          onMarkResolved={(id) => {
+            void handleMarkResolved(id);
+          }}
+          onDismissForNow={(id) => {
+            void handleDismissForNow(id);
+          }}
+          onIgnoreRule={(id, code) => {
+            void handleIgnoreRule(id, code);
+          }}
+          onUnignoreRule={(id, code) => {
+            void handleUnignoreRule(id, code);
+          }}
+        />
+      ) : null}
 
       <PluginConfirmationDialog
         open={showApplyConfirmation}
