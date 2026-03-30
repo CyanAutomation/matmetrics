@@ -71,3 +71,26 @@ For destructive actions (delete/reset/clear/replace):
 - Dialogs must include clear titles/descriptions and keyboard-accessible cancel actions.
 - Disabled states must be programmatic (`disabled`, `aria-disabled`) and visually apparent.
 - Color must not be the only channel for status meaning; pair with iconography or text labels.
+
+## Required CI gates
+
+Plugin UI contract compliance is enforced at build/lint time.
+
+- Run `npm run validate:plugin-ui-contract` to statically validate each dashboard plugin component declared in `plugins/*/plugin.json`.
+- `npm run lint` now runs this validator before ESLint, so contract violations block CI and merges.
+- Validation failure output includes the plugin id, missing requirement, and source file path to fix.
+
+## Migration checklist for new plugins
+
+When adding a plugin dashboard tab:
+
+1. Declare each dashboard component id in `plugin.json` under `uiExtensions[].config.component`.
+2. Register the same component id in `plugins/<plugin>/src/index.ts` via `registerPluginComponent` with a concrete `React.createElement(Component)` target.
+3. Ensure the rendered UI tree uses shared shell/section primitives (`PluginPageShell` and, where applicable, `PluginSectionCard`).
+4. Implement every state helper required by `uiContract.requiredUxStates`:
+   - `loading` → `PluginLoadingState`
+   - `error` → `PluginErrorState`
+   - `empty` → `PluginEmptyState`
+   - `success` → `PluginSuccessState`
+   - `destructive` → `PluginConfirmationDialog`, `PluginDestructiveAction`, or `usePluginConfirmation`
+5. Run `npm run validate:plugin-ui-contract` locally before opening a PR.
