@@ -26,6 +26,12 @@ import {
   PluginStatsGrid,
 } from '@/components/plugins/plugin-stats-grid';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
+import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
+import {
+  PluginActionPrimary,
+  PluginActionRow,
+  PluginActionSecondary,
+} from '@/components/plugins/plugin-action-row';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -894,7 +900,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-5">
+        <PluginFilterBar>
           <div className="lg:col-span-2 space-y-2">
             <Label htmlFor="video-library-search">Search</Label>
             <div className="relative">
@@ -993,7 +999,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </PluginFilterBar>
 
         <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto_auto]">
           <div className="space-y-2">
@@ -1085,36 +1091,40 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
             </div>
           </div>
 
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleCheckFiltered()}
-              disabled={!bulkActionState.canCheckFiltered}
-            >
-              {isCheckingLinks ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCcw className="mr-2 h-4 w-4" />
-              )}
-              {bulkActionState.checkFilteredLabel}
-            </Button>
-          </div>
+          <div className="flex items-end lg:col-span-2">
+            <PluginActionRow>
+              <PluginActionSecondary>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleCheckFiltered()}
+                  disabled={!bulkActionState.canCheckFiltered}
+                >
+                  {isCheckingLinks ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                  )}
+                  {bulkActionState.checkFilteredLabel}
+                </Button>
+              </PluginActionSecondary>
 
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleCheckUnchecked()}
-              disabled={!bulkActionState.canCheckUnchecked}
-            >
-              {isCheckingLinks ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              )}
-              {bulkActionState.checkUncheckedLabel}
-            </Button>
+              <PluginActionPrimary>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleCheckUnchecked()}
+                  disabled={!bulkActionState.canCheckUnchecked}
+                >
+                  {isCheckingLinks ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}
+                  {bulkActionState.checkUncheckedLabel}
+                </Button>
+              </PluginActionPrimary>
+            </PluginActionRow>
           </div>
         </PluginToolbar>
       </PluginSectionCard>
