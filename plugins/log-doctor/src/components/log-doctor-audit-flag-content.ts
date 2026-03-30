@@ -38,7 +38,11 @@ export const groupAuditFlagsByHeading = (
   flags: AuditFlag[]
 ): Record<string, AuditFlag[]> =>
   flags.reduce<Record<string, AuditFlag[]>>((grouped, flag) => {
-    const heading = AUDIT_FLAG_PRESENTATION[flag.code].groupHeading;
+    const presentation = AUDIT_FLAG_PRESENTATION[flag.code];
+    if (!presentation) {
+      throw new Error(`Missing presentation config for audit flag code: ${flag.code}`);
+    }
+    const heading = presentation.groupHeading;
     if (!grouped[heading]) {
       grouped[heading] = [];
     }
