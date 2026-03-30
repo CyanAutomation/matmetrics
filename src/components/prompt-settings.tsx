@@ -31,6 +31,12 @@ import {
   resetTransformerPromptPreference,
   saveTransformerPromptPreference,
 } from '@/lib/user-preferences';
+import {
+  PluginEmptyState,
+  PluginErrorState,
+  PluginLoadingState,
+  PluginSuccessState,
+} from '@/components/plugins/plugin-state';
 
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
@@ -391,93 +397,50 @@ export function PromptSettings() {
       <Card className="bg-card/95 shadow-sm">
         <CardContent className="space-y-4 p-6 pt-8">
           {isLoadingSavedSettings && (
-            <div
-              className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"
-              aria-live="polite"
-            >
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {PROMPT_SETTINGS_LOADING_TEXT}
-            </div>
+            <PluginLoadingState description={PROMPT_SETTINGS_LOADING_TEXT} />
           )}
 
           {hasLoadError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Could not load saved prompt profile</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>
-                  We could not load your saved settings. Retry to fetch the
-                  latest prompt profile.
-                </p>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleRetryLoad()}
-                    disabled={isRetryingLoad}
-                  >
-                    {isRetryingLoad
-                      ? 'Retrying…'
-                      : PROMPT_SETTINGS_ERROR_RETRY_LABEL}
-                  </Button>
-                  <details className="text-xs">
-                    <summary className="cursor-pointer">Error details</summary>
-                    <p className="mt-1 break-words">
-                      {preferencesError?.message ?? 'Unknown load error'}
-                    </p>
-                  </details>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <PluginErrorState
+              title="Could not load saved prompt profile"
+              message="We could not load your saved settings. Retry to fetch the latest prompt profile."
+              onRetry={() => void handleRetryLoad()}
+              retryLabel={
+                isRetryingLoad ? 'Retrying…' : PROMPT_SETTINGS_ERROR_RETRY_LABEL
+              }
+              details={preferencesError?.message ?? 'Unknown load error'}
+            />
           )}
 
           {isUsingDefaultProfile && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>Start your first prompt profile</AlertTitle>
-              <AlertDescription>
-                You are currently using the default prompt.{' '}
-                {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
-              </AlertDescription>
-            </Alert>
+            <PluginEmptyState
+              title="Start your first prompt profile"
+              description={
+                <>
+                  You are currently using the default prompt.{' '}
+                  {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
+                </>
+              }
+              icon={<Info className="h-4 w-4" />}
+            />
           )}
 
           {hasSaveError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Prompt save failed</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>Your changes were not saved. Retry when you are ready.</p>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleSave()}
-                    disabled={!canSubmitPrompt}
-                  >
-                    Retry save
-                  </Button>
-                  <details className="text-xs">
-                    <summary className="cursor-pointer">Error details</summary>
-                    <p className="mt-1">
-                      {saveError?.message ?? 'Unknown save error'}
-                    </p>
-                  </details>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <PluginErrorState
+              title="Prompt save failed"
+              message="Your changes were not saved. Retry when you are ready."
+              onRetry={() => void handleSave()}
+              retryLabel="Retry save"
+              details={saveError?.message ?? 'Unknown save error'}
+            />
           )}
 
           {hasSaveSuccess && (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Prompt saved</AlertTitle>
-              <AlertDescription>
-                Your prompt profile is up to date.
-              </AlertDescription>
-            </Alert>
+            <PluginSuccessState
+              title="Prompt saved"
+              description="Your prompt profile is up to date."
+              icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            />
           )}
 
           {!isLoadingSavedSettings && (

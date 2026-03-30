@@ -53,6 +53,11 @@ import {
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from '@/components/github-settings-view-model';
+import {
+  PluginEmptyState,
+  PluginErrorState,
+  PluginSuccessState,
+} from '@/components/plugins/plugin-state';
 
 export function GitHubSettings() {
   const { toast } = useToast();
@@ -523,28 +528,31 @@ export function GitHubSettings() {
 
             {/* Status */}
             {isEnabled && (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50/90 border border-green-200/40 p-3 rounded-lg">
-                <CheckCircle2 className="h-4 w-4" />
-                Connected to{' '}
-                <strong>
-                  {owner}/{repo}
-                </strong>
-                {branch.trim() ? (
+              <PluginSuccessState
+                title="Repository connected"
+                description={
                   <>
-                    {' '}
-                    on branch <strong>{branch.trim()}</strong>
+                    Connected to <strong>{owner}</strong>/
+                    <strong>{repo}</strong>
+                    {branch.trim() ? (
+                      <>
+                        {' '}
+                        on branch <strong>{branch.trim()}</strong>
+                      </>
+                    ) : (
+                      <> on repository default branch</>
+                    )}
                   </>
-                ) : (
-                  <> on repository default branch</>
-                )}
-              </div>
+                }
+                icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              />
             )}
 
             {testResult && !testResult.success && (
-              <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50/90 border border-red-200/40 p-3 rounded-lg">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>{testResult.message}</div>
-              </div>
+              <PluginErrorState
+                title="Connection test failed"
+                message={testResult.message}
+              />
             )}
           </div>
 
@@ -615,30 +623,20 @@ export function GitHubSettings() {
       </Card>
 
       {!isEnabled && (
-        <Alert className="bg-slate-50 border-slate-200">
-          <AlertCircle className="h-4 w-4 text-slate-600" />
-          <AlertTitle className="text-slate-900 font-bold">
-            Sync not configured
-          </AlertTitle>
-          <AlertDescription className="text-slate-700">
-            No repository is currently configured. Add an owner and repository
-            above, then save your configuration to enable GitHub sync.
-          </AlertDescription>
-        </Alert>
+        <PluginEmptyState
+          title="Sync not configured"
+          description="No repository is currently configured. Add an owner and repository above, then save your configuration to enable GitHub sync."
+          icon={<AlertCircle className="h-4 w-4 text-slate-600" />}
+        />
       )}
 
       {isEnabled && !migrationDone && (
-        <Alert className="bg-purple-50 border-purple-200">
-          <AlertCircle className="h-4 w-4 text-purple-700" />
-          <AlertTitle className="text-purple-900 font-bold">
-            Initial sync pending
-          </AlertTitle>
-          <AlertDescription className="text-purple-800">
-            GitHub sync is enabled, but existing sessions have not been pushed
-            yet. Run initial sync below to backfill your current training
-            history.
-          </AlertDescription>
-        </Alert>
+        <PluginEmptyState
+          title="Initial sync pending"
+          description="GitHub sync is enabled, but existing sessions have not been pushed yet. Run initial sync below to backfill your current training history."
+          icon={<AlertCircle className="h-4 w-4 text-purple-700" />}
+          className="border-purple-200 bg-purple-50"
+        />
       )}
 
       {/* Bulk Sync Section */}
