@@ -45,11 +45,11 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || releases.length > 0 || isLoading) {
+    if (!open || releases.length > 0) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadReleases = async () => {
       setIsLoading(true);
@@ -58,6 +58,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
       try {
         const response = await fetch('/api/releases/recent', {
           cache: 'no-store',
+          signal: controller.signal,
         });
         const payload = (await response.json()) as
           | RecentReleasesResponse
@@ -72,23 +73,22 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
           throw new Error('Unknown error');
         }
 
-        if (!cancelled) {
-          if (!isRecentReleasesResponse(payload)) {
-            throw new Error('Release history response is missing releases.');
-          }
-          setReleases(payload.releases);
+        if (!isRecentReleasesResponse(payload)) {
+          throw new Error('Release history response is missing releases.');
         }
+        setReleases(payload.releases);
       } catch (fetchError) {
-        if (!cancelled) {
-          setError(
-            fetchError instanceof Error
-              ? fetchError.message
-              : 'Unable to load release history.'
-          );
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+          return;
         }
+
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : 'Unable to load release history.'
+        );
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
+        setIsLoading(false);
         }
       }
     };
@@ -96,9 +96,9 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
     void loadReleases();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [isLoading, open, releases.length]);
+  }, [open, releases.length]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
