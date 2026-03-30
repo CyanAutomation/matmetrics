@@ -93,9 +93,8 @@ const resolveImportPath = async (
   for (const extension of supportedExtensions) {
     const candidate = `${basePath}${extension}`;
     try {
-      const stats = await readFile(candidate, 'utf8');
-      if (stats.length >= 0) {
-        return candidate;
+      await readFile(candidate, 'utf8');
+      return candidate;
       }
     } catch {
       // Ignore unresolved candidates.
