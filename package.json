@@ -22,7 +22,8 @@
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
     "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/...",
     "verify": "npm test && npm run typecheck && npm run build && npm run go:test",
-    "plugin:maturity:regenerate": "node --import tsx scripts/regenerate-plugin-maturity-scorecards.ts"
+    "plugin:maturity:regenerate": "node --import tsx scripts/regenerate-plugin-maturity-scorecards.ts",
+    "plugin:ui-migration:regenerate": "node --import tsx scripts/regenerate-plugin-ui-migration-scorecards.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
