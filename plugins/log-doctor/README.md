@@ -18,6 +18,12 @@ The Log Doctor plugin adds a **dashboard tab** for plugin-focused log diagnostic
 
 This metadata is declared in `plugins/log-doctor/plugin.json` and must stay aligned with runtime registration in `plugins/log-doctor/src/index.ts`.
 
+## UI Ownership
+
+- Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
+- This plugin owns `plugins/log-doctor/src/components/*` as its feature UI surface.
+- Shared cross-plugin primitives remain in `src/components/plugins`.
+
 ## Usage
 
 1. Ensure the plugin is discoverable and enabled in Dashboard → Plugins.

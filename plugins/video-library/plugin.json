@@ -29,21 +29,21 @@
         "plugins/plugin-manifest-contract.test.ts",
         "src/lib/video-library.test.ts",
         "src/tests/api-video-library-check-links-route.test.ts",
-        "src/components/video-library.ux.test.tsx",
-        "src/components/video-library.destructive.test.tsx"
+        "plugins/video-library/src/components/video-library.ux.test.tsx",
+        "plugins/video-library/src/components/video-library.destructive.test.tsx"
       ],
       "uxCriteria": {
         "loadingStatePresent": [
-          "src/components/video-library.ux.test.tsx"
+          "plugins/video-library/src/components/video-library.ux.test.tsx"
         ],
         "errorStateWithRecovery": [
-          "src/components/video-library.ux.test.tsx"
+          "plugins/video-library/src/components/video-library.ux.test.tsx"
         ],
         "emptyStateWithCta": [
-          "src/components/video-library.ux.test.tsx"
+          "plugins/video-library/src/components/video-library.ux.test.tsx"
         ],
         "destructiveActionSafety": [
-          "src/components/video-library.destructive.test.tsx"
+          "plugins/video-library/src/components/video-library.destructive.test.tsx"
         ]
       }
     }

@@ -9,7 +9,7 @@
       "entrypoint": "plugins/github-sync/src/index.ts",
       "uiEntrypoints": [
         "plugins/github-sync/src/index.ts",
-        "src/components/github-settings.tsx"
+        "plugins/github-sync/src/components/github-settings.tsx"
       ],
       "checks": {
         "sharedShell": true,
@@ -41,7 +41,7 @@
       "entrypoint": "plugins/prompt-settings/src/index.ts",
       "uiEntrypoints": [
         "plugins/prompt-settings/src/index.ts",
-        "src/components/prompt-settings.tsx"
+        "plugins/prompt-settings/src/components/prompt-settings.tsx"
       ],
       "checks": {
         "sharedShell": true,
@@ -57,7 +57,7 @@
       "entrypoint": "plugins/tag-manager/src/index.ts",
       "uiEntrypoints": [
         "plugins/tag-manager/src/index.ts",
-        "src/components/tag-manager.tsx"
+        "plugins/tag-manager/src/components/tag-manager.tsx"
       ],
       "checks": {
         "sharedShell": true,
@@ -73,7 +73,7 @@
       "entrypoint": "plugins/video-library/src/index.ts",
       "uiEntrypoints": [
         "plugins/video-library/src/index.ts",
-        "src/components/video-library.tsx"
+        "plugins/video-library/src/components/video-library.tsx"
       ],
       "checks": {
         "sharedShell": true,
