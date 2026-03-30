@@ -159,7 +159,9 @@ export const AuditReviewDialog = ({
                       key={`advanced-${flag.code}`}
                       className="flex items-center justify-between gap-2"
                     >
-                      <span className="text-xs">{FLAG_CODE_LABEL[flag.code]}</span>
+                      <span className="text-xs">
+                        {FLAG_CODE_LABEL[flag.code]}
+                      </span>
                       <Button
                         size="sm"
                         variant={isIgnored ? 'secondary' : 'outline'}

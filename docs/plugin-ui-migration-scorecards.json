@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-30T08:40:59.112Z",
+  "generatedAt": "2026-03-30T12:14:58.524Z",
   "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
   "sourceEntrypoint": "plugins/*/src/index.ts",
-  "cacheKey": "94fce05eb6c0808e4483cbef7c4d04c1988bac9e28134bbc2df966acb0844b9f",
+  "cacheKey": "c70fb9eda650f84f4ff93e36aba7bdc22fc7d81cd43cc5e4c0bf69975ccdeeaa",
   "plugins": [
     {
       "id": "github-sync",
@@ -29,12 +29,12 @@
       ],
       "checks": {
         "sharedShell": true,
-        "sharedState": true,
+        "sharedState": false,
         "sharedDestructiveConfirmation": true
       },
-      "score": 3,
+      "score": 2,
       "maxScore": 3,
-      "missing": []
+      "missing": ["sharedState"]
     },
     {
       "id": "prompt-settings",
@@ -78,11 +78,11 @@
       "checks": {
         "sharedShell": true,
         "sharedState": true,
-        "sharedDestructiveConfirmation": true
+        "sharedDestructiveConfirmation": false
       },
-      "score": 3,
+      "score": 2,
       "maxScore": 3,
-      "missing": []
+      "missing": ["sharedDestructiveConfirmation"]
     }
   ]
 }

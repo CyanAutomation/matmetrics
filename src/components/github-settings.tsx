@@ -42,6 +42,7 @@ import {
   resolveClearDialogOutcome,
 } from '@/components/github-settings-view-model';
 import {
+  PluginLoadingState,
   PluginEmptyState,
   PluginErrorState,
   PluginSuccessState,
@@ -530,105 +531,102 @@ export function GitHubSettings() {
           </>
         }
       >
-          {/* Configuration Information */}
-          <div
-            className={`rounded-lg border p-4 ${theme.warningTone} shadow-sm`}
-          >
-            <p className="mb-2 text-sm font-semibold text-current">
-              Setup Requirements:
-            </p>
-            <ul className="list-inside list-disc space-y-1 text-sm text-current/90">
-              <li>
-                Add{' '}
-                <code className="rounded bg-background/70 px-2 py-1">
-                  GITHUB_TOKEN
-                </code>{' '}
-                to your Vercel environment variables
-              </li>
-              <li>
-                Token must have{' '}
-                <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
-                permissions
-              </li>
-              <li>Repository will be created or used if it already exists</li>
-            </ul>
-          </div>
+        {/* Configuration Information */}
+        <div className={`rounded-lg border p-4 ${theme.warningTone} shadow-sm`}>
+          <p className="mb-2 text-sm font-semibold text-current">
+            Setup Requirements:
+          </p>
+          <ul className="list-inside list-disc space-y-1 text-sm text-current/90">
+            <li>
+              Add{' '}
+              <code className="rounded bg-background/70 px-2 py-1">
+                GITHUB_TOKEN
+              </code>{' '}
+              to your Vercel environment variables
+            </li>
+            <li>
+              Token must have{' '}
+              <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
+              permissions
+            </li>
+            <li>Repository will be created or used if it already exists</li>
+          </ul>
+        </div>
 
-          {/* Form */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="owner" className="text-sm font-semibold">
-                  GitHub Owner/Username
-                </Label>
-                <Input
-                  id="owner"
-                  placeholder="e.g., CyanAutomation"
-                  value={owner}
-                  onChange={(e) => setOwner(e.target.value)}
-                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-primary/25 focus:border-primary/45"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="repo" className="text-sm font-semibold">
-                  Repository Name
-                </Label>
-                <Input
-                  id="repo"
-                  placeholder="e.g., my-judo-diary"
-                  value={repo}
-                  onChange={(e) => setRepo(e.target.value)}
-                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-primary/25 focus:border-primary/45"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="branch" className="text-sm font-semibold">
-                  Branch (optional)
-                </Label>
-                <Input
-                  id="branch"
-                  placeholder="e.g., main, master, sync"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-primary/25 focus:border-primary/45"
-                />
-              </div>
+        {/* Form */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="owner" className="text-sm font-semibold">
+                GitHub Owner/Username
+              </Label>
+              <Input
+                id="owner"
+                placeholder="e.g., CyanAutomation"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
+                className="border-primary/25 focus:border-primary/45"
+              />
             </div>
 
-            {/* Status */}
-            {isEnabled && (
-              <PluginSuccessState
-                title="Repository connected"
-                description={
-                  <>
-                    Connected to <strong>{owner}</strong>/
-                    <strong>{repo}</strong>
-                    {branch.trim() ? (
-                      <>
-                        {' '}
-                        on branch <strong>{branch.trim()}</strong>
-                      </>
-                    ) : (
-                      <> on repository default branch</>
-                    )}
-                  </>
-                }
-                icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            <div className="space-y-2">
+              <Label htmlFor="repo" className="text-sm font-semibold">
+                Repository Name
+              </Label>
+              <Input
+                id="repo"
+                placeholder="e.g., my-judo-diary"
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
+                className="border-primary/25 focus:border-primary/45"
               />
-            )}
+            </div>
 
-            {testResult && !testResult.success && (
-              <PluginErrorState
-                title="Connection test failed"
-                message={testResult.message}
+            <div className="space-y-2">
+              <Label htmlFor="branch" className="text-sm font-semibold">
+                Branch (optional)
+              </Label>
+              <Input
+                id="branch"
+                placeholder="e.g., main, master, sync"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
+                className="border-primary/25 focus:border-primary/45"
               />
-            )}
+            </div>
           </div>
+
+          {/* Status */}
+          {isEnabled && (
+            <PluginSuccessState
+              title="Repository connected"
+              description={
+                <>
+                  Connected to <strong>{owner}</strong>/<strong>{repo}</strong>
+                  {branch.trim() ? (
+                    <>
+                      {' '}
+                      on branch <strong>{branch.trim()}</strong>
+                    </>
+                  ) : (
+                    <> on repository default branch</>
+                  )}
+                </>
+              }
+              icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            />
+          )}
+
+          {testResult && !testResult.success && (
+            <PluginErrorState
+              title="Connection test failed"
+              message={testResult.message}
+            />
+          )}
+        </div>
       </PluginFormSection>
 
       {!isEnabled && (
@@ -656,28 +654,28 @@ export function GitHubSettings() {
           className="shadow-sm"
           contentClassName="p-6 pt-8"
         >
-            <p className="text-sm text-gray-700 mb-4">
-              Click below to sync all your existing training sessions to GitHub.
-              This is a one-time operation and will create the folder structure
-              in your repository.
-            </p>
-            <Button
-              onClick={() => void handleBulkSync()}
-              disabled={!controlState.canRunSyncAll}
-              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {controlState.syncAllLabel}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Sync All Sessions to GitHub
-                </>
-              )}
-            </Button>
+          <p className="text-sm text-gray-700 mb-4">
+            Click below to sync all your existing training sessions to GitHub.
+            This is a one-time operation and will create the folder structure in
+            your repository.
+          </p>
+          <Button
+            onClick={() => void handleBulkSync()}
+            disabled={!controlState.canRunSyncAll}
+            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {isSyncing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {controlState.syncAllLabel}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Sync All Sessions to GitHub
+              </>
+            )}
+          </Button>
         </PluginFormSection>
       )}
 
@@ -709,31 +707,37 @@ export function GitHubSettings() {
             </Button>
           }
         >
-            <SyncResultsMainPanel
-              state={syncHistoryState}
-              onRetry={() => void handleLoadSyncHistory()}
-              onRunSync={() => void handleBulkSync()}
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h4 className="mb-2 text-sm font-semibold">History list</h4>
-                <SyncResultsHistoryList
-                  state={syncHistoryState}
-                  selectedPath={selectedHistoryPath}
-                  onSelect={setSelectedHistoryPath}
-                  onRetry={() => void handleLoadSyncHistory()}
-                  onRunSync={() => void handleBulkSync()}
-                />
+          {syncHistoryState.status === 'loading' ? (
+            <PluginLoadingState description="Loading sync history and per-file diagnostics." />
+          ) : (
+            <>
+              <SyncResultsMainPanel
+                state={syncHistoryState}
+                onRetry={() => void handleLoadSyncHistory()}
+                onRunSync={() => void handleBulkSync()}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold">History list</h4>
+                  <SyncResultsHistoryList
+                    state={syncHistoryState}
+                    selectedPath={selectedHistoryPath}
+                    onSelect={setSelectedHistoryPath}
+                    onRetry={() => void handleLoadSyncHistory()}
+                    onRunSync={() => void handleBulkSync()}
+                  />
+                </div>
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold">Detail pane</h4>
+                  <SyncResultsDetailPane
+                    state={syncHistoryState}
+                    selectedPath={selectedHistoryPath}
+                    onRetry={() => void handleLoadSyncHistory()}
+                  />
+                </div>
               </div>
-              <div>
-                <h4 className="mb-2 text-sm font-semibold">Detail pane</h4>
-                <SyncResultsDetailPane
-                  state={syncHistoryState}
-                  selectedPath={selectedHistoryPath}
-                  onRetry={() => void handleLoadSyncHistory()}
-                />
-              </div>
-            </div>
+            </>
+          )}
         </PluginTableSection>
       )}
 

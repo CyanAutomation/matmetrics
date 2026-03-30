@@ -126,7 +126,7 @@ export function PluginConfirmationDialog({
             onClick={handleConfirm}
             disabled={confirmDisabled || isPending || !canConfirmTypedInput}
           >
-            {isPending ? pendingLabel ?? confirmLabel : confirmLabel}
+            {isPending ? (pendingLabel ?? confirmLabel) : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

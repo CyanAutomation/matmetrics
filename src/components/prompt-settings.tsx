@@ -420,87 +420,87 @@ export function PromptSettings() {
           </>
         }
       >
-          {isLoadingSavedSettings && (
-            <PluginLoadingState description={PROMPT_SETTINGS_LOADING_TEXT} />
-          )}
+        {isLoadingSavedSettings && (
+          <PluginLoadingState description={PROMPT_SETTINGS_LOADING_TEXT} />
+        )}
 
-          {hasLoadError && (
-            <PluginErrorState
-              title="Could not load saved prompt profile"
-              message="We could not load your saved settings. Retry to fetch the latest prompt profile."
-              onRetry={() => void handleRetryLoad()}
-              retryLabel={
-                isRetryingLoad ? 'Retrying…' : PROMPT_SETTINGS_ERROR_RETRY_LABEL
-              }
-              details={preferencesError?.message ?? 'Unknown load error'}
+        {hasLoadError && (
+          <PluginErrorState
+            title="Could not load saved prompt profile"
+            message="We could not load your saved settings. Retry to fetch the latest prompt profile."
+            onRetry={() => void handleRetryLoad()}
+            retryLabel={
+              isRetryingLoad ? 'Retrying…' : PROMPT_SETTINGS_ERROR_RETRY_LABEL
+            }
+            details={preferencesError?.message ?? 'Unknown load error'}
+          />
+        )}
+
+        {isUsingDefaultProfile && (
+          <PluginEmptyState
+            title="Start your first prompt profile"
+            description={
+              <>
+                You are currently using the default prompt.{' '}
+                {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
+              </>
+            }
+            icon={<Info className="h-4 w-4" />}
+          />
+        )}
+
+        {hasSaveError && (
+          <PluginStatusPanel
+            variant="error"
+            title="Prompt save failed"
+            description={
+              saveError?.message
+                ? `Your changes were not saved. ${saveError.message}`
+                : 'Your changes were not saved. Retry when you are ready.'
+            }
+            onCta={() => void handleSave()}
+            ctaLabel="Retry save"
+          />
+        )}
+
+        {hasSaveSuccess && (
+          <PluginSuccessState
+            title="Prompt saved"
+            description="Your prompt profile is up to date."
+            icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+          />
+        )}
+
+        {!isLoadingSavedSettings && (
+          <div className="space-y-3">
+            <Label
+              htmlFor="custom-prompt"
+              className="text-sm font-bold flex items-center gap-2"
+            >
+              System Instructions
+              <span className="text-xs font-normal text-muted-foreground">
+                (Requires Handlebars syntax for context)
+              </span>
+            </Label>
+            <Textarea
+              id="custom-prompt"
+              value={prompt}
+              onChange={(e) => {
+                setPrompt(e.target.value);
+                setSaveStatus('idle');
+                setSaveError(null);
+              }}
+              placeholder="Enter your custom instructions here..."
+              disabled={areControlsDisabled}
+              className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
             />
-          )}
-
-          {isUsingDefaultProfile && (
-            <PluginEmptyState
-              title="Start your first prompt profile"
-              description={
-                <>
-                  You are currently using the default prompt.{' '}
-                  {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
-                </>
-              }
-              icon={<Info className="h-4 w-4" />}
-            />
-          )}
-
-          {hasSaveError && (
-            <PluginStatusPanel
-              variant="error"
-              title="Prompt save failed"
-              description={
-                saveError?.message
-                  ? `Your changes were not saved. ${saveError.message}`
-                  : 'Your changes were not saved. Retry when you are ready.'
-              }
-              onCta={() => void handleSave()}
-              ctaLabel="Retry save"
-            />
-          )}
-
-          {hasSaveSuccess && (
-            <PluginSuccessState
-              title="Prompt saved"
-              description="Your prompt profile is up to date."
-              icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-            />
-          )}
-
-          {!isLoadingSavedSettings && (
-            <div className="space-y-3">
-              <Label
-                htmlFor="custom-prompt"
-                className="text-sm font-bold flex items-center gap-2"
-              >
-                System Instructions
-                <span className="text-xs font-normal text-muted-foreground">
-                  (Requires Handlebars syntax for context)
-                </span>
-              </Label>
-              <Textarea
-                id="custom-prompt"
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  setSaveStatus('idle');
-                  setSaveError(null);
-                }}
-                placeholder="Enter your custom instructions here..."
-                disabled={areControlsDisabled}
-                className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
-              />
-              <p className="text-[11px] text-muted-foreground italic">
-                {isPromptMeaningful
-                  ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
-                  : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
-              </p>
-            </div>
-          )}
+            <p className="text-[11px] text-muted-foreground italic">
+              {isPromptMeaningful
+                ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
+                : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
+            </p>
+          </div>
+        )}
       </PluginFormSection>
       <PluginConfirmationDialog
         open={isResetDialogOpen}

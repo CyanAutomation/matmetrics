@@ -214,36 +214,39 @@ export const createPluginSurfaceRenderer = ({
     emitPluginSurfaceWarning(warning, onWarning)
   );
 
-  return (context) => {
-    const renderedNode = renderer(context);
-    const designTokenVariantWarnings = buildMissingDesignTokenVariantWarnings(
-      uiContract,
-      pluginId,
-      extensionId
-    );
-    const runtimeWarnings = buildMissingUxStateWarnings(
-      renderedNode,
-      uiContract,
-      pluginId,
-      extensionId
-    );
-    designTokenVariantWarnings.forEach((warning) =>
-      emitPluginSurfaceWarning(warning, onWarning)
-    );
-    runtimeWarnings.forEach((warning) =>
-      emitPluginSurfaceWarning(warning, onWarning)
-    );
+  const PluginSurfaceRendererWithLayout: PluginSurfaceRenderer =
+    function PluginSurfaceRendererWithLayout(context) {
+      const renderedNode = renderer(context);
+      const designTokenVariantWarnings = buildMissingDesignTokenVariantWarnings(
+        uiContract,
+        pluginId,
+        extensionId
+      );
+      const runtimeWarnings = buildMissingUxStateWarnings(
+        renderedNode,
+        uiContract,
+        pluginId,
+        extensionId
+      );
+      designTokenVariantWarnings.forEach((warning) =>
+        emitPluginSurfaceWarning(warning, onWarning)
+      );
+      runtimeWarnings.forEach((warning) =>
+        emitPluginSurfaceWarning(warning, onWarning)
+      );
 
-    return React.createElement(
-      'div',
-      {
-        className: cn(layoutResult.className),
-        'data-plugin-surface': `${pluginId}:${extensionId}`,
-        'data-layout-variant': uiContract?.layoutVariant ?? 'standard',
-      },
-      renderedNode
-    );
-  };
+      return React.createElement(
+        'div',
+        {
+          className: cn(layoutResult.className),
+          'data-plugin-surface': `${pluginId}:${extensionId}`,
+          'data-layout-variant': uiContract?.layoutVariant ?? 'standard',
+        },
+        renderedNode
+      );
+    };
+
+  return PluginSurfaceRendererWithLayout;
 };
 
 export const getPluginSurfaceLayoutClassName = (

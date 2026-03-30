@@ -24,10 +24,15 @@ export function PluginAuthGateNotice({
   tone = 'warning',
   className,
 }: PluginAuthGateNoticeProps) {
+  const description =
+    authAvailable && isAuthenticated
+      ? signedInDescription
+      : signedOutDescription;
+
   return (
     <PluginNotice
       title={title}
-      description={isAuthenticated ? signedInDescription : signedOutDescription}
+      description={description}
       tone={tone}
       className={className}
       icon={<AlertCircle className="h-4 w-4" />}

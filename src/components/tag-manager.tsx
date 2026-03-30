@@ -34,6 +34,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
+import { PluginLoadingState } from '@/components/plugins/plugin-state';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -414,6 +415,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
 
   const filteredTags = tagService.searchTags(search);
   const emptyState = deriveTagManagerEmptyState(search);
+  const isMutatingTags =
+    isAnalyzingRename ||
+    isApplyingRename ||
+    isAnalyzingMerge ||
+    isApplyingMerge ||
+    isAnalyzingDelete ||
+    isApplyingDelete;
 
   return (
     <PluginPageShell
@@ -421,6 +429,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       description="Manage your technique tags. Changes apply globally to all logged sessions."
       icon={<Tags className="h-6 w-6" />}
     >
+      {isMutatingTags ? (
+        <PluginLoadingState
+          title="Updating tags"
+          description="Analyzing or applying tag changes. Please keep this page open."
+          className="mb-4"
+        />
+      ) : null}
       <PluginTableSection
         title="Tag inventory"
         description="Search, rename, merge, or remove techniques."

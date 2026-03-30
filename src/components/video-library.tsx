@@ -20,6 +20,7 @@ import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
+import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import {
   PluginStatCard,
   PluginStatsGrid,
@@ -855,6 +856,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         <PluginStatCard label="Needs review" value={summaryCounts.review} />
         <PluginStatCard label="Checked links" value={summaryCounts.checked} />
       </PluginStatsGrid>
+
+      {isCheckingLinks ? (
+        <PluginLoadingState
+          title="Checking video links"
+          description="Running live checks for the current selection and updating the audit results."
+          className="mb-4"
+        />
+      ) : null}
 
       <PluginSectionCard
         title="Inventory & filters"
