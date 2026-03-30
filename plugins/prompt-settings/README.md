@@ -67,6 +67,8 @@ Behavioral expectations:
 Run these checks to validate plugin registration and API/plugin contract behavior:
 
 ```bash
+npm test -- plugins/prompt-settings/plugin.test.ts
+npm test -- plugins/prompt-settings/src/index.test.ts
 npm test -- src/lib/plugins/plugin-contract-gate.test.ts
 npm test -- src/lib/plugins/load-dashboard-tab-extensions.test.ts
 npm test -- src/tests/api-plugins-routes.test.ts
@@ -86,7 +88,7 @@ npm run typecheck
 Run plugin-focused and integration coverage that exercises plugin discovery/render wiring:
 
 ```bash
-npm test -- src/lib/plugins/plugin-component-bootstrap.ts
+npm test -- src/components/prompt-settings.test.tsx
 npm test -- src/lib/plugins/load-dashboard-tab-extensions.test.ts
 npm test -- src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts
 npm test -- src/lib/navigation/tab-definitions.test.ts

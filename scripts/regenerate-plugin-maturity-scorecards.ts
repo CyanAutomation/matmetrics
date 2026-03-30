@@ -5,10 +5,17 @@ import { scorePluginMaturity } from '@/lib/plugins/maturity';
 import type { PluginManifest } from '@/lib/plugins/types';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import githubSyncManifest from '../plugins/github-sync/plugin.json';
+import logDoctorManifest from '../plugins/log-doctor/plugin.json';
 import promptSettingsManifest from '../plugins/prompt-settings/plugin.json';
 import tagManagerManifest from '../plugins/tag-manager/plugin.json';
+import videoLibraryManifest from '../plugins/video-library/plugin.json';
 
-type PluginId = 'tag-manager' | 'github-sync' | 'prompt-settings';
+type PluginId =
+  | 'tag-manager'
+  | 'github-sync'
+  | 'log-doctor'
+  | 'prompt-settings'
+  | 'video-library';
 
 type ScoreArtifactRow = {
   id: PluginId;
@@ -30,7 +37,9 @@ type ScoreArtifact = {
 const pluginManifests: Record<PluginId, unknown> = {
   'tag-manager': tagManagerManifest,
   'github-sync': githubSyncManifest,
+  'log-doctor': logDoctorManifest,
   'prompt-settings': promptSettingsManifest,
+  'video-library': videoLibraryManifest,
 };
 
 const stableNormalize = (value: unknown): unknown => {

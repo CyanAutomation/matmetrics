@@ -114,6 +114,8 @@ Expected states:
 Run these checks before manual UI validation to confirm plugin loading and contract compliance:
 
 ```bash
+npm test -- plugins/github-sync/plugin.test.ts
+npm test -- plugins/github-sync/src/index.test.ts
 npm test -- src/lib/plugins/validate.test.ts
 npm test -- src/tests/api-plugins-routes.test.ts
 npm test -- src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts
@@ -154,14 +156,14 @@ node --import tsx --test src/lib/plugins/validate.test.ts
 When plugin-specific suites are added, use these exact command patterns:
 
 ```bash
-node --import tsx --test plugins/github-sync/**/*.test.ts
+node --import tsx --test plugins/github-sync/plugin.test.ts plugins/github-sync/src/index.test.ts plugins/github-sync/src/index.behavior.test.ts
 node --import tsx --test src/components/github-settings.test.tsx
 ```
 
 If you add an npm script later, keep parity with:
 
 ```bash
-npm run test -- plugins/github-sync/**/*.test.ts src/components/github-settings.test.tsx
+npm run test -- plugins/github-sync/plugin.test.ts plugins/github-sync/src/index.test.ts plugins/github-sync/src/index.behavior.test.ts src/components/github-settings.test.tsx
 ```
 
 ## Troubleshooting

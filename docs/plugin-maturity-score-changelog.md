@@ -1,4 +1,4 @@
-# Plugin Maturity Score Changelog (2026-03-29)
+# Plugin Maturity Score Changelog (2026-03-30)
 
 This changelog tracks the published plugin maturity score artifact generated from the same scoring path used by the plugin manager API (`src/app/api/plugins/list/route.ts` → `scorePluginMaturity`).
 
@@ -10,13 +10,15 @@ This changelog tracks the published plugin maturity score artifact generated fro
 
 ## Regenerated score snapshot
 
-Source artifact cache key: `aa8ae027193549f37f41c783fda662b3cfdd79939864cfaa6fcb07658fc03a30`
+Source artifact cache key: `2773b1d13adf6bf19a83613b7848a13895178520d59389fbbee8880deaf814b5`
 
 | Plugin            | Score | Tier     | Declared tier | Manifest reviewed |
 | ----------------- | ----: | -------- | ------------- | ----------------- |
-| `tag-manager`     |    93 | `silver` | `bronze`      | `2026-03-24`      |
-| `github-sync`     |    91 | `silver` | `bronze`      | `2026-03-29`      |
-| `prompt-settings` |    91 | `silver` | `bronze`      | `2026-03-24`      |
+| `github-sync`     |    91 | `silver` | `silver`      | `2026-03-30`      |
+| `log-doctor`      |    89 | `silver` | `silver`      | `2026-03-29`      |
+| `prompt-settings` |    91 | `silver` | `silver`      | `2026-03-30`      |
+| `tag-manager`     |    93 | `silver` | `silver`      | `2026-03-30`      |
+| `video-library`   |    91 | `silver` | `silver`      | `2026-03-30`      |
 
 ## Reproducible regeneration steps
 

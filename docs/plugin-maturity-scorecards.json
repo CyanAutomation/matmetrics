@@ -1,32 +1,48 @@
 {
-  "generatedAt": "2026-03-30T06:22:52.863Z",
+  "generatedAt": "2026-03-30T12:29:33.735Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
   "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "4c8695730fb351824fe059d7b92c37d3c2b6194e01e26c956c4a51e576dad6ba",
+  "cacheKey": "2773b1d13adf6bf19a83613b7848a13895178520d59389fbbee8880deaf814b5",
   "plugins": [
     {
       "id": "github-sync",
       "score": 91,
       "tier": "silver",
-      "declaredTier": "bronze",
+      "declaredTier": "silver",
+      "manifestLastReviewedAt": "2026-03-30",
+      "manifestEvidenceHash": "5dcd88798e7f2da0c6569a65d40cf2203fce795ff7ee806b4a98e13fbe66effb"
+    },
+    {
+      "id": "log-doctor",
+      "score": 89,
+      "tier": "silver",
+      "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-29",
-      "manifestEvidenceHash": "212045eaebdc662b4135530893557d6d0f4876b06b5a9d804d6f0b84810486c3"
+      "manifestEvidenceHash": "faf58ddf30dfb6d737354a81bb01f5927198e35bd32669205ac2ac540437051b"
     },
     {
       "id": "prompt-settings",
       "score": 91,
       "tier": "silver",
-      "declaredTier": "bronze",
-      "manifestLastReviewedAt": "2026-03-24",
-      "manifestEvidenceHash": "8476e6ca0717f050f4f32f3b0c65c19d9de75e68e50fa7230708417858b871cf"
+      "declaredTier": "silver",
+      "manifestLastReviewedAt": "2026-03-30",
+      "manifestEvidenceHash": "feff7efef12bbd674761dc5f5ee973a1378fcca0d4cea3cb4ac2544b588f0c3c"
     },
     {
       "id": "tag-manager",
       "score": 93,
       "tier": "silver",
-      "declaredTier": "bronze",
-      "manifestLastReviewedAt": "2026-03-24",
-      "manifestEvidenceHash": "a22b5420483358496f670acc97fb1118bf3f80b81378a2585f0ab95c73800694"
+      "declaredTier": "silver",
+      "manifestLastReviewedAt": "2026-03-30",
+      "manifestEvidenceHash": "ab5085cd18686bf23aa796b97186bfdf260275bc14f0c5b9a0195d678a90788c"
+    },
+    {
+      "id": "video-library",
+      "score": 91,
+      "tier": "silver",
+      "declaredTier": "silver",
+      "manifestLastReviewedAt": "2026-03-30",
+      "manifestEvidenceHash": "9af45789f9024e0f15efa2ef20f0eef915eb04d9cfa05e02c4f38c8b5c1cef92"
     }
   ]
 }
