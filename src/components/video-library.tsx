@@ -57,6 +57,7 @@ import { useAuth } from '@/components/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getSessions, updateSession } from '@/lib/storage';
+import { DEFAULT_EXPECTED_VIDEO_CATEGORIES } from '@/lib/types';
 import type {
   JudoSession,
   SessionCategory,
@@ -105,6 +106,12 @@ type VideoLibrarySortOption =
   | 'oldest'
   | 'recently_checked'
   | 'provider';
+
+const SESSION_CATEGORY_OPTIONS: SessionCategory[] = [
+  'Technical',
+  'Randori',
+  'Shiai',
+];
 
 export const VIDEO_LIBRARY_LOADING_LABEL = 'Checking...';
 export const VIDEO_LIBRARY_MODE_TABLE_LABEL = 'Table';
@@ -379,6 +386,8 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [isRemovingDomain, setIsRemovingDomain] = useState(false);
   const [newDomain, setNewDomain] = useState('');
   const [isSavingDomains, setIsSavingDomains] = useState(false);
+  const [isSavingCategoryExpectations, setIsSavingCategoryExpectations] =
+    useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
   const [presentationMode, setPresentationMode] =
     useState<VideoLibraryPresentationMode>('table');
@@ -399,6 +408,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       ({
         customAllowedDomains: [],
         linkChecksBySessionId: {},
+        expectedVideoCategories: [...DEFAULT_EXPECTED_VIDEO_CATEGORIES],
       } satisfies VideoLibraryPreferences),
     [preferences.videoLibrary]
   );
@@ -409,6 +419,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const persistedLinkChecks = useMemo(
     () => videoLibraryPreferences.linkChecksBySessionId ?? {},
     [videoLibraryPreferences.linkChecksBySessionId]
+  );
+
+  const expectedVideoCategories = useMemo(
+    () =>
+      videoLibraryPreferences.expectedVideoCategories?.length
+        ? videoLibraryPreferences.expectedVideoCategories
+        : [...DEFAULT_EXPECTED_VIDEO_CATEGORIES],
+    [videoLibraryPreferences.expectedVideoCategories]
   );
 
   const refreshInventory = (nextSessions?: JudoSession[]) => {
@@ -457,6 +475,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       ...videoLibraryPreferences,
       customAllowedDomains,
       linkChecksBySessionId: reconciledLinkChecks,
+      expectedVideoCategories,
     }).catch((error) => {
       console.error('Failed to reconcile persisted video link checks', error);
     });
@@ -467,6 +486,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     customAllowedDomains,
     persistedLinkChecks,
     reconciledLinkChecks,
+    expectedVideoCategories,
   ]);
 
   const rows = useMemo(
@@ -475,8 +495,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         sessions,
         customAllowedDomains,
         linkChecksBySessionId: reconciledLinkChecks,
+        expectedVideoCategories,
       }),
-    [sessions, customAllowedDomains, reconciledLinkChecks]
+    [
+      sessions,
+      customAllowedDomains,
+      reconciledLinkChecks,
+      expectedVideoCategories,
+    ]
   );
 
   const filteredRows = useMemo(
@@ -535,6 +561,48 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     refreshInventory();
   };
 
+  const handleExpectedCategoryToggle = async (category: SessionCategory) => {
+    if (!user || !canSavePreferences) {
+      toast({
+        title: 'Sign-in required',
+        description:
+          'Category expectations are saved when authentication is configured and you are signed in.',
+      });
+      return;
+    }
+
+    const nextExpectedCategories = expectedVideoCategories.includes(category)
+      ? expectedVideoCategories.filter((value) => value !== category)
+      : [...expectedVideoCategories, category];
+
+    setIsSavingCategoryExpectations(true);
+    try {
+      await saveVideoLibraryPreference(user.uid, {
+        ...videoLibraryPreferences,
+        customAllowedDomains,
+        linkChecksBySessionId: reconciledLinkChecks,
+        expectedVideoCategories: nextExpectedCategories,
+      });
+      toast({
+        title: 'Category expectations updated',
+        description:
+          nextExpectedCategories.length > 0
+            ? 'No-video reminders now follow your selected categories.'
+            : 'No-video reminders are disabled for all categories.',
+      });
+    } catch (error) {
+      console.error('Failed to save category expectations', error);
+      toast({
+        variant: 'destructive',
+        title: 'Could not save expectations',
+        description:
+          'Your category expectation changes were not saved. Please try again.',
+      });
+    } finally {
+      setIsSavingCategoryExpectations(false);
+    }
+  };
+
   const handleAddDomain = async () => {
     if (!user || !canSavePreferences) {
       toast({
@@ -571,6 +639,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         new Set([...customAllowedDomains, normalizedDomain])
       ).sort(),
       linkChecksBySessionId: reconciledLinkChecks,
+      expectedVideoCategories,
     };
 
     setIsSavingDomains(true);
@@ -615,6 +684,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           (existing) => existing !== domainPendingRemoval.domain
         ),
         linkChecksBySessionId: reconciledLinkChecks,
+        expectedVideoCategories,
       });
       toast({
         title: 'Allowed domains updated',
@@ -675,6 +745,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         ...videoLibraryPreferences,
         customAllowedDomains,
         linkChecksBySessionId: nextLinkChecks,
+        expectedVideoCategories,
       });
 
       toast({
@@ -768,7 +839,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   return (
     <PluginPageShell
       title="Video Library"
-      description="Browse, check, and enjoy your linked session videos."
+      description="Browse, check, and enjoy your linked session videos. Videos are optional for every session."
       tone="info"
       icon={<Film className="h-6 w-6" />}
     >
@@ -1041,6 +1112,40 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <PluginSectionCard
+          title="Video expectations"
+          description="Videos are optional. Choose which categories should appear in the No video tab."
+          contentClassName="space-y-3"
+        >
+          <p className="text-sm text-muted-foreground">
+            Turn categories on when you expect videos there. Turn them off to
+            keep missing-video counts focused on your priorities.
+          </p>
+          <div className="space-y-2">
+            {SESSION_CATEGORY_OPTIONS.map((category) => (
+              <label
+                key={category}
+                className="flex items-center justify-between rounded-md border px-3 py-2"
+              >
+                <span className="text-sm font-medium">{category}</span>
+                <Switch
+                  checked={expectedVideoCategories.includes(category)}
+                  onCheckedChange={() =>
+                    void handleExpectedCategoryToggle(category)
+                  }
+                  disabled={!canSavePreferences || isSavingCategoryExpectations}
+                  aria-label={`Expect videos for ${category}`}
+                />
+              </label>
+            ))}
+          </div>
+          {!canSavePreferences ? (
+            <p className="text-sm text-muted-foreground">
+              Sign in to save category expectations.
+            </p>
+          ) : null}
+        </PluginSectionCard>
+
+        <PluginSectionCard
           title="Built-in domains"
           description="Providers included in the default allowlist."
           contentClassName="flex flex-wrap gap-2"
@@ -1123,7 +1228,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
 
       <PluginTableSection
         title="Video Lounge"
-        description="Filter by tab, status, category, or host to focus the current audit task."
+        description="Filter by tab, status, category, or host to focus the current audit task. No-video reminders follow your category expectations."
         hasRows={browseState.hasRows}
         emptyTitle={browseState.title}
         emptyDescription={browseState.description}
