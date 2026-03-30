@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  deriveVideoLibraryControlVisibility,
   deriveVideoLibraryBrowseState,
   deriveVideoLibraryBulkActionState,
   deriveVideoLibraryEmptyState,
   getVideoLibraryReviewAlertDescription,
   sortVideoLibraryRows,
+  VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL,
@@ -63,14 +65,17 @@ test('empty criterion anchor: empty state exposes clear call-to-action labels fo
   const searchEmpty = deriveVideoLibraryEmptyState({
     tab: 'all',
     search: 'youtube',
+    hasAdvancedFiltersApplied: false,
   });
   const tabEmpty = deriveVideoLibraryEmptyState({
     tab: 'attention',
     search: '',
+    hasAdvancedFiltersApplied: false,
   });
   const inventoryEmpty = deriveVideoLibraryEmptyState({
     tab: 'all',
     search: '',
+    hasAdvancedFiltersApplied: false,
   });
 
   assert.equal(searchEmpty.ctaLabel, VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL);
@@ -125,6 +130,18 @@ test('bulk actions only enable when rows are checkable and unchecked state exist
   assert.equal(state.checkUncheckedLabel, 'Check unchecked');
 });
 
+test('advanced filter empty state points users to Advanced filters reset action', () => {
+  const advancedEmpty = deriveVideoLibraryEmptyState({
+    tab: 'all',
+    search: '',
+    hasAdvancedFiltersApplied: true,
+  });
+
+  assert.equal(advancedEmpty.ctaLabel, VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL);
+  assert.equal(advancedEmpty.action, 'resetAdvancedFilters');
+  assert.match(advancedEmpty.description, /Advanced filters/i);
+});
+
 test('review alert copy focuses on actionable link issues instead of optional missing videos', () => {
   assert.equal(
     getVideoLibraryReviewAlertDescription(3),
@@ -145,13 +162,21 @@ test('mode toggle labels remain stable for table and lounge presentation modes',
     mode: 'table',
     filteredRowCount: rows.length,
     loungeRowCount: rows.length,
-    emptyState: deriveVideoLibraryEmptyState({ tab: 'all', search: '' }),
+    emptyState: deriveVideoLibraryEmptyState({
+      tab: 'all',
+      search: '',
+      hasAdvancedFiltersApplied: false,
+    }),
   });
   const loungeBrowse = deriveVideoLibraryBrowseState({
     mode: 'lounge',
     filteredRowCount: rows.length,
     loungeRowCount: rows.length,
-    emptyState: deriveVideoLibraryEmptyState({ tab: 'all', search: '' }),
+    emptyState: deriveVideoLibraryEmptyState({
+      tab: 'all',
+      search: '',
+      hasAdvancedFiltersApplied: false,
+    }),
   });
 
   assert.equal(VIDEO_LIBRARY_MODE_TABLE_LABEL, 'Table');
@@ -164,6 +189,7 @@ test('browse-state empty behavior in lounge mode prioritizes no-playable-url gui
   const baseEmpty = deriveVideoLibraryEmptyState({
     tab: 'all',
     search: '',
+    hasAdvancedFiltersApplied: false,
   });
 
   const browseState = deriveVideoLibraryBrowseState({
@@ -176,6 +202,15 @@ test('browse-state empty behavior in lounge mode prioritizes no-playable-url gui
   assert.equal(browseState.hasRows, false);
   assert.equal(browseState.title, VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE);
   assert.equal(browseState.ctaLabel, VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL);
+});
+
+test('control tiers default to simple controls and reveal advanced panel when toggled', () => {
+  const defaultTierState = deriveVideoLibraryControlVisibility(false);
+  const expandedTierState = deriveVideoLibraryControlVisibility(true);
+
+  assert.equal(defaultTierState.showCoreControls, true);
+  assert.equal(defaultTierState.showAdvancedPanel, false);
+  assert.equal(expandedTierState.showAdvancedPanel, true);
 });
 
 test('lounge sorting supports newest, oldest, recently checked, and provider modes', () => {
