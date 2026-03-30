@@ -21,7 +21,7 @@ export type PluginUiMigrationRow = {
 const pluginComponentImportPattern =
   /^import\s+\{?\s*([A-Za-z0-9_$]+)\s*\}?\s+from\s+['\"]([^'\"]+)['\"];?$/gm;
 
-const createElementPattern = /React\.createElement\(\s*([A-Z][A-Za-z0-9_$]*)/g;
+const createElementPattern = /React\.createElement\(\s*([A-Za-z][A-Za-z0-9_$]*)/g;
 
 const relativePath = (repoRoot: string, targetPath: string): string =>
   path.relative(repoRoot, targetPath).split(path.sep).join('/');
