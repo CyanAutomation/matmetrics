@@ -17,6 +17,15 @@ const SURFACE_LAYOUT_CLASSNAMES = {
   wide: 'mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 lg:px-8',
 } as const;
 
+export const SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS = Object.keys(
+  SURFACE_LAYOUT_CLASSNAMES
+) as Array<keyof typeof SURFACE_LAYOUT_CLASSNAMES>;
+
+export const isSupportedPluginSurfaceLayoutVariant = (
+  layoutVariant: string
+): layoutVariant is keyof typeof SURFACE_LAYOUT_CLASSNAMES =>
+  layoutVariant in SURFACE_LAYOUT_CLASSNAMES;
+
 const UX_STATE_HELPER_NAMES: Record<
   PluginUIContractState,
   ReadonlySet<string>
@@ -88,7 +97,7 @@ const resolveLayoutClassName = (
 ): { className: string; warnings: PluginRuntimeWarning[] } => {
   const layoutVariant = uiContract?.layoutVariant ?? 'standard';
 
-  if (layoutVariant in SURFACE_LAYOUT_CLASSNAMES) {
+  if (isSupportedPluginSurfaceLayoutVariant(layoutVariant)) {
     return {
       className:
         SURFACE_LAYOUT_CLASSNAMES[
@@ -211,7 +220,7 @@ export const createPluginSurfaceRenderer = ({
 export const getPluginSurfaceLayoutClassName = (
   layoutVariant: string | undefined
 ): string =>
-  layoutVariant && layoutVariant in SURFACE_LAYOUT_CLASSNAMES
+  layoutVariant && isSupportedPluginSurfaceLayoutVariant(layoutVariant)
     ? SURFACE_LAYOUT_CLASSNAMES[
         layoutVariant as keyof typeof SURFACE_LAYOUT_CLASSNAMES
       ]
