@@ -141,6 +141,7 @@ test('deriveVideoLibraryRows merges persisted latest checks and review state', (
         checkedAt: '2026-03-29T11:00:00.000Z',
       }),
     },
+    expectedVideoCategories: ['Technical'],
   });
 
   assert.equal(rows[0]?.displayStatus, 'reachable');
@@ -164,6 +165,7 @@ test('filterVideoLibraryRows respects tab, search, status, and checked filters',
         status: 'broken',
       }),
     },
+    expectedVideoCategories: ['Technical'],
   });
 
   const attentionRows = filterVideoLibraryRows(rows, {
@@ -208,6 +210,7 @@ test('getVideoLibraryTabCounts returns grouped counts', () => {
         status: 'broken',
       }),
     },
+    expectedVideoCategories: ['Technical'],
   });
 
   assert.deepEqual(getVideoLibraryTabCounts(rows), {
@@ -216,6 +219,42 @@ test('getVideoLibraryTabCounts returns grouped counts', () => {
     attention: 1,
     no_video: 1,
   });
+});
+
+test('no-video tab/count only include categories marked as expected', () => {
+  const rows = deriveVideoLibraryRows({
+    sessions: [
+      makeSession('tech-missing'),
+      {
+        ...makeSession('randori-missing'),
+        category: 'Randori',
+      },
+    ],
+    customAllowedDomains: [],
+    linkChecksBySessionId: {},
+    expectedVideoCategories: ['Technical'],
+  });
+
+  assert.deepEqual(getVideoLibraryTabCounts(rows), {
+    all: 2,
+    watchable: 0,
+    attention: 0,
+    no_video: 1,
+  });
+
+  const noVideoRows = filterVideoLibraryRows(rows, {
+    tab: 'no_video',
+    search: '',
+    status: 'all',
+    category: 'all',
+    hostname: '',
+    checked: 'all',
+  });
+
+  assert.deepEqual(
+    noVideoRows.map((row) => row.session.id),
+    ['tech-missing']
+  );
 });
 
 test('getVideoDomainRemovalImpact counts sessions that would become disallowed', () => {

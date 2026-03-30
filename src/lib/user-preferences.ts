@@ -22,7 +22,10 @@ import type {
   VideoLibraryPreferences,
   VideoLinkCheckSnapshot,
 } from './types';
-import { DEFAULT_AUDIT_CONFIG } from './types';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  DEFAULT_EXPECTED_VIDEO_CATEGORIES,
+} from './types';
 import {
   areAuditConfigsEqual,
   getAuditConfigPreset,
@@ -45,6 +48,7 @@ export const DEFAULT_GITHUB_SETTINGS: GitHubSettings = {
 export const DEFAULT_VIDEO_LIBRARY_PREFERENCES: VideoLibraryPreferences = {
   customAllowedDomains: [],
   linkChecksBySessionId: {},
+  expectedVideoCategories: [...DEFAULT_EXPECTED_VIDEO_CATEGORIES],
 };
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -181,6 +185,37 @@ function normalizeAuditMode(value: unknown, config: AuditConfig): AuditMode {
     : 'custom';
 }
 
+const SESSION_CATEGORIES = ['Technical', 'Randori', 'Shiai'] as const;
+
+export function normalizeExpectedVideoCategories(
+  value: unknown
+): VideoLibraryPreferences['expectedVideoCategories'] {
+  const categories = Array.isArray(value)
+    ? value.filter(
+        (
+          category
+        ): category is VideoLibraryPreferences['expectedVideoCategories'][number] =>
+          typeof category === 'string' &&
+          SESSION_CATEGORIES.includes(
+            category as (typeof SESSION_CATEGORIES)[number]
+          )
+      )
+    : [];
+
+  if (categories.length === 0) {
+    return [...DEFAULT_EXPECTED_VIDEO_CATEGORIES];
+  }
+
+  const order = new Map(
+    SESSION_CATEGORIES.map((category, index) => [category, index])
+  );
+  return Array.from(new Set(categories)).sort(
+    (left, right) =>
+      (order.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(right) ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
 function normalizeVideoLibraryPreferences(
   value: unknown
 ): VideoLibraryPreferences {
@@ -244,6 +279,9 @@ function normalizeVideoLibraryPreferences(
   return {
     customAllowedDomains: Array.from(new Set(customAllowedDomains)).sort(),
     linkChecksBySessionId,
+    expectedVideoCategories: normalizeExpectedVideoCategories(
+      input.expectedVideoCategories
+    ),
   };
 }
 
@@ -394,6 +432,9 @@ function serializeVideoLibraryPreferences(
               : {}),
           },
         ])
+    ),
+    expectedVideoCategories: normalizeExpectedVideoCategories(
+      videoLibrary.expectedVideoCategories
     ),
   };
 }
