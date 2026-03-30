@@ -53,7 +53,7 @@ const collectRenderedHelperNames = (node: React.ReactNode): Set<string> => {
   const names = new Set<string>();
 
   const walk = (value: React.ReactNode): void => {
-    if (!value) {
+    if (value == null) {
       return;
     }
 
