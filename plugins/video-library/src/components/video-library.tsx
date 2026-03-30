@@ -109,7 +109,11 @@ type EmptyStateDescriptor = {
   title: string;
   description: string;
   ctaLabel: string;
-  action: 'clearSearch' | 'switchToAll' | 'editSession';
+  action:
+    | 'clearSearch'
+    | 'switchToAll'
+    | 'resetAdvancedFilters'
+    | 'editSession';
 };
 
 type VideoLibraryPresentationMode = 'table' | 'lounge';
@@ -130,6 +134,7 @@ export const VIDEO_LIBRARY_MODE_TABLE_LABEL = 'Table';
 export const VIDEO_LIBRARY_MODE_LOUNGE_LABEL = 'Lounge';
 export const VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL = 'View all sessions';
+export const VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL = 'Reset Advanced filters';
 export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
   'Log sessions as usual; add videos when useful';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
@@ -295,9 +300,11 @@ export function deriveVideoLibraryBrowseState({
 export function deriveVideoLibraryEmptyState({
   tab,
   search,
+  hasAdvancedFiltersApplied,
 }: {
   tab: VideoLibraryTab;
   search: string;
+  hasAdvancedFiltersApplied: boolean;
 }): EmptyStateDescriptor {
   if (search.trim()) {
     return {
@@ -306,6 +313,16 @@ export function deriveVideoLibraryEmptyState({
         'No rows match your current search and filters. Clear the search to widen the audit view.',
       ctaLabel: VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL,
       action: 'clearSearch',
+    };
+  }
+
+  if (hasAdvancedFiltersApplied) {
+    return {
+      title: 'No sessions match these advanced filters',
+      description:
+        'No rows match the current Advanced filters. Open Advanced filters to adjust or reset them.',
+      ctaLabel: VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL,
+      action: 'resetAdvancedFilters',
     };
   }
 
@@ -387,6 +404,13 @@ function getFilteredHostnameOptions(rows: VideoLibraryRow[]): string[] {
   ).sort();
 }
 
+export function deriveVideoLibraryControlVisibility(showAdvanced: boolean) {
+  return {
+    showCoreControls: true,
+    showAdvancedPanel: showAdvanced,
+  };
+}
+
 export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const { toast } = useToast();
   const { user, preferences, canSavePreferences, authAvailable } = useAuth();
@@ -408,6 +432,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [presentationMode, setPresentationMode] =
     useState<VideoLibraryPresentationMode>('table');
   const [sortOrder, setSortOrder] = useState<VideoLibrarySortOption>('newest');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [playNextEnabled, setPlayNextEnabled] = useState(false);
   const [filters, setFilters] = useState<VideoLibraryFilters>({
     tab: 'watchable',
@@ -561,9 +586,19 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     filteredRows,
     isCheckingLinks,
   });
+  const controlVisibility = deriveVideoLibraryControlVisibility(showAdvanced);
+  const hasAdvancedFiltersApplied =
+    filters.status !== 'all' ||
+    filters.category !== 'all' ||
+    filters.hostname.length > 0 ||
+    filters.checked !== 'all' ||
+    presentationMode !== 'table' ||
+    sortOrder === 'recently_checked' ||
+    sortOrder === 'provider';
   const emptyState = deriveVideoLibraryEmptyState({
     tab: filters.tab,
     search: filters.search,
+    hasAdvancedFiltersApplied,
   });
   const browseState = deriveVideoLibraryBrowseState({
     mode: presentationMode,
@@ -846,6 +881,20 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       return;
     }
 
+    if (browseState.action === 'resetAdvancedFilters') {
+      setFilters((current) => ({
+        ...current,
+        status: 'all',
+        category: 'all',
+        hostname: '',
+        checked: 'all',
+      }));
+      setPresentationMode('table');
+      setSortOrder('newest');
+      setShowAdvanced(true);
+      return;
+    }
+
     const firstMissing = rows.find((row) => row.entry.status === 'missing');
     if (firstMissing) {
       setEditingSession(firstMissing.session);
@@ -882,35 +931,35 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
 
       <PluginSectionCard
         title="Inventory & filters"
-        description="Filter by status, category, hostname, and link-check state."
+        description="Use core browsing controls first, then open Advanced filters for deeper auditing."
         contentClassName="space-y-4"
       >
         <div className="space-y-2">
           <Label>Browse tabs</Label>
           <div className="flex flex-wrap gap-2">
-            {(
-              ['watchable', 'attention', 'all', 'no_video'] as VideoLibraryTab[]
-            ).map((tab) => (
-              <Button
-                key={tab}
-                type="button"
-                variant={filters.tab === tab ? 'default' : 'outline'}
-                onClick={() => setFilters((current) => ({ ...current, tab }))}
-              >
-                {getTabLabel(tab)}
-                <Badge
-                  variant="outline"
-                  className="ml-1 border-current/30 bg-transparent"
+            {(['watchable', 'attention', 'all'] as VideoLibraryTab[]).map(
+              (tab) => (
+                <Button
+                  key={tab}
+                  type="button"
+                  variant={filters.tab === tab ? 'default' : 'outline'}
+                  onClick={() => setFilters((current) => ({ ...current, tab }))}
                 >
-                  {tabCounts[tab]}
-                </Badge>
-              </Button>
-            ))}
+                  {getTabLabel(tab)}
+                  <Badge
+                    variant="outline"
+                    className="ml-1 border-current/30 bg-transparent"
+                  >
+                    {tabCounts[tab]}
+                  </Badge>
+                </Button>
+              )
+            )}
           </div>
         </div>
 
         <PluginDataSurfaceFilterRow>
-          <div className="lg:col-span-2 space-y-2">
+          <div className="lg:col-span-3 space-y-2">
             <Label htmlFor="video-library-search">Search</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -930,220 +979,266 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={filters.status}
-              onValueChange={(value) =>
-                setFilters((current) => ({
-                  ...current,
-                  status: value as VideoLibraryStatusFilter,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  [
-                    'all',
-                    'missing',
-                    'allowed_unchecked',
-                    'disallowed_domain',
-                    'invalid_url',
-                    'reachable',
-                    'broken',
-                    'check_failed',
-                  ] as VideoLibraryStatusFilter[]
-                ).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {getEntryStatusLabel(status)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select
-              value={filters.category}
-              onValueChange={(value) =>
-                setFilters((current) => ({
-                  ...current,
-                  category: value as SessionCategory | 'all',
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                <SelectItem value="Technical">Technical</SelectItem>
-                <SelectItem value="Randori">Randori</SelectItem>
-                <SelectItem value="Shiai">Shiai</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Checked state</Label>
-            <Select
-              value={filters.checked}
-              onValueChange={(value) =>
-                setFilters((current) => ({
-                  ...current,
-                  checked: value as VideoLibraryCheckedFilter,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All rows" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All rows</SelectItem>
-                <SelectItem value="checked">Checked only</SelectItem>
-                <SelectItem value="unchecked">Unchecked only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </PluginDataSurfaceFilterRow>
-
-        <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto_auto]">
-          <div className="space-y-2">
-            <Label>Hostname filter</Label>
-            <Select
-              value={filters.hostname || 'all'}
-              onValueChange={(value) =>
-                setFilters((current) => ({
-                  ...current,
-                  hostname: value === 'all' ? '' : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All hosts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All hosts</SelectItem>
-                {hostnameOptions.map((hostname) => (
-                  <SelectItem key={hostname} value={hostname}>
-                    {hostname}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Mode</Label>
-            <div
-              className="inline-flex rounded-md border p-1"
-              role="group"
-              aria-label="Presentation mode"
-            >
-              {(['table', 'lounge'] as VideoLibraryPresentationMode[]).map(
-                (mode) => (
-                  <Button
-                    key={mode}
-                    type="button"
-                    size="sm"
-                    variant={presentationMode === mode ? 'default' : 'ghost'}
-                    aria-pressed={presentationMode === mode}
-                    onClick={() => setPresentationMode(mode)}
-                  >
-                    {getPresentationLabel(mode)}
-                  </Button>
-                )
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
             <Label>Sort</Label>
             <Select
-              value={sortOrder}
+              value={sortOrder === 'oldest' ? 'oldest' : 'newest'}
               onValueChange={(value) =>
-                setSortOrder(value as VideoLibrarySortOption)
+                setSortOrder(
+                  value as Extract<VideoLibrarySortOption, 'newest' | 'oldest'>
+                )
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sort rows" />
               </SelectTrigger>
               <SelectContent>
-                {(
-                  [
-                    'newest',
-                    'oldest',
-                    'recently_checked',
-                    'provider',
-                  ] as VideoLibrarySortOption[]
-                ).map((sort) => (
-                  <SelectItem key={sort} value={sort}>
-                    {getSortLabel(sort)}
-                  </SelectItem>
-                ))}
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="oldest">Oldest</SelectItem>
               </SelectContent>
             </Select>
           </div>
+        </PluginDataSurfaceFilterRow>
 
-          <div className="space-y-2">
-            <Label htmlFor="video-library-play-next">Play next</Label>
-            <div className="flex min-h-10 items-center">
-              <Switch
-                id="video-library-play-next"
-                checked={playNextEnabled}
-                onCheckedChange={setPlayNextEnabled}
-                aria-label="Enable play next suggestions"
-              />
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowAdvanced((current) => !current)}
+            aria-expanded={showAdvanced}
+            aria-controls="video-library-advanced-filters"
+          >
+            Advanced filters
+          </Button>
+          {hasAdvancedFiltersApplied ? (
+            <Badge variant="secondary">Advanced filters active</Badge>
+          ) : null}
+        </div>
+
+        {controlVisibility.showAdvancedPanel ? (
+          <div
+            id="video-library-advanced-filters"
+            className="space-y-3 rounded-md border p-3"
+          >
+            <PluginDataSurfaceFilterRow>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      status: value as VideoLibraryStatusFilter,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      [
+                        'all',
+                        'missing',
+                        'allowed_unchecked',
+                        'disallowed_domain',
+                        'invalid_url',
+                        'reachable',
+                        'broken',
+                        'check_failed',
+                      ] as VideoLibraryStatusFilter[]
+                    ).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {getEntryStatusLabel(status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={filters.category}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      category: value as SessionCategory | 'all',
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    <SelectItem value="Technical">Technical</SelectItem>
+                    <SelectItem value="Randori">Randori</SelectItem>
+                    <SelectItem value="Shiai">Shiai</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Checked state</Label>
+                <Select
+                  value={filters.checked}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      checked: value as VideoLibraryCheckedFilter,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All rows</SelectItem>
+                    <SelectItem value="checked">Checked only</SelectItem>
+                    <SelectItem value="unchecked">Unchecked only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Hostname filter</Label>
+                <Select
+                  value={filters.hostname || 'all'}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      hostname: value === 'all' ? '' : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All hosts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All hosts</SelectItem>
+                    {hostnameOptions.map((hostname) => (
+                      <SelectItem key={hostname} value={hostname}>
+                        {hostname}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </PluginDataSurfaceFilterRow>
+
+            <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto]">
+              <div className="space-y-2">
+                <Label>Mode</Label>
+                <div
+                  className="inline-flex rounded-md border p-1"
+                  role="group"
+                  aria-label="Presentation mode"
+                >
+                  {(['table', 'lounge'] as VideoLibraryPresentationMode[]).map(
+                    (mode) => (
+                      <Button
+                        key={mode}
+                        type="button"
+                        size="sm"
+                        variant={
+                          presentationMode === mode ? 'default' : 'ghost'
+                        }
+                        aria-pressed={presentationMode === mode}
+                        onClick={() => setPresentationMode(mode)}
+                      >
+                        {getPresentationLabel(mode)}
+                      </Button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Advanced sort</Label>
+                <Select
+                  value={sortOrder}
+                  onValueChange={(value) =>
+                    setSortOrder(value as VideoLibrarySortOption)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sort rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      [
+                        'newest',
+                        'oldest',
+                        'recently_checked',
+                        'provider',
+                      ] as VideoLibrarySortOption[]
+                    ).map((sort) => (
+                      <SelectItem key={sort} value={sort}>
+                        {getSortLabel(sort)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="video-library-play-next">Play next</Label>
+                <div className="flex min-h-10 items-center">
+                  <Switch
+                    id="video-library-play-next"
+                    checked={playNextEnabled}
+                    onCheckedChange={setPlayNextEnabled}
+                    aria-label="Enable play next suggestions"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-end lg:col-span-2">
+                <PluginBulkActions
+                  selectedCount={
+                    filteredRows.filter((row) => row.isCheckable).length
+                  }
+                  itemLabel="checkable link"
+                  disabledMessage={bulkActionState.disabledMessage ?? undefined}
+                >
+                  <PluginActionRow>
+                    <PluginActionSecondary>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleCheckFiltered()}
+                        disabled={!bulkActionState.canCheckFiltered}
+                      >
+                        {isCheckingLinks ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCcw className="mr-2 h-4 w-4" />
+                        )}
+                        {bulkActionState.checkFilteredLabel}
+                      </Button>
+                    </PluginActionSecondary>
+
+                    <PluginActionPrimary>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleCheckUnchecked()}
+                        disabled={!bulkActionState.canCheckUnchecked}
+                      >
+                        {isCheckingLinks ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
+                        {bulkActionState.checkUncheckedLabel}
+                      </Button>
+                    </PluginActionPrimary>
+                  </PluginActionRow>
+                </PluginBulkActions>
+              </div>
+            </PluginToolbar>
           </div>
-
-          <div className="flex items-end lg:col-span-2">
-            <PluginBulkActions
-              selectedCount={
-                filteredRows.filter((row) => row.isCheckable).length
-              }
-              itemLabel="checkable link"
-              disabledMessage={bulkActionState.disabledMessage ?? undefined}
-            >
-              <PluginActionRow>
-                <PluginActionSecondary>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void handleCheckFiltered()}
-                    disabled={!bulkActionState.canCheckFiltered}
-                  >
-                    {isCheckingLinks ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCcw className="mr-2 h-4 w-4" />
-                    )}
-                    {bulkActionState.checkFilteredLabel}
-                  </Button>
-                </PluginActionSecondary>
-
-                <PluginActionPrimary>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void handleCheckUnchecked()}
-                    disabled={!bulkActionState.canCheckUnchecked}
-                  >
-                    {isCheckingLinks ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                    )}
-                    {bulkActionState.checkUncheckedLabel}
-                  </Button>
-                </PluginActionPrimary>
-              </PluginActionRow>
-            </PluginBulkActions>
-          </div>
-        </PluginToolbar>
+        ) : null}
       </PluginSectionCard>
 
       <PluginDataSurfaceSummaryStrip
