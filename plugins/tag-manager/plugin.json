@@ -25,7 +25,7 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/tag-manager/plugin.test.ts",
+        "plugins/plugin-manifest-contract.test.ts",
         "plugins/tag-manager/src/index.test.ts",
         "src/lib/plugins/tag-manager-plugin.test.ts",
         "src/components/tag-manager.loading.test.ts",
@@ -33,14 +33,24 @@
         "src/components/tag-manager.ux.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": ["src/components/tag-manager.ux.test.tsx"],
-        "destructiveActionSafety": ["src/components/tag-manager.ux.test.tsx"],
-        "errorStateWithRecovery": ["src/components/tag-manager.ux.test.tsx"],
-        "emptyStateWithCta": ["src/components/tag-manager.ux.test.tsx"]
+        "loadingStatePresent": [
+          "src/components/tag-manager.ux.test.tsx"
+        ],
+        "destructiveActionSafety": [
+          "src/components/tag-manager.ux.test.tsx"
+        ],
+        "errorStateWithRecovery": [
+          "src/components/tag-manager.ux.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "src/components/tag-manager.ux.test.tsx"
+        ]
       }
     }
   },
-  "capabilities": ["tag_mutation"],
+  "capabilities": [
+    "tag_mutation"
+  ],
   "enabled": true,
   "uiExtensions": [
     {
