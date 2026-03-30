@@ -146,6 +146,7 @@ export const derivePluginManagerInstalledViewState = (params: {
 };
 
 export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
+  const MATURITY_REASONS_PREVIEW_COUNT = 3;
   const { toast } = useToast();
   const { user, authAvailable } = useAuth();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
@@ -160,6 +161,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date | null>(null);
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
+  >({});
+  const [expandedMaturityReasons, setExpandedMaturityReasons] = React.useState<
+    Record<string, boolean>
   >({});
   const accessState = React.useMemo(
     () =>
@@ -730,10 +734,48 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       <p className="font-medium text-foreground">
                         Maturity guidance (advisory)
                       </p>
-                      <p className="text-muted-foreground">
-                        {plugin.maturity.reasons[0] ??
-                          'No maturity gaps are currently recorded.'}
-                      </p>
+                      {plugin.maturity.reasons.length === 0 ? (
+                        <p className="text-muted-foreground">
+                          No maturity gaps are currently recorded.
+                        </p>
+                      ) : (
+                        <>
+                          <ul className="space-y-1 text-muted-foreground list-disc pl-5">
+                            {(expandedMaturityReasons[plugin.id]
+                              ? plugin.maturity.reasons
+                              : plugin.maturity.reasons.slice(
+                                  0,
+                                  MATURITY_REASONS_PREVIEW_COUNT
+                                )
+                            ).map((reason, index) => (
+                              <li key={`${plugin.id}-maturity-reason-${index}`}>
+                                {reason}
+                              </li>
+                            ))}
+                          </ul>
+                          {plugin.maturity.reasons.length >
+                          MATURITY_REASONS_PREVIEW_COUNT ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-auto px-0 text-sm"
+                              onClick={() =>
+                                setExpandedMaturityReasons((current) => ({
+                                  ...current,
+                                  [plugin.id]: !current[plugin.id],
+                                }))
+                              }
+                            >
+                              {expandedMaturityReasons[plugin.id]
+                                ? 'Show fewer'
+                                : `Show ${
+                                    plugin.maturity.reasons.length -
+                                    MATURITY_REASONS_PREVIEW_COUNT
+                                  } more`}
+                            </Button>
+                          ) : null}
+                        </>
+                      )}
                       {plugin.maturity.nextActions.length > 0 ? (
                         <ul className="space-y-1 text-muted-foreground">
                           {plugin.maturity.nextActions.map((action) => (
