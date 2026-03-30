@@ -9,6 +9,14 @@ export const pluginExtensionBaseSchema = z.object({
   config: z.record(z.string(), z.unknown()),
 });
 
+const pluginUiContractSchema = z.object({
+  layoutVariant: z.string().min(1),
+  requiredUxStates: z
+    .array(z.enum(['loading', 'error', 'empty', 'destructive']))
+    .min(1),
+  designTokenVariants: z.array(z.string().min(1)).optional(),
+});
+
 export const pluginManifestSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -26,6 +34,7 @@ export const pluginManifestSchema = z.object({
     .regex(VERSION_REGEX)
     .optional()
     .describe('Minimum matmetrics version required to run this plugin'),
+  uiContract: pluginUiContractSchema.optional(),
   maturity: z
     .object({
       tier: z.enum(['bronze', 'silver', 'gold']).optional(),
