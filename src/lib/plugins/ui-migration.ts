@@ -19,7 +19,7 @@ export type PluginUiMigrationRow = {
 };
 
 const pluginComponentImportPattern =
-  /^import\s+\{?\s*([A-Za-z0-9_$]+)\s*\}?\s+from\s+['\"]([^'\"]+)['\"];?$/gm;
+  /^import\s+(?:\{?\s*([A-Za-z0-9_$]+(?:\s*,\s*[A-Za-z0-9_$]+)*)\s*\}?|([A-Za-z0-9_$]+))\s+from\s+['"]([^'"]+)['"];?$/gm;
 
 const createElementPattern = /React\.createElement\(\s*([A-Za-z][A-Za-z0-9_$]*)/g;
 
