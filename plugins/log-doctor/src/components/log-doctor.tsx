@@ -5,6 +5,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
+import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
+import {
+  PluginDataSurfaceFilterRow,
+  PluginDataSurfaceSummaryStrip,
+  PluginEmptyFilteredResults,
+} from '@/components/plugins/plugin-data-surface';
 import {
   PluginStatusPanel,
   PluginTableSection,
@@ -191,6 +197,7 @@ export const LogDoctor = (): React.ReactElement => {
     useState<AbortController | null>(null);
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+  const [fileSearch, setFileSearch] = useState('');
 
   // Audit tab state
   const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
@@ -255,6 +262,15 @@ export const LogDoctor = (): React.ReactElement => {
   );
 
   const selectedCount = selectedPaths.length;
+  const filteredInvalidFiles = useMemo(() => {
+    const normalizedSearch = fileSearch.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return invalidFiles;
+    }
+    return invalidFiles.filter((file) =>
+      file.path.toLowerCase().includes(normalizedSearch)
+    );
+  }, [fileSearch, invalidFiles]);
 
   const togglePath = (path: string): void => {
     setSelectedPaths((current) =>
@@ -824,40 +840,53 @@ export const LogDoctor = (): React.ReactElement => {
           </PluginSectionCard>
 
           <PluginActionRow>
-            <PluginActionPrimary>
-              <Button
-                onClick={handleScan}
-                disabled={isScanning || !owner || !repo}
-              >
-                {isScanning ? 'Scanning…' : 'Scan repository'}
-              </Button>
-            </PluginActionPrimary>
-            <PluginActionSecondary>
-              <Button
-                variant="secondary"
-                onClick={handlePreviewFixes}
-                disabled={isPreviewing || selectedCount === 0}
-              >
-                {isPreviewing ? 'Previewing…' : 'Preview fixes'}
-              </Button>
-            </PluginActionSecondary>
-            <PluginActionDestructive>
-              <Button
-                variant="destructive"
-                onClick={handleApplyFixes}
-                disabled={isApplying || selectedCount === 0}
-                aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
-              >
-                {isApplying ? 'Applying…' : 'Apply fixes'}
-              </Button>
-            </PluginActionDestructive>
-            {isBusy ? (
+            <PluginBulkActions
+              selectedCount={selectedCount}
+              itemLabel="file"
+              disabledMessage={
+                selectedCount === 0
+                  ? 'Select at least one invalid file to preview or apply fixes.'
+                  : undefined
+              }
+            >
+              <PluginActionPrimary>
+                <Button
+                  onClick={handleScan}
+                  disabled={isScanning || !owner || !repo}
+                >
+                  {isScanning ? 'Scanning…' : 'Scan repository'}
+                </Button>
+              </PluginActionPrimary>
               <PluginActionSecondary>
-                <Button variant="outline" onClick={handleCancelActiveOperation}>
-                  Cancel current check
+                <Button
+                  variant="secondary"
+                  onClick={handlePreviewFixes}
+                  disabled={isPreviewing || selectedCount === 0}
+                >
+                  {isPreviewing ? 'Previewing…' : 'Preview fixes'}
                 </Button>
               </PluginActionSecondary>
-            ) : null}
+              <PluginActionDestructive>
+                <Button
+                  variant="destructive"
+                  onClick={handleApplyFixes}
+                  disabled={isApplying || selectedCount === 0}
+                  aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
+                >
+                  {isApplying ? 'Applying…' : 'Apply fixes'}
+                </Button>
+              </PluginActionDestructive>
+              {isBusy ? (
+                <PluginActionSecondary>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelActiveOperation}
+                  >
+                    Cancel current check
+                  </Button>
+                </PluginActionSecondary>
+              ) : null}
+            </PluginBulkActions>
           </PluginActionRow>
 
           <LogDoctorStatusAlerts
@@ -885,6 +914,29 @@ export const LogDoctor = (): React.ReactElement => {
                 </Badge>
                 <Badge variant="secondary">Selected: {selectedCount}</Badge>
               </div>
+              <PluginDataSurfaceFilterRow className="lg:grid-cols-1">
+                <div className="space-y-2">
+                  <Label htmlFor="log-doctor-file-search">
+                    Search invalid file paths
+                  </Label>
+                  <Input
+                    id="log-doctor-file-search"
+                    value={fileSearch}
+                    onChange={(event) => setFileSearch(event.target.value)}
+                    placeholder="Filter by file path"
+                  />
+                </div>
+              </PluginDataSurfaceFilterRow>
+              <PluginDataSurfaceSummaryStrip
+                filteredCount={filteredInvalidFiles.length}
+                totalCount={invalidFiles.length}
+                itemLabel="invalid files"
+                activeFilters={
+                  fileSearch.trim()
+                    ? [{ label: 'Search', value: fileSearch.trim() }]
+                    : []
+                }
+              />
 
               {invalidFiles.length === 0 ? (
                 <div className="space-y-2">
@@ -905,9 +957,16 @@ export const LogDoctor = (): React.ReactElement => {
                     </Button>
                   </div>
                 </div>
+              ) : filteredInvalidFiles.length === 0 ? (
+                <PluginEmptyFilteredResults
+                  title="No invalid files match this search"
+                  description="Adjust or clear the search to see available invalid files."
+                  clearLabel="Clear search"
+                  onClear={() => setFileSearch('')}
+                />
               ) : (
                 <div className="space-y-2">
-                  {invalidFiles.map((file) => {
+                  {filteredInvalidFiles.map((file) => {
                     const selectId = selectIdByPath.get(file.path);
                     if (!selectId) return null;
 

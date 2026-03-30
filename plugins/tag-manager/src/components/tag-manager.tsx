@@ -35,7 +35,10 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
+import {
+  PluginDataSurfaceFilterRow,
+  PluginDataSurfaceSummaryStrip,
+} from '@/components/plugins/plugin-data-surface';
 import {
   PluginActionRow,
   PluginActionPrimary,
@@ -460,7 +463,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         emptyIcon={<Search className="h-4 w-4" />}
         contentClassName="p-6"
       >
-        <PluginFilterBar className="mb-6">
+        <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -470,7 +473,17 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </PluginFilterBar>
+        </PluginDataSurfaceFilterRow>
+
+        <PluginDataSurfaceSummaryStrip
+          filteredCount={filteredTags.length}
+          totalCount={tags.length}
+          itemLabel="tags"
+          activeFilters={
+            search.trim() ? [{ label: 'Search', value: search.trim() }] : []
+          }
+          className="mb-4"
+        />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {filteredTags.map((tag) => (
