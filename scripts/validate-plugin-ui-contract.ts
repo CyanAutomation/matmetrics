@@ -95,7 +95,6 @@ const resolveImportPath = async (
     try {
       await readFile(candidate, 'utf8');
       return candidate;
-      }
     } catch {
       // Ignore unresolved candidates.
     }
