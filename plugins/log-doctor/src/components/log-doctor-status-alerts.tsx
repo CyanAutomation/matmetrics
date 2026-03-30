@@ -2,8 +2,11 @@
 
 import React from 'react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import {
+  PluginEmptyState,
+  PluginErrorState,
+  PluginLoadingState,
+} from '@/components/plugins/plugin-state';
 
 import type { LogDoctorUiState } from './log-doctor-state';
 
@@ -32,26 +35,20 @@ export const LogDoctorStatusAlerts = ({
 
   return (
     <>
-      <Alert>
-        <AlertTitle>{statusTitle}</AlertTitle>
-        <AlertDescription>{statusMessage}</AlertDescription>
-      </Alert>
+      {uiState.phase === 'loading' ? (
+        <PluginLoadingState title={statusTitle} description={statusMessage} />
+      ) : (
+        <PluginEmptyState title={statusTitle} description={statusMessage} />
+      )}
 
       {errorMessage ? (
-        <Alert variant="destructive">
-          <AlertTitle>Log Doctor error</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-          <div className="mt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onRetry}
-              aria-label="Retry log doctor scan"
-            >
-              Retry
-            </Button>
-          </div>
-        </Alert>
+        <PluginErrorState
+          title="Log Doctor error"
+          message={errorMessage}
+          onRetry={onRetry}
+          retryLabel="Retry"
+          retryAriaLabel="Retry log doctor scan"
+        />
       ) : null}
     </>
   );

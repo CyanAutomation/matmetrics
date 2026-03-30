@@ -17,6 +17,7 @@ import {
 
 import { SessionLogForm } from '@/components/session-log-form';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -944,20 +945,13 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         </CardHeader>
         <CardContent>
           {filteredRows.length === 0 ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{emptyState.title}</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>{emptyState.description}</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleEmptyStateAction}
-                >
-                  {emptyState.ctaLabel}
-                </Button>
-              </AlertDescription>
-            </Alert>
+            <PluginEmptyState
+              title={emptyState.title}
+              description={emptyState.description}
+              ctaLabel={emptyState.ctaLabel}
+              onCta={handleEmptyStateAction}
+              icon={<AlertCircle className="h-4 w-4" />}
+            />
           ) : (
             <Table>
               <TableHeader>
