@@ -64,6 +64,11 @@ export type InstalledPluginRow = Pick<
   maturity?: PluginMaturityScorecard;
 };
 
+type InstalledPluginRowStatuses = Record<
+  string,
+  Pick<InstalledPluginRow, 'status' | 'statusMessage'>
+>;
+
 const severityOrder: Record<PluginValidationSeverity, number> = {
   error: 3,
   warning: 2,
@@ -123,6 +128,36 @@ const getBlockingContractGateIssues = (
 
 const hasBlockingContractIssues = (issues: PluginValidationIssue[]): boolean =>
   getBlockingContractGateIssues(issues).length > 0;
+
+export const deriveInstalledPlugins = ({
+  installedManifestRows,
+  rowStatuses,
+}: {
+  installedManifestRows: InstalledPluginManifestRow[];
+  rowStatuses: InstalledPluginRowStatuses;
+}): InstalledPluginRow[] =>
+  installedManifestRows
+    .slice()
+    .sort((a, b) => {
+      if (a.manifest.id === 'tag-manager') {
+        return -1;
+      }
+      if (b.manifest.id === 'tag-manager') {
+        return 1;
+      }
+      return a.manifest.name.localeCompare(b.manifest.name);
+    })
+    .map((manifest) => ({
+      id: manifest.manifest.id,
+      name: manifest.manifest.name,
+      version: manifest.manifest.version,
+      description: manifest.manifest.description,
+      enabled: manifest.manifest.enabled,
+      issues: manifest.issues,
+      maturity: manifest.maturity,
+      status: rowStatuses[manifest.manifest.id]?.status ?? 'idle',
+      statusMessage: rowStatuses[manifest.manifest.id]?.statusMessage,
+    }));
 
 type PluginManagerProps = {
   onPluginsChanged?: () => void | Promise<void>;
@@ -335,9 +370,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date | null>(null);
   const [maturityDebug, setMaturityDebug] =
     React.useState<PluginMaturityDebugMetadata>({});
-  const [rowStatuses, setRowStatuses] = React.useState<
-    Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
-  >({});
+  const [rowStatuses, setRowStatuses] =
+    React.useState<InstalledPluginRowStatuses>({});
   const [expandedMaturityReasons, setExpandedMaturityReasons] = React.useState<
     Record<string, boolean>
   >({});
@@ -452,29 +486,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   }, [refreshInstalledPlugins, toast]);
 
   const installedPlugins = React.useMemo<InstalledPluginRow[]>(() => {
-    const statusEntries = rowStatuses;
-
-    return installedManifestRows
-      .sort((a, b) => {
-        if (a.manifest.id === 'tag-manager') {
-          return -1;
-        }
-        if (b.manifest.id === 'tag-manager') {
-          return 1;
-        }
-        return a.manifest.name.localeCompare(b.manifest.name);
-      })
-      .map((manifest) => ({
-        id: manifest.manifest.id,
-        name: manifest.manifest.name,
-        version: manifest.manifest.version,
-        description: manifest.manifest.description,
-        enabled: manifest.manifest.enabled,
-        issues: manifest.issues,
-        maturity: manifest.maturity,
-        status: statusEntries[manifest.manifest.id]?.status ?? 'idle',
-        statusMessage: statusEntries[manifest.manifest.id]?.statusMessage,
-      }));
+    return deriveInstalledPlugins({
+      installedManifestRows,
+      rowStatuses,
+    });
   }, [installedManifestRows, rowStatuses]);
 
   React.useEffect(() => {
