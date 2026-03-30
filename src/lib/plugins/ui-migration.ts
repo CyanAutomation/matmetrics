@@ -71,10 +71,21 @@ const getUiEntrypoints = async (
   const importMap = new Map<string, string>();
 
   for (const match of entryContents.matchAll(pluginComponentImportPattern)) {
-    const importName = match[1]?.trim();
-    const source = match[2]?.trim();
-    if (importName && source) {
-      importMap.set(importName, source);
+    const namedImports = match[1]?.trim();
+    const defaultImport = match[2]?.trim();
+    const source = match[3]?.trim();
+    
+    if (!source) continue;
+    
+    if (namedImports) {
+      const names = namedImports.split(',').map(n => n.trim());
+      for (const importName of names) {
+        if (importName) importMap.set(importName, source);
+      }
+    }
+    
+    if (defaultImport) {
+      importMap.set(defaultImport, source);
     }
   }
 
