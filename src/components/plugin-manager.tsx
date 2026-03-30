@@ -149,6 +149,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { toast } = useToast();
   const { user, authAvailable } = useAuth();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
+  const isMountedRef = React.useRef(true);
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
     InstalledPluginManifestRow[]
   >([]);
@@ -170,6 +171,14 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   );
   const canManagePlugins = accessState === 'ready';
 
+  React.useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const refreshInstalledPlugins = React.useCallback(async () => {
     setFetchState('loading');
     setLoadErrorMessage(null);
@@ -177,6 +186,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       const validPlugins = await fetchInstalledPlugins({
         getHeaders: getAuthHeaders,
       });
+      if (!isMountedRef.current) {
+        return;
+      }
+
       setInstalledManifestRows(validPlugins);
       setFetchState('success');
       setLastUpdatedAt(new Date());
@@ -185,6 +198,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         error instanceof Error
           ? error.message
           : 'Could not load installed plugins from the API.';
+      if (!isMountedRef.current) {
+        return;
+      }
+
       setInstalledManifestRows([]);
       setFetchState('error');
       setLoadErrorMessage(message);
@@ -215,13 +232,19 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     });
   }, [canManagePlugins, refreshInstalledPlugins, toast]);
 
+  const refreshInstalledPluginsRef = React.useRef(refreshInstalledPlugins);
+
+  React.useEffect(() => {
+    refreshInstalledPluginsRef.current = refreshInstalledPlugins;
+  }, [refreshInstalledPlugins]);
+
   React.useEffect(() => {
     if (!canManagePlugins) {
       return;
     }
 
     const intervalId = window.setInterval(() => {
-      void refreshInstalledPlugins().catch((error) => {
+      void refreshInstalledPluginsRef.current().catch((error) => {
         console.error('Background plugin refresh failed', error);
       });
     }, 60_000);
@@ -229,7 +252,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [canManagePlugins, refreshInstalledPlugins]);
+  }, [canManagePlugins]);
 
   const handleManualRefresh = React.useCallback(() => {
     void refreshInstalledPlugins().catch((error) => {
