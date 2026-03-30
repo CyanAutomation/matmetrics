@@ -17,18 +17,18 @@ import {
 
 import { SessionLogForm } from '@/components/session-log-form';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
+import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
+import {
+  PluginStatCard,
+  PluginStatsGrid,
+} from '@/components/plugins/plugin-stats-grid';
 import { PluginEmptyState } from '@/components/plugins/plugin-state';
+import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -620,47 +620,26 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       tone="info"
       icon={<Film className="h-6 w-6" />}
     >
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Videos attached</CardDescription>
-            <CardTitle className="text-3xl">{summaryCounts.attached}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Missing videos</CardDescription>
-            <CardTitle className="text-3xl">{summaryCounts.missing}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Needs review</CardDescription>
-            <CardTitle className="text-3xl">{summaryCounts.review}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Checked links</CardDescription>
-            <CardTitle className="text-3xl">{summaryCounts.checked}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <PluginStatsGrid>
+        <PluginStatCard
+          label="Videos attached"
+          value={summaryCounts.attached}
+        />
+        <PluginStatCard label="Missing videos" value={summaryCounts.missing} />
+        <PluginStatCard label="Needs review" value={summaryCounts.review} />
+        <PluginStatCard label="Checked links" value={summaryCounts.checked} />
+      </PluginStatsGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventory & filters</CardTitle>
-          <CardDescription>
-            Filter by status, category, hostname, and link-check state.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Review tabs</Label>
-            <div className="flex flex-wrap gap-2">
-              {(
-                ['missing', 'review', 'checked', 'all'] as VideoLibraryTab[]
-              ).map((tab) => (
+      <PluginSectionCard
+        title="Inventory & filters"
+        description="Filter by status, category, hostname, and link-check state."
+        contentClassName="space-y-4"
+      >
+        <div className="space-y-2">
+          <Label>Review tabs</Label>
+          <div className="flex flex-wrap gap-2">
+            {(['missing', 'review', 'checked', 'all'] as VideoLibraryTab[]).map(
+              (tab) => (
                 <Button
                   key={tab}
                   type="button"
@@ -675,250 +654,242 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                     {tabCounts[tab]}
                   </Badge>
                 </Button>
-              ))}
+              )
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-5">
+          <div className="lg:col-span-2 space-y-2">
+            <Label htmlFor="video-library-search">Search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="video-library-search"
+                value={filters.search}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    search: event.target.value,
+                  }))
+                }
+                className="pl-9"
+                placeholder="Search date, host, or techniques"
+              />
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-5">
-            <div className="lg:col-span-2 space-y-2">
-              <Label htmlFor="video-library-search">Search</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="video-library-search"
-                  value={filters.search}
-                  onChange={(event) =>
-                    setFilters((current) => ({
-                      ...current,
-                      search: event.target.value,
-                    }))
-                  }
-                  className="pl-9"
-                  placeholder="Search date, host, or techniques"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={filters.status}
-                onValueChange={(value) =>
-                  setFilters((current) => ({
-                    ...current,
-                    status: value as VideoLibraryStatusFilter,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(
-                    [
-                      'all',
-                      'missing',
-                      'allowed_unchecked',
-                      'disallowed_domain',
-                      'invalid_url',
-                      'reachable',
-                      'broken',
-                      'check_failed',
-                    ] as VideoLibraryStatusFilter[]
-                  ).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getEntryStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select
-                value={filters.category}
-                onValueChange={(value) =>
-                  setFilters((current) => ({
-                    ...current,
-                    category: value as SessionCategory | 'all',
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All categories</SelectItem>
-                  <SelectItem value="Technical">Technical</SelectItem>
-                  <SelectItem value="Randori">Randori</SelectItem>
-                  <SelectItem value="Shiai">Shiai</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Checked state</Label>
-              <Select
-                value={filters.checked}
-                onValueChange={(value) =>
-                  setFilters((current) => ({
-                    ...current,
-                    checked: value as VideoLibraryCheckedFilter,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All rows" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All rows</SelectItem>
-                  <SelectItem value="checked">Checked only</SelectItem>
-                  <SelectItem value="unchecked">Unchecked only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select
+              value={filters.status}
+              onValueChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  status: value as VideoLibraryStatusFilter,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {(
+                  [
+                    'all',
+                    'missing',
+                    'allowed_unchecked',
+                    'disallowed_domain',
+                    'invalid_url',
+                    'reachable',
+                    'broken',
+                    'check_failed',
+                  ] as VideoLibraryStatusFilter[]
+                ).map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {getEntryStatusLabel(status)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-            <div className="space-y-2">
-              <Label>Hostname filter</Label>
-              <Select
-                value={filters.hostname || 'all'}
-                onValueChange={(value) =>
-                  setFilters((current) => ({
-                    ...current,
-                    hostname: value === 'all' ? '' : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All hosts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All hosts</SelectItem>
-                  {hostnameOptions.map((hostname) => (
-                    <SelectItem key={hostname} value={hostname}>
-                      {hostname}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleCheckFiltered()}
-                disabled={!bulkActionState.canCheckFiltered}
-              >
-                {isCheckingLinks ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                )}
-                {bulkActionState.checkFilteredLabel}
-              </Button>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleCheckUnchecked()}
-                disabled={!bulkActionState.canCheckUnchecked}
-              >
-                {isCheckingLinks ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                )}
-                {bulkActionState.checkUncheckedLabel}
-              </Button>
-            </div>
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={filters.category}
+              onValueChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  category: value as SessionCategory | 'all',
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="Technical">Technical</SelectItem>
+                <SelectItem value="Randori">Randori</SelectItem>
+                <SelectItem value="Shiai">Shiai</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-2">
+            <Label>Checked state</Label>
+            <Select
+              value={filters.checked}
+              onValueChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  checked: value as VideoLibraryCheckedFilter,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All rows" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All rows</SelectItem>
+                <SelectItem value="checked">Checked only</SelectItem>
+                <SelectItem value="unchecked">Unchecked only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+          <div className="space-y-2">
+            <Label>Hostname filter</Label>
+            <Select
+              value={filters.hostname || 'all'}
+              onValueChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  hostname: value === 'all' ? '' : value,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All hosts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All hosts</SelectItem>
+                {hostnameOptions.map((hostname) => (
+                  <SelectItem key={hostname} value={hostname}>
+                    {hostname}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleCheckFiltered()}
+              disabled={!bulkActionState.canCheckFiltered}
+            >
+              {isCheckingLinks ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="mr-2 h-4 w-4" />
+              )}
+              {bulkActionState.checkFilteredLabel}
+            </Button>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleCheckUnchecked()}
+              disabled={!bulkActionState.canCheckUnchecked}
+            >
+              {isCheckingLinks ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
+              {bulkActionState.checkUncheckedLabel}
+            </Button>
+          </div>
+        </PluginToolbar>
+      </PluginSectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Built-in domains</CardTitle>
-            <CardDescription>
-              Providers included in the default allowlist.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {starterDomains.map((domain) => (
-              <Badge key={domain} variant="outline">
-                {domain}
-              </Badge>
-            ))}
-          </CardContent>
-        </Card>
+        <PluginSectionCard
+          title="Built-in domains"
+          description="Providers included in the default allowlist."
+          contentClassName="flex flex-wrap gap-2"
+        >
+          {starterDomains.map((domain) => (
+            <Badge key={domain} variant="outline">
+              {domain}
+            </Badge>
+          ))}
+        </PluginSectionCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Custom domains</CardTitle>
-            <CardDescription>
-              Add trusted hosts for club videos or coaching portals.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-              <div className="space-y-2">
-                <Label htmlFor="video-library-domain">
-                  Custom allowed domain
-                </Label>
-                <Input
-                  id="video-library-domain"
-                  value={newDomain}
-                  onChange={(event) => setNewDomain(event.target.value)}
-                  placeholder="coachportal.example.com"
-                  disabled={!canSavePreferences || isSavingDomains}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  onClick={() => void handleAddDomain()}
-                  disabled={!canSavePreferences || isSavingDomains}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add domain
-                </Button>
-              </div>
+        <PluginSectionCard
+          title="Custom domains"
+          description="Add trusted hosts for club videos or coaching portals."
+          contentClassName="space-y-4"
+        >
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="space-y-2">
+              <Label htmlFor="video-library-domain">
+                Custom allowed domain
+              </Label>
+              <Input
+                id="video-library-domain"
+                value={newDomain}
+                onChange={(event) => setNewDomain(event.target.value)}
+                placeholder="coachportal.example.com"
+                disabled={!canSavePreferences || isSavingDomains}
+              />
             </div>
-            {!canSavePreferences ? (
+            <div className="flex items-end">
+              <Button
+                type="button"
+                onClick={() => void handleAddDomain()}
+                disabled={!canSavePreferences || isSavingDomains}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add domain
+              </Button>
+            </div>
+          </div>
+          {!canSavePreferences ? (
+            <p className="text-sm text-muted-foreground">
+              Sign in to save custom video domains.
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {customAllowedDomains.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Sign in to save custom video domains.
+                No custom domains saved yet.
               </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {customAllowedDomains.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No custom domains saved yet.
-                </p>
-              ) : (
-                customAllowedDomains.map((domain) => (
-                  <Badge key={domain} variant="outline" className="gap-2">
-                    {domain}
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => handlePromptRemoveDomain(domain)}
-                      disabled={isSavingDomains || isRemovingDomain}
-                      aria-label={`Remove ${domain}`}
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            ) : (
+              customAllowedDomains.map((domain) => (
+                <Badge key={domain} variant="outline" className="gap-2">
+                  {domain}
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => handlePromptRemoveDomain(domain)}
+                    disabled={isSavingDomains || isRemovingDomain}
+                    aria-label={`Remove ${domain}`}
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))
+            )}
+          </div>
+        </PluginSectionCard>
       </div>
 
       {summaryCounts.review > 0 ? (
@@ -932,121 +903,115 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         </Alert>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Session Video Audit</CardTitle>
-          <CardDescription>
-            Filter by tab, status, category, or host to focus the current audit
-            task.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredRows.length === 0 ? (
-            <PluginEmptyState
-              title={emptyState.title}
-              description={emptyState.description}
-              ctaLabel={emptyState.ctaLabel}
-              onCta={handleEmptyStateAction}
-              icon={<AlertCircle className="h-4 w-4" />}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Host</TableHead>
-                  <TableHead>Check age</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRows.map((row) => (
-                  <TableRow key={row.session.id}>
-                    <TableCell className="font-medium">
-                      <div>{row.session.date}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {row.session.category}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(row.displayStatus)}>
-                        {getEntryStatusLabel(row.displayStatus)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[220px] truncate">
-                      {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
-                    </TableCell>
-                    <TableCell>
-                      {row.latestCheck ? (
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(row.latestCheck.checkedAt).toLocaleString()}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Not checked
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
-                        {row.entry.url ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                          >
-                            <a
-                              href={row.entry.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        ) : null}
-                        {row.isCheckable ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              void handleCheckLinks([row.session.id])
-                            }
-                            disabled={isCheckingLinks}
-                          >
-                            <RefreshCcw className="h-4 w-4" />
-                          </Button>
-                        ) : null}
+      <PluginSectionCard
+        title="Session Video Audit"
+        description="Filter by tab, status, category, or host to focus the current audit task."
+      >
+        {filteredRows.length === 0 ? (
+          <PluginEmptyState
+            title={emptyState.title}
+            description={emptyState.description}
+            ctaLabel={emptyState.ctaLabel}
+            onCta={handleEmptyStateAction}
+            icon={<AlertCircle className="h-4 w-4" />}
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Host</TableHead>
+                <TableHead>Check age</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRows.map((row) => (
+                <TableRow key={row.session.id}>
+                  <TableCell className="font-medium">
+                    <div>{row.session.date}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.session.category}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusVariant(row.displayStatus)}>
+                      {getEntryStatusLabel(row.displayStatus)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[220px] truncate">
+                    {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
+                  </TableCell>
+                  <TableCell>
+                    {row.latestCheck ? (
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(row.latestCheck.checkedAt).toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Not checked
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-2">
+                      {row.entry.url ? (
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => setEditingSession(row.session)}
+                          asChild
                         >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {row.entry.url ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            interaction="destructive"
-                            onClick={() => setSessionPendingClear(row.session)}
+                          <a
+                            href={row.entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : null}
+                      {row.isCheckable ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            void handleCheckLinks([row.session.id])
+                          }
+                          disabled={isCheckingLinks}
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingSession(row.session)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {row.entry.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          interaction="destructive"
+                          onClick={() => setSessionPendingClear(row.session)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </PluginSectionCard>
 
       <Dialog
         open={!!editingSession}
@@ -1070,7 +1035,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         </DialogContent>
       </Dialog>
 
-      <PluginConfirmationDialog
+      <PluginDestructiveAction
         open={!!sessionPendingClear}
         onOpenChange={(open) => {
           if (!open && !isClearingVideo) {
@@ -1087,7 +1052,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         isPending={isClearingVideo}
       />
 
-      <PluginConfirmationDialog
+      <PluginDestructiveAction
         open={!!domainPendingRemoval}
         onOpenChange={(open) => {
           if (!open && !isRemovingDomain) {

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +32,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 
@@ -426,84 +426,79 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         </div>
       }
     >
-      <Card className="bg-card/95">
-        <CardContent className="p-6">
-          <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search techniques..."
-              className="pl-10"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <PluginSectionCard className="bg-card/95" contentClassName="p-6">
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search techniques..."
+            className="pl-10"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-          {filteredTags.length === 0 ? (
-            <PluginEmptyState
-              title="No tags to display"
-              description={emptyState.message}
-              ctaLabel={emptyState.ctaLabel}
-              onCta={() => {
-                if (emptyState.action === 'clearSearch') {
-                  setSearch('');
-                  return;
-                }
+        {filteredTags.length === 0 ? (
+          <PluginEmptyState
+            title="No tags to display"
+            description={emptyState.message}
+            ctaLabel={emptyState.ctaLabel}
+            onCta={() => {
+              if (emptyState.action === 'clearSearch') {
+                setSearch('');
+                return;
+              }
 
-                refreshTags();
-              }}
-              className="border-dashed bg-secondary/35"
-              icon={<Search className="h-4 w-4" />}
-            />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredTags.map((tag) => (
-                <div
-                  key={tag}
-                  className="flex items-center justify-between p-3 rounded-lg bg-background/80 hover:bg-secondary/35 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="font-semibold text-sm"
-                    >
-                      {tag}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={() => {
-                        setEditingTag(tag);
-                        setNewTagName(tag);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-accent"
-                      onClick={() => setMergingTag(tag)}
-                    >
-                      <Combine className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeletingTag(tag)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+              refreshTags();
+            }}
+            className="border-dashed bg-secondary/35"
+            icon={<Search className="h-4 w-4" />}
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {filteredTags.map((tag) => (
+              <div
+                key={tag}
+                className="flex items-center justify-between p-3 rounded-lg bg-background/80 hover:bg-secondary/35 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="font-semibold text-sm">
+                    {tag}
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={() => {
+                      setEditingTag(tag);
+                      setNewTagName(tag);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-accent"
+                    onClick={() => setMergingTag(tag)}
+                  >
+                    <Combine className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => setDeletingTag(tag)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </PluginSectionCard>
 
       {/* Rename Dialog */}
       <Dialog
@@ -697,12 +692,17 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               }
             }}
             title="Delete Technique Tag"
-            description={buildDeleteConfirmationCopy(deletingTag, deleteAnalysis)}
+            description={buildDeleteConfirmationCopy(
+              deletingTag,
+              deleteAnalysis
+            )}
             confirmLabel={actions.primaryLabel}
             pendingLabel={actions.primaryLabel}
             cancelLabel="Cancel"
             isPending={isAnalyzingDelete || isApplyingDelete}
-            confirmVariant={actions.mode === 'apply' ? 'destructive' : 'default'}
+            confirmVariant={
+              actions.mode === 'apply' ? 'destructive' : 'default'
+            }
             confirmDisabled={actions.primaryDisabled}
             cancelDisabled={actions.cancelDisabled}
             onCancel={resetDeleteDialog}
