@@ -17,7 +17,7 @@ test('initPlugin registers tag manager renderer with refresh wiring', () => {
   assert.ok(renderer, 'initPlugin should provide a renderer callback');
 
   const refreshSessions = () => undefined;
-  const element = renderer({ refreshSessions });
+  const element = renderer!({ refreshSessions });
 
   assert.ok(element && typeof element === 'object');
   assert.equal((element as { type?: unknown }).type, TagManager);
