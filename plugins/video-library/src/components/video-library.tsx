@@ -19,6 +19,12 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
+import {
+  PluginDataSurfaceFilterRow,
+  PluginDataSurfaceSplit,
+  PluginDataSurfaceSummaryStrip,
+} from '@/components/plugins/plugin-data-surface';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import {
@@ -26,7 +32,6 @@ import {
   PluginStatsGrid,
 } from '@/components/plugins/plugin-stats-grid';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import {
   PluginActionPrimary,
   PluginActionRow,
@@ -336,6 +341,10 @@ export function deriveVideoLibraryBulkActionState({
   return {
     canCheckFiltered: !isCheckingLinks && checkableRows.length > 0,
     canCheckUnchecked: !isCheckingLinks && uncheckedRows.length > 0,
+    disabledMessage:
+      isCheckingLinks || checkableRows.length > 0
+        ? null
+        : 'No checkable links match the current filters.',
     checkFilteredLabel: isCheckingLinks
       ? VIDEO_LIBRARY_LOADING_LABEL
       : 'Check filtered',
@@ -900,7 +909,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
         </div>
 
-        <PluginFilterBar>
+        <PluginDataSurfaceFilterRow>
           <div className="lg:col-span-2 space-y-2">
             <Label htmlFor="video-library-search">Search</Label>
             <div className="relative">
@@ -999,7 +1008,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </SelectContent>
             </Select>
           </div>
-        </PluginFilterBar>
+        </PluginDataSurfaceFilterRow>
 
         <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto_auto]">
           <div className="space-y-2">
@@ -1092,148 +1101,189 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
 
           <div className="flex items-end lg:col-span-2">
-            <PluginActionRow>
-              <PluginActionSecondary>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleCheckFiltered()}
-                  disabled={!bulkActionState.canCheckFiltered}
-                >
-                  {isCheckingLinks ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                  )}
-                  {bulkActionState.checkFilteredLabel}
-                </Button>
-              </PluginActionSecondary>
+            <PluginBulkActions
+              selectedCount={
+                filteredRows.filter((row) => row.isCheckable).length
+              }
+              itemLabel="checkable link"
+              disabledMessage={bulkActionState.disabledMessage ?? undefined}
+            >
+              <PluginActionRow>
+                <PluginActionSecondary>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleCheckFiltered()}
+                    disabled={!bulkActionState.canCheckFiltered}
+                  >
+                    {isCheckingLinks ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                    )}
+                    {bulkActionState.checkFilteredLabel}
+                  </Button>
+                </PluginActionSecondary>
 
-              <PluginActionPrimary>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleCheckUnchecked()}
-                  disabled={!bulkActionState.canCheckUnchecked}
-                >
-                  {isCheckingLinks ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                  )}
-                  {bulkActionState.checkUncheckedLabel}
-                </Button>
-              </PluginActionPrimary>
-            </PluginActionRow>
+                <PluginActionPrimary>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleCheckUnchecked()}
+                    disabled={!bulkActionState.canCheckUnchecked}
+                  >
+                    {isCheckingLinks ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    )}
+                    {bulkActionState.checkUncheckedLabel}
+                  </Button>
+                </PluginActionPrimary>
+              </PluginActionRow>
+            </PluginBulkActions>
           </div>
         </PluginToolbar>
       </PluginSectionCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <PluginSectionCard
-          title="Video expectations"
-          description="Videos are optional. Choose which categories should appear in the No video tab."
-          contentClassName="space-y-3"
-        >
-          <p className="text-sm text-muted-foreground">
-            Turn categories on when you expect videos there. Turn them off to
-            keep missing-video counts focused on your priorities.
-          </p>
-          <div className="space-y-2">
-            {SESSION_CATEGORY_OPTIONS.map((category) => (
-              <label
-                key={category}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
-              >
-                <span className="text-sm font-medium">{category}</span>
-                <Switch
-                  checked={expectedVideoCategories.includes(category)}
-                  onCheckedChange={() =>
-                    void handleExpectedCategoryToggle(category)
-                  }
-                  disabled={!canSavePreferences || isSavingCategoryExpectations}
-                  aria-label={`Expect videos for ${category}`}
-                />
-              </label>
-            ))}
-          </div>
-          {!canSavePreferences ? (
+      <PluginDataSurfaceSummaryStrip
+        filteredCount={sortedFilteredRows.length}
+        totalCount={rows.length}
+        itemLabel="sessions"
+        activeFilters={[
+          ...(filters.search.trim()
+            ? [{ label: 'Search', value: filters.search.trim() }]
+            : []),
+          ...(filters.status !== 'all'
+            ? [{ label: 'Status', value: getEntryStatusLabel(filters.status) }]
+            : []),
+          ...(filters.category !== 'all'
+            ? [{ label: 'Category', value: filters.category }]
+            : []),
+          ...(filters.hostname
+            ? [{ label: 'Host', value: filters.hostname }]
+            : []),
+          ...(filters.checked !== 'all'
+            ? [{ label: 'Checked', value: filters.checked }]
+            : []),
+          { label: 'Mode', value: getPresentationLabel(presentationMode) },
+          { label: 'Sort', value: getSortLabel(sortOrder) },
+        ]}
+      />
+
+      <PluginDataSurfaceSplit
+        list={
+          <PluginSectionCard
+            title="Video expectations"
+            description="Videos are optional. Choose which categories should appear in the No video tab."
+            contentClassName="space-y-3"
+          >
             <p className="text-sm text-muted-foreground">
-              Sign in to save category expectations.
+              Turn categories on when you expect videos there. Turn them off to
+              keep missing-video counts focused on your priorities.
             </p>
-          ) : null}
-        </PluginSectionCard>
-
-        <PluginSectionCard
-          title="Built-in domains"
-          description="Providers included in the default allowlist."
-          contentClassName="flex flex-wrap gap-2"
-        >
-          {starterDomains.map((domain) => (
-            <Badge key={domain} variant="outline">
-              {domain}
-            </Badge>
-          ))}
-        </PluginSectionCard>
-
-        <PluginSectionCard
-          title="Custom domains"
-          description="Add trusted hosts for club videos or coaching portals."
-          contentClassName="space-y-4"
-        >
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <div className="space-y-2">
-              <Label htmlFor="video-library-domain">
-                Custom allowed domain
-              </Label>
-              <Input
-                id="video-library-domain"
-                value={newDomain}
-                onChange={(event) => setNewDomain(event.target.value)}
-                placeholder="coachportal.example.com"
-                disabled={!canSavePreferences || isSavingDomains}
-              />
+              {SESSION_CATEGORY_OPTIONS.map((category) => (
+                <label
+                  key={category}
+                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                >
+                  <span className="text-sm font-medium">{category}</span>
+                  <Switch
+                    checked={expectedVideoCategories.includes(category)}
+                    onCheckedChange={() =>
+                      void handleExpectedCategoryToggle(category)
+                    }
+                    disabled={
+                      !canSavePreferences || isSavingCategoryExpectations
+                    }
+                    aria-label={`Expect videos for ${category}`}
+                  />
+                </label>
+              ))}
             </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                onClick={() => void handleAddDomain()}
-                disabled={!canSavePreferences || isSavingDomains}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add domain
-              </Button>
-            </div>
-          </div>
-          {!canSavePreferences ? (
-            <p className="text-sm text-muted-foreground">
-              Sign in to save custom video domains.
-            </p>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            {customAllowedDomains.length === 0 ? (
+            {!canSavePreferences ? (
               <p className="text-sm text-muted-foreground">
-                No custom domains saved yet.
+                Sign in to save category expectations.
               </p>
-            ) : (
-              customAllowedDomains.map((domain) => (
-                <Badge key={domain} variant="outline" className="gap-2">
+            ) : null}
+          </PluginSectionCard>
+        }
+        detail={
+          <>
+            <PluginSectionCard
+              title="Built-in domains"
+              description="Providers included in the default allowlist."
+              contentClassName="flex flex-wrap gap-2"
+            >
+              {starterDomains.map((domain) => (
+                <Badge key={domain} variant="outline">
                   {domain}
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => handlePromptRemoveDomain(domain)}
-                    disabled={isSavingDomains || isRemovingDomain}
-                    aria-label={`Remove ${domain}`}
-                  >
-                    ×
-                  </button>
                 </Badge>
-              ))
-            )}
-          </div>
-        </PluginSectionCard>
-      </div>
+              ))}
+            </PluginSectionCard>
+
+            <PluginSectionCard
+              title="Custom domains"
+              description="Add trusted hosts for club videos or coaching portals."
+              contentClassName="space-y-4"
+            >
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <div className="space-y-2">
+                  <Label htmlFor="video-library-domain">
+                    Custom allowed domain
+                  </Label>
+                  <Input
+                    id="video-library-domain"
+                    value={newDomain}
+                    onChange={(event) => setNewDomain(event.target.value)}
+                    placeholder="coachportal.example.com"
+                    disabled={!canSavePreferences || isSavingDomains}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={() => void handleAddDomain()}
+                    disabled={!canSavePreferences || isSavingDomains}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add domain
+                  </Button>
+                </div>
+              </div>
+              {!canSavePreferences ? (
+                <p className="text-sm text-muted-foreground">
+                  Sign in to save custom video domains.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {customAllowedDomains.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No custom domains saved yet.
+                  </p>
+                ) : (
+                  customAllowedDomains.map((domain) => (
+                    <Badge key={domain} variant="outline" className="gap-2">
+                      {domain}
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handlePromptRemoveDomain(domain)}
+                        disabled={isSavingDomains || isRemovingDomain}
+                        aria-label={`Remove ${domain}`}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </PluginSectionCard>
+          </>
+        }
+        detailClassName="space-y-4"
+      />
 
       {summaryCounts.review > 0 ? (
         <Alert variant="destructive">
