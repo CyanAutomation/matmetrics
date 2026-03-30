@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-03-30T06:58:00.213Z",
+  "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
+  "sourceEntrypoint": "plugins/*/src/index.ts",
+  "cacheKey": "c41bb4d8a71421596d9ea236bb45444d572621e57b700b07fbb6ff399333c9c6",
+  "plugins": [
+    {
+      "id": "github-sync",
+      "entrypoint": "plugins/github-sync/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/github-sync/src/index.ts",
+        "src/components/github-settings.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    },
+    {
+      "id": "log-doctor",
+      "entrypoint": "plugins/log-doctor/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/log-doctor/src/index.ts",
+        "plugins/log-doctor/src/components/log-doctor.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    },
+    {
+      "id": "prompt-settings",
+      "entrypoint": "plugins/prompt-settings/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/prompt-settings/src/index.ts",
+        "src/components/prompt-settings.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    },
+    {
+      "id": "tag-manager",
+      "entrypoint": "plugins/tag-manager/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/tag-manager/src/index.ts",
+        "src/components/tag-manager.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    },
+    {
+      "id": "video-library",
+      "entrypoint": "plugins/video-library/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/video-library/src/index.ts",
+        "src/components/video-library.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    }
+  ]
+}
