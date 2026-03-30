@@ -176,7 +176,7 @@ const resolvePluginComponentEntrypoints = async (
     if (namedBindings && ts.isNamedImports(namedBindings)) {
       for (const element of namedBindings.elements) {
         importMap.set(
-          (element.name ?? element.propertyName)?.text ?? '',
+          (element.propertyName ?? element.name)?.text ?? '',
           source
         );
       }
