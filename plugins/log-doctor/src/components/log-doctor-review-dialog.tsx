@@ -36,20 +36,20 @@ type ReviewDialogProps = {
   session: AuditSessionResult | null;
   open: boolean;
   onClose: () => void;
-  onMarkReviewed: (sessionId: string) => void;
+  onMarkResolved: (sessionId: string) => void;
+  onDismissForNow: (sessionId: string) => void;
   onIgnoreRule: (sessionId: string, code: AuditFlagCode) => void;
   onUnignoreRule: (sessionId: string, code: AuditFlagCode) => void;
-  onClearReview: (sessionId: string) => void;
 };
 
 export const AuditReviewDialog = ({
   session,
   open,
   onClose,
-  onMarkReviewed,
+  onMarkResolved,
+  onDismissForNow,
   onIgnoreRule,
   onUnignoreRule,
-  onClearReview,
 }: ReviewDialogProps): React.ReactElement => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
@@ -62,15 +62,15 @@ export const AuditReviewDialog = ({
     (f) => !session.ignoredRules.includes(f.code)
   );
 
-  const handleMarkReviewed = (): void => {
-    setPendingAction('reviewing');
-    onMarkReviewed(session.sessionId);
+  const handleMarkResolved = (): void => {
+    setPendingAction('resolving');
+    onMarkResolved(session.sessionId);
     setPendingAction(null);
   };
 
-  const handleClearReview = (): void => {
-    setPendingAction('clearing');
-    onClearReview(session.sessionId);
+  const handleDismissForNow = (): void => {
+    setPendingAction('dismissing');
+    onDismissForNow(session.sessionId);
     setPendingAction(null);
   };
 
@@ -92,13 +92,13 @@ export const AuditReviewDialog = ({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            Review session{' '}
+            Resolve session{' '}
             <span className="font-mono text-sm">{session.sessionDate}</span>
           </DialogTitle>
           <DialogDescription>
             {isReviewed
-              ? `Reviewed on ${new Date(session.reviewedAt!).toLocaleDateString()}. You can clear the review or manage ignored rules.`
-              : `${session.flags.length} audit flag${session.flags.length !== 1 ? 's' : ''} detected. Mark as reviewed once addressed, or ignore specific checks for this session.`}
+              ? `Resolved on ${new Date(session.reviewedAt!).toLocaleDateString()}.`
+              : `${session.flags.length} audit flag${session.flags.length !== 1 ? 's' : ''} detected. Mark fixed when addressed, or dismiss for now to revisit later.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -128,27 +128,10 @@ export const AuditReviewDialog = ({
                     </p>
                     {isIgnored ? (
                       <p className="text-xs text-muted-foreground italic">
-                        This rule is ignored for this session.
+                        This check is dismissed for this session.
                       </p>
                     ) : null}
                   </div>
-                  <Button
-                    size="sm"
-                    variant={isIgnored ? 'secondary' : 'outline'}
-                    className="shrink-0"
-                    onClick={() =>
-                      isIgnored
-                        ? handleUnignore(flag.code)
-                        : handleIgnore(flag.code)
-                    }
-                    aria-label={
-                      isIgnored
-                        ? `Stop ignoring ${FLAG_CODE_LABEL[flag.code]} for this session`
-                        : `Ignore ${FLAG_CODE_LABEL[flag.code]} for this session`
-                    }
-                  >
-                    {isIgnored ? 'Unignore' : 'Ignore'}
-                  </Button>
                 </div>
               );
             })
@@ -156,8 +139,49 @@ export const AuditReviewDialog = ({
 
           {activeFlags.length === 0 && !isReviewed ? (
             <p className="text-sm text-muted-foreground">
-              All flags are ignored. You can mark this session as reviewed.
+              All checks are dismissed. You can mark this session as fixed.
             </p>
+          ) : null}
+
+          {session.flags.length > 0 ? (
+            <details className="rounded-md border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Advanced options
+              </summary>
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Dismiss individual checks for this session.
+                </p>
+                {session.flags.map((flag) => {
+                  const isIgnored = session.ignoredRules.includes(flag.code);
+                  return (
+                    <div
+                      key={`advanced-${flag.code}`}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="text-xs">{FLAG_CODE_LABEL[flag.code]}</span>
+                      <Button
+                        size="sm"
+                        variant={isIgnored ? 'secondary' : 'outline'}
+                        className="shrink-0"
+                        onClick={() =>
+                          isIgnored
+                            ? handleUnignore(flag.code)
+                            : handleIgnore(flag.code)
+                        }
+                        aria-label={
+                          isIgnored
+                            ? `Undismiss ${FLAG_CODE_LABEL[flag.code]} for this session`
+                            : `Dismiss ${FLAG_CODE_LABEL[flag.code]} for this session`
+                        }
+                      >
+                        {isIgnored ? 'Undismiss' : 'Dismiss'}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
           ) : null}
         </div>
 
@@ -166,24 +190,21 @@ export const AuditReviewDialog = ({
             Close
           </Button>
           <div className="flex gap-2">
-            {isReviewed ? (
-              <Button
-                variant="secondary"
-                onClick={handleClearReview}
-                disabled={pendingAction !== null}
-                aria-label="Clear reviewed status for this session"
-              >
-                {pendingAction === 'clearing' ? 'Clearing…' : 'Clear review'}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleMarkReviewed}
-                disabled={pendingAction !== null}
-                aria-label="Mark this session as reviewed"
-              >
-                {pendingAction === 'reviewing' ? 'Saving…' : 'Mark reviewed'}
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              onClick={handleDismissForNow}
+              disabled={pendingAction !== null || activeFlags.length === 0}
+              aria-label="Dismiss all checks for now for this session"
+            >
+              {pendingAction === 'dismissing' ? 'Saving…' : 'Dismiss for now'}
+            </Button>
+            <Button
+              onClick={handleMarkResolved}
+              disabled={pendingAction !== null}
+              aria-label="Mark this session as fixed"
+            >
+              {pendingAction === 'resolving' ? 'Saving…' : 'Mark fixed'}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
