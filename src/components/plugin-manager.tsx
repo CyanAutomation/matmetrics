@@ -14,6 +14,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  PluginPageShell,
+  PLUGIN_PAGE_CLASS_PATTERNS,
+} from '@/components/plugins/plugin-page-shell';
+import {
+  PluginEmptyState,
+  PluginErrorState,
+  PluginLoadingState,
+} from '@/components/plugins/plugin-state';
 import { Switch } from '@/components/ui/switch';
 import {
   Table,
@@ -181,51 +190,43 @@ export function PluginManagerInstalledContent(props: {
 
   if (installedPluginsViewState === 'loading') {
     return (
-      <div className="space-y-2" data-testid="plugins-loading-state">
-        <p className="text-sm text-muted-foreground">
-          Loading installed plugins…
-        </p>
-        <div className="space-y-2">
-          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-        </div>
-      </div>
+      <PluginLoadingState
+        title="Loading installed plugins"
+        description="Loading installed plugins…"
+        className="bg-secondary/20"
+        data-testid="plugins-loading-state"
+      />
     );
   }
 
   if (installedPluginsViewState === 'error') {
     return (
-      <Alert variant="destructive" data-testid="plugins-error-state">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Failed to load installed plugins</AlertTitle>
-        <AlertDescription className="space-y-3">
-          <p>
-            {loadErrorMessage ??
-              'Could not load installed plugins from the API.'}
-          </p>
-          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <PluginErrorState
+        title="Failed to load installed plugins"
+        message={
+          loadErrorMessage ?? 'Could not load installed plugins from the API.'
+        }
+        onRetry={onRetry}
+        className="bg-destructive/5"
+        retryAriaLabel="Retry loading installed plugins"
+        data-testid="plugins-error-state"
+      />
     );
   }
 
   if (installedPluginsViewState === 'empty') {
     return (
-      <div
-        className="rounded-lg border border-dashed p-6 space-y-2 bg-secondary/20"
+      <PluginEmptyState
+        title="No installed plugins found."
+        description={
+          <div className="space-y-1">
+            <p>No installed plugins found in plugins/*/plugin.json.</p>
+            <p>Add a plugin manifest, then retry loading this list.</p>
+          </div>
+        }
+        className="bg-secondary/20"
         data-testid="plugins-empty-state"
-      >
-        <p className="font-medium">No installed plugins found.</p>
-        <p className="text-sm text-muted-foreground">
-          No installed plugins found in plugins/*/plugin.json.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Add a plugin manifest, then retry loading this list.
-        </p>
-      </div>
+      />
     );
   }
 
@@ -608,19 +609,15 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     ) : null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <Card className="bg-card/95">
-        <CardHeader className="bg-secondary/45">
-          <CardTitle>Plugins</CardTitle>
-          <CardDescription>
-            Enable or disable installed plugins, and review plugin issues.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
+    <PluginPageShell
+      title="Plugins"
+      description="Enable or disable installed plugins, and review plugin issues."
+      className="max-w-5xl"
+      contentClassName={PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing}
+    >
       {accessAlert}
 
-      <Card>
+      <Card className="bg-card/95 shadow-sm">
         <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
           <div className="space-y-1.5">
             <CardTitle>Installed Plugins</CardTitle>
@@ -662,7 +659,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
             </Button>
           ) : null}
         </CardHeader>
-        <CardContent>
+        <CardContent className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>
           <PluginManagerInstalledContent
             installedPluginsViewState={installedPluginsViewState}
             accessState={accessState}
@@ -697,14 +694,14 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="bg-card/95 shadow-sm">
         <CardHeader>
           <CardTitle>Plugin issue details</CardTitle>
           <CardDescription>
             Validation summary and issue details for each installed plugin.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>
           {installedPluginsViewState === 'access-blocked' ? (
             <p className="text-sm text-muted-foreground">
               {accessState === 'auth-unavailable'
@@ -874,6 +871,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PluginPageShell>
   );
 }
