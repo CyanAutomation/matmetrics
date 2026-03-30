@@ -465,21 +465,23 @@ export function GitHubSettings() {
       <Card className="bg-card/95 shadow-sm">
         <CardContent className="space-y-6 p-6 pt-8">
           {/* Configuration Information */}
-          <div className="bg-amber-50/85 border border-amber-200/40 rounded-lg p-4">
-            <p className="text-sm text-amber-900 font-semibold mb-2">
+          <div
+            className={`rounded-lg border p-4 ${theme.warningTone} shadow-sm`}
+          >
+            <p className="mb-2 text-sm font-semibold text-current">
               Setup Requirements:
             </p>
-            <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+            <ul className="list-inside list-disc space-y-1 text-sm text-current/90">
               <li>
                 Add{' '}
-                <code className="bg-amber-100 px-2 py-1 rounded">
+                <code className="rounded bg-background/70 px-2 py-1">
                   GITHUB_TOKEN
                 </code>{' '}
                 to your Vercel environment variables
               </li>
               <li>
                 Token must have{' '}
-                <code className="bg-amber-100 px-2 py-1 rounded">repo</code>{' '}
+                <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
                 permissions
               </li>
               <li>Repository will be created or used if it already exists</li>
@@ -595,7 +597,7 @@ export function GitHubSettings() {
                 onClick={() => void handleDisable()}
                 disabled={!controlState.canDisableSync}
                 variant="outline"
-                className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
               >
                 {isDisabling ? (
                   <>
@@ -632,7 +634,7 @@ export function GitHubSettings() {
         <PluginEmptyState
           title="Sync not configured"
           description="No repository is currently configured. Add an owner and repository above, then save your configuration to enable GitHub sync."
-          icon={<AlertCircle className="h-4 w-4 text-slate-600" />}
+          icon={<AlertCircle className="h-4 w-4 text-muted-foreground" />}
         />
       )}
 
@@ -640,8 +642,8 @@ export function GitHubSettings() {
         <PluginEmptyState
           title="Initial sync pending"
           description="GitHub sync is enabled, but existing sessions have not been pushed yet. Run initial sync below to backfill your current training history."
-          icon={<AlertCircle className="h-4 w-4 text-purple-700" />}
-          className="border-purple-200 bg-purple-50"
+          icon={<AlertCircle className="h-4 w-4 text-primary" />}
+          className="border-primary/25 bg-primary/5"
         />
       )}
 
@@ -650,7 +652,9 @@ export function GitHubSettings() {
         <Card className="bg-card/95 shadow-sm">
           <CardHeader className="bg-secondary/45">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-600 text-white rounded-lg shadow-md">
+              <div
+                className={`rounded-lg p-2 ${theme.headerIconBg} ${theme.surfaceElevation}`}
+              >
                 <RefreshCw className="h-6 w-6" />
               </div>
               <div>
@@ -670,7 +674,7 @@ export function GitHubSettings() {
             <Button
               onClick={() => void handleBulkSync()}
               disabled={!controlState.canRunSyncAll}
-              className="gap-2 bg-purple-600 hover:bg-purple-700"
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isSyncing ? (
                 <>
@@ -750,15 +754,13 @@ export function GitHubSettings() {
 
       {/* Success State */}
       {isEnabled && migrationDone && (
-        <Card className="bg-green-50/90 border border-green-200/40">
+        <Card className="border-primary/25 bg-primary/5">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <CheckCircle2 className="h-6 w-6 text-primary" />
               <div>
-                <p className="font-semibold text-green-900">
-                  GitHub Sync Active
-                </p>
-                <p className="text-sm text-green-800">
+                <p className="font-semibold text-primary">GitHub Sync Active</p>
+                <p className="text-sm text-primary/80">
                   All existing sessions have been synced. New sessions will sync
                   automatically.
                 </p>
