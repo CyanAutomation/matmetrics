@@ -74,9 +74,14 @@ export interface GitHubSettings {
   syncStatus: GitHubSyncStatus;
 }
 
+export const DEFAULT_EXPECTED_VIDEO_CATEGORIES: SessionCategory[] = [
+  'Technical',
+];
+
 export interface VideoLibraryPreferences {
   customAllowedDomains: string[];
   linkChecksBySessionId: Record<string, VideoLinkCheckSnapshot>;
+  expectedVideoCategories: SessionCategory[];
 }
 
 export type VideoLinkCheckStatus =
