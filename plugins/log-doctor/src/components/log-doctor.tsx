@@ -3,18 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
+import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToastAction } from '@/components/ui/toast';
@@ -46,7 +39,6 @@ import { AuditSettings } from './log-doctor-audit-settings';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 
 import {
-  canConfirmApplyFixes,
   createEmptyDiagnosticsSnapshot,
   createUiState,
   resolveResetDiagnosticsSnapshot,
@@ -183,7 +175,6 @@ export const LogDoctor = (): React.ReactElement => {
   const [activeController, setActiveController] =
     useState<AbortController | null>(null);
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
-  const [applyConfirmationValue, setApplyConfirmationValue] = useState('');
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
   // Audit tab state
@@ -600,7 +591,6 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleApplyFixes = (): void => {
-    setApplyConfirmationValue('');
     setShowApplyConfirmation(true);
     emitDestructiveActionEvent('apply-fixes', 'opened', {
       selectedCount,
@@ -610,24 +600,17 @@ export const LogDoctor = (): React.ReactElement => {
 
   const handleCancelApplyConfirmation = (): void => {
     setShowApplyConfirmation(false);
-    setApplyConfirmationValue('');
     emitDestructiveActionEvent('apply-fixes', 'canceled', {
       selectedCount,
     });
   };
 
   const handleConfirmApplyFixes = async (): Promise<void> => {
-    if (!canConfirmApplyFixes(applyConfirmationValue)) {
-      setErrorMessage('Type APPLY to confirm this irreversible action.');
-      return;
-    }
-
     emitDestructiveActionEvent('apply-fixes', 'confirmed', {
       selectedCount,
       branch: branch.trim() || 'default branch',
     });
     setShowApplyConfirmation(false);
-    setApplyConfirmationValue('');
     await executeApplyFixes();
   };
 
@@ -1036,89 +1019,49 @@ export const LogDoctor = (): React.ReactElement => {
         }}
       />
 
-      <Dialog
+      <PluginConfirmationDialog
         open={showApplyConfirmation}
         onOpenChange={(open) => {
           if (!open) {
             handleCancelApplyConfirmation();
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">
-              Confirm apply fixes
-            </DialogTitle>
-            <DialogDescription>
-              This will commit normalization fixes for {selectedCount} selected
-              file(s) on{' '}
-              <strong>{branch.trim() || 'the default branch'}</strong>. Undo is
-              not available in Log Doctor. Type <strong>APPLY</strong> to
-              continue.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="apply-fixes-confirm-text">Confirmation text</Label>
-            <Input
-              id="apply-fixes-confirm-text"
-              value={applyConfirmationValue}
-              onChange={(event) =>
-                setApplyConfirmationValue(event.target.value)
-              }
-              placeholder="Type APPLY"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelApplyConfirmation}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                void handleConfirmApplyFixes();
-              }}
-              aria-label="Confirm apply fixes and create commits"
-              disabled={!canConfirmApplyFixes(applyConfirmationValue)}
-            >
-              Confirm apply fixes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Confirm apply fixes"
+        description={
+          <>
+            This will commit normalization fixes for {selectedCount} selected
+            file(s) on <strong>{branch.trim() || 'the default branch'}</strong>
+            . Undo is not available in Log Doctor.
+          </>
+        }
+        confirmLabel="Confirm apply fixes"
+        cancelLabel="Cancel"
+        onCancel={handleCancelApplyConfirmation}
+        onConfirm={() => {
+          void handleConfirmApplyFixes();
+        }}
+        typedConfirmation={{
+          requiredText: 'APPLY',
+          inputLabel: 'Confirmation text',
+          inputPlaceholder: 'Type APPLY',
+          helperText: 'Type APPLY to confirm this irreversible action.',
+        }}
+      />
 
-      <Dialog
+      <PluginConfirmationDialog
         open={showResetConfirmation}
         onOpenChange={(open) => {
           if (!open) {
             handleCancelResetConfirmation();
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">
-              Reset diagnostics state?
-            </DialogTitle>
-            <DialogDescription>
-              This clears current scan findings, fix previews, and selected
-              files from the Log Doctor panel. You can undo this reset from the
-              toast after confirming.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelResetConfirmation}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmResetDiagnosticsState}
-              aria-label="Confirm resetting diagnostics state"
-            >
-              Reset diagnostics state
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Reset diagnostics state?"
+        description="This clears current scan findings, fix previews, and selected files from the Log Doctor panel. You can undo this reset from the toast after confirming."
+        confirmLabel="Reset diagnostics state"
+        cancelLabel="Cancel"
+        onCancel={handleCancelResetConfirmation}
+        onConfirm={handleConfirmResetDiagnosticsState}
+      />
     </PluginPageShell>
   );
 };
