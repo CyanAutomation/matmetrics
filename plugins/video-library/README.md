@@ -16,6 +16,12 @@ The Video Library plugin provides a **dashboard tab** for browsing linked sessio
   - icon: `film`
   - component id: `video_library`
 
+## UI Ownership
+
+- Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
+- This plugin owns `plugins/video-library/src/components/video-library.tsx` and its colocated tests.
+- Shared cross-plugin primitives remain in `src/components/plugins`.
+
 ## Usage
 
 1. Start the app with `npm run dev`.
@@ -34,6 +40,6 @@ npm test -- plugins/video-library/plugin.test.ts
 npm test -- plugins/video-library/src/index.test.ts
 npm test -- src/lib/video-library.test.ts
 npm test -- src/tests/api-video-library-check-links-route.test.ts
-npm test -- src/components/video-library.ux.test.tsx
-npm test -- src/components/video-library.destructive.test.tsx
+npm test -- plugins/video-library/src/components/video-library.ux.test.tsx
+npm test -- plugins/video-library/src/components/video-library.destructive.test.tsx
 ```

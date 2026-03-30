@@ -31,6 +31,12 @@ At runtime, `initPlugin` wires the plugin into the dashboard extension system by
 2. Registering the component renderer for `prompt_settings`.
 3. Rendering the `PromptSettings` React component for that component id.
 
+## UI Ownership
+
+- Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
+- This plugin owns `plugins/prompt-settings/src/components/prompt-settings.tsx` and its colocated tests.
+- Shared cross-plugin primitives remain in `src/components/plugins`.
+
 ## Usage
 
 ### Operator/developer quickstart
@@ -88,25 +94,25 @@ npm run typecheck
 Run plugin-focused and integration coverage that exercises plugin discovery/render wiring:
 
 ```bash
-npm test -- src/components/prompt-settings.test.tsx
+npm test -- plugins/prompt-settings/src/components/prompt-settings.test.tsx
 npm test -- src/lib/plugins/load-dashboard-tab-extensions.test.ts
 npm test -- src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts
 npm test -- src/lib/navigation/tab-definitions.test.ts
 ```
 
-If you add dedicated tests for this plugin, include them in this section (for example: `plugins/prompt-settings/**/*.test.ts` or `src/components/prompt-settings.test.tsx`).
+If you add dedicated tests for this plugin, include them in this section (for example: `plugins/prompt-settings/**/*.test.ts` or `plugins/prompt-settings/src/components/prompt-settings.test.tsx`).
 
 ### UX criteria to automated tests
 
-- **Loading state present** → `src/components/prompt-settings.test.tsx`
+- **Loading state present** → `plugins/prompt-settings/src/components/prompt-settings.test.tsx`
   - `loading criterion anchor: loading state present with loading text and disabled interaction while loading`
   - `loading criterion anchor: loading disables interaction when save or reset is in progress`
-- **Error state with recovery** → `src/components/prompt-settings.test.tsx`
+- **Error state with recovery** → `plugins/prompt-settings/src/components/prompt-settings.test.tsx`
   - `error criterion anchor: error state exposes retry recovery action label and callable recover flow`
   - `error criterion anchor: error recovery handles retry failure without throwing`
-- **Empty/default state with CTA** → `src/components/prompt-settings.test.tsx`
+- **Empty/default state with CTA** → `plugins/prompt-settings/src/components/prompt-settings.test.tsx`
   - `empty criterion anchor: empty/default state includes explicit cta action wording add create configure`
-- **Destructive reset safety (confirm + cancel)** → `src/components/prompt-settings.test.tsx`
+- **Destructive reset safety (confirm + cancel)** → `plugins/prompt-settings/src/components/prompt-settings.test.tsx`
   - `destructive criterion anchor: destructive confirm resets prompt and destructive cancel preserves prompt text`
 
 ### Manual verification checklist

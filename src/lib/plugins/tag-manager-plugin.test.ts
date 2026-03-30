@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TagManager } from '@/components/tag-manager';
+import { TagManager } from '../../../plugins/tag-manager/src/components/tag-manager';
 import {
   clearDashboardTabRendererRegistryForTests,
   resolveDashboardTabRenderer,

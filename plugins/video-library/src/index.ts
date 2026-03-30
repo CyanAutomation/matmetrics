@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { VideoLibrary } from '@/components/video-library';
+import { VideoLibrary } from './components/video-library';
 import { type DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 
 export type PluginContext = {

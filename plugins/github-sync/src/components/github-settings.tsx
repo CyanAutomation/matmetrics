@@ -21,7 +21,7 @@ import {
   SyncResultsMainPanel,
   type GitHubSyncHistoryData,
   type GitHubSyncSurfaceState,
-} from '@/components/github-sync-results';
+} from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
@@ -49,7 +49,7 @@ import {
   GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
-} from '@/components/github-settings-view-model';
+} from './github-settings-view-model';
 import {
   PluginLoadingState,
   PluginEmptyState,

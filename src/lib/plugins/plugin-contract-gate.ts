@@ -58,9 +58,14 @@ const extractDeclaredComponentIds = (
   });
 
 const hasRequiredReadmeSections = (content: string): boolean => {
+  const ownershipHeading = /^#{1,6}\s*ui ownership\b/im;
   const usageHeading = /^#{1,6}\s*usage\b/im;
   const verificationHeading = /^#{1,6}\s*verification\b/im;
-  return usageHeading.test(content) && verificationHeading.test(content);
+  return (
+    ownershipHeading.test(content) &&
+    usageHeading.test(content) &&
+    verificationHeading.test(content)
+  );
 };
 
 export type PluginContractGateResult = {
@@ -124,7 +129,7 @@ export const runPluginContractGate = async ({
     issues.push({
       severity: 'error',
       path: 'contractGate.readme',
-      message: `Missing required docs: plugins/${directoryName}/README.md (must include Usage and Verification sections).`,
+      message: `Missing required docs: plugins/${directoryName}/README.md (must include UI Ownership, Usage, and Verification sections).`,
     });
   }
 
@@ -179,7 +184,7 @@ export const runPluginContractGate = async ({
           severity: 'error',
           path: 'contractGate.readme',
           message:
-            'README.md must include both "Usage" and "Verification" sections.',
+            'README.md must include "UI Ownership", "Usage", and "Verification" sections.',
         });
       }
     } catch {
@@ -187,7 +192,7 @@ export const runPluginContractGate = async ({
         severity: 'error',
         path: 'contractGate.readme',
         message:
-          'README.md could not be read. Ensure the file is present and includes "Usage" and "Verification" sections.',
+          'README.md could not be read. Ensure the file is present and includes "UI Ownership", "Usage", and "Verification" sections.',
       });
     }
   }
