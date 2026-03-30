@@ -555,7 +555,9 @@ export default function Home() {
       </div>
 
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        {/* Quick-log spacing convention: form-owned (same as auth's `p-0` dialog shell).
+            Keep dialog chrome neutral so SessionLogForm's card controls all interior spacing consistently. */}
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Log practice session</DialogTitle>
           {isLogModalOpen && (
             <SessionLogForm
