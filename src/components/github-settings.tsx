@@ -21,14 +21,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { GitHubConfig } from '@/lib/types';
 import {
   runLoadGitHubSyncHistory,
@@ -53,6 +45,7 @@ import {
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from '@/components/github-settings-view-model';
+import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import {
   PluginEmptyState,
   PluginErrorState,
@@ -418,6 +411,28 @@ export function GitHubSettings() {
     isClearDialogOpen,
   });
 
+  const handleCancelClearDialog = () => {
+    const nextState = resolveClearDialogOutcome(
+      {
+        owner,
+        repo,
+        branch,
+        isEnabled,
+        migrationDone,
+        isClearDialogOpen,
+        testResult,
+      },
+      'cancel'
+    );
+    setOwner(nextState.owner);
+    setRepo(nextState.repo);
+    setBranch(nextState.branch);
+    setIsEnabled(nextState.isEnabled);
+    setMigrationDone(nextState.migrationDone);
+    setTestResult(nextState.testResult);
+    setIsClearDialogOpen(nextState.isClearDialogOpen);
+  };
+
   return (
     <PluginPageShell
       title="GitHub Repository Configuration"
@@ -762,70 +777,20 @@ export function GitHubSettings() {
         </Card>
       )}
 
-      <Dialog
+      <PluginConfirmationDialog
         open={controlState.isClearDialogOpen}
         onOpenChange={setIsClearDialogOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Clear GitHub configuration?</DialogTitle>
-            <DialogDescription>
-              This removes your saved repository owner, name, and branch
-              settings. GitHub sync will be disabled until you configure it
-              again.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const nextState = resolveClearDialogOutcome(
-                  {
-                    owner,
-                    repo,
-                    branch,
-                    isEnabled,
-                    migrationDone,
-                    isClearDialogOpen,
-                    testResult,
-                  },
-                  'cancel'
-                );
-                setOwner(nextState.owner);
-                setRepo(nextState.repo);
-                setBranch(nextState.branch);
-                setIsEnabled(nextState.isEnabled);
-                setMigrationDone(nextState.migrationDone);
-                setTestResult(nextState.testResult);
-                setIsClearDialogOpen(nextState.isClearDialogOpen);
-              }}
-              disabled={!controlState.canConfirmClear}
-            >
-              {GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleClear()}
-              disabled={!controlState.canConfirmClear}
-              className="gap-2"
-            >
-              {isClearing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {controlState.clearConfirmationLabel}
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Clear Configuration
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Clear GitHub configuration?"
+        description="This removes your saved repository owner, name, and branch settings. GitHub sync will be disabled until you configure it again."
+        confirmLabel="Clear Configuration"
+        pendingLabel={controlState.clearConfirmationLabel}
+        cancelLabel={GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
+        onConfirm={() => void handleClear()}
+        onCancel={handleCancelClearDialog}
+        isPending={isClearing}
+        confirmDisabled={!controlState.canConfirmClear}
+        cancelDisabled={!controlState.canConfirmClear}
+      />
     </PluginPageShell>
   );
 }

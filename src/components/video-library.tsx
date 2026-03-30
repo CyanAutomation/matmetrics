@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { SessionLogForm } from '@/components/session-log-form';
+import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,7 +33,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -1073,83 +1073,45 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <PluginConfirmationDialog
         open={!!sessionPendingClear}
-        onOpenChange={(open) =>
-          !open && !isClearingVideo && setSessionPendingClear(null)
-        }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove session video?</DialogTitle>
-            <DialogDescription>
-              This clears the stored `videoUrl` for the selected session.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSessionPendingClear(null)}
-              disabled={isClearingVideo}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              interaction="destructive"
-              onClick={() => void handleClearVideo()}
-              disabled={isClearingVideo}
-            >
-              {isClearingVideo ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Remove video
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(open) => {
+          if (!open && !isClearingVideo) {
+            setSessionPendingClear(null);
+          }
+        }}
+        title="Remove session video?"
+        description="This clears the stored `videoUrl` for the selected session."
+        confirmLabel="Remove video"
+        pendingLabel="Removing..."
+        cancelLabel="Cancel"
+        onCancel={() => setSessionPendingClear(null)}
+        onConfirm={() => void handleClearVideo()}
+        isPending={isClearingVideo}
+      />
 
-      <Dialog
+      <PluginConfirmationDialog
         open={!!domainPendingRemoval}
-        onOpenChange={(open) =>
-          !open && !isRemovingDomain && setDomainPendingRemoval(null)
+        onOpenChange={(open) => {
+          if (!open && !isRemovingDomain) {
+            setDomainPendingRemoval(null);
+          }
+        }}
+        title="Remove custom domain?"
+        description={
+          domainPendingRemoval
+            ? buildVideoDomainRemovalConfirmationDescription(
+                domainPendingRemoval.impact
+              )
+            : ''
         }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove custom domain?</DialogTitle>
-            <DialogDescription>
-              {domainPendingRemoval
-                ? buildVideoDomainRemovalConfirmationDescription(
-                    domainPendingRemoval.impact
-                  )
-                : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDomainPendingRemoval(null)}
-              disabled={isRemovingDomain}
-            >
-              {VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL}
-            </Button>
-            <Button
-              type="button"
-              interaction="destructive"
-              onClick={() => void handleConfirmRemoveDomain()}
-              disabled={isRemovingDomain}
-            >
-              {isRemovingDomain ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        confirmLabel={VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL}
+        pendingLabel="Removing..."
+        cancelLabel={VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL}
+        onCancel={() => setDomainPendingRemoval(null)}
+        onConfirm={() => void handleConfirmRemoveDomain()}
+        isPending={isRemovingDomain}
+      />
     </PluginPageShell>
   );
 }
