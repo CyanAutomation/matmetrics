@@ -72,7 +72,7 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', async 
     version: '1.0.0',
     description: 'Test',
     enabled: true,
-    minVersion: '1.0.0', // Higher than current version 0.1.0
+    minVersion: '1.3.0',
     capabilities: [],
     uiExtensions: [
       {

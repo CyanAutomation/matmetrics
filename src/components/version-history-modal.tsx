@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
 import {
   Dialog,
@@ -9,104 +9,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { APP_VERSION } from '@/lib/app-version';
+import type { ReleaseEntry } from '@/lib/releases';
 
-interface ChangeEntry {
-  title: string;
-  date: string;
-  sections: {
-    label: string;
-    items: string[];
-  }[];
-}
+type RecentReleasesResponse = {
+  currentVersion: string;
+  releases: ReleaseEntry[];
+};
 
-const CHANGELOG_ENTRIES: ChangeEntry[] = [
-  {
-    title: 'v1.2.0',
-    date: '2026-03-30',
-    sections: [
-      {
-        label: 'Features',
-        items: [
-          'Version history modal for displaying recent changelog entries',
-          'Enhanced session filtering and search capabilities',
-          'Improved dashboard overview with real-time updates',
-        ],
-      },
-      {
-        label: 'Fixes',
-        items: [
-          'Fixed modal dialog responsiveness on mobile devices',
-          'Corrected sidebar footer alignment issues',
-          'Improved error handling for session storage',
-        ],
-      },
-      {
-        label: 'Documentation',
-        items: [
-          'Added comprehensive API documentation for session management',
-          'Updated plugin development guide with new examples',
-        ],
-      },
-    ],
-  },
-  {
-    title: 'v1.1.0',
-    date: '2026-01-15',
-    sections: [
-      {
-        label: 'Features',
-        items: [
-          'Plugin system with dashboard tab extensions',
-          'Guest mode for demo data and local sessions',
-          'Session audit/log-doctor feature for data validation',
-          'Dark mode support with system theme detection',
-        ],
-      },
-      {
-        label: 'Improvements',
-        items: [
-          'Optimized session loading performance',
-          'Enhanced Tailwind CSS configuration for better responsive design',
-          'Improved accessibility for dialog and form components',
-        ],
-      },
-      {
-        label: 'Fixes',
-        items: [
-          'Fixed session date picker behavior',
-          'Corrected sidebar menu navigation state management',
-          'Resolved GitHub sync token validation issues',
-        ],
-      },
-    ],
-  },
-  {
-    title: 'v1.0.0',
-    date: '2025-10-01',
-    sections: [
-      {
-        label: 'Features',
-        items: [
-          'Core session logging with date, techniques, effort rating (1-5), and category',
-          'Session history view with filtering by date range',
-          'Dashboard overview showing recent sessions and metrics',
-          'Session export to GitHub markdown files',
-          'Authentication system with Firebase',
-          'Light and dark theme support',
-          'Responsive design for mobile and desktop',
-        ],
-      },
-      {
-        label: 'Fixes',
-        items: [
-          'Fixed initial data loading on cold start',
-          'Corrected browser storage persistence for sessions',
-          'Resolved CSS class conflicts in Tailwind configuration',
-        ],
-      },
-    ],
-  },
-];
+type ReleaseHistoryErrorResponse = {
+  error?: string;
+  details?: string;
+};
+
+const isReleaseHistoryErrorResponse = (
+  payload: RecentReleasesResponse | ReleaseHistoryErrorResponse
+): payload is ReleaseHistoryErrorResponse =>
+  'error' in payload || 'details' in payload;
+
+const isRecentReleasesResponse = (
+  payload: RecentReleasesResponse | ReleaseHistoryErrorResponse
+): payload is RecentReleasesResponse => 'releases' in payload;
 
 interface VersionHistoryModalProps {
   open: boolean;
@@ -117,6 +40,66 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   open,
   onOpenChange,
 }) => {
+  const [releases, setReleases] = useState<ReleaseEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || releases.length > 0 || isLoading) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReleases = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch('/api/releases/recent', {
+          cache: 'no-store',
+        });
+        const payload = (await response.json()) as
+          | RecentReleasesResponse
+          | ReleaseHistoryErrorResponse;
+
+        if (!response.ok) {
+          if (isReleaseHistoryErrorResponse(payload)) {
+            throw new Error(
+              payload.details ?? payload.error ?? 'Unknown error'
+            );
+          }
+          throw new Error('Unknown error');
+        }
+
+        if (!cancelled) {
+          if (!isRecentReleasesResponse(payload)) {
+            throw new Error('Release history response is missing releases.');
+          }
+          setReleases(payload.releases);
+        }
+      } catch (fetchError) {
+        if (!cancelled) {
+          setError(
+            fetchError instanceof Error
+              ? fetchError.message
+              : 'Unable to load release history.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadReleases();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, open, releases.length]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-96">
@@ -127,31 +110,53 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
           </DialogDescription>
         </DialogHeader>
         <div className="overflow-y-auto pr-4 space-y-6">
-          {CHANGELOG_ENTRIES.map((entry) => (
-            <div key={entry.title}>
-              <div className="mb-3">
-                <h3 className="font-semibold text-sm">{entry.title}</h3>
-                <p className="text-xs text-muted-foreground">{entry.date}</p>
-              </div>
-              <div className="space-y-3">
-                {entry.sections.map((section) => (
-                  <div key={section.label}>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                      {section.label}
-                    </h4>
-                    <ul className="space-y-1 ml-3">
-                      {section.items.map((item, idx) => (
-                        <li key={idx} className="text-xs leading-relaxed">
-                          <span className="inline-block w-1 h-1 bg-muted-foreground rounded-full mr-2 align-middle"></span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">
+              Loading recent releases...
+            </p>
+          ) : null}
+          {error ? (
+            <p className="text-sm text-destructive">
+              Unable to load release history. {error}
+            </p>
+          ) : null}
+          {!isLoading && !error
+            ? releases.map((entry) => (
+                <div key={entry.version}>
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-sm">v{entry.version}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {entry.date}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  <div className="space-y-3">
+                    {entry.sections.map((section) => (
+                      <div key={`${entry.version}-${section.label}`}>
+                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                          {section.label}
+                        </h4>
+                        <ul className="space-y-1 ml-3">
+                          {section.items.map((item) => (
+                            <li
+                              key={`${entry.version}-${section.label}-${item}`}
+                              className="text-xs leading-relaxed"
+                            >
+                              <span className="inline-block w-1 h-1 bg-muted-foreground rounded-full mr-2 align-middle"></span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            : null}
+          {!isLoading && !error && releases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No recent releases are available.
+            </p>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
@@ -173,7 +178,7 @@ export const VersionHistoryButton: React.FC<VersionHistoryButtonProps> = ({
       aria-label="View version history"
     >
       <Info className="h-3 w-3" />
-      <span className="text-xs font-medium">v1.2.0 Stable</span>
+      <span className="text-xs font-medium">v{APP_VERSION}</span>
     </button>
   );
 };

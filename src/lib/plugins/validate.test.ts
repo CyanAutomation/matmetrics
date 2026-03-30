@@ -362,7 +362,7 @@ test('plugin with acceptable minVersion passes', () => {
       name: 'Version Compatible Plugin',
       version: '1.0.0',
       description: 'Plugin with compatible version requirement.',
-      minVersion: '0.1.0', // Same as current version in app-version.ts
+      minVersion: '1.2.0',
       uiExtensions: [
         {
           type: 'menu_item',
@@ -375,7 +375,7 @@ test('plugin with acceptable minVersion passes', () => {
         },
       ],
     },
-    { currentVersion: '0.1.0' }
+    { currentVersion: '1.2.0' }
   );
 
   assert.equal(result.isValid, true);
@@ -391,7 +391,7 @@ test('plugin with too-high minVersion returns warning', () => {
       name: 'Version Incompatible Plugin',
       version: '1.0.0',
       description: 'Plugin with incompatible version requirement.',
-      minVersion: '1.0.0', // Higher than current version 0.1.0
+      minVersion: '1.3.0',
       uiExtensions: [
         {
           type: 'menu_item',
@@ -404,7 +404,7 @@ test('plugin with too-high minVersion returns warning', () => {
         },
       ],
     },
-    { currentVersion: '0.1.0' }
+    { currentVersion: '1.2.0' }
   );
 
   assert.equal(result.isValid, true);
@@ -414,7 +414,7 @@ test('plugin with too-high minVersion returns warning', () => {
         severity: 'warning',
         path: 'minVersion',
         message:
-          'Plugin requires matmetrics version 1.0.0 or higher, but current version is 0.1.0.',
+          'Plugin requires matmetrics version 1.3.0 or higher, but current version is 1.2.0.',
       },
     ]);
   }
@@ -440,7 +440,7 @@ test('plugin without explicit minVersion passes regardless of version', () => {
         },
       ],
     },
-    { currentVersion: '0.1.0' }
+    { currentVersion: '1.2.0' }
   );
 
   assert.equal(result.isValid, true);
