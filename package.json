@@ -13,7 +13,7 @@
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "NODE_ENV=production next build --webpack",
     "start": "next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "npm run validate:plugin-ui-contract && eslint . --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --write tsconfig.json",
@@ -23,7 +23,8 @@
     "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/...",
     "verify": "npm test && npm run typecheck && npm run build && npm run go:test",
     "plugin:maturity:regenerate": "node --import tsx scripts/regenerate-plugin-maturity-scorecards.ts",
-    "plugin:ui-migration:regenerate": "node --import tsx scripts/regenerate-plugin-ui-migration-scorecards.ts"
+    "plugin:ui-migration:regenerate": "node --import tsx scripts/regenerate-plugin-ui-migration-scorecards.ts",
+    "validate:plugin-ui-contract": "node --import tsx scripts/validate-plugin-ui-contract.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
