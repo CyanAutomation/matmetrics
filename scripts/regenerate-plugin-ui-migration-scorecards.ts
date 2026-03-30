@@ -59,16 +59,21 @@ const buildArtifact = async (): Promise<PluginUiMigrationArtifact> => {
 };
 
 const main = async () => {
-  const artifactPath = path.join(
-    process.cwd(),
-    'docs',
-    'plugin-ui-migration-scorecards.json'
-  );
-  const artifact = await buildArtifact();
-  await mkdir(path.dirname(artifactPath), { recursive: true });
-  await writeFile(`${artifactPath}`, `${JSON.stringify(artifact, null, 2)}\n`);
-  console.log(`Wrote ${artifactPath}`);
-  console.log(`cacheKey=${artifact.cacheKey}`);
+  try {
+    const artifactPath = path.join(
+      process.cwd(),
+      'docs',
+      'plugin-ui-migration-scorecards.json'
+    );
+    const artifact = await buildArtifact();
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(`${artifactPath}`, `${JSON.stringify(artifact, null, 2)}\n`);
+    console.log(`Wrote ${artifactPath}`);
+    console.log(`cacheKey=${artifact.cacheKey}`);
+  } catch (error) {
+    console.error('Failed to regenerate plugin UI migration scorecards:', error);
+    process.exit(1);
+  }
 };
 
 void main();
