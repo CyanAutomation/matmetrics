@@ -109,6 +109,7 @@ export interface UserPreferences {
   videoLibrary: VideoLibraryPreferences;
   migratedLocalSettingsAt?: string;
   sessionAudits?: Record<string, SessionAudit>; // sessionId -> audit state
+  auditMode?: AuditMode;
   auditConfig?: AuditConfig;
   lastAuditRun?: AuditRunResult; // cached result from last audit run
 }
@@ -155,6 +156,8 @@ export interface AuditConfig {
   rules: AuditRuleConfig[];
 }
 
+export type AuditMode = 'standard' | 'strict' | 'custom';
+
 /**
  * Default audit configuration
  */
@@ -177,6 +180,32 @@ export const DEFAULT_AUDIT_CONFIG: AuditConfig = {
       code: 'duration_outlier',
       enabled: true,
       durationStdDevMultiplier: 2,
+    },
+  ],
+};
+
+/**
+ * Strict audit configuration
+ */
+export const STRICT_AUDIT_CONFIG: AuditConfig = {
+  rules: [
+    {
+      code: 'no_techniques_high_effort',
+      enabled: true,
+      effortThreshold: 3,
+    },
+    {
+      code: 'empty_description',
+      enabled: true,
+    },
+    {
+      code: 'empty_notes',
+      enabled: true,
+    },
+    {
+      code: 'duration_outlier',
+      enabled: true,
+      durationStdDevMultiplier: 1.5,
     },
   ],
 };

@@ -25,6 +25,7 @@ import {
   getSessionAudit,
   saveSessionAudit,
   getAuditConfig,
+  getAuditMode,
   getLastAuditRun,
   saveLastAuditRun,
   saveAuditConfig,
@@ -32,6 +33,7 @@ import {
 import { runAuditRulesForAllSessions } from '../lib/audit-rules';
 import type {
   AuditFlagCode,
+  AuditMode,
   AuditRunResult,
   JudoSession,
   SessionAudit,
@@ -191,6 +193,7 @@ export const LogDoctor = (): React.ReactElement => {
     showSuccess: showAuditSuccess,
   } = useActionFeedback();
   const [auditConfig, setAuditConfig] = useState(getAuditConfig());
+  const [auditMode, setAuditMode] = useState<AuditMode>(getAuditMode());
   const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
@@ -301,10 +304,12 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleUpdateAuditConfig = async (
-    newConfig: typeof auditConfig
+    newConfig: typeof auditConfig,
+    mode: AuditMode
   ): Promise<void> => {
     if (!user?.uid) return;
-    await saveAuditConfig(user.uid, newConfig);
+    await saveAuditConfig(user.uid, newConfig, mode);
+    setAuditMode(mode);
     setAuditConfig(newConfig);
   };
 
@@ -800,78 +805,78 @@ export const LogDoctor = (): React.ReactElement => {
               emptyTitle="No scan results"
               emptyDescription="Run a scan to inspect repository diagnostics."
             >
-                <div className="flex flex-wrap gap-2 text-sm">
-                  <Badge variant="outline">
-                    Total: {scanResult.summary.totalFiles}
-                  </Badge>
-                  <Badge variant="outline">
-                    Valid: {scanResult.summary.validFiles}
-                  </Badge>
-                  <Badge variant="destructive">
-                    Invalid: {scanResult.summary.invalidFiles}
-                  </Badge>
-                  <Badge variant="secondary">Selected: {selectedCount}</Badge>
+              <div className="flex flex-wrap gap-2 text-sm">
+                <Badge variant="outline">
+                  Total: {scanResult.summary.totalFiles}
+                </Badge>
+                <Badge variant="outline">
+                  Valid: {scanResult.summary.validFiles}
+                </Badge>
+                <Badge variant="destructive">
+                  Invalid: {scanResult.summary.invalidFiles}
+                </Badge>
+                <Badge variant="secondary">Selected: {selectedCount}</Badge>
+              </div>
+
+              {invalidFiles.length === 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    No invalid files found.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={handleScan}>
+                      Refresh logs
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      aria-label="Reset diagnostics state and select a different source"
+                      onClick={handleResetDiagnosticsState}
+                    >
+                      Select source
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                <div className="space-y-2">
+                  {invalidFiles.map((file) => {
+                    const selectId = selectIdByPath.get(file.path);
+                    if (!selectId) return null;
 
-                {invalidFiles.length === 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      No invalid files found.
-                    </p>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={handleScan}>
-                        Refresh logs
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        aria-label="Reset diagnostics state and select a different source"
-                        onClick={handleResetDiagnosticsState}
+                    return (
+                      <div
+                        key={file.path}
+                        className="rounded-md border p-3 text-sm space-y-2"
                       >
-                        Select source
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {invalidFiles.map((file) => {
-                      const selectId = selectIdByPath.get(file.path);
-                      if (!selectId) return null;
-
-                      return (
-                        <div
-                          key={file.path}
-                          className="rounded-md border p-3 text-sm space-y-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                id={selectId}
-                                checked={selectedPaths.includes(file.path)}
-                                onChange={() => togglePath(file.path)}
-                              />
-                              <Label
-                                className="cursor-pointer break-all"
-                                htmlFor={selectId}
-                              >
-                                {file.path}
-                              </Label>
-                            </div>
-                            <Badge variant="destructive">invalid</Badge>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={selectId}
+                              checked={selectedPaths.includes(file.path)}
+                              onChange={() => togglePath(file.path)}
+                            />
+                            <Label
+                              className="cursor-pointer break-all"
+                              htmlFor={selectId}
+                            >
+                              {file.path}
+                            </Label>
                           </div>
-                          {(file.errors ?? []).length > 0 ? (
-                            <ul className="list-disc pl-5 text-destructive">
-                              {file.errors?.map((entry) => (
-                                <li key={`${file.path}-${entry}`}>{entry}</li>
-                              ))}
-                            </ul>
-                          ) : null}
+                          <Badge variant="destructive">invalid</Badge>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        {(file.errors ?? []).length > 0 ? (
+                          <ul className="list-disc pl-5 text-destructive">
+                            {file.errors?.map((entry) => (
+                              <li key={`${file.path}-${entry}`}>{entry}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </PluginTableSection>
           ) : null}
 
@@ -882,50 +887,47 @@ export const LogDoctor = (): React.ReactElement => {
               emptyTitle="No fix result"
               emptyDescription="Preview or apply fixes to view result details."
             >
-                <p className="text-sm text-muted-foreground">
-                  {fixResult.message}
-                </p>
-                {fixResult.files.map((file) => (
-                  <div
-                    key={`fix-${file.path}`}
-                    className="rounded-md border p-3"
-                  >
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium break-all">
-                        {file.path}
-                      </span>
-                      <Badge
-                        variant={
-                          file.status === 'error' ? 'destructive' : 'outline'
-                        }
-                      >
-                        {file.status}
-                      </Badge>
-                    </div>
-                    {file.message ? (
-                      <p className="mb-2 text-xs text-muted-foreground">
-                        {file.message}
-                      </p>
-                    ) : null}
-                    {file.validationState.errors?.length ? (
-                      <ul className="mb-2 list-disc pl-5 text-xs text-destructive">
-                        {file.validationState.errors.map((entry) => (
-                          <li key={`${file.path}-err-${entry}`}>{entry}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    <div className="mb-2 text-xs text-muted-foreground">
-                      Validation: {file.validationState.before} →{' '}
-                      {file.validationState.after}
-                      {file.commitSha ? ` · commit ${file.commitSha}` : ''}
-                    </div>
-                    <div className="max-h-56 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
-                      <pre className="whitespace-pre-wrap break-words">
-                        {file.preview.diff}
-                      </pre>
-                    </div>
+              <p className="text-sm text-muted-foreground">
+                {fixResult.message}
+              </p>
+              {fixResult.files.map((file) => (
+                <div key={`fix-${file.path}`} className="rounded-md border p-3">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium break-all">
+                      {file.path}
+                    </span>
+                    <Badge
+                      variant={
+                        file.status === 'error' ? 'destructive' : 'outline'
+                      }
+                    >
+                      {file.status}
+                    </Badge>
                   </div>
-                ))}
+                  {file.message ? (
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      {file.message}
+                    </p>
+                  ) : null}
+                  {file.validationState.errors?.length ? (
+                    <ul className="mb-2 list-disc pl-5 text-xs text-destructive">
+                      {file.validationState.errors.map((entry) => (
+                        <li key={`${file.path}-err-${entry}`}>{entry}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    Validation: {file.validationState.before} →{' '}
+                    {file.validationState.after}
+                    {file.commitSha ? ` · commit ${file.commitSha}` : ''}
+                  </div>
+                  <div className="max-h-56 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
+                    <pre className="whitespace-pre-wrap break-words">
+                      {file.preview.diff}
+                    </pre>
+                  </div>
+                </div>
+              ))}
             </PluginTableSection>
           ) : null}
         </> /* end File Validation tab */
@@ -959,6 +961,7 @@ export const LogDoctor = (): React.ReactElement => {
           </div>
 
           <AuditSettings
+            mode={auditMode}
             config={auditConfig}
             sessionCount={
               getSessions().filter(

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +17,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-import type { AuditConfig } from '@/lib/types';
+import {
+  areAuditConfigsEqual,
+  getAuditConfigPreset,
+  normalizeAuditConfigShape,
+} from '@/lib/audit-presets';
+import type { AuditConfig, AuditMode } from '@/lib/types';
 
 export type AuditSettingsProps = {
+  mode: AuditMode;
   config: AuditConfig;
   sessionCount: number;
-  onConfigChange: (config: AuditConfig) => Promise<void>;
+  onConfigChange: (config: AuditConfig, mode: AuditMode) => Promise<void>;
 };
 
 const RULE_DESCRIPTIONS: Record<
@@ -49,6 +55,7 @@ const RULE_DESCRIPTIONS: Record<
 };
 
 export const AuditSettings: React.FC<AuditSettingsProps> = ({
+  mode,
   config,
   sessionCount,
   onConfigChange,
@@ -56,7 +63,20 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [localMode, setLocalMode] = useState<AuditMode>(mode);
   const [localConfig, setLocalConfig] = useState<AuditConfig>(config);
+
+  useEffect(() => {
+    setLocalMode(mode);
+    setLocalConfig(config);
+  }, [mode, config]);
+
+  const effectiveConfig = useMemo(() => {
+    if (localMode === 'custom') {
+      return normalizeAuditConfigShape(localConfig);
+    }
+    return getAuditConfigPreset(localMode);
+  }, [localConfig, localMode]);
 
   const handleRuleToggle = (code: string, enabled: boolean): void => {
     setLocalConfig({
@@ -86,7 +106,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   const handleSave = async (): Promise<void> => {
     setIsSaving(true);
     try {
-      await onConfigChange(localConfig);
+      await onConfigChange(effectiveConfig, localMode);
       toast({
         title: 'Settings saved',
         description: 'Audit rule configuration has been updated.',
@@ -102,7 +122,8 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
     }
   };
 
-  const hasChanges = JSON.stringify(config) !== JSON.stringify(localConfig);
+  const hasChanges =
+    localMode !== mode || !areAuditConfigsEqual(effectiveConfig, config);
 
   return (
     <Card>
@@ -122,7 +143,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
           <div>
             <CardTitle className="text-base">Audit Settings</CardTitle>
             <CardDescription>
-              Customize audit rules and detection thresholds
+              Choose a rule strictness level or customize each rule.
             </CardDescription>
           </div>
           {isExpanded ? (
@@ -135,103 +156,147 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
 
       {isExpanded && (
         <CardContent className="space-y-6">
-          {localConfig.rules.map((rule) => {
-            const desc = RULE_DESCRIPTIONS[rule.code];
-            const isDurationOutlier = rule.code === 'duration_outlier';
-            const showDurationWarning =
-              isDurationOutlier && rule.enabled && sessionCount < 3;
-
-            return (
-              <div
-                key={rule.code}
-                className="space-y-3 border-b pb-4 last:border-b-0"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <Label className="block font-medium">{desc.label}</Label>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {desc.description}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={rule.enabled}
-                    onCheckedChange={(checked) =>
-                      handleRuleToggle(rule.code, checked)
-                    }
-                    aria-label={`Toggle ${desc.label}`}
+          <div className="space-y-3 border-b pb-4">
+            <Label className="block font-medium">Audit mode</Label>
+            <div className="space-y-2">
+              {[
+                {
+                  value: 'standard',
+                  label: 'Standard checks (Recommended)',
+                },
+                { value: 'strict', label: 'Strict checks' },
+                { value: 'custom', label: 'Custom' },
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <input
+                    type="radio"
+                    name="audit-mode"
+                    value={option.value}
+                    checked={localMode === option.value}
+                    onChange={() => setLocalMode(option.value as AuditMode)}
                   />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {localMode === 'custom' ? (
+            localConfig.rules.map((rule) => {
+              const desc = RULE_DESCRIPTIONS[rule.code];
+              const isDurationOutlier = rule.code === 'duration_outlier';
+              const showDurationWarning =
+                isDurationOutlier && rule.enabled && sessionCount < 3;
+
+              return (
+                <div
+                  key={rule.code}
+                  className="space-y-3 border-b pb-4 last:border-b-0"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <Label className="block font-medium">{desc.label}</Label>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {desc.description}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={rule.enabled}
+                      onCheckedChange={(checked) =>
+                        handleRuleToggle(rule.code, checked)
+                      }
+                      aria-label={`Toggle ${desc.label}`}
+                    />
+                  </div>
+
+                  {showDurationWarning && (
+                    <Alert className="border-yellow-200 bg-yellow-50">
+                      <AlertDescription className="text-sm text-yellow-800">
+                        This rule requires at least 3 sessions with duration
+                        data. You currently have {sessionCount} session
+                        {sessionCount !== 1 ? 's' : ''}.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
+                    <div className="mt-2 space-y-2">
+                      <Label
+                        htmlFor={`effort-${rule.code}`}
+                        className="text-sm"
+                      >
+                        Effort threshold (1-5):
+                      </Label>
+                      <Input
+                        id={`effort-${rule.code}`}
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={rule.effortThreshold ?? 4}
+                        onChange={(e) =>
+                          handleParamChange(
+                            rule.code,
+                            'effortThreshold',
+                            Math.max(
+                              1,
+                              Math.min(5, parseInt(e.target.value, 10))
+                            )
+                          )
+                        }
+                        aria-label="Effort level threshold"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Sessions with effort ≥ this level will be flagged if
+                        they have no techniques.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {rule.enabled && rule.code === 'duration_outlier' ? (
+                    <div className="mt-2 space-y-2">
+                      <Label
+                        htmlFor={`duration-${rule.code}`}
+                        className="text-sm"
+                      >
+                        Standard deviation multiplier:
+                      </Label>
+                      <Input
+                        id={`duration-${rule.code}`}
+                        type="number"
+                        min="0.5"
+                        max="5"
+                        step="0.5"
+                        value={rule.durationStdDevMultiplier ?? 2}
+                        onChange={(e) =>
+                          handleParamChange(
+                            rule.code,
+                            'durationStdDevMultiplier',
+                            Math.max(
+                              0.5,
+                              Math.min(5, parseFloat(e.target.value))
+                            )
+                          )
+                        }
+                        aria-label="Outlier threshold"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Durations outside mean ± (stddev × value) will be
+                        flagged. Lower values = more sensitive.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-
-                {showDurationWarning && (
-                  <Alert className="border-yellow-200 bg-yellow-50">
-                    <AlertDescription className="text-sm text-yellow-800">
-                      This rule requires at least 3 sessions with duration data.
-                      You currently have {sessionCount} session
-                      {sessionCount !== 1 ? 's' : ''}.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {rule.enabled && rule.code === 'no_techniques_high_effort' && (
-                  <div className="mt-2 space-y-2">
-                    <Label htmlFor={`effort-${rule.code}`} className="text-sm">
-                      Effort threshold (1-5):
-                    </Label>
-                    <Input
-                      id={`effort-${rule.code}`}
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={rule.effortThreshold ?? 4}
-                      onChange={(e) =>
-                        handleParamChange(
-                          rule.code,
-                          'effortThreshold',
-                          Math.max(1, Math.min(5, parseInt(e.target.value, 10)))
-                        )
-                      }
-                      aria-label="Effort level threshold"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Sessions with effort ≥ this level will be flagged if they
-                      have no techniques.
-                    </p>
-                  </div>
-                )}
-
-                {rule.enabled && rule.code === 'duration_outlier' && (
-                  <div className="mt-2 space-y-2">
-                    <Label
-                      htmlFor={`duration-${rule.code}`}
-                      className="text-sm"
-                    >
-                      Standard deviation multiplier:
-                    </Label>
-                    <Input
-                      id={`duration-${rule.code}`}
-                      type="number"
-                      min="0.5"
-                      max="5"
-                      step="0.5"
-                      value={rule.durationStdDevMultiplier ?? 2}
-                      onChange={(e) =>
-                        handleParamChange(
-                          rule.code,
-                          'durationStdDevMultiplier',
-                          Math.max(0.5, Math.min(5, parseFloat(e.target.value)))
-                        )
-                      }
-                      aria-label="Outlier threshold"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Durations outside mean ± (stddev × value) will be flagged.
-                      Lower values = more sensitive.
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              This preset hides individual rule controls. Switch to Custom to
+              edit per-rule toggles and thresholds.
+            </p>
+          )}
 
           {hasChanges && (
             <div className="flex gap-2 pt-4">
@@ -239,7 +304,10 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                 {isSaving ? 'Saving…' : 'Save changes'}
               </Button>
               <Button
-                onClick={() => setLocalConfig(config)}
+                onClick={() => {
+                  setLocalMode(mode);
+                  setLocalConfig(config);
+                }}
                 disabled={isSaving}
                 variant="outline"
                 size="sm"
