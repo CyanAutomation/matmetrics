@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth-provider';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginNotice } from '@/components/plugins/plugin-notice';
+import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 import {
   DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
@@ -232,6 +234,7 @@ export function PromptSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const theme = getPluginThemeTokens('info');
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -351,34 +354,23 @@ export function PromptSettings() {
     <PluginPageShell
       title="AI Transformation Prompt"
       description="Edit the instructions used to polish your practice descriptions."
-      icon={
-        <div className="rounded-lg bg-primary p-2 text-primary-foreground shadow-md">
-          <BrainCircuit className="h-6 w-6" />
-        </div>
-      }
+      tone="info"
+      icon={<BrainCircuit className="h-6 w-6" />}
       notice={
-        <Alert className="border-primary/20 bg-primary/5">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-bold text-primary">
-            Customizing the AI
-          </AlertTitle>
-          <AlertDescription className="text-muted-foreground">
-            The "AI Transform" button in the log form uses these instructions to
-            rewrite your notes. You can change the tone (e.g., "be more formal"
-            or "be very brief") or define terminology preferences (e.g., Judo
-            terms like "uchi mata" or BJJ terms like "armbar") here.
-          </AlertDescription>
-        </Alert>
+        <PluginNotice
+          tone="info"
+          icon={<Info className="h-4 w-4" />}
+          title="Customizing the AI"
+          description='The "AI Transform" button in the log form uses these instructions to rewrite your notes. You can change the tone (e.g., "be more formal" or "be very brief") or define terminology preferences (e.g., Judo terms like "uchi mata" or BJJ terms like "armbar") here.'
+        />
       }
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canSavePreferences && (
-        <Alert className="bg-amber-50 border-amber-200">
-          <Info className="h-4 w-4 text-amber-700" />
-          <AlertTitle className="text-amber-900 font-bold">
-            Sign-in required
-          </AlertTitle>
-          <AlertDescription className="text-amber-800">
+        <Alert className={theme.warningTone}>
+          <Info className="h-4 w-4" />
+          <AlertTitle className="font-bold">Sign-in required</AlertTitle>
+          <AlertDescription className="text-current/90">
             {authAvailable
               ? 'Custom AI prompts are only available after sign-in because they are saved per account.'
               : 'Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment.'}
