@@ -2,6 +2,8 @@
 
 ## Purpose and Wiring
 
+- UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+
 The GitHub Sync plugin adds an operational dashboard tab that lets authenticated users configure a repository, validate connectivity, and run an initial full sync of existing sessions.
 
 ### Plugin identity

@@ -206,3 +206,8 @@ When contributing to MatMetrics, please ensure:
 - Components are built using Radix UI primitives where applicable
 - All changes include appropriate type definitions
 - The application maintains the clean, minimalist design aesthetic
+
+## Plugin Development
+
+- Plugin onboarding UI baseline: [docs/plugin-ui-contract.md](docs/plugin-ui-contract.md).
+- Individual onboarding references live in `plugins/*/README.md`.

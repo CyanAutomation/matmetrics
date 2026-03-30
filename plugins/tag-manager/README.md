@@ -2,6 +2,8 @@
 
 ## Purpose and capabilities
 
+- UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+
 The Tag Manager plugin provides a **dashboard tab** for global technique-tag maintenance across logged sessions.
 
 - **Primary capability:** `tag_mutation`
