@@ -85,9 +85,12 @@ async function renderWithMockedHooks(params: { fetchImpl: typeof fetch }) {
   const runEffects = () => {
     const effects = [...pendingEffects];
     pendingEffects.length = 0;
+    const cleanups: Array<void | (() => void)> = [];
     for (const effect of effects) {
-      effect();
+      const cleanup = effect();
+      if (cleanup) cleanups.push(cleanup);
     }
+    return () => cleanups.forEach((cleanup) => typeof cleanup === 'function' && cleanup());
   };
 
   const cleanup = () => {
