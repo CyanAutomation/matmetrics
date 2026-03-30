@@ -15,9 +15,14 @@ const expectedRows = (
 ).plugins.sort((a, b) => a.id.localeCompare(b.id));
 
 test('published plugin UI migration artifact matches current plugin entrypoint usage', async () => {
-  const actualRows = (await scanPluginUiMigration(pluginsRoot)).sort((a, b) =>
-    a.id.localeCompare(b.id)
-  );
+  let actualRows;
+  try {
+    actualRows = (await scanPluginUiMigration(pluginsRoot)).sort((a, b) =>
+      a.id.localeCompare(b.id)
+    );
+  } catch (error) {
+    throw new Error(`Failed to scan plugin UI migration: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   assert.deepEqual(actualRows, expectedRows);
 });
