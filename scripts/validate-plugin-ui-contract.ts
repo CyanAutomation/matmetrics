@@ -1,6 +1,13 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+
+import {
+  getPluginUiConformanceRules,
+  type PluginUICompositionBlock,
+  type PluginUIType,
+} from '@/lib/plugins/ui-conformance-rules';
 
 type PluginManifest = {
   id: string;
@@ -16,12 +23,13 @@ type PluginManifest = {
 };
 
 type RequirementKey =
-  | 'sharedShellOrSection'
   | 'loadingState'
   | 'errorState'
   | 'emptyState'
   | 'successState'
-  | 'destructiveConfirmation';
+  | 'destructiveConfirmation'
+  | 'singleTopLevelPageShell'
+  | 'primaryContentSections';
 
 type Violation = {
   pluginId: string;
@@ -37,18 +45,26 @@ type ImportedPrimitive = {
   localName: string;
 };
 
+type CompositionConformance = {
+  hasSingleTopLevelPageShell: boolean;
+  hasPrimaryContentSections: boolean;
+  hasDestructiveFlowComposition: boolean;
+};
+
 const repoRoot = process.cwd();
 const pluginsRoot = path.join(repoRoot, 'plugins');
 
 const requirementLabels: Record<RequirementKey, string> = {
-  sharedShellOrSection:
-    'Missing shared shell/section usage (PluginPageShell or PluginSectionCard)',
+  singleTopLevelPageShell:
+    'Dashboard component must render exactly one top-level PluginPageShell',
+  primaryContentSections:
+    'Dashboard component must group primary content into PluginFormSection, PluginTableSection, or PluginSectionCard',
   loadingState: 'Missing required loading state helper (PluginLoadingState)',
   errorState: 'Missing required error state helper (PluginErrorState)',
   emptyState: 'Missing required empty state helper (PluginEmptyState)',
   successState: 'Missing required success state helper (PluginSuccessState)',
   destructiveConfirmation:
-    'Missing required destructive confirmation helper (PluginConfirmationDialog, PluginDestructiveAction, or usePluginConfirmation)',
+    'Missing destructive flow composition helper (PluginConfirmationDialog or PluginDestructiveAction)',
 };
 
 const stateRequirementMap: Record<string, RequirementKey> = {
@@ -256,20 +272,6 @@ const getImportedPrimitives = (
       const importedName = (element.propertyName ?? element.name).text;
       const localName = element.name.text;
 
-      if (
-        source === '@/components/plugins/plugin-page-shell' &&
-        importedName === 'PluginPageShell'
-      ) {
-        imported.push({ requirement: 'sharedShellOrSection', localName });
-      }
-
-      if (
-        source === '@/components/plugins/plugin-section-card' &&
-        importedName === 'PluginSectionCard'
-      ) {
-        imported.push({ requirement: 'sharedShellOrSection', localName });
-      }
-
       if (source === '@/components/plugins/plugin-state') {
         if (importedName === 'PluginLoadingState') {
           imported.push({ requirement: 'loadingState', localName });
@@ -338,11 +340,173 @@ const collectLocalImports = async (
   return results;
 };
 
+const resolveImportedNameMap = (
+  sourceFile: ts.SourceFile
+): Map<string, string> => {
+  const imports = new Map<string, string>();
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) {
+      continue;
+    }
+
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) {
+      continue;
+    }
+
+    const source = statement.moduleSpecifier.text;
+    const clause = statement.importClause;
+    if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) {
+      continue;
+    }
+
+    for (const element of clause.namedBindings.elements) {
+      const localName = element.name.text;
+      const importedName = (element.propertyName ?? element.name).text;
+      imports.set(localName, `${source}#${importedName}`);
+    }
+  }
+
+  return imports;
+};
+
+const getTagIdentifier = (tagName: ts.JsxTagNameExpression): string | null => {
+  if (ts.isIdentifier(tagName)) {
+    return tagName.text;
+  }
+
+  if (ts.isPropertyAccessExpression(tagName)) {
+    return tagName.name.text;
+  }
+
+  return null;
+};
+
+const unwrapExpression = (expression: ts.Expression): ts.Expression => {
+  let current = expression;
+
+  while (true) {
+    if (ts.isParenthesizedExpression(current)) {
+      current = current.expression;
+      continue;
+    }
+
+    if (ts.isAsExpression(current) || ts.isTypeAssertionExpression(current)) {
+      current = current.expression;
+      continue;
+    }
+
+    return current;
+  }
+};
+
+export const evaluatePluginComponentCompositionFromSource = (
+  sourceText: string
+): CompositionConformance => {
+  const sourceFile = ts.createSourceFile(
+    'inline.tsx',
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX
+  );
+
+  const importMap = resolveImportedNameMap(sourceFile);
+  let topLevelPageShellCount = 0;
+  let hasPrimarySections = false;
+  let hasDestructiveComposition = false;
+
+  const isTargetPrimitive = (
+    localName: string,
+    sourceAndName: string
+  ): boolean => importMap.get(localName) === sourceAndName;
+
+  const visit = (node: ts.Node) => {
+    if (ts.isReturnStatement(node) && node.expression) {
+      const expression = unwrapExpression(node.expression);
+      if (
+        ts.isJsxElement(expression) &&
+        getTagIdentifier(expression.openingElement.tagName) !== null
+      ) {
+        const rootName = getTagIdentifier(expression.openingElement.tagName);
+        if (
+          rootName &&
+          isTargetPrimitive(
+            rootName,
+            '@/components/plugins/plugin-page-shell#PluginPageShell'
+          )
+        ) {
+          topLevelPageShellCount += 1;
+        }
+      }
+
+      if (ts.isJsxSelfClosingElement(expression)) {
+        const rootName = getTagIdentifier(expression.tagName);
+        if (
+          rootName &&
+          isTargetPrimitive(
+            rootName,
+            '@/components/plugins/plugin-page-shell#PluginPageShell'
+          )
+        ) {
+          topLevelPageShellCount += 1;
+        }
+      }
+    }
+
+    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+      const tagName = getTagIdentifier(node.tagName);
+      if (!tagName) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+
+      if (
+        isTargetPrimitive(tagName, '@/components/plugins/plugin-kit#PluginFormSection') ||
+        isTargetPrimitive(
+          tagName,
+          '@/components/plugins/plugin-kit#PluginTableSection'
+        ) ||
+        isTargetPrimitive(
+          tagName,
+          '@/components/plugins/plugin-section-card#PluginSectionCard'
+        )
+      ) {
+        hasPrimarySections = true;
+      }
+
+      if (
+        isTargetPrimitive(
+          tagName,
+          '@/components/plugins/plugin-confirmation#PluginConfirmationDialog'
+        ) ||
+        isTargetPrimitive(
+          tagName,
+          '@/components/plugins/plugin-destructive-action#PluginDestructiveAction'
+        )
+      ) {
+        hasDestructiveComposition = true;
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(sourceFile, visit);
+
+  return {
+    hasSingleTopLevelPageShell: topLevelPageShellCount === 1,
+    hasPrimaryContentSections: hasPrimarySections,
+    hasDestructiveFlowComposition: hasDestructiveComposition,
+  };
+};
+
 const computePrimitiveUsage = async (
   componentEntryPath: string
 ): Promise<PrimitiveUsage> => {
   const usage: PrimitiveUsage = {
-    sharedShellOrSection: false,
+    singleTopLevelPageShell: false,
+    primaryContentSections: false,
     loadingState: false,
     errorState: false,
     emptyState: false,
@@ -362,8 +526,15 @@ const computePrimitiveUsage = async (
     visited.add(current);
 
     let sourceFile: ts.SourceFile;
+    let sourceText: string;
     try {
-      sourceFile = await parseSourceFile(current);
+      sourceText = await readFile(current, 'utf8');
+      sourceFile = ts.createSourceFile(
+        current,
+        sourceText,
+        ts.ScriptTarget.Latest,
+        true
+      );
     } catch {
       continue;
     }
@@ -372,6 +543,15 @@ const computePrimitiveUsage = async (
     const primitiveLocals = new Map<string, RequirementKey>();
     for (const imported of importedPrimitives) {
       primitiveLocals.set(imported.localName, imported.requirement);
+    }
+
+    if (current === componentEntryPath) {
+      const composition = evaluatePluginComponentCompositionFromSource(sourceText);
+      usage.singleTopLevelPageShell = composition.hasSingleTopLevelPageShell;
+      usage.primaryContentSections = composition.hasPrimaryContentSections;
+      if (composition.hasDestructiveFlowComposition) {
+        usage.destructiveConfirmation = true;
+      }
     }
 
     const visit = (node: ts.Node) => {
@@ -414,6 +594,19 @@ const readPluginManifest = async (
   return JSON.parse(content) as PluginManifest;
 };
 
+const compositionBlockToRequirement = (
+  block: PluginUICompositionBlock
+): RequirementKey => {
+  switch (block) {
+    case 'single_top_level_page_shell':
+      return 'singleTopLevelPageShell';
+    case 'primary_content_sectioned':
+      return 'primaryContentSections';
+    case 'destructive_flow_wrapped':
+      return 'destructiveConfirmation';
+  }
+};
+
 const validate = async (): Promise<Violation[]> => {
   const violations: Violation[] = [];
   const pluginDirs = (await readdir(pluginsRoot, { withFileTypes: true }))
@@ -436,7 +629,7 @@ const validate = async (): Promise<Violation[]> => {
     } catch (error) {
       violations.push({
         pluginId: pluginDir,
-        requirement: 'sharedShellOrSection',
+        requirement: 'singleTopLevelPageShell',
         sourcePath: relativePath(manifestPath),
         details: `Unable to read plugin manifest: ${error instanceof Error ? error.message : String(error)}`,
       });
@@ -460,7 +653,15 @@ const validate = async (): Promise<Violation[]> => {
       componentIds
     );
 
-    const requiredChecks = new Set<RequirementKey>(['sharedShellOrSection']);
+    const requiredChecks = new Set<RequirementKey>();
+
+    const compositionRules = getPluginUiConformanceRules(
+      'dashboard_tab' satisfies PluginUIType
+    );
+    for (const block of compositionRules.requiredCompositionBlocks) {
+      requiredChecks.add(compositionBlockToRequirement(block));
+    }
+
     for (const state of manifest.uiContract?.requiredUxStates ?? []) {
       const requirement = stateRequirementMap[state];
       if (requirement) {
@@ -473,9 +674,9 @@ const validate = async (): Promise<Violation[]> => {
       if (!entry) {
         violations.push({
           pluginId: manifest.id,
-          requirement: 'sharedShellOrSection',
+          requirement: 'singleTopLevelPageShell',
           sourcePath: relativePath(pluginIndexPath),
-          details: `Unable to resolve dashboard component \"${componentId}\" from registerPluginComponent call in plugin entrypoint`,
+          details: `Unable to resolve dashboard component "${componentId}" from registerPluginComponent call in plugin entrypoint`,
         });
         continue;
       }
@@ -526,7 +727,15 @@ const main = async () => {
   process.exitCode = 1;
 };
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isMainModule =
+  process.argv[1] !== undefined &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+export { validate };
