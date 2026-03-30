@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
   fetchInstalledPlugins,
+  type PluginMaturityDebugMetadata,
   getPluginManagerAccessState,
   type InstalledPluginManifestRow,
   type PluginManagerAccessState,
@@ -331,6 +332,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     null
   );
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date | null>(null);
+  const [maturityDebug, setMaturityDebug] =
+    React.useState<PluginMaturityDebugMetadata>({});
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
   >({});
@@ -359,14 +362,15 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     setFetchState('loading');
     setLoadErrorMessage(null);
     try {
-      const validPlugins = await fetchInstalledPlugins({
+      const result = await fetchInstalledPlugins({
         getHeaders: getAuthHeaders,
       });
       if (!isMountedRef.current) {
         return;
       }
 
-      setInstalledManifestRows(validPlugins);
+      setInstalledManifestRows(result.rows);
+      setMaturityDebug(result.maturityDebug);
       setFetchState('success');
       setLastUpdatedAt(new Date());
     } catch (error) {
@@ -379,6 +383,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       }
 
       setInstalledManifestRows([]);
+      setMaturityDebug({});
       setFetchState('error');
       setLoadErrorMessage(message);
       throw error;
@@ -388,6 +393,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   React.useEffect(() => {
     if (!canManagePlugins) {
       setInstalledManifestRows([]);
+      setMaturityDebug({});
       setRowStatuses({});
       setFetchState('idle');
       setLoadErrorMessage(null);
@@ -622,12 +628,21 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               Use this to enable or disable plugins and view plugin status.
             </CardDescription>
             {canManagePlugins ? (
-              <p className="text-xs text-muted-foreground">
-                Last updated:{' '}
-                {lastUpdatedAt
-                  ? lastUpdatedAt.toLocaleString()
-                  : 'Not loaded yet'}
-              </p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>
+                  Last updated:{' '}
+                  {lastUpdatedAt
+                    ? lastUpdatedAt.toLocaleString()
+                    : 'Not loaded yet'}
+                </p>
+                <p>
+                  Last generated at{' '}
+                  {maturityDebug.routeGeneratedAt ?? 'unavailable'}
+                </p>
+                {maturityDebug.responseCachePolicy ? (
+                  <p>Cache: {maturityDebug.responseCachePolicy}</p>
+                ) : null}
+              </div>
             ) : null}
           </div>
           {canManagePlugins ? (
