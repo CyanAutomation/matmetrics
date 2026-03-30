@@ -43,6 +43,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { isSameMonthAndYear } from '@/lib/utils';
+import {
+  VersionHistoryButton,
+  VersionHistoryModal,
+} from '@/components/version-history-modal';
 import { useAuth } from '@/components/auth-provider';
 import { SignInScreen } from '@/components/sign-in-screen';
 import { RessaImage } from '@/components/ressa-image';
@@ -89,6 +93,7 @@ export default function Home() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isImportingGuestData, setIsImportingGuestData] = useState(false);
   const [syncStatus, setSyncStatus] = useState(getSyncStatus());
   const [guestWorkspace, setGuestWorkspace] = useState(() =>
@@ -371,10 +376,9 @@ export default function Home() {
           </SidebarContent>
           <SidebarFooter className="p-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-                <Info className="h-3 w-3" />
-                <span>v1.2.0 Stable</span>
-              </div>
+              <VersionHistoryButton
+                onClick={() => setIsVersionHistoryOpen(true)}
+              />
               {isGuest ? (
                 <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
                   <Sparkles className="h-3 w-3 text-primary" />
@@ -605,6 +609,11 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <VersionHistoryModal
+        open={isVersionHistoryOpen}
+        onOpenChange={setIsVersionHistoryOpen}
+      />
     </SidebarProvider>
   );
 }
