@@ -716,15 +716,20 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       <AlertCircle className="h-4 w-4 text-destructive" />
                       <AlertTitle>Blocking contract issues</AlertTitle>
                       <AlertDescription>
-                        This plugin is blocked until the contract gate passes.
+                        Activation is blocked until the contract gate passes.
                         Fix the errors below in the plugin folder (entrypoint,
-                        component mapping, and README sections).
+                        component mapping, and README sections). Maturity
+                        recommendations below are still current advisory
+                        guidance.
                       </AlertDescription>
                     </Alert>
                   ) : null}
 
-                  {plugin.maturity && blockingIssues.length === 0 ? (
+                  {plugin.maturity ? (
                     <div className="space-y-2 text-sm">
+                      <p className="font-medium text-foreground">
+                        Maturity guidance (advisory)
+                      </p>
                       <p className="text-muted-foreground">
                         {plugin.maturity.reasons[0] ??
                           'No maturity gaps are currently recorded.'}
