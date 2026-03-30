@@ -4,19 +4,7 @@ import promptSettingsManifest from './prompt-settings/plugin.json';
 import tagManagerManifest from './tag-manager/plugin.json';
 import videoLibraryManifest from './video-library/plugin.json';
 import { testPluginManifestContract } from './test-plugin-manifest-contract';
-
-type ManifestExpectations = {
-  pluginId: string;
-  dashboardExtensionId: string;
-  dashboardComponentId: string;
-};
-
-type ManifestFixture = {
-  manifest: typeof githubSyncManifest;
-  expectations: ManifestExpectations;
-};
-
-const pluginManifestFixtures: ManifestFixture[] = [
+const pluginManifestFixtures = [
   {
     manifest: githubSyncManifest,
     expectations: {
@@ -57,7 +45,7 @@ const pluginManifestFixtures: ManifestFixture[] = [
       dashboardComponentId: 'video_library',
     },
   },
-];
+] as const;
 
 for (const { manifest, expectations } of pluginManifestFixtures) {
   testPluginManifestContract({

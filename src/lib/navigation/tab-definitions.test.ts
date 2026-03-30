@@ -301,16 +301,14 @@ test('wraps plugin tab renderer in wide layout surface when uiContract.layoutVar
     refreshSessions: () => undefined,
     refreshPluginExtensions: () => undefined,
   });
+  const renderedElement = rendered as React.ReactElement<{
+    className?: string;
+    'data-layout-variant'?: string;
+  }>;
 
   assert.equal(React.isValidElement(rendered), true);
-  assert.match(
-    String((rendered as React.ReactElement).props.className),
-    /max-w-6xl/
-  );
-  assert.equal(
-    (rendered as React.ReactElement).props['data-layout-variant'],
-    'wide'
-  );
+  assert.match(String(renderedElement.props.className), /max-w-6xl/);
+  assert.equal(renderedElement.props['data-layout-variant'], 'wide');
 });
 
 test('emits runtime warning when required UX state helpers are missing from plugin render tree', async () => {
