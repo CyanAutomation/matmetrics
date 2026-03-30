@@ -692,6 +692,8 @@ export const LogDoctor = (): React.ReactElement => {
           <DrLogImage pose={1} size="large" />
         </div>
       }
+      tone="default"
+      iconFrame="none"
       contentClassName="space-y-4"
     >
       {/* Tab switcher */}
@@ -1030,8 +1032,8 @@ export const LogDoctor = (): React.ReactElement => {
         description={
           <>
             This will commit normalization fixes for {selectedCount} selected
-            file(s) on <strong>{branch.trim() || 'the default branch'}</strong>
-            . Undo is not available in Log Doctor.
+            file(s) on <strong>{branch.trim() || 'the default branch'}</strong>.
+            Undo is not available in Log Doctor.
           </>
         }
         confirmLabel="Confirm apply fixes"
