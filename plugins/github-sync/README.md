@@ -20,8 +20,18 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 - **Manifest wiring:** `plugins/github-sync/plugin.json`
   - Declares a `dashboard_tab` extension with tab id `github-sync`
   - Uses component id `github_settings`
-- **UI component implementation:** `src/components/github-settings.tsx`
+- **UI component implementation:** `plugins/github-sync/src/components/github-settings.tsx`
   - Implements configuration form, validation flow, and bulk sync flow
+
+## UI Ownership
+
+- Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
+- This plugin owns:
+  - `plugins/github-sync/src/components/github-settings.tsx`
+  - `plugins/github-sync/src/components/github-settings-view-model.ts`
+  - `plugins/github-sync/src/components/github-sync-results.tsx`
+  - colocated tests in the same directory.
+- Shared cross-plugin primitives remain in `src/components/plugins`.
 
 ## Usage
 
@@ -134,13 +144,13 @@ Use this checklist for plugin changes:
 
 ### UX criteria to automated tests
 
-- **Loading state present** → `src/components/github-settings.ux.test.tsx`
+- **Loading state present** → `plugins/github-sync/src/components/github-settings.ux.test.tsx`
   - `loading criterion anchor: loading state present with loading text and disabled interaction while loading`
-- **Error state with recovery** → `src/components/github-settings.ux.test.tsx`
+- **Error state with recovery** → `plugins/github-sync/src/components/github-settings.ux.test.tsx`
   - `error criterion anchor: error state exposes retry recovery action label and callable recover flow`
-- **Empty state with CTA** → `src/components/github-settings.ux.test.tsx`
+- **Empty state with CTA** → `plugins/github-sync/src/components/github-settings.ux.test.tsx`
   - `empty criterion anchor: empty state present with cta action wording run sync configure`
-- **Destructive action safety (confirm + cancel)** → `src/components/github-settings.destructive.test.tsx`
+- **Destructive action safety (confirm + cancel)** → `plugins/github-sync/src/components/github-settings.destructive.test.tsx`
   - `destructive criterion anchor: destructive confirm clears configuration and destructive cancel preserves prior values`
 
 ### Exact test commands
@@ -157,13 +167,13 @@ When plugin-specific suites are added, use these exact command patterns:
 
 ```bash
 node --import tsx --test plugins/github-sync/plugin.test.ts plugins/github-sync/src/index.test.ts plugins/github-sync/src/index.behavior.test.ts
-node --import tsx --test src/components/github-settings.test.tsx
+node --import tsx --test plugins/github-sync/src/components/github-settings.test.ts
 ```
 
 If you add an npm script later, keep parity with:
 
 ```bash
-npm run test -- plugins/github-sync/plugin.test.ts plugins/github-sync/src/index.test.ts plugins/github-sync/src/index.behavior.test.ts src/components/github-settings.test.tsx
+npm run test -- plugins/github-sync/plugin.test.ts plugins/github-sync/src/index.test.ts plugins/github-sync/src/index.behavior.test.ts plugins/github-sync/src/components/github-settings.test.ts
 ```
 
 ## Troubleshooting

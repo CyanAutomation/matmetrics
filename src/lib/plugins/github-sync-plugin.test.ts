@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GitHubSettings } from '@/components/github-settings';
+import { GitHubSettings } from '../../../plugins/github-sync/src/components/github-settings';
 import { type TabRenderContext } from '@/lib/navigation/tab-definitions';
 import { initPlugin } from '../../../plugins/github-sync/src/index';
 

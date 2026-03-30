@@ -66,7 +66,7 @@ test('runPluginContractGate passes when entrypoint, component, and README checks
     );
     await writeFile(
       path.join(pluginRoot, 'README.md'),
-      '# Tags Plugin\n\n## Usage\n\nUse it.\n\n## Verification\n\nVerify it.\n',
+      '# Tags Plugin\n\n## UI Ownership\n\nPlugin-local UI is implemented under `plugins/tags/src/components`.\n\n## Usage\n\nUse it.\n\n## Verification\n\nVerify it.\n',
       'utf8'
     );
 
@@ -87,7 +87,7 @@ test('runPluginContractGate fails when required files and sections are missing',
 
     await writeFile(
       path.join(pluginRoot, 'README.md'),
-      '# Tags Plugin\n\n## Usage\n\nUse it.\n',
+      '# Tags Plugin\n\n## UI Ownership\n\nPlugin-local UI is implemented under `plugins/tags/src/components`.\n\n## Usage\n\nUse it.\n',
       'utf8'
     );
 
@@ -129,7 +129,7 @@ test('runPluginContractGate accepts explicit runtime registration from src/index
     );
     await writeFile(
       path.join(pluginRoot, 'README.md'),
-      '# Tags Plugin\n\n## Usage\n\nUse it.\n\n## Verification\n\nVerify it.\n',
+      '# Tags Plugin\n\n## UI Ownership\n\nPlugin-local UI is implemented under `plugins/tags/src/components`.\n\n## Usage\n\nUse it.\n\n## Verification\n\nVerify it.\n',
       'utf8'
     );
 
@@ -199,6 +199,7 @@ test('runPluginContractGate accepts README heading contracts for plugin operatio
     'tag-manager',
     'github-sync',
     'prompt-settings',
+    'video-library',
     'log-doctor',
   ];
 
@@ -217,7 +218,7 @@ test('runPluginContractGate accepts README heading contracts for plugin operatio
     assert.equal(
       result.issues.some((issue) => issue.path === 'contractGate.readme'),
       false,
-      `Expected README heading contract to pass for ${directoryName}`
+      `Expected README heading contract (UI Ownership + Usage + Verification) to pass for ${directoryName}`
     );
   }
 });

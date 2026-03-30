@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { GitHubSettings } from '@/components/github-settings';
+import { GitHubSettings } from './components/github-settings';
 import { type DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 
 export type PluginContext = {

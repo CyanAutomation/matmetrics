@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { TagManager } from '@/components/tag-manager';
+import { TagManager } from './components/tag-manager';
 import { type DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 
 export type PluginContext = {

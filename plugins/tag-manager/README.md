@@ -18,6 +18,12 @@ The Tag Manager plugin provides a **dashboard tab** for global technique-tag mai
 
 This metadata is declared in `plugins/tag-manager/plugin.json` and must stay aligned with runtime registration in `plugins/tag-manager/src/index.ts`.
 
+## UI Ownership
+
+- Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
+- This plugin owns `plugins/tag-manager/src/components/tag-manager.tsx` and its colocated tests.
+- Shared cross-plugin primitives remain in `src/components/plugins`.
+
 ## Usage
 
 ### Operator/developer quickstart
@@ -48,7 +54,7 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
    - `plugins/tag-manager/src/index.ts` registers:
      - extension id `tag-manager-dashboard-tab`
      - component renderer id `tag_manager`
-   - The renderer mounts `TagManager` from `src/components/tag-manager.tsx`.
+   - The renderer mounts `TagManager` from `plugins/tag-manager/src/components/tag-manager.tsx`.
 
 4. **UI appearance**
    - After successful discovery + enablement + renderer resolution, users see a **Tag Manager** tab in the dashboard navigation.
@@ -57,7 +63,7 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
 
 ### Operator/developer preflight checks
 
-Run these checks before manual validation to confirm discovery and contract-gate integrity. Automated destructive confirmation + cancel coverage is enforced in `src/components/tag-manager.destructive.test.tsx` for machine-checkable safety criteria:
+Run these checks before manual validation to confirm discovery and contract-gate integrity. Automated destructive confirmation + cancel coverage is enforced in `plugins/tag-manager/src/components/tag-manager.destructive.test.tsx` for machine-checkable safety criteria:
 
 ```bash
 npm test -- plugins/tag-manager/plugin.test.ts
@@ -125,4 +131,4 @@ Checks:
 
 - `plugins/tag-manager/plugin.json`
 - `plugins/tag-manager/src/index.ts`
-- `src/components/tag-manager.tsx`
+- `plugins/tag-manager/src/components/tag-manager.tsx`
