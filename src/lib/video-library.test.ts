@@ -146,6 +146,7 @@ test('deriveVideoLibraryRows merges persisted latest checks and review state', (
   assert.equal(rows[0]?.displayStatus, 'reachable');
   assert.equal(rows[1]?.needsReview, true);
   assert.equal(rows[2]?.displayStatus, 'missing');
+  assert.equal(rows[2]?.needsReview, false);
 });
 
 test('filterVideoLibraryRows respects tab, search, status, and checked filters', () => {
@@ -175,7 +176,7 @@ test('filterVideoLibraryRows respects tab, search, status, and checked filters',
   });
   assert.deepEqual(
     reviewRows.map((row) => row.session.id),
-    ['broken', 'missing']
+    ['broken']
   );
 
   const checkedBrokenRows = filterVideoLibraryRows(rows, {
@@ -212,7 +213,7 @@ test('getVideoLibraryTabCounts returns grouped counts', () => {
   assert.deepEqual(getVideoLibraryTabCounts(rows), {
     all: 3,
     missing: 1,
-    review: 2,
+    review: 1,
     checked: 2,
   });
 });
