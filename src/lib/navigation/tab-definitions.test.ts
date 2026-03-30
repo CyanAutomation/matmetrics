@@ -368,3 +368,57 @@ test('emits runtime warning when required UX state helpers are missing from plug
   );
   assert.equal(missingHelperWarnings.length, 4);
 });
+
+test('emits runtime warning when uiContract.designTokenVariants is missing for a dashboard tab', async () => {
+  clearDashboardTabRendererRegistryForTests();
+  resetPluginComponentRegistryInitializationForTests();
+
+  registerPluginComponent('missing_token_variants_component', () =>
+    React.createElement('div', null, 'missing-token-variants')
+  );
+
+  const { tabs } = await resolveDashboardExtensionsToTabs([
+    createDashboardTabExtensionFixture({
+      pluginId: 'token-contract-plugin',
+      capabilities: [],
+      uiContract: {
+        layoutVariant: 'standard',
+        requiredUxStates: [],
+      },
+      extension: {
+        type: 'dashboard_tab',
+        id: 'token-contract-extension',
+        title: 'Token Contract Plugin Tab',
+        config: {
+          tabId: 'token-contract-plugin-tab',
+          headerTitle: 'Token Contract Plugin Header',
+          component: 'missing_token_variants_component',
+          icon: 'tags',
+        },
+      },
+    }),
+  ]);
+
+  assert.equal(tabs.length, 1);
+
+  const originalWarn = console.warn;
+  const warningMessages: Array<{ code?: string }> = [];
+  console.warn = (_message: string, warning: { code?: string }) => {
+    warningMessages.push(warning);
+  };
+
+  try {
+    tabs[0]?.render({
+      sessions: [],
+      refreshSessions: () => undefined,
+      refreshPluginExtensions: () => undefined,
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  const missingDesignTokenWarnings = warningMessages.filter(
+    (warning) => warning.code === 'dashboard_tab_design_token_variants_missing'
+  );
+  assert.equal(missingDesignTokenWarnings.length, 1);
+});

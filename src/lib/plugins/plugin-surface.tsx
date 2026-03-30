@@ -163,6 +163,27 @@ const buildMissingUxStateWarnings = (
   });
 };
 
+const buildMissingDesignTokenVariantWarnings = (
+  uiContract: PluginUIContract | undefined,
+  pluginId: string,
+  extensionId: string
+): PluginRuntimeWarning[] => {
+  if (uiContract?.designTokenVariants?.length) {
+    return [];
+  }
+
+  return [
+    {
+      code: 'dashboard_tab_design_token_variants_missing',
+      severity: 'warning',
+      path: `plugins.${pluginId}.uiContract.designTokenVariants`,
+      message: `Dashboard extension "${extensionId}" should declare uiContract.designTokenVariants to document shared token usage and prevent style drift.`,
+      pluginId,
+      extensionId,
+    },
+  ];
+};
+
 const emitPluginSurfaceWarning = (
   warning: PluginRuntimeWarning,
   onWarning?: (warning: PluginRuntimeWarning) => void
@@ -195,11 +216,19 @@ export const createPluginSurfaceRenderer = ({
 
   return (context) => {
     const renderedNode = renderer(context);
+    const designTokenVariantWarnings = buildMissingDesignTokenVariantWarnings(
+      uiContract,
+      pluginId,
+      extensionId
+    );
     const runtimeWarnings = buildMissingUxStateWarnings(
       renderedNode,
       uiContract,
       pluginId,
       extensionId
+    );
+    designTokenVariantWarnings.forEach((warning) =>
+      emitPluginSurfaceWarning(warning, onWarning)
     );
     runtimeWarnings.forEach((warning) =>
       emitPluginSurfaceWarning(warning, onWarning)
