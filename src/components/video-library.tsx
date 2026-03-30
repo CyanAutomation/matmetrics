@@ -1280,7 +1280,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                     {nextRow?.entry.url ? (
                       <Button type="button" variant="outline" asChild>
                         <a
-                          href={nextRow.entry.url}
+                          href={nextRow.entry.url || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
