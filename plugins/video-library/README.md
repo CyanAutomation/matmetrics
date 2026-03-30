@@ -4,7 +4,7 @@
 
 - UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
 
-The Video Library plugin provides a **dashboard tab** for auditing `videoUrl` coverage, reviewing domain policy, and running live link checks against approved providers.
+The Video Library plugin provides a **dashboard tab** for browsing linked session videos, running lightweight health checks, and reviewing domain policy for trusted providers.
 
 - **Primary capability:** `video_audit`
 - **Dashboard tab extension metadata:**
@@ -20,10 +20,10 @@ The Video Library plugin provides a **dashboard tab** for auditing `videoUrl` co
 
 1. Start the app with `npm run dev`.
 2. Open **Dashboard → Video Library**.
-3. Review sessions missing videos, sessions with disallowed domains, and any results from the latest link check.
+3. Browse linked videos, then review any disallowed domains or recent link-check results that need attention.
 4. Use **Edit** to update a single session or **Remove video** to clear a stored `videoUrl`.
 5. Add custom domains if you are signed in and preferences are available.
-6. Use review tabs, filters, and per-row or filtered bulk checks to focus the current audit task.
+6. Use tabs, filters, and per-row or filtered bulk checks to support discovery plus quick video-link health checks.
 
 ## Verification
 

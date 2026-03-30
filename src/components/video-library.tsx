@@ -102,14 +102,15 @@ type EmptyStateDescriptor = {
 export const VIDEO_LIBRARY_LOADING_LABEL = 'Checking...';
 export const VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL = 'View all sessions';
-export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL = 'Add a video';
+export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
+  'Log sessions as usual; add videos when useful';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
 
 function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
   switch (status) {
     case 'missing':
-      return 'Missing video';
+      return 'No linked video';
     case 'allowed_unchecked':
       return 'Allowed';
     case 'disallowed_domain':
@@ -169,7 +170,7 @@ export function deriveVideoLibraryEmptyState({
   return {
     title: 'No sessions yet',
     description:
-      'Add a video to your next session log to populate the library.',
+      'Your session list will appear here. Add video links whenever they are useful.',
     ctaLabel: VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
     action: 'editSession',
   };
@@ -616,7 +617,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   return (
     <PluginPageShell
       title="Video Library"
-      description="Audit session video coverage, persist the latest check results, and manage approved providers."
+      description="Browse, check, and enjoy your linked session videos."
       tone="info"
       icon={<Film className="h-6 w-6" />}
     >
@@ -625,7 +626,10 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           label="Videos attached"
           value={summaryCounts.attached}
         />
-        <PluginStatCard label="Missing videos" value={summaryCounts.missing} />
+        <PluginStatCard
+          label="Sessions without video (optional)"
+          value={summaryCounts.missing}
+        />
         <PluginStatCard label="Needs review" value={summaryCounts.review} />
         <PluginStatCard label="Checked links" value={summaryCounts.checked} />
       </PluginStatsGrid>
@@ -895,7 +899,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       {summaryCounts.review > 0 ? (
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>Sessions need video review</AlertTitle>
+          <AlertTitle>Video link attention items</AlertTitle>
           <AlertDescription>
             {summaryCounts.review} session(s) are missing videos, use disallowed
             domains, or have broken/failed link checks.
@@ -904,7 +908,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       ) : null}
 
       <PluginSectionCard
-        title="Session Video Audit"
+        title="Video Lounge"
         description="Filter by tab, status, category, or host to focus the current audit task."
       >
         {filteredRows.length === 0 ? (
