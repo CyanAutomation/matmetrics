@@ -37,6 +37,16 @@ type FetchInstalledPluginsOptions = {
   endpoint?: string;
 };
 
+export type PluginListMaturityDebug = {
+  routeGeneratedAt?: string;
+  responseCachePolicy?: string;
+};
+
+export type FetchInstalledPluginsResult = {
+  rows: InstalledPluginManifestRow[];
+  maturityDebug?: PluginListMaturityDebug;
+};
+
 type ToggleInstalledPluginOptions = {
   pluginId: string;
   enabled: boolean;
@@ -128,9 +138,7 @@ export const fetchInstalledPlugins = async ({
   fetchImpl = fetch,
   getHeaders = defaultAuthHeadersLoader,
   endpoint = '/api/plugins/list',
-}: FetchInstalledPluginsOptions = {}): Promise<
-  InstalledPluginManifestRow[]
-> => {
+}: FetchInstalledPluginsOptions = {}): Promise<FetchInstalledPluginsResult> => {
   const headers = await getHeaders();
   const response = await fetchImpl(endpoint, {
     method: 'GET',
@@ -143,6 +151,10 @@ export const fetchInstalledPlugins = async ({
 
   const payload = (await response.json()) as {
     plugins?: PluginListRow[];
+    maturityDebug?: {
+      routeGeneratedAt?: unknown;
+      responseCachePolicy?: unknown;
+    };
     error?: string;
   };
 
@@ -150,7 +162,29 @@ export const fetchInstalledPlugins = async ({
     throw new Error(payload.error ?? 'Invalid plugins list response.');
   }
 
-  return normalizeInstalledPluginRows(payload.plugins);
+  const routeGeneratedAtRaw = payload.maturityDebug?.routeGeneratedAt;
+  const responseCachePolicyRaw = payload.maturityDebug?.responseCachePolicy;
+  const maturityDebug: PluginListMaturityDebug = {};
+
+  if (
+    typeof routeGeneratedAtRaw === 'string' &&
+    routeGeneratedAtRaw.trim().length > 0
+  ) {
+    maturityDebug.routeGeneratedAt = routeGeneratedAtRaw;
+  }
+
+  if (
+    typeof responseCachePolicyRaw === 'string' &&
+    responseCachePolicyRaw.trim().length > 0
+  ) {
+    maturityDebug.responseCachePolicy = responseCachePolicyRaw;
+  }
+
+  return {
+    rows: normalizeInstalledPluginRows(payload.plugins),
+    maturityDebug:
+      Object.keys(maturityDebug).length > 0 ? maturityDebug : undefined,
+  };
 };
 
 export const toggleInstalledPlugin = async ({

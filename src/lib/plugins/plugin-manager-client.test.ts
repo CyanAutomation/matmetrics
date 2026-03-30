@@ -239,7 +239,7 @@ test('normalizeInstalledPluginRows keeps maturity when contract gate errors exis
 test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', async () => {
   let requestedAuthorization: string | null = null;
 
-  const plugins = await fetchInstalledPlugins({
+  const result = await fetchInstalledPlugins({
     getHeaders: async (headers?: HeadersInit) => {
       const nextHeaders = new Headers(headers);
       nextHeaders.set('Authorization', 'Bearer test-token');
@@ -349,9 +349,78 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
   });
 
   assert.equal(requestedAuthorization, 'Bearer test-token');
-  assert.equal(plugins.length, 1);
-  assert.equal(plugins[0]?.manifest.id, 'tag-manager');
-  assert.equal(plugins[0]?.maturity?.tier, 'bronze');
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0]?.manifest.id, 'tag-manager');
+  assert.equal(result.rows[0]?.maturity?.tier, 'bronze');
+  assert.equal(result.maturityDebug, undefined);
+});
+
+test('fetchInstalledPlugins parses maturity debug metadata when provided', async () => {
+  const result = await fetchInstalledPlugins({
+    fetchImpl: async () =>
+      new Response(
+        JSON.stringify({
+          plugins: [
+            {
+              manifest: {
+                id: 'tag-manager',
+                name: 'Tag Manager',
+                version: '1.0.0',
+                description: 'Manage tags',
+                enabled: true,
+              },
+            },
+          ],
+          maturityDebug: {
+            routeGeneratedAt: '2026-03-30T10:15:00.000Z',
+            responseCachePolicy: 'no-store',
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ),
+  });
+
+  assert.equal(result.rows.length, 1);
+  assert.equal(
+    result.maturityDebug?.routeGeneratedAt,
+    '2026-03-30T10:15:00.000Z'
+  );
+  assert.equal(result.maturityDebug?.responseCachePolicy, 'no-store');
+});
+
+test('fetchInstalledPlugins ignores invalid maturity debug metadata values', async () => {
+  const result = await fetchInstalledPlugins({
+    fetchImpl: async () =>
+      new Response(
+        JSON.stringify({
+          plugins: [
+            {
+              manifest: {
+                id: 'tag-manager',
+                name: 'Tag Manager',
+                version: '1.0.0',
+                description: 'Manage tags',
+                enabled: true,
+              },
+            },
+          ],
+          maturityDebug: {
+            routeGeneratedAt: '',
+            responseCachePolicy: 101,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ),
+  });
+
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.maturityDebug, undefined);
 });
 
 test('fetchInstalledPlugins surfaces API error payloads for auth failures', async () => {
