@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import test from 'node:test';
+import React from 'react';
 
 import {
   coreTabs,
@@ -260,4 +261,110 @@ test('awaits async plugin init before resolving renderers to avoid timing warnin
       delete requireFromTest.cache[tagManagerModulePath];
     }
   }
+});
+
+test('wraps plugin tab renderer in wide layout surface when uiContract.layoutVariant is wide', async () => {
+  clearDashboardTabRendererRegistryForTests();
+  resetPluginComponentRegistryInitializationForTests();
+
+  registerPluginComponent('wide_component', () =>
+    React.createElement('div', null, 'wide-rendered')
+  );
+
+  const { tabs, warnings } = await resolveDashboardExtensionsToTabs([
+    createDashboardTabExtensionFixture({
+      pluginId: 'wide-plugin',
+      capabilities: [],
+      uiContract: {
+        layoutVariant: 'wide',
+        requiredUxStates: [],
+      },
+      extension: {
+        type: 'dashboard_tab',
+        id: 'wide-extension',
+        title: 'Wide Plugin Tab',
+        config: {
+          tabId: 'wide-plugin-tab',
+          headerTitle: 'Wide Plugin Header',
+          component: 'wide_component',
+          icon: 'tags',
+        },
+      },
+    }),
+  ]);
+
+  assert.equal(warnings.length, 0);
+  assert.equal(tabs.length, 1);
+
+  const rendered = tabs[0]?.render({
+    sessions: [],
+    refreshSessions: () => undefined,
+    refreshPluginExtensions: () => undefined,
+  });
+
+  assert.equal(React.isValidElement(rendered), true);
+  assert.match(
+    String((rendered as React.ReactElement).props.className),
+    /max-w-6xl/
+  );
+  assert.equal(
+    (rendered as React.ReactElement).props['data-layout-variant'],
+    'wide'
+  );
+});
+
+test('emits runtime warning when required UX state helpers are missing from plugin render tree', async () => {
+  clearDashboardTabRendererRegistryForTests();
+  resetPluginComponentRegistryInitializationForTests();
+
+  registerPluginComponent('missing_state_component', () =>
+    React.createElement('div', null, 'no-state-helpers')
+  );
+
+  const { tabs, warnings } = await resolveDashboardExtensionsToTabs([
+    createDashboardTabExtensionFixture({
+      pluginId: 'state-contract-plugin',
+      capabilities: [],
+      uiContract: {
+        layoutVariant: 'standard',
+        requiredUxStates: ['loading', 'error', 'empty', 'destructive'],
+      },
+      extension: {
+        type: 'dashboard_tab',
+        id: 'state-contract-extension',
+        title: 'State Contract Plugin Tab',
+        config: {
+          tabId: 'state-contract-plugin-tab',
+          headerTitle: 'State Contract Plugin Header',
+          component: 'missing_state_component',
+          icon: 'tags',
+        },
+      },
+    }),
+  ]);
+
+  assert.equal(warnings.length, 0);
+  assert.equal(tabs.length, 1);
+
+  const originalWarn = console.warn;
+  const warningMessages: Array<{ code?: string }> = [];
+  console.warn = (_message: string, warning: { code?: string }) => {
+    warningMessages.push(warning);
+  };
+
+  try {
+    tabs[0]?.render({
+      sessions: [],
+      refreshSessions: () => undefined,
+      refreshPluginExtensions: () => undefined,
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  const missingHelperWarnings = warningMessages.filter(
+    (warning) =>
+      warning.code === 'dashboard_tab_required_ux_state_helper_missing'
+  );
+  assert.equal(missingHelperWarnings.length, 4);
 });
