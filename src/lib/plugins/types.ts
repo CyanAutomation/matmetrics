@@ -67,6 +67,20 @@ export type UIExtension =
   | SettingsPanelExtension
   | UnknownUIExtension;
 
+export type PluginUILayoutVariant = 'standard' | 'wide' | (string & {});
+
+export type PluginUIContractState =
+  | 'loading'
+  | 'error'
+  | 'empty'
+  | 'destructive';
+
+export type PluginUIContract = {
+  layoutVariant: PluginUILayoutVariant;
+  requiredUxStates: PluginUIContractState[];
+  designTokenVariants?: string[];
+};
+
 export type PluginManifest = {
   id: string;
   name: string;
@@ -80,6 +94,7 @@ export type PluginManifest = {
   enabled: boolean;
   minVersion?: string;
   maturity?: PluginManifestMaturityMetadata;
+  uiContract?: PluginUIContract;
   uiExtensions: UIExtension[];
 };
 

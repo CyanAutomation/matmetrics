@@ -49,6 +49,11 @@
       }
     }
   },
+  "uiContract": {
+    "layoutVariant": "wide",
+    "requiredUxStates": ["loading", "error", "empty", "destructive"],
+    "designTokenVariants": ["layout.wide", "surface.logDoctor"]
+  },
   "enabled": true,
   "uiExtensions": [
     {
