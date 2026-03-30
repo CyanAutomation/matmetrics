@@ -5,8 +5,10 @@ import { parse } from 'next/dist/compiled/node-html-parser';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import type { InstalledPluginManifestRow } from '@/lib/plugins/plugin-manager-client';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
 import {
+  deriveInstalledPlugins,
   derivePluginManagerInstalledViewState,
   PluginManagerInstalledContent,
   type InstalledPluginRow,
@@ -153,4 +155,69 @@ test('installed content renders behavior-defining UI surfaces for each scenario 
     accessState: 'sign-in-required',
   });
   assert.match(accessBlockedMarkup, /Sign in with a configured account/);
+});
+
+test('deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls', () => {
+  const installedManifestRows: InstalledPluginManifestRow[] = [
+    {
+      manifest: {
+        id: 'zeta-tool',
+        name: 'Zeta Tool',
+        version: '1.0.0',
+        description: 'Zeta plugin',
+        enabled: true,
+      },
+      issues: [],
+    },
+    {
+      manifest: {
+        id: 'tag-manager',
+        name: 'Tag Manager',
+        version: '1.0.0',
+        description: 'Tag plugin',
+        enabled: true,
+      },
+      issues: [],
+    },
+    {
+      manifest: {
+        id: 'alpha-tool',
+        name: 'Alpha Tool',
+        version: '1.0.0',
+        description: 'Alpha plugin',
+        enabled: true,
+      },
+      issues: [],
+    },
+  ];
+  const originalOrder = installedManifestRows.map((row) => row.manifest.id);
+  const rowStatuses = {
+    'alpha-tool': {
+      status: 'success' as const,
+      statusMessage: 'Saved',
+    },
+  };
+
+  const firstRenderRows = deriveInstalledPlugins({
+    installedManifestRows,
+    rowStatuses,
+  });
+  const secondRenderRows = deriveInstalledPlugins({
+    installedManifestRows,
+    rowStatuses,
+  });
+
+  assert.deepEqual(
+    installedManifestRows.map((row) => row.manifest.id),
+    originalOrder
+  );
+  assert.deepEqual(
+    firstRenderRows.map((row) => row.id),
+    ['tag-manager', 'alpha-tool', 'zeta-tool']
+  );
+  assert.deepEqual(
+    secondRenderRows.map((row) => row.id),
+    ['tag-manager', 'alpha-tool', 'zeta-tool']
+  );
+  assert.equal(firstRenderRows[1]?.status, 'success');
 });
