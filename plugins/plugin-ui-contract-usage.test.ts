@@ -9,6 +9,7 @@ type PluginUiSourceContract = {
   pluginId: string;
   sourcePath: string;
   requiredTokens: string[];
+  oneOfRequiredTokenGroups?: string[][];
   oneOfTokens?: string[];
 };
 
@@ -16,8 +17,16 @@ const corePluginContracts: PluginUiSourceContract[] = [
   {
     pluginId: 'github-sync',
     sourcePath: 'src/components/github-settings.tsx',
-    requiredTokens: ['PluginEmptyState', 'PluginDestructiveAction'],
-    oneOfTokens: ['PluginErrorState', 'PluginLoadingState', 'PluginSuccessState'],
+    requiredTokens: [
+      'PluginEmptyState',
+      'PluginDestructiveAction',
+      'PluginLoadingState',
+    ],
+    oneOfTokens: [
+      'PluginErrorState',
+      'PluginLoadingState',
+      'PluginSuccessState',
+    ],
   },
   {
     pluginId: 'prompt-settings',
@@ -32,21 +41,20 @@ const corePluginContracts: PluginUiSourceContract[] = [
   {
     pluginId: 'tag-manager',
     sourcePath: 'src/components/tag-manager.tsx',
-    requiredTokens: ['PluginEmptyState', 'PluginConfirmationDialog'],
+    requiredTokens: ['PluginConfirmationDialog', 'PluginLoadingState'],
+    oneOfRequiredTokenGroups: [['PluginEmptyState', 'PluginTableSection']],
   },
   {
     pluginId: 'video-library',
     sourcePath: 'src/components/video-library.tsx',
-    requiredTokens: ['PluginEmptyState', 'PluginDestructiveAction'],
+    requiredTokens: ['PluginDestructiveAction', 'PluginLoadingState'],
+    oneOfRequiredTokenGroups: [['PluginEmptyState', 'PluginTableSection']],
   },
   {
     pluginId: 'log-doctor',
     sourcePath: 'plugins/log-doctor/src/components/log-doctor.tsx',
-    requiredTokens: [
-      'PluginEmptyState',
-      'PluginConfirmationDialog',
-      'PluginDestructiveAction',
-    ],
+    requiredTokens: ['PluginConfirmationDialog', 'PluginDestructiveAction'],
+    oneOfRequiredTokenGroups: [['PluginEmptyState', 'PluginTableSection']],
   },
 ];
 
@@ -69,9 +77,21 @@ for (const contract of corePluginContracts) {
       );
     }
 
+    if (contract.oneOfRequiredTokenGroups) {
+      for (const group of contract.oneOfRequiredTokenGroups) {
+        assert.equal(
+          group.some((token) => buildTokenPattern(token).test(source)),
+          true,
+          `[${contract.pluginId}] expected at least one standardized helper from: ${group.join(', ')}`
+        );
+      }
+    }
+
     if (contract.oneOfTokens && contract.oneOfTokens.length > 0) {
       assert.equal(
-        contract.oneOfTokens.some((token) => buildTokenPattern(token).test(source)),
+        contract.oneOfTokens.some((token) =>
+          buildTokenPattern(token).test(source)
+        ),
         true,
         `[${contract.pluginId}] expected at least one standardized helper from: ${contract.oneOfTokens.join(', ')}`
       );

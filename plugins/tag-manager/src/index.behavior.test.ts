@@ -6,7 +6,9 @@ import { TagManager } from '@/components/tag-manager';
 import { initPlugin } from './index';
 
 test('initPlugin registers tag manager renderer with refresh wiring', () => {
-  let renderer: ((context: { refreshSessions: () => void }) => unknown) | undefined;
+  let renderer:
+    | ((context: { refreshSessions: () => void }) => unknown)
+    | undefined;
 
   initPlugin({
     registerPluginComponent: (_, registerRenderer) => {

@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 
-import { PluginEmptyState, PluginErrorState } from '@/components/plugins/plugin-state';
+import {
+  PluginEmptyState,
+  PluginErrorState,
+} from '@/components/plugins/plugin-state';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 import { cn } from '@/lib/utils';
