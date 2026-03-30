@@ -68,8 +68,9 @@ for (const contract of corePluginContracts) {
     }
 
     if (contract.oneOfTokens && contract.oneOfTokens.length > 0) {
+      const tokenPattern = new RegExp(`\\b${token}\\b`);
       assert.equal(
-        contract.oneOfTokens.some((token) => source.includes(token)),
+        contract.oneOfTokens.some((token) => tokenPattern.test(source)),
         true,
         `[${contract.pluginId}] expected at least one standardized helper from: ${contract.oneOfTokens.join(', ')}`
       );
