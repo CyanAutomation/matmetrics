@@ -37,6 +37,8 @@ import {
   saveGitHubSettingsPreference,
 } from '@/lib/user-preferences';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginNotice } from '@/components/plugins/plugin-notice';
+import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 import {
   buildGitHubNetworkErrorMessage,
   deriveDisableOutcome,
@@ -75,6 +77,7 @@ export function GitHubSettings() {
   const [selectedHistoryPath, setSelectedHistoryPath] = useState<string | null>(
     null
   );
+  const theme = getPluginThemeTokens('info');
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -437,33 +440,23 @@ export function GitHubSettings() {
     <PluginPageShell
       title="GitHub Repository Configuration"
       description="Configure where your training sessions will be synced."
-      icon={
-        <div className="rounded-lg bg-blue-600 p-2 text-white shadow-md">
-          <Github className="h-6 w-6" />
-        </div>
-      }
+      tone="info"
+      icon={<Github className="h-6 w-6" />}
       notice={
-        <Alert className="border-blue-200 bg-blue-50">
-          <Github className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="font-bold text-blue-900">
-            GitHub Sync
-          </AlertTitle>
-          <AlertDescription className="text-blue-800">
-            Sync your Judo training sessions to a personal GitHub repository.
-            Sessions are stored as markdown files and synced automatically when
-            you create or update entries.
-          </AlertDescription>
-        </Alert>
+        <PluginNotice
+          tone="info"
+          icon={<Github className="h-4 w-4" />}
+          title="GitHub Sync"
+          description="Sync your Judo training sessions to a personal GitHub repository. Sessions are stored as markdown files and synced automatically when you create or update entries."
+        />
       }
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canUseGitHubSync && (
-        <Alert className="bg-amber-50 border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-700" />
-          <AlertTitle className="text-amber-900 font-bold">
-            Sign-in required
-          </AlertTitle>
-          <AlertDescription className="text-amber-800">
+        <Alert className={theme.warningTone}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle className="font-bold">Sign-in required</AlertTitle>
+          <AlertDescription className="text-current/90">
             {authAvailable
               ? 'GitHub sync is only available for signed-in accounts because repository settings are stored per user.'
               : 'GitHub sync is unavailable because Firebase authentication is not configured for this deployment.'}
@@ -508,7 +501,7 @@ export function GitHubSettings() {
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
                   disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-blue-200 focus:border-blue-400"
+                  className="border-primary/25 focus:border-primary/45"
                 />
               </div>
 
@@ -522,7 +515,7 @@ export function GitHubSettings() {
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
                   disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-blue-200 focus:border-blue-400"
+                  className="border-primary/25 focus:border-primary/45"
                 />
               </div>
 
@@ -536,7 +529,7 @@ export function GitHubSettings() {
                   value={branch}
                   onChange={(e) => setBranch(e.target.value)}
                   disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                  className="border-blue-200 focus:border-blue-400"
+                  className="border-primary/25 focus:border-primary/45"
                 />
               </div>
             </div>

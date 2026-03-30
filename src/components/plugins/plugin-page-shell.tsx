@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 
+import {
+  getPluginThemeTokens,
+  type PluginThemeTone,
+} from '@/components/plugins/plugin-theme';
 import { cn } from '@/lib/utils';
 
 export const PLUGIN_PAGE_CLASS_PATTERNS = {
@@ -17,6 +21,8 @@ type PluginPageShellProps = {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  tone?: PluginThemeTone;
+  iconFrame?: 'filled' | 'none';
 };
 
 export function PluginPageShell({
@@ -27,7 +33,11 @@ export function PluginPageShell({
   children,
   className,
   contentClassName,
+  tone = 'default',
+  iconFrame = 'filled',
 }: PluginPageShellProps) {
+  const tokens = getPluginThemeTokens(tone);
+
   return (
     <section className={cn(PLUGIN_PAGE_CLASS_PATTERNS.container, className)}>
       <div
@@ -37,7 +47,22 @@ export function PluginPageShell({
         )}
       >
         <header className="flex items-start gap-3">
-          {icon ? <div className="shrink-0">{icon}</div> : null}
+          {icon ? (
+            <div
+              className={cn(
+                'shrink-0',
+                iconFrame === 'filled'
+                  ? [
+                      'rounded-lg p-2',
+                      tokens.headerIconBg,
+                      tokens.surfaceElevation,
+                    ]
+                  : null
+              )}
+            >
+              {icon}
+            </div>
+          ) : null}
           <div className={PLUGIN_PAGE_CLASS_PATTERNS.headingHierarchy}>
             <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
             <p className="text-sm text-muted-foreground">{description}</p>
