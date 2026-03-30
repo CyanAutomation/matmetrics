@@ -13,6 +13,43 @@ const RULE_ORDER: AuditFlagCode[] = [
   'duration_outlier',
 ];
 
+export type AuditStrictnessPreset = 'gentle' | 'balanced' | 'thorough';
+
+const GENTLE_AUDIT_CONFIG: AuditConfig = {
+  rules: [
+    {
+      code: 'no_techniques_high_effort',
+      enabled: true,
+      effortThreshold: 5,
+    },
+    {
+      code: 'empty_description',
+      enabled: true,
+    },
+    {
+      code: 'empty_notes',
+      enabled: false,
+    },
+    {
+      code: 'duration_outlier',
+      enabled: true,
+      durationStdDevMultiplier: 2.5,
+    },
+  ],
+};
+
+const PRESET_CONFIGS: Record<AuditStrictnessPreset, AuditConfig> = {
+  gentle: GENTLE_AUDIT_CONFIG,
+  balanced: DEFAULT_AUDIT_CONFIG,
+  thorough: STRICT_AUDIT_CONFIG,
+};
+
+const PRESET_MODES: Record<AuditStrictnessPreset, AuditMode> = {
+  gentle: 'custom',
+  balanced: 'standard',
+  thorough: 'strict',
+};
+
 function cloneRules(rules: AuditRuleConfig[]): AuditRuleConfig[] {
   return rules.map((rule) => ({ ...rule }));
 }
@@ -35,6 +72,47 @@ export function getAuditConfigPreset(
       mode === 'strict' ? STRICT_AUDIT_CONFIG.rules : DEFAULT_AUDIT_CONFIG.rules
     ),
   };
+}
+
+export function getAuditConfigPresetByStrictness(
+  preset: AuditStrictnessPreset
+): AuditConfig {
+  return {
+    rules: cloneRules(PRESET_CONFIGS[preset].rules),
+  };
+}
+
+export function getAuditModeForStrictnessPreset(
+  preset: AuditStrictnessPreset
+): AuditMode {
+  return PRESET_MODES[preset];
+}
+
+export function inferStrictnessPresetFromAudit(
+  mode: AuditMode,
+  config: AuditConfig
+): AuditStrictnessPreset | null {
+  const normalized = normalizeAuditConfigShape(config);
+
+  if (
+    mode === 'standard' ||
+    areAuditConfigsEqual(normalized, PRESET_CONFIGS.balanced)
+  ) {
+    return 'balanced';
+  }
+
+  if (
+    mode === 'strict' ||
+    areAuditConfigsEqual(normalized, PRESET_CONFIGS.thorough)
+  ) {
+    return 'thorough';
+  }
+
+  if (areAuditConfigsEqual(normalized, PRESET_CONFIGS.gentle)) {
+    return 'gentle';
+  }
+
+  return null;
 }
 
 export function normalizeAuditConfigShape(config: AuditConfig): AuditConfig {
