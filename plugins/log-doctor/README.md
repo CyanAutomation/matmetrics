@@ -2,6 +2,8 @@
 
 ## Purpose and capabilities
 
+- UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+
 The Log Doctor plugin adds a **dashboard tab** for plugin-focused log diagnostics and future health checks.
 
 - **Dashboard tab extension metadata:**

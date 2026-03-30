@@ -2,6 +2,8 @@
 
 ## Purpose and capabilities
 
+- UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+
 The Video Library plugin provides a **dashboard tab** for auditing `videoUrl` coverage, reviewing domain policy, and running live link checks against approved providers.
 
 - **Primary capability:** `video_audit`

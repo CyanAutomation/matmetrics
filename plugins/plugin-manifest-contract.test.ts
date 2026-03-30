@@ -6,6 +6,10 @@ import logDoctorManifest from './log-doctor/plugin.json';
 import promptSettingsManifest from './prompt-settings/plugin.json';
 import tagManagerManifest from './tag-manager/plugin.json';
 import videoLibraryManifest from './video-library/plugin.json';
+import {
+  isSupportedPluginSurfaceLayoutVariant,
+  SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS,
+} from '@/lib/plugins/plugin-surface';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type {
   DashboardTabExtension,
@@ -116,6 +120,13 @@ for (const { manifest, expectations } of pluginManifestFixtures) {
     assert.ok(
       validation.manifest.uiContract?.layoutVariant,
       `[${expectations.pluginId}] uiContract.layoutVariant must be set`
+    );
+    assert.equal(
+      isSupportedPluginSurfaceLayoutVariant(
+        validation.manifest.uiContract?.layoutVariant ?? ''
+      ),
+      true,
+      `[${expectations.pluginId}] uiContract.layoutVariant must map to supported runtime variants: ${SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS.join(', ')}`
     );
     assert.ok(
       validation.manifest.uiContract?.requiredUxStates.includes('loading'),
