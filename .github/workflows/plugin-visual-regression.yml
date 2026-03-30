@@ -1,0 +1,35 @@
+name: Plugin visual regression
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/plugins/**'
+      - 'src/app/plugin-visual-harness/**'
+      - 'src/tests/visual/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - '.github/workflows/plugin-visual-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  visual-regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx @playwright/test@1.51.1 install --with-deps chromium
+
+      - name: Run plugin visual regression suite
+        run: npm run test:visual
