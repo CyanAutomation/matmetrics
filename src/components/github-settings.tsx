@@ -33,6 +33,15 @@ import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-noti
 import { PluginNotice } from '@/components/plugins/plugin-notice';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
+import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import {
+  PluginActionDestructive,
+  PluginActionPrimary,
+  PluginActionRow,
+  PluginActionSecondary,
+  PluginActionTrailing,
+} from '@/components/plugins/plugin-action-row';
+import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
 import {
   buildGitHubNetworkErrorMessage,
   deriveDisableOutcome,
@@ -467,91 +476,101 @@ export function GitHubSettings() {
         className="shadow-sm"
         contentClassName="space-y-6 p-6 pt-8"
         footerActions={
-          <>
-            <Button
-              onClick={() => void handleTestConnection()}
-              disabled={!controlState.canTestConnection}
-              variant="outline"
-              className="gap-2"
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {controlState.testConnectionLabel}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Test Connection
-                </>
-              )}
-            </Button>
-
-            <Button
-              onClick={() => void handleSaveConfig()}
-              disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
-            >
-              Save Configuration
-            </Button>
-
-            {isEnabled && (
+          <PluginActionRow>
+            <PluginActionSecondary>
               <Button
-                onClick={() => void handleDisable()}
-                disabled={!controlState.canDisableSync}
+                onClick={() => void handleTestConnection()}
+                disabled={!controlState.canTestConnection}
                 variant="outline"
-                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                className="gap-2"
               >
-                {isDisabling ? (
+                {isTesting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {controlState.disableLabel}
+                    {controlState.testConnectionLabel}
                   </>
                 ) : (
-                  'Disable Sync'
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Test Connection
+                  </>
                 )}
               </Button>
+            </PluginActionSecondary>
+
+            <PluginActionPrimary>
+              <Button
+                onClick={() => void handleSaveConfig()}
+                disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
+              >
+                Save Configuration
+              </Button>
+            </PluginActionPrimary>
+
+            {isEnabled && (
+              <PluginActionDestructive>
+                <Button
+                  onClick={() => void handleDisable()}
+                  disabled={!controlState.canDisableSync}
+                  variant="outline"
+                  className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.destructive'].join(' ')}`}
+                >
+                  {isDisabling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {controlState.disableLabel}
+                    </>
+                  ) : (
+                    'Disable Sync'
+                  )}
+                </Button>
+              </PluginActionDestructive>
             )}
 
             {isEnabled && (
-              <Button
-                onClick={() => setIsClearDialogOpen(true)}
-                disabled={!controlState.canOpenClearDialog}
-                variant="ghost"
-                size="sm"
-                className="ml-auto gap-2 text-gray-600"
-              >
-                {isClearing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-                {controlState.clearLabel}
-              </Button>
+              <PluginActionTrailing>
+                <Button
+                  onClick={() => setIsClearDialogOpen(true)}
+                  disabled={!controlState.canOpenClearDialog}
+                  variant="ghost"
+                  size="sm"
+                  className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.subtle'].join(' ')}`}
+                >
+                  {isClearing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  {controlState.clearLabel}
+                </Button>
+              </PluginActionTrailing>
             )}
-          </>
+          </PluginActionRow>
         }
       >
         {/* Configuration Information */}
-        <div className={`rounded-lg border p-4 ${theme.warningTone} shadow-sm`}>
-          <p className="mb-2 text-sm font-semibold text-current">
-            Setup Requirements:
-          </p>
-          <ul className="list-inside list-disc space-y-1 text-sm text-current/90">
-            <li>
-              Add{' '}
-              <code className="rounded bg-background/70 px-2 py-1">
-                GITHUB_TOKEN
-              </code>{' '}
-              to your Vercel environment variables
-            </li>
-            <li>
-              Token must have{' '}
-              <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
-              permissions
-            </li>
-            <li>Repository will be created or used if it already exists</li>
-          </ul>
-        </div>
+        <PluginInlineMessage
+          tone="warning"
+          title="Setup Requirements"
+          description={
+            <ul className="list-inside list-disc space-y-1 text-sm">
+              <li>
+                Add{' '}
+                <code className="rounded bg-background/70 px-2 py-1">
+                  GITHUB_TOKEN
+                </code>{' '}
+                to your Vercel environment variables
+              </li>
+              <li>
+                Token must have{' '}
+                <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
+                permissions
+              </li>
+              <li>Repository will be created or used if it already exists</li>
+            </ul>
+          }
+          className="shadow-sm"
+        />
 
         {/* Form */}
         <div className="space-y-4">
@@ -566,7 +585,7 @@ export function GitHubSettings() {
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
                 disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                className="border-primary/25 focus:border-primary/45"
+                className={theme.inputTone}
               />
             </div>
 
@@ -580,7 +599,7 @@ export function GitHubSettings() {
                 value={repo}
                 onChange={(e) => setRepo(e.target.value)}
                 disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                className="border-primary/25 focus:border-primary/45"
+                className={theme.inputTone}
               />
             </div>
 
@@ -594,7 +613,7 @@ export function GitHubSettings() {
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}
                 disabled={!canUseGitHubSync || (isEnabled && migrationDone)}
-                className="border-primary/25 focus:border-primary/45"
+                className={theme.inputTone}
               />
             </div>
           </div>
@@ -642,7 +661,9 @@ export function GitHubSettings() {
           title="Initial sync pending"
           description="GitHub sync is enabled, but existing sessions have not been pushed yet. Run initial sync below to backfill your current training history."
           icon={<AlertCircle className="h-4 w-4 text-primary" />}
-          className="border-primary/25 bg-primary/5"
+          className={PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[
+            'tone.inline.info'
+          ].join(' ')}
         />
       )}
 
@@ -662,7 +683,7 @@ export function GitHubSettings() {
           <Button
             onClick={() => void handleBulkSync()}
             disabled={!controlState.canRunSyncAll}
-            className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="gap-2"
           >
             {isSyncing ? (
               <>
@@ -747,7 +768,9 @@ export function GitHubSettings() {
           variant="success"
           title="GitHub Sync Active"
           description="All existing sessions have been synced. New sessions will sync automatically."
-          className="border-primary/25 bg-primary/5"
+          className={PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[
+            'tone.inline.info'
+          ].join(' ')}
         />
       )}
 

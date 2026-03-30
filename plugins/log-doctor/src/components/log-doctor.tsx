@@ -9,8 +9,15 @@ import {
   PluginStatusPanel,
   PluginTableSection,
 } from '@/components/plugins/plugin-kit';
+import {
+  PluginActionDestructive,
+  PluginActionPrimary,
+  PluginActionRow,
+  PluginActionSecondary,
+} from '@/components/plugins/plugin-action-row';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
+import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -816,34 +823,42 @@ export const LogDoctor = (): React.ReactElement => {
             </div>
           </PluginSectionCard>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleScan}
-              disabled={isScanning || !owner || !repo}
-            >
-              {isScanning ? 'Scanning…' : 'Scan repository'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handlePreviewFixes}
-              disabled={isPreviewing || selectedCount === 0}
-            >
-              {isPreviewing ? 'Previewing…' : 'Preview fixes'}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleApplyFixes}
-              disabled={isApplying || selectedCount === 0}
-              aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
-            >
-              {isApplying ? 'Applying…' : 'Apply fixes'}
-            </Button>
-            {isBusy ? (
-              <Button variant="outline" onClick={handleCancelActiveOperation}>
-                Cancel current check
+          <PluginActionRow>
+            <PluginActionPrimary>
+              <Button
+                onClick={handleScan}
+                disabled={isScanning || !owner || !repo}
+              >
+                {isScanning ? 'Scanning…' : 'Scan repository'}
               </Button>
+            </PluginActionPrimary>
+            <PluginActionSecondary>
+              <Button
+                variant="secondary"
+                onClick={handlePreviewFixes}
+                disabled={isPreviewing || selectedCount === 0}
+              >
+                {isPreviewing ? 'Previewing…' : 'Preview fixes'}
+              </Button>
+            </PluginActionSecondary>
+            <PluginActionDestructive>
+              <Button
+                variant="destructive"
+                onClick={handleApplyFixes}
+                disabled={isApplying || selectedCount === 0}
+                aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
+              >
+                {isApplying ? 'Applying…' : 'Apply fixes'}
+              </Button>
+            </PluginActionDestructive>
+            {isBusy ? (
+              <PluginActionSecondary>
+                <Button variant="outline" onClick={handleCancelActiveOperation}>
+                  Cancel current check
+                </Button>
+              </PluginActionSecondary>
             ) : null}
-          </div>
+          </PluginActionRow>
 
           <LogDoctorStatusAlerts
             uiState={uiState}
@@ -1098,14 +1113,14 @@ export const LogDoctor = (): React.ReactElement => {
                 variant="success"
                 title="All sessions passed quality checks!"
                 description="No issues detected."
-                className="border-dashed bg-secondary/20"
+                className={`border-dashed ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['surface.logDoctor'].join(' ')}`}
               />
             ) : (
               <PluginStatusPanel
                 variant="warning"
                 title="Haven't run an audit yet"
                 description='Click "Run audit" above to get started.'
-                className="border-dashed bg-secondary/20"
+                className={`border-dashed ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['surface.logDoctor'].join(' ')}`}
               />
             )
           ) : null}
