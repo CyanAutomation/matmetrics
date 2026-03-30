@@ -48,9 +48,12 @@
       }
     }
   },
-  "capabilities": [
-    "video_audit"
-  ],
+  "capabilities": ["video_audit"],
+  "uiContract": {
+    "layoutVariant": "wide",
+    "requiredUxStates": ["loading", "error", "empty", "destructive"],
+    "designTokenVariants": ["layout.wide", "surface.videoLibrary"]
+  },
   "enabled": true,
   "uiExtensions": [
     {
