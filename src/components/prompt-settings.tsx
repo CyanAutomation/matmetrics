@@ -13,11 +13,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth-provider';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginNotice } from '@/components/plugins/plugin-notice';
-import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 import {
   DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
@@ -34,6 +32,13 @@ import {
   PluginFormSection,
   PluginStatusPanel,
 } from '@/components/plugins/plugin-kit';
+import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import {
+  PluginActionPrimary,
+  PluginActionRow,
+  PluginActionSecondary,
+} from '@/components/plugins/plugin-action-row';
+import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
 
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
@@ -237,7 +242,6 @@ export function PromptSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const theme = getPluginThemeTokens('info');
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -370,15 +374,16 @@ export function PromptSettings() {
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canSavePreferences && (
-        <Alert className={theme.warningTone}>
-          <Info className="h-4 w-4" />
-          <AlertTitle className="font-bold">Sign-in required</AlertTitle>
-          <AlertDescription className="text-current/90">
-            {authAvailable
+        <PluginInlineMessage
+          tone="warning"
+          icon={<Info className="h-4 w-4" />}
+          title="Sign-in required"
+          description={
+            authAvailable
               ? 'Custom AI prompts are only available after sign-in because they are saved per account.'
-              : 'Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment.'}
-          </AlertDescription>
-        </Alert>
+              : 'Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment.'
+          }
+        />
       )}
 
       <PluginFormSection
@@ -388,36 +393,44 @@ export function PromptSettings() {
         contentClassName="p-6 pt-8"
         footerClassName="p-6"
         footerActions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsResetDialogOpen(true)}
-              disabled={areControlsDisabled}
-              className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-            >
-              {isResetting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="h-4 w-4" />
-              )}
-              {isResetting ? 'Resetting…' : 'Reset to Default'}
-            </Button>
-            <Button
-              onClick={() => void handleSave()}
-              disabled={!canSubmitPrompt}
-              className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : hasSaveSuccess ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {isSaving ? 'Saving…' : hasSaveSuccess ? 'Saved!' : 'Save Prompt'}
-            </Button>
-          </>
+          <PluginActionRow>
+            <PluginActionSecondary>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsResetDialogOpen(true)}
+                disabled={areControlsDisabled}
+                className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.secondary'].join(' ')}`}
+              >
+                {isResetting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" />
+                )}
+                {isResetting ? 'Resetting…' : 'Reset to Default'}
+              </Button>
+            </PluginActionSecondary>
+            <PluginActionPrimary>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={!canSubmitPrompt}
+                className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : hasSaveSuccess ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isSaving
+                  ? 'Saving…'
+                  : hasSaveSuccess
+                    ? 'Saved!'
+                    : 'Save Prompt'}
+              </Button>
+            </PluginActionPrimary>
+          </PluginActionRow>
         }
       >
         {isLoadingSavedSettings && (
@@ -492,7 +505,7 @@ export function PromptSettings() {
               }}
               placeholder="Enter your custom instructions here..."
               disabled={areControlsDisabled}
-              className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-primary/30 transition-colors leading-relaxed"
+              className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-ring transition-colors leading-relaxed"
             />
             <p className="text-[11px] text-muted-foreground italic">
               {isPromptMeaningful
