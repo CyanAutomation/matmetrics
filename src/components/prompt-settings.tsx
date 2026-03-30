@@ -12,20 +12,11 @@ import {
   Info,
   CheckCircle2,
   Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth-provider';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
@@ -37,6 +28,7 @@ import {
   PluginLoadingState,
   PluginSuccessState,
 } from '@/components/plugins/plugin-state';
+import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
@@ -475,71 +467,40 @@ export function PromptSettings() {
           )}
         </CardContent>
         <CardFooter className="bg-secondary/45 p-6 flex justify-between items-center">
-          <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsResetDialogOpen(true)}
-              disabled={areControlsDisabled}
-              className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-            >
-              {isResetting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="h-4 w-4" />
-              )}
-              {isResetting ? 'Resetting…' : 'Reset to Default'}
-            </Button>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  Reset custom prompt?
-                </DialogTitle>
-                <DialogDescription>
-                  This will replace your custom instructions with the default
-                  prompt. You can still edit it again afterward.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setPrompt((currentPrompt) =>
-                      resolvePromptAfterDestructiveResetAction({
-                        action: 'cancel',
-                        currentPrompt,
-                      })
-                    );
-                    setIsResetDialogOpen(false);
-                  }}
-                  disabled={isResetting}
-                >
-                  {PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => void handleReset()}
-                  disabled={isResetting}
-                  className="gap-2"
-                >
-                  {isResetting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Resetting…
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="h-4 w-4" />
-                      {PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL}
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsResetDialogOpen(true)}
+            disabled={areControlsDisabled}
+            className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
+          >
+            {isResetting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
+            {isResetting ? 'Resetting…' : 'Reset to Default'}
+          </Button>
+          <PluginConfirmationDialog
+            open={isResetDialogOpen}
+            onOpenChange={setIsResetDialogOpen}
+            title="Reset custom prompt?"
+            description="This will replace your custom instructions with the default prompt. You can still edit it again afterward."
+            confirmLabel={PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL}
+            pendingLabel="Resetting…"
+            cancelLabel={PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL}
+            onCancel={() => {
+              setPrompt((currentPrompt) =>
+                resolvePromptAfterDestructiveResetAction({
+                  action: 'cancel',
+                  currentPrompt,
+                })
+              );
+              setIsResetDialogOpen(false);
+            }}
+            onConfirm={() => void handleReset()}
+            isPending={isResetting}
+          />
           <Button
             onClick={() => void handleSave()}
             disabled={!canSubmitPrompt}

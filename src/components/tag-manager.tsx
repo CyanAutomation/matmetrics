@@ -34,6 +34,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginEmptyState } from '@/components/plugins/plugin-state';
+import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -678,70 +679,51 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog
-        open={!!deletingTag}
-        onOpenChange={(open) => !open && resetDeleteDialog()}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">
-              Delete Technique Tag
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove "{deletingTag}" from all your
-              sessions? This cannot be undone.
-              {deleteAnalysis && deleteAnalysis.conflicts.length === 0 && (
-                <>
-                  {' '}
-                  Impact: {deleteAnalysis.affectedSessionCount} session(s),{' '}
-                  {deleteAnalysis.changedTagCount} tag change(s).
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {deleteError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Delete failed</AlertTitle>
-              <AlertDescription>{deleteError}</AlertDescription>
-            </Alert>
-          )}
-          <DialogFooter>
-            {(() => {
-              const deleteDialogState = {
-                deletingTag,
-                deleteAnalysis,
-                isAnalyzingDelete,
-                isApplyingDelete,
-              };
-              const actions = deriveDeleteDialogActions(deleteDialogState);
+      {(() => {
+        const deleteDialogState = {
+          deletingTag,
+          deleteAnalysis,
+          isAnalyzingDelete,
+          isApplyingDelete,
+        };
+        const actions = deriveDeleteDialogActions(deleteDialogState);
 
-              return (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={resetDeleteDialog}
-                    disabled={actions.cancelDisabled}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={
-                      actions.mode === 'apply'
-                        ? handleDelete
-                        : handleAnalyzeDelete
-                    }
-                    disabled={actions.primaryDisabled}
-                  >
-                    {actions.primaryLabel}
-                  </Button>
-                </>
-              );
-            })()}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        return (
+          <PluginConfirmationDialog
+            open={!!deletingTag}
+            onOpenChange={(open) => {
+              if (!open) {
+                resetDeleteDialog();
+              }
+            }}
+            title="Delete Technique Tag"
+            description={buildDeleteConfirmationCopy(deletingTag, deleteAnalysis)}
+            confirmLabel={actions.primaryLabel}
+            pendingLabel={actions.primaryLabel}
+            cancelLabel="Cancel"
+            isPending={isAnalyzingDelete || isApplyingDelete}
+            confirmVariant={actions.mode === 'apply' ? 'destructive' : 'default'}
+            confirmDisabled={actions.primaryDisabled}
+            cancelDisabled={actions.cancelDisabled}
+            onCancel={resetDeleteDialog}
+            onConfirm={() => {
+              if (actions.mode === 'apply') {
+                void handleDelete();
+                return;
+              }
+              void handleAnalyzeDelete();
+            }}
+          >
+            {deleteError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Delete failed</AlertTitle>
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            )}
+          </PluginConfirmationDialog>
+        );
+      })()}
     </PluginPageShell>
   );
 }
