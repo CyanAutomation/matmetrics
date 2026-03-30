@@ -17,7 +17,7 @@ export type VideoLibraryEntryStatus =
   | 'disallowed_domain'
   | 'invalid_url';
 
-export type VideoLibraryTab = 'missing' | 'review' | 'checked' | 'all';
+export type VideoLibraryTab = 'watchable' | 'attention' | 'no_video' | 'all';
 export type VideoLibraryCheckedFilter = 'all' | 'checked' | 'unchecked';
 export type VideoLibraryStatusFilter =
   | 'all'
@@ -57,9 +57,9 @@ export interface VideoLibraryFilters {
 
 export interface VideoLibraryTabCounts {
   all: number;
-  missing: number;
-  review: number;
-  checked: number;
+  watchable: number;
+  attention: number;
+  no_video: number;
 }
 
 export interface VideoDomainRemovalImpact {
@@ -411,20 +411,31 @@ export function getVideoLibraryTabCounts(
 ): VideoLibraryTabCounts {
   return {
     all: rows.length,
-    missing: rows.filter((row) => row.entry.status === 'missing').length,
-    review: rows.filter((row) => row.needsReview).length,
-    checked: rows.filter((row) => row.isChecked).length,
+    watchable: rows.filter(
+      (row) =>
+        row.entry.status === 'allowed_unchecked' &&
+        row.displayStatus !== 'broken' &&
+        row.displayStatus !== 'check_failed' &&
+        row.displayStatus !== 'disallowed_domain'
+    ).length,
+    attention: rows.filter((row) => row.needsReview).length,
+    no_video: rows.filter((row) => row.entry.status === 'missing').length,
   };
 }
 
 function rowMatchesTab(row: VideoLibraryRow, tab: VideoLibraryTab): boolean {
   switch (tab) {
-    case 'missing':
-      return row.entry.status === 'missing';
-    case 'review':
+    case 'watchable':
+      return (
+        row.entry.status === 'allowed_unchecked' &&
+        row.displayStatus !== 'broken' &&
+        row.displayStatus !== 'check_failed' &&
+        row.displayStatus !== 'disallowed_domain'
+      );
+    case 'attention':
       return row.needsReview;
-    case 'checked':
-      return row.isChecked;
+    case 'no_video':
+      return row.entry.status === 'missing';
     case 'all':
       return true;
   }

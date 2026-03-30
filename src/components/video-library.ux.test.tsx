@@ -59,7 +59,7 @@ test('empty criterion anchor: empty state exposes clear call-to-action labels fo
     search: 'youtube',
   });
   const tabEmpty = deriveVideoLibraryEmptyState({
-    tab: 'review',
+    tab: 'attention',
     search: '',
   });
   const inventoryEmpty = deriveVideoLibraryEmptyState({

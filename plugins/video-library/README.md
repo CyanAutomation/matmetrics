@@ -23,7 +23,7 @@ The Video Library plugin provides a **dashboard tab** for browsing linked sessio
 3. Browse linked videos, then review any disallowed domains or recent link-check results that need attention.
 4. Use **Edit** to update a single session or **Remove video** to clear a stored `videoUrl`.
 5. Add custom domains if you are signed in and preferences are available.
-6. Use tabs, filters, and per-row or filtered bulk checks to support discovery plus quick video-link health checks.
+6. Use browse-first tabs (`Watchable`, `Needs attention`, `All`, optional `No video`), plus filters and per-row or filtered bulk checks for deeper audits.
 
 ## Verification
 
