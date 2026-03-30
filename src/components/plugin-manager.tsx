@@ -30,6 +30,7 @@ import {
   fetchInstalledPlugins,
   getPluginManagerAccessState,
   type InstalledPluginManifestRow,
+  type PluginManagerAccessState,
   toggleInstalledPlugin,
 } from '@/lib/plugins/plugin-manager-client';
 import type {
@@ -43,7 +44,7 @@ import type {
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
 type PluginFetchState = 'idle' | 'loading' | 'success' | 'error';
 
-type InstalledPluginRow = Pick<
+export type InstalledPluginRow = Pick<
   PluginManifest,
   'id' | 'name' | 'version' | 'description' | 'enabled'
 > & {
@@ -144,6 +145,177 @@ export const derivePluginManagerInstalledViewState = (params: {
   }
   return 'table';
 };
+
+export function PluginManagerInstalledContent(props: {
+  installedPluginsViewState: PluginManagerInstalledViewState;
+  accessState: PluginManagerAccessState;
+  loadErrorMessage: string | null;
+  installedPlugins: InstalledPluginRow[];
+  fetchState: PluginFetchState;
+  onRetry: () => void;
+  onTogglePluginEnabled: (pluginId: string, enabled: boolean) => void;
+}) {
+  const {
+    accessState,
+    fetchState,
+    installedPlugins,
+    installedPluginsViewState,
+    loadErrorMessage,
+    onRetry,
+    onTogglePluginEnabled,
+  } = props;
+
+  if (installedPluginsViewState === 'access-blocked') {
+    return (
+      <p
+        className="text-sm text-muted-foreground"
+        data-testid="plugins-access-blocked-state"
+      >
+        {accessState === 'auth-unavailable'
+          ? 'Plugin management cannot load in this environment until Firebase authentication is configured.'
+          : 'Sign in with a configured account to load installed plugins and update their enabled state.'}
+      </p>
+    );
+  }
+
+  if (installedPluginsViewState === 'loading') {
+    return (
+      <div className="space-y-2" data-testid="plugins-loading-state">
+        <p className="text-sm text-muted-foreground">
+          Loading installed plugins…
+        </p>
+        <div className="space-y-2">
+          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+          <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
+        </div>
+      </div>
+    );
+  }
+
+  if (installedPluginsViewState === 'error') {
+    return (
+      <Alert variant="destructive" data-testid="plugins-error-state">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Failed to load installed plugins</AlertTitle>
+        <AlertDescription className="space-y-3">
+          <p>
+            {loadErrorMessage ??
+              'Could not load installed plugins from the API.'}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (installedPluginsViewState === 'empty') {
+    return (
+      <div
+        className="rounded-lg border border-dashed p-6 space-y-2 bg-secondary/20"
+        data-testid="plugins-empty-state"
+      >
+        <p className="font-medium">No installed plugins found.</p>
+        <p className="text-sm text-muted-foreground">
+          No installed plugins found in plugins/*/plugin.json.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Add a plugin manifest, then retry loading this list.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Table data-testid="plugins-table-state">
+      <TableHeader>
+        <TableRow>
+          <TableHead>name</TableHead>
+          <TableHead>id</TableHead>
+          <TableHead>version</TableHead>
+          <TableHead>maturity</TableHead>
+          <TableHead>description</TableHead>
+          <TableHead>enabled</TableHead>
+          <TableHead className="text-right">status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {installedPlugins.map((plugin) => {
+          const scoredWithContractIssues =
+            Boolean(plugin.maturity) &&
+            hasBlockingContractIssues(plugin.issues);
+          return (
+            <TableRow key={plugin.id}>
+              <TableCell className="font-medium">{plugin.name}</TableCell>
+              <TableCell className="font-mono text-xs">{plugin.id}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {plugin.version}
+              </TableCell>
+              <TableCell>
+                {plugin.maturity ? (
+                  <div className="space-y-1">
+                    <Badge
+                      variant="outline"
+                      className={tierBadgeClass[plugin.maturity.tier]}
+                    >
+                      {formatTierLabel(plugin.maturity.tier)}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground">
+                      {plugin.maturity.score}/100
+                    </div>
+                    {scoredWithContractIssues ? (
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-500/10 text-amber-700 border-amber-300/40"
+                      >
+                        Scored with contract issues
+                      </Badge>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Unscored
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-sm text-sm text-muted-foreground">
+                {plugin.description}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id={`plugin-enabled-${plugin.id}`}
+                    checked={plugin.enabled}
+                    disabled={
+                      plugin.status === 'pending' || fetchState === 'loading'
+                    }
+                    onCheckedChange={(checked) =>
+                      onTogglePluginEnabled(plugin.id, checked)
+                    }
+                  />
+                  <Label htmlFor={`plugin-enabled-${plugin.id}`}>Enabled</Label>
+                </div>
+              </TableCell>
+              <TableCell className="text-right">
+                {plugin.status === 'pending' ? (
+                  <span className="text-xs text-muted-foreground">Saving…</span>
+                ) : plugin.status === 'success' ? (
+                  <span className="text-xs text-emerald-700">Saved</span>
+                ) : plugin.status === 'failure' ? (
+                  <span className="text-xs text-destructive">Failed</span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Idle</span>
+                )}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
 
 export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const MATURITY_REASONS_PREVIEW_COUNT = 3;
@@ -452,7 +624,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
             {canManagePlugins ? (
               <p className="text-xs text-muted-foreground">
                 Last updated:{' '}
-                {lastUpdatedAt ? lastUpdatedAt.toLocaleString() : 'Not loaded yet'}
+                {lastUpdatedAt
+                  ? lastUpdatedAt.toLocaleString()
+                  : 'Not loaded yet'}
               </p>
             ) : null}
           </div>
@@ -474,154 +648,17 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           ) : null}
         </CardHeader>
         <CardContent>
-          {installedPluginsViewState === 'access-blocked' ? (
-            <p className="text-sm text-muted-foreground">
-              {accessState === 'auth-unavailable'
-                ? 'Plugin management cannot load in this environment until Firebase authentication is configured.'
-                : 'Sign in with a configured account to load installed plugins and update their enabled state.'}
-            </p>
-          ) : installedPluginsViewState === 'loading' ? (
-            <div className="space-y-2" data-testid="plugins-loading-state">
-              <p className="text-sm text-muted-foreground">
-                Loading installed plugins…
-              </p>
-              <div className="space-y-2">
-                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-                <div className="h-10 animate-pulse rounded-md bg-secondary/50" />
-              </div>
-            </div>
-          ) : installedPluginsViewState === 'error' ? (
-            <Alert variant="destructive" data-testid="plugins-error-state">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Failed to load installed plugins</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>
-                  {loadErrorMessage ??
-                    'Could not load installed plugins from the API.'}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleManualRefresh}
-                >
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : installedPluginsViewState === 'empty' ? (
-            <div
-              className="rounded-lg border border-dashed p-6 space-y-2 bg-secondary/20"
-              data-testid="plugins-empty-state"
-            >
-              <p className="font-medium">No installed plugins found.</p>
-              <p className="text-sm text-muted-foreground">
-                No installed plugins found in plugins/*/plugin.json.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Add a plugin manifest, then retry loading this list.
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>name</TableHead>
-                  <TableHead>id</TableHead>
-                  <TableHead>version</TableHead>
-                  <TableHead>maturity</TableHead>
-                  <TableHead>description</TableHead>
-                  <TableHead>enabled</TableHead>
-                  <TableHead className="text-right">status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {installedPlugins.map((plugin) => {
-                  const scoredWithContractIssues =
-                    Boolean(plugin.maturity) &&
-                    hasBlockingContractIssues(plugin.issues);
-                  return (
-                    <TableRow key={plugin.id}>
-                      <TableCell className="font-medium">
-                        {plugin.name}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {plugin.id}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {plugin.version}
-                      </TableCell>
-                      <TableCell>
-                        {plugin.maturity ? (
-                          <div className="space-y-1">
-                            <Badge
-                              variant="outline"
-                              className={tierBadgeClass[plugin.maturity.tier]}
-                            >
-                              {formatTierLabel(plugin.maturity.tier)}
-                            </Badge>
-                            <div className="text-xs text-muted-foreground">
-                              {plugin.maturity.score}/100
-                            </div>
-                            {scoredWithContractIssues ? (
-                              <Badge
-                                variant="outline"
-                                className="bg-amber-500/10 text-amber-700 border-amber-300/40"
-                              >
-                                Scored with contract issues
-                              </Badge>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Unscored
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-sm text-sm text-muted-foreground">
-                        {plugin.description}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id={`plugin-enabled-${plugin.id}`}
-                            checked={plugin.enabled}
-                            disabled={plugin.status === 'pending'}
-                            onCheckedChange={(checked) =>
-                              void togglePluginEnabled(plugin.id, checked)
-                            }
-                          />
-                          <Label htmlFor={`plugin-enabled-${plugin.id}`}>
-                            Enabled
-                          </Label>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {plugin.status === 'pending' ? (
-                          <span className="text-xs text-muted-foreground">
-                            Saving…
-                          </span>
-                        ) : plugin.status === 'success' ? (
-                          <span className="text-xs text-emerald-700">
-                            Saved
-                          </span>
-                        ) : plugin.status === 'failure' ? (
-                          <span className="text-xs text-destructive">
-                            Failed
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Idle
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+          <PluginManagerInstalledContent
+            installedPluginsViewState={installedPluginsViewState}
+            accessState={accessState}
+            loadErrorMessage={loadErrorMessage}
+            installedPlugins={installedPlugins}
+            fetchState={fetchState}
+            onRetry={handleManualRefresh}
+            onTogglePluginEnabled={(pluginId, enabled) => {
+              void togglePluginEnabled(pluginId, enabled);
+            }}
+          />
 
           {canManagePlugins && installedPluginsViewState === 'table' ? (
             <div className="mt-4 space-y-2">
