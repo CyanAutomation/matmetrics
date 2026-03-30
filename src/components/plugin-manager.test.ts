@@ -122,19 +122,24 @@ test('installed content renders behavior-defining UI surfaces for each scenario 
   const loadingMarkup = renderInstalledContentMarkup({
     installedPluginsViewState: 'loading',
   });
+  assert.match(loadingMarkup, /plugins-loading-state/);
   assert.match(loadingMarkup, /Loading installed plugins/);
 
   const errorMarkup = renderInstalledContentMarkup({
     installedPluginsViewState: 'error',
     loadErrorMessage: 'network unavailable',
   });
+  assert.match(errorMarkup, /plugins-error-state/);
   assert.match(errorMarkup, /Failed to load installed plugins/);
   assert.match(errorMarkup, /network unavailable/);
+  assert.match(errorMarkup, /Retry loading installed plugins/);
 
   const emptyMarkup = renderInstalledContentMarkup({
     installedPluginsViewState: 'empty',
   });
+  assert.match(emptyMarkup, /plugins-empty-state/);
   assert.match(emptyMarkup, /No installed plugins found/);
+  assert.match(emptyMarkup, /plugins\/\*\/plugin\.json/);
 
   const tableMarkup = renderInstalledContentMarkup({
     installedPluginsViewState: 'table',
