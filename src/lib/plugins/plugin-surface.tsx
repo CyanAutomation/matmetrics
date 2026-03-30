@@ -71,7 +71,7 @@ const collectRenderedHelperNames = (node: React.ReactNode): Set<string> => {
       names.add(typeName);
     }
 
-    const childNodes = value.props?.children as React.ReactNode;
+    const childNodes = value.props ? (value.props.children as React.ReactNode) : undefined;
     if (childNodes) {
       walk(childNodes);
     }
