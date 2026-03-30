@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, RefreshCw } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -156,6 +156,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const [loadErrorMessage, setLoadErrorMessage] = React.useState<string | null>(
     null
   );
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date | null>(null);
   const [rowStatuses, setRowStatuses] = React.useState<
     Record<string, Pick<InstalledPluginRow, 'status' | 'statusMessage'>>
   >({});
@@ -178,6 +179,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       });
       setInstalledManifestRows(validPlugins);
       setFetchState('success');
+      setLastUpdatedAt(new Date());
     } catch (error) {
       const message =
         error instanceof Error
@@ -196,6 +198,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       setRowStatuses({});
       setFetchState('idle');
       setLoadErrorMessage(null);
+      setLastUpdatedAt(null);
       return;
     }
 
@@ -211,6 +214,36 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       });
     });
   }, [canManagePlugins, refreshInstalledPlugins, toast]);
+
+  React.useEffect(() => {
+    if (!canManagePlugins) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshInstalledPlugins().catch((error) => {
+        console.error('Background plugin refresh failed', error);
+      });
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [canManagePlugins, refreshInstalledPlugins]);
+
+  const handleManualRefresh = React.useCallback(() => {
+    void refreshInstalledPlugins().catch((error) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not load installed plugins from the API.';
+      toast({
+        variant: 'destructive',
+        title: 'Failed to load plugins',
+        description: message,
+      });
+    });
+  }, [refreshInstalledPlugins, toast]);
 
   const installedPlugins = React.useMemo<InstalledPluginRow[]>(() => {
     const statusEntries = rowStatuses;
@@ -383,11 +416,35 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       {accessAlert}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Installed Plugins</CardTitle>
-          <CardDescription>
-            Use this to enable or disable plugins and view plugin status.
-          </CardDescription>
+        <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle>Installed Plugins</CardTitle>
+            <CardDescription>
+              Use this to enable or disable plugins and view plugin status.
+            </CardDescription>
+            {canManagePlugins ? (
+              <p className="text-xs text-muted-foreground">
+                Last updated:{' '}
+                {lastUpdatedAt ? lastUpdatedAt.toLocaleString() : 'Not loaded yet'}
+              </p>
+            ) : null}
+          </div>
+          {canManagePlugins ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={fetchState === 'loading'}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${
+                  fetchState === 'loading' ? 'animate-spin' : ''
+                }`}
+              />
+              Refresh
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           {installedPluginsViewState === 'access-blocked' ? (
@@ -420,19 +477,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    void refreshInstalledPlugins().catch((error) => {
-                      const message =
-                        error instanceof Error
-                          ? error.message
-                          : 'Could not load installed plugins from the API.';
-                      toast({
-                        variant: 'destructive',
-                        title: 'Failed to load plugins',
-                        description: message,
-                      });
-                    });
-                  }}
+                  onClick={handleManualRefresh}
                 >
                   Retry
                 </Button>
