@@ -13,6 +13,7 @@ import { getFirebaseDb } from './firebase-client';
 import { getScopedStorageKey } from './client-identity';
 import type {
   AuditConfig,
+  AuditMode,
   AuditRunResult,
   GitHubConfig,
   GitHubSettings,
@@ -22,6 +23,12 @@ import type {
   VideoLinkCheckSnapshot,
 } from './types';
 import { DEFAULT_AUDIT_CONFIG } from './types';
+import {
+  areAuditConfigsEqual,
+  getAuditConfigPreset,
+  inferAuditModeFromConfig,
+  normalizeAuditConfigShape,
+} from './audit-presets';
 
 export { DEFAULT_TRANSFORMER_PROMPT };
 
@@ -45,6 +52,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   gitHub: DEFAULT_GITHUB_SETTINGS,
   videoLibrary: DEFAULT_VIDEO_LIBRARY_PREFERENCES,
   sessionAudits: {},
+  auditMode: 'standard',
   auditConfig: DEFAULT_AUDIT_CONFIG,
   lastAuditRun: undefined,
 };
@@ -79,6 +87,7 @@ function cloneDefaults(): UserPreferences {
     gitHub: { ...DEFAULT_GITHUB_SETTINGS },
     videoLibrary: { ...DEFAULT_VIDEO_LIBRARY_PREFERENCES },
     sessionAudits: {},
+    auditMode: 'standard',
     auditConfig: {
       rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
     },
@@ -138,7 +147,7 @@ function normalizeAuditConfig(value: unknown): AuditConfig {
   }
 
   const input = value as Partial<AuditConfig>;
-  return {
+  const normalized = {
     rules: (input.rules || []).map((rule) => ({
       code:
         rule?.code &&
@@ -159,6 +168,17 @@ function normalizeAuditConfig(value: unknown): AuditConfig {
         : {}),
     })),
   };
+  return normalizeAuditConfigShape(normalized);
+}
+
+function normalizeAuditMode(value: unknown, config: AuditConfig): AuditMode {
+  if (value === 'standard' || value === 'strict' || value === 'custom') {
+    return value;
+  }
+
+  return areAuditConfigsEqual(config, DEFAULT_AUDIT_CONFIG)
+    ? 'standard'
+    : 'custom';
 }
 
 function normalizeVideoLibraryPreferences(
@@ -301,6 +321,7 @@ function normalizePreferences(value: unknown): UserPreferences {
   }
 
   const input = value as Partial<UserPreferences>;
+  const normalizedAuditConfig = normalizeAuditConfig(input.auditConfig);
 
   return {
     transformerPrompt:
@@ -315,7 +336,11 @@ function normalizePreferences(value: unknown): UserPreferences {
         ? input.migratedLocalSettingsAt
         : undefined,
     sessionAudits: normalizeSessionAudits(input.sessionAudits),
-    auditConfig: normalizeAuditConfig(input.auditConfig),
+    auditMode: normalizeAuditMode(
+      (input as Record<string, unknown>).auditMode,
+      normalizedAuditConfig
+    ),
+    auditConfig: normalizedAuditConfig,
     lastAuditRun: normalizeLastAuditRun(input.lastAuditRun),
   };
 }
@@ -500,6 +525,9 @@ export async function initializeUserPreferences(
         : {}),
       ...(mergedPreferences.auditConfig
         ? { auditConfig: serializeAuditConfig(mergedPreferences.auditConfig) }
+        : {}),
+      ...(mergedPreferences.auditMode
+        ? { auditMode: mergedPreferences.auditMode }
         : {}),
       ...(mergedPreferences.lastAuditRun
         ? {
@@ -759,16 +787,35 @@ export async function deleteSessionAudit(
 }
 
 export function getAuditConfig(): AuditConfig {
+  const mode = getAuditMode();
+  if (mode === 'standard' || mode === 'strict') {
+    return getAuditConfigPreset(mode);
+  }
   return currentPreferences.auditConfig || DEFAULT_AUDIT_CONFIG;
+}
+
+export function getAuditMode(): AuditMode {
+  const mode = currentPreferences.auditMode;
+  if (mode === 'standard' || mode === 'strict' || mode === 'custom') {
+    return mode;
+  }
+  return inferAuditModeFromConfig(getAuditConfig());
 }
 
 export async function saveAuditConfig(
   uid: string,
-  config: AuditConfig
+  config: AuditConfig,
+  mode?: AuditMode
 ): Promise<void> {
+  const normalizedConfig = normalizeAuditConfigShape(config);
+  const nextMode = mode || inferAuditModeFromConfig(normalizedConfig);
+  const configForMode =
+    nextMode === 'custom' ? normalizedConfig : getAuditConfigPreset(nextMode);
+
   currentPreferences = {
     ...currentPreferences,
-    auditConfig: config,
+    auditMode: nextMode,
+    auditConfig: configForMode,
   };
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
@@ -776,7 +823,8 @@ export async function saveAuditConfig(
   await setDoc(
     getPreferencesDocRef(uid),
     {
-      auditConfig: serializeAuditConfig(config),
+      auditMode: nextMode,
+      auditConfig: serializeAuditConfig(configForMode),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
