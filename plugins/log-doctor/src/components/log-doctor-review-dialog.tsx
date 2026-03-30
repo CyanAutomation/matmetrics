@@ -14,6 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { type AuditFlagCode, type AuditSeverity } from '@/lib/types';
 
+import {
+  AUDIT_FLAG_PRESENTATION,
+  groupAuditFlagsByHeading,
+} from './log-doctor-audit-flag-content';
 import type { AuditSessionResult } from './log-doctor-state';
 
 const SEVERITY_BADGE_VARIANT: Record<
@@ -23,13 +27,6 @@ const SEVERITY_BADGE_VARIANT: Record<
   error: 'destructive',
   warning: 'default',
   info: 'secondary',
-};
-
-const FLAG_CODE_LABEL: Record<AuditFlagCode, string> = {
-  no_techniques_high_effort: 'No techniques (high effort)',
-  empty_description: 'Missing description',
-  empty_notes: 'Missing notes',
-  duration_outlier: 'Unusual duration',
 };
 
 type ReviewDialogProps = {
@@ -61,6 +58,7 @@ export const AuditReviewDialog = ({
   const activeFlags = session.flags.filter(
     (f) => !session.ignoredRules.includes(f.code)
   );
+  const groupedFlags = groupAuditFlagsByHeading(session.flags);
 
   const handleMarkResolved = (): void => {
     setPendingAction('resolving');
@@ -108,33 +106,48 @@ export const AuditReviewDialog = ({
               No flags to display.
             </p>
           ) : (
-            session.flags.map((flag) => {
-              const isIgnored = session.ignoredRules.includes(flag.code);
-              return (
-                <div
-                  key={flag.code}
-                  className="flex items-start gap-3 rounded-md border p-3"
-                >
-                  <Badge
-                    variant={SEVERITY_BADGE_VARIANT[flag.severity]}
-                    className="shrink-0 mt-0.5 capitalize"
-                  >
-                    {flag.severity}
-                  </Badge>
-                  <div className="flex-1 space-y-1 text-sm">
-                    <p className="font-medium">{FLAG_CODE_LABEL[flag.code]}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {flag.message}
-                    </p>
-                    {isIgnored ? (
-                      <p className="text-xs text-muted-foreground italic">
-                        This check is dismissed for this session.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })
+            Object.entries(groupedFlags).map(([heading, flags]) => (
+              <section key={heading} className="space-y-2">
+                <p className="text-xs font-semibold tracking-wide">{heading}</p>
+                {flags.map((flag) => {
+                  const isIgnored = session.ignoredRules.includes(flag.code);
+                  return (
+                    <div
+                      key={flag.code}
+                      className="flex items-start gap-3 rounded-md border p-3"
+                    >
+                      <div className="flex-1 space-y-1 text-sm">
+                        <p className="font-medium">
+                          {AUDIT_FLAG_PRESENTATION[flag.code].label}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {flag.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            How to fix this:
+                          </span>{' '}
+                          {AUDIT_FLAG_PRESENTATION[flag.code].helperText}
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Badge
+                            variant={SEVERITY_BADGE_VARIANT[flag.severity]}
+                            className="shrink-0 mt-0.5 capitalize"
+                          >
+                            {flag.severity}
+                          </Badge>
+                          {isIgnored ? (
+                            <p className="text-xs text-muted-foreground italic">
+                              This check is dismissed for this session.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+            ))
           )}
 
           {activeFlags.length === 0 && !isReviewed ? (
@@ -160,7 +173,7 @@ export const AuditReviewDialog = ({
                       className="flex items-center justify-between gap-2"
                     >
                       <span className="text-xs">
-                        {FLAG_CODE_LABEL[flag.code]}
+                        {AUDIT_FLAG_PRESENTATION[flag.code].label}
                       </span>
                       <Button
                         size="sm"
@@ -173,8 +186,8 @@ export const AuditReviewDialog = ({
                         }
                         aria-label={
                           isIgnored
-                            ? `Undismiss ${FLAG_CODE_LABEL[flag.code]} for this session`
-                            : `Dismiss ${FLAG_CODE_LABEL[flag.code]} for this session`
+                            ? `Undismiss ${AUDIT_FLAG_PRESENTATION[flag.code].label} for this session`
+                            : `Dismiss ${AUDIT_FLAG_PRESENTATION[flag.code].label} for this session`
                         }
                       >
                         {isIgnored ? 'Undismiss' : 'Dismiss'}
