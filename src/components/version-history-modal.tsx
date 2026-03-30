@@ -78,7 +78,10 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         }
         setReleases(payload.releases);
       } catch (fetchError) {
-        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+        if (
+          fetchError instanceof DOMException &&
+          fetchError.name === 'AbortError'
+        ) {
           return;
         }
 
@@ -89,7 +92,6 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         );
       } finally {
         setIsLoading(false);
-        }
       }
     };
 
