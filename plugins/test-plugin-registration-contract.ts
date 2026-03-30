@@ -13,6 +13,55 @@ type PluginRegistrationContractParams = {
   initPlugin: InitPlugin;
 };
 
+type PluginInitRegistrationAssertionParams = {
+  pluginId: string;
+  registerCalls: string[];
+  registerComponentCalls: string[];
+  registerInvocationCount: number;
+  registerComponentInvocationCount: number;
+  expectedDashboardExtensionId: string;
+  expectedComponentId: string;
+};
+
+const assertPluginInitRegistration = ({
+  pluginId,
+  registerCalls,
+  registerComponentCalls,
+  registerInvocationCount,
+  registerComponentInvocationCount,
+  expectedDashboardExtensionId,
+  expectedComponentId,
+}: PluginInitRegistrationAssertionParams): void => {
+  assert.ok(
+    registerInvocationCount > 0,
+    `[${pluginId}] initPlugin must call register`
+  );
+  assert.ok(
+    registerComponentInvocationCount > 0,
+    `[${pluginId}] initPlugin must call registerPluginComponent`
+  );
+  assert.equal(
+    registerCalls.length,
+    1,
+    `[${pluginId}] initPlugin must register exactly one extension id`
+  );
+  assert.equal(
+    registerComponentCalls.length,
+    1,
+    `[${pluginId}] initPlugin must register exactly one component id`
+  );
+  assert.deepEqual(
+    registerCalls,
+    [expectedDashboardExtensionId],
+    `[${pluginId}] extension id mismatch`
+  );
+  assert.deepEqual(
+    registerComponentCalls,
+    [expectedComponentId],
+    `[${pluginId}] component id mismatch`
+  );
+};
+
 export const testPluginRegistrationContract = ({
   pluginId,
   dashboardExtensionId,
@@ -36,14 +85,14 @@ export const testPluginRegistrationContract = ({
       },
     });
 
-    assert.ok(registerInvocationCount > 0, 'initPlugin must call register');
-    assert.ok(
-      registerComponentInvocationCount > 0,
-      'initPlugin must call registerPluginComponent'
-    );
-    assert.equal(registerCalls.length, 1);
-    assert.equal(registerComponentCalls.length, 1);
-    assert.deepEqual(registerCalls, [dashboardExtensionId]);
-    assert.deepEqual(registerComponentCalls, [componentId]);
+    assertPluginInitRegistration({
+      pluginId,
+      registerCalls,
+      registerComponentCalls,
+      registerInvocationCount,
+      registerComponentInvocationCount,
+      expectedDashboardExtensionId: dashboardExtensionId,
+      expectedComponentId: componentId,
+    });
   });
 };
