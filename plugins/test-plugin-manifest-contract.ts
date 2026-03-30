@@ -15,7 +15,7 @@ type PluginManifestContractParams = {
   pluginId: string;
   dashboardExtensionId: string;
   componentId: string;
-  manifest: PluginManifest;
+  manifest: unknown;
 };
 
 const getDashboardTabExtension = (
@@ -44,7 +44,11 @@ export const testPluginManifestContract = ({
     const validation = validatePluginManifest(manifest);
 
     if (!validation.isValid) {
-      assert.fail('Expected valid plugin manifest');
+      assert.fail(
+        `Expected valid plugin manifest: ${validation.issues
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join('; ')}`
+      );
     }
 
     assert.equal(validation.manifest.id, pluginId);

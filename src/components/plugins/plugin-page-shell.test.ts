@@ -12,16 +12,13 @@ const normalizeMarkup = (html: string): string =>
 test('PluginPageShell renders title, description, icon, and content regions', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
-      React.createElement(
-        PluginPageShell,
-        {
-          title: 'Plugin title',
-          description: 'Plugin description',
-          icon: React.createElement('span', null, 'I'),
-          tone: 'info',
-        },
-        React.createElement('div', null, 'body')
-      )
+      React.createElement(PluginPageShell, {
+        title: 'Plugin title',
+        description: 'Plugin description',
+        icon: React.createElement('span', null, 'I'),
+        tone: 'info',
+        children: React.createElement('div', null, 'body'),
+      })
     )
   );
 
