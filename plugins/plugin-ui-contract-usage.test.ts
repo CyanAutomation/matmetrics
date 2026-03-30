@@ -59,7 +59,9 @@ for (const contract of corePluginContracts) {
 
     for (const token of contract.requiredTokens) {
       assert.equal(
-        source.includes(token),
+      const tokenPattern = new RegExp(`\\b${token}\\b`);
+      assert.equal(
+        tokenPattern.test(source),
         true,
         `[${contract.pluginId}] expected standardized helper ${token} in ${contract.sourcePath}`
       );
