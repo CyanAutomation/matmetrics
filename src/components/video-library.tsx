@@ -1269,7 +1269,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" asChild>
                       <a
-                        href={row.entry.url}
+                        href={row.entry.url || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
