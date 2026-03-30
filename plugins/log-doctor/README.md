@@ -3,6 +3,7 @@
 ## Purpose and capabilities
 
 - UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
+- UX guardrails: [docs/log-doctor-ux-principles.md](../../docs/log-doctor-ux-principles.md).
 
 The Log Doctor plugin adds a **dashboard tab** for plugin-focused log diagnostics and future health checks.
 
@@ -85,3 +86,7 @@ When approving Gold promotion, the reviewer must update plugin manifest maturity
 - `maturity.tier: gold`
 - `maturity.lastReviewedAt` (review date)
 - `maturity.notes` (review rationale and scope)
+
+## UX governance for audit settings changes
+
+For any PR touching `plugins/log-doctor/src/components/log-doctor-audit-settings.tsx`, complete the acceptance checklist in [docs/log-doctor-ux-principles.md](../../docs/log-doctor-ux-principles.md) before merge.
