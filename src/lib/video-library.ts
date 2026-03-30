@@ -43,6 +43,7 @@ export interface VideoLibraryRow {
   needsReview: boolean;
   isCheckable: boolean;
   isChecked: boolean;
+  missingVideoExpected: boolean;
   searchText: string;
 }
 
@@ -372,10 +373,12 @@ export function deriveVideoLibraryRows({
   sessions,
   customAllowedDomains,
   linkChecksBySessionId,
+  expectedVideoCategories,
 }: {
   sessions: JudoSession[];
   customAllowedDomains: string[];
   linkChecksBySessionId: Record<string, VideoLinkCheckSnapshot>;
+  expectedVideoCategories: SessionCategory[];
 }): VideoLibraryRow[] {
   const entries = deriveVideoLibraryEntries(sessions, customAllowedDomains);
 
@@ -388,6 +391,9 @@ export function deriveVideoLibraryRows({
       latestCheck?.status === 'broken' ||
       latestCheck?.status === 'check_failed' ||
       latestCheck?.status === 'disallowed_domain';
+    const missingVideoExpected =
+      entry.status === 'missing' &&
+      expectedVideoCategories.includes(entry.session.category);
 
     return {
       session: entry.session,
@@ -397,6 +403,7 @@ export function deriveVideoLibraryRows({
       needsReview,
       isCheckable: canCheckVideoEntry(entry),
       isChecked: !!latestCheck,
+      missingVideoExpected,
       searchText: buildRowSearchText({
         session: entry.session,
         hostname: entry.hostname,
@@ -419,7 +426,7 @@ export function getVideoLibraryTabCounts(
         row.displayStatus !== 'disallowed_domain'
     ).length,
     attention: rows.filter((row) => row.needsReview).length,
-    no_video: rows.filter((row) => row.entry.status === 'missing').length,
+    no_video: rows.filter((row) => row.missingVideoExpected).length,
   };
 }
 
@@ -435,7 +442,7 @@ function rowMatchesTab(row: VideoLibraryRow, tab: VideoLibraryTab): boolean {
     case 'attention':
       return row.needsReview;
     case 'no_video':
-      return row.entry.status === 'missing';
+      return row.missingVideoExpected;
     case 'all':
       return true;
   }
