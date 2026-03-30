@@ -166,8 +166,8 @@ test('filterVideoLibraryRows respects tab, search, status, and checked filters',
     },
   });
 
-  const reviewRows = filterVideoLibraryRows(rows, {
-    tab: 'review',
+  const attentionRows = filterVideoLibraryRows(rows, {
+    tab: 'attention',
     search: '',
     status: 'all',
     category: 'all',
@@ -175,7 +175,7 @@ test('filterVideoLibraryRows respects tab, search, status, and checked filters',
     checked: 'all',
   });
   assert.deepEqual(
-    reviewRows.map((row) => row.session.id),
+    attentionRows.map((row) => row.session.id),
     ['broken']
   );
 
@@ -212,9 +212,9 @@ test('getVideoLibraryTabCounts returns grouped counts', () => {
 
   assert.deepEqual(getVideoLibraryTabCounts(rows), {
     all: 3,
-    missing: 1,
-    review: 1,
-    checked: 2,
+    watchable: 1,
+    attention: 1,
+    no_video: 1,
   });
 });
 
