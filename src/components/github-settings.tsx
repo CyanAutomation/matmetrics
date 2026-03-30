@@ -1,13 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +46,11 @@ import {
   PluginErrorState,
   PluginSuccessState,
 } from '@/components/plugins/plugin-state';
+import {
+  PluginFormSection,
+  PluginStatusPanel,
+  PluginTableSection,
+} from '@/components/plugins/plugin-kit';
 
 export function GitHubSettings() {
   const { toast } = useToast();
@@ -462,8 +460,76 @@ export function GitHubSettings() {
         />
       )}
 
-      <Card className="bg-card/95 shadow-sm">
-        <CardContent className="space-y-6 p-6 pt-8">
+      <PluginFormSection
+        title="Repository setup"
+        description="Connect this account to a GitHub repository target."
+        className="shadow-sm"
+        contentClassName="space-y-6 p-6 pt-8"
+        footerActions={
+          <>
+            <Button
+              onClick={() => void handleTestConnection()}
+              disabled={!controlState.canTestConnection}
+              variant="outline"
+              className="gap-2"
+            >
+              {isTesting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {controlState.testConnectionLabel}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Test Connection
+                </>
+              )}
+            </Button>
+
+            <Button
+              onClick={() => void handleSaveConfig()}
+              disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
+            >
+              Save Configuration
+            </Button>
+
+            {isEnabled && (
+              <Button
+                onClick={() => void handleDisable()}
+                disabled={!controlState.canDisableSync}
+                variant="outline"
+                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                {isDisabling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {controlState.disableLabel}
+                  </>
+                ) : (
+                  'Disable Sync'
+                )}
+              </Button>
+            )}
+
+            {isEnabled && (
+              <Button
+                onClick={() => setIsClearDialogOpen(true)}
+                disabled={!controlState.canOpenClearDialog}
+                variant="ghost"
+                size="sm"
+                className="ml-auto gap-2 text-gray-600"
+              >
+                {isClearing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {controlState.clearLabel}
+              </Button>
+            )}
+          </>
+        }
+      >
           {/* Configuration Information */}
           <div
             className={`rounded-lg border p-4 ${theme.warningTone} shadow-sm`}
@@ -563,72 +629,7 @@ export function GitHubSettings() {
               />
             )}
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 flex-wrap">
-            <Button
-              onClick={() => void handleTestConnection()}
-              disabled={!controlState.canTestConnection}
-              variant="outline"
-              className="gap-2"
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {controlState.testConnectionLabel}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Test Connection
-                </>
-              )}
-            </Button>
-
-            <Button
-              onClick={() => void handleSaveConfig()}
-              disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
-            >
-              Save Configuration
-            </Button>
-
-            {isEnabled && (
-              <Button
-                onClick={() => void handleDisable()}
-                disabled={!controlState.canDisableSync}
-                variant="outline"
-                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
-              >
-                {isDisabling ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {controlState.disableLabel}
-                  </>
-                ) : (
-                  'Disable Sync'
-                )}
-              </Button>
-            )}
-
-            {isEnabled && (
-              <Button
-                onClick={() => setIsClearDialogOpen(true)}
-                disabled={!controlState.canOpenClearDialog}
-                variant="ghost"
-                size="sm"
-                className="gap-2 text-gray-600 ml-auto"
-              >
-                {isClearing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-                {controlState.clearLabel}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      </PluginFormSection>
 
       {!isEnabled && (
         <PluginEmptyState
@@ -649,23 +650,12 @@ export function GitHubSettings() {
 
       {/* Bulk Sync Section */}
       {isEnabled && !migrationDone && (
-        <Card className="bg-card/95 shadow-sm">
-          <CardHeader className="bg-secondary/45">
-            <div className="flex items-center gap-3">
-              <div
-                className={`rounded-lg p-2 ${theme.headerIconBg} ${theme.surfaceElevation}`}
-              >
-                <RefreshCw className="h-6 w-6" />
-              </div>
-              <div>
-                <CardTitle>Initial Sync</CardTitle>
-                <CardDescription>
-                  Push all existing sessions to your GitHub repository
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 pt-8">
+        <PluginFormSection
+          title="Initial Sync"
+          description="Push all existing sessions to your GitHub repository."
+          className="shadow-sm"
+          contentClassName="p-6 pt-8"
+        >
             <p className="text-sm text-gray-700 mb-4">
               Click below to sync all your existing training sessions to GitHub.
               This is a one-time operation and will create the folder structure
@@ -688,41 +678,37 @@ export function GitHubSettings() {
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
+        </PluginFormSection>
       )}
 
       {isEnabled && (
-        <Card className="bg-card/95 shadow-sm">
-          <CardHeader className="bg-secondary/45">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardTitle>Sync History & Results</CardTitle>
-                <CardDescription>
-                  Inspect sync results and per-file diagnostics.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => void handleLoadSyncHistory()}
-                disabled={!controlState.canRefreshHistory}
-                className="gap-2"
-              >
-                {syncHistoryState.status === 'loading' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {controlState.refreshHistoryLabel}
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    {controlState.refreshHistoryLabel}
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <PluginTableSection
+          title="Sync History & Results"
+          description="Inspect sync results and per-file diagnostics."
+          hasRows={true}
+          emptyTitle="No sync history"
+          emptyDescription="Load sync history to inspect recent run details."
+          headerActions={
+            <Button
+              variant="outline"
+              onClick={() => void handleLoadSyncHistory()}
+              disabled={!controlState.canRefreshHistory}
+              className="gap-2"
+            >
+              {syncHistoryState.status === 'loading' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {controlState.refreshHistoryLabel}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  {controlState.refreshHistoryLabel}
+                </>
+              )}
+            </Button>
+          }
+        >
             <SyncResultsMainPanel
               state={syncHistoryState}
               onRetry={() => void handleLoadSyncHistory()}
@@ -748,26 +734,17 @@ export function GitHubSettings() {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </PluginTableSection>
       )}
 
       {/* Success State */}
       {isEnabled && migrationDone && (
-        <Card className="border-primary/25 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-6 w-6 text-primary" />
-              <div>
-                <p className="font-semibold text-primary">GitHub Sync Active</p>
-                <p className="text-sm text-primary/80">
-                  All existing sessions have been synced. New sessions will sync
-                  automatically.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <PluginStatusPanel
+          variant="success"
+          title="GitHub Sync Active"
+          description="All existing sessions have been synced. New sessions will sync automatically."
+          className="border-primary/25 bg-primary/5"
+        />
       )}
 
       <PluginDestructiveAction
