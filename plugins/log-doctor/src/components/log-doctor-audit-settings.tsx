@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,16 +14,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-
 import {
   areAuditConfigsEqual,
-  getAuditConfigPreset,
+  getAuditConfigPresetByStrictness,
+  getAuditModeForStrictnessPreset,
+  inferStrictnessPresetFromAudit,
   normalizeAuditConfigShape,
+  type AuditStrictnessPreset,
 } from '@/lib/audit-presets';
 import type { AuditConfig, AuditMode } from '@/lib/types';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export type AuditSettingsProps = {
   mode: AuditMode;
@@ -54,6 +56,28 @@ const RULE_DESCRIPTIONS: Record<
   },
 };
 
+const PRIMARY_PRESET_OPTIONS: Array<{
+  value: AuditStrictnessPreset;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'gentle',
+    label: 'Gentle',
+    description: 'Fewer alerts, focused on the most obvious issues.',
+  },
+  {
+    value: 'balanced',
+    label: 'Balanced',
+    description: 'Recommended everyday checks for quality and consistency.',
+  },
+  {
+    value: 'thorough',
+    label: 'Thorough',
+    description: 'Most sensitive checks for stricter review.',
+  },
+];
+
 export const AuditSettings: React.FC<AuditSettingsProps> = ({
   mode,
   config,
@@ -62,28 +86,43 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
 }) => {
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [localMode, setLocalMode] = useState<AuditMode>(mode);
-  const [localConfig, setLocalConfig] = useState<AuditConfig>(config);
+  const [localConfig, setLocalConfig] = useState<AuditConfig>(
+    normalizeAuditConfigShape(config)
+  );
+  const [selectedPreset, setSelectedPreset] =
+    useState<AuditStrictnessPreset | null>(
+      inferStrictnessPresetFromAudit(mode, config)
+    );
 
   useEffect(() => {
-    setLocalMode(mode);
-    setLocalConfig(config);
+    setLocalConfig(normalizeAuditConfigShape(config));
+    setSelectedPreset(inferStrictnessPresetFromAudit(mode, config));
+    setIsAdvancedExpanded(false);
   }, [mode, config]);
 
   const effectiveConfig = useMemo(() => {
-    if (localMode === 'custom') {
-      return normalizeAuditConfigShape(localConfig);
+    if (selectedPreset) {
+      return getAuditConfigPresetByStrictness(selectedPreset);
     }
-    return getAuditConfigPreset(localMode);
-  }, [localConfig, localMode]);
+    return normalizeAuditConfigShape(localConfig);
+  }, [localConfig, selectedPreset]);
+
+  const effectiveMode = useMemo<AuditMode>(() => {
+    if (selectedPreset) {
+      return getAuditModeForStrictnessPreset(selectedPreset);
+    }
+    return 'custom';
+  }, [selectedPreset]);
 
   const handleRuleToggle = (code: string, enabled: boolean): void => {
-    setLocalConfig({
-      rules: localConfig.rules.map((rule) =>
+    setSelectedPreset(null);
+    setLocalConfig((prev) => ({
+      rules: prev.rules.map((rule) =>
         rule.code === code ? { ...rule, enabled } : rule
       ),
-    });
+    }));
   };
 
   const handleParamChange = (
@@ -91,8 +130,9 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
     paramName: string,
     value: number
   ): void => {
-    setLocalConfig({
-      rules: localConfig.rules.map((rule) =>
+    setSelectedPreset(null);
+    setLocalConfig((prev) => ({
+      rules: prev.rules.map((rule) =>
         rule.code === code
           ? {
               ...rule,
@@ -100,13 +140,18 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
             }
           : rule
       ),
-    });
+    }));
+  };
+
+  const handlePrimaryPresetChange = (preset: AuditStrictnessPreset): void => {
+    setSelectedPreset(preset);
+    setLocalConfig(getAuditConfigPresetByStrictness(preset));
   };
 
   const handleSave = async (): Promise<void> => {
     setIsSaving(true);
     try {
-      await onConfigChange(effectiveConfig, localMode);
+      await onConfigChange(effectiveConfig, effectiveMode);
       toast({
         title: 'Settings saved',
         description: 'Audit rule configuration has been updated.',
@@ -123,7 +168,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   };
 
   const hasChanges =
-    localMode !== mode || !areAuditConfigsEqual(effectiveConfig, config);
+    effectiveMode !== mode || !areAuditConfigsEqual(effectiveConfig, config);
 
   return (
     <Card>
@@ -143,7 +188,8 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
           <div>
             <CardTitle className="text-base">Audit Settings</CardTitle>
             <CardDescription>
-              Choose a rule strictness level or customize each rule.
+              Choose a single audit strictness level. Advanced rule tuning is
+              optional.
             </CardDescription>
           </div>
           {isExpanded ? (
@@ -157,146 +203,159 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
       {isExpanded && (
         <CardContent className="space-y-6">
           <div className="space-y-3 border-b pb-4">
-            <Label className="block font-medium">Audit mode</Label>
-            <div className="space-y-2">
-              {[
-                {
-                  value: 'standard',
-                  label: 'Standard checks (Recommended)',
-                },
-                { value: 'strict', label: 'Strict checks' },
-                { value: 'custom', label: 'Custom' },
-              ].map((option) => (
-                <label
-                  key={option.value}
-                  className="flex cursor-pointer items-center gap-2 text-sm"
-                >
-                  <input
-                    type="radio"
-                    name="audit-mode"
-                    value={option.value}
-                    checked={localMode === option.value}
-                    onChange={() => setLocalMode(option.value as AuditMode)}
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))}
+            <Label className="block font-medium">Audit strictness</Label>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {PRIMARY_PRESET_OPTIONS.map((option) => {
+                const isActive = selectedPreset === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handlePrimaryPresetChange(option.value)}
+                    className={`rounded-md border p-3 text-left transition ${
+                      isActive
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border bg-background hover:bg-muted/30'
+                    }`}
+                    aria-pressed={isActive}
+                  >
+                    <div className="text-sm font-medium">{option.label}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {option.description}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
+            {selectedPreset === null && (
+              <p className="text-xs text-muted-foreground">
+                Using custom advanced settings.
+              </p>
+            )}
           </div>
 
-          {localMode === 'custom' ? (
-            localConfig.rules.map((rule) => {
-              const desc = RULE_DESCRIPTIONS[rule.code];
-              const isDurationOutlier = rule.code === 'duration_outlier';
-              const showDurationWarning =
-                isDurationOutlier && rule.enabled && sessionCount < 3;
+          <div className="rounded-md border border-dashed bg-muted/20 p-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between text-left"
+              onClick={() => setIsAdvancedExpanded((prev) => !prev)}
+              aria-expanded={isAdvancedExpanded}
+            >
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Advanced
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Per-rule toggles and thresholds.
+                </p>
+              </div>
+              {isAdvancedExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
 
-              return (
-                <div
-                  key={rule.code}
-                  className="space-y-3 border-b pb-4 last:border-b-0"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <Label className="block font-medium">{desc.label}</Label>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {desc.description}
-                      </p>
+            {isAdvancedExpanded &&
+              normalizeAuditConfigShape(localConfig).rules.map((rule) => {
+                const desc = RULE_DESCRIPTIONS[rule.code];
+                const isDurationOutlier = rule.code === 'duration_outlier';
+                const showDurationWarning =
+                  isDurationOutlier && rule.enabled && sessionCount < 3;
+
+                return (
+                  <div
+                    key={rule.code}
+                    className="mt-4 space-y-3 border-t pt-4 first:mt-3"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <Label className="block font-medium">{desc.label}</Label>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {desc.description}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={rule.enabled}
+                        onCheckedChange={(checked) =>
+                          handleRuleToggle(rule.code, checked)
+                        }
+                        aria-label={`Toggle ${desc.label}`}
+                      />
                     </div>
-                    <Switch
-                      checked={rule.enabled}
-                      onCheckedChange={(checked) =>
-                        handleRuleToggle(rule.code, checked)
-                      }
-                      aria-label={`Toggle ${desc.label}`}
-                    />
+
+                    {showDurationWarning && (
+                      <Alert className="border-yellow-200 bg-yellow-50">
+                        <AlertDescription className="text-sm text-yellow-800">
+                          This rule requires at least 3 sessions with duration
+                          data. You currently have {sessionCount} session
+                          {sessionCount !== 1 ? 's' : ''}.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
+                      <div className="mt-2 space-y-2">
+                        <Label
+                          htmlFor={`effort-${rule.code}`}
+                          className="text-sm"
+                        >
+                          Effort threshold (1-5):
+                        </Label>
+                        <Input
+                          id={`effort-${rule.code}`}
+                          type="number"
+                          min="1"
+                          max="5"
+                          value={rule.effortThreshold ?? 4}
+                          onChange={(e) =>
+                            handleParamChange(
+                              rule.code,
+                              'effortThreshold',
+                              Math.max(
+                                1,
+                                Math.min(5, Number.parseInt(e.target.value, 10))
+                              )
+                            )
+                          }
+                          aria-label="Effort level threshold"
+                        />
+                      </div>
+                    ) : null}
+
+                    {rule.enabled && rule.code === 'duration_outlier' ? (
+                      <div className="mt-2 space-y-2">
+                        <Label
+                          htmlFor={`duration-${rule.code}`}
+                          className="text-sm"
+                        >
+                          Standard deviation multiplier:
+                        </Label>
+                        <Input
+                          id={`duration-${rule.code}`}
+                          type="number"
+                          min="0.5"
+                          max="5"
+                          step="0.5"
+                          value={rule.durationStdDevMultiplier ?? 2}
+                          onChange={(e) =>
+                            handleParamChange(
+                              rule.code,
+                              'durationStdDevMultiplier',
+                              Math.max(
+                                0.5,
+                                Math.min(5, Number.parseFloat(e.target.value))
+                              )
+                            )
+                          }
+                          aria-label="Outlier threshold"
+                        />
+                      </div>
+                    ) : null}
                   </div>
-
-                  {showDurationWarning && (
-                    <Alert className="border-yellow-200 bg-yellow-50">
-                      <AlertDescription className="text-sm text-yellow-800">
-                        This rule requires at least 3 sessions with duration
-                        data. You currently have {sessionCount} session
-                        {sessionCount !== 1 ? 's' : ''}.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
-                    <div className="mt-2 space-y-2">
-                      <Label
-                        htmlFor={`effort-${rule.code}`}
-                        className="text-sm"
-                      >
-                        Effort threshold (1-5):
-                      </Label>
-                      <Input
-                        id={`effort-${rule.code}`}
-                        type="number"
-                        min="1"
-                        max="5"
-                        value={rule.effortThreshold ?? 4}
-                        onChange={(e) =>
-                          handleParamChange(
-                            rule.code,
-                            'effortThreshold',
-                            Math.max(
-                              1,
-                              Math.min(5, parseInt(e.target.value, 10))
-                            )
-                          )
-                        }
-                        aria-label="Effort level threshold"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Sessions with effort ≥ this level will be flagged if
-                        they have no techniques.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {rule.enabled && rule.code === 'duration_outlier' ? (
-                    <div className="mt-2 space-y-2">
-                      <Label
-                        htmlFor={`duration-${rule.code}`}
-                        className="text-sm"
-                      >
-                        Standard deviation multiplier:
-                      </Label>
-                      <Input
-                        id={`duration-${rule.code}`}
-                        type="number"
-                        min="0.5"
-                        max="5"
-                        step="0.5"
-                        value={rule.durationStdDevMultiplier ?? 2}
-                        onChange={(e) =>
-                          handleParamChange(
-                            rule.code,
-                            'durationStdDevMultiplier',
-                            Math.max(
-                              0.5,
-                              Math.min(5, parseFloat(e.target.value))
-                            )
-                          )
-                        }
-                        aria-label="Outlier threshold"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Durations outside mean ± (stddev × value) will be
-                        flagged. Lower values = more sensitive.
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              This preset hides individual rule controls. Switch to Custom to
-              edit per-rule toggles and thresholds.
-            </p>
-          )}
+                );
+              })}
+          </div>
 
           {hasChanges && (
             <div className="flex gap-2 pt-4">
@@ -305,8 +364,9 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
               </Button>
               <Button
                 onClick={() => {
-                  setLocalMode(mode);
-                  setLocalConfig(config);
+                  setSelectedPreset(inferStrictnessPresetFromAudit(mode, config));
+                  setLocalConfig(normalizeAuditConfigShape(config));
+                  setIsAdvancedExpanded(false);
                 }}
                 disabled={isSaving}
                 variant="outline"
