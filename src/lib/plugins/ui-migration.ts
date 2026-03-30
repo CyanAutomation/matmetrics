@@ -19,9 +19,10 @@ export type PluginUiMigrationRow = {
 };
 
 const pluginComponentImportPattern =
-  /^import\s+(?:\{?\s*([A-Za-z0-9_$]+(?:\s*,\s*[A-Za-z0-9_$]+)*)\s*\}?|([A-Za-z0-9_$]+))\s+from\s+['"]([^'"]+)['"];?$/gm;
+  /^import\s+([A-Za-z0-9_$]+)?(?:\s*,\s*)?(?:\{([^}]+)\})?\s+from\s+['"]([^'"]+)['"];?$/gm;
 
-const createElementPattern = /React\.createElement\(\s*([A-Za-z][A-Za-z0-9_$]*)/g;
+const createElementPattern =
+  /React\.createElement\(\s*([A-Za-z][A-Za-z0-9_$]*)/g;
 
 const relativePath = (repoRoot: string, targetPath: string): string =>
   path.relative(repoRoot, targetPath).split(path.sep).join('/');
@@ -63,6 +64,13 @@ const resolveModuleImport = async (
   return null;
 };
 
+const normalizeImportedName = (value: string): string =>
+  value
+    .trim()
+    .replace(/^type\s+/, '')
+    .split(/\s+as\s+/)[0]
+    .trim();
+
 const getUiEntrypoints = async (
   pluginEntryPath: string,
   repoRoot: string
@@ -71,21 +79,25 @@ const getUiEntrypoints = async (
   const importMap = new Map<string, string>();
 
   for (const match of entryContents.matchAll(pluginComponentImportPattern)) {
-    const namedImports = match[1]?.trim();
-    const defaultImport = match[2]?.trim();
+    const defaultImport = match[1]?.trim();
+    const namedImports = match[2]?.trim();
     const source = match[3]?.trim();
-    
-    if (!source) continue;
-    
+
+    if (!source) {
+      continue;
+    }
+
     if (namedImports) {
-      const names = namedImports.split(',').map(n => n.trim());
+      const names = namedImports.split(',').map(normalizeImportedName);
       for (const importName of names) {
-        if (importName) importMap.set(importName, source);
+        if (importName) {
+          importMap.set(importName, source);
+        }
       }
     }
-    
+
     if (defaultImport) {
-      importMap.set(defaultImport, source);
+      importMap.set(normalizeImportedName(defaultImport), source);
     }
   }
 
@@ -146,45 +158,61 @@ export const scanPluginUiMigration = async (
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
-  const rows = (await Promise.all(
-    pluginDirs.map(async (pluginId) => {
-      const entrypoint = path.join(pluginsRoot, pluginId, 'src', 'index.ts');
-      let uiEntrypoints: string[];
-      try {
-        uiEntrypoints = await getUiEntrypoints(entrypoint, repoRoot);
-      } catch (error) {
-        console.warn(`Skipping plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`);
-        return null;
-      }
-      const checks = defaultChecks();
+  const rows = (
+    await Promise.all(
+      pluginDirs.map(async (pluginId) => {
+        const entrypoint = path.join(pluginsRoot, pluginId, 'src', 'index.ts');
+        let uiEntrypoints: string[];
+        try {
+          uiEntrypoints = await getUiEntrypoints(entrypoint, repoRoot);
+        } catch (error) {
+          console.warn(
+            `Skipping plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`
+          );
+          return null;
+        }
+        const checks = defaultChecks();
 
-      for (const uiFile of uiEntrypoints) {
-        const contents = await readFile(uiFile, 'utf8');
-        checks.sharedShell ||= sourceHasSharedShell(contents);
-        checks.sharedState ||= sourceHasSharedState(contents);
-        checks.sharedDestructiveConfirmation ||=
-          sourceHasSharedDestructiveConfirmation(contents);
-      }
+        for (const uiFile of uiEntrypoints) {
+          let contents: string;
+          try {
+            contents = await readFile(uiFile, 'utf8');
+          } catch (error) {
+            console.warn(
+              `Skipping UI entrypoint "${relativePath(repoRoot, uiFile)}" for plugin "${pluginId}": ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+            continue;
+          }
+          checks.sharedShell ||= sourceHasSharedShell(contents);
+          checks.sharedState ||= sourceHasSharedState(contents);
+          checks.sharedDestructiveConfirmation ||=
+            sourceHasSharedDestructiveConfirmation(contents);
+        }
 
-      const maxScore = 3;
-      const score = scoreChecks(checks);
-      const missing = (Object.entries(checks) as Array<[PrimitiveKey, boolean]>)
-        .filter(([, met]) => !met)
-        .map(([key]) => key);
+        const maxScore = 3;
+        const score = scoreChecks(checks);
+        const missing = (
+          Object.entries(checks) as Array<[PrimitiveKey, boolean]>
+        )
+          .filter(([, met]) => !met)
+          .map(([key]) => key);
 
-      return {
-        id: pluginId,
-        entrypoint: relativePath(repoRoot, entrypoint),
-        uiEntrypoints: uiEntrypoints.map((filePath) =>
-          relativePath(repoRoot, filePath)
-        ),
-        checks,
-        score,
-        maxScore,
-        missing,
-      } satisfies PluginUiMigrationRow;
-    })
-  )).filter((row): row is PluginUiMigrationRow => row !== null);
+        return {
+          id: pluginId,
+          entrypoint: relativePath(repoRoot, entrypoint),
+          uiEntrypoints: uiEntrypoints.map((filePath) =>
+            relativePath(repoRoot, filePath)
+          ),
+          checks,
+          score,
+          maxScore,
+          missing,
+        } satisfies PluginUiMigrationRow;
+      })
+    )
+  ).filter((row): row is PluginUiMigrationRow => row !== null);
 
   return rows;
 };
