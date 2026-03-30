@@ -5,25 +5,12 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { type AuditFlagCode, type AuditSeverity } from '@/lib/types';
 
+import {
+  AUDIT_FLAG_PRESENTATION,
+  groupAuditFlagsByHeading,
+} from './log-doctor-audit-flag-content';
 import type { AuditSessionResult } from './log-doctor-state';
-
-const SEVERITY_BADGE_VARIANT: Record<
-  AuditSeverity,
-  'default' | 'destructive' | 'outline' | 'secondary'
-> = {
-  error: 'destructive',
-  warning: 'default',
-  info: 'secondary',
-};
-
-const FLAG_CODE_LABEL: Record<AuditFlagCode, string> = {
-  no_techniques_high_effort: 'No techniques (high effort)',
-  empty_description: 'Missing description',
-  empty_notes: 'Missing notes',
-  duration_outlier: 'Unusual duration',
-};
 
 type AuditResultsProps = {
   results: AuditSessionResult[];
@@ -83,6 +70,7 @@ export const AuditResults = ({
           const isReviewed = Boolean(result.reviewedAt);
           const allIgnored =
             activeFlags.length === 0 && result.flags.length > 0;
+          const groupedFlags = groupAuditFlagsByHeading(activeFlags);
 
           return (
             <div
@@ -113,41 +101,53 @@ export const AuditResults = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onReview(result.sessionId)}
-                  aria-label={`Open audit actions for session ${result.sessionDate}`}
+                  aria-label={`Open session ${result.sessionDate} to edit`}
                 >
-                  Open
+                  Open session to edit
                 </Button>
               </div>
 
               {activeFlags.length > 0 && !isReviewed ? (
-                <ul className="space-y-1 pl-1">
-                  {activeFlags.map((flag) => (
-                    <li
-                      key={flag.code}
-                      className="flex items-start gap-2 text-xs"
-                    >
-                      <Badge
-                        variant={SEVERITY_BADGE_VARIANT[flag.severity]}
-                        className="shrink-0 capitalize"
-                      >
-                        {flag.severity}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          {FLAG_CODE_LABEL[flag.code]}:{' '}
-                        </span>
-                        {flag.message}
-                      </span>
-                    </li>
+                <div className="space-y-3 pl-1">
+                  {Object.entries(groupedFlags).map(([heading, flags]) => (
+                    <section key={heading} className="space-y-1">
+                      <p className="text-xs font-semibold tracking-wide text-foreground">
+                        {heading}
+                      </p>
+                      <ul className="space-y-1">
+                        {flags.map((flag) => (
+                          <li
+                            key={flag.code}
+                            className="rounded-sm border border-border/60 p-2"
+                          >
+                            <p className="text-xs font-medium">
+                              {AUDIT_FLAG_PRESENTATION[flag.code].label}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {flag.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              <span className="font-medium text-foreground">
+                                How to fix this:
+                              </span>{' '}
+                              {AUDIT_FLAG_PRESENTATION[flag.code].helperText}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wide">
+                              Severity: {flag.severity}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
                   ))}
-                </ul>
+                </div>
               ) : null}
 
               {result.ignoredRules.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   Dismissed checks:{' '}
                   {result.ignoredRules
-                    .map((code) => FLAG_CODE_LABEL[code])
+                    .map((code) => AUDIT_FLAG_PRESENTATION[code].label)
                     .join(', ')}
                 </p>
               ) : null}
