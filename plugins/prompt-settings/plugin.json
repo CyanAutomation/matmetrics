@@ -25,15 +25,23 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/prompt-settings/plugin.test.ts",
+        "plugins/plugin-manifest-contract.test.ts",
         "plugins/prompt-settings/src/index.test.ts",
         "src/components/prompt-settings.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": ["src/components/prompt-settings.test.tsx"],
-        "errorStateWithRecovery": ["src/components/prompt-settings.test.tsx"],
-        "emptyStateWithCta": ["src/components/prompt-settings.test.tsx"],
-        "destructiveActionSafety": ["src/components/prompt-settings.test.tsx"]
+        "loadingStatePresent": [
+          "src/components/prompt-settings.test.tsx"
+        ],
+        "errorStateWithRecovery": [
+          "src/components/prompt-settings.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "src/components/prompt-settings.test.tsx"
+        ],
+        "destructiveActionSafety": [
+          "src/components/prompt-settings.test.tsx"
+        ]
       }
     }
   },
