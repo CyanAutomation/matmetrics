@@ -469,6 +469,16 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         return;
       }
 
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
+
       setInstalledManifestRows([]);
       if (
         !isActiveRefreshRequest({
