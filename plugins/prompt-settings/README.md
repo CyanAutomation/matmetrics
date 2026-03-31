@@ -35,7 +35,8 @@ At runtime, `initPlugin` wires the plugin into the dashboard extension system by
 
 - Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
 - This plugin owns `plugins/prompt-settings/src/components/prompt-settings.tsx` and its colocated tests.
-- Shared cross-plugin primitives remain in `src/components/plugins`.
+- Shared cross-plugin primitives remain in `src/components/plugins` (for example `PluginPageShell`, `PluginLoadingState`, and `PluginConfirmationDialog`).
+- `plugins/<plugin>/src/index.ts` must import feature renderers from `./components/*` (never from `@/components/*` plugin feature files).
 
 ## Usage
 
