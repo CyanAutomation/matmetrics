@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { cn } from '@/lib/utils';
 
 type PluginFilterBarProps = {
@@ -9,6 +10,14 @@ type PluginFilterBarProps = {
 
 export function PluginFilterBar({ children, className }: PluginFilterBarProps) {
   return (
-    <div className={cn('grid gap-3 lg:grid-cols-5', className)}>{children}</div>
+    <div
+      className={cn(
+        getPluginUiTokenClassNames('layout.filterBar'),
+        'lg:grid-cols-5',
+        className
+      )}
+    >
+      {children}
+    </div>
   );
 }

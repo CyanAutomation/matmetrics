@@ -18,6 +18,8 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'surface.tagManager': ['bg-card/95', 'bg-primary'],
   'surface.videoLibrary': ['bg-card/95', 'text-muted-foreground'],
   'surface.logDoctor': ['bg-secondary/20', 'border-ghost'],
+  'surface.filterPanel': ['rounded-md', 'border', 'p-3'],
+  'surface.diffPreview': ['bg-muted', 'border'],
   'layout.filterBar': ['grid', 'gap-3'],
   'layout.actionRow': ['flex', 'flex-wrap', 'gap-2'],
   'layout.actionRow.trailing': ['ml-auto'],
@@ -45,7 +47,20 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
     'hover:bg-destructive/10',
   ],
   'action.subtle': ['text-muted-foreground', 'hover:text-foreground'],
+  'text.subtle': ['text-muted-foreground'],
+  'text.danger': ['text-destructive'],
+  'text.success': ['text-emerald-900'],
+  'icon.subtle': ['text-muted-foreground'],
+  'icon.info': ['text-primary'],
+  'icon.success': ['text-emerald-900'],
+  'code.inline': ['rounded', 'bg-background/70', 'px-2', 'py-1'],
 } as const;
 
 export type PluginUiContractTokenVariant =
   keyof typeof PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP;
+
+export function getPluginUiTokenClassNames(
+  variant: PluginUiContractTokenVariant
+): string {
+  return PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[variant].join(' ');
+}

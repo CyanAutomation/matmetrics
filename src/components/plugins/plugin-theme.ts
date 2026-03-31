@@ -1,3 +1,8 @@
+import {
+  getPluginUiTokenClassNames,
+  type PluginUiContractTokenVariant,
+} from '@/components/plugins/plugin-style-policy';
+
 export type PluginThemeTone =
   | 'default'
   | 'info'
@@ -12,7 +17,7 @@ export type PluginThemeSlots = {
   noticeText: string;
   warningTone: string;
   surfaceElevation: string;
-  inlineMessageTone: string;
+  inlineMessageToneVariant: PluginUiContractTokenVariant;
   inputTone: string;
 };
 
@@ -24,7 +29,7 @@ const PLUGIN_THEME_TOKEN_MAP: Record<PluginThemeTone, PluginThemeSlots> = {
     noticeText: 'text-foreground',
     warningTone: 'border-amber-200 bg-amber-50 text-amber-900',
     surfaceElevation: 'shadow-sm',
-    inlineMessageTone: 'border-border bg-muted/30 text-foreground',
+    inlineMessageToneVariant: 'tone.inline.default',
     inputTone: 'border-input focus:border-ring',
   },
   info: {
@@ -34,7 +39,7 @@ const PLUGIN_THEME_TOKEN_MAP: Record<PluginThemeTone, PluginThemeSlots> = {
     noticeText: 'text-primary',
     warningTone: 'border-amber-200 bg-amber-50 text-amber-900',
     surfaceElevation: 'shadow-md',
-    inlineMessageTone: 'border-primary/25 bg-primary/5 text-primary',
+    inlineMessageToneVariant: 'tone.inline.info',
     inputTone: 'border-primary/25 focus:border-primary/45',
   },
   warning: {
@@ -44,7 +49,7 @@ const PLUGIN_THEME_TOKEN_MAP: Record<PluginThemeTone, PluginThemeSlots> = {
     noticeText: 'text-amber-900',
     warningTone: 'border-amber-300 bg-amber-50 text-amber-900',
     surfaceElevation: 'shadow-sm',
-    inlineMessageTone: 'border-amber-300 bg-amber-50 text-amber-900',
+    inlineMessageToneVariant: 'tone.inline.warning',
     inputTone: 'border-amber-300 focus:border-amber-400',
   },
   success: {
@@ -54,7 +59,7 @@ const PLUGIN_THEME_TOKEN_MAP: Record<PluginThemeTone, PluginThemeSlots> = {
     noticeText: 'text-emerald-900',
     warningTone: 'border-amber-200 bg-amber-50 text-amber-900',
     surfaceElevation: 'shadow-sm',
-    inlineMessageTone: 'border-emerald-300 bg-emerald-50 text-emerald-900',
+    inlineMessageToneVariant: 'tone.inline.success',
     inputTone: 'border-emerald-300 focus:border-emerald-500',
   },
   error: {
@@ -64,14 +69,20 @@ const PLUGIN_THEME_TOKEN_MAP: Record<PluginThemeTone, PluginThemeSlots> = {
     noticeText: 'text-destructive',
     warningTone: 'border-destructive/30 bg-destructive/10 text-destructive',
     surfaceElevation: 'shadow-sm',
-    inlineMessageTone:
-      'border-destructive/30 bg-destructive/10 text-destructive',
+    inlineMessageToneVariant: 'tone.inline.error',
     inputTone: 'border-destructive/30 focus:border-destructive/50',
   },
 };
 
 export function getPluginThemeTokens(
   tone: PluginThemeTone = 'default'
-): PluginThemeSlots {
-  return PLUGIN_THEME_TOKEN_MAP[tone];
+): PluginThemeSlots & { inlineMessageTone: string } {
+  const tokens = PLUGIN_THEME_TOKEN_MAP[tone];
+
+  return {
+    ...tokens,
+    inlineMessageTone: getPluginUiTokenClassNames(
+      tokens.inlineMessageToneVariant
+    ),
+  };
 }
