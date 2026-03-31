@@ -42,8 +42,22 @@ test('PluginDataSurfaceSummaryStrip shows counts and active filter chips', () =>
   );
 
   assert.match(html, /Showing 3 of 10 sessions/);
-  assert.match(html, /Active filters/);
+  assert.match(html, /1 active filter/);
   assert.match(html, /Status: Needs attention/);
+});
+
+test('PluginDataSurfaceSummaryStrip shows no-active-filters helper copy', () => {
+  const html = normalizeMarkup(
+    renderToStaticMarkup(
+      React.createElement(PluginDataSurfaceSummaryStrip, {
+        filteredCount: 10,
+        totalCount: 10,
+        itemLabel: 'sessions',
+      })
+    )
+  );
+
+  assert.match(html, /No active filters/);
 });
 
 test('PluginEmptyFilteredResults renders a clear-search CTA', () => {
@@ -78,6 +92,19 @@ test('PluginDataSurfaceSplit renders list and detail columns', () => {
   assert.match(html, /right pane/);
 });
 
+test('PluginDataSurfaceSplit avoids two-column layout when detail is omitted', () => {
+  const html = normalizeMarkup(
+    renderToStaticMarkup(
+      React.createElement(PluginDataSurfaceSplit, {
+        list: React.createElement('div', null, 'left pane'),
+      })
+    )
+  );
+
+  assert.doesNotMatch(html, /lg:grid-cols-2/);
+  assert.match(html, /left pane/);
+});
+
 test('PluginBulkActions renders selection count and disabled messaging', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
@@ -96,4 +123,23 @@ test('PluginBulkActions renders selection count and disabled messaging', () => {
   assert.match(html, /0 files selected/);
   assert.match(html, /Select at least one file/);
   assert.match(html, /Run action/);
+  assert.match(html, /rounded-md border/);
+});
+
+test('PluginBulkActions provides default disabled-state messaging when needed', () => {
+  const html = normalizeMarkup(
+    renderToStaticMarkup(
+      React.createElement(
+        PluginBulkActions,
+        {
+          selectedCount: 0,
+          itemLabel: 'file',
+          isDisabled: true,
+        },
+        React.createElement('button', { type: 'button' }, 'Run action')
+      )
+    )
+  );
+
+  assert.match(html, /Bulk actions are unavailable/);
 });
