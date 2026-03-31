@@ -27,7 +27,6 @@ import {
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   PluginStatCard,
@@ -998,7 +997,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
         </div>
 
-        <PluginFilterBar>
+        <PluginDataSurfaceFilterRow>
           <div className="lg:col-span-3 space-y-2">
             <Label htmlFor="video-library-search">Search</Label>
             <div className="relative">
@@ -1039,7 +1038,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </SelectContent>
             </Select>
           </div>
-        </PluginFilterBar>
+        </PluginDataSurfaceFilterRow>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
@@ -1250,6 +1249,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                     filteredRows.filter((row) => row.isCheckable).length
                   }
                   itemLabel="checkable link"
+                  isDisabled={!bulkActionState.canRefreshLinkHealth}
                   disabledMessage={bulkActionState.disabledMessage ?? undefined}
                 >
                   <PluginActionRow>

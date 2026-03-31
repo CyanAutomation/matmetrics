@@ -14,7 +14,11 @@ export function PluginDataSurfaceFilterRow({
   children,
   className,
 }: PluginDataSurfaceFilterRowProps) {
-  return <PluginFilterBar className={className}>{children}</PluginFilterBar>;
+  return (
+    <PluginFilterBar className={cn('items-end', className)}>
+      {children}
+    </PluginFilterBar>
+  );
 }
 
 type PluginDataSurfaceActiveFilter = {
@@ -38,6 +42,9 @@ export function PluginDataSurfaceSummaryStrip({
   className,
 }: PluginDataSurfaceSummaryStripProps) {
   const hasActiveFilters = activeFilters.length > 0;
+  const activeFilterSummary = hasActiveFilters
+    ? `${activeFilters.length} active filter${activeFilters.length === 1 ? '' : 's'}`
+    : 'No active filters';
 
   return (
     <div
@@ -49,20 +56,13 @@ export function PluginDataSurfaceSummaryStrip({
       <span className="font-medium">
         Showing {filteredCount} of {totalCount} {itemLabel}
       </span>
-      {hasActiveFilters ? (
-        <>
-          <span className="text-muted-foreground">• Active filters</span>
-          {activeFilters.map((filter) => (
-            <Badge
-              key={`${filter.label}:${filter.value ?? ''}`}
-              variant="outline"
-            >
-              {filter.label}
-              {filter.value ? `: ${filter.value}` : ''}
-            </Badge>
-          ))}
-        </>
-      ) : null}
+      <span className="text-muted-foreground">• {activeFilterSummary}</span>
+      {activeFilters.map((filter) => (
+        <Badge key={`${filter.label}:${filter.value ?? ''}`} variant="outline">
+          {filter.label}
+          {filter.value ? `: ${filter.value}` : ''}
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -111,10 +111,14 @@ export function PluginDataSurfaceSplit({
   listClassName,
   detailClassName,
 }: PluginDataSurfaceSplitProps) {
+  const hasDetail = Boolean(detail);
+
   return (
-    <div className={cn('grid gap-4 lg:grid-cols-2', className)}>
+    <div
+      className={cn('grid gap-4', hasDetail ? 'lg:grid-cols-2' : '', className)}
+    >
       <div className={listClassName}>{list}</div>
-      {detail ? <div className={detailClassName}>{detail}</div> : null}
+      {hasDetail ? <div className={detailClassName}>{detail}</div> : null}
     </div>
   );
 }
