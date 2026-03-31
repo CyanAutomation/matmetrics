@@ -852,6 +852,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     isCheckingLinks,
     sortedFilteredRows,
     autoCheckedRowIds,
+    handleCheckLinks,
   ]);
 
   const handleClearVideo = async () => {
