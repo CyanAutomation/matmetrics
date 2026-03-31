@@ -33,7 +33,6 @@ import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-noti
 import { PluginNotice } from '@/components/plugins/plugin-notice';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
-import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import {
   PluginActionDestructive,
   PluginActionPrimary,

@@ -23,6 +23,7 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
+import { PluginTabs } from '@/components/plugins/plugin-tabs';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -782,29 +783,24 @@ export const LogDoctor = (): React.ReactElement => {
       contentClassName="space-y-4"
     >
       {/* Tab switcher */}
-      <div className="flex gap-2 border-b pb-2">
-        <Button
-          variant={activeTab === 'validation' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('validation')}
-          aria-pressed={activeTab === 'validation'}
-        >
-          File Validation
-        </Button>
-        <Button
-          variant={activeTab === 'audit' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('audit')}
-          aria-pressed={activeTab === 'audit'}
-        >
-          Session Audit
-          {auditNeedsAttentionCount > 0 ? (
-            <Badge variant="destructive" className="ml-2">
-              {auditNeedsAttentionCount}
-            </Badge>
-          ) : null}
-        </Button>
-      </div>
+      <PluginTabs
+        tabs={[
+          { id: 'validation', label: 'File Validation' },
+          {
+            id: 'audit',
+            label: 'Session Audit',
+            badge:
+              auditNeedsAttentionCount > 0 ? (
+                <Badge variant="destructive" className="ml-1">
+                  {auditNeedsAttentionCount}
+                </Badge>
+              ) : undefined,
+          },
+        ]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        contentClassName="space-y-4"
+      >
 
       {/* File Validation Tab */}
       {activeTab === 'validation' ? (
