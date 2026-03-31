@@ -51,6 +51,8 @@ type CompositionConformance = {
   hasDestructiveFlowComposition: boolean;
 };
 
+type JsxRootNode = ts.JsxElement | ts.JsxSelfClosingElement;
+
 const repoRoot = process.cwd();
 const pluginsRoot = path.join(repoRoot, 'plugins');
 
@@ -400,8 +402,106 @@ const unwrapExpression = (expression: ts.Expression): ts.Expression => {
   }
 };
 
+const expressionToJsxRoots = (expression: ts.Expression): JsxRootNode[] => {
+  const current = unwrapExpression(expression);
+
+  if (ts.isJsxElement(current) || ts.isJsxSelfClosingElement(current)) {
+    return [current];
+  }
+
+  if (ts.isJsxFragment(current)) {
+    const roots: JsxRootNode[] = [];
+    for (const child of current.children) {
+      if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
+        roots.push(child);
+      }
+    }
+    return roots;
+  }
+
+  if (ts.isConditionalExpression(current)) {
+    return [
+      ...expressionToJsxRoots(current.whenTrue),
+      ...expressionToJsxRoots(current.whenFalse),
+    ];
+  }
+
+  if (ts.isBinaryExpression(current)) {
+    if (
+      current.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      current.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      current.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+    ) {
+      return expressionToJsxRoots(current.right);
+    }
+  }
+
+  return [];
+};
+
+const getRootTagIdentifier = (root: JsxRootNode): string | null => {
+  if (ts.isJsxElement(root)) {
+    return getTagIdentifier(root.openingElement.tagName);
+  }
+
+  return getTagIdentifier(root.tagName);
+};
+
+const visitJsxDescendants = (
+  root: JsxRootNode,
+  visitor: (node: ts.Node) => void
+) => {
+  const walk = (node: ts.Node) => {
+    visitor(node);
+    ts.forEachChild(node, walk);
+  };
+
+  if (ts.isJsxElement(root)) {
+    for (const child of root.children) {
+      walk(child);
+    }
+    return;
+  }
+
+  ts.forEachChild(root, walk);
+};
+
+const isLikelyComponentFunction = (node: ts.Node): boolean => {
+  if (ts.isFunctionDeclaration(node) && node.name) {
+    return /^[A-Z]/.test(node.name.text);
+  }
+
+  if (
+    (ts.isFunctionExpression(node) || ts.isArrowFunction(node)) &&
+    ts.isVariableDeclaration(node.parent) &&
+    ts.isIdentifier(node.parent.name)
+  ) {
+    return /^[A-Z]/.test(node.parent.name.text);
+  }
+
+  return false;
+};
+
+const findEnclosingFunctionLike = (
+  node: ts.Node
+): ts.FunctionLikeDeclarationBase | undefined => {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (
+      ts.isFunctionDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isArrowFunction(current)
+    ) {
+      return current;
+    }
+    current = current.parent;
+  }
+  return undefined;
+};
+
 export const evaluatePluginComponentCompositionFromSource = (
-  sourceText: string
+  sourceText: string,
+  pluginType: PluginUIType = 'dashboard_tab'
 ): CompositionConformance => {
   const sourceFile = ts.createSourceFile(
     'inline.tsx',
@@ -411,8 +511,15 @@ export const evaluatePluginComponentCompositionFromSource = (
     ts.ScriptKind.TSX
   );
 
+  const conformanceRules = getPluginUiConformanceRules(pluginType);
+  const {
+    pageShell: pageShellPrimitive,
+    primarySections: primarySectionPrimitives,
+    destructiveFlowWrappers: destructiveFlowPrimitives,
+  } = conformanceRules.compositionPrimitives;
   const importMap = resolveImportedNameMap(sourceFile);
   let topLevelPageShellCount = 0;
+  let totalTopLevelJsxRoots = 0;
   let hasPrimarySections = false;
   let hasDestructiveComposition = false;
 
@@ -422,70 +529,57 @@ export const evaluatePluginComponentCompositionFromSource = (
   ): boolean => importMap.get(localName) === sourceAndName;
 
   const visit = (node: ts.Node) => {
-    if (ts.isReturnStatement(node) && node.expression) {
-      const expression = unwrapExpression(node.expression);
-      if (
-        ts.isJsxElement(expression) &&
-        getTagIdentifier(expression.openingElement.tagName) !== null
-      ) {
-        const rootName = getTagIdentifier(expression.openingElement.tagName);
-        if (
-          rootName &&
-          isTargetPrimitive(
-            rootName,
-            '@/components/plugins/plugin-page-shell#PluginPageShell'
-          )
-        ) {
+    const checkExpressionRoots = (expression: ts.Expression) => {
+      const roots = expressionToJsxRoots(expression);
+      totalTopLevelJsxRoots += roots.length;
+      for (const root of roots) {
+        const rootName = getRootTagIdentifier(root);
+        if (rootName && isTargetPrimitive(rootName, pageShellPrimitive)) {
           topLevelPageShellCount += 1;
+
+          visitJsxDescendants(root, (descendant) => {
+            if (
+              !ts.isJsxSelfClosingElement(descendant) &&
+              !ts.isJsxOpeningElement(descendant)
+            ) {
+              return;
+            }
+
+            const tagName = getTagIdentifier(descendant.tagName);
+            if (!tagName) {
+              return;
+            }
+
+            if (
+              primarySectionPrimitives.some((primitive) =>
+                isTargetPrimitive(tagName, primitive)
+              )
+            ) {
+              hasPrimarySections = true;
+            }
+
+            if (
+              destructiveFlowPrimitives.some((primitive) =>
+                isTargetPrimitive(tagName, primitive)
+              )
+            ) {
+              hasDestructiveComposition = true;
+            }
+          });
         }
       }
+    };
 
-      if (ts.isJsxSelfClosingElement(expression)) {
-        const rootName = getTagIdentifier(expression.tagName);
-        if (
-          rootName &&
-          isTargetPrimitive(
-            rootName,
-            '@/components/plugins/plugin-page-shell#PluginPageShell'
-          )
-        ) {
-          topLevelPageShellCount += 1;
-        }
+    if (ts.isReturnStatement(node) && node.expression) {
+      const enclosingFunction = findEnclosingFunctionLike(node);
+      if (enclosingFunction && isLikelyComponentFunction(enclosingFunction)) {
+        checkExpressionRoots(node.expression);
       }
     }
 
-    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
-      const tagName = getTagIdentifier(node.tagName);
-      if (!tagName) {
-        ts.forEachChild(node, visit);
-        return;
-      }
-
-      if (
-        isTargetPrimitive(tagName, '@/components/plugins/plugin-kit#PluginFormSection') ||
-        isTargetPrimitive(
-          tagName,
-          '@/components/plugins/plugin-kit#PluginTableSection'
-        ) ||
-        isTargetPrimitive(
-          tagName,
-          '@/components/plugins/plugin-section-card#PluginSectionCard'
-        )
-      ) {
-        hasPrimarySections = true;
-      }
-
-      if (
-        isTargetPrimitive(
-          tagName,
-          '@/components/plugins/plugin-confirmation#PluginConfirmationDialog'
-        ) ||
-        isTargetPrimitive(
-          tagName,
-          '@/components/plugins/plugin-destructive-action#PluginDestructiveAction'
-        )
-      ) {
-        hasDestructiveComposition = true;
+    if (ts.isArrowFunction(node) && node.body && ts.isExpression(node.body)) {
+      if (isLikelyComponentFunction(node)) {
+        checkExpressionRoots(node.body);
       }
     }
 
@@ -495,7 +589,8 @@ export const evaluatePluginComponentCompositionFromSource = (
   ts.forEachChild(sourceFile, visit);
 
   return {
-    hasSingleTopLevelPageShell: topLevelPageShellCount === 1,
+    hasSingleTopLevelPageShell:
+      topLevelPageShellCount === 1 && totalTopLevelJsxRoots === 1,
     hasPrimaryContentSections: hasPrimarySections,
     hasDestructiveFlowComposition: hasDestructiveComposition,
   };
@@ -546,7 +641,8 @@ const computePrimitiveUsage = async (
     }
 
     if (current === componentEntryPath) {
-      const composition = evaluatePluginComponentCompositionFromSource(sourceText);
+      const composition =
+        evaluatePluginComponentCompositionFromSource(sourceText);
       usage.singleTopLevelPageShell = composition.hasSingleTopLevelPageShell;
       usage.primaryContentSections = composition.hasPrimaryContentSections;
       if (composition.hasDestructiveFlowComposition) {

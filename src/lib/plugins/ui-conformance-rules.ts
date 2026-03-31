@@ -7,6 +7,11 @@ export type PluginUICompositionBlock =
 
 export type PluginUIConformanceRule = {
   requiredCompositionBlocks: PluginUICompositionBlock[];
+  compositionPrimitives: {
+    pageShell: string;
+    primarySections: string[];
+    destructiveFlowWrappers: string[];
+  };
 };
 
 export const PLUGIN_UI_CONFORMANCE_RULES: Record<
@@ -19,6 +24,18 @@ export const PLUGIN_UI_CONFORMANCE_RULES: Record<
       'primary_content_sectioned',
       'destructive_flow_wrapped',
     ],
+    compositionPrimitives: {
+      pageShell: '@/components/plugins/plugin-page-shell#PluginPageShell',
+      primarySections: [
+        '@/components/plugins/plugin-kit#PluginFormSection',
+        '@/components/plugins/plugin-kit#PluginTableSection',
+        '@/components/plugins/plugin-section-card#PluginSectionCard',
+      ],
+      destructiveFlowWrappers: [
+        '@/components/plugins/plugin-confirmation#PluginConfirmationDialog',
+        '@/components/plugins/plugin-destructive-action#PluginDestructiveAction',
+      ],
+    },
   },
 };
 
