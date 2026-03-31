@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 type PluginBulkActionsProps = {
   selectedCount?: number;
   itemLabel?: string;
+  isDisabled?: boolean;
   disabledMessage?: string;
   children: ReactNode;
   className?: string;
@@ -13,12 +14,17 @@ type PluginBulkActionsProps = {
 export function PluginBulkActions({
   selectedCount,
   itemLabel = 'item',
+  isDisabled = false,
   disabledMessage,
   children,
   className,
 }: PluginBulkActionsProps) {
+  const resolvedDisabledMessage =
+    disabledMessage ??
+    (isDisabled ? 'Bulk actions are unavailable until selection criteria is met.' : null);
+
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-2 rounded-md border bg-secondary/20 p-3', className)}>
       {typeof selectedCount === 'number' ? (
         <p className="text-xs text-muted-foreground" aria-live="polite">
           {selectedCount} {itemLabel}
@@ -26,8 +32,8 @@ export function PluginBulkActions({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">{children}</div>
-      {disabledMessage ? (
-        <p className="text-xs text-muted-foreground">{disabledMessage}</p>
+      {resolvedDisabledMessage ? (
+        <p className="text-xs text-muted-foreground">{resolvedDisabledMessage}</p>
       ) : null}
     </div>
   );
