@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { isBlockedNetworkHostname } from '@/lib/network-safety';
 import type { JudoSession, VideoLinkCheckSnapshot } from '@/lib/types';
 import {
   areVideoLinkCheckMapsEqual,
@@ -87,6 +88,36 @@ test('deriveVideoLibraryEntries classifies missing, allowed, and disallowed doma
       ['invalid', 'invalid_url', undefined],
     ]
   );
+});
+
+test('deriveVideoLibraryEntries and API hostname policy classify hosts identically', () => {
+  const hostCases = [
+    'LOCALHOST.',
+    '[::1]',
+    '127.0.0.2',
+    '100.64.0.1',
+    'metadata.google.internal.',
+    'EXAMPLE.com.',
+    '[2606:4700:4700::1111]',
+  ];
+
+  const entries = deriveVideoLibraryEntries(
+    hostCases.map((host, index) =>
+      makeSession(`host-${index}`, `https://${host}/watch?v=${index}`)
+    ),
+    []
+  );
+
+  for (const [index, host] of hostCases.entries()) {
+    const normalizedHost = new URL(`https://${host}`).hostname;
+    const isBlockedInApi = isBlockedNetworkHostname(normalizedHost);
+    const isBlockedInUi = entries[index]?.status === 'invalid_url';
+    assert.equal(
+      isBlockedInUi,
+      isBlockedInApi,
+      `expected UI and API policy parity for ${host}`
+    );
+  }
 });
 
 test('reconcileVideoLinkChecks drops stale entries when session URL changes or becomes invalid', () => {
