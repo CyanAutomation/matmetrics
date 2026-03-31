@@ -30,20 +30,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import {
-  PluginDataSurfaceFilterRow,
-  PluginDataSurfaceSummaryStrip,
-} from '@/components/plugins/plugin-data-surface';
+import { PluginDataSurfaceSummaryStrip } from '@/components/plugins/plugin-data-surface';
 import {
   PluginActionRow,
   PluginActionPrimary,
 } from '@/components/plugins/plugin-action-row';
+import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 
 interface TagManagerProps {
   onRefresh: () => void;
@@ -463,9 +461,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         emptyIcon={<Search className="h-4 w-4" />}
         contentClassName="p-6"
       >
-        <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
+        <PluginFilterBar className="mb-6 lg:grid-cols-2">
           <div className="relative lg:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search
+              className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
+            />
             <Input
               placeholder="Search techniques..."
               className="pl-10"
@@ -473,7 +473,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </PluginDataSurfaceFilterRow>
+        </PluginFilterBar>
 
         <PluginDataSurfaceSummaryStrip
           filteredCount={filteredTags.length}
@@ -560,11 +560,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               placeholder="New technique name"
             />
             {renameError && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Rename failed</AlertTitle>
-                <AlertDescription>{renameError}</AlertDescription>
-              </Alert>
+              <PluginInlineMessage
+                tone="error"
+                className="mt-4"
+                icon={<AlertCircle className="h-4 w-4" />}
+                title="Rename failed"
+                description={renameError}
+              />
             )}
           </div>
           <DialogFooter>
@@ -650,14 +652,17 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                 </SelectContent>
               </Select>
             </div>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Heads up!</AlertTitle>
-              <AlertDescription>
-                The tag "{mergingTag}" will be completely replaced by "
-                {targetMergeTag || '...'}" across your history.
-              </AlertDescription>
-            </Alert>
+            <PluginInlineMessage
+              tone="warning"
+              icon={<AlertCircle className="h-4 w-4" />}
+              title="Heads up!"
+              description={
+                <>
+                  The tag "{mergingTag}" will be completely replaced by "
+                  {targetMergeTag || '...'}" across your history.
+                </>
+              }
+            />
             {mergeError && (
               <PluginInlineMessage
                 tone="error"
@@ -748,11 +753,12 @@ export function TagManager({ onRefresh }: TagManagerProps) {
             }}
           >
             {deleteError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Delete failed</AlertTitle>
-                <AlertDescription>{deleteError}</AlertDescription>
-              </Alert>
+              <PluginInlineMessage
+                tone="error"
+                icon={<AlertCircle className="h-4 w-4" />}
+                title="Delete failed"
+                description={deleteError}
+              />
             )}
           </PluginConfirmationDialog>
         );
