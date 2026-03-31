@@ -146,7 +146,7 @@ test('review alert copy focuses on actionable link issues instead of optional mi
   );
 });
 
-test('mode toggle browse state changes by mode while labels remain non-empty constants', () => {
+test('lounge-first browse behavior still supports both mode labels and table fallback', () => {
   const rows = [
     makeRow({
       session: {
@@ -196,8 +196,8 @@ test('mode toggle browse state changes by mode while labels remain non-empty con
     }),
   });
 
-  assert.ok(VIDEO_LIBRARY_MODE_TABLE_LABEL.trim().length > 0);
-  assert.ok(VIDEO_LIBRARY_MODE_LOUNGE_LABEL.trim().length > 0);
+  assert.equal(VIDEO_LIBRARY_MODE_LOUNGE_LABEL, 'Lounge');
+  assert.equal(VIDEO_LIBRARY_MODE_TABLE_LABEL, 'Table');
   assert.equal(tableBrowse.hasRows, true);
   assert.equal(loungeBrowse.hasRows, true);
   assert.equal(tableWithSourceRows.hasRows, true);

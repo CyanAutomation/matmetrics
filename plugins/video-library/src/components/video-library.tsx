@@ -420,7 +420,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
   const [presentationMode, setPresentationMode] =
-    useState<VideoLibraryPresentationMode>('table');
+    useState<VideoLibraryPresentationMode>('lounge');
   const [sortOrder, setSortOrder] = useState<VideoLibrarySortOption>('newest');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [playNextEnabled, setPlayNextEnabled] = useState(false);
@@ -585,7 +585,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     filters.category !== 'all' ||
     filters.hostname.length > 0 ||
     filters.checked !== 'all' ||
-    presentationMode !== 'table' ||
+    presentationMode !== 'lounge' ||
     sortOrder === 'recently_checked' ||
     sortOrder === 'provider';
   const emptyState = deriveVideoLibraryEmptyState({
@@ -914,7 +914,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         hostname: '',
         checked: 'all',
       }));
-      setPresentationMode('table');
+      setPresentationMode('lounge');
       setSortOrder('newest');
       setShowAdvanced(true);
       return;
@@ -1224,17 +1224,19 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="video-library-play-next">Play next</Label>
-                <div className="flex min-h-10 items-center">
-                  <Switch
-                    id="video-library-play-next"
-                    checked={playNextEnabled}
-                    onCheckedChange={setPlayNextEnabled}
-                    aria-label="Enable play next suggestions"
-                  />
+              {presentationMode === 'lounge' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="video-library-play-next">Play next</Label>
+                  <div className="flex min-h-10 items-center">
+                    <Switch
+                      id="video-library-play-next"
+                      checked={playNextEnabled}
+                      onCheckedChange={setPlayNextEnabled}
+                      aria-label="Enable play next suggestions"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="flex items-end lg:col-span-2">
                 <PluginBulkActions
@@ -1411,9 +1413,10 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {loungeRows.map((row, index) => {
-              const nextRow = playNextEnabled
-                ? loungeRows[index + 1]
-                : undefined;
+              const nextRow =
+                presentationMode === 'lounge' && playNextEnabled
+                  ? loungeRows[index + 1]
+                  : undefined;
               return (
                 <article
                   key={row.session.id}
