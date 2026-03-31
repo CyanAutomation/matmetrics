@@ -54,6 +54,16 @@ import type {
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
 type PluginFetchState = 'idle' | 'loading' | 'success' | 'error';
 
+export const isActiveRefreshRequest = ({
+  requestId,
+  latestRequestId,
+  isMounted,
+}: {
+  requestId: number;
+  latestRequestId: number;
+  isMounted: boolean;
+}): boolean => isMounted && requestId === latestRequestId;
+
 export type InstalledPluginRow = Pick<
   PluginManifest,
   'id' | 'name' | 'version' | 'description' | 'enabled'
@@ -359,6 +369,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const { toast } = useToast();
   const { user, authAvailable } = useAuth();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
+  const refreshRequestIdRef = React.useRef(0);
   const isMountedRef = React.useRef(true);
   const [installedManifestRows, setInstalledManifestRows] = React.useState<
     InstalledPluginManifestRow[]
@@ -394,26 +405,67 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   }, []);
 
   const refreshInstalledPlugins = React.useCallback(async () => {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
     setFetchState('loading');
     setLoadErrorMessage(null);
     try {
       const result = await fetchInstalledPlugins({
         getHeaders: getAuthHeaders,
       });
-      if (!isMountedRef.current) {
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
         return;
       }
 
       setInstalledManifestRows(result.rows);
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setMaturityDebug(result.maturityDebug);
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setFetchState('success');
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setLastUpdatedAt(new Date());
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Could not load installed plugins from the API.';
-      if (!isMountedRef.current) {
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
         return;
       }
 
