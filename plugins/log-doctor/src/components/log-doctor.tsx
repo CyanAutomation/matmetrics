@@ -33,7 +33,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthHeaders } from '@/lib/auth-session';
-import { DrLogImage } from '@/components/drlog-image';
+import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import {
   getSessionAudit,

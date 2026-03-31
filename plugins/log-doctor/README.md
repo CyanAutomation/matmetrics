@@ -22,7 +22,8 @@ This metadata is declared in `plugins/log-doctor/plugin.json` and must stay alig
 
 - Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
 - This plugin owns `plugins/log-doctor/src/components/*` as its feature UI surface.
-- Shared cross-plugin primitives remain in `src/components/plugins`.
+- Shared cross-plugin primitives remain in `src/components/plugins` (for example `PluginPageShell`, `PluginLoadingState`, and `PluginConfirmationDialog`).
+- `plugins/<plugin>/src/index.ts` must import feature renderers from `./components/*` (never from `@/components/*` plugin feature files).
 
 ## Usage
 

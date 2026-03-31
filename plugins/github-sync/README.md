@@ -31,7 +31,8 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
   - `plugins/github-sync/src/components/github-settings-view-model.ts`
   - `plugins/github-sync/src/components/github-sync-results.tsx`
   - colocated tests in the same directory.
-- Shared cross-plugin primitives remain in `src/components/plugins`.
+- Shared cross-plugin primitives remain in `src/components/plugins` (for example `PluginPageShell`, `PluginLoadingState`, and `PluginConfirmationDialog`).
+- `plugins/<plugin>/src/index.ts` must import feature renderers from `./components/*` (never from `@/components/*` plugin feature files).
 
 ## Usage
 

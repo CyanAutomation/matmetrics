@@ -222,3 +222,48 @@ test('runPluginContractGate accepts README heading contracts for plugin operatio
     );
   }
 });
+
+
+test('runPluginContractGate fails when entrypoint imports plugin UI from shared src/components', async () => {
+  await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
+    const pluginRoot = path.join(pluginsRoot, directoryName);
+
+    await mkdir(path.join(pluginRoot, 'src', 'components'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(pluginRoot, 'src', 'index.ts'),
+      `import { TagManager } from '@/components/tag-manager';
+
+export function initPlugin(context: { registerPluginComponent: (id: string, renderer: unknown) => void }) {
+  context.registerPluginComponent('tag_manager', () => TagManager);
+}
+`,
+      'utf8'
+    );
+    await writeFile(
+      path.join(pluginRoot, 'src', 'components', 'tag-manager.tsx'),
+      'export function TagManager() { return null; }\n',
+      'utf8'
+    );
+    await writeFile(
+      path.join(pluginRoot, 'README.md'),
+      '# Tags Plugin\n\n## UI Ownership\n\nPlugin-local UI is implemented under plugins/tags/src/components.\n\n## Usage\n\nUse it.\n\n## Verification\n\nVerify it.\n',
+      'utf8'
+    );
+
+    const result = await runPluginContractGate({
+      pluginsRoot,
+      directoryName,
+      manifest: createManifest(),
+    });
+
+    assert.equal(result.isValid, false);
+    assert.equal(
+      result.issues.some(
+        (issue) => issue.path === 'contractGate.entrypointOwnership'
+      ),
+      true
+    );
+  });
+});
