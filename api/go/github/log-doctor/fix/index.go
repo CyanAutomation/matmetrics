@@ -5,9 +5,9 @@ import (
 	"path"
 	"strings"
 
-	"matmetrics/internal/githubapi"
-	"matmetrics/internal/httpapi"
-	"matmetrics/internal/model"
+	"matmetrics/pkg/githubapi"
+	"matmetrics/pkg/httpapi"
+	"matmetrics/pkg/model"
 )
 
 type logDoctorFixClient interface {
