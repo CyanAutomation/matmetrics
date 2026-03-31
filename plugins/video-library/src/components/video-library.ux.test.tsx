@@ -145,7 +145,7 @@ test('advanced filter empty state points users to Advanced filters reset action'
 test('review alert copy focuses on actionable link issues instead of optional missing videos', () => {
   assert.equal(
     getVideoLibraryReviewAlertDescription(3),
-    '3 session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.'
+    '3 session(s) need attention because the provider is not yet trusted, the URL is invalid, or the link could not be verified.'
   );
 });
 
