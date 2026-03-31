@@ -35,7 +35,7 @@ const IPV6_BLOCKED_CIDRS: Array<[bigint, number]> = [
 ];
 
 export function isBlockedNetworkHostname(hostname: string): boolean {
-  const normalizedHost = normalizeHostname(hostname);
+  const normalizedHost = normalizeNetworkHostname(hostname);
   if (!normalizedHost) {
     return true;
   }
@@ -61,7 +61,7 @@ export function isBlockedNetworkHostname(hostname: string): boolean {
   return false;
 }
 
-function normalizeHostname(hostname: string): string {
+export function normalizeNetworkHostname(hostname: string): string {
   const lowered = hostname.trim().toLowerCase().replace(/\.+$/, '');
   if (lowered.startsWith('[') && lowered.endsWith(']')) {
     return lowered.slice(1, -1);
