@@ -748,7 +748,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     }
   };
 
-  const handleCheckLinks = async (
+  const handleCheckLinks = useCallback(async (
     sessionIds: string[],
     options?: { silent?: boolean }
   ) => {

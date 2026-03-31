@@ -69,11 +69,14 @@ test('PluginStatsGrid and PluginStatCard render stat labels and values', () => {
 test('PluginSectionCard renders header and content regions', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
-      React.createElement(PluginSectionCard, {
-        title: 'Inventory',
-        description: 'Audit rows',
-        children: React.createElement('p', null, 'content block'),
-      })
+      React.createElement(
+        PluginSectionCard,
+        {
+          title: 'Inventory',
+          description: 'Audit rows',
+        },
+        React.createElement('p', null, 'content block')
+      )
     )
   );
 
@@ -117,12 +120,15 @@ test('PluginDestructiveAction exposes safe defaults for confirmation copy', () =
 test('PluginFormSection renders footer actions within the shared toolbar', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
-      React.createElement(PluginFormSection, {
-        title: 'Settings',
-        description: 'Shared form shell',
-        footerActions: React.createElement('button', null, 'Save'),
-        children: React.createElement('div', null, 'Fields'),
-      })
+      React.createElement(
+        PluginFormSection,
+        {
+          title: 'Settings',
+          description: 'Shared form shell',
+          footerActions: React.createElement('button', null, 'Save'),
+        },
+        React.createElement('div', null, 'Fields')
+      )
     )
   );
 
@@ -155,16 +161,19 @@ test('PluginStatusPanel renders error variant with retry CTA wiring', () => {
 test('PluginTableSection renders empty fallback when rows are missing', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
-      React.createElement(PluginTableSection, {
-        title: 'Rows',
-        description: 'Inspect current rows',
-        emptyTitle: 'No rows',
-        emptyDescription: 'Create one to begin.',
-        emptyCtaLabel: 'Add row',
-        onEmptyCta: () => {},
-        hasRows: false,
-        children: React.createElement('table', null, 'table content'),
-      })
+      React.createElement(
+        PluginTableSection,
+        {
+          title: 'Rows',
+          description: 'Inspect current rows',
+          emptyTitle: 'No rows',
+          emptyDescription: 'Create one to begin.',
+          emptyCtaLabel: 'Add row',
+          onEmptyCta: () => {},
+          hasRows: false,
+        },
+        React.createElement('table', null, 'table content')
+      )
     )
   );
 
