@@ -9,28 +9,28 @@ type FlagPresentation = {
 export const AUDIT_FLAG_PRESENTATION: Record<AuditFlagCode, FlagPresentation> =
   {
     no_techniques_high_effort: {
-      label: 'No techniques (high effort)',
-      groupHeading: 'Missing details',
+      label: 'Missing techniques in hard sessions',
+      groupHeading: 'What to fix now',
       helperText:
-        'Add at least one technique so this high-effort session has drill context.',
+        'Add at least one technique name so this session shows what you practiced.',
     },
     empty_description: {
-      label: 'Missing description',
-      groupHeading: 'Missing details',
+      label: 'Missing session summary',
+      groupHeading: 'What to fix now',
       helperText:
-        'Write 1–2 sentences describing what you worked on in this session.',
+        'Write 1–2 sentences about what you worked on during this session.',
     },
     empty_notes: {
-      label: 'Missing notes',
-      groupHeading: 'Missing details',
+      label: 'Missing follow-up notes',
+      groupHeading: 'What to fix now',
       helperText:
-        'Add quick notes on what felt good and what to improve next time.',
+        'Add notes about what felt good and what to change next time.',
     },
     duration_outlier: {
-      label: 'Unusual duration',
-      groupHeading: 'Unusual values',
+      label: 'Session time looks off',
+      groupHeading: 'What to fix now',
       helperText:
-        'Check the duration and update it if the value is accidentally too high or low.',
+        'Double-check the session time and correct it if it looks too high or too low.',
     },
   };
 

@@ -38,21 +38,23 @@ const RULE_DESCRIPTIONS: Record<
   { label: string; description: string }
 > = {
   no_techniques_high_effort: {
-    label: 'No techniques (high effort)',
-    description: 'Flag sessions with high effort but no techniques recorded.',
+    label: 'Missing techniques in hard sessions',
+    description:
+      'Flags hard sessions that are missing the technique names you practiced.',
   },
   empty_description: {
-    label: 'Missing description',
-    description: 'Flag sessions without a description.',
+    label: 'Missing session summary',
+    description: 'Flags sessions that do not explain what you worked on.',
   },
   empty_notes: {
-    label: 'Missing notes',
-    description: 'Flag sessions without notes.',
+    label: 'Missing follow-up notes',
+    description:
+      'Flags sessions without notes on what went well or what to improve next.',
   },
   duration_outlier: {
-    label: 'Unusual duration',
+    label: 'Session time looks off',
     description:
-      'Flag sessions with durations far from the average. Requires at least 3 sessions with duration data.',
+      'Flags sessions with very different durations so you can confirm the time entry is correct. Requires at least 3 sessions with duration data.',
   },
 };
 
@@ -203,7 +205,9 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
       {isExpanded && (
         <CardContent className="space-y-6">
           <div className="space-y-3 border-b pb-4">
-            <Label className="block font-medium">Audit strictness</Label>
+            <Label className="block font-medium">
+              How sensitive should checks be?
+            </Label>
             <div className="grid gap-2 sm:grid-cols-3">
               {PRIMARY_PRESET_OPTIONS.map((option) => {
                 const isActive = selectedPreset === option.value;
@@ -246,7 +250,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                   Advanced
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Per-rule toggles and thresholds.
+                  Customize each check when you need more control.
                 </p>
               </div>
               {isAdvancedExpanded ? (
@@ -300,7 +304,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                           htmlFor={`effort-${rule.code}`}
                           className="text-sm"
                         >
-                          Effort threshold (1-5):
+                          When should this check apply? (effort 1-5)
                         </Label>
                         <Input
                           id={`effort-${rule.code}`}
@@ -329,7 +333,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                           htmlFor={`duration-${rule.code}`}
                           className="text-sm"
                         >
-                          Standard deviation multiplier:
+                          How different should session time be before it is flagged?
                         </Label>
                         <Input
                           id={`duration-${rule.code}`}
