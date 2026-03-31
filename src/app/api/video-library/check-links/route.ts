@@ -16,6 +16,7 @@ import {
 const REQUEST_TIMEOUT_MS = 5000;
 const HEAD_FALLBACK_STATUSES = new Set([403, 405, 501]);
 const MAX_SESSION_IDS_TO_CHECK = 50;
+const MAX_REDIRECT_HOPS = 5;
 
 async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
   if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {
@@ -49,9 +50,74 @@ async function fetchVideoUrl(
 ): Promise<Response> {
   return fetch(url, {
     method,
-    redirect: 'follow',
+    redirect: 'manual',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, '');
+}
+
+function validateRedirectHostname(
+  hostname: string,
+  customAllowedDomains: string[]
+): string | null {
+  if (isBlockedNetworkHostname(hostname)) {
+    return `Blocked network hostname encountered during redirect: ${hostname}`;
+  }
+
+  if (!isAllowedVideoHostname(hostname, customAllowedDomains)) {
+    return `Disallowed hostname encountered during redirect: ${hostname}`;
+  }
+
+  return null;
+}
+
+async function fetchWithRedirectTraversal(
+  initialUrl: string,
+  customAllowedDomains: string[]
+): Promise<{ response: Response; resolvedUrl: string; resolvedHostname: string }> {
+  let currentUrl = new URL(initialUrl);
+
+  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop += 1) {
+    const hostname = normalizeHostname(currentUrl.hostname);
+    const blockedReason = validateRedirectHostname(
+      hostname,
+      customAllowedDomains
+    );
+    if (blockedReason) {
+      throw new Error(blockedReason);
+    }
+
+    let response = await fetchVideoUrl(currentUrl.toString(), 'HEAD');
+    if (HEAD_FALLBACK_STATUSES.has(response.status)) {
+      response = await fetchVideoUrl(currentUrl.toString(), 'GET');
+    }
+
+    if (response.status < 300 || response.status >= 400) {
+      return {
+        response,
+        resolvedUrl: currentUrl.toString(),
+        resolvedHostname: hostname,
+      };
+    }
+
+    if (hop === MAX_REDIRECT_HOPS) {
+      throw new Error(
+        `Redirect limit exceeded (${MAX_REDIRECT_HOPS} hops) for URL: ${initialUrl}`
+      );
+    }
+
+    const location = response.headers.get('location');
+    if (!location) {
+      throw new Error(`Redirect response missing Location header: ${response.status}`);
+    }
+
+    currentUrl = new URL(location, currentUrl);
+  }
+
+  throw new Error('Unexpected redirect traversal state');
 }
 
 async function checkVideoLink(
@@ -72,19 +138,20 @@ async function checkVideoLink(
       hostname,
       status: 'disallowed_domain',
       checkedAt,
+      error: `Disallowed hostname: ${hostname}`,
     };
   }
 
   try {
-    let response = await fetchVideoUrl(url, 'HEAD');
-    if (HEAD_FALLBACK_STATUSES.has(response.status)) {
-      response = await fetchVideoUrl(url, 'GET');
-    }
+    const { response, resolvedHostname } = await fetchWithRedirectTraversal(
+      url,
+      customAllowedDomains
+    );
 
     return {
       sessionId,
       url,
-      hostname,
+      hostname: resolvedHostname,
       status:
         response.status >= 200 && response.status < 400
           ? 'reachable'
@@ -93,13 +160,25 @@ async function checkVideoLink(
       httpStatus: response.status,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown fetch failure';
+    if (/Disallowed hostname encountered during redirect|Blocked network hostname encountered during redirect/.test(message)) {
+      return {
+        sessionId,
+        url,
+        hostname,
+        status: 'disallowed_domain',
+        checkedAt,
+        error: message,
+      };
+    }
+
     return {
       sessionId,
       url,
       hostname,
       status: 'check_failed',
       checkedAt,
-      error: error instanceof Error ? error.message : 'Unknown fetch failure',
+      error: message,
     };
   }
 }
@@ -168,7 +247,7 @@ export async function POST(request: NextRequest) {
           } satisfies VideoLinkCheckResult;
         }
 
-        const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+        const hostname = normalizeHostname(parsedUrl.hostname);
         return checkVideoLink(
           session.id,
           parsedUrl.toString(),
