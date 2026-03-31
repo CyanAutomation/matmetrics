@@ -7,6 +7,7 @@ import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmati
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
 import {
+  PluginDataSurfaceFilterRow,
   PluginDataSurfaceSummaryStrip,
   PluginEmptyFilteredResults,
 } from '@/components/plugins/plugin-data-surface';
@@ -22,7 +23,6 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -843,6 +843,7 @@ export const LogDoctor = (): React.ReactElement => {
             <PluginBulkActions
               selectedCount={selectedCount}
               itemLabel="file"
+              isDisabled={selectedCount === 0}
               disabledMessage={
                 selectedCount === 0
                   ? 'Select at least one invalid file to preview or apply fixes.'
@@ -914,7 +915,7 @@ export const LogDoctor = (): React.ReactElement => {
                 </Badge>
                 <Badge variant="secondary">Selected: {selectedCount}</Badge>
               </div>
-              <PluginFilterBar className="lg:grid-cols-1">
+              <PluginDataSurfaceFilterRow className="lg:grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="log-doctor-file-search">
                     Search invalid file paths
@@ -926,7 +927,7 @@ export const LogDoctor = (): React.ReactElement => {
                     placeholder="Filter by file path"
                   />
                 </div>
-              </PluginFilterBar>
+              </PluginDataSurfaceFilterRow>
               <PluginDataSurfaceSummaryStrip
                 filteredCount={filteredInvalidFiles.length}
                 totalCount={invalidFiles.length}

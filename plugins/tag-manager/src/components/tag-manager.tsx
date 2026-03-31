@@ -34,12 +34,14 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import { PluginDataSurfaceSummaryStrip } from '@/components/plugins/plugin-data-surface';
+import {
+  PluginDataSurfaceFilterRow,
+  PluginDataSurfaceSummaryStrip,
+} from '@/components/plugins/plugin-data-surface';
 import {
   PluginActionRow,
   PluginActionPrimary,
 } from '@/components/plugins/plugin-action-row';
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 
@@ -461,7 +463,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         emptyIcon={<Search className="h-4 w-4" />}
         contentClassName="p-6"
       >
-        <PluginFilterBar className="mb-6 lg:grid-cols-2">
+        <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
           <div className="relative lg:col-span-2">
             <Search
               className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
@@ -473,7 +475,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-        </PluginFilterBar>
+        </PluginDataSurfaceFilterRow>
 
         <PluginDataSurfaceSummaryStrip
           filteredCount={filteredTags.length}
