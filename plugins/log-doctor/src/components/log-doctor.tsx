@@ -204,6 +204,11 @@ export const LogDoctor = (): React.ReactElement => {
   const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
     'validation'
   );
+  const handleTabChange = React.useCallback((tabId: string) => {
+    if (tabId === 'validation' || tabId === 'audit') {
+      setActiveTab(tabId);
+    }
+  }, []);
   const {
     feedbackState: auditFeedbackState,
     startLoading: startAuditLoading,
@@ -798,9 +803,8 @@ export const LogDoctor = (): React.ReactElement => {
           },
         ]}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
-        contentClassName="space-y-4"
-      >
+        onTabChange={handleTabChange}
+      />
 
       {/* File Validation Tab */}
       {activeTab === 'validation' ? (

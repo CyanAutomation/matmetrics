@@ -40,7 +40,7 @@ import {
   PluginActionSecondary,
 } from '@/components/plugins/plugin-action-row';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
-
+import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
   areControlsDisabled: boolean;
@@ -244,6 +244,7 @@ export function PromptSettings() {
     retryPreferencesLoad,
   } = useAuth();
   const [prompt, setPrompt] = useState('');
+  const theme = getPluginThemeTokens('info');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>(
     'idle'
   );
