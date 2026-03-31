@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"matmetrics/pkg/githubapi"
-	"matmetrics/pkg/httpapi"
-	"matmetrics/pkg/model"
-	"matmetrics/pkg/storage"
+	"matmetrics/internal/githubapi"
+	"matmetrics/internal/httpapi"
+	"matmetrics/internal/model"
+	"matmetrics/internal/storage"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"matmetrics/pkg/githubapi"
-	"matmetrics/pkg/httpapi"
-	"matmetrics/pkg/model"
+	"matmetrics/internal/githubapi"
+	"matmetrics/internal/httpapi"
+	"matmetrics/internal/model"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

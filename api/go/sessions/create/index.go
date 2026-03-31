@@ -3,10 +3,10 @@ package handler
 import (
 	"net/http"
 
-	"matmetrics/pkg/githubapi"
-	"matmetrics/pkg/httpapi"
-	"matmetrics/pkg/model"
-	"matmetrics/pkg/sessionapi"
+	"matmetrics/internal/githubapi"
+	"matmetrics/internal/httpapi"
+	"matmetrics/internal/model"
+	"matmetrics/internal/sessionapi"
 )
 
 type sessionRequest struct {

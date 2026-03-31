@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"matmetrics/pkg/githubapi"
-	"matmetrics/pkg/model"
+	"matmetrics/internal/githubapi"
+	"matmetrics/internal/model"
 )
 
 type stubLogDoctorFixClient struct {
