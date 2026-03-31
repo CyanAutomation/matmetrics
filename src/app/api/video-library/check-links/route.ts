@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { isBlockedNetworkHostname } from '@/lib/network-safety';
+import {
+  isBlockedNetworkHostname,
+  normalizeNetworkHostname,
+} from '@/lib/network-safety';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import {
@@ -58,7 +61,7 @@ async function fetchVideoUrl(
 }
 
 function normalizeHostname(hostname: string): string {
-  return hostname.toLowerCase().replace(/^www\./, '');
+  return normalizeNetworkHostname(hostname).replace(/^www\./, '');
 }
 
 function validateRedirectHostname(
@@ -145,7 +148,6 @@ async function mapWithConcurrencyLimit<TInput, TOutput>(
       }
       results[currentIndex] = await mapper(items[currentIndex], currentIndex);
     }
-  }
   }
 
   await Promise.all(Array.from({ length: safeConcurrency }, () => worker()));
