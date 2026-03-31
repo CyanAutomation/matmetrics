@@ -16,6 +16,7 @@ import {
   VIDEO_LIBRARY_LOADING_LABEL,
   VIDEO_LIBRARY_MODE_LOUNGE_LABEL,
   VIDEO_LIBRARY_MODE_TABLE_LABEL,
+  VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL,
 } from './video-library';
 import type { VideoLibraryRow } from '@/lib/video-library';
 import type { JudoSession } from '@/lib/types';
@@ -210,7 +211,13 @@ test('control tiers default to simple controls and reveal advanced panel when to
 
   assert.equal(defaultTierState.showCoreControls, true);
   assert.equal(defaultTierState.showAdvancedPanel, false);
+  assert.equal(defaultTierState.showSettingsEntryPoint, true);
+  assert.equal(defaultTierState.showInlineSettingsPanels, false);
   assert.equal(expandedTierState.showAdvancedPanel, true);
+});
+
+test('settings entry point keeps a single stable label for library configuration access', () => {
+  assert.equal(VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL, 'Library settings');
 });
 
 test('lounge sorting supports newest, oldest, recently checked, and provider modes', () => {
