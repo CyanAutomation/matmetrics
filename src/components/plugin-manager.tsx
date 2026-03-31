@@ -470,8 +470,35 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       }
 
       setInstalledManifestRows([]);
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setMaturityDebug({});
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setFetchState('error');
+      if (
+        !isActiveRefreshRequest({
+          requestId,
+          latestRequestId: refreshRequestIdRef.current,
+          isMounted: isMountedRef.current,
+        })
+      ) {
+        return;
+      }
       setLoadErrorMessage(message);
       throw error;
     }
