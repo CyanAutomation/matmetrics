@@ -15,6 +15,7 @@ import {
 
 const REQUEST_TIMEOUT_MS = 5000;
 const HEAD_FALLBACK_STATUSES = new Set([403, 405, 501]);
+const MAX_SESSION_IDS_TO_CHECK = 50;
 
 async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
   if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {
@@ -126,10 +127,14 @@ export async function POST(request: NextRequest) {
     }
 
     const requestedSessionIds = Array.isArray(body.sessionIds)
-      ? body.sessionIds.filter(
-          (sessionId: unknown): sessionId is string =>
-            typeof sessionId === 'string'
-        )
+      ? Array.from(
+          new Set(
+            body.sessionIds.filter(
+              (sessionId: unknown): sessionId is string =>
+                typeof sessionId === 'string'
+            )
+          )
+        ).slice(0, MAX_SESSION_IDS_TO_CHECK)
       : null;
 
     const { sessions } = await listSessionsForConfigWithIssues(
