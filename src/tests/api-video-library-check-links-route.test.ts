@@ -189,7 +189,17 @@ test('POST blocks redirect from allowed domain to private network host', async (
           redirect: init?.redirect,
         });
 
-        if (requestUrl.includes('youtube.com')) {
+        let hostname: string | null = null;
+        try {
+          hostname = new URL(requestUrl).hostname;
+        } catch {
+          hostname = null;
+        }
+
+        if (
+          hostname === 'youtube.com' ||
+          (hostname !== null && hostname.endsWith('.youtube.com'))
+        ) {
           return new Response(null, {
             status: 302,
             headers: { location: 'http://127.0.0.1:8080/internal' },
