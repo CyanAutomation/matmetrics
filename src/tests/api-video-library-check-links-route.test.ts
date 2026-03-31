@@ -170,6 +170,57 @@ test('POST classifies remote failures as check_failed', async () => {
   });
 });
 
+test('POST blocks redirect from allowed domain to private network host', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(
+        makeSession('allowed', 'https://youtube.com/watch?v=redirect-me')
+      );
+
+      const originalFetch = global.fetch;
+      const calls: Array<{ url: string; method: string; redirect?: string }> = [];
+      global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const method = init?.method || 'GET';
+        calls.push({
+          url: requestUrl,
+          method,
+          redirect: init?.redirect,
+        });
+
+        if (requestUrl.includes('youtube.com')) {
+          return new Response(null, {
+            status: 302,
+            headers: { location: 'http://127.0.0.1:8080/internal' },
+          });
+        }
+
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+
+      try {
+        const response = await POST(
+          new NextRequest('http://localhost/api/video-library/check-links', {
+            method: 'POST',
+            headers: { authorization: 'Bearer test-token' },
+            body: JSON.stringify({ sessionIds: ['allowed'] }),
+          })
+        );
+
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(payload.results[0].status, 'disallowed_domain');
+        assert.match(payload.results[0].error, /Blocked network hostname/);
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].method, 'HEAD');
+        assert.equal(calls[0].redirect, 'manual');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+});
+
 test('POST returns row-friendly per-session payloads for mixed result sets', async () => {
   await withStoredGitHubConfig('null', async () => {
     await withTempDataDir(async () => {
