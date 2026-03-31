@@ -144,28 +144,22 @@ export const VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION =
   'This filtered set has sessions, but none currently have a playable URL.';
 
 export function getVideoLibraryReviewAlertDescription(reviewCount: number) {
-  return `${reviewCount} session(s) use disallowed domains, have invalid URLs, or have broken/failed link checks.`;
+  return `${reviewCount} session(s) need attention because the provider is not yet trusted, the URL is invalid, or the link could not be verified.`;
 }
 
+const VIDEO_LIBRARY_STATUS_LABELS: Record<VideoLibraryStatusFilter, string> = {
+  all: 'All statuses',
+  missing: 'No linked video',
+  allowed_unchecked: 'Allowed',
+  disallowed_domain: 'Provider not yet trusted',
+  invalid_url: 'Invalid URL',
+  reachable: 'Reachable',
+  broken: 'Broken',
+  check_failed: "Couldn't verify link",
+};
+
 function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
-  switch (status) {
-    case 'missing':
-      return 'No linked video';
-    case 'allowed_unchecked':
-      return 'Allowed';
-    case 'disallowed_domain':
-      return 'Disallowed domain';
-    case 'invalid_url':
-      return 'Invalid URL';
-    case 'reachable':
-      return 'Reachable';
-    case 'broken':
-      return 'Broken';
-    case 'check_failed':
-      return 'Check failed';
-    case 'all':
-      return 'All statuses';
-  }
+  return VIDEO_LIBRARY_STATUS_LABELS[status];
 }
 
 function getStatusVariant(status: VideoLibraryStatusFilter) {
@@ -310,7 +304,7 @@ export function deriveVideoLibraryEmptyState({
     return {
       title: 'No matching video sessions',
       description:
-        'No rows match your current search and filters. Clear the search to widen the audit view.',
+        'No rows match your current search and filters. Clear the search to widen the view.',
       ctaLabel: VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL,
       action: 'clearSearch',
     };
@@ -924,14 +918,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       {isCheckingLinks ? (
         <PluginLoadingState
           title="Checking video links"
-          description="Running live checks for the current selection and updating the audit results."
+          description="Running live checks for the current selection and updating verification results."
           className="mb-4"
         />
       ) : null}
 
       <PluginSectionCard
         title="Inventory & filters"
-        description="Use core browsing controls first, then open Advanced filters for deeper auditing."
+        description="Use core browsing controls first, then open Advanced filters for detailed review."
         contentClassName="space-y-4"
       >
         <div className="space-y-2">
@@ -1019,6 +1013,11 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
             id="video-library-advanced-filters"
             className="space-y-3 rounded-md border p-3"
           >
+            <p className="text-xs text-muted-foreground">
+              Power-user glossary: <strong>Verification</strong> means whether
+              a link has been checked. <strong>Provider not yet trusted</strong>{' '}
+              means the video host is outside your trusted domain list.
+            </p>
             <PluginDataSurfaceFilterRow>
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -1079,7 +1078,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Checked state</Label>
+                <Label>Verification</Label>
                 <Select
                   value={filters.checked}
                   onValueChange={(value) =>
@@ -1392,7 +1391,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
 
       <PluginTableSection
         title="Video Lounge"
-        description="Filter by tab, status, category, or host to focus the current audit task. No-video reminders follow your category expectations."
+        description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
         hasRows={browseState.hasRows}
         emptyTitle={browseState.title}
         emptyDescription={browseState.description}
