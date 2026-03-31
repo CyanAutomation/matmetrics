@@ -20,13 +20,13 @@ test('audit review content groups flags with plain-language headings and helper 
     },
   ]);
 
-  assert.deepEqual(Object.keys(grouped), ['Missing details', 'Unusual values']);
+  assert.deepEqual(Object.keys(grouped), ['What to fix now']);
   assert.equal(
     AUDIT_FLAG_PRESENTATION.empty_notes.helperText,
-    'Add quick notes on what felt good and what to improve next time.'
+    'Add notes about what felt good and what to change next time.'
   );
   assert.equal(
     AUDIT_FLAG_PRESENTATION.duration_outlier.helperText,
-    'Check the duration and update it if the value is accidentally too high or low.'
+    'Double-check the session time and correct it if it looks too high or too low.'
   );
 });
