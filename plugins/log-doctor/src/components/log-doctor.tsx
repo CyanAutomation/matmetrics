@@ -1078,32 +1078,30 @@ export const LogDoctor = (): React.ReactElement => {
       {/* Session Audit Tab */}
       {activeTab === 'audit' ? (
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Session audit status</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
-              <div>
-                <p className="text-sm font-medium">
-                  {auditNeedsAttentionCount} session
-                  {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
-                </p>
-                <p
-                  className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                >
-                  {!auditRanAt
-                    ? 'Run an audit check to detect quality issues.'
-                    : 'Primary path: Run check → Review findings → Mark fixed.'}
-                </p>
-              </div>
-              <Button
-                onClick={summaryAction.onClick}
-                disabled={summaryAction.disabled}
+          <PluginSectionCard
+            title="Session audit status"
+            contentClassName="flex flex-wrap items-center justify-between gap-3"
+          >
+            <div>
+              <p className="text-sm font-medium">
+                {auditNeedsAttentionCount} session
+                {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
+              </p>
+              <p
+                className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
               >
-                {summaryAction.label}
-              </Button>
-            </CardContent>
-          </Card>
+                {!auditRanAt
+                  ? 'Run an audit check to detect quality issues.'
+                  : 'Primary path: Run check → Review findings → Mark fixed.'}
+              </p>
+            </div>
+            <Button
+              onClick={summaryAction.onClick}
+              disabled={summaryAction.disabled}
+            >
+              {summaryAction.label}
+            </Button>
+          </PluginSectionCard>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
