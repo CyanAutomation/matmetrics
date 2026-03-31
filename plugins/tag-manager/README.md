@@ -22,7 +22,8 @@ This metadata is declared in `plugins/tag-manager/plugin.json` and must stay ali
 
 - Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
 - This plugin owns `plugins/tag-manager/src/components/tag-manager.tsx` and its colocated tests.
-- Shared cross-plugin primitives remain in `src/components/plugins`.
+- Shared cross-plugin primitives remain in `src/components/plugins` (for example `PluginPageShell`, `PluginLoadingState`, and `PluginConfirmationDialog`).
+- `plugins/<plugin>/src/index.ts` must import feature renderers from `./components/*` (never from `@/components/*` plugin feature files).
 
 ## Usage
 

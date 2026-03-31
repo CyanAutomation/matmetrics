@@ -20,7 +20,8 @@ The Video Library plugin provides a **dashboard tab** for browsing linked sessio
 
 - Canonical model: plugin-local feature UI lives under `plugins/<plugin>/src/components`.
 - This plugin owns `plugins/video-library/src/components/video-library.tsx` and its colocated tests.
-- Shared cross-plugin primitives remain in `src/components/plugins`.
+- Shared cross-plugin primitives remain in `src/components/plugins` (for example `PluginPageShell`, `PluginLoadingState`, and `PluginConfirmationDialog`).
+- `plugins/<plugin>/src/index.ts` must import feature renderers from `./components/*` (never from `@/components/*` plugin feature files).
 
 ## Usage
 

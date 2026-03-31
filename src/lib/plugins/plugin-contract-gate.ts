@@ -21,6 +21,35 @@ const exists = async (targetPath: string): Promise<boolean> => {
   }
 };
 
+
+const COMPONENT_ALIAS_IMPORT_PATTERN =
+  /^import\s+[\s\S]*?from\s+['"](@\/components\/[^'"]+)['"];?$/gm;
+
+const isDisallowedEntrypointComponentImport = (source: string): boolean => {
+  if (!source.startsWith('@/components/')) {
+    return false;
+  }
+
+  return !source.startsWith('@/components/plugins/') && !source.startsWith('@/components/ui/');
+};
+
+const extractDisallowedEntrypointComponentImports = (source: string): string[] => {
+  const imports = new Set<string>();
+
+  for (const match of source.matchAll(COMPONENT_ALIAS_IMPORT_PATTERN)) {
+    const importSource = match[1]?.trim();
+    if (!importSource) {
+      continue;
+    }
+
+    if (isDisallowedEntrypointComponentImport(importSource)) {
+      imports.add(importSource);
+    }
+  }
+
+  return [...imports].sort((a, b) => a.localeCompare(b));
+};
+
 const extractRuntimeRegisteredComponentIds = (source: string): Set<string> => {
   const ids = new Set<string>();
 
@@ -144,6 +173,18 @@ export const runPluginContractGate = async ({
         indexSource
       )) {
         runtimeRegisteredComponentIds.add(componentId);
+      }
+
+      const disallowedEntrypointImports =
+        extractDisallowedEntrypointComponentImports(indexSource);
+      if (disallowedEntrypointImports.length > 0) {
+        issues.push({
+          severity: 'error',
+          path: 'contractGate.entrypointOwnership',
+          message: `plugins/${directoryName}/src/index.ts must render plugin UI from plugin-local modules (./components/*). Move imports ${disallowedEntrypointImports
+            .map((value) => `"${value}"`)
+            .join(', ')} into plugins/${directoryName}/src/components and keep only shared primitives under src/components/plugins.`,
+        });
       }
     } catch {
       // Keep existing issues focused on contract violations.
