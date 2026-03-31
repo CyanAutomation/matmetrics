@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
-  CheckCircle2,
   Cog,
   ExternalLink,
   Film,
@@ -35,7 +34,6 @@ import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 import {
   PluginActionPrimary,
   PluginActionRow,
-  PluginActionSecondary,
 } from '@/components/plugins/plugin-action-row';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -348,21 +346,16 @@ export function deriveVideoLibraryBulkActionState({
   isCheckingLinks: boolean;
 }) {
   const checkableRows = filteredRows.filter((row) => row.isCheckable);
-  const uncheckedRows = checkableRows.filter((row) => !row.isChecked);
 
   return {
-    canCheckFiltered: !isCheckingLinks && checkableRows.length > 0,
-    canCheckUnchecked: !isCheckingLinks && uncheckedRows.length > 0,
+    canRefreshLinkHealth: !isCheckingLinks && checkableRows.length > 0,
     disabledMessage:
       isCheckingLinks || checkableRows.length > 0
         ? null
         : 'No checkable links match the current filters.',
-    checkFilteredLabel: isCheckingLinks
+    refreshLinkHealthLabel: isCheckingLinks
       ? VIDEO_LIBRARY_LOADING_LABEL
-      : 'Check filtered',
-    checkUncheckedLabel: isCheckingLinks
-      ? VIDEO_LIBRARY_LOADING_LABEL
-      : 'Check unchecked',
+      : 'Refresh link health',
   };
 }
 
@@ -432,6 +425,8 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [playNextEnabled, setPlayNextEnabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [autoCheckedRowIds, setAutoCheckedRowIds] = useState<string[]>([]);
+  const autoCheckSignatureRef = useRef<string>('');
   const [filters, setFilters] = useState<VideoLibraryFilters>({
     tab: 'watchable',
     search: '',
@@ -752,7 +747,10 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     }
   };
 
-  const handleCheckLinks = async (sessionIds: string[]) => {
+  const handleCheckLinks = async (
+    sessionIds: string[],
+    options?: { silent?: boolean }
+  ) => {
     if (!authAvailable || !user) {
       toast({
         title: 'Sign-in required',
@@ -797,10 +795,12 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         expectedVideoCategories,
       });
 
-      toast({
-        title: 'Video links checked',
-        description: `Checked ${results.length} video link(s).`,
-      });
+      if (!options?.silent) {
+        toast({
+          title: 'Link health refreshed',
+          description: `Updated link status for ${results.length} videos.`,
+        });
+      }
     } catch (error) {
       console.error('Failed to check video links', error);
       toast({
@@ -820,13 +820,39 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     );
   };
 
-  const handleCheckUnchecked = async () => {
-    await handleCheckLinks(
-      filteredRows
-        .filter((row) => row.isCheckable && !row.isChecked)
-        .map((row) => row.session.id)
+  useEffect(() => {
+    if (!authAvailable || !user || isCheckingLinks) {
+      return;
+    }
+
+    const maxAutoChecks = 6;
+    const candidateIds = sortedFilteredRows
+      .filter((row) => row.isCheckable && !row.isChecked)
+      .slice(0, maxAutoChecks)
+      .map((row) => row.session.id)
+      .filter((sessionId) => !autoCheckedRowIds.includes(sessionId));
+
+    if (candidateIds.length === 0) {
+      return;
+    }
+
+    const signature = candidateIds.join('|');
+    if (autoCheckSignatureRef.current === signature) {
+      return;
+    }
+    autoCheckSignatureRef.current = signature;
+    setAutoCheckedRowIds((current) =>
+      Array.from(new Set([...current, ...candidateIds]))
     );
-  };
+
+    void handleCheckLinks(candidateIds, { silent: true });
+  }, [
+    authAvailable,
+    user,
+    isCheckingLinks,
+    sortedFilteredRows,
+    autoCheckedRowIds,
+  ]);
 
   const handleClearVideo = async () => {
     if (!sessionPendingClear) {
@@ -1218,35 +1244,19 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   disabledMessage={bulkActionState.disabledMessage ?? undefined}
                 >
                   <PluginActionRow>
-                    <PluginActionSecondary>
+                    <PluginActionPrimary>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => void handleCheckFiltered()}
-                        disabled={!bulkActionState.canCheckFiltered}
+                        disabled={!bulkActionState.canRefreshLinkHealth}
                       >
                         {isCheckingLinks ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           <RefreshCcw className="mr-2 h-4 w-4" />
                         )}
-                        {bulkActionState.checkFilteredLabel}
-                      </Button>
-                    </PluginActionSecondary>
-
-                    <PluginActionPrimary>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => void handleCheckUnchecked()}
-                        disabled={!bulkActionState.canCheckUnchecked}
-                      >
-                        {isCheckingLinks ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                        )}
-                        {bulkActionState.checkUncheckedLabel}
+                        {bulkActionState.refreshLinkHealthLabel}
                       </Button>
                     </PluginActionPrimary>
                   </PluginActionRow>
@@ -1359,7 +1369,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                           </a>
                         </Button>
                       ) : null}
-                      {row.isCheckable ? (
+                      {showAdvanced && row.isCheckable ? (
                         <Button
                           type="button"
                           variant="ghost"

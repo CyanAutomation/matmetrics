@@ -56,10 +56,8 @@ test('loading criterion anchor: bulk check actions show loading label and disabl
     isCheckingLinks: true,
   });
 
-  assert.equal(state.canCheckFiltered, false);
-  assert.equal(state.canCheckUnchecked, false);
-  assert.equal(state.checkFilteredLabel, VIDEO_LIBRARY_LOADING_LABEL);
-  assert.equal(state.checkUncheckedLabel, VIDEO_LIBRARY_LOADING_LABEL);
+  assert.equal(state.canRefreshLinkHealth, false);
+  assert.equal(state.refreshLinkHealthLabel, VIDEO_LIBRARY_LOADING_LABEL);
 });
 
 test('empty criterion anchor: empty state exposes clear call-to-action labels for search, tab, and empty inventory states', () => {
@@ -89,7 +87,7 @@ test('empty criterion anchor: empty state exposes clear call-to-action labels fo
   assert.equal(inventoryEmpty.action, 'editSession');
 });
 
-test('bulk actions only enable when rows are checkable and unchecked state exists', () => {
+test('bulk action enables refresh when any filtered rows are checkable', () => {
   const state = deriveVideoLibraryBulkActionState({
     filteredRows: [
       makeRow({
@@ -125,10 +123,8 @@ test('bulk actions only enable when rows are checkable and unchecked state exist
     isCheckingLinks: false,
   });
 
-  assert.equal(state.canCheckFiltered, true);
-  assert.equal(state.canCheckUnchecked, true);
-  assert.equal(state.checkFilteredLabel, 'Check filtered');
-  assert.equal(state.checkUncheckedLabel, 'Check unchecked');
+  assert.equal(state.canRefreshLinkHealth, true);
+  assert.equal(state.refreshLinkHealthLabel, 'Refresh link health');
 });
 
 test('advanced filter empty state points users to Advanced filters reset action', () => {
