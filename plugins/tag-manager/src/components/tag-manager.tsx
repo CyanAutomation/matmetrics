@@ -461,7 +461,6 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           refreshTags();
         }}
         emptyIcon={<Search className="h-4 w-4" />}
-        contentClassName="p-6"
       >
         <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
           <div className="relative lg:col-span-2">

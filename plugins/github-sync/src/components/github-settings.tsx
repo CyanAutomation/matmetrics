@@ -473,8 +473,6 @@ export function GitHubSettings() {
       <PluginFormSection
         title="Repository setup"
         description="Connect this account to a GitHub repository target."
-        className="shadow-sm"
-        contentClassName="space-y-6 p-6 pt-8"
         footerActions={
           <PluginActionRow>
             <PluginActionSecondary>
@@ -684,8 +682,6 @@ export function GitHubSettings() {
         <PluginFormSection
           title="Initial Sync"
           description="Push all existing sessions to your GitHub repository."
-          className="shadow-sm"
-          contentClassName="p-6 pt-8"
         >
           <p
             className={`mb-4 text-sm ${getPluginUiTokenClassNames('text.subtle')}`}

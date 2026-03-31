@@ -397,8 +397,6 @@ export function PromptSettings() {
       <PluginFormSection
         title="Prompt profile"
         description="Define system instructions used by the AI transform action."
-        className="shadow-sm"
-        contentClassName="p-6 pt-8"
         footerClassName="p-6"
         footerActions={
           <PluginActionRow>
