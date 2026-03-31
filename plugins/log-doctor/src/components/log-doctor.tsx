@@ -741,7 +741,7 @@ export const LogDoctor = (): React.ReactElement => {
     if (auditNeedsAttentionCount > 0) {
       if (auditStep === 'resolve-findings' && firstSessionNeedingAttention) {
         return {
-          label: 'Mark resolved/dismissed',
+          label: 'Mark fixed',
           onClick: () =>
             handleReviewSession(firstSessionNeedingAttention.sessionId),
           disabled: false,
@@ -1076,7 +1076,7 @@ export const LogDoctor = (): React.ReactElement => {
                 <p className="text-xs text-muted-foreground">
                   {!auditRanAt
                     ? 'Run an audit check to detect quality issues.'
-                    : 'Follow the next action to move through the audit flow.'}
+                    : 'Primary path: Run check → Review findings → Mark fixed.'}
                 </p>
               </div>
               <Button
@@ -1110,7 +1110,7 @@ export const LogDoctor = (): React.ReactElement => {
               onClick={() => setAuditStep('resolve-findings')}
               disabled={!auditRanAt || auditResults.length === 0}
             >
-              3. Mark resolved/dismissed
+              3. Mark fixed
             </Button>
           </div>
 
@@ -1125,8 +1125,13 @@ export const LogDoctor = (): React.ReactElement => {
                   ? 'Running audit…'
                   : auditFeedbackState === 'success'
                     ? 'Audit complete ✓'
-                    : 'Run audit'}
+                    : 'Run check'}
               </Button>
+            ) : null}
+            {auditStep === 'run-check' ? (
+              <span className="text-xs text-muted-foreground">
+                Recommended and safe: run with default settings first.
+              </span>
             ) : null}
             {auditRanAt ? (
               <span className="text-xs text-muted-foreground">
@@ -1134,7 +1139,7 @@ export const LogDoctor = (): React.ReactElement => {
               </span>
             ) : (
               <span className="text-xs text-muted-foreground">
-                Click &quot;Run audit&quot; to check your sessions for data
+                Click &quot;Run check&quot; to check your sessions for data
                 quality issues.
               </span>
             )}
@@ -1178,7 +1183,7 @@ export const LogDoctor = (): React.ReactElement => {
               <PluginStatusPanel
                 variant="warning"
                 title="Haven't run an audit yet"
-                description='Click "Run audit" above to get started.'
+                description='Click "Run check" above to get started.'
                 className={`border-dashed ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['surface.logDoctor'].join(' ')}`}
               />
             )
