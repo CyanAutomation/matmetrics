@@ -311,6 +311,34 @@ test('POST returns 409 for duplicate session ID conflicts with different content
   });
 });
 
+test('POST returns 400 when request JSON is not an object', async (t) => {
+  const invalidBodies = [
+    { name: 'null', body: null },
+    { name: 'string', body: 'not-an-object' },
+    { name: 'number', body: 42 },
+  ] as const;
+
+  for (const testCase of invalidBodies) {
+    await t.test(testCase.name, async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(testCase.body),
+        })
+      );
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        error: 'Invalid request body',
+      });
+    });
+  }
+});
+
 test('POST returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
