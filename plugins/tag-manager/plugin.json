@@ -32,10 +32,18 @@
         "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": ["plugins/tag-manager/src/components/tag-manager.ux.test.tsx"],
-        "destructiveActionSafety": ["plugins/tag-manager/src/components/tag-manager.ux.test.tsx"],
-        "errorStateWithRecovery": ["plugins/tag-manager/src/components/tag-manager.ux.test.tsx"],
-        "emptyStateWithCta": ["plugins/tag-manager/src/components/tag-manager.ux.test.tsx"]
+        "loadingStatePresent": [
+          "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"
+        ],
+        "destructiveActionSafety": [
+          "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"
+        ],
+        "errorStateWithRecovery": [
+          "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"
+        ]
       }
     }
   },

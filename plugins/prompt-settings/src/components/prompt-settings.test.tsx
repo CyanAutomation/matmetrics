@@ -324,7 +324,10 @@ test('empty/default state semantics expose default profile and CTA action metada
   });
 
   assert.equal(state.isUsingDefaultProfile, true);
-  assert.equal(state.emptyStateCtaAction, PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION);
+  assert.equal(
+    state.emptyStateCtaAction,
+    PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION
+  );
   assert.equal(state.isEmptyStateCtaAvailable, true);
 });
 

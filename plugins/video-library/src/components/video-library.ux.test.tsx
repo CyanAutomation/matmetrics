@@ -202,7 +202,10 @@ test('lounge-first browse behavior still supports both mode labels and table fal
   assert.equal(loungeBrowse.hasRows, true);
   assert.equal(tableWithSourceRows.hasRows, true);
   assert.equal(loungeEmptyWithSourceRows.hasRows, false);
-  assert.equal(loungeEmptyWithSourceRows.title, VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE);
+  assert.equal(
+    loungeEmptyWithSourceRows.title,
+    VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE
+  );
   assert.equal(
     loungeEmptyWithSourceRows.ctaLabel,
     VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL

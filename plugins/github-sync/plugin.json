@@ -29,11 +29,15 @@
         "plugins/github-sync/src/components/github-settings.destructive.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": ["plugins/github-sync/src/components/github-settings.ux.test.tsx"],
+        "loadingStatePresent": [
+          "plugins/github-sync/src/components/github-settings.ux.test.tsx"
+        ],
         "errorStateWithRecovery": [
           "plugins/github-sync/src/components/github-settings.ux.test.tsx"
         ],
-        "emptyStateWithCta": ["plugins/github-sync/src/components/github-settings.ux.test.tsx"],
+        "emptyStateWithCta": [
+          "plugins/github-sync/src/components/github-settings.ux.test.tsx"
+        ],
         "destructiveActionSafety": [
           "plugins/github-sync/src/components/github-settings.destructive.test.tsx"
         ]

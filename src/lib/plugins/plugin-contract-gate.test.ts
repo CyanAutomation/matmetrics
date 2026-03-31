@@ -223,7 +223,6 @@ test('runPluginContractGate accepts README heading contracts for plugin operatio
   }
 });
 
-
 test('runPluginContractGate fails when entrypoint imports plugin UI from shared src/components', async () => {
   await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
     const pluginRoot = path.join(pluginsRoot, directoryName);
