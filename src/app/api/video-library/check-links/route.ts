@@ -138,11 +138,14 @@ async function mapWithConcurrencyLimit<TInput, TOutput>(
   let nextIndex = 0;
 
   async function worker() {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
+    while (true) {
+      const currentIndex = nextIndex++;
+      if (currentIndex >= items.length) {
+        break;
+      }
       results[currentIndex] = await mapper(items[currentIndex], currentIndex);
     }
+  }
   }
 
   await Promise.all(Array.from({ length: safeConcurrency }, () => worker()));
