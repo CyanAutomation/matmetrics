@@ -16,6 +16,8 @@ import {
 const REQUEST_TIMEOUT_MS = 5000;
 const HEAD_FALLBACK_STATUSES = new Set([403, 405, 501]);
 const MAX_SESSION_IDS_TO_CHECK = 50;
+const MAX_SESSIONS_TO_PROCESS = 100;
+const LINK_CHECK_CONCURRENCY = 6;
 const MAX_REDIRECT_HOPS = 5;
 
 async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
@@ -77,7 +79,11 @@ function validateRedirectHostname(
 async function fetchWithRedirectTraversal(
   initialUrl: string,
   customAllowedDomains: string[]
-): Promise<{ response: Response; resolvedUrl: string; resolvedHostname: string }> {
+): Promise<{
+  response: Response;
+  resolvedUrl: string;
+  resolvedHostname: string;
+}> {
   let currentUrl = new URL(initialUrl);
 
   for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop += 1) {
@@ -111,13 +117,39 @@ async function fetchWithRedirectTraversal(
 
     const location = response.headers.get('location');
     if (!location) {
-      throw new Error(`Redirect response missing Location header: ${response.status}`);
+      throw new Error(
+        `Redirect response missing Location header: ${response.status}`
+      );
     }
 
     currentUrl = new URL(location, currentUrl);
   }
 
   throw new Error('Unexpected redirect traversal state');
+}
+
+async function mapWithConcurrencyLimit<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  mapper: (item: TInput, index: number) => Promise<TOutput>
+): Promise<TOutput[]> {
+  const safeConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (true) {
+      const currentIndex = nextIndex++;
+      if (currentIndex >= items.length) {
+        break;
+      }
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+  }
+
+  await Promise.all(Array.from({ length: safeConcurrency }, () => worker()));
+  return results;
 }
 
 async function checkVideoLink(
@@ -160,8 +192,13 @@ async function checkVideoLink(
       httpStatus: response.status,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown fetch failure';
-    if (/Disallowed hostname encountered during redirect|Blocked network hostname encountered during redirect/.test(message)) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown fetch failure';
+    if (
+      /Disallowed hostname encountered during redirect|Blocked network hostname encountered during redirect/.test(
+        message
+      )
+    ) {
       return {
         sessionId,
         url,
@@ -221,7 +258,7 @@ export async function POST(request: NextRequest) {
     );
     const customAllowedDomains = await getAllowedDomainsForUser(user.uid);
 
-    const candidateSessions = sessions.filter((session) => {
+    const matchingSessions = sessions.filter((session) => {
       if (!session.videoUrl) {
         return false;
       }
@@ -231,8 +268,16 @@ export async function POST(request: NextRequest) {
       return requestedSessionIds.includes(session.id);
     });
 
-    const results = await Promise.all(
-      candidateSessions.map(async (session) => {
+    const truncated = matchingSessions.length > MAX_SESSIONS_TO_PROCESS;
+    const candidateSessions = matchingSessions.slice(
+      0,
+      MAX_SESSIONS_TO_PROCESS
+    );
+
+    const results = await mapWithConcurrencyLimit(
+      candidateSessions,
+      LINK_CHECK_CONCURRENCY,
+      async (session) => {
         let parsedUrl: URL;
         try {
           parsedUrl = new URL(session.videoUrl as string);
@@ -254,10 +299,17 @@ export async function POST(request: NextRequest) {
           hostname,
           customAllowedDomains
         );
-      })
+      }
     );
 
-    return NextResponse.json({ results }, { status: 200 });
+    return NextResponse.json(
+      {
+        results,
+        processedCount: candidateSessions.length,
+        truncated,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('Error checking video links', error);
     return NextResponse.json(

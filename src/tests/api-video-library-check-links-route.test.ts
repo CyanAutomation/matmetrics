@@ -178,7 +178,8 @@ test('POST blocks redirect from allowed domain to private network host', async (
       );
 
       const originalFetch = global.fetch;
-      const calls: Array<{ url: string; method: string; redirect?: string }> = [];
+      const calls: Array<{ url: string; method: string; redirect?: string }> =
+        [];
       global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const requestUrl = String(input);
         const method = init?.method || 'GET';
@@ -294,6 +295,95 @@ test('POST returns row-friendly per-session payloads for mixed result sets', asy
               hasCheckedAt: true,
             },
           ]
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+});
+
+test('POST limits processed sessions and includes truncation metadata when sessionIds are omitted', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionCount = 120;
+      for (let index = 0; index < sessionCount; index += 1) {
+        await createLocalSession(
+          makeSession(
+            `session-${index}`,
+            `https://youtube.com/watch?v=${index}`
+          )
+        );
+      }
+
+      const originalFetch = global.fetch;
+      let fetchCalls = 0;
+      global.fetch = (async () => {
+        fetchCalls += 1;
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+
+      try {
+        const response = await POST(
+          new NextRequest('http://localhost/api/video-library/check-links', {
+            method: 'POST',
+            headers: { authorization: 'Bearer test-token' },
+            body: JSON.stringify({}),
+          })
+        );
+
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(payload.truncated, true);
+        assert.equal(payload.processedCount, 100);
+        assert.equal(payload.results.length, 100);
+        assert.equal(fetchCalls, 100);
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+});
+
+test('POST checks links with bounded concurrency', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionCount = 40;
+      for (let index = 0; index < sessionCount; index += 1) {
+        await createLocalSession(
+          makeSession(
+            `session-${index}`,
+            `https://youtube.com/watch?v=${index}`
+          )
+        );
+      }
+
+      const originalFetch = global.fetch;
+      let inFlight = 0;
+      let maxInFlight = 0;
+      global.fetch = (async () => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        inFlight -= 1;
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+
+      try {
+        const response = await POST(
+          new NextRequest('http://localhost/api/video-library/check-links', {
+            method: 'POST',
+            headers: { authorization: 'Bearer test-token' },
+            body: JSON.stringify({}),
+          })
+        );
+
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(payload.results.length, sessionCount);
+        assert.ok(
+          maxInFlight <= 6,
+          `expected max concurrency <= 6, got ${maxInFlight}`
         );
       } finally {
         global.fetch = originalFetch;
