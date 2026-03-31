@@ -96,3 +96,23 @@ When approving Gold promotion, the reviewer must update plugin manifest maturity
 ## UX governance for audit settings changes
 
 For any PR touching `plugins/log-doctor/src/components/log-doctor-audit-settings.tsx`, complete the acceptance checklist in [docs/log-doctor-ux-principles.md](../../docs/log-doctor-ux-principles.md) before merge.
+
+## Copy review pass (support consistency)
+
+When updating user-facing text in Log Doctor, run a copy review pass to keep wording consistent across product and support responses.
+
+### Approved terms and intended meaning
+
+- **How sensitive should checks be?**: The top-level control that decides how easily sessions are flagged.
+- **What to fix now**: The section containing actions the user should take immediately to resolve a flagged session.
+- **Missing techniques in hard sessions**: A high-effort session needs at least one technique name to describe what was practiced.
+- **Missing session summary**: The session needs a short description of what was worked on.
+- **Missing follow-up notes**: The session needs notes about what went well and what to improve next.
+- **Session time looks off**: The recorded duration looks unusual and should be confirmed or corrected.
+
+### Review checklist
+
+1. Replace technical or statistical jargon with plain language.
+2. Prefer action-oriented helper text that tells the user what to do next.
+3. Reuse the approved terms above in UI copy, documentation, and support macros.
+4. If a term changes, update this glossary in the same PR.
