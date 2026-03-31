@@ -328,7 +328,7 @@ test('empty/default state semantics expose default profile and CTA action metada
   assert.equal(state.isEmptyStateCtaAvailable, true);
 });
 
-test('prompt settings copy constants snapshot', () => {
+test('copy-contract: prompt settings exported copy constants', () => {
   assert.deepEqual(
     {
       loadingText: PROMPT_SETTINGS_LOADING_TEXT,
@@ -433,7 +433,7 @@ test('end-to-end style save retry flow fails once then succeeds', async () => {
   assert.equal(toasts[1]?.title, 'Prompt updated');
 });
 
-test('destructive criterion anchor: destructive confirm resets prompt and destructive cancel preserves prompt text', () => {
+test('destructive criterion anchor: resolve action keeps prompt on cancel and restores default on confirm', () => {
   const originalPrompt = 'Use very specific judo terminology.';
   const cancelledPrompt = resolvePromptAfterDestructiveResetAction({
     action: 'cancel',
@@ -444,17 +444,6 @@ test('destructive criterion anchor: destructive confirm resets prompt and destru
     currentPrompt: originalPrompt,
   });
 
-  assert.equal('destructive confirm reset'.includes('destructive'), true);
-  assert.equal('confirm reset prompt'.includes('confirm'), true);
-  assert.equal('cancel reset prompt'.includes('cancel'), true);
-  assert.equal(
-    PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL.toLowerCase().includes('cancel'),
-    true
-  );
-  assert.equal(
-    PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL.toLowerCase().includes('reset'),
-    true
-  );
   assert.equal(cancelledPrompt, originalPrompt);
   assert.equal(confirmedPrompt, DEFAULT_TRANSFORMER_PROMPT);
 });
