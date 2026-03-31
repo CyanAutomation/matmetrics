@@ -223,7 +223,19 @@ export async function POST(request: NextRequest) {
       return user;
     }
 
-    const body = await request.json();
+    const payload = await request.json();
+    if (
+      payload === null ||
+      typeof payload !== 'object' ||
+      Array.isArray(payload)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    const body = payload;
 
     const idValidation = validateSessionId(body.id);
     if (!idValidation.valid) {
