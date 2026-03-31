@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   derivePromptSettingsViewState,
   derivePromptSettingsUiState,
+  PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION,
   PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
   PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
   PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
@@ -311,7 +312,7 @@ test('error criterion anchor: error recovery handles retry failure without throw
   assert.equal(didRecover, false);
 });
 
-test('empty criterion anchor: empty/default state includes explicit cta action wording add create configure', () => {
+test('empty/default state semantics expose default profile and CTA action metadata', () => {
   const state = derivePromptSettingsViewState({
     canSavePreferences: true,
     preferencesReady: true,
@@ -321,13 +322,30 @@ test('empty criterion anchor: empty/default state includes explicit cta action w
     isResetting: false,
     saveStatus: 'idle',
   });
-  const ctaLower = PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT.toLowerCase();
 
   assert.equal(state.isUsingDefaultProfile, true);
-  assert.equal('empty state configure action'.includes('empty'), true);
-  assert.equal(ctaLower.includes('add'), true);
-  assert.equal(ctaLower.includes('create'), true);
-  assert.equal(ctaLower.includes('prompt profile'), true);
+  assert.equal(state.emptyStateCtaAction, PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION);
+  assert.equal(state.isEmptyStateCtaAvailable, true);
+});
+
+test('prompt settings copy constants snapshot', () => {
+  assert.deepEqual(
+    {
+      loadingText: PROMPT_SETTINGS_LOADING_TEXT,
+      errorRetryLabel: PROMPT_SETTINGS_ERROR_RETRY_LABEL,
+      emptyStateCtaText: PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
+      destructiveConfirmLabel: PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
+      destructiveCancelLabel: PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
+    },
+    {
+      loadingText: 'Loading saved prompt settings...',
+      errorRetryLabel: 'Retry',
+      emptyStateCtaText:
+        'Add instructions or import a profile snippet, then save to create your first custom prompt profile.',
+      destructiveConfirmLabel: 'Yes, reset prompt',
+      destructiveCancelLabel: 'Cancel',
+    }
+  );
 });
 
 test('view state captures save status transitions', () => {
