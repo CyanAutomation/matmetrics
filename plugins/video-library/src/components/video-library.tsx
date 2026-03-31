@@ -26,6 +26,9 @@ import {
 } from '@/components/plugins/plugin-data-surface';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
+import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   PluginStatCard,
   PluginStatsGrid,
@@ -35,7 +38,6 @@ import {
   PluginActionPrimary,
   PluginActionRow,
 } from '@/components/plugins/plugin-action-row';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -996,11 +998,13 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           </div>
         </div>
 
-        <PluginDataSurfaceFilterRow>
+        <PluginFilterBar>
           <div className="lg:col-span-3 space-y-2">
             <Label htmlFor="video-library-search">Search</Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
+              />
               <Input
                 id="video-library-search"
                 value={filters.search}
@@ -1035,7 +1039,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </SelectContent>
             </Select>
           </div>
-        </PluginDataSurfaceFilterRow>
+        </PluginFilterBar>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
@@ -1057,9 +1061,11 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
             id="video-library-advanced-filters"
             className="space-y-3 rounded-md border p-3"
           >
-            <p className="text-xs text-muted-foreground">
-              Power-user glossary: <strong>Verification</strong> means whether
-              a link has been checked. <strong>Provider not yet trusted</strong>{' '}
+            <p
+              className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+            >
+              Power-user glossary: <strong>Verification</strong> means whether a
+              link has been checked. <strong>Provider not yet trusted</strong>{' '}
               means the video host is outside your trusted domain list.
             </p>
             <PluginDataSurfaceFilterRow>
@@ -1296,13 +1302,14 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       />
 
       {summaryCounts.review > 0 ? (
-        <Alert variant="destructive">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>Video link attention items</AlertTitle>
-          <AlertDescription>
-            {getVideoLibraryReviewAlertDescription(summaryCounts.review)}
-          </AlertDescription>
-        </Alert>
+        <PluginInlineMessage
+          tone="error"
+          icon={<ShieldAlert className="h-4 w-4" />}
+          title="Video link attention items"
+          description={getVideoLibraryReviewAlertDescription(
+            summaryCounts.review
+          )}
+        />
       ) : null}
 
       <PluginTableSection
@@ -1331,7 +1338,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 <TableRow key={row.session.id}>
                   <TableCell className="font-medium">
                     <div>{row.session.date}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div
+                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
                       {row.session.category}
                     </div>
                   </TableCell>
@@ -1345,11 +1354,15 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   </TableCell>
                   <TableCell>
                     {row.latestCheck ? (
-                      <span className="text-sm text-muted-foreground">
+                      <span
+                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                      >
                         {new Date(row.latestCheck.checkedAt).toLocaleString()}
                       </span>
                     ) : (
-                      <span className="text-sm text-muted-foreground">
+                      <span
+                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                      >
                         Not checked
                       </span>
                     )}
@@ -1425,7 +1438,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="font-semibold">{row.session.date}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p
+                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                      >
                         {row.session.category}
                       </p>
                     </div>
@@ -1433,7 +1448,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                       {getEntryStatusLabel(row.displayStatus)}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                  >
                     {row.session.techniques.join(', ') ||
                       'No techniques listed'}
                   </p>
@@ -1481,10 +1498,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         )}
       </PluginTableSection>
 
-      <Dialog
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-      >
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Library settings</DialogTitle>
@@ -1498,7 +1512,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               description="Videos are optional. Choose which categories should appear in the No video tab."
               contentClassName="space-y-3"
             >
-              <p className="text-sm text-muted-foreground">
+              <p
+                className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 Turn categories on when you expect videos there. Turn them off
                 to keep missing-video counts focused on your priorities.
               </p>
@@ -1523,7 +1539,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 ))}
               </div>
               {!canSavePreferences ? (
-                <p className="text-sm text-muted-foreground">
+                <p
+                  className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                >
                   Sign in to save category expectations.
                 </p>
               ) : null}
@@ -1571,13 +1589,17 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 </div>
               </div>
               {!canSavePreferences ? (
-                <p className="text-sm text-muted-foreground">
+                <p
+                  className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                >
                   Sign in to save custom video domains.
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
                 {customAllowedDomains.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                  >
                     No custom domains saved yet.
                   </p>
                 ) : (
@@ -1586,7 +1608,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                       {domain}
                       <button
                         type="button"
-                        className="text-muted-foreground hover:text-foreground"
+                        className={getPluginUiTokenClassNames('action.subtle')}
                         onClick={() => handlePromptRemoveDomain(domain)}
                         disabled={isSavingDomains || isRemovingDomain}
                         aria-label={`Remove ${domain}`}
