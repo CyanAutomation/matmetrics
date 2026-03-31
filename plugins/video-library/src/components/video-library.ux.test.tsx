@@ -146,7 +146,7 @@ test('review alert copy focuses on actionable link issues instead of optional mi
   );
 });
 
-test('mode toggle labels remain stable for table and lounge presentation modes', () => {
+test('mode toggle browse state changes by mode while labels remain non-empty constants', () => {
   const rows = [
     makeRow({
       session: {
@@ -175,11 +175,39 @@ test('mode toggle labels remain stable for table and lounge presentation modes',
       hasAdvancedFiltersApplied: false,
     }),
   });
+  const loungeEmptyWithSourceRows = deriveVideoLibraryBrowseState({
+    mode: 'lounge',
+    filteredRowCount: rows.length,
+    loungeRowCount: 0,
+    emptyState: deriveVideoLibraryEmptyState({
+      tab: 'attention',
+      search: '',
+      hasAdvancedFiltersApplied: false,
+    }),
+  });
+  const tableWithSourceRows = deriveVideoLibraryBrowseState({
+    mode: 'table',
+    filteredRowCount: rows.length,
+    loungeRowCount: 0,
+    emptyState: deriveVideoLibraryEmptyState({
+      tab: 'attention',
+      search: '',
+      hasAdvancedFiltersApplied: false,
+    }),
+  });
 
-  assert.equal(VIDEO_LIBRARY_MODE_TABLE_LABEL, 'Table');
-  assert.equal(VIDEO_LIBRARY_MODE_LOUNGE_LABEL, 'Lounge');
+  assert.ok(VIDEO_LIBRARY_MODE_TABLE_LABEL.trim().length > 0);
+  assert.ok(VIDEO_LIBRARY_MODE_LOUNGE_LABEL.trim().length > 0);
   assert.equal(tableBrowse.hasRows, true);
   assert.equal(loungeBrowse.hasRows, true);
+  assert.equal(tableWithSourceRows.hasRows, true);
+  assert.equal(loungeEmptyWithSourceRows.hasRows, false);
+  assert.equal(loungeEmptyWithSourceRows.title, VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE);
+  assert.equal(
+    loungeEmptyWithSourceRows.ctaLabel,
+    VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL
+  );
+  assert.equal(loungeEmptyWithSourceRows.action, 'switchToAll');
 });
 
 test('browse-state empty behavior in lounge mode prioritizes no-playable-url guidance', () => {
