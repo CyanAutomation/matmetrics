@@ -28,6 +28,7 @@ process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 test.afterEach(() => {
   resetPluginEnabledOverridesForTests();
   delete process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE;
+  delete process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
 });
 
 const routeAuthHeaders = {
@@ -423,6 +424,179 @@ test('POST /api/plugins/validate returns contract gate violations', async () => 
     assert.equal(
       payload.validationTable.rows.some(
         (issue: { path: string }) => issue.path === 'contractGate.readme'
+      ),
+      true
+    );
+  });
+});
+
+test('GET /api/plugins/list continues when one plugin contract gate throws', async () => {
+  await withTempRepo(async () => {
+    const healthyManifest = {
+      ...baseManifest,
+      id: 'healthy-plugin',
+      name: 'Healthy Plugin',
+    };
+    await mkdir(path.join(process.cwd(), 'plugins', 'healthy'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'plugin.json'),
+      `${JSON.stringify(healthyManifest, null, 2)}\n`,
+      'utf8'
+    );
+    await mkdir(path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'index.ts'),
+      `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('tag_manager', () => null);
+};
+`,
+      'utf8'
+    );
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components', 'tag-manager.tsx'),
+      'export default function HealthyTagManager() { return null; }\\n',
+      'utf8'
+    );
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'README.md'),
+      '# Healthy\\n\\n## UI Ownership\\n\\nOwned.\\n\\n## Usage\\n\\nUse.\\n\\n## Verification\\n\\nVerify.\\n',
+      'utf8'
+    );
+
+    process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR = 'tags';
+
+    const response = await LIST(
+      new NextRequest('http://localhost/api/plugins/list', {
+        headers: routeAuthHeaders,
+      })
+    );
+
+    assert.equal(response.status, 206);
+    const payload = await response.json();
+    assert.equal(payload.plugins.length, 2);
+    const rowsById = new Map(
+      payload.plugins.map(
+        (row: { manifest: { id: string }; validation: { isValid: boolean; rows: Array<{ path: string; message: string }> } }) => [row.manifest.id, row]
+      )
+    );
+    assert.equal(rowsById.has('healthy-plugin'), true);
+    assert.equal(rowsById.get('tags-plugin')?.validation.isValid, false);
+    assert.equal(
+      rowsById
+        .get('healthy-plugin')
+        ?.validation.rows.some(
+          (issue: { path: string }) => issue.path === 'processing.internal'
+        ),
+      false
+    );
+    assert.equal(
+      rowsById
+        .get('tags-plugin')
+        ?.validation.rows.some(
+          (issue: { path: string; message: string }) =>
+            issue.path === 'processing.internal' &&
+            /Simulated plugin contract gate failure/.test(issue.message)
+        ),
+      true
+    );
+    assert.equal(
+      payload.unresolvedInputs.some((entry: string) =>
+        /Failed to process plugin "tags": Simulated plugin contract gate failure/.test(
+          entry
+        )
+      ),
+      true
+    );
+  });
+});
+
+test('POST /api/plugins/validate continues when one plugin contract gate throws', async () => {
+  await withTempRepo(async () => {
+    const healthyManifest = {
+      ...baseManifest,
+      id: 'healthy-plugin',
+      name: 'Healthy Plugin',
+    };
+    await mkdir(path.join(process.cwd(), 'plugins', 'healthy'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'plugin.json'),
+      `${JSON.stringify(healthyManifest, null, 2)}\n`,
+      'utf8'
+    );
+    await mkdir(path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'index.ts'),
+      `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
+  context.registerPluginComponent?.('tag_manager', () => null);
+};
+`,
+      'utf8'
+    );
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components', 'tag-manager.tsx'),
+      'export default function HealthyTagManager() { return null; }\\n',
+      'utf8'
+    );
+    await writeFile(
+      path.join(process.cwd(), 'plugins', 'healthy', 'README.md'),
+      '# Healthy\\n\\n## UI Ownership\\n\\nOwned.\\n\\n## Usage\\n\\nUse.\\n\\n## Verification\\n\\nVerify.\\n',
+      'utf8'
+    );
+
+    process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR = 'tags';
+
+    const response = await VALIDATE(
+      new NextRequest('http://localhost/api/plugins/validate', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+    );
+
+    assert.equal(response.status, 206);
+    const payload = await response.json();
+    assert.equal(payload.plugins.length, 2);
+    const rowsByDirectory = new Map(
+      payload.plugins.map(
+        (row: { directoryName: string; validation: { isValid: boolean; rows: Array<{ path: string; message: string }> } }) => [row.directoryName, row]
+      )
+    );
+    assert.equal(rowsByDirectory.has('healthy'), true);
+    assert.equal(rowsByDirectory.get('tags')?.validation.isValid, false);
+    assert.equal(
+      rowsByDirectory
+        .get('healthy')
+        ?.validation.rows.some(
+          (issue: { path: string }) => issue.path === 'processing.internal'
+        ),
+      false
+    );
+    assert.equal(
+      rowsByDirectory
+        .get('tags')
+        ?.validation.rows.some(
+          (issue: { path: string; message: string }) =>
+            issue.path === 'processing.internal' &&
+            /Simulated plugin contract gate failure/.test(issue.message)
+        ),
+      true
+    );
+    assert.equal(
+      payload.unresolvedInputs.some((entry: string) =>
+        /Failed to process plugin "tags": Simulated plugin contract gate failure/.test(
+          entry
+        )
       ),
       true
     );

@@ -6,9 +6,16 @@ import {
   listStoredPluginManifests,
   toValidationTable,
 } from '@/lib/plugins/api-contract';
-import { runPluginContractGate } from '@/lib/plugins/plugin-contract-gate';
+import * as pluginContractGate from '@/lib/plugins/plugin-contract-gate';
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+const INTERNAL_PROCESSING_FAILURE_PATH = 'processing.internal';
+const throwForConfiguredPlugin = (directoryName: string): void => {
+  const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
+  if (configuredDirectory && configuredDirectory === directoryName) {
+    throw new Error('Simulated plugin contract gate failure');
+  }
+};
 
 const asGateManifest = (
   value: unknown
@@ -34,27 +41,55 @@ export async function POST(request: NextRequest) {
 
     const manifests = await listStoredPluginManifests();
     const pluginsRoot = getPluginsRoot();
+    const pluginProcessingErrors: string[] = [];
 
     const pluginRows = await Promise.all(
       manifests.map(async (entry) => {
-        const validation = toValidationTable(entry.manifest, {
-          validateDeclaredComponentsAtRuntime: false,
-        });
-        const gateResult = await runPluginContractGate({
-          pluginsRoot,
-          directoryName: entry.directoryName,
-          manifest: asGateManifest(entry.manifest),
-        });
+        try {
+          const validation = toValidationTable(entry.manifest, {
+            validateDeclaredComponentsAtRuntime: false,
+          });
+          throwForConfiguredPlugin(entry.directoryName);
+          const gateResult = await pluginContractGate.runPluginContractGate({
+            pluginsRoot,
+            directoryName: entry.directoryName,
+            manifest: asGateManifest(entry.manifest),
+          });
 
-        validation.rows.push(...gateResult.issues);
-        validation.isValid = validation.isValid && gateResult.isValid;
+          validation.rows.push(...gateResult.issues);
+          validation.isValid = validation.isValid && gateResult.isValid;
 
-        return {
-          pluginId:
-            typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
-          directoryName: entry.directoryName,
-          validation,
-        };
+          return {
+            pluginId:
+              typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
+            directoryName: entry.directoryName,
+            validation,
+          };
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          console.error(
+            `Error processing plugin "${entry.directoryName}" in /api/plugins/validate:`,
+            errMsg
+          );
+          pluginProcessingErrors.push(
+            `Failed to process plugin "${entry.directoryName}": ${errMsg}`
+          );
+          return {
+            pluginId:
+              typeof entry.manifest.id === 'string' ? entry.manifest.id : null,
+            directoryName: entry.directoryName,
+            validation: {
+              isValid: false,
+              rows: [
+                {
+                  severity: 'error' as const,
+                  path: INTERNAL_PROCESSING_FAILURE_PATH,
+                  message: `Internal processing failure for plugin "${entry.directoryName}": ${errMsg}`,
+                },
+              ],
+            },
+          };
+        }
       })
     );
 
@@ -77,8 +112,9 @@ export async function POST(request: NextRequest) {
         assumptions: [
           'Validation includes manifest schema checks and plugin contract gate checks.',
         ],
+        unresolvedInputs: pluginProcessingErrors,
       }),
-    });
+    }, { status: pluginProcessingErrors.length > 0 ? 206 : 200 });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Error validating plugins:', errMsg);
