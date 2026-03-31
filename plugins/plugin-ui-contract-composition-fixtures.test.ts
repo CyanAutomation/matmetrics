@@ -51,3 +51,27 @@ test('composition conformance fails when layout is not shell-rooted, not section
     hasDestructiveFlowComposition: false,
   });
 });
+
+test('composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported', () => {
+  const source = `
+    import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+    import { PluginFormSection } from '@/components/plugins/plugin-kit';
+    import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
+
+    export function FailingFixtureWithDetachedBlocks() {
+      return (
+        <>
+          <PluginPageShell title="Detached">Body</PluginPageShell>
+          <PluginFormSection title="Outside shell">Not grouped in shell</PluginFormSection>
+          <PluginConfirmationDialog open={false} onOpenChange={() => {}} title="Confirm" description="Danger" confirmLabel="Confirm" />
+        </>
+      );
+    }
+  `;
+
+  assert.deepEqual(evaluatePluginComponentCompositionFromSource(source), {
+    hasSingleTopLevelPageShell: false,
+    hasPrimaryContentSections: false,
+    hasDestructiveFlowComposition: false,
+  });
+});
