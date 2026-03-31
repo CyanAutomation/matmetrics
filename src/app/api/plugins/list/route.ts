@@ -9,7 +9,7 @@ import {
   type StoredPluginManifest,
 } from '@/lib/plugins/api-contract';
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
-import { runPluginContractGate } from '@/lib/plugins/plugin-contract-gate';
+import * as pluginContractGate from '@/lib/plugins/plugin-contract-gate';
 import {
   applyPluginEnabledOverrides,
   loadPluginEnabledOverrides,
@@ -19,6 +19,7 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+const INTERNAL_PROCESSING_FAILURE_PATH = 'processing.internal';
 
 const asGateManifest = (
   value: unknown
@@ -48,6 +49,18 @@ const jsonNoStore = (body: unknown, init?: ResponseInit) =>
       ...(init?.headers ?? {}),
     },
   });
+
+const asErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const throwForConfiguredPlugin = (directoryName: string): void => {
+  if (process.env.NODE_ENV !== 'production') {
+    const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
+    if (configuredDirectory && configuredDirectory === directoryName) {
+      throw new Error('Simulated plugin contract gate failure');
+    }
+  }
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -82,53 +95,81 @@ export async function GET(request: NextRequest) {
 
     const pluginsRoot = getPluginsRoot();
 
+    const pluginProcessingErrors: string[] = [];
     const pluginRows = await Promise.all(
       manifests.map(async (entry) => {
-        const effectiveManifest = applyPluginEnabledOverrides(
-          entry.manifest,
-          enabledOverrides
-        );
-        const { manifest: processedManifest, autoDisabledWithWarnings } =
-          autoDisablePluginIfNeeded(effectiveManifest);
-        const validation = toValidationTable(processedManifest, {
-          validateDeclaredComponentsAtRuntime: false,
-        });
-
-        const gateResult = await runPluginContractGate({
-          pluginsRoot,
-          directoryName: entry.directoryName,
-          manifest: asGateManifest(processedManifest),
-        });
-
-        validation.rows.push(...gateResult.issues);
-        validation.isValid = validation.isValid && gateResult.isValid;
-
-        // Add auto-disable warnings to validation issues
-        if (autoDisabledWithWarnings) {
-          validation.rows.push(
-            ...autoDisabledWithWarnings.map((msg) => ({
-              severity: 'warning' as const,
-              path: 'enabled',
-              message: `Auto-disabled: ${msg}`,
-            }))
+        try {
+          const effectiveManifest = applyPluginEnabledOverrides(
+            entry.manifest,
+            enabledOverrides
           );
+          const { manifest: processedManifest, autoDisabledWithWarnings } =
+            autoDisablePluginIfNeeded(effectiveManifest);
+          const validation = toValidationTable(processedManifest, {
+            validateDeclaredComponentsAtRuntime: false,
+          });
+
+          throwForConfiguredPlugin(entry.directoryName);
+          const gateResult = await pluginContractGate.runPluginContractGate({
+            pluginsRoot,
+            directoryName: entry.directoryName,
+            manifest: asGateManifest(processedManifest),
+          });
+
+          validation.rows.push(...gateResult.issues);
+          validation.isValid = validation.isValid && gateResult.isValid;
+
+          // Add auto-disable warnings to validation issues
+          if (autoDisabledWithWarnings) {
+            validation.rows.push(
+              ...autoDisabledWithWarnings.map((msg) => ({
+                severity: 'warning' as const,
+                path: 'enabled',
+                message: `Auto-disabled: ${msg}`,
+              }))
+            );
+          }
+
+          const maturity = hasScorableManifestShape(processedManifest)
+            ? await scorePluginMaturity({
+                manifest: processedManifest as PluginManifest,
+                validationIssues: validation.rows,
+                pluginDirectoryName: entry.directoryName,
+                autoDisabledWithWarnings,
+              })
+            : undefined;
+
+          return {
+            manifest: processedManifest,
+            validation,
+            autoDisabledWithWarnings,
+            maturity,
+          };
+        } catch (error) {
+          const errMsg = asErrorMessage(error);
+          console.error(
+            `Error processing plugin "${entry.directoryName}" in /api/plugins/list:`,
+            errMsg
+          );
+          pluginProcessingErrors.push(
+            `Failed to process plugin "${entry.directoryName}": ${errMsg}`
+          );
+          return {
+            manifest: entry.manifest,
+            validation: {
+              isValid: false,
+              rows: [
+                {
+                  severity: 'error' as const,
+                  path: INTERNAL_PROCESSING_FAILURE_PATH,
+                  message: `Internal processing failure for plugin "${entry.directoryName}": ${errMsg}`,
+                },
+              ],
+            },
+            autoDisabledWithWarnings: undefined,
+            maturity: undefined,
+          };
         }
-
-        const maturity = hasScorableManifestShape(processedManifest)
-          ? await scorePluginMaturity({
-              manifest: processedManifest as PluginManifest,
-              validationIssues: validation.rows,
-              pluginDirectoryName: entry.directoryName,
-              autoDisabledWithWarnings,
-            })
-          : undefined;
-
-        return {
-          manifest: processedManifest,
-          validation,
-          autoDisabledWithWarnings,
-          maturity,
-        };
       })
     );
 
@@ -157,12 +198,15 @@ export async function GET(request: NextRequest) {
           'Plugins with capability mismatches or version conflicts are auto-disabled.',
           'Plugin contract gate requires src/index.ts, component mapping coverage, and README Usage/Verification sections.',
         ],
-        unresolvedInputs: discoveryErrors,
+        unresolvedInputs: [...discoveryErrors, ...pluginProcessingErrors],
       }),
     };
 
     return jsonNoStore(response, {
-      status: discoveryErrors.length > 0 ? 206 : 200, // 206 Partial Content if there were discovery errors
+      status:
+        discoveryErrors.length > 0 || pluginProcessingErrors.length > 0
+          ? 206
+          : 200, // 206 Partial Content if there were discovery or plugin-processing errors
     });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
