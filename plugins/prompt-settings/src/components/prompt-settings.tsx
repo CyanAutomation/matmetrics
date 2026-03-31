@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginNotice } from '@/components/plugins/plugin-notice';
+import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import {
   DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
@@ -32,7 +33,7 @@ import {
   PluginFormSection,
   PluginStatusPanel,
 } from '@/components/plugins/plugin-kit';
-import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+
 import {
   PluginActionPrimary,
   PluginActionRow,
@@ -383,15 +384,12 @@ export function PromptSettings() {
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canSavePreferences && (
-        <PluginInlineMessage
-          tone="warning"
-          icon={<Info className="h-4 w-4" />}
-          title="Sign-in required"
-          description={
-            authAvailable
-              ? 'Custom AI prompts are only available after sign-in because they are saved per account.'
-              : 'Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment.'
-          }
+        <PluginAuthGateNotice
+          className={theme.warningTone}
+          isAuthenticated={Boolean(user)}
+          authAvailable={authAvailable}
+          signedInDescription="Custom AI prompts are only available for signed-in accounts because prompt preferences are stored per user."
+          signedOutDescription="Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment."
         />
       )}
 
@@ -423,7 +421,6 @@ export function PromptSettings() {
               <Button
                 onClick={() => void handleSave()}
                 disabled={!canSubmitPrompt}
-                className="gap-2 px-8 font-bold shadow-lg h-11 transition-all"
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
