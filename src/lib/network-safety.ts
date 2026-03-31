@@ -1,5 +1,3 @@
-import { isIP } from 'node:net';
-
 const BLOCKED_HOST_LABELS = new Set(['localhost', 'metadata.google.internal']);
 const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.localdomain'];
 
@@ -44,7 +42,7 @@ export function isBlockedNetworkHostname(hostname: string): boolean {
     return true;
   }
 
-  const ipVersion = isIP(normalizedHost);
+  const ipVersion = getIpVersion(normalizedHost);
   if (ipVersion === 4) {
     return isBlockedIPv4(normalizedHost);
   }
@@ -102,7 +100,7 @@ function extractMappedIpv4(ipv6: string): string | null {
   const remainder = normalized.slice(mappedPrefix.length);
 
   // Check for dotted-decimal notation first
-  if (isIP(remainder) === 4) {
+  if (getIpVersion(remainder) === 4) {
     return remainder;
   }
 
@@ -134,6 +132,40 @@ function ipv4ToInt(ipv4: string): number {
       (octets[3] >>> 0)) >>>
     0
   );
+}
+
+function getIpVersion(value: string): 0 | 4 | 6 {
+  if (isValidIpv4(value)) {
+    return 4;
+  }
+
+  if (isValidIpv6(value)) {
+    return 6;
+  }
+
+  return 0;
+}
+
+function isValidIpv4(value: string): boolean {
+  try {
+    ipv4ToInt(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isValidIpv6(value: string): boolean {
+  if (!value.includes(':')) {
+    return false;
+  }
+
+  try {
+    ipv6ToBigInt(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isInIPv4Cidr(value: number, network: number, prefix: number): boolean {

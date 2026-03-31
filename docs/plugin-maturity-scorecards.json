@@ -10,7 +10,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "5dcd88798e7f2da0c6569a65d40cf2203fce795ff7ee806b4a98e13fbe66effb"
+      "manifestEvidenceHash": "9f7abd263c247a2488b393abb133c0be66070a1c512ec38278a882cb11a22eb7"
     },
     {
       "id": "log-doctor",
@@ -26,7 +26,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "feff7efef12bbd674761dc5f5ee973a1378fcca0d4cea3cb4ac2544b588f0c3c"
+      "manifestEvidenceHash": "23110e96646d9869311702fee8b27a5f5926ea8b48a1b9eaa7e4139145a5b7b5"
     },
     {
       "id": "tag-manager",
@@ -34,7 +34,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "ab5085cd18686bf23aa796b97186bfdf260275bc14f0c5b9a0195d678a90788c"
+      "manifestEvidenceHash": "56a77486fa3bdc7102b95dae20091f32b197ef9195318cb4e04811ff01919932"
     },
     {
       "id": "video-library",
@@ -42,7 +42,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "9af45789f9024e0f15efa2ef20f0eef915eb04d9cfa05e02c4f38c8b5c1cef92"
+      "manifestEvidenceHash": "4edd073742897f15fc6e692bf821a12684067089c4e9c2c49efa0fe5b4968fc0"
     }
   ]
 }
