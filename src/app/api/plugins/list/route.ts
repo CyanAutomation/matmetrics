@@ -54,9 +54,11 @@ const asErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const throwForConfiguredPlugin = (directoryName: string): void => {
-  const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
-  if (configuredDirectory && configuredDirectory === directoryName) {
-    throw new Error('Simulated plugin contract gate failure');
+  if (process.env.NODE_ENV !== 'production') {
+    const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
+    if (configuredDirectory && configuredDirectory === directoryName) {
+      throw new Error('Simulated plugin contract gate failure');
+    }
   }
 };
 
