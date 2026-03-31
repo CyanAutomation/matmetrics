@@ -314,6 +314,51 @@ serialTest(
 );
 
 serialTest(
+  'teardownStorageListeners cancels scheduled refresh callbacks',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+
+    let createRequests = 0;
+    let listRequests = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        createRequests += 1;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
+      if (url.includes('/api/sessions/list')) {
+        listRequests += 1;
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await saveSession(makeSession('session-teardown-cancels-refresh'));
+      assert.equal(createRequests, 1);
+      assert.equal(listRequests, 0);
+
+      teardownStorageListeners();
+      await delay(40);
+      await flushAsyncWork();
+
+      assert.equal(listRequests, 0);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'non-retryable create failures are not queued and optimistic state is reconciled away',
   async () => {
     installBrowserEnv();
