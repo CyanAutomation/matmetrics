@@ -752,6 +752,8 @@ export function initializeStorage(): void {
  * Optional teardown for tests or unmount flows.
  */
 export function teardownStorageListeners(): void {
+  clearScheduledRefresh();
+
   if (typeof window === 'undefined' || !listenersInitialized) return;
 
   window.removeEventListener('online', handleOnline);
