@@ -51,6 +51,8 @@ type PromptSettingsViewState = PromptSettingsUiState & {
   isLoadingSavedSettings: boolean;
   hasLoadError: boolean;
   isUsingDefaultProfile: boolean;
+  emptyStateCtaAction: 'edit-prompt-profile';
+  isEmptyStateCtaAvailable: boolean;
   hasSaveError: boolean;
   hasSaveSuccess: boolean;
 };
@@ -59,6 +61,7 @@ export const PROMPT_SETTINGS_LOADING_TEXT = 'Loading saved prompt settings...';
 export const PROMPT_SETTINGS_ERROR_RETRY_LABEL = 'Retry';
 export const PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT =
   'Add instructions or import a profile snippet, then save to create your first custom prompt profile.';
+export const PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION = 'edit-prompt-profile';
 export const PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL = 'Yes, reset prompt';
 export const PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
 
@@ -217,6 +220,12 @@ export function derivePromptSettingsViewState({
       canSavePreferences &&
       preferencesReady &&
       prompt.trim() === DEFAULT_TRANSFORMER_PROMPT.trim(),
+    emptyStateCtaAction: PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION,
+    isEmptyStateCtaAvailable:
+      canSavePreferences &&
+      preferencesReady &&
+      preferencesError === null &&
+      !uiState.areControlsDisabled,
     hasSaveError: saveStatus === 'error',
     hasSaveSuccess: saveStatus === 'success',
   };
