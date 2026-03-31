@@ -41,7 +41,7 @@ import {
   PluginActionSecondary,
   PluginActionTrailing,
 } from '@/components/plugins/plugin-action-row';
-import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   buildGitHubNetworkErrorMessage,
   deriveDisableOutcome,
@@ -513,7 +513,7 @@ export function GitHubSettings() {
                   onClick={() => void handleDisable()}
                   disabled={!controlState.canDisableSync}
                   variant="outline"
-                  className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.destructive'].join(' ')}`}
+                  className={`gap-2 ${getPluginUiTokenClassNames('action.destructive')}`}
                 >
                   {isDisabling ? (
                     <>
@@ -534,7 +534,7 @@ export function GitHubSettings() {
                   disabled={!controlState.canOpenClearDialog}
                   variant="ghost"
                   size="sm"
-                  className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.subtle'].join(' ')}`}
+                  className={`gap-2 ${getPluginUiTokenClassNames('action.subtle')}`}
                 >
                   {isClearing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -556,14 +556,16 @@ export function GitHubSettings() {
             <ul className="list-inside list-disc space-y-1 text-sm">
               <li>
                 Add{' '}
-                <code className="rounded bg-background/70 px-2 py-1">
+                <code className={getPluginUiTokenClassNames('code.inline')}>
                   GITHUB_TOKEN
                 </code>{' '}
                 to your Vercel environment variables
               </li>
               <li>
                 Token must have{' '}
-                <code className="rounded bg-background/70 px-2 py-1">repo</code>{' '}
+                <code className={getPluginUiTokenClassNames('code.inline')}>
+                  repo
+                </code>{' '}
                 permissions
               </li>
               <li>Repository will be created or used if it already exists</li>
@@ -635,7 +637,11 @@ export function GitHubSettings() {
                   )}
                 </>
               }
-              icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              icon={
+                <CheckCircle2
+                  className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`}
+                />
+              }
             />
           )}
 
@@ -652,7 +658,11 @@ export function GitHubSettings() {
         <PluginEmptyState
           title="Sync not configured"
           description="No repository is currently configured. Add an owner and repository above, then save your configuration to enable GitHub sync."
-          icon={<AlertCircle className="h-4 w-4 text-muted-foreground" />}
+          icon={
+            <AlertCircle
+              className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.subtle')}`}
+            />
+          }
         />
       )}
 
@@ -660,10 +670,12 @@ export function GitHubSettings() {
         <PluginEmptyState
           title="Initial sync pending"
           description="GitHub sync is enabled, but existing sessions have not been pushed yet. Run initial sync below to backfill your current training history."
-          icon={<AlertCircle className="h-4 w-4 text-primary" />}
-          className={PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[
-            'tone.inline.info'
-          ].join(' ')}
+          icon={
+            <AlertCircle
+              className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.info')}`}
+            />
+          }
+          className={getPluginUiTokenClassNames('tone.inline.info')}
         />
       )}
 
@@ -675,7 +687,9 @@ export function GitHubSettings() {
           className="shadow-sm"
           contentClassName="p-6 pt-8"
         >
-          <p className="text-sm text-gray-700 mb-4">
+          <p
+            className={`mb-4 text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+          >
             Click below to sync all your existing training sessions to GitHub.
             This is a one-time operation and will create the folder structure in
             your repository.
@@ -768,9 +782,7 @@ export function GitHubSettings() {
           variant="success"
           title="GitHub Sync Active"
           description="All existing sessions have been synced. New sessions will sync automatically."
-          className={PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[
-            'tone.inline.info'
-          ].join(' ')}
+          className={getPluginUiTokenClassNames('tone.inline.info')}
         />
       )}
 

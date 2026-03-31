@@ -38,7 +38,7 @@ import {
   PluginActionRow,
   PluginActionSecondary,
 } from '@/components/plugins/plugin-action-row';
-import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 
 type PromptSettingsUiState = {
   isPromptMeaningful: boolean;
@@ -409,7 +409,7 @@ export function PromptSettings() {
                 variant="outline"
                 onClick={() => setIsResetDialogOpen(true)}
                 disabled={areControlsDisabled}
-                className={`gap-2 ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['action.secondary'].join(' ')}`}
+                className={`gap-2 ${getPluginUiTokenClassNames('action.secondary')}`}
               >
                 {isResetting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -489,7 +489,11 @@ export function PromptSettings() {
           <PluginSuccessState
             title="Prompt saved"
             description="Your prompt profile is up to date."
-            icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            icon={
+              <CheckCircle2
+                className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`}
+              />
+            }
           />
         )}
 
@@ -500,7 +504,9 @@ export function PromptSettings() {
               className="text-sm font-bold flex items-center gap-2"
             >
               System Instructions
-              <span className="text-xs font-normal text-muted-foreground">
+              <span
+                className={`text-xs font-normal ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 (Requires Handlebars syntax for context)
               </span>
             </Label>
@@ -516,7 +522,9 @@ export function PromptSettings() {
               disabled={areControlsDisabled}
               className="min-h-[400px] font-mono text-sm bg-background/75 border-ghost focus:border-ring transition-colors leading-relaxed"
             />
-            <p className="text-[11px] text-muted-foreground italic">
+            <p
+              className={`text-[11px] italic ${getPluginUiTokenClassNames('text.subtle')}`}
+            >
               {isPromptMeaningful
                 ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
                 : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}

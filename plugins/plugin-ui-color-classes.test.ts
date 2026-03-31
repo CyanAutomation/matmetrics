@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { execSync } from 'node:child_process';
 import {
   PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
   PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
@@ -10,33 +11,32 @@ import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
 
 const repoRoot = process.cwd();
 
-const pluginIndexFiles = [
-  'plugins/github-sync/src/index.ts',
-  'plugins/log-doctor/src/index.ts',
-  'plugins/prompt-settings/src/index.ts',
-  'plugins/tag-manager/src/index.ts',
-  'plugins/video-library/src/index.ts',
-] as const;
+const readFileList = (pattern: string): string[] => {
+  const output = execSync(`rg --files -g '${pattern}'`, { cwd: repoRoot })
+    .toString()
+    .trim();
 
-const importPattern = /from\s+['"](@\/components\/[^'"]+)['"]/g;
+  if (!output) {
+    return [];
+  }
 
-const componentFiles = pluginIndexFiles.flatMap((filePath) => {
-  const source = readFileSync(path.join(repoRoot, filePath), 'utf8');
-  const imports = [...source.matchAll(importPattern)]
-    .map((match) => match[1])
-    .filter((modulePath) => !modulePath.includes('/plugins/'))
-    .map((modulePath) => modulePath.replace('@/', 'src/') + '.tsx');
-
-  return imports;
-});
+  return output.split('\n');
+};
 
 const scannedFiles = [
-  ...pluginIndexFiles,
-  ...new Set([
-    ...componentFiles,
-    'plugins/log-doctor/src/components/log-doctor.tsx',
-  ]),
+  ...readFileList('plugins/*/src/components/**/*.{ts,tsx}'),
+  ...readFileList('src/components/plugins/**/*.{ts,tsx}'),
 ];
+
+const fileAllowlist = new Set([
+  'src/components/plugins/plugin-style-policy.ts',
+  'src/components/plugins/plugin-theme.ts',
+  'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+  'plugins/github-sync/src/components/github-sync-results.tsx',
+  'src/components/plugins/plugin-state.tsx',
+  'src/components/plugins/plugin-kit.tsx',
+  'src/components/plugins/plugin-data-surface.tsx',
+]);
 
 const forbiddenPluginColorClassPattern =
   /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/g;
@@ -50,6 +50,10 @@ const tokenizedClassAllowlist = new Set<string>([
   (tone) => {
     const tokens = getPluginThemeTokens(tone);
     Object.values(tokens).forEach((value) => {
+      if (typeof value !== 'string') {
+        return;
+      }
+
       value
         .split(/\s+/)
         .map((entry) => entry.trim())
@@ -61,6 +65,10 @@ const tokenizedClassAllowlist = new Set<string>([
 
 test('plugin sources avoid hardcoded semantic color utility classes', () => {
   const violations = scannedFiles.flatMap((filePath) => {
+    if (fileAllowlist.has(filePath)) {
+      return [];
+    }
+
     const source = readFileSync(path.join(repoRoot, filePath), 'utf8');
     const matches = source.match(forbiddenPluginColorClassPattern) ?? [];
     const disallowedMatches = matches.filter(

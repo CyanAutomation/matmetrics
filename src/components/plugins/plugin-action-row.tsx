@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 
+import {
+  getPluginUiTokenClassNames,
+  PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
+} from '@/components/plugins/plugin-style-policy';
 import { cn } from '@/lib/utils';
 
 type PluginActionRowProps = {
@@ -20,7 +24,13 @@ function PluginActionSlot({ children, className }: PluginActionSlotProps) {
 
 export function PluginActionRow({ children, className }: PluginActionRowProps) {
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
+    <div
+      className={cn(
+        getPluginUiTokenClassNames('layout.actionRow'),
+        'items-center',
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -52,7 +62,12 @@ export function PluginActionTrailing({
   className,
 }: PluginActionSlotProps) {
   return (
-    <PluginActionSlot className={cn('ml-auto', className)}>
+    <PluginActionSlot
+      className={cn(
+        PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['layout.actionRow.trailing'],
+        className
+      )}
+    >
       {children}
     </PluginActionSlot>
   );

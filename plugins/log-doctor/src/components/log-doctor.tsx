@@ -7,7 +7,6 @@ import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmati
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
 import {
-  PluginDataSurfaceFilterRow,
   PluginDataSurfaceSummaryStrip,
   PluginEmptyFilteredResults,
 } from '@/components/plugins/plugin-data-surface';
@@ -23,7 +22,8 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
-import { PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP } from '@/components/plugins/plugin-style-policy';
+import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -914,7 +914,7 @@ export const LogDoctor = (): React.ReactElement => {
                 </Badge>
                 <Badge variant="secondary">Selected: {selectedCount}</Badge>
               </div>
-              <PluginDataSurfaceFilterRow className="lg:grid-cols-1">
+              <PluginFilterBar className="lg:grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="log-doctor-file-search">
                     Search invalid file paths
@@ -926,7 +926,7 @@ export const LogDoctor = (): React.ReactElement => {
                     placeholder="Filter by file path"
                   />
                 </div>
-              </PluginDataSurfaceFilterRow>
+              </PluginFilterBar>
               <PluginDataSurfaceSummaryStrip
                 filteredCount={filteredInvalidFiles.length}
                 totalCount={invalidFiles.length}
@@ -940,7 +940,9 @@ export const LogDoctor = (): React.ReactElement => {
 
               {invalidFiles.length === 0 ? (
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                  >
                     No invalid files found.
                   </p>
                   <div className="flex gap-2">
@@ -993,7 +995,9 @@ export const LogDoctor = (): React.ReactElement => {
                           <Badge variant="destructive">invalid</Badge>
                         </div>
                         {(file.errors ?? []).length > 0 ? (
-                          <ul className="list-disc pl-5 text-destructive">
+                          <ul
+                            className={`list-disc pl-5 ${getPluginUiTokenClassNames('text.danger')}`}
+                          >
                             {file.errors?.map((entry) => (
                               <li key={`${file.path}-${entry}`}>{entry}</li>
                             ))}
@@ -1014,7 +1018,9 @@ export const LogDoctor = (): React.ReactElement => {
               emptyTitle="No fix result"
               emptyDescription="Preview or apply fixes to view result details."
             >
-              <p className="text-sm text-muted-foreground">
+              <p
+                className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 {fixResult.message}
               </p>
               {fixResult.files.map((file) => (
@@ -1032,23 +1038,31 @@ export const LogDoctor = (): React.ReactElement => {
                     </Badge>
                   </div>
                   {file.message ? (
-                    <p className="mb-2 text-xs text-muted-foreground">
+                    <p
+                      className={`mb-2 text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
                       {file.message}
                     </p>
                   ) : null}
                   {file.validationState.errors?.length ? (
-                    <ul className="mb-2 list-disc pl-5 text-xs text-destructive">
+                    <ul
+                      className={`mb-2 list-disc pl-5 text-xs ${getPluginUiTokenClassNames('text.danger')}`}
+                    >
                       {file.validationState.errors.map((entry) => (
                         <li key={`${file.path}-err-${entry}`}>{entry}</li>
                       ))}
                     </ul>
                   ) : null}
-                  <div className="mb-2 text-xs text-muted-foreground">
+                  <div
+                    className={`mb-2 text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                  >
                     Validation: {file.validationState.before} →{' '}
                     {file.validationState.after}
                     {file.commitSha ? ` · commit ${file.commitSha}` : ''}
                   </div>
-                  <div className="max-h-56 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
+                  <div
+                    className={`max-h-56 overflow-auto rounded p-2 font-mono text-xs ${getPluginUiTokenClassNames('surface.diffPreview')}`}
+                  >
                     <pre className="whitespace-pre-wrap break-words">
                       {file.preview.diff}
                     </pre>
@@ -1073,7 +1087,9 @@ export const LogDoctor = (): React.ReactElement => {
                   {auditNeedsAttentionCount} session
                   {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p
+                  className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                >
                   {!auditRanAt
                     ? 'Run an audit check to detect quality issues.'
                     : 'Primary path: Run check → Review findings → Mark fixed.'}
@@ -1129,16 +1145,22 @@ export const LogDoctor = (): React.ReactElement => {
               </Button>
             ) : null}
             {auditStep === 'run-check' ? (
-              <span className="text-xs text-muted-foreground">
+              <span
+                className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 Recommended and safe: run with default settings first.
               </span>
             ) : null}
             {auditRanAt ? (
-              <span className="text-xs text-muted-foreground">
+              <span
+                className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 Last run: {new Date(auditRanAt).toLocaleTimeString()}
               </span>
             ) : (
-              <span className="text-xs text-muted-foreground">
+              <span
+                className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+              >
                 Click &quot;Run check&quot; to check your sessions for data
                 quality issues.
               </span>
@@ -1177,14 +1199,14 @@ export const LogDoctor = (): React.ReactElement => {
                 variant="success"
                 title="All sessions passed quality checks!"
                 description="No issues detected."
-                className={`border-dashed ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['surface.logDoctor'].join(' ')}`}
+                className={`border-dashed ${getPluginUiTokenClassNames('surface.logDoctor')}`}
               />
             ) : (
               <PluginStatusPanel
                 variant="warning"
                 title="Haven't run an audit yet"
                 description='Click "Run check" above to get started.'
-                className={`border-dashed ${PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['surface.logDoctor'].join(' ')}`}
+                className={`border-dashed ${getPluginUiTokenClassNames('surface.logDoctor')}`}
               />
             )
           ) : null}
