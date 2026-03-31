@@ -748,83 +748,83 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     }
   };
 
-  const handleCheckLinks = useCallback(async (
-    sessionIds: string[],
-    options?: { silent?: boolean }
-  ) => {
-    if (!authAvailable || !user) {
-      toast({
-        title: 'Sign-in required',
-        description: 'Live link checks are available after sign-in.',
-      });
-      return;
-    }
-
-    if (sessionIds.length === 0) {
-      return;
-    }
-
-    setIsCheckingLinks(true);
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/video-library/check-links', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ sessionIds }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to check video links');
-      }
-
-      const results = Array.isArray(payload.results) ? payload.results : [];
-      const nextLinkChecks = reconcileVideoLinkChecks({
-        sessions,
-        customAllowedDomains,
-        linkChecksBySessionId: mergeVideoLinkCheckResults({
-          existing: reconciledLinkChecks,
-          results,
-        }),
-      });
-
-      await saveVideoLibraryPreference(user.uid, {
-        ...videoLibraryPreferences,
-        customAllowedDomains,
-        linkChecksBySessionId: nextLinkChecks,
-        expectedVideoCategories,
-      });
-
-      if (!options?.silent) {
+  const handleCheckLinks = useCallback(
+    async (sessionIds: string[], options?: { silent?: boolean }) => {
+      if (!authAvailable || !user) {
         toast({
-          title: 'Link health refreshed',
-          description: `Updated link status for ${results.length} videos.`,
+          title: 'Sign-in required',
+          description: 'Live link checks are available after sign-in.',
         });
+        return;
       }
-    } catch (error) {
-      console.error('Failed to check video links', error);
-      toast({
-        variant: 'destructive',
-        title: 'Link check failed',
-        description:
-          'The Video Library could not complete the link check. Try again in a moment.',
-      });
-    } finally {
-      setIsCheckingLinks(false);
-    }
-  }, [
-    authAvailable,
-    user,
-    sessions,
-    customAllowedDomains,
-    reconciledLinkChecks,
-    videoLibraryPreferences,
-    expectedVideoCategories,
-    getAuthHeaders,
-    saveVideoLibraryPreference,
-    toast,
-  ]);
+
+      if (sessionIds.length === 0) {
+        return;
+      }
+
+      setIsCheckingLinks(true);
+      try {
+        const headers = await getAuthHeaders({
+          'Content-Type': 'application/json',
+        });
+        const response = await fetch('/api/video-library/check-links', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ sessionIds }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to check video links');
+        }
+
+        const results = Array.isArray(payload.results) ? payload.results : [];
+        const nextLinkChecks = reconcileVideoLinkChecks({
+          sessions,
+          customAllowedDomains,
+          linkChecksBySessionId: mergeVideoLinkCheckResults({
+            existing: reconciledLinkChecks,
+            results,
+          }),
+        });
+
+        await saveVideoLibraryPreference(user.uid, {
+          ...videoLibraryPreferences,
+          customAllowedDomains,
+          linkChecksBySessionId: nextLinkChecks,
+          expectedVideoCategories,
+        });
+
+        if (!options?.silent) {
+          toast({
+            title: 'Link health refreshed',
+            description: `Updated link status for ${results.length} videos.`,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to check video links', error);
+        toast({
+          variant: 'destructive',
+          title: 'Link check failed',
+          description:
+            'The Video Library could not complete the link check. Try again in a moment.',
+        });
+      } finally {
+        setIsCheckingLinks(false);
+      }
+    },
+    [
+      authAvailable,
+      user,
+      sessions,
+      customAllowedDomains,
+      reconciledLinkChecks,
+      videoLibraryPreferences,
+      expectedVideoCategories,
+      getAuthHeaders,
+      saveVideoLibraryPreference,
+      toast,
+    ]
+  );
 
   const handleCheckFiltered = async () => {
     await handleCheckLinks(
