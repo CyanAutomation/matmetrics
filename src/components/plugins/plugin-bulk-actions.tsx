@@ -21,10 +21,17 @@ export function PluginBulkActions({
 }: PluginBulkActionsProps) {
   const resolvedDisabledMessage =
     disabledMessage ??
-    (isDisabled ? 'Bulk actions are unavailable until selection criteria is met.' : null);
+    (isDisabled
+      ? 'Bulk actions are unavailable until selection criteria is met.'
+      : null);
 
   return (
-    <div className={cn('space-y-2 rounded-md border bg-secondary/20 p-3', className)}>
+    <div
+      className={cn(
+        'space-y-2 rounded-md border bg-secondary/20 p-3',
+        className
+      )}
+    >
       {typeof selectedCount === 'number' ? (
         <p className="text-xs text-muted-foreground" aria-live="polite">
           {selectedCount} {itemLabel}
@@ -33,7 +40,9 @@ export function PluginBulkActions({
       ) : null}
       <div className="flex flex-wrap items-center gap-2">{children}</div>
       {resolvedDisabledMessage ? (
-        <p className="text-xs text-muted-foreground">{resolvedDisabledMessage}</p>
+        <p className="text-xs text-muted-foreground">
+          {resolvedDisabledMessage}
+        </p>
       ) : null}
     </div>
   );

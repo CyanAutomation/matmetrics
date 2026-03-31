@@ -90,7 +90,8 @@ async function renderWithMockedHooks(params: { fetchImpl: typeof fetch }) {
       const cleanup = effect();
       if (cleanup) cleanups.push(cleanup);
     }
-    return () => cleanups.forEach((cleanup) => typeof cleanup === 'function' && cleanup());
+    return () =>
+      cleanups.forEach((cleanup) => typeof cleanup === 'function' && cleanup());
   };
 
   const cleanup = () => {
@@ -104,7 +105,8 @@ async function renderWithMockedHooks(params: { fetchImpl: typeof fetch }) {
 test('VersionHistoryModal clears loading and renders release content after a successful fetch', async () => {
   const deferred = createDeferred<Response>();
   const harness = await renderWithMockedHooks({
-    fetchImpl: ((_input: RequestInfo | URL, _init?: RequestInit) => deferred.promise) as typeof fetch,
+    fetchImpl: ((_input: RequestInfo | URL, _init?: RequestInit) =>
+      deferred.promise) as typeof fetch,
   });
 
   try {
@@ -147,7 +149,8 @@ test('VersionHistoryModal clears loading and renders release content after a suc
 test('VersionHistoryModal clears loading and surfaces an error message after a failed fetch', async () => {
   const deferred = createDeferred<Response>();
   const harness = await renderWithMockedHooks({
-    fetchImpl: ((_input: RequestInfo | URL, _init?: RequestInit) => deferred.promise) as typeof fetch,
+    fetchImpl: ((_input: RequestInfo | URL, _init?: RequestInit) =>
+      deferred.promise) as typeof fetch,
   });
 
   try {

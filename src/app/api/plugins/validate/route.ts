@@ -12,7 +12,8 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 const INTERNAL_PROCESSING_FAILURE_PATH = 'processing.internal';
 const throwForConfiguredPlugin = (directoryName: string): void => {
   if (process.env.NODE_ENV !== 'production') {
-    const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
+    const configuredDirectory =
+      process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
     if (configuredDirectory && configuredDirectory === directoryName) {
       throw new Error('Simulated plugin contract gate failure');
     }
@@ -97,26 +98,29 @@ export async function POST(request: NextRequest) {
 
     const validationRows = pluginRows.flatMap((row) => row.validation.rows);
 
-    return NextResponse.json({
-      plugins: pluginRows,
-      ...createContractPayload({
-        fileTreeDiffSummary: {
-          mode: 'dry-run',
-          files: manifests.map((entry) => ({
-            path: entry.relativePath,
-            changeType: 'unchanged',
-          })),
-        },
-        validationTable: {
-          isValid: pluginRows.every((row) => row.validation.isValid),
-          rows: validationRows,
-        },
-        assumptions: [
-          'Validation includes manifest schema checks and plugin contract gate checks.',
-        ],
-        unresolvedInputs: pluginProcessingErrors,
-      }),
-    }, { status: pluginProcessingErrors.length > 0 ? 206 : 200 });
+    return NextResponse.json(
+      {
+        plugins: pluginRows,
+        ...createContractPayload({
+          fileTreeDiffSummary: {
+            mode: 'dry-run',
+            files: manifests.map((entry) => ({
+              path: entry.relativePath,
+              changeType: 'unchanged',
+            })),
+          },
+          validationTable: {
+            isValid: pluginRows.every((row) => row.validation.isValid),
+            rows: validationRows,
+          },
+          assumptions: [
+            'Validation includes manifest schema checks and plugin contract gate checks.',
+          ],
+          unresolvedInputs: pluginProcessingErrors,
+        }),
+      },
+      { status: pluginProcessingErrors.length > 0 ? 206 : 200 }
+    );
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Error validating plugins:', errMsg);

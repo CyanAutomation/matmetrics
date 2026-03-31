@@ -445,9 +445,12 @@ test('GET /api/plugins/list continues when one plugin contract gate throws', asy
       `${JSON.stringify(healthyManifest, null, 2)}\n`,
       'utf8'
     );
-    await mkdir(path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'), {
-      recursive: true,
-    });
+    await mkdir(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'),
+      {
+        recursive: true,
+      }
+    );
     await writeFile(
       path.join(process.cwd(), 'plugins', 'healthy', 'src', 'index.ts'),
       `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
@@ -457,7 +460,14 @@ test('GET /api/plugins/list continues when one plugin contract gate throws', asy
       'utf8'
     );
     await writeFile(
-      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components', 'tag-manager.tsx'),
+      path.join(
+        process.cwd(),
+        'plugins',
+        'healthy',
+        'src',
+        'components',
+        'tag-manager.tsx'
+      ),
       'export default function HealthyTagManager() { return null; }\\n',
       'utf8'
     );
@@ -480,7 +490,13 @@ test('GET /api/plugins/list continues when one plugin contract gate throws', asy
     assert.equal(payload.plugins.length, 2);
     const rowsById = new Map(
       payload.plugins.map(
-        (row: { manifest: { id: string }; validation: { isValid: boolean; rows: Array<{ path: string; message: string }> } }) => [row.manifest.id, row]
+        (row: {
+          manifest: { id: string };
+          validation: {
+            isValid: boolean;
+            rows: Array<{ path: string; message: string }>;
+          };
+        }) => [row.manifest.id, row]
       )
     );
     assert.equal(rowsById.has('healthy-plugin'), true);
@@ -529,9 +545,12 @@ test('POST /api/plugins/validate continues when one plugin contract gate throws'
       `${JSON.stringify(healthyManifest, null, 2)}\n`,
       'utf8'
     );
-    await mkdir(path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'), {
-      recursive: true,
-    });
+    await mkdir(
+      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components'),
+      {
+        recursive: true,
+      }
+    );
     await writeFile(
       path.join(process.cwd(), 'plugins', 'healthy', 'src', 'index.ts'),
       `export const initPlugin = (context: { registerPluginComponent?: (id: string, renderer: unknown) => void; }) => {
@@ -541,7 +560,14 @@ test('POST /api/plugins/validate continues when one plugin contract gate throws'
       'utf8'
     );
     await writeFile(
-      path.join(process.cwd(), 'plugins', 'healthy', 'src', 'components', 'tag-manager.tsx'),
+      path.join(
+        process.cwd(),
+        'plugins',
+        'healthy',
+        'src',
+        'components',
+        'tag-manager.tsx'
+      ),
       'export default function HealthyTagManager() { return null; }\\n',
       'utf8'
     );
@@ -569,7 +595,13 @@ test('POST /api/plugins/validate continues when one plugin contract gate throws'
     assert.equal(payload.plugins.length, 2);
     const rowsByDirectory = new Map(
       payload.plugins.map(
-        (row: { directoryName: string; validation: { isValid: boolean; rows: Array<{ path: string; message: string }> } }) => [row.directoryName, row]
+        (row: {
+          directoryName: string;
+          validation: {
+            isValid: boolean;
+            rows: Array<{ path: string; message: string }>;
+          };
+        }) => [row.directoryName, row]
       )
     );
     assert.equal(rowsByDirectory.has('healthy'), true);

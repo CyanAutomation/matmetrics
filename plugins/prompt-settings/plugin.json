@@ -30,10 +30,18 @@
         "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
       ],
       "uxCriteria": {
-        "loadingStatePresent": ["plugins/prompt-settings/src/components/prompt-settings.test.tsx"],
-        "errorStateWithRecovery": ["plugins/prompt-settings/src/components/prompt-settings.test.tsx"],
-        "emptyStateWithCta": ["plugins/prompt-settings/src/components/prompt-settings.test.tsx"],
-        "destructiveActionSafety": ["plugins/prompt-settings/src/components/prompt-settings.test.tsx"]
+        "loadingStatePresent": [
+          "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
+        ],
+        "errorStateWithRecovery": [
+          "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
+        ],
+        "emptyStateWithCta": [
+          "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
+        ],
+        "destructiveActionSafety": [
+          "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
+        ]
       }
     }
   },
