@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { execSync } from 'node:child_process';
+import { globSync } from 'glob';
 import {
   PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
   PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
@@ -12,15 +12,13 @@ import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
 const repoRoot = process.cwd();
 
 const readFileList = (pattern: string): string[] => {
-  const output = execSync(`rg --files -g '${pattern}'`, { cwd: repoRoot })
-    .toString()
-    .trim();
-
-  if (!output) {
+  const options = { cwd: repoRoot };
+  try {
+    const files = globSync(pattern, options);
+    return files;
+  } catch {
     return [];
   }
-
-  return output.split('\n');
 };
 
 const scannedFiles = [

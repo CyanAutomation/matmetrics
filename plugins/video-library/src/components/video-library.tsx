@@ -813,7 +813,18 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     } finally {
       setIsCheckingLinks(false);
     }
-  };
+  }, [
+    authAvailable,
+    user,
+    sessions,
+    customAllowedDomains,
+    reconciledLinkChecks,
+    videoLibraryPreferences,
+    expectedVideoCategories,
+    getAuthHeaders,
+    saveVideoLibraryPreference,
+    toast,
+  ]);
 
   const handleCheckFiltered = async () => {
     await handleCheckLinks(
