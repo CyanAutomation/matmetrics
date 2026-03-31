@@ -24,7 +24,6 @@ import {
   type AuditStrictnessPreset,
 } from '@/lib/audit-presets';
 import type { AuditConfig, AuditMode } from '@/lib/types';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export type AuditSettingsProps = {
   mode: AuditMode;
@@ -87,8 +86,6 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   onConfigChange,
 }) => {
   const { toast } = useToast();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [localConfig, setLocalConfig] = useState<AuditConfig>(
     normalizeAuditConfigShape(config)
@@ -101,7 +98,6 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   useEffect(() => {
     setLocalConfig(normalizeAuditConfigShape(config));
     setSelectedPreset(inferStrictnessPresetFromAudit(mode, config));
-    setIsAdvancedExpanded(false);
   }, [mode, config]);
 
   const effectiveConfig = useMemo(() => {
@@ -174,214 +170,175 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
 
   return (
     <Card>
-      <CardHeader
-        className="cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setIsExpanded(!isExpanded);
-          }
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Audit Settings</CardTitle>
-            <CardDescription>
-              Choose a single audit strictness level. Advanced rule tuning is
-              optional.
-            </CardDescription>
-          </div>
-          {isExpanded ? (
-            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-          )}
-        </div>
+      <CardHeader>
+        <CardTitle className="text-base">Audit Settings</CardTitle>
+        <CardDescription>
+          Choose a single audit strictness level. Advanced rule tuning is
+          optional.
+        </CardDescription>
       </CardHeader>
 
-      {isExpanded && (
-        <CardContent className="space-y-6">
-          <div className="space-y-3 border-b pb-4">
-            <Label className="block font-medium">
-              How sensitive should checks be?
-            </Label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {PRIMARY_PRESET_OPTIONS.map((option) => {
-                const isActive = selectedPreset === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handlePrimaryPresetChange(option.value)}
-                    className={`rounded-md border p-3 text-left transition ${
-                      isActive
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-background hover:bg-muted/30'
-                    }`}
-                    aria-pressed={isActive}
-                  >
-                    <div className="text-sm font-medium">{option.label}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {option.description}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-            {selectedPreset === null && (
-              <p className="text-xs text-muted-foreground">
-                Using custom advanced settings.
-              </p>
-            )}
+      <CardContent className="space-y-6">
+        <div className="space-y-3 border-b pb-4">
+          <Label className="block font-medium">
+            How sensitive should checks be?
+          </Label>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {PRIMARY_PRESET_OPTIONS.map((option) => {
+              const isActive = selectedPreset === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handlePrimaryPresetChange(option.value)}
+                  className={`rounded-md border p-3 text-left transition ${
+                    isActive
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-background hover:bg-muted/30'
+                  }`}
+                  aria-pressed={isActive}
+                >
+                  <div className="text-sm font-medium">{option.label}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {option.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
-
-          <div className="rounded-md border border-dashed bg-muted/20 p-3">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between text-left"
-              onClick={() => setIsAdvancedExpanded((prev) => !prev)}
-              aria-expanded={isAdvancedExpanded}
-            >
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Advanced
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Customize each check when you need more control.
-                </p>
-              </div>
-              {isAdvancedExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-
-            {isAdvancedExpanded &&
-              normalizeAuditConfigShape(localConfig).rules.map((rule) => {
-                const desc = RULE_DESCRIPTIONS[rule.code];
-                const isDurationOutlier = rule.code === 'duration_outlier';
-                const showDurationWarning =
-                  isDurationOutlier && rule.enabled && sessionCount < 3;
-
-                return (
-                  <div
-                    key={rule.code}
-                    className="mt-4 space-y-3 border-t pt-4 first:mt-3"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <Label className="block font-medium">{desc.label}</Label>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {desc.description}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={rule.enabled}
-                        onCheckedChange={(checked) =>
-                          handleRuleToggle(rule.code, checked)
-                        }
-                        aria-label={`Toggle ${desc.label}`}
-                      />
-                    </div>
-
-                    {showDurationWarning && (
-                      <Alert className="border-yellow-200 bg-yellow-50">
-                        <AlertDescription className="text-sm text-yellow-800">
-                          This rule requires at least 3 sessions with duration
-                          data. You currently have {sessionCount} session
-                          {sessionCount !== 1 ? 's' : ''}.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
-                      <div className="mt-2 space-y-2">
-                        <Label
-                          htmlFor={`effort-${rule.code}`}
-                          className="text-sm"
-                        >
-                          When should this check apply? (effort 1-5)
-                        </Label>
-                        <Input
-                          id={`effort-${rule.code}`}
-                          type="number"
-                          min="1"
-                          max="5"
-                          value={rule.effortThreshold ?? 4}
-                          onChange={(e) =>
-                            handleParamChange(
-                              rule.code,
-                              'effortThreshold',
-                              Math.max(
-                                1,
-                                Math.min(5, Number.parseInt(e.target.value, 10))
-                              )
-                            )
-                          }
-                          aria-label="Effort level threshold"
-                        />
-                      </div>
-                    ) : null}
-
-                    {rule.enabled && rule.code === 'duration_outlier' ? (
-                      <div className="mt-2 space-y-2">
-                        <Label
-                          htmlFor={`duration-${rule.code}`}
-                          className="text-sm"
-                        >
-                          How different should session time be before it is flagged?
-                        </Label>
-                        <Input
-                          id={`duration-${rule.code}`}
-                          type="number"
-                          min="0.5"
-                          max="5"
-                          step="0.5"
-                          value={rule.durationStdDevMultiplier ?? 2}
-                          onChange={(e) =>
-                            handleParamChange(
-                              rule.code,
-                              'durationStdDevMultiplier',
-                              Math.max(
-                                0.5,
-                                Math.min(5, Number.parseFloat(e.target.value))
-                              )
-                            )
-                          }
-                          aria-label="Outlier threshold"
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-          </div>
-
-          {hasChanges && (
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleSave} disabled={isSaving} size="sm">
-                {isSaving ? 'Saving…' : 'Save changes'}
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelectedPreset(inferStrictnessPresetFromAudit(mode, config));
-                  setLocalConfig(normalizeAuditConfigShape(config));
-                  setIsAdvancedExpanded(false);
-                }}
-                disabled={isSaving}
-                variant="outline"
-                size="sm"
-              >
-                Cancel
-              </Button>
-            </div>
+          {selectedPreset === null && (
+            <p className="text-xs text-muted-foreground">
+              Using custom advanced settings.
+            </p>
           )}
-        </CardContent>
-      )}
+        </div>
+
+        <div className="rounded-md border border-dashed bg-muted/20 p-3">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Advanced checks
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Customize each check when you need more control.
+            </p>
+          </div>
+
+          {normalizeAuditConfigShape(localConfig).rules.map((rule) => {
+            const desc = RULE_DESCRIPTIONS[rule.code];
+            const isDurationOutlier = rule.code === 'duration_outlier';
+            const showDurationWarning =
+              isDurationOutlier && rule.enabled && sessionCount < 3;
+
+            return (
+              <div
+                key={rule.code}
+                className="mt-4 space-y-3 border-t pt-4 first:mt-3"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <Label className="block font-medium">{desc.label}</Label>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {desc.description}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={rule.enabled}
+                    onCheckedChange={(checked) =>
+                      handleRuleToggle(rule.code, checked)
+                    }
+                    aria-label={`Toggle ${desc.label}`}
+                  />
+                </div>
+
+                {showDurationWarning && (
+                  <Alert className="border-yellow-200 bg-yellow-50">
+                    <AlertDescription className="text-sm text-yellow-800">
+                      This rule requires at least 3 sessions with duration data.
+                      You currently have {sessionCount} session
+                      {sessionCount !== 1 ? 's' : ''}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
+                  <div className="mt-2 space-y-2">
+                    <Label htmlFor={`effort-${rule.code}`} className="text-sm">
+                      When should this check apply? (effort 1-5)
+                    </Label>
+                    <Input
+                      id={`effort-${rule.code}`}
+                      type="number"
+                      min="1"
+                      max="5"
+                      value={rule.effortThreshold ?? 4}
+                      onChange={(e) =>
+                        handleParamChange(
+                          rule.code,
+                          'effortThreshold',
+                          Math.max(
+                            1,
+                            Math.min(5, Number.parseInt(e.target.value, 10))
+                          )
+                        )
+                      }
+                      aria-label="Effort level threshold"
+                    />
+                  </div>
+                ) : null}
+
+                {rule.enabled && rule.code === 'duration_outlier' ? (
+                  <div className="mt-2 space-y-2">
+                    <Label
+                      htmlFor={`duration-${rule.code}`}
+                      className="text-sm"
+                    >
+                      How different should session time be before it is flagged?
+                    </Label>
+                    <Input
+                      id={`duration-${rule.code}`}
+                      type="number"
+                      min="0.5"
+                      max="5"
+                      step="0.5"
+                      value={rule.durationStdDevMultiplier ?? 2}
+                      onChange={(e) =>
+                        handleParamChange(
+                          rule.code,
+                          'durationStdDevMultiplier',
+                          Math.max(
+                            0.5,
+                            Math.min(5, Number.parseFloat(e.target.value))
+                          )
+                        )
+                      }
+                      aria-label="Outlier threshold"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+
+        {hasChanges && (
+          <div className="flex gap-2 pt-4">
+            <Button onClick={handleSave} disabled={isSaving} size="sm">
+              {isSaving ? 'Saving…' : 'Save changes'}
+            </Button>
+            <Button
+              onClick={() => {
+                setSelectedPreset(inferStrictnessPresetFromAudit(mode, config));
+                setLocalConfig(normalizeAuditConfigShape(config));
+              }}
+              disabled={isSaving}
+              variant="outline"
+              size="sm"
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };
