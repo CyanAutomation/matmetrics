@@ -409,6 +409,16 @@ const expressionToJsxRoots = (expression: ts.Expression): JsxRootNode[] => {
     return [current];
   }
 
+  if (ts.isJsxFragment(current)) {
+    const roots: JsxRootNode[] = [];
+    for (const child of current.children) {
+      if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
+        roots.push(child);
+      }
+    }
+    return roots;
+  }
+
   if (ts.isConditionalExpression(current)) {
     return [
       ...expressionToJsxRoots(current.whenTrue),
