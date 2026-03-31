@@ -10,6 +10,7 @@ import type { PluginValidationIssue } from '@/lib/plugins/types';
 import {
   deriveInstalledPlugins,
   derivePluginManagerInstalledViewState,
+  isActiveRefreshRequest,
   PluginManagerInstalledContent,
   type InstalledPluginRow,
   type PluginManagerInstalledViewState,
@@ -220,4 +221,68 @@ test('deriveInstalledPlugins keeps tag-manager priority and does not mutate sour
     ['tag-manager', 'alpha-tool', 'zeta-tool']
   );
   assert.equal(firstRenderRows[1]?.status, 'success');
+});
+
+test('isActiveRefreshRequest only applies responses for the latest mounted refresh', () => {
+  const firstRequestId = 1;
+  const secondRequestId = 2;
+
+  assert.equal(
+    isActiveRefreshRequest({
+      requestId: firstRequestId,
+      latestRequestId: secondRequestId,
+      isMounted: true,
+    }),
+    false
+  );
+  assert.equal(
+    isActiveRefreshRequest({
+      requestId: secondRequestId,
+      latestRequestId: secondRequestId,
+      isMounted: true,
+    }),
+    true
+  );
+  assert.equal(
+    isActiveRefreshRequest({
+      requestId: secondRequestId,
+      latestRequestId: secondRequestId,
+      isMounted: false,
+    }),
+    false
+  );
+});
+
+test('isActiveRefreshRequest prevents out-of-order completion from regressing current UI state', () => {
+  const latestRequestId = 2;
+  const uiState = {
+    fetchState: 'loading' as const,
+    lastUpdatedAt: null as Date | null,
+  };
+
+  const maybeApplyRefreshResult = (requestId: number) => {
+    if (
+      !isActiveRefreshRequest({
+        requestId,
+        latestRequestId,
+        isMounted: true,
+      })
+    ) {
+      return;
+    }
+
+    uiState.fetchState = 'success';
+    uiState.lastUpdatedAt = new Date('2026-03-31T00:00:00.000Z');
+  };
+
+  maybeApplyRefreshResult(1);
+  assert.equal(uiState.fetchState, 'loading');
+  assert.equal(uiState.lastUpdatedAt, null);
+
+  maybeApplyRefreshResult(2);
+  assert.equal(uiState.fetchState, 'success');
+  assert.equal(
+    uiState.lastUpdatedAt?.toISOString(),
+    '2026-03-31T00:00:00.000Z'
+  );
 });
