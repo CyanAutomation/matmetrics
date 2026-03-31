@@ -34,6 +34,10 @@ function useChart() {
   return context;
 }
 
+function sanitizeChartId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<'div'> & {
@@ -44,7 +48,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`;
+  const sanitizedId = sanitizeChartId(id || uniqueId.replace(/:/g, ''));
+  const chartId = `chart-${sanitizedId}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
