@@ -75,7 +75,7 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 rounded-lg border border-dashed border-ghost bg-secondary/20">
+      <div className="flex flex-col items-center justify-center py-12 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">
         <RessaImage
           pose={2}
           size="medium"

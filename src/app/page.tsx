@@ -312,8 +312,8 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden">
-        <Sidebar className="border-r border-primary/10">
+      <div className="flex h-screen w-full overflow-hidden bg-muted/30">
+        <Sidebar className="bg-sidebar/95 shadow-[inset_-1px_0_0_hsl(var(--sidebar-border)/0.18)] [[data-contrast='high']_&]:shadow-[inset_-1px_0_0_hsl(var(--color-outline-variant)/0.92)]">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <MatMetricsLogo size="md" variant="solid" />
@@ -430,8 +430,8 @@ export default function Home() {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex-1 flex flex-col bg-background/50 overflow-hidden relative">
-          <header className="h-16 border-b flex items-center px-6 justify-between bg-white/80 dark:bg-card/80 backdrop-blur-md sticky top-0 z-10">
+        <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
+          <header className="h-16 flex items-center px-6 justify-between bg-card/80 backdrop-blur-md sticky top-0 z-10 shadow-[0_10px_26px_-20px_hsl(var(--foreground)/0.4)] [[data-contrast='high']_&]:shadow-[0_0_0_1px_hsl(var(--color-outline-variant)/0.9)]">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="text-xl font-bold tracking-tight text-primary">
@@ -481,7 +481,7 @@ export default function Home() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full mt-2 md:mt-3">
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-6">
               {isGuest && (
                 <Alert className="border-primary/20 bg-primary/5">
