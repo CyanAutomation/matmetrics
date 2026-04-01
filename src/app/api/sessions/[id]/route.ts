@@ -239,7 +239,19 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const payload = await request.json();
+    if (
+      payload === null ||
+      typeof payload !== 'object' ||
+      Array.isArray(payload)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    const body = payload;
 
     // Ensure ID matches
     if (body.id !== id) {
