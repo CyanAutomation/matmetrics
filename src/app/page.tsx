@@ -392,34 +392,34 @@ export default function Home() {
                 <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
                   {!syncStatus.isOnline ? (
                     <>
-                      <WifiOff className="h-3 w-3 text-amber-500" />
-                      <span className="text-amber-600 dark:text-amber-400">
+                      <WifiOff className="h-3 w-3" />
+                      <span className="text-[hsl(var(--color-warning))]">
                         Offline
                       </span>
                       {syncStatus.pendingCount > 0 && (
-                        <span className="ml-auto text-amber-600 dark:text-amber-400">
+                        <span className="ml-auto text-[hsl(var(--color-warning))]">
                           {syncStatus.pendingCount} pending
                         </span>
                       )}
                     </>
                   ) : syncStatus.isSyncing ? (
                     <>
-                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                      <span className="text-blue-600 dark:text-blue-400">
+                      <Loader2 className="h-3 w-3 text-[hsl(var(--color-info))] animate-spin" />
+                      <span className="text-[hsl(var(--color-info))]">
                         Syncing...
                       </span>
                     </>
                   ) : syncStatus.pendingCount > 0 ? (
                     <>
-                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                      <span className="text-blue-600 dark:text-blue-400">
+                      <Loader2 className="h-3 w-3 text-[hsl(var(--color-info))] animate-spin" />
+                      <span className="text-[hsl(var(--color-info))]">
                         {syncStatus.pendingCount} syncing
                       </span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span className="text-green-600 dark:text-green-400">
+                      <CheckCircle className="h-3 w-3 text-[hsl(var(--color-success))]" />
+                      <span className="text-[hsl(var(--color-success))]">
                         Synced
                       </span>
                     </>
@@ -509,7 +509,7 @@ export default function Home() {
                 </Alert>
               )}
               {!isGuest && sessionFileIssues.length > 0 && (
-                <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-100">
+                <Alert className="ui-alert-warning">
                   <Info className="h-4 w-4" />
                   <AlertTitle>
                     {sessionFileIssues.length} GitHub session file
