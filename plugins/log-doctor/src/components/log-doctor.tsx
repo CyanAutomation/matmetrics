@@ -1062,7 +1062,7 @@ export const LogDoctor = (): React.ReactElement => {
                     {file.commitSha ? ` · commit ${file.commitSha}` : ''}
                   </div>
                   <div
-                    className={`max-h-56 overflow-auto rounded p-2 font-mono text-xs ${getPluginUiTokenClassNames('surface.diffPreview')}`}
+                    className={`max-h-56 overflow-auto rounded p-2 font-mono text-xs ${getPluginUiTokenClassNames('surface.diff-preview')}`}
                   >
                     <pre className="whitespace-pre-wrap break-words">
                       {file.preview.diff}
@@ -1198,14 +1198,14 @@ export const LogDoctor = (): React.ReactElement => {
                 variant="success"
                 title="All sessions passed quality checks!"
                 description="No issues detected."
-                className={`border-dashed ${getPluginUiTokenClassNames('surface.logDoctor')}`}
+                className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
               />
             ) : (
               <PluginStatusPanel
                 variant="warning"
                 title="Haven't run an audit yet"
                 description='Click "Run check" above to get started.'
-                className={`border-dashed ${getPluginUiTokenClassNames('surface.logDoctor')}`}
+                className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
               />
             )
           ) : null}

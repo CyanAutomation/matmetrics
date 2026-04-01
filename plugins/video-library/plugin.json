@@ -52,7 +52,7 @@
   "uiContract": {
     "layoutVariant": "wide",
     "requiredUxStates": ["loading", "error", "empty", "destructive"],
-    "designTokenVariants": ["layout.wide", "surface.videoLibrary"]
+    "designTokenVariants": ["layout.wide", "surface.video-library"]
   },
   "enabled": true,
   "uiExtensions": [

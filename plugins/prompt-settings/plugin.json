@@ -48,7 +48,7 @@
   "uiContract": {
     "layoutVariant": "standard",
     "requiredUxStates": ["loading", "error", "empty", "destructive"],
-    "designTokenVariants": ["layout.standard", "surface.promptSettings"]
+    "designTokenVariants": ["layout.standard", "surface.prompt-settings"]
   },
   "enabled": true,
   "uiExtensions": [

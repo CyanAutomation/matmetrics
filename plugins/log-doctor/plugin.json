@@ -52,7 +52,7 @@
   "uiContract": {
     "layoutVariant": "wide",
     "requiredUxStates": ["loading", "error", "empty", "destructive"],
-    "designTokenVariants": ["layout.wide", "surface.logDoctor"]
+    "designTokenVariants": ["layout.wide", "surface.log-doctor"]
   },
   "enabled": true,
   "uiExtensions": [
