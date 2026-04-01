@@ -51,7 +51,7 @@
   "uiContract": {
     "layoutVariant": "standard",
     "requiredUxStates": ["loading", "error", "empty", "destructive"],
-    "designTokenVariants": ["layout.standard", "surface.tagManager"]
+    "designTokenVariants": ["layout.standard", "surface.tag-manager"]
   },
   "enabled": true,
   "uiExtensions": [

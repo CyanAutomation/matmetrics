@@ -47,7 +47,7 @@
   "uiContract": {
     "layoutVariant": "standard",
     "requiredUxStates": ["loading", "error", "empty", "destructive"],
-    "designTokenVariants": ["layout.standard", "surface.githubSync"]
+    "designTokenVariants": ["layout.standard", "surface.github-sync"]
   },
   "enabled": true,
   "uiExtensions": [

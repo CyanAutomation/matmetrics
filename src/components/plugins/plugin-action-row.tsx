@@ -26,7 +26,7 @@ export function PluginActionRow({ children, className }: PluginActionRowProps) {
   return (
     <div
       className={cn(
-        getPluginUiTokenClassNames('layout.actionRow'),
+        getPluginUiTokenClassNames('layout.action-row'),
         'items-center',
         className
       )}
@@ -64,7 +64,9 @@ export function PluginActionTrailing({
   return (
     <PluginActionSlot
       className={cn(
-        PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP['layout.actionRow.trailing'],
+        PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[
+          'layout.action-row.trailing'
+        ],
         className
       )}
     >
