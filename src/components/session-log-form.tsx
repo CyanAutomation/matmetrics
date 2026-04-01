@@ -419,7 +419,7 @@ export function SessionLogForm({
   return (
     <Card
       className={cn(
-        'max-w-4xl mx-auto shadow-lg bg-card/95',
+        'max-w-4xl mx-auto shadow-lg',
         !shouldHideHeader && CARD_INTERACTION_CLASS
       )}
     >
@@ -431,9 +431,6 @@ export function SessionLogForm({
             </div>
             <div>
               <CardTitle>Log Practice Session</CardTitle>
-              <CardDescription>
-                Record your techniques, effort, and reflections.
-              </CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -660,24 +657,23 @@ export function SessionLogForm({
                 </Label>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={handleSuggest}
-                  interaction="subtle"
                   feedbackState={
                     isSuggesting ? 'loading' : suggestFeedback.feedbackState
                   }
                   disabled={
                     !canUseAi || isSuggesting || isSubmitting || !description
                   }
-                  className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
+                  className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
                 >
                   {isSuggesting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <Sparkles className="h-3 w-3" />
                   )}
-                  AI Tag Suggestion
+                  Suggest tags
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">

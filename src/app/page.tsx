@@ -310,6 +310,23 @@ export default function Home() {
   const guestBadgeLabel =
     guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview';
 
+  const totalSessions = sessions.length;
+  const thisMonthSessions = sessions.filter((s) =>
+    isSameMonthAndYear(s.date, new Date())
+  ).length;
+  const syncStatusText = !syncStatus.isOnline
+    ? 'Offline'
+    : syncStatus.isSyncing
+      ? 'Syncing'
+      : syncStatus.pendingCount > 0
+        ? `${syncStatus.pendingCount} pending`
+        : 'Synced';
+  const syncStatusColor = !syncStatus.isOnline
+    ? 'text-[hsl(var(--color-warning))]'
+    : syncStatus.isSyncing || syncStatus.pendingCount > 0
+      ? 'text-[hsl(var(--color-info))]'
+      : 'text-[hsl(var(--color-success))]';
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-muted/30">
@@ -351,25 +368,17 @@ export default function Home() {
             </SidebarMenu>
             <Separator className="my-6 bg-primary/5" />
             <div className="px-4 py-2">
-              <div className="text-label-md text-muted-foreground mb-4">
-                Training Stats
+              <div className="text-label-md text-muted-foreground mb-3">
+                Training
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Sessions</span>
-                  <span className="text-sm font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
-                    {sessions.length}
-                  </span>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sessions</span>
+                  <span className="font-semibold">{totalSessions}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">This Month</span>
-                  <span className="text-sm font-bold bg-accent/10 text-accent-foreground px-2 py-0.5 rounded">
-                    {
-                      sessions.filter((s) =>
-                        isSameMonthAndYear(s.date, new Date())
-                      ).length
-                    }
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">This month</span>
+                  <span className="font-semibold">{thisMonthSessions}</span>
                 </div>
               </div>
             </div>
@@ -393,37 +402,17 @@ export default function Home() {
                   {!syncStatus.isOnline ? (
                     <>
                       <WifiOff className="h-3 w-3" />
-                      <span className="text-[hsl(var(--color-warning))]">
-                        Offline
-                      </span>
-                      {syncStatus.pendingCount > 0 && (
-                        <span className="ml-auto text-[hsl(var(--color-warning))]">
-                          {syncStatus.pendingCount} pending
-                        </span>
-                      )}
                     </>
-                  ) : syncStatus.isSyncing ? (
+                  ) : syncStatus.isSyncing || syncStatus.pendingCount > 0 ? (
                     <>
-                      <Loader2 className="h-3 w-3 text-[hsl(var(--color-info))] animate-spin" />
-                      <span className="text-[hsl(var(--color-info))]">
-                        Syncing...
-                      </span>
-                    </>
-                  ) : syncStatus.pendingCount > 0 ? (
-                    <>
-                      <Loader2 className="h-3 w-3 text-[hsl(var(--color-info))] animate-spin" />
-                      <span className="text-[hsl(var(--color-info))]">
-                        {syncStatus.pendingCount} syncing
-                      </span>
+                      <Loader2 className="h-3 w-3 animate-spin" />
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-3 w-3 text-[hsl(var(--color-success))]" />
-                      <span className="text-[hsl(var(--color-success))]">
-                        Synced
-                      </span>
+                      <CheckCircle className="h-3 w-3" />
                     </>
                   )}
+                  <span className={syncStatusColor}>{syncStatusText}</span>
                 </div>
               )}
             </div>
@@ -431,28 +420,28 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
-          <header className="h-16 flex items-center px-6 justify-between bg-card/80 backdrop-blur-md sticky top-0 z-10 shadow-[0_10px_26px_-20px_hsl(var(--foreground)/0.4)] [[data-contrast='high']_&]:shadow-[0_0_0_1px_hsl(var(--color-outline-variant)/0.9)]">
+          <header className="h-14 flex items-center px-6 justify-between bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.08,transparent)]">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
-              <h2 className="text-xl font-bold tracking-tight text-primary">
-                {selectedTab?.headerTitle ?? 'MatMetrics'}
+              <h2 className="font-semibold tracking-tight text-foreground">
+                {selectedTab?.title ?? 'MatMetrics'}
               </h2>
             </div>
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/5"
+                className="h-9 w-9 border-primary/20 text-primary hover:bg-primary/5"
                 onClick={() => setIsLogModalOpen(true)}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
               </Button>
               <ModeToggle />
               <div className="hidden sm:flex flex-col items-end mr-2">
-                <span className="text-sm font-bold">
+                <span className="text-sm font-semibold">
                   {user?.displayName || user?.email || 'Guest Mode'}
                 </span>
-                <span className="text-label-md text-muted-foreground text-[10px]">
+                <span className="text-xs text-muted-foreground">
                   {user?.email || guestBadgeLabel}
                 </span>
               </div>
@@ -475,14 +464,14 @@ export default function Home() {
                   {authAvailable ? 'Sign in' : 'Sign-in info'}
                 </Button>
               )}
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
                 {initials}
               </div>
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full mt-2 md:mt-3">
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-6">
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
+            <div className="space-y-6">
               {isGuest && (
                 <Alert className="border-primary/20 bg-primary/5">
                   <LockKeyhole className="h-4 w-4 text-primary" />
@@ -545,7 +534,7 @@ export default function Home() {
           <div className="fixed bottom-6 right-6 md:hidden z-50">
             <Button
               size="icon"
-              className="h-14 w-14 rounded-full shadow-2xl hover:scale-110 transition-transform"
+              className="h-14 w-14 rounded-full hover:scale-105 transition-transform"
               onClick={() => setIsLogModalOpen(true)}
             >
               <Plus className="h-6 w-6" />
@@ -555,8 +544,6 @@ export default function Home() {
       </div>
 
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-        {/* Quick-log spacing convention: form-owned (same as auth's `p-0` dialog shell).
-            Keep dialog chrome neutral so SessionLogForm's card controls all interior spacing consistently. */}
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Log practice session</DialogTitle>
           {isLogModalOpen && (
