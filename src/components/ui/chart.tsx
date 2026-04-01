@@ -247,8 +247,13 @@ const ChartTooltipContent = React.forwardRef<
               typeof item.value === 'number' || typeof item.value === 'string'
                 ? item.value
                 : '';
-            const valueWithUnit = [rawValue, valueUnit].filter(Boolean).join(' ');
-            const typedPayload = (item.payload || {}) as Record<string, unknown>;
+            const valueWithUnit = [rawValue, valueUnit]
+              .filter(Boolean)
+              .join(' ');
+            const typedPayload = (item.payload || {}) as Record<
+              string,
+              unknown
+            >;
             const detailNode = detailFormatter?.({
               seriesKey: key,
               seriesLabel: itemConfig?.label || item.name || key,

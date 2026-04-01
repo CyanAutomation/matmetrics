@@ -17,7 +17,9 @@ function renderElement(jsx: ReactElement) {
   const parsed = parse(markup);
   const root = parsed.tagName
     ? parsed
-    : parsed.childNodes.find((node: { nodeType?: number }) => node.nodeType === 1);
+    : parsed.childNodes.find(
+        (node: { nodeType?: number }) => node.nodeType === 1
+      );
 
   assert.ok(root, 'expected a root element in rendered markup');
 

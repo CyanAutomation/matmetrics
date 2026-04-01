@@ -1665,9 +1665,12 @@ serialTest(
 
       clearAllData();
       resolveList?.(
-        new Response(JSON.stringify([makeSession('session-from-stale-refresh')]), {
-          status: 200,
-        })
+        new Response(
+          JSON.stringify([makeSession('session-from-stale-refresh')]),
+          {
+            status: 200,
+          }
+        )
       );
       await flushAsyncWork();
 
@@ -1712,7 +1715,9 @@ serialTest(
       clearAllData();
       assert.equal(getQueue().length, 0);
 
-      resolveCreate?.(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      resolveCreate?.(
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
       await savePromise;
       await flushAsyncWork();
 
