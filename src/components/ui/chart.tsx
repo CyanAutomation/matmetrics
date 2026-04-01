@@ -2,6 +2,11 @@
 
 import * as React from 'react';
 import * as RechartsPrimitive from 'recharts';
+import type {
+  ValueType as RechartsValueType,
+  NameType as RechartsNameType,
+  Payload as RechartsPayload,
+} from 'recharts/types/component/DefaultTooltipContent';
 
 import { cn } from '@/lib/utils';
 
@@ -136,11 +141,11 @@ const ChartTooltipContent = React.forwardRef<
       nameKey?: string;
       labelKey?: string;
       formatter?: (
-        value: RechartsPrimitive.ValueType,
-        name: RechartsPrimitive.NameType,
-        item: RechartsPrimitive.Payload<
-          RechartsPrimitive.ValueType,
-          RechartsPrimitive.NameType
+        value: RechartsValueType,
+        name: RechartsNameType,
+        item: RechartsPayload<
+          RechartsValueType,
+          RechartsNameType
         >,
         index: number,
         payload: Record<string, unknown>
