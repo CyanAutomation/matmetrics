@@ -286,3 +286,29 @@ test('isActiveRefreshRequest prevents out-of-order completion from regressing cu
     '2026-03-31T00:00:00.000Z'
   );
 });
+
+test('installed table uses semantic tone utility classes for maturity and severity badges', () => {
+  const tableMarkup = renderInstalledContentMarkup({
+    installedPluginsViewState: 'table',
+    installedPlugins: [
+      createInstalledPluginRow({
+        issues: [
+          {
+            severity: 'error',
+            path: 'contractGate.entrypoint',
+            message: 'Missing entrypoint',
+          },
+        ],
+        maturity: {
+          tier: 'gold',
+          score: 92,
+          reasons: [],
+          nextActions: [],
+        } as any,
+      }),
+    ],
+  });
+
+  assert.match(tableMarkup, /ui-pill-trend-positive/);
+  assert.match(tableMarkup, /ui-pill-warning/);
+});

@@ -443,7 +443,7 @@ export function SessionLogForm({
           className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-4 sm:p-6')}
         >
           {!canUseAi && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="ui-tone-warning-soft rounded-lg border px-4 py-3 text-sm">
               {authAvailable
                 ? 'Guest mode can log sessions locally. Sign in to unlock AI transform and AI tag suggestion.'
                 : 'Guest mode can log sessions locally. AI features are unavailable until Firebase authentication is configured.'}

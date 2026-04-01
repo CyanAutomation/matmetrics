@@ -1,13 +1,8 @@
 export const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
-  'bg-amber-50',
-  'bg-amber-100',
-  'bg-emerald-50',
-  'bg-emerald-100',
-  'border-amber-200',
-  'border-amber-300',
-  'border-emerald-300',
-  'text-amber-900',
-  'text-emerald-900',
+  'ui-tone-inline-warning',
+  'ui-tone-inline-success',
+  'ui-tone-warning-soft',
+  'ui-tone-success-soft',
 ] as const;
 
 export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
@@ -25,12 +20,8 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'layout.action-row.trailing': ['ml-auto'],
   'tone.inline.default': ['border-border', 'bg-muted/30', 'text-foreground'],
   'tone.inline.info': ['border-primary/25', 'bg-primary/5', 'text-primary'],
-  'tone.inline.warning': ['border-amber-300', 'bg-amber-50', 'text-amber-900'],
-  'tone.inline.success': [
-    'border-emerald-300',
-    'bg-emerald-50',
-    'text-emerald-900',
-  ],
+  'tone.inline.warning': ['ui-tone-inline-warning'],
+  'tone.inline.success': ['ui-tone-inline-success'],
   'tone.inline.error': [
     'border-destructive/30',
     'bg-destructive/10',
@@ -49,10 +40,10 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'action.subtle': ['text-muted-foreground', 'hover:text-foreground'],
   'text.subtle': ['text-muted-foreground'],
   'text.danger': ['text-destructive'],
-  'text.success': ['text-emerald-900'],
+  'text.success': ['text-[hsl(var(--color-on-success-container))]'],
   'icon.subtle': ['text-muted-foreground'],
   'icon.info': ['text-primary'],
-  'icon.success': ['text-emerald-900'],
+  'icon.success': ['text-[hsl(var(--color-on-success-container))]'],
   'code.inline': ['rounded', 'bg-background/70', 'px-2', 'py-1'],
 } as const;
 
