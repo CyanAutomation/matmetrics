@@ -129,7 +129,6 @@ export const runPluginContractGate = async ({
 
   const issues: PluginValidationIssue[] = [];
   const packagedRuntimeMode = isPackagedRuntimeArtifactMode();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [manifestExists, _srcRootExists, indexExists, readmeExists] =
     await Promise.all([
       exists(manifestPath),
