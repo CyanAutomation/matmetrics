@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
@@ -21,7 +22,6 @@ import {
   PluginActionRow,
   PluginActionSecondary,
 } from '@/components/plugins/plugin-action-row';
-import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginTabs } from '@/components/plugins/plugin-tabs';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Stethoscope } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
@@ -774,18 +775,29 @@ export const LogDoctor = (): React.ReactElement => {
   ]);
 
   return (
-    <PluginPageShell
-      title="Log Doctor"
-      description="Scan, preview, and optionally apply markdown normalization fixes. Use Session Audit to detect data quality issues."
-      icon={
-        <div className="hidden shrink-0 lg:flex">
-          <DrLogImage pose={1} size="large" />
+    <Card className="max-w-4xl mx-auto shadow-lg bg-card/95">
+      <CardHeader className="bg-secondary/45">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary text-primary-foreground rounded-lg">
+            <Stethoscope className="h-6 w-6" />
+          </div>
+          <div>
+            <CardTitle>Log Doctor</CardTitle>
+            <CardDescription>
+              Scan, preview, and optionally apply markdown normalization fixes. Use Session Audit to detect data quality issues.
+            </CardDescription>
+          </div>
         </div>
-      }
-      tone="default"
-      iconFrame="none"
-      contentClassName="space-y-4"
-    >
+      </CardHeader>
+      <CardContent className="p-6 space-y-4">
+      <div className="flex flex-col gap-6 items-start lg:flex-row lg:items-start">
+          {/* Avatar - Hidden on mobile, visible on lg and above */}
+          <div className="hidden lg:flex shrink-0">
+            <DrLogImage pose={1} size="medium" alt="Dr. Logo in diagnostic mode, ready to scan and fix your session logs"/>
+          </div>
+      
+          {/* Main Content Area */}
+          <div className="flex-1 w-full space-y-4">
       {/* Tab switcher */}
       <PluginTabs
         tabs={[
@@ -1274,6 +1286,9 @@ export const LogDoctor = (): React.ReactElement => {
         onCancel={handleCancelResetConfirmation}
         onConfirm={handleConfirmResetDiagnosticsState}
       />
-    </PluginPageShell>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
