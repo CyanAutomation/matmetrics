@@ -31,7 +31,6 @@ const resolveLegacySegment = (segment: string): string | null => {
 
   return null;
 };
-};
 
 export const validateAndNormalizeDesignTokenVariant = (
   value: string
