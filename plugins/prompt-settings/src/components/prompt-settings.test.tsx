@@ -252,18 +252,118 @@ test('view state surfaces empty/default profile guidance', () => {
   assert.equal(state.isUsingDefaultProfile, true);
 });
 
-test('view state captures load errors', () => {
-  const state = derivePromptSettingsViewState({
-    canSavePreferences: true,
-    preferencesReady: true,
-    preferencesError: new Error('firestore unavailable'),
-    prompt: 'Custom prompt',
-    isSaving: false,
-    isResetting: false,
-    saveStatus: 'idle',
-  });
+test('view state matrix captures load error, control state, submit state, and empty/default markers', () => {
+  const cases = [
+    {
+      name: 'ready with load error while idle',
+      preferencesReady: true,
+      preferencesError: new Error('firestore unavailable'),
+      isSaving: false,
+      isResetting: false,
+      prompt: 'Custom prompt',
+      expected: {
+        hasLoadError: true,
+        areControlsDisabled: false,
+        canSubmitPrompt: true,
+        isUsingDefaultProfile: false,
+        isEmptyStateCtaAvailable: false,
+      },
+    },
+    {
+      name: 'ready with load error while saving',
+      preferencesReady: true,
+      preferencesError: new Error('firestore unavailable'),
+      isSaving: true,
+      isResetting: false,
+      prompt: 'Custom prompt',
+      expected: {
+        hasLoadError: true,
+        areControlsDisabled: true,
+        canSubmitPrompt: false,
+        isUsingDefaultProfile: false,
+        isEmptyStateCtaAvailable: false,
+      },
+    },
+    {
+      name: 'ready with no load error and custom prompt',
+      preferencesReady: true,
+      preferencesError: null,
+      isSaving: false,
+      isResetting: false,
+      prompt: 'Custom prompt',
+      expected: {
+        hasLoadError: false,
+        areControlsDisabled: false,
+        canSubmitPrompt: true,
+        isUsingDefaultProfile: false,
+        isEmptyStateCtaAvailable: true,
+      },
+    },
+    {
+      name: 'ready with no load error and default prompt',
+      preferencesReady: true,
+      preferencesError: null,
+      isSaving: false,
+      isResetting: false,
+      prompt: DEFAULT_TRANSFORMER_PROMPT,
+      expected: {
+        hasLoadError: false,
+        areControlsDisabled: false,
+        canSubmitPrompt: true,
+        isUsingDefaultProfile: true,
+        isEmptyStateCtaAvailable: true,
+      },
+    },
+    {
+      name: 'not ready while resetting',
+      preferencesReady: false,
+      preferencesError: null,
+      isSaving: false,
+      isResetting: true,
+      prompt: 'Custom prompt',
+      expected: {
+        hasLoadError: false,
+        areControlsDisabled: true,
+        canSubmitPrompt: false,
+        isUsingDefaultProfile: false,
+        isEmptyStateCtaAvailable: false,
+      },
+    },
+  ];
 
-  assert.equal(state.hasLoadError, true);
+  for (const testCase of cases) {
+    const state = derivePromptSettingsViewState({
+      canSavePreferences: true,
+      preferencesReady: testCase.preferencesReady,
+      preferencesError: testCase.preferencesError,
+      prompt: testCase.prompt,
+      isSaving: testCase.isSaving,
+      isResetting: testCase.isResetting,
+      saveStatus: 'idle',
+    });
+
+    assert.equal(state.hasLoadError, testCase.expected.hasLoadError, testCase.name);
+    assert.equal(
+      state.areControlsDisabled,
+      testCase.expected.areControlsDisabled,
+      testCase.name
+    );
+    assert.equal(
+      state.canSubmitPrompt,
+      testCase.expected.canSubmitPrompt,
+      testCase.name
+    );
+    assert.equal(
+      state.isUsingDefaultProfile,
+      testCase.expected.isUsingDefaultProfile,
+      testCase.name
+    );
+    assert.equal(
+      state.isEmptyStateCtaAvailable,
+      testCase.expected.isEmptyStateCtaAvailable,
+      testCase.name
+    );
+  }
 });
 
 test('error criterion anchor: error state recover flow retries once and transitions to recovered ready state', async () => {
