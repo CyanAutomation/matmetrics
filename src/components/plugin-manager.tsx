@@ -50,6 +50,10 @@ import type {
   PluginValidationIssue,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
+import {
+  pluginSeverityToneClass,
+  pluginTierToneClass,
+} from '@/lib/ui-semantic';
 
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
 type PluginFetchState = 'idle' | 'loading' | 'success' | 'error';
@@ -94,18 +98,6 @@ const severityLabel = (severity: PluginValidationSeverity): string => {
     case 'info':
       return 'Info';
   }
-};
-
-const severityBadgeClass: Record<PluginValidationSeverity, string> = {
-  error: 'bg-destructive/10 text-destructive border-destructive/30',
-  warning: 'bg-amber-500/10 text-amber-700 border-amber-300/40',
-  info: 'bg-primary/10 text-primary border-primary/30',
-};
-
-const tierBadgeClass: Record<PluginMaturityTier, string> = {
-  bronze: 'bg-amber-700/10 text-amber-800 border-amber-700/30',
-  silver: 'bg-slate-500/10 text-slate-700 border-slate-400/40',
-  gold: 'bg-yellow-500/10 text-yellow-800 border-yellow-400/40',
 };
 
 const formatTierLabel = (tier: PluginMaturityTier): string =>
@@ -305,7 +297,7 @@ export function PluginManagerInstalledContent(props: {
                   <div className="space-y-1">
                     <Badge
                       variant="outline"
-                      className={tierBadgeClass[plugin.maturity.tier]}
+                      className={pluginTierToneClass[plugin.maturity.tier]}
                     >
                       {formatTierLabel(plugin.maturity.tier)}
                     </Badge>
@@ -313,10 +305,7 @@ export function PluginManagerInstalledContent(props: {
                       {plugin.maturity.score}/100
                     </div>
                     {scoredWithContractIssues ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-500/10 text-amber-700 border-amber-300/40"
-                      >
+                      <Badge variant="outline" className="ui-pill-warning">
                         Scored with contract issues
                       </Badge>
                     ) : null}
@@ -349,7 +338,9 @@ export function PluginManagerInstalledContent(props: {
                 {plugin.status === 'pending' ? (
                   <span className="text-xs text-muted-foreground">Saving…</span>
                 ) : plugin.status === 'success' ? (
-                  <span className="text-xs text-emerald-700">Saved</span>
+                  <span className="text-xs text-[hsl(var(--color-success))]">
+                    Saved
+                  </span>
                 ) : plugin.status === 'failure' ? (
                   <span className="text-xs text-destructive">Failed</span>
                 ) : (
@@ -690,22 +681,20 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
 
   const accessAlert =
     accessState === 'sign-in-required' ? (
-      <Alert className="bg-amber-50 border-amber-200">
-        <AlertCircle className="h-4 w-4 text-amber-700" />
-        <AlertTitle className="text-amber-900 font-bold">
-          Sign-in required
-        </AlertTitle>
-        <AlertDescription className="text-amber-800">
+      <Alert className="ui-alert-warning">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle className="font-bold">Sign-in required</AlertTitle>
+        <AlertDescription>
           Plugin management is only available for signed-in accounts.
         </AlertDescription>
       </Alert>
     ) : accessState === 'auth-unavailable' ? (
-      <Alert className="bg-amber-50 border-amber-200">
-        <Info className="h-4 w-4 text-amber-700" />
-        <AlertTitle className="text-amber-900 font-bold">
+      <Alert className="ui-alert-warning">
+        <Info className="h-4 w-4" />
+        <AlertTitle className="font-bold">
           Plugin management unavailable
         </AlertTitle>
-        <AlertDescription className="text-amber-800">
+        <AlertDescription>
           Plugin management requires Firebase authentication, which is not
           configured for this deployment.
         </AlertDescription>
@@ -848,20 +837,19 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       {plugin.maturity ? (
                         <Badge
                           variant="outline"
-                          className={tierBadgeClass[plugin.maturity.tier]}
+                          className={pluginTierToneClass[plugin.maturity.tier]}
                         >
                           {formatTierLabel(plugin.maturity.tier)}{' '}
                           {plugin.maturity.score}/100
                         </Badge>
                       ) : null}
-                      <Badge className={severityBadgeClass[summarySeverity]}>
+                      <Badge
+                        className={pluginSeverityToneClass[summarySeverity]}
+                      >
                         {severityLabel(summarySeverity)}
                       </Badge>
                       {scoredWithContractIssues ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-500/10 text-amber-700 border-amber-300/40"
-                        >
+                        <Badge variant="outline" className="ui-pill-warning">
                           Scored with contract issues
                         </Badge>
                       ) : null}
@@ -961,7 +949,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                             {issue.message}{' '}
                             <Badge
                               variant="outline"
-                              className={severityBadgeClass[issue.severity]}
+                              className={
+                                pluginSeverityToneClass[issue.severity]
+                              }
                             >
                               {severityLabel(issue.severity)}
                             </Badge>
