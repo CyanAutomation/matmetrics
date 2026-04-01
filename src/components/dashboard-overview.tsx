@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { JudoSession } from '@/lib/types';
 import { Award, Calendar, Zap, Target } from 'lucide-react';
@@ -19,6 +19,9 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ sessions }: DashboardOverviewProps) {
+  const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
+    null
+  );
   const stats = useMemo(() => {
     if (sessions.length === 0) return null;
 
@@ -58,6 +61,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
           month: 'short',
           day: 'numeric',
         }),
+        timestamp: s.date,
         effort: s.effort,
       }));
 
@@ -152,29 +156,107 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
           <CardContent className="h-[300px]">
             <ChartContainer
               config={{
-                effort: {
-                  label: 'Effort',
+                primary: {
+                  label: 'Effort — Level 5',
                   color: 'hsl(var(--primary))',
+                  markerShape: 'circle',
+                  strokeStyle: 'solid',
+                },
+                secondary: {
+                  label: 'Effort — Level 4',
+                  color: 'hsl(var(--secondary))',
+                  markerShape: 'square',
+                  strokeStyle: 'solid',
+                },
+                tertiary: {
+                  label: 'Effort — Level 3',
+                  color: 'hsl(var(--tertiary))',
+                  markerShape: 'diamond',
+                  strokeStyle: 'dashed',
+                },
+                'primary-container': {
+                  label: 'Effort — Level 2',
+                  color: 'hsl(var(--primary-container))',
+                  markerShape: 'triangle',
+                  strokeStyle: 'dotted',
+                },
+                'secondary-container': {
+                  label: 'Effort — Level 1',
+                  color: 'hsl(var(--secondary))',
+                  markerShape: 'triangle',
+                  strokeStyle: 'dotted',
                 },
               }}
               className="h-full w-full"
             >
               <BarChart data={stats.recentEfforts}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" />
-                <YAxis ticks={[0, 1, 2, 3, 4, 5]} domain={[0, 5]} />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <CartesianGrid
+                  strokeDasharray="2 6"
+                  stroke="hsl(var(--border) / 0.2)"
+                  vertical={false}
+                />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                <YAxis
+                  ticks={[0, 1, 2, 3, 4, 5]}
+                  domain={[0, 5]}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      valueUnit="/5"
+                      detailFormatter={(item) => (
+                        <div className="grid gap-1">
+                          <span className="font-medium">{item.seriesLabel}</span>
+                          <span className="font-mono tabular-nums">
+                            {item.valueWithUnit}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {item.date || item.timestamp}
+                          </span>
+                          {item.delta !== undefined && (
+                            <span className="text-muted-foreground">
+                              Δ {item.delta}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    />
+                  }
+                />
                 <Bar dataKey="effort" radius={[4, 4, 0, 0]}>
                   {stats.recentEfforts.map((entry, index) => {
-                    let fill = 'hsl(var(--primary))';
-                    if (entry.effort === 1) fill = 'hsl(var(--primary) / 0.2)';
-                    else if (entry.effort === 2)
-                      fill = 'hsl(var(--primary) / 0.4)';
-                    else if (entry.effort === 3)
-                      fill = 'hsl(var(--primary) / 0.6)';
-                    else if (entry.effort === 4)
-                      fill = 'hsl(var(--primary) / 0.8)';
-                    return <Cell key={`cell-${index}`} fill={fill} />;
+                    const seriesTokenByEffort = {
+                      1: 'secondary-container',
+                      2: 'primary-container',
+                      3: 'tertiary',
+                      4: 'secondary',
+                      5: 'primary',
+                    } as const;
+                    const token =
+                      seriesTokenByEffort[
+                        entry.effort as keyof typeof seriesTokenByEffort
+                      ] ?? 'primary';
+
+                    return (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={`var(--color-${token})`}
+                        fillOpacity={
+                          activeEffortIndex === null || activeEffortIndex === index
+                            ? 1
+                            : 0.35
+                        }
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Effort ${entry.effort} on ${entry.date}`}
+                        onMouseEnter={() => setActiveEffortIndex(index)}
+                        onMouseLeave={() => setActiveEffortIndex(null)}
+                        onFocus={() => setActiveEffortIndex(index)}
+                        onBlur={() => setActiveEffortIndex(null)}
+                      />
+                    );
                   })}
                 </Bar>
               </BarChart>

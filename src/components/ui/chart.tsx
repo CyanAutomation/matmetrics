@@ -8,10 +8,15 @@ import { cn } from '@/lib/utils';
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: '', dark: '.dark' } as const;
 
+export type ChartMarkerShape = 'circle' | 'square' | 'diamond' | 'triangle';
+export type ChartStrokeStyle = 'solid' | 'dashed' | 'dotted';
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
     icon?: React.ComponentType;
+    markerShape?: ChartMarkerShape;
+    strokeStyle?: ChartStrokeStyle;
   } & (
     | { color?: string; theme?: never }
     | { color?: never; theme: Record<keyof typeof THEMES, string> }
@@ -73,11 +78,15 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = 'Chart';
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color
+  const styleConfig = Object.entries(config).filter(
+    ([, itemConfig]) =>
+      itemConfig.theme ||
+      itemConfig.color ||
+      itemConfig.markerShape ||
+      itemConfig.strokeStyle
   );
 
-  if (!colorConfig.length) {
+  if (!styleConfig.length) {
     return null;
   }
 
@@ -88,13 +97,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
           .map(
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
-${colorConfig
+${styleConfig
   .map(([key, itemConfig]) => {
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const markerShape = itemConfig.markerShape;
+    const strokeStyle = itemConfig.strokeStyle;
+
+    return [
+      color ? `  --color-${key}: ${color};` : null,
+      markerShape ? `  --marker-${key}: ${markerShape};` : null,
+      strokeStyle ? `  --stroke-${key}: ${strokeStyle};` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
   })
+  .filter(Boolean)
   .join('\n')}
 }
 `
@@ -109,13 +128,38 @@ const ChartTooltip = RechartsPrimitive.Tooltip;
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  Omit<React.ComponentProps<typeof RechartsPrimitive.Tooltip>, 'formatter'> &
     React.ComponentProps<'div'> & {
       hideLabel?: boolean;
       hideIndicator?: boolean;
       indicator?: 'line' | 'dot' | 'dashed';
       nameKey?: string;
       labelKey?: string;
+      formatter?: (
+        value: RechartsPrimitive.ValueType,
+        name: RechartsPrimitive.NameType,
+        item: RechartsPrimitive.Payload<
+          RechartsPrimitive.ValueType,
+          RechartsPrimitive.NameType
+        >,
+        index: number,
+        payload: Record<string, unknown>
+      ) => React.ReactNode;
+      valueUnit?: string;
+      dateKey?: string;
+      timestampKey?: string;
+      deltaKey?: string;
+      detailFormatter?: (item: {
+        seriesKey: string;
+        seriesLabel: React.ReactNode;
+        value: number | string;
+        valueWithUnit: string;
+        date?: string;
+        timestamp?: string;
+        delta?: number | string;
+        payload: Record<string, unknown>;
+        index: number;
+      }) => React.ReactNode;
     }
 >(
   (
@@ -133,6 +177,11 @@ const ChartTooltipContent = React.forwardRef<
       color,
       nameKey,
       labelKey,
+      valueUnit,
+      dateKey = 'date',
+      timestampKey = 'timestamp',
+      deltaKey = 'delta',
+      detailFormatter,
     },
     ref
   ) => {
@@ -194,6 +243,33 @@ const ChartTooltipContent = React.forwardRef<
             const key = `${nameKey || item.name || item.dataKey || 'value'}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
             const indicatorColor = color || item.payload.fill || item.color;
+            const rawValue =
+              typeof item.value === 'number' || typeof item.value === 'string'
+                ? item.value
+                : '';
+            const valueWithUnit = [rawValue, valueUnit].filter(Boolean).join(' ');
+            const typedPayload = (item.payload || {}) as Record<string, unknown>;
+            const detailNode = detailFormatter?.({
+              seriesKey: key,
+              seriesLabel: itemConfig?.label || item.name || key,
+              value: rawValue,
+              valueWithUnit,
+              date:
+                typeof typedPayload[dateKey] === 'string'
+                  ? (typedPayload[dateKey] as string)
+                  : undefined,
+              timestamp:
+                typeof typedPayload[timestampKey] === 'string'
+                  ? (typedPayload[timestampKey] as string)
+                  : undefined,
+              delta:
+                typeof typedPayload[deltaKey] === 'number' ||
+                typeof typedPayload[deltaKey] === 'string'
+                  ? (typedPayload[deltaKey] as number | string)
+                  : undefined,
+              payload: typedPayload,
+              index,
+            });
 
             return (
               <div
@@ -203,7 +279,9 @@ const ChartTooltipContent = React.forwardRef<
                   indicator === 'dot' && 'items-center'
                 )}
               >
-                {formatter && item?.value !== undefined && item.name ? (
+                {detailNode ? (
+                  detailNode
+                ) : formatter && item?.value !== undefined && item.name ? (
                   formatter(item.value, item.name, item, index, item.payload)
                 ) : (
                   <>
@@ -243,9 +321,9 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {valueWithUnit || item.value.toLocaleString()}
                         </span>
                       )}
                     </div>
@@ -361,6 +439,7 @@ function getPayloadConfigFromPayload(
 }
 
 export {
+  ChartContext,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
