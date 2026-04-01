@@ -351,7 +351,7 @@ export default function Home() {
             </SidebarMenu>
             <Separator className="my-6 bg-primary/5" />
             <div className="px-4 py-2">
-              <div className="text-label-meta text-muted-foreground mb-4">
+              <div className="text-label-md text-muted-foreground mb-4">
                 Training Stats
               </div>
               <div className="space-y-4">
@@ -452,7 +452,7 @@ export default function Home() {
                 <span className="text-sm font-bold">
                   {user?.displayName || user?.email || 'Guest Mode'}
                 </span>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+                <span className="text-label-md text-muted-foreground text-[10px]">
                   {user?.email || guestBadgeLabel}
                 </span>
               </div>

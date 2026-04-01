@@ -147,7 +147,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Recent Effort Levels</CardTitle>
+            <CardTitle className="text-headline-sm">Recent Effort Levels</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer
@@ -184,12 +184,12 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
 
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Training Distribution</CardTitle>
+            <CardTitle className="text-headline-sm">Training Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-4">
-                <p className="text-label-meta text-muted-foreground">
+                <p className="text-label-md text-muted-foreground">
                   Session Types
                 </p>
                 {stats.categoryStats.map((cat, idx) => (
@@ -220,7 +220,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
               </div>
 
               <div className="space-y-4">
-                <p className="text-label-meta text-muted-foreground">
+                <p className="text-label-md text-muted-foreground">
                   Top Techniques
                 </p>
                 {stats.topTechniques.map((tech, idx) => (
