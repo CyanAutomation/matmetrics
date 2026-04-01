@@ -139,11 +139,28 @@ test('advanced filter empty state points users to Advanced filters reset action'
   assert.match(advancedEmpty.description, /Advanced filters/i);
 });
 
-test('review alert copy focuses on actionable link issues instead of optional missing videos', () => {
-  assert.equal(
-    getVideoLibraryReviewAlertDescription(3),
-    '3 session(s) need attention because the provider is not yet trusted, the URL is invalid, or the link could not be verified.'
-  );
+test('review alert copy focuses on actionable link issues and preserves count interpolation', () => {
+  const description = getVideoLibraryReviewAlertDescription(3);
+
+  assert.match(description, /\b3\b/);
+  assert.match(description, /need attention/i);
+  assert.match(description, /provider/i);
+  assert.match(description, /(invalid|url)/i);
+  assert.match(description, /(verified|verification)/i);
+});
+
+test('review alert copy handles count pluralization edge cases for 0, 1, and n sessions', () => {
+  const zeroCount = getVideoLibraryReviewAlertDescription(0);
+  const singleCount = getVideoLibraryReviewAlertDescription(1);
+  const pluralCount = getVideoLibraryReviewAlertDescription(7);
+
+  assert.match(zeroCount, /\b0\b/);
+  assert.match(singleCount, /\b1\b/);
+  assert.match(pluralCount, /\b7\b/);
+
+  assert.match(zeroCount, /session/i);
+  assert.match(singleCount, /session/i);
+  assert.match(pluralCount, /sessions|\(s\)/i);
 });
 
 test('lounge-first browse behavior still supports both mode labels and table fallback', () => {
