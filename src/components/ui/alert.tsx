@@ -10,7 +10,7 @@ const alertVariants = cva(
       variant: {
         default: 'bg-card text-foreground',
         destructive:
-          'bg-destructive/10 text-destructive ring-destructive/35 [&>svg]:text-destructive [[data-contrast=\'high\']_&]:ring-[hsl(var(--color-outline-variant)/0.95)]',
+          "bg-destructive/10 text-destructive ring-destructive/35 [&>svg]:text-destructive [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.95)]",
       },
     },
     defaultVariants: {

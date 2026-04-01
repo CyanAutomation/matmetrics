@@ -820,8 +820,6 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       reconciledLinkChecks,
       videoLibraryPreferences,
       expectedVideoCategories,
-      getAuthHeaders,
-      saveVideoLibraryPreference,
       toast,
     ]
   );

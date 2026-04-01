@@ -151,7 +151,9 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle className="text-headline-sm">Recent Effort Levels</CardTitle>
+            <CardTitle className="text-headline-sm">
+              Recent Effort Levels
+            </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer
@@ -208,7 +210,9 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                       valueUnit="/5"
                       detailFormatter={(item) => (
                         <div className="grid gap-1">
-                          <span className="font-medium">{item.seriesLabel}</span>
+                          <span className="font-medium">
+                            {item.seriesLabel}
+                          </span>
                           <span className="font-mono tabular-nums">
                             {item.valueWithUnit}
                           </span>
@@ -244,7 +248,8 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                         key={`cell-${index}`}
                         fill={`var(--color-${token})`}
                         fillOpacity={
-                          activeEffortIndex === null || activeEffortIndex === index
+                          activeEffortIndex === null ||
+                          activeEffortIndex === index
                             ? 1
                             : 0.35
                         }
@@ -266,7 +271,9 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
 
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle className="text-headline-sm">Training Distribution</CardTitle>
+            <CardTitle className="text-headline-sm">
+              Training Distribution
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">

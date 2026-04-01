@@ -342,7 +342,11 @@ test('view state matrix captures load error, control state, submit state, and em
       saveStatus: 'idle',
     });
 
-    assert.equal(state.hasLoadError, testCase.expected.hasLoadError, testCase.name);
+    assert.equal(
+      state.hasLoadError,
+      testCase.expected.hasLoadError,
+      testCase.name
+    );
     assert.equal(
       state.areControlsDisabled,
       testCase.expected.areControlsDisabled,

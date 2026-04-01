@@ -23,7 +23,10 @@ test('APP_VERSION matches the latest CHANGELOG.md entry', async () => {
   const releases = parseChangelog(raw);
   const latestRelease = releases[0];
 
-  assert.ok(latestRelease, 'Expected CHANGELOG.md to include at least one release.');
+  assert.ok(
+    latestRelease,
+    'Expected CHANGELOG.md to include at least one release.'
+  );
   assert.equal(
     latestRelease.version,
     APP_VERSION,
