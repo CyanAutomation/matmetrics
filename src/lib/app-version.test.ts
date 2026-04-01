@@ -21,6 +21,14 @@ test('APP_VERSION matches the latest CHANGELOG.md entry', async () => {
   const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');
   const raw = await readFile(changelogPath, 'utf8');
   const releases = parseChangelog(raw);
+  const latestRelease = releases[0];
+
+  assert.ok(latestRelease, 'Expected CHANGELOG.md to include at least one release.');
+  assert.equal(
+    latestRelease.version,
+    APP_VERSION,
+    `Expected latest parsed CHANGELOG.md version (${latestRelease.version}) to match APP_VERSION (${APP_VERSION}).`
+  );
 
   assert.doesNotThrow(() => assertReleaseVersionConsistency(releases));
 });
