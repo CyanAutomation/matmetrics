@@ -10,6 +10,7 @@ import {
   type PluginManifestSchema,
 } from '@/lib/plugins/manifest-schema';
 import { meetsMinimumVersion } from '@/lib/plugins/version-utils';
+import { validateAndNormalizeDesignTokenVariant } from '@/lib/plugins/design-token-variants';
 import type {
   PluginManifest,
   PluginManifestValidationResult,
@@ -256,6 +257,26 @@ export const validatePluginManifest = (
           'warning',
           `${extensionPath}.capabilities`,
           `Extension "${extension.id}" requires capability "${requiredCapability}". Add it to manifest.capabilities to enable execution.`
+        )
+      );
+    }
+  });
+
+  manifest.uiContract?.designTokenVariants?.forEach((variant, index) => {
+    const normalized = validateAndNormalizeDesignTokenVariant(variant);
+    const basePath = `uiContract.designTokenVariants.${index}`;
+
+    if (!normalized.ok) {
+      issues.push(makeIssue('error', basePath, normalized.error));
+      return;
+    }
+
+    if (normalized.wasMigrated) {
+      issues.push(
+        makeIssue(
+          'warning',
+          basePath,
+          `Legacy token variant key "${variant}" should be migrated to canonical kebab-case "${normalized.canonical}".`
         )
       );
     }

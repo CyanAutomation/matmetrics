@@ -12,7 +12,7 @@ export function PluginFilterBar({ children, className }: PluginFilterBarProps) {
   return (
     <div
       className={cn(
-        getPluginUiTokenClassNames('layout.filterBar'),
+        getPluginUiTokenClassNames('layout.filter-bar'),
         'lg:grid-cols-5',
         className
       )}

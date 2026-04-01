@@ -564,3 +564,71 @@ test('malformed uiContract is rejected', () => {
     );
   }
 });
+
+test('uiContract designTokenVariants reject unknown underscore token keys', () => {
+  const result = validatePluginManifest({
+    id: 'underscore-token-plugin',
+    name: 'Underscore Token Plugin',
+    version: '1.0.0',
+    description: 'Contains legacy underscore token keys.',
+    uiContract: {
+      layoutVariant: 'standard',
+      requiredUxStates: ['loading'],
+      designTokenVariants: ['surface.github_sync'],
+    },
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'underscore-token-dashboard-tab',
+        title: 'Underscore Token Variant',
+        config: {
+          tabId: 'underscore-token',
+          headerTitle: 'Underscore Token Variant',
+          component: 'underscore_token',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, false);
+  if (!result.isValid) {
+    assert.equal(result.issues[0]?.path, 'uiContract.designTokenVariants.0');
+    assert.match(
+      result.issues[0]?.message ?? '',
+      /Legacy underscore token keys are not supported/
+    );
+  }
+});
+
+test('uiContract designTokenVariants warn on explicit legacy migration mappings', () => {
+  const result = validatePluginManifest({
+    id: 'legacy-token-plugin',
+    name: 'Legacy Token Plugin',
+    version: '1.0.0',
+    description: 'Contains legacy camelCase token key with migration mapping.',
+    uiContract: {
+      layoutVariant: 'standard',
+      requiredUxStates: ['loading'],
+      designTokenVariants: ['surface.githubSync'],
+    },
+    uiExtensions: [
+      {
+        type: 'dashboard_tab',
+        id: 'legacy-token-dashboard-tab',
+        title: 'Legacy Token Variant',
+        config: {
+          tabId: 'legacy-token',
+          headerTitle: 'Legacy Token Variant',
+          component: 'legacy_token',
+        },
+      },
+    ],
+  });
+
+  assert.equal(result.isValid, true);
+  if (result.isValid) {
+    assert.equal(result.issues.length, 1);
+    assert.equal(result.issues[0].severity, 'warning');
+    assert.match(result.issues[0].message, /surface.github-sync/);
+  }
+});
