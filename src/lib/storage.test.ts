@@ -1638,6 +1638,95 @@ serialTest(
 );
 
 serialTest(
+  'clearAllData prevents stale in-flight refresh from repopulating sessions',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    let resolveList: ((value: Response) => void) | undefined;
+    const listPending = new Promise<Response>((resolve) => {
+      resolveList = resolve;
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('/api/sessions/list')) {
+        return listPending;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      getSessions();
+      await flushAsyncWork();
+
+      clearAllData();
+      resolveList?.(
+        new Response(JSON.stringify([makeSession('session-from-stale-refresh')]), {
+          status: 200,
+        })
+      );
+      await flushAsyncWork();
+
+      assert.deepEqual(getSessions(), []);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'clearAllData prevents stale in-flight sync from restoring queue or sessions',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    let resolveCreate: ((value: Response) => void) | undefined;
+    const createPending = new Promise<Response>((resolve) => {
+      resolveCreate = resolve;
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        return createPending;
+      }
+      if (url.includes('/api/sessions/list')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      const savePromise = saveSession(makeSession('session-stale-sync'));
+      await flushAsyncWork();
+
+      clearAllData();
+      assert.equal(getQueue().length, 0);
+
+      resolveCreate?.(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      await savePromise;
+      await flushAsyncWork();
+
+      assert.deepEqual(getSessions(), []);
+      assert.equal(getQueue().length, 0);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
   'setGitHubSyncStatus persists via preferences and remains observable after reload/init',
   async () => {
     const { localStorage } = installBrowserEnv();

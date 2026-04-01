@@ -105,6 +105,7 @@ let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledRefreshAt = 0;
 let scheduledRefreshForce = false;
 let lastSuccessfulRemoteRefreshAt = 0;
+let storageGeneration = 0;
 const syncOwnerId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -307,6 +308,15 @@ function clearScheduledRefresh(): void {
   }
   scheduledRefreshAt = 0;
   scheduledRefreshForce = false;
+}
+
+function nextStorageGeneration(): number {
+  storageGeneration += 1;
+  return storageGeneration;
+}
+
+function isStorageGenerationCurrent(generation: number): boolean {
+  return generation === storageGeneration;
 }
 
 function shouldThrottleGitHubRefresh(): boolean {
@@ -1146,6 +1156,8 @@ export function getGitHubSyncStatus():
 
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
+  nextStorageGeneration();
+  clearScheduledRefresh();
   updateLocalStorageCache([]);
   localStorage.removeItem(getSyncQueueStorageKey());
   localStorage.removeItem(getSyncLockStorageKey());
@@ -1266,6 +1278,7 @@ async function refreshSessionsFromAPI(options?: {
   }
 
   inFlightRefresh = (async () => {
+    const generation = storageGeneration;
     const seq = ++refreshSeq;
 
     try {
@@ -1302,6 +1315,9 @@ async function refreshSessionsFromAPI(options?: {
       )
         ? payload.issues
         : [];
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
       if (seq < latestAppliedSeq) {
         return;
       }
@@ -1344,6 +1360,7 @@ async function syncPendingOperations(): Promise<void> {
   }
 
   inFlightSync = (async () => {
+    const generation = storageGeneration;
     isSyncing = true;
     let leaseAcquired = false;
     let leaseHeartbeat: ReturnType<typeof setInterval> | null = null;
@@ -1374,6 +1391,9 @@ async function syncPendingOperations(): Promise<void> {
         if (leaseHeartbeat) {
           clearInterval(leaseHeartbeat);
           leaseHeartbeat = null;
+        }
+        if (!isStorageGenerationCurrent(generation)) {
+          return;
         }
         setQueue(remainingOperations, queue);
       };
@@ -1470,6 +1490,9 @@ async function syncPendingOperations(): Promise<void> {
             const remainingOperations = queue.filter(
               (_, remainingIndex) => remainingIndex !== index
             );
+            if (!isStorageGenerationCurrent(generation)) {
+              return;
+            }
             setQueue(remainingOperations, queue);
             await reconcilePermanentFailure();
             return;
@@ -1486,15 +1509,24 @@ async function syncPendingOperations(): Promise<void> {
 
           // Stop syncing on first error; retries must include the failed operation to avoid data loss.
           const remainingOperations = queue.slice(index);
+          if (!isStorageGenerationCurrent(generation)) {
+            return;
+          }
           setQueue(remainingOperations, queue);
           return;
         }
       }
 
       // If all operations succeeded, clear the queue
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
       clearQueue(queue);
 
       // Refresh sessions from API to ensure cache is up-to-date
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
       if (shouldThrottleGitHubRefresh()) {
         scheduleRefresh();
       } else {
@@ -1527,6 +1559,7 @@ export function __resetStorageStateForTests(): void {
   listenersInitialized = false;
   refreshSeq = 0;
   latestAppliedSeq = 0;
+  storageGeneration = 0;
   mutationVersion = 0;
   activeSyncLease = null;
   localLeaseEpochCounter = 0;
