@@ -77,9 +77,7 @@ export function PluginStatusPanel({
   }
 
   const toneClassName =
-    variant === 'success'
-      ? 'border-emerald-400/40 bg-emerald-500/10'
-      : 'border-amber-400/40 bg-amber-500/10';
+    variant === 'success' ? 'ui-tone-success-soft' : 'ui-tone-warning-soft';
 
   return (
     <PluginEmptyState

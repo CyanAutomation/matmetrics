@@ -226,6 +226,53 @@
 }
 
 @layer components {
+  .ui-alert-warning,
+  .ui-pill-warning,
+  .ui-tone-warning-soft,
+  .ui-tone-inline-warning {
+    border-color: hsl(var(--color-warning) / 0.35);
+    background-color: hsl(var(--color-warning-container));
+    color: hsl(var(--color-on-warning-container));
+  }
+
+  .ui-alert-info,
+  .ui-pill-info,
+  .ui-tone-info-soft,
+  .ui-tone-inline-info {
+    border-color: hsl(var(--color-info) / 0.28);
+    background-color: hsl(var(--color-info-container));
+    color: hsl(var(--color-on-info-container));
+  }
+
+  .ui-alert-success,
+  .ui-pill-success,
+  .ui-tone-success-soft,
+  .ui-tone-inline-success {
+    border-color: hsl(var(--color-success) / 0.32);
+    background-color: hsl(var(--color-success-container));
+    color: hsl(var(--color-on-success-container));
+  }
+
+  .ui-alert-error,
+  .ui-pill-error,
+  .ui-tone-inline-error {
+    border-color: hsl(var(--color-error) / 0.32);
+    background-color: hsl(var(--color-error-container));
+    color: hsl(var(--color-on-error-container));
+  }
+
+  .ui-pill-trend-positive {
+    border-color: hsl(var(--color-trend-positive) / 0.32);
+    background-color: hsl(var(--color-trend-positive-container));
+    color: hsl(var(--color-on-trend-positive-container));
+  }
+
+  .ui-pill-trend-neutral {
+    border-color: hsl(var(--color-trend-neutral) / 0.35);
+    background-color: hsl(var(--color-trend-neutral-container));
+    color: hsl(var(--color-on-trend-neutral-container));
+  }
+
   .border-ghost {
     border-color: hsl(var(--border) / 0.35);
   }

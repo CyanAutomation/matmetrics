@@ -11,6 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
+import { resolveDashboardCategoryBarClass } from '@/lib/ui-semantic';
 import { cn, parseDateOnly } from '@/lib/utils';
 
 interface DashboardOverviewProps {
@@ -206,11 +207,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                         <div
                           className={cn(
                             'h-full rounded-full transition-all duration-500',
-                            cat.name === 'Technical'
-                              ? 'bg-orange-500'
-                              : cat.name === 'Randori'
-                                ? 'bg-indigo-500'
-                                : 'bg-rose-500'
+                            resolveDashboardCategoryBarClass(cat.name)
                           )}
                           style={{
                             width: `${(cat.count / stats.totalSessions) * 100}%`,
