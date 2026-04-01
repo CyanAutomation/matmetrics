@@ -680,7 +680,7 @@ export function SessionLogForm({
                   AI Tag Suggestion
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg border border-dashed border-ghost bg-secondary/25">
+              <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">
                 {techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
                     <Brain className="h-4 w-4" />
