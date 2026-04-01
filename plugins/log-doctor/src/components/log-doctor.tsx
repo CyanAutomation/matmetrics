@@ -12,6 +12,7 @@ import {
   PluginDataSurfaceSummaryStrip,
   PluginEmptyFilteredResults,
 } from '@/components/plugins/plugin-data-surface';
+import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import {
   PluginStatusPanel,
   PluginTableSection,
@@ -23,7 +24,6 @@ import {
   PluginActionSecondary,
 } from '@/components/plugins/plugin-action-row';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
-import { PluginTabs } from '@/components/plugins/plugin-tabs';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
