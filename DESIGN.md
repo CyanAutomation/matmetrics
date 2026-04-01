@@ -598,3 +598,87 @@ Major changes are incomplete and not merge-ready without these artifacts.
 | Release/version bump validation                 | A            | **R**          | **R**    |
 
 Legend: **A** = Accountable, **R** = Responsible, **C** = Consulted.
+
+## 10. App UI Standards: Restraint & Layout
+
+### Working Model
+
+Before building an app surface, write:
+
+- **Content plan**: primary workspace, navigation, secondary context
+- **Interaction thesis**: 2-3 motion ideas that change the feel of the page
+
+Each section gets one job, one dominant visual idea, and one primary action.
+
+### Linear-Style Restraint
+
+Default to calm, dense, and intentional. Ship interfaces that feel deliberate and premium.
+
+- **calm surface hierarchy** — strong typography and spacing carry weight, not chrome
+- **few colors** — one accent color for action or state
+- **dense but readable information** — prefer tabular or list layouts over decorative cards
+- **minimal chrome** — borders, shadows, and backgrounds only when they serve function
+- **cards only when the card is the interaction** — form surfaces, modals, and interactive panels deserve Card treatment; data displays do not
+- **avoid dashboard-card mosaics, thick borders on every region, decorative gradients behind routine product UI, multiple competing accent colors, ornamental icons**
+
+If a panel can become plain layout without losing meaning, remove the Card treatment.
+
+### Card Usage Policy
+
+**Cards are the exception, not the default.**
+
+Use Card only for:
+- Form surfaces where the form itself is the interaction boundary
+- Modal content containers
+- Surfaces requiring explicit lift (floating panels, dropdowns, popovers)
+
+Replace Card with these patterns for data display:
+- **DataSurface** (`src/components/ui/data-display.tsx`) — soft-toned container for grouped data
+- **DataStrip** (`src/components/ui/data-display.tsx`) — label/value row with optional icon for flat statistic display
+- **Section + Separator** — use whitespace and thin dividers between related items
+- **Row layout** — session list items use dividers and section grouping, not individual cards
+
+### Motion Standards
+
+Ship at least 2-3 intentional motions for visually led work:
+
+- **one entrance sequence** — hero or first-viewport elements animate in on mount (`reveal-fade-up`, `reveal-fade`, `reveal-scale-in`)
+- **one hover/reveal** — interactive elements sharpen affordance on hover
+- **one layout transition** — shared layout or stagger for grouped content
+
+Use these Tailwind utility classes:
+- `reveal-fade-up` — content slides up and fades in (20px translation)
+- `reveal-fade` — opacity crossfade (no position shift)
+- `reveal-scale-in` — soft scale up from 0.96
+- `stagger-1` through `stagger-5` — incremental animation delays (60ms steps)
+
+Motion rules:
+- **noticeable** in a quick recording but not distracting
+- **fast and restrained** — 200ms–400ms durations
+- **consistent** across the page
+- **removed** if ornamental only
+
+### Utility Copy Standard
+
+When building dashboards, admin tools, or operational surfaces:
+
+- **Start with the working surface** — KPIs, charts, filters, tables, status
+- **Section headings say what the area is** — "Selected KPIs", "Plan status", "Last sync"
+- **NO aspirational hero lines, metaphors, or campaign-style language** on product surfaces
+- **Supporting text** explains scope, behavior, freshness, or decision value in one sentence
+- **If a sentence could appear in a homepage hero or ad, rewrite it** until it sounds like product UI
+- **If a section does not help someone operate, monitor, or decide, remove it**
+
+Litmus check: if an operator scans only headings, labels, and numbers, can they understand the page immediately?
+
+### Reusable Component Index
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `DataStrip` | `src/components/ui/data-display.tsx` | Label/value stat row with optional icon |
+| `DataSurface` | `src/components/ui/data-display.tsx` | Soft-toned data grouping container (replaces Card for data) |
+| `InfoRow` | `src/components/ui/data-display.tsx` | Simple label/value pair for sidebars |
+| `Section` | `src/components/ui/section.tsx` | Page-level section wrapper with responsive spacing |
+| `SectionHeader` | `src/components/ui/section.tsx` | Consistent section heading typography |
+| `SectionDescription` | `src/components/ui/section.tsx` | Consistent section subtitle text |
+
