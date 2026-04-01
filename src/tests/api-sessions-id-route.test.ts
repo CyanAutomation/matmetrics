@@ -538,6 +538,25 @@ test('DELETE uses stored GitHub config when body omits gitHubConfig', async () =
   }
 });
 
+test('DELETE returns 400 when request body contains malformed JSON', async () => {
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/sessions/delete-invalid-json', {
+      method: 'DELETE',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: '{"gitHubConfig":',
+    }),
+    { params: Promise.resolve({ id: 'delete-invalid-json' }) }
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid request body',
+  });
+});
+
 test('GET returns 403 when query repo does not match user preferences', async () => {
   const response = await makeGetRequest(
     'blocked',

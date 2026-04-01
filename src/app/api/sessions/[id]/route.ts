@@ -411,9 +411,36 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
+    const rawBody = await request.text();
+    let body: Record<string, unknown> = {};
+
+    if (rawBody.trim().length > 0) {
+      let parsedBody: unknown;
+      try {
+        parsedBody = JSON.parse(rawBody);
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid request body' },
+          { status: 400 }
+        );
+      }
+
+      if (
+        typeof parsedBody !== 'object' ||
+        parsedBody === null ||
+        Array.isArray(parsedBody)
+      ) {
+        return NextResponse.json(
+          { error: 'Invalid request body' },
+          { status: 400 }
+        );
+      }
+
+      body = parsedBody as Record<string, unknown>;
+    }
+
     const requestedGitHubConfig = normalizeGitHubConfig(
-      body?.gitHubConfig as GitHubConfig | undefined
+      body.gitHubConfig as GitHubConfig | undefined
     );
     const authzResult = await resolveAuthorizedGitHubConfig(
       user.uid,
