@@ -1,23 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Github, Loader2, LockKeyhole } from 'lucide-react';
-import { RessaImage } from '@/components/ressa-image';
+import { Github, Loader2 } from 'lucide-react';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
-import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 
 type AuthMode = 'sign-in' | 'sign-up' | 'reset';
@@ -50,14 +41,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
       ? 'Create your account'
       : mode === 'reset'
         ? 'Reset your password'
-        : 'Sign in to MatMetrics';
-
-  const description =
-    mode === 'sign-up'
-      ? 'Use Google or create an email/password account.'
-      : mode === 'reset'
-        ? 'Enter your email and Firebase will send a password reset link.'
-        : 'Sign in to unlock AI tools, GitHub sync, and cloud-backed preferences.';
+        : 'Sign in';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -135,58 +119,43 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
   };
 
   return (
-    <div className="w-full bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.16),_transparent_40%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--secondary)/0.35))] flex items-center justify-center p-1">
-      <Card
-        className={`w-full max-w-md shadow-2xl bg-card/95 ${CARD_INTERACTION_CLASS}`}
-      >
-        <CardHeader className="space-y-4">
-          <RessaImage
-            pose={3}
-            size="medium"
-            alt="Ressa welcomes you to MatMetrics"
-          />
-          <div className="flex items-center gap-3">
-            <MatMetricsLogo size="lg" variant="solid" />
-            <div>
-              <CardTitle className="text-2xl">MatMetrics</CardTitle>
-              <CardDescription>
-                {isConfigured
-                  ? 'Firebase-backed accounts and preferences'
-                  : 'Guest mode is available'}
-              </CardDescription>
-            </div>
-          </div>
+    <div className="w-full flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        {/* Brand header */}
+        <div className="flex items-center gap-3 mb-6">
+          <MatMetricsLogo size="lg" variant="solid" />
           <div>
-            <h1 className="text-xl font-semibold">{title}</h1>
-            <p className="text-sm text-muted-foreground">
-              {isConfigured
-                ? description
-                : 'Authentication is unavailable right now, but you can still explore the app in guest mode with local demo data.'}
-            </p>
+            <h1 className="text-xl font-bold tracking-tight">MatMetrics</h1>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!isConfigured && (
-            <Alert className="border-destructive/30 bg-destructive/5">
-              <LockKeyhole className="h-4 w-4" />
-              <AlertTitle>Firebase is not configured</AlertTitle>
-              <AlertDescription>
-                Add the `NEXT_PUBLIC_FIREBASE_*` variables and
-                `FIREBASE_SERVICE_ACCOUNT_KEY` to enable authentication.
-              </AlertDescription>
-            </Alert>
-          )}
+        </div>
 
+        <h2 className="text-lg font-semibold mb-1">{title}</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          {isConfigured
+            ? 'Sign in to sync sessions, unlock AI tools, and back up your training data.'
+            : 'Authentication is not configured. Explore the app in guest mode.'}
+        </p>
+
+        {!isConfigured && (
+          <Alert className="mb-6 ui-alert-warning">
+            <AlertTitle>Firebase is not configured</AlertTitle>
+            <AlertDescription>
+              Add the `NEXT_PUBLIC_FIREBASE_*` variables and
+              `FIREBASE_SERVICE_ACCOUNT_KEY` to enable authentication.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-3">
           {onContinueAsGuest && (
             <Button
               type="button"
-              className="w-full h-11"
-              variant={isConfigured ? 'secondary' : 'default'}
-              interaction={isConfigured ? 'subtle' : 'primary-action'}
+              className="w-full"
+              variant="outline"
               onClick={onContinueAsGuest}
               disabled={isSubmitting}
             >
-              Continue in Guest Mode
+              Continue as guest
             </Button>
           )}
 
@@ -195,10 +164,10 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
               {onContinueAsGuest && (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-ghost" />
+                    <span className="w-full border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">
+                    <span className="bg-background px-2 text-muted-foreground">
                       or sign in
                     </span>
                   </div>
@@ -208,8 +177,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-11"
-                interaction="subtle"
+                className="w-full"
                 feedbackState={googleFeedback.feedbackState}
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting}
@@ -219,14 +187,13 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 ) : (
                   <GoogleMark className="h-4 w-4" />
                 )}
-                Continue with Google
+                Google
               </Button>
 
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-11"
-                interaction="subtle"
+                className="w-full"
                 feedbackState={githubFeedback.feedbackState}
                 onClick={handleGitHubSignIn}
                 disabled={isSubmitting}
@@ -236,15 +203,15 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 ) : (
                   <Github className="h-4 w-4" />
                 )}
-                Continue with GitHub
+                GitHub
               </Button>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-ghost" />
+                  <span className="w-full border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
+                  <span className="bg-background px-2 text-muted-foreground">
                     or use email
                   </span>
                 </div>
@@ -291,10 +258,9 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
                 )}
 
                 <Button
-                  interaction="primary-action"
                   feedbackState={emailFeedback.feedbackState}
                   type="submit"
-                  className="w-full h-11"
+                  className="w-full"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -331,8 +297,8 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

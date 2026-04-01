@@ -6,14 +6,8 @@ import { AlertCircle, CheckCircle2, Info, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import {
   PluginPageShell,
   PLUGIN_PAGE_CLASS_PATTERNS,
@@ -331,7 +325,7 @@ export function PluginManagerInstalledContent(props: {
                       onTogglePluginEnabled(plugin.id, checked)
                     }
                   />
-                  <Label htmlFor={`plugin-enabled-${plugin.id}`}>Enabled</Label>
+                  <span className="text-sm">{plugin.enabled ? 'On' : 'Off'}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right">
@@ -710,49 +704,35 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     >
       {accessAlert}
 
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h3 className="text-headline-sm">Installed Plugins</h3>
+          {canManagePlugins && lastUpdatedAt && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Last updated: {lastUpdatedAt.toLocaleString()}
+            </p>
+          )}
+        </div>
+        {canManagePlugins && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleManualRefresh}
+            disabled={fetchState === 'loading'}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${
+                fetchState === 'loading' ? 'animate-spin' : ''
+              }`}
+            />
+            Refresh
+          </Button>
+        )}
+      </div>
+
       <Card className="bg-card/95 shadow-sm">
-        <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-          <div className="space-y-1.5">
-            <CardTitle>Installed Plugins</CardTitle>
-            <CardDescription>
-              Use this to enable or disable plugins and view plugin status.
-            </CardDescription>
-            {canManagePlugins ? (
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p>
-                  Last updated:{' '}
-                  {lastUpdatedAt
-                    ? lastUpdatedAt.toLocaleString()
-                    : 'Not loaded yet'}
-                </p>
-                <p>
-                  Last generated at{' '}
-                  {maturityDebug.routeGeneratedAt ?? 'unavailable'}
-                </p>
-                {maturityDebug.responseCachePolicy ? (
-                  <p>Cache: {maturityDebug.responseCachePolicy}</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          {canManagePlugins ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleManualRefresh}
-              disabled={fetchState === 'loading'}
-            >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${
-                  fetchState === 'loading' ? 'animate-spin' : ''
-                }`}
-              />
-              Refresh
-            </Button>
-          ) : null}
-        </CardHeader>
-        <CardContent className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>
+        <CardContent className="p-0">
           <PluginManagerInstalledContent
             installedPluginsViewState={installedPluginsViewState}
             accessState={accessState}
@@ -764,59 +744,54 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               void togglePluginEnabled(pluginId, enabled);
             }}
           />
-
-          {canManagePlugins && installedPluginsViewState === 'table' ? (
-            <div className="mt-4 space-y-2">
-              {installedPlugins
-                .filter((plugin) => plugin.status !== 'idle')
-                .map((plugin) => (
-                  <Alert key={`toggle-status-${plugin.id}`}>
-                    {plugin.status === 'failure' ? (
-                      <AlertCircle className="h-4 w-4" />
-                    ) : plugin.status === 'pending' ? (
-                      <Info className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    <AlertTitle>{plugin.name}</AlertTitle>
-                    <AlertDescription>{plugin.statusMessage}</AlertDescription>
-                  </Alert>
-                ))}
-            </div>
-          ) : null}
         </CardContent>
       </Card>
 
-      <Card className="bg-card/95 shadow-sm">
-        <CardHeader>
-          <CardTitle>Plugin issue details</CardTitle>
-          <CardDescription>
-            Validation summary and issue details for each installed plugin.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>
-          {installedPluginsViewState === 'access-blocked' ? (
-            <p className="text-sm text-muted-foreground">
-              {accessState === 'auth-unavailable'
-                ? 'Plugin issue details are unavailable because Firebase authentication is not configured.'
-                : 'Plugin issue details load after authentication succeeds.'}
-            </p>
-          ) : installedPluginsViewState === 'loading' ? (
-            <p className="text-sm text-muted-foreground">
-              Plugin issue details will appear after plugin loading completes.
-            </p>
-          ) : installedPluginsViewState === 'error' ? (
-            <p className="text-sm text-muted-foreground">
-              Plugin issue details are unavailable because plugin loading
-              failed. Retry loading installed plugins.
-            </p>
-          ) : installedPluginsViewState === 'empty' ? (
-            <p className="text-sm text-muted-foreground">
-              No installed plugins were found, so there are no issue details to
-              display.
-            </p>
-          ) : (
-            installedPlugins.map((plugin) => {
+      {canManagePlugins && installedPluginsViewState === 'table' && (
+        <div className="mt-4 space-y-2">
+          {installedPlugins
+            .filter((plugin) => plugin.status !== 'idle')
+            .map((plugin) => (
+              <Alert key={`toggle-status-${plugin.id}`}>
+                {plugin.status === 'failure' ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : plugin.status === 'pending' ? (
+                  <Info className="h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                <AlertTitle>{plugin.name}</AlertTitle>
+                <AlertDescription>{plugin.statusMessage}</AlertDescription>
+              </Alert>
+            ))}
+        </div>
+      )}
+
+      <div className="mt-8">
+        <h3 className="text-headline-sm mb-4">Issue details</h3>
+        {installedPluginsViewState === 'access-blocked' ? (
+          <p className="text-sm text-muted-foreground">
+            {accessState === 'auth-unavailable'
+              ? 'Plugin issue details are unavailable because Firebase authentication is not configured.'
+              : 'Plugin issue details load after authentication succeeds.'}
+          </p>
+        ) : installedPluginsViewState === 'loading' ? (
+          <p className="text-sm text-muted-foreground">
+            Plugin issue details will appear after plugin loading completes.
+          </p>
+        ) : installedPluginsViewState === 'error' ? (
+          <p className="text-sm text-muted-foreground">
+            Plugin issue details are unavailable because plugin loading
+            failed. Retry loading installed plugins.
+          </p>
+        ) : installedPluginsViewState === 'empty' ? (
+          <p className="text-sm text-muted-foreground">
+            No installed plugins were found, so there are no issue details to
+            display.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {installedPlugins.map((plugin) => {
               const summarySeverity = resolveEntrySummarySeverity(
                 plugin.issues
               );
@@ -829,9 +804,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
               return (
                 <div
                   key={`validate-${plugin.id}`}
-                  className="rounded-lg bg-secondary/20 p-4 space-y-3"
+                  className="py-4 first:pt-0 border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)] first:border-0"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 mb-3">
                     <div className="font-semibold">{plugin.id}</div>
                     <div className="flex items-center gap-2">
                       {plugin.maturity ? (
@@ -857,15 +832,12 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   </div>
 
                   {blockingIssues.length > 0 ? (
-                    <Alert className="border-destructive/30 bg-destructive/5">
+                    <Alert className="border-destructive/30 bg-destructive/5 mb-3">
                       <AlertCircle className="h-4 w-4 text-destructive" />
                       <AlertTitle>Blocking contract issues</AlertTitle>
                       <AlertDescription>
-                        Activation is blocked until the contract gate passes.
-                        Fix the errors below in the plugin folder (entrypoint,
-                        component mapping, and README sections). Maturity
-                        recommendations below are still current advisory
-                        guidance.
+                        Fix errors in the plugin folder (entrypoint, component
+                        mapping, README) before activation.
                       </AlertDescription>
                     </Alert>
                   ) : null}
@@ -873,7 +845,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   {plugin.maturity ? (
                     <div className="space-y-2 text-sm">
                       <p className="font-medium text-foreground">
-                        Maturity guidance (advisory)
+                        Maturity guidance
                       </p>
                       {plugin.maturity.reasons.length === 0 ? (
                         <p className="text-muted-foreground">
@@ -961,10 +933,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                   )}
                 </div>
               );
-            })
-          )}
-        </CardContent>
-      </Card>
+            })}
+          </div>
+        )}
+      </div>
     </PluginPageShell>
   );
 }
