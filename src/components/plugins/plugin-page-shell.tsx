@@ -18,7 +18,7 @@ type PluginPageShellProps = {
   description: ReactNode;
   icon?: ReactNode;
   notice?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   contentClassName?: string;
   tone?: PluginThemeTone;

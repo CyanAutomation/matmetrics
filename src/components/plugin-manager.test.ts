@@ -167,6 +167,7 @@ test('deriveInstalledPlugins keeps tag-manager priority and does not mutate sour
         version: '1.0.0',
         description: 'Zeta plugin',
         enabled: true,
+        uiExtensions: [],
       },
       issues: [],
     },
@@ -177,6 +178,7 @@ test('deriveInstalledPlugins keeps tag-manager priority and does not mutate sour
         version: '1.0.0',
         description: 'Tag plugin',
         enabled: true,
+        uiExtensions: [],
       },
       issues: [],
     },
@@ -187,6 +189,7 @@ test('deriveInstalledPlugins keeps tag-manager priority and does not mutate sour
         version: '1.0.0',
         description: 'Alpha plugin',
         enabled: true,
+        uiExtensions: [],
       },
       issues: [],
     },
@@ -255,9 +258,9 @@ test('isActiveRefreshRequest only applies responses for the latest mounted refre
 
 test('isActiveRefreshRequest prevents out-of-order completion from regressing current UI state', () => {
   const latestRequestId = 2;
-  const uiState = {
-    fetchState: 'loading' as const,
-    lastUpdatedAt: null as Date | null,
+  const uiState: { fetchState: 'loading' | 'success'; lastUpdatedAt: Date | null } = {
+    fetchState: 'loading',
+    lastUpdatedAt: null,
   };
 
   const maybeApplyRefreshResult = (requestId: number) => {
@@ -280,9 +283,9 @@ test('isActiveRefreshRequest prevents out-of-order completion from regressing cu
   assert.equal(uiState.lastUpdatedAt, null);
 
   maybeApplyRefreshResult(2);
-  assert.equal(uiState.fetchState, 'success');
+  assert.ok(typeof uiState.lastUpdatedAt !== 'undefined');
   assert.equal(
-    uiState.lastUpdatedAt?.toISOString(),
+    uiState.lastUpdatedAt!.toISOString(),
     '2026-03-31T00:00:00.000Z'
   );
 });

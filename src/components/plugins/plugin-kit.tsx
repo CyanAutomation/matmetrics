@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 type PluginFormSectionProps = {
   title: ReactNode;
   description?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   footerActions?: ReactNode;
   headerActions?: ReactNode;
   className?: string;
@@ -100,7 +100,7 @@ type PluginTableSectionProps = {
   onEmptyCta?: () => void;
   emptyIcon?: ReactNode;
   hasRows: boolean;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   contentClassName?: string;
 };

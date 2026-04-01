@@ -13,7 +13,7 @@ type PluginSectionCardProps = {
   title?: ReactNode;
   description?: ReactNode;
   headerActions?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   headerClassName?: string;
   contentClassName?: string;
