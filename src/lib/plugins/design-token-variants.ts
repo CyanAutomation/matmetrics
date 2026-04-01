@@ -29,11 +29,8 @@ const resolveLegacySegment = (segment: string): string | null => {
     return migrated;
   }
 
-  if (segment.includes('_')) {
-    return null;
-  }
-
   return null;
+};
 };
 
 export const validateAndNormalizeDesignTokenVariant = (
