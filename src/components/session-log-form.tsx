@@ -655,7 +655,7 @@ export function SessionLogForm({
               </div>
 
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Label className="text-label-md text-muted-foreground">
                   Technique Tags
                 </Label>
                 <Button

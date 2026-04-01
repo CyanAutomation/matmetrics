@@ -15,3 +15,9 @@
 - Use minimalist, line-art style icons. Prioritize icons that visually represent common Judo actions, techniques, or tracking concepts for easy recognition within the app's interface.
 - Maintain a clean and structured layout with ample whitespace to enhance readability and user focus on training data. Implement responsive design for consistent experience across devices, especially for dashboard elements and forms.
 - Incorporate subtle and functional animations for user feedback, such as smooth transitions between views or loading indicators for data visualizations. Avoid excessive or distracting animations to maintain a professional and efficient user experience.
+
+### Typography utility guidance
+
+- Use `text-label-md` for short, scannable UI labels (for example stat headings, sidebar metric labels, and compact section labels in cards/forms). It is uppercase with tighter spacing for quick scanning.
+- Use headline scales (`text-headline-*`) for section and card titles that represent primary structure and should read like content headers.
+- Use body scales (`text-body-*`) for descriptive/supporting text, helper copy, and paragraph-like content.
