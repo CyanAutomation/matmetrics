@@ -599,8 +599,77 @@ test('DELETE returns 403 when body repo does not match user preferences', async 
   });
 });
 
+test('PUT returns 400 when request body is not a JSON object', async (t) => {
+  const cases: Array<{
+    name: string;
+    body: string;
+    sessionId: string;
+  }> = [
+    { name: 'null', body: 'null', sessionId: 'put-invalid-body-null' },
+    {
+      name: 'string primitive',
+      body: '"hello"',
+      sessionId: 'put-invalid-body-string',
+    },
+    {
+      name: 'number primitive',
+      body: '123',
+      sessionId: 'put-invalid-body-number',
+    },
+    {
+      name: 'boolean primitive',
+      body: 'true',
+      sessionId: 'put-invalid-body-boolean',
+    },
+    { name: 'array', body: '[]', sessionId: 'put-invalid-body-array' },
+  ];
+
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${testCase.sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: testCase.body,
+        }),
+        { params: Promise.resolve({ id: testCase.sessionId }) }
+      );
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        error: 'Invalid request body',
+      });
+    });
+  }
+});
+
 test('PUT returns 400 for invalid session payload fields', async (t) => {
   const cases = [
+    {
+      name: 'missing id field',
+      sessionId: 'put-missing-id',
+      body: {
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      },
+      error: 'Session ID mismatch',
+    },
+    {
+      name: 'missing techniques field',
+      sessionId: 'put-missing-techniques',
+      body: {
+        id: 'put-missing-techniques',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+      },
+      error: 'Invalid techniques: expected an array of non-empty strings',
+    },
     {
       name: 'techniques element type',
       sessionId: 'put-invalid-techniques',
