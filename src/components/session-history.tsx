@@ -7,10 +7,9 @@ import {
   EFFORT_COLORS,
   CATEGORY_COLORS,
 } from '@/lib/types';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Calendar, Clock, Edit2, ExternalLink } from 'lucide-react';
+import { Trash2, Calendar, Edit2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { deleteSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -24,11 +23,174 @@ import {
 import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
-import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
+import { DataSurface } from '@/components/ui/data-display';
+import { Separator } from '@/components/ui/separator';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
   onRefresh: () => void;
+}
+
+type GroupedSessions = {
+  monthLabel: string;
+  sessions: JudoSession[];
+};
+
+function groupSessionsByMonth(sessions: JudoSession[]): GroupedSessions[] {
+  const groups: Map<string, JudoSession[]> = new Map();
+
+  for (const session of sessions) {
+    const date = parseDateOnly(session.date);
+    const monthLabel = format(date, 'MMMM yyyy');
+    if (!groups.has(monthLabel)) {
+      groups.set(monthLabel, []);
+    }
+    groups.get(monthLabel)!.push(session);
+  }
+
+  return Array.from(groups.entries(), ([monthLabel, sessions]) => ({
+    monthLabel,
+    sessions,
+  }));
+}
+
+interface SessionRowProps {
+  session: JudoSession;
+  onDelete: (id: string) => void;
+  onEdit: (session: JudoSession) => void;
+  deletingSessionId: string | null;
+}
+
+function SessionRow({
+  session,
+  onDelete,
+  onEdit,
+  deletingSessionId,
+}: SessionRowProps) {
+  let safeVideoUrl: string | null = null;
+
+  if (session.videoUrl) {
+    try {
+      const parsedUrl = new URL(session.videoUrl);
+      if (
+        parsedUrl.protocol === 'http:' ||
+        parsedUrl.protocol === 'https:'
+      ) {
+        safeVideoUrl = parsedUrl.toString();
+      }
+    } catch {
+      safeVideoUrl = null;
+    }
+  }
+
+  return (
+    <div className="py-5 reveal-fade">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-base">
+                {format(parseDateOnly(session.date), 'EEEE, MMMM do')}
+              </span>
+              <Badge
+                variant="outline"
+                className={CATEGORY_COLORS[session.category || 'Technical']}
+              >
+                {session.category || 'Technical'}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {session.techniques.map((tech, idx) => (
+              <Badge
+                key={idx}
+                variant="outline"
+                className="bg-background/60 border-primary/30"
+              >
+                {tech}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+          <div className="flex flex-col items-end mr-4 md:mr-6">
+            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
+              Effort
+            </span>
+            <Badge className={EFFORT_COLORS[session.effort]}>
+              {EFFORT_LABELS[session.effort]}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+              onClick={() => onEdit(session)}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+              disabled={deletingSessionId === session.id}
+              onClick={() => onDelete(session.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {(session.description || session.notes || safeVideoUrl) && (
+        <div className="mt-4 space-y-3 pl-7">
+          {safeVideoUrl && (() => {
+            let videoHostname = '';
+            try {
+              videoHostname = new URL(safeVideoUrl).hostname.replace(
+                /^www\./,
+                ''
+              );
+            } catch {
+              videoHostname = '';
+            }
+
+            return (
+              <a
+                href={safeVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
+              >
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                <span className="truncate">Watch relevant video</span>
+                {videoHostname && (
+                  <span className="truncate text-xs font-normal text-muted-foreground">
+                    ({videoHostname})
+                  </span>
+                )}
+              </a>
+            );
+          })()}
+          {session.description && (
+            <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+              {session.description}
+            </p>
+          )}
+          {session.notes && (
+            <p className="text-sm text-muted-foreground italic">
+              "{session.notes}"
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
@@ -61,21 +223,16 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
         variant: 'destructive',
         title: 'Delete failed',
         description:
-          'The session could not be deleted. Your local view has been reconciled to match persisted data.',
+          'The session could not be deleted.',
       });
     } finally {
       setDeletingSessionId(null);
     }
   };
 
-  const handleEditSuccess = () => {
-    setEditingSession(null);
-    onRefresh();
-  };
-
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">
+      <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl bg-muted/45">
         <RessaImage
           pose={2}
           size="medium"
@@ -85,165 +242,36 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
           No sessions logged yet.
         </p>
         <p className="text-center text-sm text-muted-foreground mt-1">
-          Your journey starts here. Log your first session!
+          Start logging to build your history.
         </p>
       </div>
     );
   }
 
+  const grouped = groupSessionsByMonth(sessions);
+
   return (
-    <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-      {sessions.map((session) => {
-        let safeVideoUrl: string | null = null;
-
-        if (session.videoUrl) {
-          try {
-            const parsedUrl = new URL(session.videoUrl);
-            if (
-              parsedUrl.protocol === 'http:' ||
-              parsedUrl.protocol === 'https:'
-            ) {
-              safeVideoUrl = parsedUrl.toString();
-            }
-          } catch {
-            safeVideoUrl = null;
-          }
-        }
-
-        return (
-          <Card
-            key={session.id}
-            className={cn('overflow-hidden bg-card/95', CARD_INTERACTION_CLASS)}
-          >
-            <CardContent className="p-0">
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-5 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-secondary rounded-lg">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-lg">
-                          {format(parseDateOnly(session.date), 'EEEE, MMMM do')}
-                        </h4>
-                        <Badge
-                          variant="outline"
-                          className={
-                            CATEGORY_COLORS[session.category || 'Technical']
-                          }
-                        >
-                          {session.category || 'Technical'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center text-xs text-muted-foreground gap-1">
-                        <Clock className="h-3 w-3" />
-                        {format(parseDateOnly(session.date), 'MMM d, yyyy')}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {session.techniques.map((tech, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="outline"
-                        className="bg-background/60 border-primary/30"
-                      >
-                        {tech}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto bg-secondary/25 rounded-md px-3 py-2 md:bg-transparent md:p-0">
-                  <div className="flex flex-col items-end mr-4">
-                    <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
-                      Effort
-                    </span>
-                    <Badge className={EFFORT_COLORS[session.effort]}>
-                      {EFFORT_LABELS[session.effort]}
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      interaction="subtle"
-                      className="text-muted-foreground hover:text-primary hover:bg-primary/5"
-                      onClick={() => setEditingSession(session)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      interaction="destructive"
-                      feedbackState={
-                        deletingSessionId === session.id ? 'loading' : 'idle'
-                      }
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                      disabled={deletingSessionId === session.id}
-                      onClick={() => handleDelete(session.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+    <div className="reveal-fade-up">
+      {grouped.map(({ monthLabel, sessions: monthSessions }) => (
+        <div key={monthLabel} className="mb-8 last:mb-0">
+          <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
+          <DataSurface className="p-6">
+            {monthSessions.map((session, idx) => (
+              <div key={session.id}>
+                {idx > 0 && (
+                  <Separator className="my-4 bg-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
+                )}
+                <SessionRow
+                  session={session}
+                  onDelete={handleDelete}
+                  onEdit={setEditingSession}
+                  deletingSessionId={deletingSessionId}
+                />
               </div>
-
-              {(session.description || session.notes || safeVideoUrl) && (
-                <div className="px-5 pb-5 pt-3 space-y-3 bg-secondary/25">
-                  {(() => {
-                    const videoUrl = safeVideoUrl;
-                    if (!videoUrl) {
-                      return null;
-                    }
-
-                    let videoHostname = '';
-                    try {
-                      videoHostname = new URL(videoUrl).hostname.replace(
-                        /^www\./,
-                        ''
-                      );
-                    } catch {
-                      videoHostname = '';
-                    }
-
-                    return (
-                      <a
-                        href={videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
-                      >
-                        <ExternalLink className="h-4 w-4 shrink-0" />
-                        <span className="truncate">Watch relevant video</span>
-                        {videoHostname && (
-                          <span className="truncate text-xs font-normal text-muted-foreground">
-                            ({videoHostname})
-                          </span>
-                        )}
-                      </a>
-                    );
-                  })()}
-                  {session.description && (
-                    <p className="text-sm text-foreground/90 pt-3 whitespace-pre-wrap">
-                      {session.description}
-                    </p>
-                  )}
-                  {session.notes && (
-                    <p className="text-sm text-muted-foreground italic">
-                      "{session.notes}"
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+            ))}
+          </DataSurface>
+        </div>
+      ))}
 
       <Dialog
         open={!!editingSession}
@@ -255,15 +283,17 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
               Edit Practice Session
             </DialogTitle>
             <DialogDescription>
-              Update your practice description, techniques, effort, or notes for
-              this training session.
+              Update your practice description, techniques, effort, or notes.
             </DialogDescription>
           </DialogHeader>
           {editingSession && (
             <div className="py-2">
               <SessionLogForm
                 sessionToEdit={editingSession}
-                onSuccess={handleEditSuccess}
+                onSuccess={() => {
+                  setEditingSession(null);
+                  onRefresh();
+                }}
                 onCancel={() => setEditingSession(null)}
                 showAvatar={false}
               />
