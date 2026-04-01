@@ -489,15 +489,13 @@ test('GET /api/plugins/list continues when one plugin contract gate throws', asy
     const payload = await response.json();
     assert.equal(payload.plugins.length, 2);
     const rowsById = new Map(
-      payload.plugins.map(
-        (row: {
-          manifest: { id: string };
-          validation: {
-            isValid: boolean;
-            rows: Array<{ path: string; message: string }>;
-          };
-        }) => [row.manifest.id, row]
-      )
+      (payload.plugins as Array<{
+        manifest: { id: string };
+        validation: {
+          isValid: boolean;
+          rows: Array<{ path: string; message: string }>;
+        };
+      }>).map((row) => [row.manifest.id, row])
     );
     assert.equal(rowsById.has('healthy-plugin'), true);
     assert.equal(rowsById.get('tags-plugin')?.validation.isValid, false);
@@ -594,15 +592,13 @@ test('POST /api/plugins/validate continues when one plugin contract gate throws'
     const payload = await response.json();
     assert.equal(payload.plugins.length, 2);
     const rowsByDirectory = new Map(
-      payload.plugins.map(
-        (row: {
-          directoryName: string;
-          validation: {
-            isValid: boolean;
-            rows: Array<{ path: string; message: string }>;
-          };
-        }) => [row.directoryName, row]
-      )
+      (payload.plugins as Array<{
+        directoryName: string;
+        validation: {
+          isValid: boolean;
+          rows: Array<{ path: string; message: string }>;
+        };
+      }>).map((row) => [row.directoryName, row])
     );
     assert.equal(rowsByDirectory.has('healthy'), true);
     assert.equal(rowsByDirectory.get('tags')?.validation.isValid, false);

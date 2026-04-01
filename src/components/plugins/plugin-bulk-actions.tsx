@@ -7,7 +7,7 @@ type PluginBulkActionsProps = {
   itemLabel?: string;
   isDisabled?: boolean;
   disabledMessage?: string;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
 };
 
