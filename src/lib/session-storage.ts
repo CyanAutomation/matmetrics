@@ -89,6 +89,10 @@ function sanitizeGitHubBranch(raw: unknown): string | undefined {
   if (!trimmed) {
     return undefined;
   }
+  // Enforce maximum length (GitHub branch names can be up to 255 chars).
+  if (trimmed.length > 255) {
+    return undefined;
+  }
   // Disallow whitespace and control characters
   if (/[\x00-\x1F\x7F\s]/.test(trimmed)) {
     return undefined;
@@ -420,7 +424,7 @@ export async function scanSessionsFromGitHub(
 
   issues.forEach((issue) => {
     console.warn(
-      `Skipping GitHub session file at ${issue.filePath}: ${issue.message}`
+      `[CORRUPT] Skipping GitHub session file at ${issue.filePath}: ${issue.message}`
     );
   });
 
