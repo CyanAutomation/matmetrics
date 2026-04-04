@@ -693,7 +693,37 @@ export async function updateSessionOnGitHub(
     }
 
     const message = `Update session: ${session.date}`;
-    return putFile(config, expectedPath, markdown, message, sha);
+
+    // Retry loop for race conditions: re-fetch SHA on 422/409 (max 3 attempts).
+    let retries = 0;
+    const maxRetries = 2;
+    while (true) {
+      const result = await putFile(config, expectedPath, markdown, message, sha);
+      if (result.success) {
+        return result;
+      }
+
+      // Check if this is a conflict / precondition-failed error from a stale SHA.
+      const isShaConflict =
+        result.message.includes('422') ||
+        result.message.includes('409') ||
+        result.message.toLowerCase().includes('conflict') ||
+        result.message.toLowerCase().includes('sha');
+
+      if (isShaConflict && retries < maxRetries) {
+        retries += 1;
+        sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+        if (!sha) {
+          return {
+            success: false,
+            message: `GitHub session update for ${session.id} failed: file disappeared after ${retries} retry attempt(s)`,
+          };
+        }
+        continue;
+      }
+
+      return result;
+    }
   } catch (error) {
     return {
       success: false,
