@@ -89,6 +89,27 @@ export function parseServiceAccountKey(
   };
 }
 
+/**
+ * Validate that the Firebase service account key is properly configured at startup.
+ * Throws an error if FIREBASE_SERVICE_ACCOUNT_KEY is missing or contains invalid data.
+ * Call this at module load or app startup to fail fast.
+ */
+export function validateFirebaseConfig(): void {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!raw) {
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. '
+    );
+  }
+
+  const parsed = parseServiceAccountKey(raw);
+  if (!parsed) {
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT_KEY is invalid. Ensure it is a single-line JSON with project_id, client_email, and private_key fields.'
+    );
+  }
+}
+
 function getServiceAccount(): ServiceAccountShape | null {
   return parseServiceAccountKey(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 }

@@ -22,7 +22,8 @@ import (
 const firebaseCertsURL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 
 type firebaseServiceAccount struct {
-	ProjectID string `json:"project_id"`
+	ProjectID   string `json:"project_id"`
+	ClientEmail string `json:"client_email"`
 }
 
 type jwtHeader struct {
@@ -115,6 +116,30 @@ func bearerToken(r *http.Request) (string, bool) {
 	}
 
 	return token, true
+}
+
+// ValidateFirebaseConfig checks that the FIREBASE_SERVICE_ACCOUNT_KEY environment
+// variable is set and contains valid project_id and client_email fields.
+// Call this at application startup to fail fast.
+func ValidateFirebaseConfig() error {
+	raw := strings.TrimSpace(os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"))
+	if raw == "" {
+		return errors.New("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set")
+	}
+
+	var account firebaseServiceAccount
+	if err := json.Unmarshal([]byte(raw), &account); err != nil {
+		return fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON: %w", err)
+	}
+
+	if strings.TrimSpace(account.ProjectID) == "" {
+		return errors.New("FIREBASE_SERVICE_ACCOUNT_KEY is missing project_id")
+	}
+	if strings.TrimSpace(account.ClientEmail) == "" {
+		return errors.New("FIREBASE_SERVICE_ACCOUNT_KEY is missing client_email")
+	}
+
+	return nil
 }
 
 func serviceAccountFromEnv() (firebaseServiceAccount, bool) {
