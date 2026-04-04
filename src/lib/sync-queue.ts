@@ -38,7 +38,27 @@ export type SyncOperation = SyncOperationPayload & { queuedAt: number };
 
 type SyncOperationInput = SyncOperationPayload | SyncOperation;
 
-let lastQueuedAt = 0;
+const LAST_QUEUED_AT_KEY_BASE = 'matmetrics_last_queued_at';
+
+let lastQueuedAt: number = (() => {
+  if (typeof window !== 'undefined') {
+    const key = getScopedStorageKey(LAST_QUEUED_AT_KEY_BASE);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return 0;
+})();
+
+function persistLastQueuedAt(): void {
+  if (typeof window === 'undefined') return;
+  const key = getScopedStorageKey(LAST_QUEUED_AT_KEY_BASE);
+  localStorage.setItem(key, String(lastQueuedAt));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -72,6 +92,7 @@ function isValidSyncOperationInput(
 function getNextQueuedAt(): number {
   const now = Date.now();
   lastQueuedAt = Math.max(lastQueuedAt + 1, now);
+  persistLastQueuedAt();
   return lastQueuedAt;
 }
 
