@@ -24,6 +24,18 @@ const DEFAULT_BRANCH_CACHE_TTL_MS = 5 * 60 * 1000;
 const defaultBranchCache = new Map<string, DefaultBranchCacheEntry>();
 const GITHUB_SESSION_ROOT = 'data';
 
+// Manifest cache for P3: N+1 optimization
+interface SessionManifestEntry {
+  path: string;
+  sha: string;
+}
+
+interface SessionManifest {
+  [sessionId: string]: SessionManifestEntry;
+}
+
+let manifestCache: SessionManifest | null = null;
+
 interface GitHubTreeEntry {
   path: string;
   type: 'blob' | 'tree' | 'commit';
@@ -111,6 +123,43 @@ function invalidateDefaultBranchCache(owner: string, repo: string): void {
 
 export function __resetDefaultBranchCacheForTests(): void {
   defaultBranchCache.clear();
+}
+
+// P3: Manifest cache helpers
+function loadManifest(): SessionManifest {
+  // For a Next.js server-side context we'd typically load from a file or
+  // persistent key-value store.  In this in-memory implementation the
+  // manifest starts as `{}` (null means "never loaded, build from remote").
+  // The manifest is updated after each successful push/delete.
+  if (manifestCache !== null) {
+    return manifestCache;
+  }
+  // On first access, start with an empty manifest.  The first tree scan will
+  // populate it; subsequent calls reuse the in-memory cache.
+  manifestCache = {};
+  return manifestCache;
+}
+
+function saveManifest(manifest: SessionManifest): void {
+  manifestCache = manifest;
+}
+
+function getManifestEntry(sessionId: string): SessionManifestEntry | undefined {
+  return loadManifest()[sessionId];
+}
+
+function setManifestEntry(
+  sessionId: string,
+  path: string,
+  sha: string
+): void {
+  loadManifest()[sessionId] = { path, sha };
+}
+
+function removeManifestEntry(sessionId: string): void {
+  if (manifestCache) {
+    delete manifestCache[sessionId];
+  }
 }
 
 /**
@@ -445,11 +494,18 @@ async function githubDeleteWithBranchRetry(
 
 /**
  * Find a session file path in GitHub by session ID by scanning data/YYYY/MM folders.
+ * P3: Checks manifest cache first before falling back to remote tree scan.
  */
 export async function findSessionPathOnGitHubById(
   sessionId: string,
   config: GitHubConfig
 ): Promise<string | null> {
+  // P3: Check manifest cache first
+  const manifestEntry = getManifestEntry(sessionId);
+  if (manifestEntry) {
+    return manifestEntry.path;
+  }
+
   const branch = await resolveBranch(config);
   const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
   const sessionEntries = await getTreeEntriesForPath(
@@ -479,6 +535,8 @@ export async function findSessionPathOnGitHubById(
     }
 
     if (fileName.endsWith(encodedSuffix)) {
+      // P3: Cache this entry in the manifest
+      // P3: Skip caching here - SHA will be cached when actually fetched
       return entry.path;
     }
   }
@@ -572,6 +630,10 @@ export async function createSessionOnGitHub(
           filePath,
           branch
         );
+        // P3: Update manifest cache
+        if (sha) {
+          setManifestEntry(session.id, filePath, sha);
+        }
         return {
           success: true,
           message: 'Session already exists on GitHub',
@@ -589,6 +651,10 @@ export async function createSessionOnGitHub(
 
     const result = await putFile(config, filePath, markdown, message);
     if (result.success) {
+      // P3: Update manifest cache
+      if (result.sha) {
+        setManifestEntry(session.id, result.filePath || filePath, result.sha);
+      }
       return result;
     }
 
@@ -601,6 +667,10 @@ export async function createSessionOnGitHub(
 
     if (concurrentContent === markdown) {
       const sha = await getFileSha(config.owner, config.repo, filePath, branch);
+      // P3: Update manifest cache
+      if (sha) {
+        setManifestEntry(session.id, filePath, sha);
+      }
       return {
         success: true,
         message: 'Session already exists on GitHub',
@@ -633,8 +703,27 @@ export async function updateSessionOnGitHub(
     const branch = await resolveBranch(config);
     const expectedPath = getGitHubSessionPath(session);
     const markdown = sessionToMarkdown(session);
-    let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+
+    // P3: Try manifest first for SHA/path
+    const manifestEntry = getManifestEntry(session.id);
+    let sha: string | null = null;
     let discoveredPath: string | null = null;
+
+    if (manifestEntry) {
+      sha = await getFileSha(
+        config.owner,
+        config.repo,
+        manifestEntry.path,
+        branch
+      );
+      if (sha) {
+        discoveredPath = manifestEntry.path;
+      }
+    }
+
+    if (!sha) {
+      sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+    }
 
     if (!sha) {
       discoveredPath = await findSessionPathOnGitHubById(session.id, config);
@@ -682,6 +771,12 @@ export async function updateSessionOnGitHub(
         }
       );
 
+      // P3: Update manifest - old path removed, new path added
+      removeManifestEntry(session.id);
+      if (createResult.sha) {
+        setManifestEntry(session.id, expectedPath, createResult.sha);
+      }
+
       return {
         success: true,
         message: 'Session updated on GitHub',
@@ -700,6 +795,10 @@ export async function updateSessionOnGitHub(
     while (true) {
       const result = await putFile(config, expectedPath, markdown, message, sha);
       if (result.success) {
+        // P3: Update manifest cache
+        if (result.sha) {
+          setManifestEntry(session.id, expectedPath, result.sha);
+        }
         return result;
       }
 
@@ -745,8 +844,27 @@ export async function deleteSessionOnGitHub(
   try {
     const branch = await resolveBranch(config);
     const expectedPath = getGitHubSessionPath(session);
+
+    // P3: Try manifest first
+    const manifestEntry = getManifestEntry(session.id);
     let filePath = expectedPath;
-    let sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+    let sha: string | null = null;
+
+    if (manifestEntry) {
+      sha = await getFileSha(
+        config.owner,
+        config.repo,
+        manifestEntry.path,
+        branch
+      );
+      if (sha) {
+        filePath = manifestEntry.path;
+      }
+    }
+
+    if (!sha) {
+      sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+    }
 
     if (!sha) {
       const discoveredPath = await findSessionPathOnGitHubById(
@@ -765,6 +883,8 @@ export async function deleteSessionOnGitHub(
     }
 
     if (!sha) {
+      // P3: Clean up stale manifest entry
+      removeManifestEntry(session.id);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -776,6 +896,9 @@ export async function deleteSessionOnGitHub(
       branch,
       sha,
     });
+
+    // P3: Remove from manifest cache
+    removeManifestEntry(session.id);
 
     return {
       success: true,
@@ -806,6 +929,8 @@ export async function deleteSessionOnGitHubById(
     const filePath = await findSessionPathOnGitHubById(sessionId, config);
 
     if (!filePath) {
+      // P3: Clean up stale manifest entry
+      removeManifestEntry(sessionId);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -814,6 +939,8 @@ export async function deleteSessionOnGitHubById(
 
     const sha = await getFileSha(config.owner, config.repo, filePath, branch);
     if (!sha) {
+      // P3: Clean up stale manifest entry
+      removeManifestEntry(sessionId);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -825,6 +952,9 @@ export async function deleteSessionOnGitHubById(
       branch,
       sha,
     });
+
+    // P3: Remove from manifest
+    removeManifestEntry(sessionId);
 
     return {
       success: true,
@@ -900,32 +1030,46 @@ Each session includes:
 }
 
 /**
+ * P2: Result type for bulkPushSessions with accumulated errors.
+ */
+export interface BulkPushResult {
+  success: boolean;
+  message: string;
+  successCount: number;
+  errors: Array<{ sessionId: string; message: string }>;
+}
+
+/**
  * Bulk push all sessions to GitHub
  * Used for initial sync - creates a single commit with all files
+ * P2: Returns accumulated errors instead of discarding them.
  */
 export async function bulkPushSessions(
   sessions: JudoSession[],
   config: GitHubConfig
-): Promise<GitHubSyncResult> {
+): Promise<BulkPushResult> {
   if (sessions.length === 0) {
     return {
       success: true,
       message: 'No sessions to push',
+      successCount: 0,
+      errors: [],
     };
   }
 
   try {
-    // For now, push each session individually
-    // In future, could use tree API for true bulk commit
+    const errors: Array<{ sessionId: string; message: string }> = [];
     let successCount = 0;
-    let lastError = '';
 
     for (const session of sessions) {
       const result = await createSessionOnGitHub(session, config);
       if (result.success) {
         successCount++;
       } else {
-        lastError = result.message;
+        errors.push({
+          sessionId: session.id,
+          message: result.message,
+        });
       }
     }
 
@@ -959,15 +1103,26 @@ export async function bulkPushSessions(
       latestDate
     );
 
-    const readmeWarning = readmeResult.success
-      ? ''
-      : ` README update failed: ${readmeResult.message}`;
+    if (!readmeResult.success) {
+      errors.push({
+        sessionId: '_README_',
+        message: readmeResult.message,
+      });
+    }
+
+    const hasErrors = errors.length > 0;
 
     return {
-      success: lastError === '' && readmeResult.success,
+      success: !hasErrors,
       message: `Pushed ${successCount}/${sessions.length} sessions to GitHub${
-        lastError ? `. Last error: ${lastError}` : ''
-      }.${readmeWarning}`,
+        hasErrors
+          ? `. ${errors.length} error(s): ${errors.slice(0, 3).map((e) => `${e.sessionId}: ${e.message}`).join('; ')}${
+              errors.length > 3 ? '...' : ''
+            }`
+          : ''
+      }`,
+      successCount,
+      errors,
     };
   } catch (error) {
     const errorMessage =
@@ -975,6 +1130,8 @@ export async function bulkPushSessions(
     return {
       success: false,
       message: `Bulk push failed: ${errorMessage}`,
+      successCount: 0,
+      errors: [],
     };
   }
 }

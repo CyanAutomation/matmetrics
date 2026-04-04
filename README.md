@@ -21,7 +21,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
 - **Data Storage**: GitHub-backed markdown files with local markdown fallback
-- **AI Integration**: [Google Genkit](https://github.com/firebase/genkit) with Google GenAI
+- **AI Integration**: [Google Genkit](https://github.com/firebase/genkit) with Google Gen AI
 - **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
 - **Date Management**: [date-fns](https://date-fns.org/)
@@ -35,13 +35,15 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Icons**: Minimalist line-art icons from Lucide React
 - **Layout**: Clean, spacious design with responsive components
 
+See [DESIGN.md](DESIGN.md) for full design specifications.
+
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 24.x
 - npm 11.x
-- Google Genkit API key (for AI-powered features)
+- Google Gen AI API key (for AI-powered features)
 - GitHub personal access token for GitHub-backed storage
 
 ### Installation
@@ -53,13 +55,13 @@ git clone <repository-url>
 cd matmetrics
 ```
 
-1. Install dependencies:
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-1. Set up environment variables:
+3. Set up environment variables:
 
 Copy `.env.example` to `.env.local` and add your API keys:
 
@@ -73,7 +75,7 @@ Then edit `.env.local` and add:
 # GitHub token used by server-side GitHub sync/storage
 GITHUB_TOKEN=your_github_token
 
-# Google Genai API - Get from https://ai.google.dev/
+# Google Gen AI API - Get from https://ai.google.dev/
 GOOGLE_GENAI_API_KEY=your_genai_api_key
 
 # Firebase client SDK - Firebase console → Project Settings → Your web app
@@ -158,7 +160,7 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 3. **Configure Environment Variables**:
    - In the "Environment Variables" section, add:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
-     - `GOOGLE_GENAI_API_KEY`: Your Google Genai API key from [ai.google.dev](https://ai.google.dev/)
+     - `GOOGLE_GENAI_API_KEY`: Your Google Gen AI API key from [ai.google.dev](https://ai.google.dev/)
 
 4. **Deploy**:
    - Click "Deploy"
@@ -206,6 +208,10 @@ When contributing to MatMetrics, please ensure:
 - Components are built using Radix UI primitives where applicable
 - All changes include appropriate type definitions
 - The application maintains the clean, minimalist design aesthetic
+
+## Roadmap
+
+Upcoming work is tracked in [nextsteps.md](nextsteps.md).
 
 ## Plugin Development
 

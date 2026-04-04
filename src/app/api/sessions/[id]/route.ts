@@ -19,6 +19,14 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { isBlockedNetworkHostname } from '@/lib/network-safety';
 
+// TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
+// between this TypeScript route handler and the Go backend
+// (internal/sessionapi/validation.go). With P6 (dual backend support), both
+// copies exist. See:
+// https://github.com/CyanAutomation/matmetrics/issues/XXX
+// A future refactor should consolidate validation into a shared layer or proxy
+// all session mutations through a single backend.
+
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function validateDate(
