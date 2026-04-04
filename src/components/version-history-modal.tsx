@@ -105,7 +105,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   }, [open, releases.length]);
 
   const body = (
-    <div className="overflow-y-auto pr-4 space-y-6">
+    <div className="overflow-y-auto pr-4 space-y-6 flex-1">
       {isLoading ? (
         <p className="text-sm text-muted-foreground">
           Loading recent releases...
@@ -166,7 +166,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-96">
+      <DialogContent className="max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Version History</DialogTitle>
           <DialogDescription>
