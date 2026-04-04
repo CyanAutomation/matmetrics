@@ -536,7 +536,7 @@ export async function findSessionPathOnGitHubById(
 
     if (fileName.endsWith(encodedSuffix)) {
       // P3: Cache this entry in the manifest
-      setManifestEntry(sessionId, entry.path, entry.path); // placeholder sha
+      // P3: Skip caching here - SHA will be cached when actually fetched
       return entry.path;
     }
   }
