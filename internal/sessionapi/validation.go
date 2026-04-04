@@ -2,7 +2,6 @@ package sessionapi
 
 import (
 	"fmt"
-	"net"
 	"net/netip"
 	"net/url"
 	"strings"
