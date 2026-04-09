@@ -34,7 +34,8 @@ interface SessionManifest {
   [sessionId: string]: SessionManifestEntry;
 }
 
-let manifestCache: SessionManifest | null = null;
+const DEFAULT_MANIFEST_SCOPE = '__default__';
+let manifestCache = new Map<string, SessionManifest>();
 
 interface GitHubTreeEntry {
   path: string;
@@ -126,40 +127,44 @@ export function __resetDefaultBranchCacheForTests(): void {
 }
 
 // P3: Manifest cache helpers
-function loadManifest(): SessionManifest {
-  // For a Next.js server-side context we'd typically load from a file or
-  // persistent key-value store.  In this in-memory implementation the
-  // manifest starts as `{}` (null means "never loaded, build from remote").
-  // The manifest is updated after each successful push/delete.
-  if (manifestCache !== null) {
-    return manifestCache;
+function getManifestScopeKey(config: GitHubConfig): string {
+  return `${getDefaultBranchCacheKey(config.owner, config.repo)}:${config.branch?.trim() || DEFAULT_MANIFEST_SCOPE}`;
+}
+
+function loadManifest(config: GitHubConfig): SessionManifest {
+  const scopeKey = getManifestScopeKey(config);
+  const existing = manifestCache.get(scopeKey);
+  if (existing) {
+    return existing;
   }
-  // On first access, start with an empty manifest.  The first tree scan will
-  // populate it; subsequent calls reuse the in-memory cache.
-  manifestCache = {};
-  return manifestCache;
+
+  const manifest: SessionManifest = {};
+  manifestCache.set(scopeKey, manifest);
+  return manifest;
 }
 
-function saveManifest(manifest: SessionManifest): void {
-  manifestCache = manifest;
-}
-
-function getManifestEntry(sessionId: string): SessionManifestEntry | undefined {
-  return loadManifest()[sessionId];
+function getManifestEntry(
+  sessionId: string,
+  config: GitHubConfig
+): SessionManifestEntry | undefined {
+  return loadManifest(config)[sessionId];
 }
 
 function setManifestEntry(
   sessionId: string,
   path: string,
-  sha: string
+  sha: string,
+  config: GitHubConfig
 ): void {
-  loadManifest()[sessionId] = { path, sha };
+  loadManifest(config)[sessionId] = { path, sha };
 }
 
-function removeManifestEntry(sessionId: string): void {
-  if (manifestCache) {
-    delete manifestCache[sessionId];
-  }
+function removeManifestEntry(sessionId: string, config: GitHubConfig): void {
+  delete loadManifest(config)[sessionId];
+}
+
+export function __resetManifestCacheForTests(): void {
+  manifestCache.clear();
 }
 
 /**
@@ -501,7 +506,7 @@ export async function findSessionPathOnGitHubById(
   config: GitHubConfig
 ): Promise<string | null> {
   // P3: Check manifest cache first
-  const manifestEntry = getManifestEntry(sessionId);
+  const manifestEntry = getManifestEntry(sessionId, config);
   if (manifestEntry) {
     return manifestEntry.path;
   }
@@ -632,7 +637,7 @@ export async function createSessionOnGitHub(
         );
         // P3: Update manifest cache
         if (sha) {
-          setManifestEntry(session.id, filePath, sha);
+          setManifestEntry(session.id, filePath, sha, config);
         }
         return {
           success: true,
@@ -653,7 +658,12 @@ export async function createSessionOnGitHub(
     if (result.success) {
       // P3: Update manifest cache
       if (result.sha) {
-        setManifestEntry(session.id, result.filePath || filePath, result.sha);
+        setManifestEntry(
+          session.id,
+          result.filePath || filePath,
+          result.sha,
+          config
+        );
       }
       return result;
     }
@@ -669,7 +679,7 @@ export async function createSessionOnGitHub(
       const sha = await getFileSha(config.owner, config.repo, filePath, branch);
       // P3: Update manifest cache
       if (sha) {
-        setManifestEntry(session.id, filePath, sha);
+        setManifestEntry(session.id, filePath, sha, config);
       }
       return {
         success: true,
@@ -705,7 +715,7 @@ export async function updateSessionOnGitHub(
     const markdown = sessionToMarkdown(session);
 
     // P3: Try manifest first for SHA/path
-    const manifestEntry = getManifestEntry(session.id);
+    const manifestEntry = getManifestEntry(session.id, config);
     let sha: string | null = null;
     let discoveredPath: string | null = null;
 
@@ -772,9 +782,9 @@ export async function updateSessionOnGitHub(
       );
 
       // P3: Update manifest - old path removed, new path added
-      removeManifestEntry(session.id);
+      removeManifestEntry(session.id, config);
       if (createResult.sha) {
-        setManifestEntry(session.id, expectedPath, createResult.sha);
+        setManifestEntry(session.id, expectedPath, createResult.sha, config);
       }
 
       return {
@@ -797,7 +807,7 @@ export async function updateSessionOnGitHub(
       if (result.success) {
         // P3: Update manifest cache
         if (result.sha) {
-          setManifestEntry(session.id, expectedPath, result.sha);
+          setManifestEntry(session.id, expectedPath, result.sha, config);
         }
         return result;
       }
@@ -846,7 +856,7 @@ export async function deleteSessionOnGitHub(
     const expectedPath = getGitHubSessionPath(session);
 
     // P3: Try manifest first
-    const manifestEntry = getManifestEntry(session.id);
+    const manifestEntry = getManifestEntry(session.id, config);
     let filePath = expectedPath;
     let sha: string | null = null;
 
@@ -884,7 +894,7 @@ export async function deleteSessionOnGitHub(
 
     if (!sha) {
       // P3: Clean up stale manifest entry
-      removeManifestEntry(session.id);
+      removeManifestEntry(session.id, config);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -898,7 +908,7 @@ export async function deleteSessionOnGitHub(
     });
 
     // P3: Remove from manifest cache
-    removeManifestEntry(session.id);
+    removeManifestEntry(session.id, config);
 
     return {
       success: true,
@@ -930,7 +940,7 @@ export async function deleteSessionOnGitHubById(
 
     if (!filePath) {
       // P3: Clean up stale manifest entry
-      removeManifestEntry(sessionId);
+      removeManifestEntry(sessionId, config);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -940,7 +950,7 @@ export async function deleteSessionOnGitHubById(
     const sha = await getFileSha(config.owner, config.repo, filePath, branch);
     if (!sha) {
       // P3: Clean up stale manifest entry
-      removeManifestEntry(sessionId);
+      removeManifestEntry(sessionId, config);
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
@@ -954,7 +964,7 @@ export async function deleteSessionOnGitHubById(
     });
 
     // P3: Remove from manifest
-    removeManifestEntry(sessionId);
+    removeManifestEntry(sessionId, config);
 
     return {
       success: true,
