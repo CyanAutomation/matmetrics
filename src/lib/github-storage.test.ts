@@ -3,6 +3,7 @@ import { beforeEach } from 'node:test';
 import test from 'node:test';
 import {
   __resetDefaultBranchCacheForTests,
+  __resetManifestCacheForTests,
   bulkPushSessions,
   createSessionOnGitHub,
   findSessionPathOnGitHubById,
@@ -47,6 +48,7 @@ async function withMockedGitHub(
 
 beforeEach(() => {
   __resetDefaultBranchCacheForTests();
+  __resetManifestCacheForTests();
 });
 
 test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs', () => {
@@ -148,6 +150,84 @@ test('findSessionPathOnGitHubById returns null when the branch ref is missing', 
       const config = { owner: 'o', repo: 'r', branch: 'missing' };
       const found = await findSessionPathOnGitHubById('a/b', config);
       assert.equal(found, null);
+    }
+  );
+});
+
+test('findSessionPathOnGitHubById does not reuse manifest entries across branches', async () => {
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+      const ref = parsed.searchParams.get('ref');
+
+      if (path === '/repos/o/r/git/ref/heads/main') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-main', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/ref/heads/feature') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-feature', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-main') {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-main' } }), {
+          status: 200,
+        });
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-feature') {
+        return new Response(
+          JSON.stringify({ tree: { sha: 'tree-feature' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-main') {
+        return new Response(
+          JSON.stringify({
+            truncated: false,
+            tree: [
+              {
+                path: 'data/2025/03/20250314-matmetrics-shared.md',
+                type: 'blob',
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-feature') {
+        return new Response(JSON.stringify({ truncated: false, tree: [] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          message: `Unexpected request: ${path}?ref=${ref ?? ''}`,
+        }),
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const mainConfig = { owner: 'o', repo: 'r', branch: 'main' };
+      const featureConfig = { owner: 'o', repo: 'r', branch: 'feature' };
+
+      const mainPath = await findSessionPathOnGitHubById('shared', mainConfig);
+      const featurePath = await findSessionPathOnGitHubById(
+        'shared',
+        featureConfig
+      );
+
+      assert.equal(mainPath, 'data/2025/03/20250314-matmetrics-shared.md');
+      assert.equal(featurePath, null);
     }
   );
 });
