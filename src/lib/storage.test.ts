@@ -400,6 +400,72 @@ serialTest(
 );
 
 serialTest(
+  'forced refresh runs after a stale in-flight refresh when reconciling permanent mutation failures',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 60_000, debounceMs: 0 });
+
+    let resolveFirstList: ((value: Response) => void) | undefined;
+    const firstListPending = new Promise<Response>((resolve) => {
+      resolveFirstList = resolve;
+    });
+
+    let listRequests = 0;
+    const remoteCanonical = makeSession('session-terminal-failure');
+    remoteCanonical.notes = 'remote canonical';
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        return new Response(JSON.stringify({ error: 'duplicate' }), {
+          status: 409,
+        });
+      }
+
+      if (url.includes('/api/sessions/list')) {
+        listRequests += 1;
+        if (listRequests === 1) {
+          return firstListPending;
+        }
+
+        return new Response(JSON.stringify([remoteCanonical]), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      getSessions();
+      await flushAsyncWork();
+
+      const saveRejection = assert.rejects(
+        saveSession(makeSession('session-terminal-failure'))
+      );
+      await flushAsyncWork();
+
+      resolveFirstList?.(new Response(JSON.stringify([]), { status: 200 }));
+
+      await saveRejection;
+      await flushAsyncWork();
+      await flushAsyncWork();
+
+      assert.equal(listRequests, 2);
+      assert.deepEqual(getQueue(), []);
+      assert.deepEqual(getSessions(), [remoteCanonical]);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
   'refreshSessionsFromAPI preserves valid sessions and exposes file-level issues from list payload',
   async () => {
     installBrowserEnv();

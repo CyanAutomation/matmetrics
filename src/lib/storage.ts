@@ -101,6 +101,8 @@ let refreshSeq = 0;
 let latestAppliedSeq = 0;
 let mutationVersion = 0;
 let inFlightRefresh: Promise<void> | null = null;
+let inFlightRefreshForce = false;
+let queuedForcedRefresh = false;
 let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledRefreshAt = 0;
 let scheduledRefreshForce = false;
@@ -1266,17 +1268,18 @@ async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
+  const force = options?.force === true;
   if (inFlightRefresh) {
+    if (force && !inFlightRefreshForce) {
+      queuedForcedRefresh = true;
+    }
     return inFlightRefresh;
   }
-  if (
-    options?.force !== true &&
-    shouldThrottleGitHubRefresh() &&
-    hasFreshRemoteRefresh()
-  ) {
+  if (!force && shouldThrottleGitHubRefresh() && hasFreshRemoteRefresh()) {
     return;
   }
 
+  inFlightRefreshForce = force;
   inFlightRefresh = (async () => {
     const generation = storageGeneration;
     const seq = ++refreshSeq;
@@ -1290,7 +1293,7 @@ async function refreshSessionsFromAPI(options?: {
         if (gitHubConfig.branch) {
           url.searchParams.set('branch', gitHubConfig.branch);
         }
-        if (options?.force) {
+        if (force) {
           url.searchParams.set('force', '1');
         }
       }
@@ -1347,6 +1350,18 @@ async function refreshSessionsFromAPI(options?: {
       console.error('Error refreshing sessions from API', error);
     } finally {
       inFlightRefresh = null;
+      const shouldRunQueuedForce = queuedForcedRefresh;
+      queuedForcedRefresh = false;
+      inFlightRefreshForce = false;
+
+      if (
+        shouldRunQueuedForce &&
+        isStorageGenerationCurrent(generation) &&
+        isOnline &&
+        !isGuestMode()
+      ) {
+        void refreshSessionsFromAPI({ force: true });
+      }
     }
   })();
 
@@ -1548,12 +1563,15 @@ async function syncPendingOperations(): Promise<void> {
 }
 
 export function __resetStorageStateForTests(): void {
+  storageGeneration += 1;
   sessionCache = null;
   sessionFileIssuesCache = [];
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
   inFlightRefresh = null;
+  inFlightRefreshForce = false;
+  queuedForcedRefresh = false;
   clearScheduledRefresh();
   lastSuccessfulRemoteRefreshAt = 0;
   listenersInitialized = false;
