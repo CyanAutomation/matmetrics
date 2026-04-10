@@ -329,8 +329,8 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-muted/30">
-        <Sidebar className="bg-sidebar/95 shadow-[inset_-1px_0_0_hsl(var(--sidebar-border)/0.18)] [[data-contrast='high']_&]:shadow-[inset_-1px_0_0_hsl(var(--color-outline-variant)/0.92)]">
+      <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--color-surface-container-low))]">
+        <Sidebar className="glass-surface bg-sidebar/90 shadow-[inset_-1px_0_0_hsl(var(--sidebar-border)/0.12)] [[data-contrast='high']_&]:shadow-[inset_-1px_0_0_hsl(var(--color-outline-variant)/0.92)]">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <MatMetricsLogo size="md" variant="solid" />
@@ -355,7 +355,7 @@ export default function Home() {
                     <SidebarMenuButton
                       isActive={activeTab === tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className="py-6 rounded-lg data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+                      className="py-6 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-primary"
                     >
                       <Icon className="h-5 w-5" />
                       <span className="text-base font-semibold">
@@ -366,7 +366,7 @@ export default function Home() {
                 );
               })}
             </SidebarMenu>
-            <Separator className="my-6 bg-primary/5" />
+            <Separator className="my-6 bg-[hsl(var(--color-outline-variant)/0.12)]" />
             <div className="px-4 py-2">
               <div className="text-label-md text-muted-foreground mb-3">
                 Training
@@ -389,7 +389,7 @@ export default function Home() {
                 onClick={() => setIsVersionHistoryOpen(true)}
               />
               {isGuest ? (
-                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
+                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
                   <Sparkles className="h-3 w-3 text-primary" />
                   <span className="text-primary">
                     {guestWorkspace.source === 'custom'
@@ -398,7 +398,7 @@ export default function Home() {
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded bg-muted/50">
+                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
                   {!syncStatus.isOnline ? (
                     <>
                       <WifiOff className="h-3 w-3" />
@@ -420,7 +420,7 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
-          <header className="h-14 flex items-center px-6 justify-between bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.08,transparent)]">
+          <header className="glass-surface h-14 flex items-center px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="font-semibold tracking-tight text-foreground">
@@ -431,7 +431,7 @@ export default function Home() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 border-primary/20 text-primary hover:bg-primary/5"
+                className="h-9 w-9 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
                 onClick={() => setIsLogModalOpen(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -464,7 +464,7 @@ export default function Home() {
                   {authAvailable ? 'Sign in' : 'Sign-in info'}
                 </Button>
               )}
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+              <div className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-primary font-semibold text-sm">
                 {initials}
               </div>
             </div>
@@ -473,7 +473,7 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
             <div className="space-y-6">
               {isGuest && (
-                <Alert className="border-primary/20 bg-primary/5">
+                <Alert className="border-[hsl(var(--color-outline-variant)/0.15)] bg-[hsl(var(--color-primary-fixed)/0.45)] shadow-[0_16px_30px_-28px_hsl(var(--primary)/0.18)]">
                   <LockKeyhole className="h-4 w-4 text-primary" />
                   <AlertTitle className="flex items-center gap-2">
                     Guest access is active
