@@ -1089,6 +1089,14 @@ export async function updateSession(session: JudoSession): Promise<string> {
       existingPath,
     ]);
     try {
+      const confirmedPath = await findSessionFileById(session.id);
+      if (!confirmedPath) {
+        throw new SessionNotFoundError(session.id);
+      }
+      if (confirmedPath !== existingPath) {
+        throw new SessionUpdateConflictError(session.id, existingPath);
+      }
+
       const priorMarkdown = await fs.readFile(
         await ensureExistingPathWithinDataDir(existingPath),
         'utf-8'
@@ -1122,6 +1130,14 @@ export async function updateSession(session: JudoSession): Promise<string> {
     nextPath,
   ]);
   try {
+    const confirmedPath = await findSessionFileById(session.id);
+    if (!confirmedPath) {
+      throw new SessionNotFoundError(session.id);
+    }
+    if (confirmedPath !== existingPath) {
+      throw new SessionUpdateConflictError(session.id, existingPath);
+    }
+
     const sourceMarkdown = await fs.readFile(
       await ensureExistingPathWithinDataDir(existingPath),
       'utf-8'
