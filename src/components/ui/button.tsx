@@ -11,14 +11,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-gradient-to-br from-primary to-[hsl(var(--primary-container))] text-primary-foreground hover:from-[hsl(var(--primary)/0.95)] hover:to-[hsl(var(--primary-container)/0.95)]',
+          'border-0 bg-[linear-gradient(135deg,hsl(var(--primary))_0%,hsl(var(--primary-container))_100%)] text-primary-foreground hover:bg-[linear-gradient(135deg,hsl(var(--color-primary-hover))_0%,hsl(var(--primary-container))_100%)]',
         destructive:
           'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline:
-          'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+          'border border-[hsl(var(--color-outline-variant)/0.15)] bg-card hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
+          'border-0 bg-secondary text-secondary-foreground hover:bg-[hsl(var(--color-surface-container-high))]',
+        ghost: 'hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
