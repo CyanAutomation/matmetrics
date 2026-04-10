@@ -107,8 +107,7 @@ export type PluginContractGateResult = {
 };
 
 const isPackagedRuntimeArtifactMode = (): boolean =>
-  process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE === 'packaged' ||
-  process.env.NODE_ENV === 'production';
+  process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE === 'packaged';
 
 export const runPluginContractGate = async ({
   pluginsRoot,
