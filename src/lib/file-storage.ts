@@ -1178,47 +1178,60 @@ export async function updateSession(session: JudoSession): Promise<string> {
  * Delete a session by ID
  */
 export async function deleteSession(id: string): Promise<void> {
+  // Ensure the session exists before proceeding.
   const initialPath = await findSessionFileById(id);
   if (!initialPath) {
     throw new SessionNotFoundError(id);
   }
 
-  await ensureExistingPathWithinDataDir(initialPath);
+  // The delete operation must participate in the same path‑locking protocol
+  // as updateSession to avoid the delete‑vs‑update race.
+  const MAX_ATTEMPTS = 5;
+  let lastError: unknown;
 
-  let deleteError: unknown;
-  let indexCleanupError: unknown;
-
-  try {
-    await fs.unlink(await ensureExistingPathWithinDataDir(initialPath));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      deleteError = error;
-    } else {
-      const relocatedPath = await findSessionFileById(id);
-      if (relocatedPath && relocatedPath !== initialPath) {
-        try {
-          await fs.unlink(await ensureExistingPathWithinDataDir(relocatedPath));
-        } catch (retryError) {
-          if ((retryError as NodeJS.ErrnoException).code !== 'ENOENT') {
-            deleteError = retryError;
-          }
-        }
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    // Re‑resolve the current path in case it moved between attempts.
+    const currentPath = await findSessionFileById(id);
+    if (!currentPath) {
+      // Session already vanished – clean up the index if needed and exit.
+      try {
+        await removeSessionIndex(id);
+      } catch (e) {
+        // ignore index cleanup errors when the session is gone
       }
+      return;
     }
-  } finally {
+
+    // Acquire the same lock used by updateSession for the target path.
+    const releaseLock = await acquireSessionUpdateLocks(id, [currentPath]);
     try {
+      // Verify the path hasn't changed while we were waiting for the lock.
+      const confirmedPath = await findSessionFileById(id);
+      if (confirmedPath !== currentPath) {
+        // Path changed – retry under a fresh lock.
+        continue;
+      }
+
+      // Perform the delete while holding the lock.
+      await fs.unlink(await ensureExistingPathWithinDataDir(currentPath));
+      // Remove the index entry atomically with the lock held.
       await removeSessionIndex(id);
+      return; // success
     } catch (error) {
-      indexCleanupError = error;
+      // Preserve the error to surface if all retries fail.
+      lastError = error;
+      // If the error is ENOENT we might have raced with another delete –
+      // retry a few times before giving up.
+    } finally {
+      await releaseLock();
     }
   }
 
-  if (deleteError) {
-    throw deleteError;
+  // If we exit the loop without returning, the delete failed after retries.
+  if (lastError) {
+    throw lastError;
   }
-  if (indexCleanupError) {
-    throw indexCleanupError;
-  }
+  throw new Error('Failed to delete session after maximum retry attempts');
 }
 
 /**
