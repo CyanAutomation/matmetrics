@@ -29,6 +29,7 @@ import {
   getSessionFilePath,
   listSessions,
   SessionLookupOperationalError,
+  SessionNotFoundError,
   SessionUpdateConflictError,
   updateSession,
 } from './file-storage';
@@ -443,6 +444,57 @@ test(
       } finally {
         releaseRename?.();
         fs.rename = originalRename;
+      }
+    });
+  }
+);
+
+test(
+  'updateSession returns SessionNotFoundError when delete wins before update acquires the lock',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'race-delete-before-update-lock',
+        date: '2025-03-02',
+      });
+      const sessionPath = await createSession(session);
+      const lockPath = `${sessionPath}.lock`;
+
+      const originalWriteFile = fs.writeFile;
+      let blockedLockWrite = false;
+      let releaseLockWrite: (() => void) | null = null;
+      const lockWriteGate = new Promise<void>((resolve) => {
+        releaseLockWrite = resolve;
+      });
+
+      fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+        const [targetPath] = args;
+        if (!blockedLockWrite && targetPath.toString() === lockPath) {
+          blockedLockWrite = true;
+          await lockWriteGate;
+        }
+        return originalWriteFile.call(fs, ...args);
+      }) as typeof fs.writeFile;
+
+      try {
+        const updatePromise = updateSession({
+          ...session,
+          notes: 'should see not found after delete wins',
+        });
+
+        while (!blockedLockWrite) {
+          await wait(5);
+        }
+
+        await deleteSession(session.id);
+        releaseLockWrite?.();
+
+        await assert.rejects(updatePromise, SessionNotFoundError);
+        assert.equal(await findSessionFileById(session.id), null);
+      } finally {
+        releaseLockWrite?.();
+        fs.writeFile = originalWriteFile;
       }
     });
   }
