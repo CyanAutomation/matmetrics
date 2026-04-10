@@ -399,6 +399,55 @@ test(
   }
 );
 
+test(
+  'concurrent deleteSession and updateSession cannot resurrect a session',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({ id: 'race-session', date: '2025-03-01' });
+      await createSession(session);
+
+      const originalRename = fs.rename;
+      let notifyRenameStarted: (() => void) | null = null;
+      const renameStarted = new Promise<void>((resolve) => {
+        notifyRenameStarted = resolve;
+      });
+      let releaseRename: (() => void) | null = null;
+      const renameGate = new Promise<void>((resolve) => {
+        releaseRename = resolve;
+      });
+
+      fs.rename = async (...args) => {
+        notifyRenameStarted?.();
+        await renameGate;
+        return originalRename(...(args as Parameters<typeof originalRename>));
+      };
+
+      try {
+        const updated = {
+          ...session,
+          date: '2025-04-01',
+          notes: 'update during delete',
+        };
+        const updatePromise = updateSession(updated);
+
+        await renameStarted;
+
+        const deletePromise = deleteSession('race-session');
+        releaseRename?.();
+
+        await Promise.all([updatePromise, deletePromise]);
+
+        const finalPath = await findSessionFileById('race-session');
+        assert.equal(finalPath, null);
+      } finally {
+        releaseRename?.();
+        fs.rename = originalRename;
+      }
+    });
+  }
+);
+
 test('shouldReclaimSessionUpdateLock keeps alive PID locks even when old', async () => {
   const lockPath = path.join(
     await mkdtemp(path.join(tmpdir(), 'matmetrics-lock-reclaim-')),
