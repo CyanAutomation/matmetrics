@@ -164,18 +164,49 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
               }}
               className="h-full w-full"
             >
-              <BarChart data={stats.recentEfforts}>
+              <BarChart
+                data={stats.recentEfforts}
+                barCategoryGap="28%"
+                margin={{ top: 12, right: 12, left: 4, bottom: 4 }}
+              >
                 <CartesianGrid
-                  strokeDasharray="2 6"
-                  stroke="hsl(var(--border) / 0.2)"
+                  strokeDasharray="3 6"
+                  stroke="hsl(var(--foreground) / 0.16)"
                   vertical={false}
                 />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  minTickGap={24}
+                  tick={{
+                    fill: 'hsl(var(--foreground) / 0.78)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                />
                 <YAxis
                   ticks={[0, 1, 2, 3, 4, 5]}
                   domain={[0, 5]}
                   tickLine={false}
                   axisLine={false}
+                  tickMargin={8}
+                  width={28}
+                  tick={{
+                    fill: 'hsl(var(--foreground) / 0.72)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                  label={{
+                    value: 'Effort',
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: 0,
+                    fill: 'hsl(var(--foreground) / 0.72)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
                 />
                 <ChartTooltip
                   content={
@@ -202,7 +233,7 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                     />
                   }
                 />
-                <Bar dataKey="effort" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="effort" radius={[6, 6, 0, 0]} maxBarSize={44}>
                   {stats.recentEfforts.map((entry, index) => {
                     const seriesTokenByEffort = {
                       1: 'secondary-container',
@@ -223,9 +254,11 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
                         fillOpacity={
                           activeEffortIndex === null ||
                           activeEffortIndex === index
-                            ? 1
-                            : 0.35
+                            ? 0.96
+                            : 0.42
                         }
+                        stroke="hsl(var(--background))"
+                        strokeWidth={1.5}
                         tabIndex={0}
                         role="button"
                         aria-label={`Effort ${entry.effort} on ${entry.date}`}
