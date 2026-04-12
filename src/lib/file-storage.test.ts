@@ -413,7 +413,7 @@ test(
       const renameStarted = new Promise<void>((resolve) => {
         notifyRenameStarted = resolve;
       });
-      let releaseRename: (() => void) | null = null;
+      let releaseRename: (() => void) | undefined;
       const renameGate = new Promise<void>((resolve) => {
         releaseRename = resolve;
       });
@@ -435,14 +435,18 @@ test(
         await renameStarted;
 
         const deletePromise = deleteSession('race-session');
-        releaseRename?.();
+        if (releaseRename) {
+          releaseRename();
+        }
 
         await Promise.all([updatePromise, deletePromise]);
 
         const finalPath = await findSessionFileById('race-session');
         assert.equal(finalPath, null);
       } finally {
-        releaseRename?.();
+        if (releaseRename) {
+          releaseRename();
+        }
         fs.rename = originalRename;
       }
     });
@@ -463,7 +467,7 @@ test(
 
       const originalWriteFile = fs.writeFile;
       let blockedLockWrite = false;
-      let releaseLockWrite: (() => void) | null = null;
+      let releaseLockWrite: (() => void) | undefined;
       const lockWriteGate = new Promise<void>((resolve) => {
         releaseLockWrite = resolve;
       });
@@ -488,12 +492,16 @@ test(
         }
 
         await deleteSession(session.id);
-        releaseLockWrite?.();
+        if (releaseLockWrite) {
+          releaseLockWrite();
+        }
 
         await assert.rejects(updatePromise, SessionNotFoundError);
         assert.equal(await findSessionFileById(session.id), null);
       } finally {
-        releaseLockWrite?.();
+        if (releaseLockWrite) {
+          releaseLockWrite();
+        }
         fs.writeFile = originalWriteFile;
       }
     });
