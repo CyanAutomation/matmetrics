@@ -355,7 +355,7 @@ export default function Home() {
                     <SidebarMenuButton
                       isActive={activeTab === tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className="py-6 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-container))]"
+                      className="py-6 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
                     >
                       <Icon className="h-5 w-5" />
                       <span className="text-base font-semibold">
@@ -390,8 +390,8 @@ export default function Home() {
               />
               {isGuest ? (
                 <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
-                  <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-container))]" />
-                  <span className="text-[hsl(var(--color-on-primary-container))]">
+                  <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-fixed))]" />
+                  <span className="text-[hsl(var(--color-on-primary-fixed))]">
                     {guestWorkspace.source === 'custom'
                       ? 'Local guest data'
                       : 'Demo data loaded'}
@@ -464,7 +464,7 @@ export default function Home() {
                   {authAvailable ? 'Sign in' : 'Sign-in info'}
                 </Button>
               )}
-              <div className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-container))] font-semibold text-sm">
+              <div className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm">
                 {initials}
               </div>
             </div>
@@ -474,7 +474,7 @@ export default function Home() {
             <div className="space-y-6">
               {isGuest && (
                 <Alert className="border-[hsl(var(--color-outline-variant)/0.15)] bg-[hsl(var(--color-primary-fixed)/0.45)] shadow-[0_16px_30px_-28px_hsl(var(--primary)/0.18)]">
-                  <LockKeyhole className="h-4 w-4 text-[hsl(var(--color-on-primary-container))]" />
+                  <LockKeyhole className="h-4 w-4 text-[hsl(var(--color-on-primary-fixed))]" />
                   <AlertTitle className="flex items-center gap-2">
                     Guest access is active
                     <Badge variant="outline">{guestBadgeLabel}</Badge>
