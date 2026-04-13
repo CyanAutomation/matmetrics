@@ -332,7 +332,7 @@ export function PluginManagerInstalledContent(props: {
                 {plugin.status === 'pending' ? (
                   <span className="text-xs text-muted-foreground">Saving…</span>
                 ) : plugin.status === 'success' ? (
-                  <span className="text-xs text-[hsl(var(--color-success))]">
+                  <span className="text-xs text-[hsl(var(--color-on-success-container))]">
                     Saved
                   </span>
                 ) : plugin.status === 'failure' ? (
