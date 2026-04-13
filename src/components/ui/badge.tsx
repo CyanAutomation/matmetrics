@@ -9,7 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-[hsl(var(--color-primary-fixed))] text-[hsl(var(--color-on-primary-container))] hover:bg-[hsl(var(--color-primary-fixed)/0.9)] ring-transparent',
+          'bg-[hsl(var(--color-primary-fixed))] text-[hsl(var(--color-on-primary-fixed))] hover:bg-[hsl(var(--color-primary-fixed)/0.9)] ring-transparent',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-transparent',
         destructive:

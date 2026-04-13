@@ -4,6 +4,7 @@ export const CANONICAL_DESIGN_TOKEN_KEYS = [
   'primary-fixed',
   'on-primary',
   'on-primary-container',
+  'on-primary-fixed',
   'secondary',
   'tertiary',
   'secondary-container',
@@ -75,6 +76,7 @@ export const LEGACY_DESIGN_TOKEN_KEY_MIGRATIONS = {
   surface_bright: 'surface-bright',
   surface_tint: 'surface-tint',
   primary_fixed: 'primary-fixed',
+  on_primary_fixed: 'on-primary-fixed',
 } as const;
 
 const kebabCaseTokenPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
