@@ -36,6 +36,7 @@ const PAIRS = [
   ['color-on-secondary-container', 'color-secondary-container'],
   ['color-on-primary', 'color-primary'],
   ['color-on-primary-container', 'color-primary-container'],
+  ['color-on-primary-fixed', 'color-primary-fixed'],
   ['color-on-surface', 'color-surface'],
   ['color-on-surface-variant', 'color-surface-variant'],
   ['color-on-trend-positive-container', 'color-trend-positive-container'],
@@ -208,6 +209,7 @@ if (outputJson) {
     console.log(`FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.reason}`);
   }
   console.log(`\nChecked ${reports.length} token pairs across ${Object.keys(THEME_SELECTORS).length} themes.`);
+  console.log('Coverage includes canonical token semantics plus explicitly-declared UI token pairings.');
   if (failures.length) {
     console.log(`${failures.length} failure(s).`);
   } else {
