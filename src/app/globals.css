@@ -5,10 +5,10 @@
 @layer base {
   :root {
     --color-primary: 207.7 100% 33.5%;
-    --color-primary-container: 207.2 100% 42%;
+    --color-primary-container: 207.2 100% 38%;
     --color-primary-fixed: 219.1 100% 91.6%;
     --color-on-primary: 0 0% 100%;
-    --color-on-primary-container: 207.7 100% 24%;
+    --color-on-primary-container: 0 0% 100%;
     --color-secondary: 210 20% 42%;
     --color-tertiary: 221 33% 50%;
     --color-secondary-container: 204 21.7% 95.5%;
@@ -29,9 +29,9 @@
     --color-success-container: 146 53.8% 89.8%;
     --color-on-success: 0 0% 100%;
     --color-on-success-container: 150 76.5% 16.7%;
-    --color-warning: 36 100% 34.9%;
+    --color-warning: 36 100% 30%;
     --color-warning-container: 36 100% 88%;
-    --color-on-warning: 43 100% 6.1%;
+    --color-on-warning: 0 0% 100%;
     --color-on-warning-container: 38 100% 18%;
     --color-error: 0 66.4% 46.7%;
     --color-error-container: 4 100% 92%;
@@ -127,9 +127,9 @@
     --color-success-container: 149 45% 20%;
     --color-on-success: 0 0% 100%;
     --color-on-success-container: 146 53.8% 89.8%;
-    --color-warning: 36 100% 34.9%;
+    --color-warning: 36 100% 28%;
     --color-warning-container: 36 70% 20%;
-    --color-on-warning: 43 100% 90%;
+    --color-on-warning: 0 0% 100%;
     --color-on-warning-container: 36 100% 88%;
     --color-error: 0 66.4% 46.7%;
     --color-error-container: 0 45% 22%;
