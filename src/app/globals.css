@@ -9,6 +9,7 @@
     --color-primary-fixed: 219.1 100% 91.6%;
     --color-on-primary: 0 0% 100%;
     --color-on-primary-container: 0 0% 100%;
+    --color-on-primary-fixed: var(--color-on-info-container);
     --color-secondary: 210 20% 42%;
     --color-tertiary: 221 33% 50%;
     --color-secondary-container: 204 21.7% 95.5%;
@@ -107,6 +108,7 @@
     --color-primary-fixed: var(--color-primary-container);
     --color-on-primary: 0 0% 100%;
     --color-on-primary-container: 0 0% 100%;
+    --color-on-primary-fixed: var(--color-on-primary-container);
     --color-secondary: 218 19.4% 39.4%;
     --color-tertiary: 266 16.2% 41.2%;
     --color-secondary-container: 218 30% 20%;
