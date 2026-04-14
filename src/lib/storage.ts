@@ -1268,11 +1268,16 @@ async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
   // Guard: skip refresh when GitHub auth/config is unavailable
-  if (!isGitHubEnabled()) {
-    // No auth config – nothing to fetch
-    // Use console.warn (logOnce not imported) to avoid spamming logs
-    console.warn('GitHub auth/config missing – skipping session refresh');
-    return;
+  // Guard: skip refresh when no Firebase auth is available
+  if (!getGitHubConfig()) {
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth.currentUser) {
+        return;
+      }
+    } catch (error) {
+      return;
+    }
   }
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
   const force = options?.force === true;
