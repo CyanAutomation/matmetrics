@@ -96,8 +96,13 @@ function isAPIEndpointAvailable(): boolean {
     return false;
   }
   
-  // Check if we have a valid origin
-  if (!window.location.origin) {
+  // Check if we have a valid HTTP(S) origin
+  try {
+    const origin = window.location.origin;
+    if (!origin || origin === 'null' || (!origin.startsWith('http://') && !origin.startsWith('https://'))) {
+      return false;
+    }
+  } catch {
     return false;
   }
   
