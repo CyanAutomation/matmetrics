@@ -1267,6 +1267,18 @@ function handleStorageEvent(event: StorageEvent): void {
 async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
+  // Guard: skip refresh when GitHub auth/config is unavailable
+  // Guard: skip refresh when no Firebase auth is available
+  if (!getGitHubConfig()) {
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth.currentUser) {
+        return;
+      }
+    } catch (error) {
+      return;
+    }
+  }
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
   const force = options?.force === true;
   if (inFlightRefresh) {
