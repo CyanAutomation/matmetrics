@@ -1265,12 +1265,10 @@ function handleStorageEvent(event: StorageEvent): void {
 }
 
 async function refreshSessionsFromAPI(options?: {
+  force?: boolean;
+}): Promise<void> {
   // Guard: skip refresh when GitHub auth/config is unavailable
   if (!isGitHubEnabled()) {
-    // No auth config – nothing to fetch
-    // Use logOnce to avoid spamming logs in degraded mode
-    // (logOnce is defined elsewhere in this module)
-    logOnce('auth-unavailable', 'GitHub auth/config missing – skipping session refresh');
     return;
   }
 
