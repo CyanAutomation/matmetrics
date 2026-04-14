@@ -21,6 +21,7 @@ Use the following token table as the canonical source for implementation. Produc
 | `primary-fixed`               | `#F5843C` (light), `#0075d6` (dark) | Legacy-safe primary emphasis token (stable alias for `primary-container` during migration)                                                                           |
 | `on-primary`                  | `#ffffff`                           | Text/icons on `primary` backgrounds                                                                                                                                  |
 | `on-primary-container`        | `#ffffff`                           | Text/icons on `primary-container`                                                                                                                                    |
+| `on-primary-fixed`            | `#0d3b66` (light), `#ffffff` (dark) | Text/icons on `primary-fixed`; in light mode this preserves the legacy high-contrast emphasis pairing used by info-container                                         |
 | `secondary`                   | `#515f78`                           | Secondary actions, supporting data series                                                                                                                            |
 | `tertiary`                    | `#67587a`                           | Tertiary chart series and alternate data accents                                                                                                                     |
 | `secondary-container`         | `#d4e3ff`                           | Secondary chips, low-emphasis highlights                                                                                                                             |
@@ -107,6 +108,7 @@ Use this mapping during migration for frontend and Go/CLI consumers so token loo
 | `surface_bright`           | `surface-bright`           |
 | `surface_tint`             | `surface-tint`             |
 | `primary_fixed`            | `primary-fixed`            |
+| `on_primary_fixed`         | `on-primary-fixed`         |
 
 **Migration note:** Components must consume semantic token names from the shared token map/theme layer (e.g., CSS variables or design-token exports) instead of inline raw hex values. This applies to existing button variants, chart series, badges, and any newly introduced states.
 
@@ -295,6 +297,7 @@ Define CSS variables in the theme layer (for example `:root` and optional `[data
   --color-primary-container: #0075d6;
   --color-primary-fixed: #0075d6;
   --color-on-primary: #ffffff;
+  --color-on-primary-fixed: #0d3b66;
   --color-secondary: #515f78;
   --color-secondary-container: #d4e3ff;
   --color-on-secondary-container: #1b2a41;
@@ -332,7 +335,7 @@ Define CSS variables in the theme layer (for example `:root` and optional `[data
 | Neutral elevated (`surface-container-high`) | `--color-surface-high`                         | `bg-[var(--color-surface-high)]`                                                                             |
 | Muted track (`surface-variant`)             | `--color-surface-variant`                      | `bg-[var(--color-surface-variant)]`                                                                          |
 | Primary action                              | `--color-primary`, `--color-primary-container` | `bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]`                          |
-| Primary fixed emphasis (`primary-fixed`)    | `--color-primary-fixed`                        | `bg-[var(--color-primary-fixed)] text-[var(--color-on-primary)]`                                             |
+| Primary fixed emphasis (`primary-fixed`)    | `--color-primary-fixed`, `--color-on-primary-fixed` | `bg-[var(--color-primary-fixed)] text-[var(--color-on-primary-fixed)]`                                       |
 | Secondary emphasis                          | `--color-secondary-container`                  | `bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]`                           |
 | Positive trend                              | `--color-success-container`                    | `bg-[var(--color-success-container)] text-[var(--color-success)]`                                            |
 | Warning trend                               | `--color-warning-container`                    | `bg-[var(--color-warning-container)] text-[var(--color-warning)]`                                            |
