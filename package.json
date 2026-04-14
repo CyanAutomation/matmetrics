@@ -16,7 +16,7 @@
     "lint": "npm run validate:plugin-ui-contract && eslint . --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --write tsconfig.json",
+    "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --check tsconfig.json",
     "test": "npm run validate:plugin-ui-contract && node --import tsx --test $(find plugins src -name '*.test.ts' ! -path 'src/lib/storage.test.ts') && node --import tsx src/lib/storage.test.ts",
     "test:all": "npm run validate:plugin-ui-contract && node --import tsx --test $(find plugins src -name '*.test.ts' ! -path 'src/lib/storage.test.ts') && node --import tsx src/lib/storage.test.ts",
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
