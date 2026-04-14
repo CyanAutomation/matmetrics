@@ -733,6 +733,9 @@ function handleMutationSyncFailure(
 export function initializeStorage(): void {
   if (typeof window === 'undefined') return;
 
+  // Increment generation to invalidate any in‑flight refreshes from a prior auth/config context
+  nextStorageGeneration();
+
   sessionCache = null;
   isSyncing = false;
   hydrateDirtyMutationsFromQueue();
