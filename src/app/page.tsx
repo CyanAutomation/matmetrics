@@ -28,11 +28,12 @@ import {
   Plus,
   WifiOff,
   Loader2,
-  CheckCircle,
   LockKeyhole,
   Sparkles,
+  History,
+  LogOut,
+  LogIn,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,11 +43,15 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { isSameMonthAndYear } from '@/lib/utils';
+import { VersionHistoryModal } from '@/components/version-history-modal';
 import {
-  VersionHistoryButton,
-  VersionHistoryModal,
-} from '@/components/version-history-modal';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/components/auth-provider';
 import { SignInScreen } from '@/components/sign-in-screen';
 import { RessaImage } from '@/components/ressa-image';
@@ -310,10 +315,6 @@ export default function Home() {
   const guestBadgeLabel =
     guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview';
 
-  const totalSessions = sessions.length;
-  const thisMonthSessions = sessions.filter((s) =>
-    isSameMonthAndYear(s.date, new Date())
-  ).length;
   const syncStatusText = !syncStatus.isOnline
     ? 'Offline'
     : syncStatus.isSyncing
@@ -321,12 +322,6 @@ export default function Home() {
       : syncStatus.pendingCount > 0
         ? `${syncStatus.pendingCount} pending`
         : 'Synced';
-  const syncStatusColor = !syncStatus.isOnline
-    ? 'text-[hsl(var(--color-on-warning-container))]'
-    : syncStatus.isSyncing || syncStatus.pendingCount > 0
-      ? 'text-[hsl(var(--color-on-info-container))]'
-      : 'text-[hsl(var(--color-on-success-container))]';
-
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--color-surface-container-low))]">
@@ -366,57 +361,19 @@ export default function Home() {
                 );
               })}
             </SidebarMenu>
-            <Separator className="my-6 bg-[hsl(var(--color-outline-variant)/0.12)]" />
-            <div className="px-4 py-2">
-              <div className="text-label-md text-muted-foreground mb-3">
-                Training
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sessions</span>
-                  <span className="font-semibold">{totalSessions}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">This month</span>
-                  <span className="font-semibold">{thisMonthSessions}</span>
-                </div>
-              </div>
-            </div>
           </SidebarContent>
-          <SidebarFooter className="p-4">
-            <div className="space-y-2">
-              <VersionHistoryButton
-                onClick={() => setIsVersionHistoryOpen(true)}
-              />
-              {isGuest ? (
-                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
-                  <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-fixed))]" />
-                  <span className="text-[hsl(var(--color-on-primary-fixed))]">
-                    {guestWorkspace.source === 'custom'
-                      ? 'Local guest data'
-                      : 'Demo data loaded'}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-xs font-medium pt-2 px-2 py-1 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
-                  {!syncStatus.isOnline ? (
-                    <>
-                      <WifiOff className="h-3 w-3" />
-                    </>
-                  ) : syncStatus.isSyncing || syncStatus.pendingCount > 0 ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-3 w-3" />
-                    </>
-                  )}
-                  <span className={syncStatusColor}>{syncStatusText}</span>
-                </div>
-              )}
-            </div>
-          </SidebarFooter>
+          {isGuest && (
+            <SidebarFooter className="p-4">
+              <div className="flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
+                <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-fixed))]" />
+                <span className="text-[hsl(var(--color-on-primary-fixed))]">
+                  {guestWorkspace.source === 'custom'
+                    ? 'Local guest data'
+                    : 'Demo data loaded'}
+                </span>
+              </div>
+            </SidebarFooter>
+          )}
         </Sidebar>
 
         <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
@@ -424,49 +381,67 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <h2 className="font-semibold tracking-tight text-foreground">
-                {selectedTab?.title ?? 'MatMetrics'}
+                {selectedTab?.headerTitle ?? 'MatMetrics'}
               </h2>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {!syncStatus.isOnline && (
+                <span title="Offline" className="flex items-center">
+                  <WifiOff className="h-4 w-4 text-[hsl(var(--color-on-warning-container))]" />
+                </span>
+              )}
+              {syncStatus.isOnline && (syncStatus.isSyncing || syncStatus.pendingCount > 0) && (
+                <span title={syncStatusText} className="flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--color-on-info-container))]" />
+                </span>
+              )}
               <Button
                 variant="outline"
                 size="icon"
                 className="h-9 w-9 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
                 onClick={() => setIsLogModalOpen(true)}
+                title="Log a session"
               >
                 <Plus className="h-4 w-4" />
               </Button>
               <ModeToggle />
-              <div className="hidden sm:flex flex-col items-end mr-2">
-                <span className="text-sm font-semibold">
-                  {user?.displayName || user?.email || 'Guest Mode'}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {user?.email || guestBadgeLabel}
-                </span>
-              </div>
-              {user ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void signOutUser()}
-                  className="text-muted-foreground"
-                >
-                  Logout
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsAuthDialogOpen(true)}
-                  className="text-muted-foreground"
-                >
-                  {authAvailable ? 'Sign in' : 'Sign-in info'}
-                </Button>
-              )}
-              <div className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm">
-                {initials}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    {initials}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="font-semibold truncate">
+                      {user?.displayName || user?.email || 'Guest Mode'}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {user?.email || guestBadgeLabel}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsVersionHistoryOpen(true)}>
+                    <History className="mr-2 h-4 w-4" />
+                    Version History
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {user ? (
+                    <DropdownMenuItem
+                      onClick={() => void signOutUser()}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => setIsAuthDialogOpen(true)}>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      {authAvailable ? 'Sign In' : 'Sign-in Info'}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 
@@ -528,6 +503,7 @@ export default function Home() {
                 sessions,
                 refreshSessions,
                 refreshPluginExtensions,
+                onLogSession: () => setIsLogModalOpen(true),
               })}
             </div>
           </main>

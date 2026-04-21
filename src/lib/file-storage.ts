@@ -1212,7 +1212,7 @@ export async function deleteSession(id: string): Promise<void> {
       // Session already vanished – clean up the index if needed and exit.
       try {
         await removeSessionIndex(id);
-      } catch (e) {
+      } catch (_e) {
         // ignore index cleanup errors when the session is gone
       }
       return;

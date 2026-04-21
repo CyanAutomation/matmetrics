@@ -7,7 +7,6 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -457,7 +456,7 @@ export function SessionLogForm({
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
               {/* Avatar - Hidden on mobile, visible on lg and above */}
               {showAvatar && (
-                <div className="hidden lg:flex shrink-0">
+                <div className="hidden md:flex shrink-0">
                   <RessaImage
                     pose={1}
                     size="medium"

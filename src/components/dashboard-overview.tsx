@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { JudoSession } from '@/lib/types';
 import { Award, Calendar, Zap, Target } from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
 import {
   ChartContainer,
@@ -12,13 +13,14 @@ import {
 } from '@/components/ui/chart';
 import { resolveDashboardCategoryBarClass } from '@/lib/ui-semantic';
 import { cn, parseDateOnly } from '@/lib/utils';
-import { DataStrip, DataSurface } from '@/components/ui/data-display';
+import { DataSurface } from '@/components/ui/data-display';
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];
+  onLogSession?: () => void;
 }
 
-export function DashboardOverview({ sessions }: DashboardOverviewProps) {
+export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewProps) {
   const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
     null
   );
@@ -88,41 +90,60 @@ export function DashboardOverview({ sessions }: DashboardOverviewProps) {
           alt="Ressa looking forward to your training data"
         />
         <h3 className="text-xl font-semibold mb-2 mt-4">No session data yet</h3>
-        <p className="text-muted-foreground">
-          Start logging your training sessions to see insights here.
+        <p className="text-muted-foreground mb-6">
+          Log your first training session to start seeing your progress here.
         </p>
+        {onLogSession && (
+          <Button onClick={onLogSession}>
+            Log your first session
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="reveal-fade-up">
-      {/* Stats — flat strips, not cards */}
-      <DataSurface className="mb-8">
-        <DataStrip
-          label="Total Sessions"
-          value={stats.totalSessions}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-        <DataStrip
-          label="Focus Area"
-          value={stats.topCategory}
-          description="Primary training type"
-          icon={<Target className="h-4 w-4" />}
-        />
-        <DataStrip
-          label="Top Technique"
-          value={stats.topTechniques[0]?.name || 'N/A'}
-          description="Most practiced move"
-          icon={<Award className="h-4 w-4" />}
-        />
-        <DataStrip
-          label="Avg Effort"
-          value={`${stats.avgEffort} / 5`}
-          description="Intensity level"
-          icon={<Zap className="h-4 w-4" />}
-        />
-      </DataSurface>
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span className="text-label-md">Total Sessions</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground tabular-nums">
+            {stats.totalSessions}
+          </div>
+        </DataSurface>
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Target className="h-4 w-4" />
+            <span className="text-label-md">Focus Area</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground truncate">
+            {stats.topCategory}
+          </div>
+        </DataSurface>
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Award className="h-4 w-4" />
+            <span className="text-label-md">Top Technique</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground truncate">
+            {stats.topTechniques[0]?.name || '—'}
+          </div>
+        </DataSurface>
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Zap className="h-4 w-4" />
+            <span className="text-label-md">Avg Effort</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground tabular-nums">
+            {stats.avgEffort}
+            <span className="text-base font-normal text-muted-foreground"> / 5</span>
+          </div>
+        </DataSurface>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Effort — surface, not card */}

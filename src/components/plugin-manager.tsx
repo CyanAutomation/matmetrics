@@ -7,7 +7,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import {
   PluginPageShell,
   PLUGIN_PAGE_CLASS_PATTERNS,
@@ -364,7 +363,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     null
   );
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<Date | null>(null);
-  const [maturityDebug, setMaturityDebug] =
+  const [_maturityDebug, setMaturityDebug] =
     React.useState<PluginMaturityDebugMetadata>({});
   const [rowStatuses, setRowStatuses] =
     React.useState<InstalledPluginRowStatuses>({});
