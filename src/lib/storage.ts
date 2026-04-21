@@ -28,7 +28,7 @@ import {
   getCurrentPreferences,
   saveGitHubSettingsPreference,
 } from './user-preferences';
-import { getFirebaseAuth } from './firebase-client';
+import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
 import { createTagService } from './tags/service';
 
@@ -1270,8 +1270,8 @@ function handleStorageEvent(event: StorageEvent): void {
 async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
-  // Guard: when GitHub sync is enabled, skip refresh without Firebase auth.
-  if (isGitHubEnabled() && getGitHubConfig()) {
+  // Guard: when GitHub sync is enabled and Firebase is configured, skip refresh without Firebase auth.
+  if (isGitHubEnabled() && getGitHubConfig() && isFirebaseConfigured()) {
     try {
       const auth = getFirebaseAuth();
       if (!auth.currentUser) {
