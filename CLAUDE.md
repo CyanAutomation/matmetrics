@@ -87,7 +87,7 @@ Flows use schema-driven typed inputs/outputs and are exposed via `src/app/api/ai
 
 Copy `.env.example` to `.env.local`. Required variables:
 
-```
+```bash
 GITHUB_TOKEN                          # GitHub API access for sync/storage
 GOOGLE_GENAI_API_KEY                  # Google GenAI for AI flows
 NEXT_PUBLIC_FIREBASE_API_KEY          # Firebase client config (6 variables)

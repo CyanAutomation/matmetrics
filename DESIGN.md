@@ -602,7 +602,7 @@ Use a two-part semantic format: `MAJOR.MINOR`.
   - Visual refinements that do not require consumer-side code changes.
   - Documentation clarifications and implementation guidance updates.
 
-**Release labeling examples**
+### Release labeling examples
 
 - `1.4 -> 1.5`: Added `info-container` usage guidance (non-breaking).
 - `1.5 -> 2.0`: Replaced `secondary-container` chip selection contract with a new token family (breaking).

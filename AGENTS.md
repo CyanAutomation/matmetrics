@@ -20,7 +20,7 @@
 
 ### Full-Stack Layout
 
-```
+```text
 src/          → Next.js frontend (React, TypeScript, Tailwind)
 go/cmd/       → CLI tooling (session list, GitHub sync, validation)
 internal/     → Shared Go logic (session types, markdown parsing, storage)
