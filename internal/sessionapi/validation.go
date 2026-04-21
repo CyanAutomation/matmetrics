@@ -2,6 +2,7 @@ package sessionapi
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 	"net/url"
 	"strings"
@@ -65,13 +66,37 @@ func validateOptionalVideoURL(value string) error {
 		return fmt.Errorf("invalid videoUrl: protocol must be http or https")
 	}
 
-	// NOTE(P1): DNS-level SSRF checks were intentionally moved to connection
-	// time. The caller must use DialSSRFSafe (or an equivalent Dialer) when
-	// fetching the video URL so that DNS resolution happens after the TCP
-	// dial decision and private-IP filtering is applied to the resolved
-	// address. Do not re-add net.LookupIP checks at validation time.
+	host := parsedURL.Hostname()
+	if isDisallowedVideoHost(host) {
+		return fmt.Errorf("invalid videoUrl: private or internal network addresses are not allowed")
+	}
 
 	return nil
+}
+
+var lookupIP = net.LookupIP
+
+func isDisallowedVideoHost(host string) bool {
+	lowerHost := strings.ToLower(strings.TrimSpace(host))
+	if lowerHost == "" || lowerHost == "localhost" {
+		return true
+	}
+
+	if ip, err := netip.ParseAddr(lowerHost); err == nil {
+		return isDisallowedIP(ip)
+	}
+
+	resolvedIPs, err := lookupIP(lowerHost)
+	if err != nil {
+		return false
+	}
+	for _, resolvedIP := range resolvedIPs {
+		addr, ok := netip.AddrFromSlice(resolvedIP)
+		if ok && isDisallowedIP(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 func isDisallowedIP(addr netip.Addr) bool {

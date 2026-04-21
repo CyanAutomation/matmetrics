@@ -2,6 +2,7 @@ package sessionapi
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 
@@ -149,5 +150,28 @@ func TestValidateSessionRejectsPrivateVideoURLHosts(t *testing.T) {
 				t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestValidateSessionRejectsDNSResolvedPrivateVideoURLHost(t *testing.T) {
+	originalLookupIP := lookupIP
+	t.Cleanup(func() {
+		lookupIP = originalLookupIP
+	})
+
+	lookupIP = func(host string) ([]net.IP, error) {
+		if host == "public.example.test" {
+			return []net.IP{net.ParseIP("127.0.0.1")}, nil
+		}
+		return []net.IP{net.ParseIP("93.184.216.34")}, nil
+	}
+
+	session := validSession(withVideoURL("https://public.example.test/video"))
+	err := ValidateSession(session)
+	if err == nil {
+		t.Fatalf("ValidateSession() error = nil, want non-nil for DNS-resolved private host")
+	}
+	if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
+		t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 	}
 }
