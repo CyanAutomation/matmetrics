@@ -1277,7 +1277,7 @@ async function refreshSessionsFromAPI(options?: {
       if (!auth.currentUser) {
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       return;
     }
   }

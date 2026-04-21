@@ -2,7 +2,6 @@ import React from 'react';
 import {
   LayoutDashboard,
   Puzzle,
-  PlusCircle,
   History,
   Tags,
   BrainCircuit,
@@ -13,7 +12,6 @@ import {
 
 import { DashboardOverview } from '@/components/dashboard-overview';
 import { PluginManager } from '@/components/plugin-manager';
-import { SessionLogForm } from '@/components/session-log-form';
 import { SessionHistory } from '@/components/session-history';
 import { JudoSession } from '@/lib/types';
 import {
@@ -47,6 +45,7 @@ export type TabRenderContext = {
   sessions: JudoSession[];
   refreshSessions: () => void;
   refreshPluginExtensions: () => void | Promise<void>;
+  onLogSession?: () => void;
 };
 
 export type TabVisibilityContext = {
@@ -81,34 +80,26 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
-    headerTitle: 'Dashboard: Training Overview',
+    headerTitle: 'Training Overview',
     icon: LayoutDashboard,
     section: 'core',
-    render: ({ sessions }) =>
-      React.createElement(DashboardOverview, { sessions }),
-  },
-  {
-    id: TAB_IDS.log,
-    title: 'Log Session',
-    headerTitle: 'Log A Practice Session',
-    icon: PlusCircle,
-    section: 'core',
-    render: ({ refreshSessions }) =>
-      React.createElement(SessionLogForm, { onSuccess: refreshSessions }),
+    render: ({ sessions, onLogSession }) =>
+      React.createElement(DashboardOverview, { sessions, onLogSession }),
   },
   {
     id: TAB_IDS.history,
-    title: 'History',
-    headerTitle: 'Session History',
+    title: 'Training History',
+    headerTitle: 'Training History',
     icon: History,
     section: 'core',
-    render: ({ sessions, refreshSessions }) =>
+    render: ({ sessions, refreshSessions, onLogSession }) =>
       React.createElement(
         'div',
         { className: 'max-w-4xl mx-auto' },
         React.createElement(SessionHistory, {
           sessions,
           onRefresh: refreshSessions,
+          onLogSession,
         })
       ),
   },

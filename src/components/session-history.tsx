@@ -22,13 +22,14 @@ import {
 } from '@/components/ui/dialog';
 import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
-import { cn, parseDateOnly } from '@/lib/utils';
+import { parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
 import { Separator } from '@/components/ui/separator';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
   onRefresh: () => void;
+  onLogSession?: () => void;
 }
 
 type GroupedSessions = {
@@ -84,7 +85,7 @@ function SessionRow({
   }
 
   return (
-    <div className="py-5 reveal-fade">
+    <div className="py-6 reveal-fade">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -129,19 +130,21 @@ function SessionRow({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+              className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/5"
               onClick={() => onEdit(session)}
+              aria-label="Edit session"
             >
-              <Edit2 className="h-3.5 w-3.5" />
+              <Edit2 className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
               disabled={deletingSessionId === session.id}
               onClick={() => onDelete(session.id)}
+              aria-label="Delete session"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -193,7 +196,7 @@ function SessionRow({
   );
 }
 
-export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
+export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHistoryProps) {
   const { toast } = useToast();
   const [editingSession, setEditingSession] = useState<JudoSession | null>(
     null
@@ -238,12 +241,13 @@ export function SessionHistory({ sessions, onRefresh }: SessionHistoryProps) {
           size="medium"
           alt="Ressa encouraging you to log your first session"
         />
-        <p className="text-center text-muted-foreground mt-3">
-          No sessions logged yet.
+        <p className="text-center font-semibold mt-4 mb-1">No sessions yet</p>
+        <p className="text-center text-sm text-muted-foreground mb-6">
+          Log your first training session and it will appear here.
         </p>
-        <p className="text-center text-sm text-muted-foreground mt-1">
-          Start logging to build your history.
-        </p>
+        {onLogSession && (
+          <Button onClick={onLogSession}>Log your first session</Button>
+        )}
       </div>
     );
   }

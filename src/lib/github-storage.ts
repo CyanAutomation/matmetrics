@@ -35,7 +35,7 @@ interface SessionManifest {
 }
 
 const DEFAULT_MANIFEST_SCOPE = '__default__';
-let manifestCache = new Map<string, SessionManifest>();
+const manifestCache = new Map<string, SessionManifest>();
 
 interface GitHubTreeEntry {
   path: string;
