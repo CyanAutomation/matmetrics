@@ -1,303 +1,372 @@
-🧭 Core Principle
+# Maturity Scoring Rubric
 
-Your maturity score becomes:
+## Overview
 
-“How close is this repo to being a reliable, runnable, maintainable product?”
+This rubric measures how close a repository is to being a reliable, runnable, and maintainable product—not how clever, large, or popular it is. Use this rubric to assess any open-source or internal project and identify the most impactful areas for improvement.
+
+### Core Principle
+
+Your maturity score answers:
+
+"How close is this repo to being a reliable, runnable, maintainable product?"
 
 Not:
 
-* how clever it is
-* how big it is
-* how popular it is
+- how clever it is
+- how big it is
+- how popular it is
 
-⸻
-
-🧱 Structure of the Scoring System
-
-Final Score
+## Scoring System Structure
 
 Final Score = Base Score (0–100) + Modifiers (±10 max) – Penalties (0–20 max)
 
-* Base Score → universal across all repos (deterministic)
-* Modifiers → small adjustments based on repo type
-* Penalties → hard deductions for risky/broken states
+- **Base Score** — universal across all repos (deterministic, 0–100)
+- **Modifiers** — small adjustments based on repo type (±10 max)
+- **Penalties** — hard deductions for risky or broken states (0–20 max cap)
 
-⸻
+## Base Rubric Categories
 
-🧩 BASE RUBRIC (Deterministic, Machine-Checkable)
+The base rubric contains 9 deterministic categories, each scored 0–5 and weighted to produce a universal 0–100 base score.
 
-Each category is 0–5, then weighted.
+| Category | Weight | Purpose |
+|----------|--------|---------|
+| Repository Completeness | 10% | Essential repo metadata and release hygiene |
+| Setup & Reproducibility | 15% | Clear onboarding and one-command startup |
+| Runtime Operability | 15% | Stable execution and observable behavior |
+| Testing & Verification | 15% | Test coverage and automation |
+| CI/CD & Delivery | 10% | Build pipeline and release infrastructure |
+| Codebase Maintainability | 10% | Structure, cleanliness, and tooling |
+| Security & Dependency Hygiene | 10% | Secrets management and dependency safety |
+| Documentation Depth | 10% | Usage examples, architecture, troubleshooting |
+| Project Governance Signals | 5% | Issue/PR templates, active maintenance |
 
-1. Repository Completeness (Weight: 10)
+### Base Score Calculation
 
-Checks:
+For each category:
 
-* README.md exists
-* LICENSE exists
-* Repo description set
-* Topics/tags present
-* At least 1 release or version tag
+```text
+(category_score / 5) × weight = category_contribution
+```
 
-Score:
+Sum all 9 contributions to reach the base score (0–100).
 
-* 0 = missing README
-* 1 = README only
-* 2 = README + description
-* 3 = + license
-* 4 = + tags/topics
-* 5 = + release/tag present
+---
 
-⸻
+## Base Rubric Details
 
-2. Setup & Reproducibility (Weight: 15)
+### 1. Repository Completeness (Weight: 10)
 
-Checks:
+Ensures essential metadata and release management are in place.
 
-* Clear install instructions
-* .env.example or config template
-* One-command run (docker compose up, npm start, etc.)
-* No hidden/manual steps required
-* Works from clean clone
+**Checks:**
 
-Score:
+- README.md exists
+- LICENSE exists
+- Repo description set
+- Topics/tags present
+- At least 1 release or version tag
 
-* 0 = cannot run
-* 1 = unclear setup
-* 2 = partial instructions
-* 3 = works with effort
-* 4 = reliable setup
-* 5 = single-command reproducible
+**Score:**
 
-⸻
+- 0 = missing README
+- 1 = README only
+- 2 = README + description
+- 3 = + license
+- 4 = + tags/topics
+- 5 = + release/tag present
 
-3. Runtime Operability (Weight: 15)
+### 2. Setup & Reproducibility (Weight: 15)
 
-Checks:
+Measures clarity of installation and onboarding from a clean clone.
 
-* App starts without crashing
-* Healthcheck or status endpoint
-* Logs visible
-* Handles failure states
-* Mock/demo mode (important for your projects)
+**Checks:**
 
-Score:
+- Clear install instructions
+- .env.example or config template
+- One-command run (docker compose up, npm start, etc.)
+- No hidden/manual steps required
+- Works from clean clone
 
-* 0 = not runnable
-* 1 = crashes / unstable
-* 2 = runs but opaque
-* 3 = runs reliably
-* 4 = observable (logs/health)
-* 5 = observable + safe/demo mode
+**Score:**
 
-⸻
+- 0 = cannot run
+- 1 = unclear setup
+- 2 = partial instructions
+- 3 = works with effort
+- 4 = reliable setup
+- 5 = single-command reproducible
 
-4. Testing & Verification (Weight: 15)
+### 3. Runtime Operability (Weight: 15)
 
-Checks:
+Evaluates stability, observability, and safe/demo modes.
 
-* Tests exist
-* Tests runnable locally
-* Tests in CI
-* Multiple test types (unit/integration/smoke)
+**Checks:**
 
-Score:
+- App starts without crashing
+- Healthcheck or status endpoint
+- Logs visible
+- Handles failure states
+- Mock/demo mode (important for your projects)
 
-* 0 = none
-* 1 = tests exist but unused
-* 2 = manual tests
-* 3 = automated tests
-* 4 = CI runs tests
-* 5 = CI + multiple layers
+**Score:**
 
-⸻
+- 0 = not runnable
+- 1 = crashes / unstable
+- 2 = runs but opaque
+- 3 = runs reliably
+- 4 = observable (logs/health)
+- 5 = observable + safe/demo mode
 
-5. CI/CD & Delivery (Weight: 10)
+### 4. Testing & Verification (Weight: 15)
 
-Checks:
+Assesses test coverage and automation infrastructure.
 
-* GitHub Actions present
-* Build/test workflow
-* Release workflow or artifact
-* Tagged versions
+**Checks:**
 
-Score:
+- Tests exist
+- Tests runnable locally
+- Tests in CI
+- Multiple test types (unit/integration/smoke)
 
-* 0 = none
-* 1 = basic workflow
-* 2 = builds only
-* 3 = builds + tests
-* 4 = release artifacts
-* 5 = full pipeline (build/test/release)
+**Score:**
 
-⸻
+- 0 = none
+- 1 = tests exist but unused
+- 2 = manual tests
+- 3 = automated tests
+- 4 = CI runs tests
+- 5 = CI + multiple layers
 
-6. Codebase Maintainability (Weight: 10)
+### 5. CI/CD & Delivery (Weight: 10)
 
-Checks:
+Measures build, test, and release automation maturity.
 
-* Structured directories
-* No massive files (>500–1000 lines heuristic)
-* Linting config exists
-* Type checking (if applicable)
-* Config separated from logic
+**Checks:**
 
-Score:
+- GitHub Actions present
+- Build/test workflow
+- Release workflow or artifact
+- Tagged versions
 
-* 0 = chaotic
-* 1 = minimal structure
-* 2 = some structure
-* 3 = clean structure
-* 4 = + lint/type tooling
-* 5 = well modularised + clean boundaries
+**Score:**
 
-⸻
+- 0 = none
+- 1 = basic workflow
+- 2 = builds only
+- 3 = builds + tests
+- 4 = release artifacts
+- 5 = full pipeline (build/test/release)
 
-7. Security & Dependency Hygiene (Weight: 10)
+### 6. Codebase Maintainability (Weight: 10)
 
-Checks:
+Evaluates code organization, cleanliness, and tooling.
 
-* No secrets in repo (basic scan)
-* Dependency manifest exists
-* Dependabot (or equivalent) config
-* Pinned versions (not all latest)
-* Minimal GitHub Actions permissions
+**Checks:**
 
-Score:
+- Structured directories
+- No massive files (>500–1000 lines heuristic)
+- Linting config exists
+- Type checking (if applicable)
+- Config separated from logic
 
-* 0 = unsafe
-* 1 = unknown
-* 2 = basic deps only
-* 3 = deps managed
-* 4 = + automation (Dependabot)
-* 5 = + secure practices (pinning, permissions)
+**Score:**
 
-⸻
+- 0 = chaotic
+- 1 = minimal structure
+- 2 = some structure
+- 3 = clean structure
+- 4 = + lint/type tooling
+- 5 = well modularised + clean boundaries
 
-8. Documentation Depth (Weight: 10)
+### 7. Security & Dependency Hygiene (Weight: 10)
 
-Checks:
+Assesses secrets management and dependency safety practices.
 
-* Usage examples
-* Architecture overview
-* Config explanation
-* Troubleshooting section
+**Checks:**
 
-Score:
+- No secrets in repo (basic scan)
+- Dependency manifest exists
+- Dependabot (or equivalent) config
+- Pinned versions (not all latest)
+- Minimal GitHub Actions permissions
 
-* 0 = none
-* 1 = basic README
-* 2 = usage only
-* 3 = + config explained
-* 4 = + architecture
-* 5 = + troubleshooting + clarity
+**Score:**
 
-⸻
+- 0 = unsafe
+- 1 = unknown
+- 2 = basic deps only
+- 3 = deps managed
+- 4 = + automation (Dependabot)
+- 5 = + secure practices (pinning, permissions)
 
-9. Project Governance Signals (Weight: 5)
+### 8. Documentation Depth (Weight: 10)
 
-Checks:
+Measures breadth and quality of user and developer documentation.
 
-* Issue templates
-* PR templates
-* Labels used
-* Open issues maintained (not abandoned)
+**Checks:**
 
-Score:
+- Usage examples
+- Architecture overview
+- Config explanation
+- Troubleshooting section
 
-* 0 = none
-* 1 = minimal
-* 2 = templates exist
-* 3 = some organisation
-* 4 = actively maintained
-* 5 = well-structured workflow
+**Score:**
 
-⸻
+- 0 = none
+- 1 = basic README
+- 2 = usage only
+- 3 = + config explained
+- 4 = + architecture
+- 5 = + troubleshooting + clarity
 
-🔢 Base Score Calculation
+### 9. Project Governance Signals (Weight: 5)
 
-Each category:
+Evaluates maintenance signals and development workflow.
 
-(category_score / 5) * weight
+**Checks:**
 
-Total = 100
+- Issue templates
+- PR templates
+- Labels used
+- Open issues maintained (not abandoned)
 
-⸻
+**Score:**
 
-⚙️ REPO-TYPE MODIFIERS (±10 max)
+- 0 = none
+- 1 = minimal
+- 2 = templates exist
+- 3 = some organisation
+- 4 = actively maintained
+- 5 = well-structured workflow
 
-These are small but important.
+---
 
-App / Product (e.g. your webcam app, judo tracker)
+## Modifiers (±10 max)
 
-+2 if:
+Repo-type modifiers provide small but important adjustments to the base score. Use the modifier that best matches your project type.
 
-* Has UI/demo
-* Has persistent storage strategy
-* Has config system
+### App / Product
 
-+2 if:
+Examples: webcam app, judo trainer, SaaS dashboard
 
-* Has mock/demo mode
+**+2 points if:**
 
-⸻
+- Has UI/demo
+- Has persistent storage strategy
+- Has config system
 
-Library / Tooling
+**+2 points if:**
 
-+2 if:
+- Has mock/demo mode
 
-* Has versioned API
-* Has usage examples
+### Library / Tooling
 
-⸻
+Examples: npm package, CLI tool, API client
 
-Hardware-integrated (Raspberry Pi etc.)
+**+2 points if:**
 
-+3 if:
+- Has versioned API
+- Has usage examples
 
-* Hardware assumptions documented
-* Fallback/mock mode exists
-* Device mapping documented
+### Hardware-Integrated
 
-⸻
+Examples: Raspberry Pi projects, IoT devices, robotics
 
-Experimental / Prototype
+**+3 points if:**
 
--3 if:
+- Hardware assumptions documented
+- Fallback/mock mode exists
+- Device mapping documented
 
-* Explicitly marked experimental AND lacks setup
+### Experimental / Prototype
 
-+2 if:
+Examples: proof-of-concept, early-stage research
 
-* Has demo mode despite being experimental
+**-3 points if:**
 
-⸻
+- Explicitly marked experimental AND lacks setup
 
-🚨 PENALTIES (Deterministic)
+**+2 points if:**
 
-These are where the score becomes useful.
+- Has demo mode despite being experimental
 
-Critical penalties
+---
 
-* -10 → Repo cannot be run from instructions
-* -10 → Secrets detected in repo
-* -5 → Default branch build fails
-* -5 → No install/run path exists
-* -3 → Broken dependencies
-* -3 → No license (only if intended for reuse)
-* -2 → Last commit > 12 months AND no “stable/complete” note
-* -2 → Large unused files / obvious dead code
+## Penalties (0–20 max)
 
-Cap penalties at -20 total
+Penalties are deterministic hard deductions for risky or broken states. Penalties cap at -20 total.
 
-⸻
+### Critical Penalties (-10 each)
 
-🧠 Output Interpretation
+- **-10** — Repo cannot be run from provided instructions
+- **-10** — Secrets detected in repository
 
-Use buckets:
+### Medium Penalties (-5 each)
 
-* 0–24 → Idea / abandoned
-* 25–44 → Prototype
-* 45–64 → Working project
-* 65–79 → Maintainable product
-* 80–100 → Mature product
+- **-5** — Default branch build fails
+- **-5** — No install or run path exists
 
+### Minor Penalties (-2 to -3 each)
+
+- **-3** — Broken or conflicting dependencies
+- **-3** — No license present (only if intended for reuse)
+- **-2** — Last commit > 12 months AND no "stable/complete" note
+- **-2** — Large unused files or obvious dead code
+
+---
+
+## Output Interpretation
+
+Use these score buckets to interpret your final maturity score:
+
+| Score Range | Interpretation | Meaning |
+|---|---|---|
+| 0–24 | Idea / Abandoned | Concept stage or inactive |
+| 25–44 | Prototype | Early development, limited polish |
+| 45–64 | Working Project | Functional, but setup or testing gaps exist |
+| 65–79 | Maintainable Product | Reliable, documented, actively maintained |
+| 80–100 | Mature Product | Production-ready, comprehensive, highly reliable |
+
+---
+
+## Scoring Examples
+
+### Example 1: Node.js CLI Tool
+
+A command-line interface for batch processing:
+
+- **Repository Completeness** (5) — README, LICENSE, tagged releases, clear description
+- **Setup & Reproducibility** (4) — Good install docs, .env.example, `npm install && npm start` works, but one optional dependency needs manual setup
+- **Runtime Operability** (3) — Runs reliably, logs visible, but no health check or demo mode
+- **Testing & Verification** (3) — Unit tests present and in CI, but missing integration tests
+- **CI/CD & Delivery** (3) — GitHub Actions builds and tests, but no automated releases
+- **Codebase Maintainability** (4) — Well-structured directories, ESLint/TypeScript enforced, clean boundaries
+- **Security & Dependency Hygiene** (3) — Pinned versions, no secrets detected, but Dependabot not configured
+- **Documentation Depth** (3) — README with examples, API documented, but no troubleshooting guide
+- **Project Governance Signals** (2) — Issue template exists, but PR template missing, infrequent maintenance
+
+**Base Score:** (5/5 × 10) + (4/5 × 15) + (3/5 × 15) + (3/5 × 15) + (3/5 × 10) + (4/5 × 10) + (3/5 × 10) + (3/5 × 10) + (2/5 × 5) = 10 + 12 + 9 + 9 + 6 + 8 + 6 + 6 + 2 = **68/100**
+
+**Modifiers:** +2 (versioned API, usage examples) → **70/100**
+
+**Interpretation:** **Maintainable Product** — reliable for production use, but testing coverage and release automation could be improved.
+
+### Example 2: React Component Library (Early Stage)
+
+A reusable component package:
+
+- **Repository Completeness** (2) — README and description present, but no LICENSE or releases yet
+- **Setup & Reproducibility** (2) — Install instructions present, but no .env.example; setup requires extra npm scripts
+- **Runtime Operability** (4) — Storybook demo available; components render without crashes; logs available
+- **Testing & Verification** (2) — Unit tests exist, but not run in CI; no integration tests
+- **CI/CD & Delivery** (1) — No GitHub Actions workflow yet
+- **Codebase Maintainability** (3) — Clear component structure, ESLint configured, but some components > 400 lines
+- **Security & Dependency Hygiene** (2) — npm package.json present, but dependencies unpinned; no Dependabot
+- **Documentation Depth** (2) — README with installation, but no architecture guide or troubleshooting
+- **Project Governance Signals** (1) — No issue or PR templates
+
+**Base Score:** (2/5 × 10) + (2/5 × 15) + (4/5 × 15) + (2/5 × 15) + (1/5 × 10) + (3/5 × 10) + (2/5 × 10) + (2/5 × 10) + (1/5 × 5) = 4 + 6 + 12 + 6 + 2 + 6 + 4 + 4 + 1 = **45/100**
+
+**Modifiers:** +2 (has UI/Storybook, persistent component registry strategy), +2 (usage examples in Storybook) → **49/100**
+
+**Interpretation:** **Working Project** — functional but early-stage; focus on CI/CD setup, test automation, and releasing a v1.0 to cross into "Maintainable Product" range.
