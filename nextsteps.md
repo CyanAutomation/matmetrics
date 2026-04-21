@@ -47,7 +47,9 @@ Unlike server-only variables, the `NEXT_PUBLIC_FIREBASE_*` variables are embedde
 
 This is the step most people miss. Once Vercel assigns your deployment URL (e.g. `matmetrics.vercel.app`), go to:
 
-**Firebase console → Authentication → Settings → Authorised domains → Add domain**
+### Firebase console configuration
+
+Navigate to: Authentication → Settings → Authorised domains → Add domain
 
 Add both:
 
