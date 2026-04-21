@@ -71,6 +71,7 @@ Maturity tiers (Silver/Gold) gate the plugin review bar. Plugins must use `Plugi
 ### AI Flows (Genkit)
 
 Flows in `src/ai/flows/` provide:
+
 - **Technique Suggester** — suggests Judo techniques as the user types
 - **Practice Description Transformer** — normalizes session descriptions
 
