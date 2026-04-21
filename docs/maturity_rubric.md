@@ -4,6 +4,21 @@
 
 This rubric measures how close a repository is to being a reliable, runnable, and maintainable product—not how clever, large, or popular it is. Use this rubric to assess any open-source or internal project and identify the most impactful areas for improvement.
 
+### How Agents Should Use This Rubric
+
+This rubric is **guidance for AI agents to evaluate repositories on demand**. Agents should:
+
+1. **Inspect the repository** — Examine the codebase, documentation, CI/CD workflows, test structure, and git history
+2. **Score each category** (0–5) — Apply the checks and evidence listed in [Base Rubric Details](#base-rubric-details) to each of the 9 categories
+3. **Calculate the base score** — Use the weighted formula in [Base Score Calculation](#base-score-calculation)
+4. **Determine repo type** — Identify if the repo is an App/Product, Library/Tooling, Hardware-Integrated, or Experimental project
+5. **Apply modifiers** — Add or subtract points based on [Modifiers](#modifiers)
+6. **Apply penalties** — Deduct points for risky states per [Penalties](#penalties)
+7. **Classify tier** — Map final score to tier per [Output Interpretation](#output-interpretation)
+8. **Generate report** — Produce a structured JSON summary with date, scores, category breakdowns, evidence, and actionable improvement areas
+
+This rubric is **not** backed by executable code in the repository. Agents performing maturity evaluations should use this document as the authoritative specification and apply the logic based on direct repository inspection.
+
 ### Core Principle
 
 Your maturity score answers:
