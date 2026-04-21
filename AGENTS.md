@@ -120,3 +120,16 @@ See [README.md](./README.md) for required variables (GITHUB_TOKEN, GOOGLE_GENAI_
 ### AI & Genkit Flows
 
 Genkit flows in `src/ai/flows/` integrate Google GenAI for technique suggestions and session analysis. Flows are tested via `npm run genkit:dev`. Schema-driven inputs/outputs for type safety.
+
+### Markdown Documentation
+
+All markdown files in the repository follow standardized conventions for consistency and readability. See [docs/MARKDOWN_STYLE.md](./docs/MARKDOWN_STYLE.md) for complete guidelines including:
+
+- Heading hierarchy and structure
+- Link formatting (internal and external)
+- Code block language tags
+- Table formatting
+- Terminology and terminology conventions
+- Automated linting with `.markdownlint.json`
+
+**Key rule:** First heading must be `# Document Title` (H1); no skipping heading levels.

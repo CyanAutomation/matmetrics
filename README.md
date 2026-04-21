@@ -55,13 +55,13 @@ git clone <repository-url>
 cd matmetrics
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+1. Set up environment variables:
 
 Copy `.env.example` to `.env.local` and add your API keys:
 

@@ -1,4 +1,4 @@
-# 🐾 Ressa Character Description
+# Ressa Character Description
 
 ## Basic Info
 
