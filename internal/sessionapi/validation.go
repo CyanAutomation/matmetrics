@@ -90,7 +90,6 @@ func isDisallowedVideoHost(host string) bool {
 	if err != nil {
 		return true
 	}
-	}
 	for _, resolvedIP := range resolvedIPs {
 		addr, ok := netip.AddrFromSlice(resolvedIP)
 		if ok && isDisallowedIP(addr) {
