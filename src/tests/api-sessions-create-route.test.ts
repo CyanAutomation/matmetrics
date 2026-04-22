@@ -479,6 +479,18 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid videoUrl: expected a valid absolute URL',
     },
     {
+      name: 'videoUrl whitespace only',
+      body: {
+        id: 'create-invalid-video-url-whitespace',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+        videoUrl: '   \t ',
+      },
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    },
+    {
       name: 'videoUrl unsupported protocol',
       body: {
         id: 'create-invalid-video-url-protocol',
