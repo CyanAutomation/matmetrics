@@ -121,9 +121,17 @@ function validateOptionalVideoUrl(
     return { valid: false, error: 'Invalid videoUrl: expected a string' };
   }
 
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return {
+      valid: false,
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    };
+  }
+
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(value);
+    parsedUrl = new URL(trimmedValue);
   } catch {
     return {
       valid: false,
