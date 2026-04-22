@@ -31,6 +31,12 @@ func withVideoURL(videoURL string) func(*model.Session) {
 	}
 }
 
+func withDuration(duration *int) func(*model.Session) {
+	return func(session *model.Session) {
+		session.Duration = duration
+	}
+}
+
 func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 	tests := []struct {
 		name string
@@ -117,6 +123,60 @@ func TestValidateSessionAllowsMissingVideoURL(t *testing.T) {
 
 	if err := ValidateSession(session); err != nil {
 		t.Fatalf("ValidateSession() error = %v, want nil", err)
+	}
+}
+
+func TestValidateSessionDurationValidation(t *testing.T) {
+	negativeDuration := -1
+	zeroDuration := 0
+	positiveDuration := 90
+
+	tests := []struct {
+		name     string
+		duration *int
+		wantErr  string
+	}{
+		{
+			name:     "rejects negative duration",
+			duration: &negativeDuration,
+			wantErr:  "invalid duration: expected a non-negative integer",
+		},
+		{
+			name:     "accepts zero duration",
+			duration: &zeroDuration,
+			wantErr:  "",
+		},
+		{
+			name:     "accepts positive duration",
+			duration: &positiveDuration,
+			wantErr:  "",
+		},
+		{
+			name:     "accepts nil duration",
+			duration: nil,
+			wantErr:  "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			session := validSession(withDuration(tc.duration))
+
+			err := ValidateSession(session)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidateSession() error = %v, want nil", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("ValidateSession() error = nil, want %q", tc.wantErr)
+			}
+			if got := err.Error(); got != tc.wantErr {
+				t.Fatalf("ValidateSession() error = %q, want %q", got, tc.wantErr)
+			}
+		})
 	}
 }
 
