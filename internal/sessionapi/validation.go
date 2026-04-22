@@ -45,6 +45,9 @@ func ValidateSession(session model.Session) error {
 			return fmt.Errorf("invalid techniques[%d]: value cannot be empty", index)
 		}
 	}
+	if session.Duration != nil && *session.Duration < 0 {
+		return fmt.Errorf("invalid duration: expected a non-negative integer")
+	}
 	if err := validateOptionalVideoURL(session.VideoURL); err != nil {
 		return err
 	}
