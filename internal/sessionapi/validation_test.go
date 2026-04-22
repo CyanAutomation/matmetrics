@@ -75,6 +75,11 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name:     "rejects whitespace-only video url",
+			videoURL: "   \t  ",
+			wantErr:  "invalid videoUrl: expected a valid absolute URL",
+		},
+		{
 			name:     "rejects invalid url",
 			videoURL: "not-a-url",
 			wantErr:  "invalid videoUrl: expected a valid absolute URL",

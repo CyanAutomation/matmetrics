@@ -778,6 +778,19 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid videoUrl: expected a valid absolute URL',
     },
     {
+      name: 'videoUrl whitespace only',
+      sessionId: 'put-invalid-video-url-whitespace',
+      body: {
+        id: 'put-invalid-video-url-whitespace',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+        videoUrl: '   \t ',
+      },
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    },
+    {
       name: 'videoUrl unsupported protocol',
       sessionId: 'put-invalid-video-url-protocol',
       body: {

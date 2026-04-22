@@ -56,8 +56,11 @@ func ValidateSession(session model.Session) error {
 
 func validateOptionalVideoURL(value string) error {
 	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
+	if value == "" {
 		return nil
+	}
+	if trimmed == "" {
+		return fmt.Errorf("invalid videoUrl: expected a valid absolute URL")
 	}
 
 	parsedURL, err := url.Parse(trimmed)
