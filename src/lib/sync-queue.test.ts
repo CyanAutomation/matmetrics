@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getScopedStorageKey } from './client-identity';
 import type { SyncOperation } from './sync-queue';
 const syncQueueModule = require('./sync-queue');
 const {
@@ -81,6 +82,10 @@ function removeOperationByIndexLegacy(index: number): void {
   setQueue(queue, baseQueue);
 }
 
+function getLastQueuedAtStorageKey(): string {
+  return getScopedStorageKey('matmetrics_last_queued_at');
+}
+
 test('queueOperation timestamps operations and preserves insertion order', () => {
   resetQueue();
 
@@ -101,6 +106,55 @@ test('queueOperation timestamps operations and preserves insertion order', () =>
       Number.isFinite(operation.queuedAt)
     )
   );
+});
+
+test('queueOperation uses persisted last queuedAt to recover from stale in-memory state', () => {
+  resetQueue();
+  queueOperation({ type: 'CREATE', session: makeSession('session-1') });
+  const firstOperationQueuedAt = getQueue()[0].queuedAt;
+
+  const lastQueuedAtKey = getLastQueuedAtStorageKey();
+  localStorage.setItem(
+    lastQueuedAtKey,
+    String(firstOperationQueuedAt + 10_000)
+  );
+
+  queueOperation({ type: 'CREATE', session: makeSession('session-2') });
+
+  const queue = getQueue();
+  assert.equal(queue.length, 2);
+  assert.equal(queue[1].queuedAt, firstOperationQueuedAt + 10_001);
+  assert.equal(
+    localStorage.getItem(lastQueuedAtKey),
+    String(queue[1].queuedAt)
+  );
+});
+
+test('queueOperation remains strictly monotonic across interleaved two-tab writes', () => {
+  resetQueue();
+  const lastQueuedAtKey = getLastQueuedAtStorageKey();
+
+  queueOperation({ type: 'CREATE', session: makeSession('session-1') });
+  const firstQueuedAt = getQueue()[0].queuedAt;
+
+  const tabBQueuedAt = firstQueuedAt + 100;
+  localStorage.setItem(lastQueuedAtKey, String(tabBQueuedAt));
+
+  queueOperation({ type: 'CREATE', session: makeSession('session-2') });
+  const queueAfterTabASecondWrite = getQueue();
+  const secondQueuedAt = queueAfterTabASecondWrite[1].queuedAt;
+  assert.equal(secondQueuedAt, tabBQueuedAt + 1);
+
+  const tabBNextQueuedAt = secondQueuedAt + 50;
+  localStorage.setItem(lastQueuedAtKey, String(tabBNextQueuedAt));
+
+  queueOperation({ type: 'CREATE', session: makeSession('session-3') });
+  const queue = getQueue();
+  const thirdQueuedAt = queue[2].queuedAt;
+
+  assert.equal(thirdQueuedAt, tabBNextQueuedAt + 1);
+  assert.ok(firstQueuedAt < secondQueuedAt);
+  assert.ok(secondQueuedAt < thirdQueuedAt);
 });
 
 test('setQueue preserves a newer concurrent operation with the same identity', () => {
