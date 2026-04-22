@@ -37,6 +37,58 @@ func withDuration(duration *int) func(*model.Session) {
 	}
 }
 
+func withID(id string) func(*model.Session) {
+	return func(session *model.Session) {
+		session.ID = id
+	}
+}
+
+func TestValidateSessionIDValidation(t *testing.T) {
+	t.Run("rejects blank ids after trimming whitespace", func(t *testing.T) {
+		session := validSession(withID("   \t   "))
+
+		err := ValidateSession(session)
+		if err == nil {
+			t.Fatalf("ValidateSession() error = nil, want non-nil")
+		}
+		if got, want := err.Error(), "missing required field: id"; got != want {
+			t.Fatalf("ValidateSession() error = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("rejects invalid characters", func(t *testing.T) {
+		session := validSession(withID("bad id!"))
+
+		err := ValidateSession(session)
+		if err == nil {
+			t.Fatalf("ValidateSession() error = nil, want non-nil")
+		}
+		if got, want := err.Error(), "invalid id: contains invalid characters; only letters, digits, \"-\" and \"_\" are allowed"; got != want {
+			t.Fatalf("ValidateSession() error = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("rejects too-long ids", func(t *testing.T) {
+		session := validSession(withID(strings.Repeat("a", 101)))
+
+		err := ValidateSession(session)
+		if err == nil {
+			t.Fatalf("ValidateSession() error = nil, want non-nil")
+		}
+		if got, want := err.Error(), "invalid id: exceeds maximum length of 100 characters"; got != want {
+			t.Fatalf("ValidateSession() error = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("accepts max-length id with allowed charset", func(t *testing.T) {
+		session := validSession(withID(strings.Repeat("A", 98) + "-_"))
+
+		if err := ValidateSession(session); err != nil {
+			t.Fatalf("ValidateSession() error = %v, want nil", err)
+		}
+	})
+}
+
 func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 	tests := []struct {
 		name string
