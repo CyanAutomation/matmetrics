@@ -88,7 +88,8 @@ func isDisallowedVideoHost(host string) bool {
 
 	resolvedIPs, err := lookupIP(lowerHost)
 	if err != nil {
-		return false
+		return true
+	}
 	}
 	for _, resolvedIP := range resolvedIPs {
 		addr, ok := netip.AddrFromSlice(resolvedIP)
