@@ -90,8 +90,26 @@ function isValidSyncOperationInput(
 }
 
 function getNextQueuedAt(): number {
+  const inMemoryLastQueuedAt = lastQueuedAt;
+  let persistedLastQueuedAt = 0;
+
+  if (typeof window !== 'undefined') {
+    const key = getScopedStorageKey(LAST_QUEUED_AT_KEY_BASE);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        persistedLastQueuedAt = parsed;
+      }
+    }
+  }
+
   const now = Date.now();
-  lastQueuedAt = Math.max(lastQueuedAt + 1, now);
+  lastQueuedAt = Math.max(
+    inMemoryLastQueuedAt + 1,
+    persistedLastQueuedAt + 1,
+    now
+  );
   persistLastQueuedAt();
   return lastQueuedAt;
 }
