@@ -5,11 +5,16 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"matmetrics/internal/model"
 )
+
+const maxSessionIDLength = 100
+
+var safeSessionIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // TODO(P4): Validation logic is duplicated between this Go backend and
 // src/app/api/sessions/[id]/route.ts (TypeScript). With P6 (dual backend
@@ -20,8 +25,8 @@ import (
 // backend for session mutations.
 
 func ValidateSession(session model.Session) error {
-	if strings.TrimSpace(session.ID) == "" {
-		return fmt.Errorf("missing required field: id")
+	if err := validateSessionID(session.ID); err != nil {
+		return err
 	}
 	if strings.TrimSpace(session.Date) == "" {
 		return fmt.Errorf("missing required field: date")
@@ -51,6 +56,23 @@ func ValidateSession(session model.Session) error {
 	if err := validateOptionalVideoURL(session.VideoURL); err != nil {
 		return err
 	}
+	return nil
+}
+
+func validateSessionID(value string) error {
+	trimmedID := strings.TrimSpace(value)
+	if trimmedID == "" {
+		return fmt.Errorf("missing required field: id")
+	}
+
+	if len(trimmedID) > maxSessionIDLength {
+		return fmt.Errorf("invalid id: exceeds maximum length of %d characters", maxSessionIDLength)
+	}
+
+	if !safeSessionIDPattern.MatchString(trimmedID) {
+		return fmt.Errorf("invalid id: contains invalid characters; only letters, digits, \"-\" and \"_\" are allowed")
+	}
+
 	return nil
 }
 
