@@ -342,9 +342,14 @@ export function SessionLogForm({
     const sessionData: JudoSession = {
       id:
         sessionToEdit?.id ||
-        (typeof crypto !== 'undefined' && crypto.randomUUID
+        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2)),
+          : typeof crypto !== 'undefined' &&
+              typeof crypto.getRandomValues === 'function'
+            ? Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                .map((byte) => byte.toString(16).padStart(2, '0'))
+                .join('')
+            : `session-${Date.now().toString(36)}`),
       date,
       techniques,
       effort,
