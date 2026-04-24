@@ -349,7 +349,7 @@ export function SessionLogForm({
             ? Array.from(crypto.getRandomValues(new Uint8Array(16)))
                 .map((byte) => byte.toString(16).padStart(2, '0'))
                 .join('')
-            : `session-${Date.now().toString(36)}`),
+            : `session-${Date.now().toString(36)}-${Math.random().toString(36).substring(2)}`),
       date,
       techniques,
       effort,
