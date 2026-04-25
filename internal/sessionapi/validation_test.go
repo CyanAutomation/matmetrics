@@ -270,25 +270,54 @@ func TestValidateSessionRejectsPrivateVideoURLHosts(t *testing.T) {
 	}
 }
 
-func TestValidateSessionRejectsDNSResolvedPrivateVideoURLHost(t *testing.T) {
+func TestValidateSessionVideoURLDNSResolutionBehavior(t *testing.T) {
 	originalLookupIP := lookupIP
 	t.Cleanup(func() {
 		lookupIP = originalLookupIP
 	})
 
 	lookupIP = func(host string) ([]net.IP, error) {
-		if host == "public.example.test" {
+		switch host {
+		case "private-resolution.example.test":
 			return []net.IP{net.ParseIP("127.0.0.1")}, nil
+		case "link-local-resolution.example.test":
+			return []net.IP{net.ParseIP("169.254.10.20")}, nil
+		case "public.example.test":
+			return []net.IP{net.ParseIP("93.184.216.34")}, nil
+		case "unresolved.example.test":
+			return nil, fmt.Errorf("lookup failed")
+		default:
+			return nil, fmt.Errorf("unexpected host lookup: %s", host)
 		}
-		return []net.IP{net.ParseIP("93.184.216.34")}, nil
 	}
 
-	session := validSession(withVideoURL("https://public.example.test/video"))
-	err := ValidateSession(session)
-	if err == nil {
-		t.Fatalf("ValidateSession() error = nil, want non-nil for DNS-resolved private host")
+	testCases := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{name: "rejects dns-resolved loopback", url: "https://private-resolution.example.test/video", wantErr: true},
+		{name: "rejects dns-resolved link-local", url: "https://link-local-resolution.example.test/video", wantErr: true},
+		{name: "rejects unresolved hostnames", url: "https://unresolved.example.test/video", wantErr: true},
+		{name: "accepts dns-resolved public hosts", url: "https://public.example.test/video", wantErr: false},
 	}
-	if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
-		t.Fatalf("ValidateSession() error = %q, want %q", got, want)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateSession(validSession(withVideoURL(tc.url)))
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("ValidateSession() error = nil, want non-nil")
+				}
+				if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
+					t.Fatalf("ValidateSession() error = %q, want %q", got, want)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ValidateSession() error = %v, want nil", err)
+			}
+		})
 	}
 }
