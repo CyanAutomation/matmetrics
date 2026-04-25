@@ -406,9 +406,26 @@ func validateRequiredSections(content string) error {
 		"## Notes",
 	}
 
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	inFencedCodeBlock := false
+	foundHeadings := make(map[string]bool, len(requiredHeadings))
+
+	for _, line := range lines {
+		if isFencedCodeDelimiter(line) {
+			inFencedCodeBlock = !inFencedCodeBlock
+			continue
+		}
+		if inFencedCodeBlock {
+			continue
+		}
+		if containsString(requiredHeadings, line) {
+			foundHeadings[line] = true
+		}
+	}
+
 	missing := make([]string, 0, len(requiredHeadings))
 	for _, heading := range requiredHeadings {
-		if !strings.Contains(content, heading) {
+		if !foundHeadings[heading] {
 			missing = append(missing, strings.TrimPrefix(heading, "## "))
 		}
 	}
