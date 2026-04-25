@@ -85,6 +85,7 @@ export function markdownToSession(markdown: string): JudoSession {
   const videoUrl = validateVideoUrl(data.videoUrl);
 
   validateTitlePresence(normalizedContent);
+  validateRequiredSections(normalizedContent);
 
   // Parse techniques from markdown content
   const techniques = extractTechniques(normalizedContent);
@@ -357,6 +358,52 @@ function extractSectionContent(
   }
 
   return sectionLines.join('\n').trimEnd();
+}
+
+function validateRequiredSections(content: string): void {
+  const requiredHeadings = [
+    '## Techniques Practiced',
+    '## Session Description',
+    '## Notes',
+  ];
+
+  const discoveredHeadings = getSectionHeadingsOutsideFencedCodeBlocks(content);
+  const missing = requiredHeadings
+    .filter((heading) => !discoveredHeadings.has(heading))
+    .map((heading) => heading.replace('## ', ''));
+
+  if (missing.length > 0) {
+    throw new Error(
+      `markdown content is missing required sections: ${missing.join(', ')}`
+    );
+  }
+}
+
+function getSectionHeadingsOutsideFencedCodeBlocks(
+  content: string
+): Set<string> {
+  const sectionHeadings = new Set([
+    '## Techniques Practiced',
+    '## Session Description',
+    '## Notes',
+  ]);
+  const found = new Set<string>();
+  const lines = content.split('\n');
+
+  let inFencedCodeBlock = false;
+
+  for (const line of lines) {
+    if (isFencedCodeDelimiter(line)) {
+      inFencedCodeBlock = !inFencedCodeBlock;
+      continue;
+    }
+
+    if (!inFencedCodeBlock && sectionHeadings.has(line)) {
+      found.add(line);
+    }
+  }
+
+  return found;
 }
 
 function isFencedCodeDelimiter(line: string): boolean {

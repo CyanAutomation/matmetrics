@@ -517,3 +517,96 @@ Notes.`;
     );
   }
 });
+
+const CANONICAL_MARKDOWN = `---
+id: "canonical-sections"
+date: "2026-03-24"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-24 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Canonical description.
+
+## Notes
+
+Canonical notes.`;
+
+test('missing each required section is rejected', () => {
+  const missingCases = [
+    {
+      name: 'Techniques Practiced',
+      markdown: CANONICAL_MARKDOWN.replace(
+        /## Techniques Practiced\n- Uchi mata\n\n/,
+        ''
+      ),
+      expected: /missing required sections: Techniques Practiced/,
+    },
+    {
+      name: 'Session Description',
+      markdown: CANONICAL_MARKDOWN.replace(
+        /## Session Description\n\nCanonical description\.\n\n/,
+        ''
+      ),
+      expected: /missing required sections: Session Description/,
+    },
+    {
+      name: 'Notes',
+      markdown: CANONICAL_MARKDOWN.replace(/## Notes\n\nCanonical notes\./, ''),
+      expected: /missing required sections: Notes/,
+    },
+  ];
+
+  for (const missingCase of missingCases) {
+    assert.throws(
+      () => markdownToSession(missingCase.markdown),
+      missingCase.expected,
+      `Expected missing ${missingCase.name} to be rejected`
+    );
+  }
+});
+
+test('required headings only inside fenced code blocks are rejected', () => {
+  const markdownWithHeadingsInCodeBlocks = `---
+id: "headings-in-code-blocks"
+date: "2026-03-25"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-25 - Judo Session: Technical
+
+\`\`\`md
+## Techniques Practiced
+- O goshi
+
+## Session Description
+
+Looks valid but is fenced.
+
+## Notes
+
+Still fenced.
+\`\`\`
+`;
+
+  assert.throws(
+    () => markdownToSession(markdownWithHeadingsInCodeBlocks),
+    /missing required sections: Techniques Practiced, Session Description, Notes/
+  );
+});
+
+test('fully valid canonical markdown passes required section validation', () => {
+  const parsed = markdownToSession(CANONICAL_MARKDOWN);
+
+  assert.equal(parsed.id, 'canonical-sections');
+  assert.deepEqual(parsed.techniques, ['Uchi mata']);
+  assert.equal(parsed.description, 'Canonical description.');
+  assert.equal(parsed.notes, 'Canonical notes.');
+});
