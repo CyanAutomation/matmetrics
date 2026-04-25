@@ -478,13 +478,20 @@ Notes.`;
 
 test('videoUrl SSRF-protected hosts are rejected', () => {
   const blockedHosts = [
-    'localhost',
-    '127.0.0.1',
+    // Loopback
+    '127.0.0.2',
     '::1',
-    '10.0.0.1',
-    '172.16.0.1',
-    '192.168.1.1',
+    // RFC1918 private ranges
+    '10.1.2.3',
+    '192.168.1.9',
+    '172.16.5.4',
+    '172.31.255.254',
+    // CGNAT
+    '100.64.0.8',
+    // Link-local / metadata hosts
+    '169.254.1.2',
     '169.254.169.254',
+    'metadata.google.internal',
   ];
 
   for (const host of blockedHosts) {
@@ -515,6 +522,41 @@ Notes.`;
       /private or internal network addresses are not allowed/,
       `Expected ${host} to be blocked`
     );
+  }
+});
+
+test('videoUrl with public hosts is allowed', () => {
+  const allowedHosts = [
+    'example.com',
+    'www.youtube.com',
+    '8.8.8.8',
+    '1.1.1.1',
+  ];
+
+  for (const host of allowedHosts) {
+    const markdown = `---
+id: "allowed-video-host-${host.replace(/[:.]/g, '-')}"
+date: "2026-03-28"
+effort: 3
+category: "Technical"
+videoUrl: "https://${host}/video"
+---
+
+# 2026-03-28 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+    const parsed = markdownToSession(markdown);
+    assert.equal(parsed.videoUrl, `https://${host}/video`);
   }
 });
 
