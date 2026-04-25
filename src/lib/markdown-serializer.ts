@@ -1,5 +1,9 @@
 import matter from 'gray-matter';
 import { JudoSession, EffortLevel, SessionCategory } from './types';
+import {
+  isBlockedNetworkHostname,
+  normalizeNetworkHostname,
+} from './network-safety';
 
 const SESSION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 /**
@@ -219,32 +223,8 @@ function validateVideoUrl(value: unknown): string | undefined {
     );
   }
 
-  // Remove brackets for IPv6 addresses (URL.hostname includes them)
-  const host = parsedUrl.hostname.replace(/^\[|\]$/g, '');
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === '::1' ||
-    host.startsWith('10.') ||
-    host.startsWith('172.16.') ||
-    host.startsWith('172.17.') ||
-    host.startsWith('172.18.') ||
-    host.startsWith('172.19.') ||
-    host.startsWith('172.20.') ||
-    host.startsWith('172.21.') ||
-    host.startsWith('172.22.') ||
-    host.startsWith('172.23.') ||
-    host.startsWith('172.24.') ||
-    host.startsWith('172.25.') ||
-    host.startsWith('172.26.') ||
-    host.startsWith('172.27.') ||
-    host.startsWith('172.28.') ||
-    host.startsWith('172.29.') ||
-    host.startsWith('172.30.') ||
-    host.startsWith('172.31.') ||
-    host.startsWith('192.168.') ||
-    host === '169.254.169.254'
-  ) {
+  const normalizedHostname = normalizeNetworkHostname(parsedUrl.hostname);
+  if (isBlockedNetworkHostname(normalizedHostname)) {
     throw new Error(
       'Invalid "videoUrl" in frontmatter: private or internal network addresses are not allowed'
     );
