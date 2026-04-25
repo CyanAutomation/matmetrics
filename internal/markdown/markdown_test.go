@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 
@@ -709,6 +710,80 @@ Notes.
 			}
 			if !strings.Contains(err.Error(), "private or internal network addresses are not allowed") {
 				t.Fatalf("unexpected error for host %q: %v", host, err)
+			}
+		})
+	}
+}
+
+func TestMarkdownToSessionVideoURLDNSResolutionBehavior(t *testing.T) {
+	originalLookupIP := lookupIP
+	t.Cleanup(func() {
+		lookupIP = originalLookupIP
+	})
+
+	lookupIP = func(host string) ([]net.IP, error) {
+		switch host {
+		case "private-resolution.example.test":
+			return []net.IP{net.ParseIP("127.0.0.1")}, nil
+		case "link-local-resolution.example.test":
+			return []net.IP{net.ParseIP("169.254.10.20")}, nil
+		case "public.example.test":
+			return []net.IP{net.ParseIP("93.184.216.34")}, nil
+		case "unresolved.example.test":
+			return nil, fmt.Errorf("lookup failed")
+		default:
+			return nil, fmt.Errorf("unexpected host lookup: %s", host)
+		}
+	}
+
+	testCases := []struct {
+		name    string
+		host    string
+		wantErr bool
+	}{
+		{name: "rejects dns-resolved loopback", host: "private-resolution.example.test", wantErr: true},
+		{name: "rejects dns-resolved link-local", host: "link-local-resolution.example.test", wantErr: true},
+		{name: "rejects unresolved hostnames", host: "unresolved.example.test", wantErr: true},
+		{name: "accepts dns-resolved public hosts", host: "public.example.test", wantErr: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			input := fmt.Sprintf(`---
+id: "dns-video-host-test"
+date: "2026-03-28"
+effort: 3
+category: "Technical"
+videoUrl: "https://%s/video"
+---
+
+# 2026-03-28 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.
+`, tc.host)
+
+			_, err := MarkdownToSession(input)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("MarkdownToSession() error = nil, want non-nil")
+				}
+				if !strings.Contains(err.Error(), "private or internal network addresses are not allowed") {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("MarkdownToSession() error = %v, want nil", err)
 			}
 		})
 	}
