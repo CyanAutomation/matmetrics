@@ -1209,41 +1209,108 @@ test(
 );
 
 test(
-  'findSessionFileById surfaces permission/read failures as operational errors',
+  'findSessionFileById still detects duplicate IDs when malformed files are present',
   { concurrency: false },
   async () => {
     await withTempDataDir(async () => {
-      const originalReadFile = fs.readFile;
-      const session = makeSession({ id: 'session-read-error' });
-      const sessionPath = await createSession(session);
+      const session = makeSession({
+        id: 'session-duplicate-with-malformed',
+        date: '2025-01-10',
+      });
+      const canonicalPath = await createSession(session);
+      const duplicatePath = getSessionFilePath(
+        '2025-02-10',
+        undefined,
+        session.id
+      );
+      const malformedPath = getSessionFilePath(
+        '2025-03-10',
+        undefined,
+        'session-malformed-neighbor'
+      );
 
-      fs.readFile = (async (...args: Parameters<typeof fs.readFile>) => {
-        const [targetPath] = args;
-        if (targetPath.toString() === sessionPath) {
-          throw Object.assign(new Error('simulated permission denied'), {
-            code: 'EACCES',
-          });
-        }
-        return originalReadFile.call(fs, ...args);
-      }) as typeof fs.readFile;
+      await fs.mkdir(path.dirname(duplicatePath), { recursive: true });
+      await fs.writeFile(
+        duplicatePath,
+        await readFile(canonicalPath, 'utf8'),
+        'utf-8'
+      );
+      await fs.mkdir(path.dirname(malformedPath), { recursive: true });
+      await fs.writeFile(
+        malformedPath,
+        '# malformed markdown without required frontmatter sections',
+        'utf-8'
+      );
 
-      try {
-        await assert.rejects(
-          findSessionFileById(session.id),
-          (error: unknown) => {
-            assert.equal(error instanceof SessionLookupOperationalError, true);
-            return true;
+      await assert.rejects(
+        findSessionFileById(session.id),
+        (error: unknown) => {
+          assert.equal(error instanceof DuplicateSessionIdError, true);
+          if (!(error instanceof DuplicateSessionIdError)) {
+            return false;
           }
-        );
-      } finally {
-        fs.readFile = originalReadFile;
-      }
+          assert.deepEqual(error.paths, [canonicalPath, duplicatePath].sort());
+          return true;
+        }
+      );
     });
   }
 );
 
 test(
-  'updateSession and deleteSession surface lookup read failures instead of not-found',
+  'findSessionFileById skips malformed sibling markdown files and still finds valid matches',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({ id: 'session-read-error' });
+      const sessionPath = await createSession(session);
+      const malformedPath = getSessionFilePath(
+        session.date,
+        2,
+        'session-read-error-bad'
+      );
+
+      await fs.mkdir(path.dirname(malformedPath), { recursive: true });
+      await fs.writeFile(malformedPath, 'not valid markdown frontmatter', 'utf8');
+
+      assert.equal(await findSessionFileById(session.id), sessionPath);
+    });
+  }
+);
+
+test(
+  'findSessionFileById falls back to full scan when indexed file is malformed',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-malformed-indexed',
+        date: '2025-03-21',
+      });
+      const sessionPath = await createSession(session);
+      const malformedPath = getSessionFilePath('2025-04-21', 1, session.id);
+      const baseDir = path.dirname(path.dirname(path.dirname(sessionPath)));
+      const indexPath = path.join(baseDir, '.index', `${session.id}.json`);
+
+      await fs.mkdir(path.dirname(malformedPath), { recursive: true });
+      await fs.writeFile(malformedPath, '---\nid: no-quote\n---', 'utf8');
+      await fs.writeFile(
+        indexPath,
+        JSON.stringify({
+          id: session.id,
+          path: malformedPath,
+          status: 'ready',
+        }),
+        'utf8'
+      );
+
+      assert.equal(await findSessionFileById(session.id), sessionPath);
+    });
+  }
+);
+
+test(
+  'updateSession and deleteSession return not-found when all matching files are unreadable',
   { concurrency: false },
   async () => {
     await withTempDataDir(async () => {
@@ -1267,11 +1334,11 @@ test(
             ...session,
             notes: 'should fail as operational error',
           }),
-          SessionLookupOperationalError
+          SessionNotFoundError
         );
         await assert.rejects(
           deleteSession(session.id),
-          SessionLookupOperationalError
+          SessionNotFoundError
         );
       } finally {
         fs.readFile = originalReadFile;
