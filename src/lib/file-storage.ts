@@ -1278,10 +1278,9 @@ export async function findSessionFileById(id: string): Promise<string | null> {
       ) {
         console.warn(`Ignoring unsafe index entry for ${safeId}`, error);
       } else {
-        throw new SessionLookupOperationalError(
-          safeId,
-          `Failed to validate indexed session for ${safeId}`,
-          { cause: error }
+        console.warn(
+          `Skipping invalid indexed session record for ${safeId}; falling back to directory scan`,
+          error
         );
       }
     }
@@ -1391,11 +1390,14 @@ export async function findSessionFileById(id: string): Promise<string | null> {
           if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
             continue;
           }
-          throw new SessionLookupOperationalError(
-            safeId,
-            `Failed while scanning session file ${path.join(safeMonthPath, file)}`,
-            { cause: error }
+          console.warn(
+            `Skipping unreadable or malformed session file during lookup for ${safeId}: ${path.join(
+              safeMonthPath,
+              file
+            )}`,
+            error
           );
+          continue;
         }
       }
     }
