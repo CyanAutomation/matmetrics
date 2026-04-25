@@ -3,13 +3,13 @@ package sessionapi
 import (
 	"fmt"
 	"net"
-	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
 	"matmetrics/internal/model"
+	"matmetrics/internal/networkvalidator"
 )
 
 const maxSessionIDLength = 100
@@ -105,33 +105,5 @@ func validateOptionalVideoURL(value string) error {
 var lookupIP = net.LookupIP
 
 func isDisallowedVideoHost(host string) bool {
-	lowerHost := strings.ToLower(strings.TrimSpace(host))
-	if lowerHost == "" || lowerHost == "localhost" {
-		return true
-	}
-
-	if ip, err := netip.ParseAddr(lowerHost); err == nil {
-		return isDisallowedIP(ip)
-	}
-
-	resolvedIPs, err := lookupIP(lowerHost)
-	if err != nil {
-		return true
-	}
-	for _, resolvedIP := range resolvedIPs {
-		addr, ok := netip.AddrFromSlice(resolvedIP)
-		if ok && isDisallowedIP(addr) {
-			return true
-		}
-	}
-	return false
-}
-
-func isDisallowedIP(addr netip.Addr) bool {
-	return addr.IsLoopback() ||
-		addr.IsPrivate() ||
-		addr.IsLinkLocalUnicast() ||
-		addr.IsLinkLocalMulticast() ||
-		addr.IsMulticast() ||
-		addr.IsUnspecified()
+	return networkvalidator.IsDisallowedVideoHost(host, lookupIP)
 }
