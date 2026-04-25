@@ -485,6 +485,82 @@ category: "Technical"
 	}
 }
 
+func TestMarkdownToSessionRejectsSectionKeywordsInParagraph(t *testing.T) {
+	input := `---
+id: "keywords-in-paragraph"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session
+
+This paragraph mentions ## Techniques Practiced, ## Session Description, and ## Notes but does not define real headings.
+`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatal("MarkdownToSession() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "missing required sections") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMarkdownToSessionRejectsSectionKeywordsInFencedCodeBlock(t *testing.T) {
+	input := `---
+id: "keywords-in-code-block"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session
+
+` + "```md" + `
+## Techniques Practiced
+## Session Description
+## Notes
+` + "```" + `
+`
+
+	_, err := MarkdownToSession(input)
+	if err == nil {
+		t.Fatal("MarkdownToSession() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "missing required sections") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMarkdownToSessionAcceptsTrueSectionHeadings(t *testing.T) {
+	input := `---
+id: "true-headings"
+date: "2026-03-22"
+effort: 3
+category: "Technical"
+---
+
+# Tuesday drilling session
+
+## Techniques Practiced
+- Seoi nage
+
+## Session Description
+
+Worked entries and kuzushi.
+
+## Notes
+
+Keep left elbow higher.
+`
+
+	_, err := MarkdownToSession(input)
+	if err != nil {
+		t.Fatalf("MarkdownToSession() error = %v", err)
+	}
+}
+
 func TestMarkdownToSessionRejectsNegativeDuration(t *testing.T) {
 	input := `---
 id: "negative-duration"
