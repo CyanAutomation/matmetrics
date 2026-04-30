@@ -28,7 +28,6 @@ import {
   getNextCounter,
   getSessionFilePath,
   listSessions,
-  SessionLookupOperationalError,
   SessionNotFoundError,
   SessionUpdateConflictError,
   updateSession,
