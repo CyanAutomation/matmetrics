@@ -255,7 +255,7 @@ export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHis
   const grouped = groupSessionsByMonth(sessions);
 
   return (
-    <div className="reveal-fade-up">
+    <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       {grouped.map(({ monthLabel, sessions: monthSessions }) => (
         <div key={monthLabel} className="mb-8 last:mb-0">
           <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
