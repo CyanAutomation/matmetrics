@@ -28,7 +28,7 @@ export function PluginBulkActions({
   return (
     <div
       className={cn(
-        'space-y-2 rounded-md border bg-secondary/20 p-3',
+        'space-y-2 rounded-md border border-border bg-card/60 p-3',
         className
       )}
     >
