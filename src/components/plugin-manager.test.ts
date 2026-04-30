@@ -148,7 +148,7 @@ test('installed content renders behavior-defining UI surfaces for each scenario 
     installedPluginsViewState: 'table',
     installedPlugins: [createInstalledPluginRow()],
   });
-  assert.match(tableMarkup, /<table/);
+  assert.match(tableMarkup, /plugins-table-state/);
   assert.match(tableMarkup, /Tag Manager/);
 
   const accessBlockedMarkup = renderInstalledContentMarkup({

@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, CheckCircle2, Info, RefreshCw } from 'lucide-react';
+import { AlertCircle, Info, RefreshCw } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   PluginPageShell,
   PLUGIN_PAGE_CLASS_PATTERNS,
@@ -17,14 +16,6 @@ import {
   PluginLoadingState,
 } from '@/components/plugins/plugin-state';
 import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useAuth } from '@/components/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
@@ -261,90 +252,96 @@ export function PluginManagerInstalledContent(props: {
   }
 
   return (
-    <Table data-testid="plugins-table-state">
-      <TableHeader>
-        <TableRow>
-          <TableHead>name</TableHead>
-          <TableHead>id</TableHead>
-          <TableHead>version</TableHead>
-          <TableHead>maturity</TableHead>
-          <TableHead>description</TableHead>
-          <TableHead>enabled</TableHead>
-          <TableHead className="text-right">status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {installedPlugins.map((plugin) => {
-          const scoredWithContractIssues =
-            Boolean(plugin.maturity) &&
-            hasBlockingContractIssues(plugin.issues);
-          return (
-            <TableRow key={plugin.id}>
-              <TableCell className="font-medium">{plugin.name}</TableCell>
-              <TableCell className="font-mono text-xs">{plugin.id}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {plugin.version}
-              </TableCell>
-              <TableCell>
-                {plugin.maturity ? (
-                  <div className="space-y-1">
-                    <Badge
-                      variant="outline"
-                      className={pluginTierToneClass[plugin.maturity.tier]}
-                    >
-                      {formatTierLabel(plugin.maturity.tier)}
-                    </Badge>
-                    <div className="text-xs text-muted-foreground">
-                      {plugin.maturity.score}/100
-                    </div>
-                    {scoredWithContractIssues ? (
-                      <Badge variant="outline" className="ui-pill-warning">
-                        Scored with contract issues
+    <div
+      className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2"
+      data-testid="plugins-table-state"
+    >
+      {installedPlugins.map((plugin) => {
+        const scoredWithContractIssues =
+          Boolean(plugin.maturity) &&
+          hasBlockingContractIssues(plugin.issues);
+        return (
+          <div
+            key={plugin.id}
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4"
+          >
+            {/* Header row: name + maturity + toggle */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">{plugin.name}</span>
+                  {plugin.maturity ? (
+                    <>
+                      <Badge
+                        variant="outline"
+                        className={pluginTierToneClass[plugin.maturity.tier]}
+                      >
+                        {formatTierLabel(plugin.maturity.tier)}{' '}
+                        {plugin.maturity.score}/100
                       </Badge>
-                    ) : null}
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    Unscored
-                  </span>
-                )}
-              </TableCell>
-              <TableCell className="max-w-sm text-sm text-muted-foreground">
-                {plugin.description}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id={`plugin-enabled-${plugin.id}`}
-                    checked={plugin.enabled}
-                    disabled={
-                      plugin.status === 'pending' || fetchState === 'loading'
-                    }
-                    onCheckedChange={(checked) =>
-                      onTogglePluginEnabled(plugin.id, checked)
-                    }
-                  />
-                  <span className="text-sm">{plugin.enabled ? 'On' : 'Off'}</span>
+                      {scoredWithContractIssues ? (
+                        <Badge variant="outline" className="ui-pill-warning">
+                          Contract issues
+                        </Badge>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Unscored
+                    </span>
+                  )}
                 </div>
-              </TableCell>
-              <TableCell className="text-right">
+                <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                  {plugin.id} · v{plugin.version}
+                </p>
+              </div>
+              <Switch
+                id={`plugin-enabled-${plugin.id}`}
+                checked={plugin.enabled}
+                disabled={
+                  plugin.status === 'pending' || fetchState === 'loading'
+                }
+                onCheckedChange={(checked) =>
+                  onTogglePluginEnabled(plugin.id, checked)
+                }
+                aria-label={`${plugin.enabled ? 'Disable' : 'Enable'} ${plugin.name}`}
+              />
+            </div>
+
+            {/* Description */}
+            <p className="text-sm leading-snug text-muted-foreground">
+              {plugin.description}
+            </p>
+
+            {/* Validation issues indicator */}
+            {plugin.issues.length > 0 && (
+              <div className="flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {plugin.issues.length} validation{' '}
+                  {plugin.issues.length === 1 ? 'issue' : 'issues'}
+                </span>
+              </div>
+            )}
+
+            {/* Toggle status inline */}
+            {plugin.status !== 'idle' ? (
+              <div className="text-xs">
                 {plugin.status === 'pending' ? (
-                  <span className="text-xs text-muted-foreground">Saving…</span>
+                  <span className="text-muted-foreground">Saving…</span>
                 ) : plugin.status === 'success' ? (
-                  <span className="text-xs text-[hsl(var(--color-on-success-container))]">
+                  <span className="text-[hsl(var(--color-on-success-container))]">
                     Saved
                   </span>
-                ) : plugin.status === 'failure' ? (
-                  <span className="text-xs text-destructive">Failed</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">Idle</span>
+                  <span className="text-destructive">Failed to update</span>
                 )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -698,7 +695,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     <PluginPageShell
       title="Plugins"
       description="Enable or disable installed plugins, and review plugin issues."
-      className="max-w-5xl"
+      className="max-w-4xl"
       contentClassName={PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing}
     >
       {accessAlert}
@@ -730,41 +727,17 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         )}
       </div>
 
-      <Card className="bg-card/95 shadow-sm">
-        <CardContent className="p-0">
-          <PluginManagerInstalledContent
-            installedPluginsViewState={installedPluginsViewState}
-            accessState={accessState}
-            loadErrorMessage={loadErrorMessage}
-            installedPlugins={installedPlugins}
-            fetchState={fetchState}
-            onRetry={handleManualRefresh}
-            onTogglePluginEnabled={(pluginId, enabled) => {
-              void togglePluginEnabled(pluginId, enabled);
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      {canManagePlugins && installedPluginsViewState === 'table' && (
-        <div className="mt-4 space-y-2">
-          {installedPlugins
-            .filter((plugin) => plugin.status !== 'idle')
-            .map((plugin) => (
-              <Alert key={`toggle-status-${plugin.id}`}>
-                {plugin.status === 'failure' ? (
-                  <AlertCircle className="h-4 w-4" />
-                ) : plugin.status === 'pending' ? (
-                  <Info className="h-4 w-4" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
-                <AlertTitle>{plugin.name}</AlertTitle>
-                <AlertDescription>{plugin.statusMessage}</AlertDescription>
-              </Alert>
-            ))}
-        </div>
-      )}
+      <PluginManagerInstalledContent
+        installedPluginsViewState={installedPluginsViewState}
+        accessState={accessState}
+        loadErrorMessage={loadErrorMessage}
+        installedPlugins={installedPlugins}
+        fetchState={fetchState}
+        onRetry={handleManualRefresh}
+        onTogglePluginEnabled={(pluginId, enabled) => {
+          void togglePluginEnabled(pluginId, enabled);
+        }}
+      />
 
       <div className="mt-8">
         <h3 className="text-headline-sm mb-4">Issue details</h3>

@@ -103,7 +103,7 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
   }
 
   return (
-    <div className="reveal-fade-up">
+    <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <DataSurface className="flex flex-col gap-2 p-5">
