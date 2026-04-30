@@ -97,6 +97,14 @@ category: "Technical"
 
 ## Techniques Practiced
 - O soto gari
+
+## Session Description
+
+Drilled O soto gari entries.
+
+## Notes
+
+Good session.
 `,
     'data/2025/03/20250313-matmetrics.md': `---
 id: "session-legacy-base"
@@ -109,6 +117,14 @@ category: "Technical"
 
 ## Techniques Practiced
 - Ko uchi gari
+
+## Session Description
+
+Focused on Ko uchi gari.
+
+## Notes
+
+Solid practice.
 `,
     'data/2025/03/20250312-matmetrics-01.md': `---
 id: "session-legacy-counter"
@@ -121,6 +137,14 @@ category: "Shiai"
 
 ## Techniques Practiced
 - Seoi nage
+
+## Session Description
+
+Competition-style sparring.
+
+## Notes
+
+Strong effort.
 `,
   };
 
@@ -197,6 +221,14 @@ category: "Randori"
 
 ## Techniques Practiced
 - Uchi mata
+
+## Session Description
+
+Randori sparring rounds.
+
+## Notes
+
+Good energy.
 `,
     'data/2025/03/20250315-matmetrics-broken-session.md': `---
 date: "2025-03-15"
@@ -208,6 +240,14 @@ category: "Technical"
 
 ## Techniques Practiced
 - Tai otoshi
+
+## Session Description
+
+Drilled entries.
+
+## Notes
+
+Needs work.
 `,
   };
 
@@ -390,6 +430,14 @@ category: "Technical"
 
 ## Techniques Practiced
 - O soto gari
+
+## Session Description
+
+Drilled O soto gari entries.
+
+## Notes
+
+Good session.
 `;
         return new Response(JSON.stringify(toContentsPayload(markdown)), {
           status: 200,
@@ -469,6 +517,14 @@ category: "Technical"
 
 ## Techniques Practiced
 - Tai otoshi
+
+## Session Description
+
+Drilled entries.
+
+## Notes
+
+Needs work.
 `;
         return new Response(JSON.stringify(toContentsPayload(markdown)), {
           status: 200,
