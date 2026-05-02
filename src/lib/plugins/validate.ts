@@ -72,9 +72,6 @@ const knownExtensionTypes: UIExtensionType[] = [
 
 const knownCapabilities = new Set<string>(KNOWN_PLUGIN_CAPABILITIES);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
 const makeIssue = (
   severity: PluginValidationSeverity,
   path: string,
