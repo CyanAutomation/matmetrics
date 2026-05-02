@@ -1074,6 +1074,47 @@ serialTest(
   }
 );
 serialTest(
+  'tab crash stale lease is forcibly reclaimed after bounded retries',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: true },
+    });
+
+    const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+    localStorage.setItem(
+      syncLockStorageKey,
+      JSON.stringify({
+        owner: 'crashed-tab',
+        expiresAt: Date.now() + 500,
+        nonce: 'crashed-nonce',
+        epoch: 100,
+      })
+    );
+
+    const infoCalls: unknown[] = [];
+    const originalInfo = console.info;
+    console.info = (...args: unknown[]) => {
+      infoCalls.push(args);
+    };
+
+    try {
+      assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+      assert.notEqual(lease.owner, 'crashed-tab');
+      assert.ok(infoCalls.some((call) => String(call[0]) === 'sync_lease_takeover'));
+    } finally {
+      console.info = originalInfo;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'sync lease prevents replay when another tab already owns the queue flush',
   async () => {
     const { localStorage } = installBrowserEnv();
@@ -1561,6 +1602,43 @@ serialTest(
       assert.match(String(lease.owner), /-contender$/);
     } finally {
       localStorage.setItem = originalSetItem;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'clock drift edge: local clock ahead can reclaim externally-expired lease',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: true },
+    });
+
+    const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+    localStorage.setItem(
+      syncLockStorageKey,
+      JSON.stringify({
+        owner: 'clock-ahead-tab',
+        expiresAt: Date.now() + 15_000,
+        nonce: 'clock-ahead',
+        epoch: 7,
+      })
+    );
+
+    const originalNow = Date.now;
+    Date.now = () => originalNow() - 12_000;
+
+    try {
+      assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+      assert.notEqual(lease.owner, 'clock-ahead-tab');
+    } finally {
+      Date.now = originalNow;
       teardownStorageListeners();
       __resetStorageStateForTests();
     }
