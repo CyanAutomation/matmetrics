@@ -20,6 +20,7 @@ const SYNC_QUEUE_LOCK_BACKOFF_MIN_MS = 4;
 const SYNC_QUEUE_LOCK_BACKOFF_MAX_MS = 20;
 const SYNC_QUEUE_LOCK_VERIFY_DELAY_MIN_MS = 1;
 const SYNC_QUEUE_LOCK_VERIFY_DELAY_MAX_MS = 5;
+const SYNC_QUEUE_WEB_LOCK_ACQUIRE_TIMEOUT_MS = 1500;
 
 export function getSyncQueueStorageKey(): string {
   return getScopedStorageKey(SYNC_QUEUE_KEY_BASE);
@@ -384,15 +385,18 @@ async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
     typeof navigator.locks?.request !== 'function'
   )
     return false;
+  let settled = false;
   let resolveAcquisition: ((v: boolean) => void) | null = null;
   const acquisition = new Promise<boolean>((resolve) => {
-    resolveAcquisition = resolve;
+    resolveAcquisition = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
   });
   let releaseLock: (() => void) | null = null;
-  void navigator.locks.request(
-    SYNC_QUEUE_LOCK_NAME,
-    { ifAvailable: true },
-    async (lock) => {
+  const requestPromise = navigator.locks
+    .request(SYNC_QUEUE_LOCK_NAME, { ifAvailable: true }, async (lock) => {
       if (!lock) {
         resolveAcquisition?.(false);
         return;
@@ -402,9 +406,16 @@ async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
       });
       resolveAcquisition?.(true);
       await hold;
-    }
-  );
+    })
+    .catch(() => {
+      resolveAcquisition?.(false);
+    });
+  const timeout = setTimeout(() => {
+    resolveAcquisition?.(false);
+  }, SYNC_QUEUE_WEB_LOCK_ACQUIRE_TIMEOUT_MS);
   const acquired = await acquisition;
+  clearTimeout(timeout);
+  await requestPromise;
   if (!acquired || !releaseLock) return false;
   activeQueueLease = { mode: 'web-lock', release: releaseLock };
   return true;
@@ -489,7 +500,7 @@ async function withQueueWriteLease(action: () => void | Promise<void>): Promise<
     releaseQueueLease();
   }
 }
-}
+
 function readQueueFromStorage(): SyncOperation[] {
   const stored = localStorage.getItem(getSyncQueueStorageKey());
   if (!stored) {
