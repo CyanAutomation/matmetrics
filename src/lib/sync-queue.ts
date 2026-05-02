@@ -413,9 +413,9 @@ async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
   const timeout = setTimeout(() => {
     resolveAcquisition?.(false);
   }, SYNC_QUEUE_WEB_LOCK_ACQUIRE_TIMEOUT_MS);
-  const acquired = await acquisition;
+  const acquiredOrTimeout = await Promise.race([acquisition, requestPromise.then(() => false)]);
   clearTimeout(timeout);
-  await requestPromise;
+  const acquired = await acquisition;
   if (!acquired || !releaseLock) return false;
   activeQueueLease = { mode: 'web-lock', release: releaseLock };
   return true;
