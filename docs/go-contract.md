@@ -14,7 +14,7 @@ This document freezes the cross-language contract between the existing TypeScrip
 - `category: "Technical" | "Randori" | "Shiai"`
 - `notes?: string`
 - `duration?: number` (session duration in minutes)
-- `videoUrl?: string` (optional absolute `http://` or `https://` URL to a session video)
+- `videoUrl?: string` (optional absolute `http://` or `https://` URL to a session video; empty or whitespace-only values are normalized to omitted)
 
 ## Markdown format
 
@@ -51,6 +51,7 @@ Notes text
 - Parsers do not treat title text as canonical metadata
 - `duration` is optional in frontmatter
 - `videoUrl` is optional in frontmatter; when present it should be a valid absolute `http://` or `https://` URL
+- API mutation routes normalize empty or whitespace-only `videoUrl` values to omitted (`undefined`) before persistence
 - If `techniques` is empty, write `- (none recorded)`
 - Generated files always include these body sections, even when empty
 - Section names must stay exactly:
