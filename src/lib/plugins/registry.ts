@@ -16,10 +16,8 @@ const localPluginManifestSources: unknown[] = [
 ];
 const pluginEnabledOverrides = new Map<string, boolean>();
 const pluginRegistryListeners = new Set<() => void>();
-let pluginRegistryRevision = 0;
 
 const notifyPluginRegistryListeners = () => {
-  pluginRegistryRevision += 1;
   pluginRegistryListeners.forEach((listener) => listener());
 };
 

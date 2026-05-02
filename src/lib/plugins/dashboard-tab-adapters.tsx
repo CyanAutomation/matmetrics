@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { initializePluginComponentRegistry } from '@/lib/plugins/plugin-component-bootstrap';
 import {
   type DashboardTabRenderer,
