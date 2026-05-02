@@ -478,16 +478,17 @@ async function acquireQueueWriteLease(): Promise<boolean> {
   return false;
 }
 
-async function withQueueWriteLease(action: () => void): Promise<void> {
+async function withQueueWriteLease(action: () => void | Promise<void>): Promise<void> {
   const acquired = await acquireQueueWriteLease();
   if (!acquired) {
     throw new Error('Failed to acquire sync queue write lease');
   }
   try {
-    action();
+    await action();
   } finally {
     releaseQueueLease();
   }
+}
 }
 function readQueueFromStorage(): SyncOperation[] {
   const stored = localStorage.getItem(getSyncQueueStorageKey());
