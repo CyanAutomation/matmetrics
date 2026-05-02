@@ -531,9 +531,7 @@ async function tryAcquireSyncLease(): Promise<boolean> {
   let stableContenderObservations = 0;
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
-    const existingLease = readSyncLease();
-    const freshLease = readSyncLease();
-    const observedLease = freshLease ?? existingLease;
+    const observedLease = readSyncLease();
     const leaseIsOwnedAndAlive =
       observedLease &&
       observedLease.owner !== syncOwnerId &&
