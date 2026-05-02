@@ -62,3 +62,26 @@ test('allows public internet hosts and addresses', () => {
     );
   }
 });
+
+test('treats malformed ip literals as blocked', () => {
+  const malformedHosts = [
+    '1:2:3:4:5:6:7:8:9',
+    '2001::db8::1',
+    '2001:db8:1:2:3:4:5',
+    '256.1.2.3',
+  ];
+
+  for (const host of malformedHosts) {
+    assert.equal(
+      isBlockedNetworkHostname(host),
+      true,
+      `expected ${host} treated as blocked/invalid`
+    );
+  }
+});
+
+test('handles valid expanded and compressed ipv6 addresses', () => {
+  assert.equal(isBlockedNetworkHostname('2001:4860:4860:0:0:0:0:8888'), false);
+  assert.equal(isBlockedNetworkHostname('2001:4860:4860::8888'), false);
+  assert.equal(isBlockedNetworkHostname('::1'), true);
+});
