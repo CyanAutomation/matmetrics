@@ -59,49 +59,7 @@ export const CANONICAL_DESIGN_TOKEN_KEYS = [
 export type CanonicalDesignTokenKey =
   (typeof CANONICAL_DESIGN_TOKEN_KEYS)[number];
 
-export const LEGACY_DESIGN_TOKEN_KEY_MIGRATIONS = {
-  primary_container: 'primary-container',
-  secondary_container: 'secondary-container',
-  surface_container_low: 'surface-container-low',
-  surface_container_lowest: 'surface-container-lowest',
-  surface_container_high: 'surface-container-high',
-  surface_variant: 'surface-variant',
-  outline_variant: 'outline-variant',
-  success_container: 'success-container',
-  warning_container: 'warning-container',
-  error_container: 'error-container',
-  info_container: 'info-container',
-  on_surface: 'on-surface',
-  on_surface_variant: 'on-surface-variant',
-  surface_bright: 'surface-bright',
-  surface_tint: 'surface-tint',
-  primary_fixed: 'primary-fixed',
-  on_primary_fixed: 'on-primary-fixed',
-} as const;
-
 const kebabCaseTokenPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const isKebabCaseDesignTokenKey = (value: string): boolean =>
   kebabCaseTokenPattern.test(value);
-
-export const resolveDesignTokenKeyMigration = (
-  tokenKey: string
-): CanonicalDesignTokenKey | null => {
-  const directMatch = CANONICAL_DESIGN_TOKEN_KEYS.find(
-    (key) => key === tokenKey
-  );
-  if (directMatch) {
-    return directMatch;
-  }
-
-  const migrated =
-    LEGACY_DESIGN_TOKEN_KEY_MIGRATIONS[
-      tokenKey as keyof typeof LEGACY_DESIGN_TOKEN_KEY_MIGRATIONS
-    ];
-
-  return migrated ?? null;
-};
-
-export const cssColorVariableName = (
-  tokenKey: CanonicalDesignTokenKey
-): string => `--color-${tokenKey}`;

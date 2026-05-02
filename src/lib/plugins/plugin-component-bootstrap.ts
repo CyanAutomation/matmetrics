@@ -1,4 +1,4 @@
-import { registerPluginComponent } from '@/lib/plugins/dashboard-tab-adapters';
+import { registerPluginComponent } from '@/lib/plugins/plugin-component-registry';
 
 let pluginComponentRegistryInitialized = false;
 let pluginComponentRegistryInitializationInFlight: Promise<void> | null = null;
