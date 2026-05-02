@@ -552,7 +552,7 @@ async function tryAcquireSyncLease(): Promise<boolean> {
     }
     const forcedReclaimAttempt =
       leaseIsOwnedAndAlive &&
-      observedLease.expiresAt - now <= syncLockHeartbeatMs &&
+      observedLease.expiresAt < now &&
       stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD;
 
     if (
