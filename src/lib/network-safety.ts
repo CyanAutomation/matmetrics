@@ -38,6 +38,10 @@ export function isBlockedNetworkHostname(hostname: string): boolean {
     return true;
   }
 
+  if (looksLikeIpLiteral(normalizedHost) && getIpVersion(normalizedHost) === 0) {
+    return true;
+  }
+
   if (isBlockedByHostnamePolicy(normalizedHost)) {
     return true;
   }
@@ -74,6 +78,10 @@ function isBlockedByHostnamePolicy(hostname: string): boolean {
   }
 
   return BLOCKED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+}
+
+function looksLikeIpLiteral(value: string): boolean {
+  return value.includes(':') || /^\d+(?:\.\d+){0,3}$/.test(value);
 }
 
 function isBlockedIPv4(ipv4: string): boolean {
@@ -194,6 +202,10 @@ function ipv6ToBigInt(ipv6: string): bigint {
     ...Array(Math.max(missingGroups, 0)).fill(0),
     ...expandedTail,
   ];
+
+  if (groups.length !== 8) {
+    throw new Error('Invalid IPv6 address: incorrect group count');
+  }
 
   return groups.reduce(
     (acc, group) => (acc << BigInt(16)) | BigInt(group),
