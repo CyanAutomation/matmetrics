@@ -778,19 +778,6 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid videoUrl: expected a valid absolute URL',
     },
     {
-      name: 'videoUrl whitespace only',
-      sessionId: 'put-invalid-video-url-whitespace',
-      body: {
-        id: 'put-invalid-video-url-whitespace',
-        date: '2025-01-10',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['uchi-mata'],
-        videoUrl: '   \t ',
-      },
-      error: 'Invalid videoUrl: expected a valid absolute URL',
-    },
-    {
       name: 'videoUrl unsupported protocol',
       sessionId: 'put-invalid-video-url-protocol',
       body: {
@@ -895,6 +882,81 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
       });
     });
   }
+});
+
+
+test('PUT treats empty string videoUrl as undefined', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-empty-video-url';
+      await createLocalSession(makeSession(sessionId, '2025-01-10'));
+
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['uchi-mata'],
+            videoUrl: '',
+          }),
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 4,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      });
+    });
+  });
+});
+
+test('PUT treats whitespace-only videoUrl as undefined', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-whitespace-video-url';
+      await createLocalSession(makeSession(sessionId, '2025-01-10'));
+
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: sessionId,
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['uchi-mata'],
+            videoUrl: '   ',
+          }),
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        id: sessionId,
+        date: '2025-01-10',
+        effort: 4,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      });
+    });
+  });
 });
 
 test('PUT accepts valid videoUrl and includes it in updated session', async () => {
