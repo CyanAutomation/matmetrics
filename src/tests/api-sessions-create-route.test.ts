@@ -479,18 +479,6 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       error: 'Invalid videoUrl: expected a valid absolute URL',
     },
     {
-      name: 'videoUrl whitespace only',
-      body: {
-        id: 'create-invalid-video-url-whitespace',
-        date: '2025-01-12',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['osoto-gari'],
-        videoUrl: '   \t ',
-      },
-      error: 'Invalid videoUrl: expected a valid absolute URL',
-    },
-    {
       name: 'videoUrl unsupported protocol',
       body: {
         id: 'create-invalid-video-url-protocol',
@@ -588,6 +576,67 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
       });
     });
   }
+});
+
+
+test('POST treats empty string videoUrl as undefined', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(
+            makeSession('create-empty-video-url', {
+              videoUrl: '',
+            })
+          ),
+        })
+      );
+
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), {
+        id: 'create-empty-video-url',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      });
+    });
+  });
+});
+
+test('POST treats whitespace-only videoUrl as undefined', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const response = await POST(
+        new NextRequest('http://localhost/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(
+            makeSession('create-whitespace-video-url', {
+              videoUrl: '   ',
+            })
+          ),
+        })
+      );
+
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), {
+        id: 'create-whitespace-video-url',
+        date: '2025-01-12',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['osoto-gari'],
+      });
+    });
+  });
 });
 
 test('POST accepts valid videoUrl and includes it in created session', async () => {

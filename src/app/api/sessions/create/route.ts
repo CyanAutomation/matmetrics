@@ -122,11 +122,8 @@ function validateOptionalVideoUrl(
   }
 
   const trimmedValue = value.trim();
-  if (!trimmedValue) {
-    return {
-      valid: false,
-      error: 'Invalid videoUrl: expected a valid absolute URL',
-    };
+  if (trimmedValue === '') {
+    return { valid: true, videoUrl: undefined };
   }
 
   let parsedUrl: URL;
