@@ -12,9 +12,21 @@ import { getScopedStorageKey } from './client-identity';
  */
 const SYNC_QUEUE_KEY_BASE = 'matmetrics_sync_queue';
 const SYNC_QUEUE_QUARANTINE_KEY_SUFFIX = '__corrupt_backup';
+const SYNC_QUEUE_LOCK_KEY_BASE = 'matmetrics_sync_queue_lock';
+const SYNC_QUEUE_LOCK_NAME = 'matmetrics-sync-queue';
+const SYNC_QUEUE_LEASE_TTL_MS = 1500;
+const SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS = 7;
+const SYNC_QUEUE_LOCK_BACKOFF_MIN_MS = 4;
+const SYNC_QUEUE_LOCK_BACKOFF_MAX_MS = 20;
+const SYNC_QUEUE_LOCK_VERIFY_DELAY_MIN_MS = 1;
+const SYNC_QUEUE_LOCK_VERIFY_DELAY_MAX_MS = 5;
 
 export function getSyncQueueStorageKey(): string {
   return getScopedStorageKey(SYNC_QUEUE_KEY_BASE);
+}
+
+function getSyncQueueLockStorageKey(): string {
+  return getScopedStorageKey(SYNC_QUEUE_LOCK_KEY_BASE);
 }
 
 function getSyncQueueQuarantineStorageKey(): string {
@@ -288,6 +300,195 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   return reducedOperations.sort(compareOperations);
 }
 
+type QueueWriteLease = {
+  owner: string;
+  expiresAt: number;
+  nonce: string;
+  epoch: number;
+};
+
+type ActiveQueueLease =
+  | { mode: 'web-lock'; release: () => void }
+  | { mode: 'storage'; owner: string; nonce: string; epoch: number };
+
+const queueOwnerId =
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `queue-owner-${Math.random().toString(36).slice(2)}`;
+let activeQueueLease: ActiveQueueLease | null = null;
+let queueLeaseEpochCounter = 0;
+
+function createQueueLeaseNonce(): string {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `queue-lease-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readQueueLease(): QueueWriteLease | null {
+  const stored = localStorage.getItem(getSyncQueueLockStorageKey());
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored) as Partial<QueueWriteLease>;
+    if (
+      typeof parsed.owner !== 'string' ||
+      typeof parsed.nonce !== 'string' ||
+      !Number.isFinite(parsed.expiresAt) ||
+      !Number.isFinite(parsed.epoch)
+    ) {
+      localStorage.removeItem(getSyncQueueLockStorageKey());
+      return null;
+    }
+    return parsed as QueueWriteLease;
+  } catch {
+    localStorage.removeItem(getSyncQueueLockStorageKey());
+    return null;
+  }
+}
+
+function releaseQueueLease(): void {
+  if (activeQueueLease?.mode === 'web-lock') {
+    activeQueueLease.release();
+    activeQueueLease = null;
+    return;
+  }
+  if (activeQueueLease?.mode === 'storage') {
+    const lease = readQueueLease();
+    if (
+      lease &&
+      lease.owner === activeQueueLease.owner &&
+      lease.nonce === activeQueueLease.nonce &&
+      lease.epoch === activeQueueLease.epoch
+    ) {
+      localStorage.removeItem(getSyncQueueLockStorageKey());
+    }
+  }
+  activeQueueLease = null;
+}
+
+async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
+  if (
+    typeof navigator === 'undefined' ||
+    typeof navigator.locks?.request !== 'function'
+  )
+    return false;
+  let resolveAcquisition: ((v: boolean) => void) | null = null;
+  const acquisition = new Promise<boolean>((resolve) => {
+    resolveAcquisition = resolve;
+  });
+  let releaseLock: (() => void) | null = null;
+  void navigator.locks.request(
+    SYNC_QUEUE_LOCK_NAME,
+    { ifAvailable: true },
+    async (lock) => {
+      if (!lock) {
+        resolveAcquisition?.(false);
+        return;
+      }
+      const hold = new Promise<void>((resolve) => {
+        releaseLock = resolve;
+      });
+      resolveAcquisition?.(true);
+      await hold;
+    }
+  );
+  const acquired = await acquisition;
+  if (!acquired || !releaseLock) return false;
+  activeQueueLease = { mode: 'web-lock', release: releaseLock };
+  return true;
+}
+
+async function acquireQueueWriteLease(): Promise<boolean> {
+  if (await tryAcquireNavigatorQueueLock()) return true;
+  for (
+    let attempt = 0;
+    attempt < SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS;
+    attempt += 1
+  ) {
+    const now = Date.now();
+    const existingLease = readQueueLease();
+    if (
+      existingLease &&
+      existingLease.owner !== queueOwnerId &&
+      existingLease.expiresAt > now
+    ) {
+      await sleep(
+        randomBetween(
+          SYNC_QUEUE_LOCK_BACKOFF_MIN_MS,
+          SYNC_QUEUE_LOCK_BACKOFF_MAX_MS
+        )
+      );
+      continue;
+    }
+    const nextLease: QueueWriteLease = {
+      owner: queueOwnerId,
+      expiresAt: now + SYNC_QUEUE_LEASE_TTL_MS,
+      nonce: createQueueLeaseNonce(),
+      epoch: Math.max(
+        (existingLease?.epoch ?? 0) + 1,
+        queueLeaseEpochCounter + 1,
+        Date.now()
+      ),
+    };
+    queueLeaseEpochCounter = nextLease.epoch;
+    localStorage.setItem(
+      getSyncQueueLockStorageKey(),
+      JSON.stringify(nextLease)
+    );
+    await sleep(
+      randomBetween(
+        SYNC_QUEUE_LOCK_VERIFY_DELAY_MIN_MS,
+        SYNC_QUEUE_LOCK_VERIFY_DELAY_MAX_MS
+      )
+    );
+    const confirmed = readQueueLease();
+    if (
+      confirmed &&
+      confirmed.owner === nextLease.owner &&
+      confirmed.nonce === nextLease.nonce &&
+      confirmed.epoch === nextLease.epoch
+    ) {
+      activeQueueLease = {
+        mode: 'storage',
+        owner: nextLease.owner,
+        nonce: nextLease.nonce,
+        epoch: nextLease.epoch,
+      };
+      return true;
+    }
+    await sleep(
+      randomBetween(
+        SYNC_QUEUE_LOCK_BACKOFF_MIN_MS,
+        SYNC_QUEUE_LOCK_BACKOFF_MAX_MS
+      )
+    );
+  }
+  return false;
+}
+
+async function withQueueWriteLease(action: () => void): Promise<void> {
+  const acquired = await acquireQueueWriteLease();
+  if (!acquired) {
+    throw new Error('Failed to acquire sync queue write lease');
+  }
+  try {
+    action();
+  } finally {
+    releaseQueueLease();
+  }
+}
 function readQueueFromStorage(): SyncOperation[] {
   const stored = localStorage.getItem(getSyncQueueStorageKey());
   if (!stored) {
@@ -382,12 +583,16 @@ function writeQueueWithLatestMerge(
 /**
  * Add an operation to the sync queue (called when offline)
  */
-export function queueOperation(operation: SyncOperationInput): void {
+export async function queueOperation(
+  operation: SyncOperationInput
+): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
-    const baseQueue = getQueue();
-    writeQueueWithLatestMerge([...baseQueue, operation], baseQueue);
+    await withQueueWriteLease(() => {
+      const baseQueue = getQueue();
+      writeQueueWithLatestMerge([...baseQueue, operation], baseQueue);
+    });
   } catch (e) {
     console.error('Failed to queue operation', e);
   }
@@ -429,14 +634,16 @@ export function getQueue(): SyncOperation[] {
 /**
  * Replace queue contents atomically (used to persist remaining operations after partial sync)
  */
-export function setQueue(
+export async function setQueue(
   operations: SyncOperationInput[],
   baseQueue?: SyncOperationInput[]
-): void {
+): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
-    writeQueueWithLatestMerge(operations, baseQueue);
+    await withQueueWriteLease(() => {
+      writeQueueWithLatestMerge(operations, baseQueue);
+    });
   } catch (e) {
     console.error('Failed to set sync queue', e);
   }
@@ -445,11 +652,15 @@ export function setQueue(
 /**
  * Clear the entire sync queue (called after successful sync)
  */
-export function clearQueue(baseQueue?: SyncOperationInput[]): void {
+export async function clearQueue(
+  baseQueue?: SyncOperationInput[]
+): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
-    writeQueueWithLatestMerge([], baseQueue);
+    await withQueueWriteLease(() => {
+      writeQueueWithLatestMerge([], baseQueue);
+    });
   } catch (e) {
     console.error('Failed to clear sync queue', e);
   }
@@ -461,23 +672,27 @@ export function clearQueue(baseQueue?: SyncOperationInput[]): void {
  * - If `operation.queuedAt` is provided, removes the exact matching operation key.
  * - If `operation.queuedAt` is omitted, removes all operations for that identity.
  */
-export function removeOperationByIdentity(operation: SyncOperationInput): void {
+export async function removeOperationByIdentity(
+  operation: SyncOperationInput
+): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
-    const baseQueue = getQueue();
-    const targetKey = getOperationKey(operation);
-    const queue = hasQueuedAt(operation)
-      ? baseQueue.filter(
-          (queuedOperation) => getOperationKey(queuedOperation) !== targetKey
-        )
-      : baseQueue.filter(
-          (queuedOperation) =>
-            getOperationIdentity(queuedOperation) !==
-            getOperationIdentity(operation)
-        );
+    await withQueueWriteLease(() => {
+      const baseQueue = getQueue();
+      const targetKey = getOperationKey(operation);
+      const queue = hasQueuedAt(operation)
+        ? baseQueue.filter(
+            (queuedOperation) => getOperationKey(queuedOperation) !== targetKey
+          )
+        : baseQueue.filter(
+            (queuedOperation) =>
+              getOperationIdentity(queuedOperation) !==
+              getOperationIdentity(operation)
+          );
 
-    writeQueueWithLatestMerge(queue, baseQueue);
+      writeQueueWithLatestMerge(queue, baseQueue);
+    });
   } catch (e) {
     console.error('Failed to remove operation from queue', e);
   }
