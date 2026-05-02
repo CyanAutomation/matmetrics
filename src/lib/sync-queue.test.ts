@@ -75,22 +75,22 @@ function resetQueue(initialQueue?: SyncOperation[]): void {
   }
 }
 
-function removeOperationByIndexLegacy(index: number): void {
+async function removeOperationByIndexLegacy(index: number): Promise<void> {
   const baseQueue = getQueue();
   const queue = [...baseQueue];
   queue.splice(index, 1);
-  setQueue(queue, baseQueue);
+  await setQueue(queue, baseQueue);
 }
 
 function getLastQueuedAtStorageKey(): string {
   return getScopedStorageKey('matmetrics_last_queued_at');
 }
 
-test('queueOperation timestamps operations and preserves insertion order', () => {
+test('queueOperation timestamps operations and preserves insertion order', async () => {
   resetQueue();
 
-  queueOperation({ type: 'CREATE', session: makeSession('session-1') });
-  queueOperation({
+  await queueOperation({ type: 'CREATE', session: makeSession('session-1') });
+  await queueOperation({
     type: 'UPDATE',
     session: { ...makeSession('session-1'), notes: 'updated' },
   });
@@ -108,9 +108,9 @@ test('queueOperation timestamps operations and preserves insertion order', () =>
   );
 });
 
-test('queueOperation uses persisted last queuedAt to recover from stale in-memory state', () => {
+test('queueOperation uses persisted last queuedAt to recover from stale in-memory state', async () => {
   resetQueue();
-  queueOperation({ type: 'CREATE', session: makeSession('session-1') });
+  await queueOperation({ type: 'CREATE', session: makeSession('session-1') });
   const firstOperationQueuedAt = getQueue()[0].queuedAt;
 
   const lastQueuedAtKey = getLastQueuedAtStorageKey();
@@ -119,7 +119,7 @@ test('queueOperation uses persisted last queuedAt to recover from stale in-memor
     String(firstOperationQueuedAt + 10_000)
   );
 
-  queueOperation({ type: 'CREATE', session: makeSession('session-2') });
+  await queueOperation({ type: 'CREATE', session: makeSession('session-2') });
 
   const queue = getQueue();
   assert.equal(queue.length, 2);
@@ -130,17 +130,17 @@ test('queueOperation uses persisted last queuedAt to recover from stale in-memor
   );
 });
 
-test('queueOperation remains strictly monotonic across interleaved two-tab writes', () => {
+test('queueOperation remains strictly monotonic across interleaved two-tab writes', async () => {
   resetQueue();
   const lastQueuedAtKey = getLastQueuedAtStorageKey();
 
-  queueOperation({ type: 'CREATE', session: makeSession('session-1') });
+  await queueOperation({ type: 'CREATE', session: makeSession('session-1') });
   const firstQueuedAt = getQueue()[0].queuedAt;
 
   const tabBQueuedAt = firstQueuedAt + 100;
   localStorage.setItem(lastQueuedAtKey, String(tabBQueuedAt));
 
-  queueOperation({ type: 'CREATE', session: makeSession('session-2') });
+  await queueOperation({ type: 'CREATE', session: makeSession('session-2') });
   const queueAfterTabASecondWrite = getQueue();
   const secondQueuedAt = queueAfterTabASecondWrite[1].queuedAt;
   assert.equal(secondQueuedAt, tabBQueuedAt + 1);
@@ -148,7 +148,7 @@ test('queueOperation remains strictly monotonic across interleaved two-tab write
   const tabBNextQueuedAt = secondQueuedAt + 50;
   localStorage.setItem(lastQueuedAtKey, String(tabBNextQueuedAt));
 
-  queueOperation({ type: 'CREATE', session: makeSession('session-3') });
+  await queueOperation({ type: 'CREATE', session: makeSession('session-3') });
   const queue = getQueue();
   const thirdQueuedAt = queue[2].queuedAt;
 
@@ -157,29 +157,29 @@ test('queueOperation remains strictly monotonic across interleaved two-tab write
   assert.ok(secondQueuedAt < thirdQueuedAt);
 });
 
-test('setQueue preserves a newer concurrent operation with the same identity', () => {
+test('setQueue preserves a newer concurrent operation with the same identity', async () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentNewerOperation = createOp('session-1', 200);
 
   resetQueue([concurrentNewerOperation]);
 
-  setQueue([baseOperation], [baseOperation]);
+  await setQueue([baseOperation], [baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentNewerOperation]);
 });
 
-test('clearQueue keeps a newer concurrent operation instead of deleting it', () => {
+test('clearQueue keeps a newer concurrent operation instead of deleting it', async () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentNewerOperation = createOp('session-1', 200);
 
   resetQueue([concurrentNewerOperation]);
 
-  clearQueue([baseOperation]);
+  await clearQueue([baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentNewerOperation]);
 });
 
-test('setQueue retains concurrent operations that share queuedAt with stale base snapshots', () => {
+test('setQueue retains concurrent operations that share queuedAt with stale base snapshots', async () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentSameQueuedAt: SyncOperation = {
     type: 'DELETE',
@@ -189,12 +189,12 @@ test('setQueue retains concurrent operations that share queuedAt with stale base
 
   resetQueue([baseOperation, concurrentSameQueuedAt]);
 
-  setQueue([baseOperation], [baseOperation]);
+  await setQueue([baseOperation], [baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentSameQueuedAt, baseOperation]);
 });
 
-test('concurrent create and update with identical queuedAt coalesce deterministically', () => {
+test('concurrent create and update with identical queuedAt coalesce deterministically', async () => {
   const baseUpdate: SyncOperation = {
     type: 'UPDATE',
     session: { ...makeSession('session-1'), notes: 'from-base-tab' },
@@ -208,7 +208,7 @@ test('concurrent create and update with identical queuedAt coalesce deterministi
 
   resetQueue([concurrentCreate]);
 
-  setQueue([baseUpdate], [baseUpdate]);
+  await setQueue([baseUpdate], [baseUpdate]);
 
   assert.deepEqual(getQueue(), [
     {
@@ -219,7 +219,7 @@ test('concurrent create and update with identical queuedAt coalesce deterministi
   ]);
 });
 
-test('setQueue deterministically keeps one equal-timestamp concurrent update for the same identity', () => {
+test('setQueue deterministically keeps one equal-timestamp concurrent update for the same identity', async () => {
   const baseUpdate: SyncOperation = {
     type: 'UPDATE',
     session: { ...makeSession('session-1'), notes: 'from-base-tab' },
@@ -233,21 +233,21 @@ test('setQueue deterministically keeps one equal-timestamp concurrent update for
 
   resetQueue([concurrentUpdate]);
 
-  setQueue([baseUpdate], [baseUpdate]);
+  await setQueue([baseUpdate], [baseUpdate]);
 
   assert.deepEqual(getQueue(), [concurrentUpdate]);
 });
 
-test('clearQueue removes the persisted storage key when there is no concurrent work', () => {
+test('clearQueue removes the persisted storage key when there is no concurrent work', async () => {
   resetQueue([createOp('session-1', 100)]);
 
-  clearQueue([createOp('session-1', 100)]);
+  await clearQueue([createOp('session-1', 100)]);
 
   assert.equal(localStorage.getItem(getSyncQueueStorageKey()), null);
   assert.deepEqual(getQueue(), []);
 });
 
-test('clearQueue keeps concurrent operations when queuedAt matches stale base snapshot', () => {
+test('clearQueue keeps concurrent operations when queuedAt matches stale base snapshot', async () => {
   const baseOperation = createOp('session-1', 100);
   const concurrentSameQueuedAt: SyncOperation = {
     type: 'UPDATE',
@@ -257,12 +257,12 @@ test('clearQueue keeps concurrent operations when queuedAt matches stale base sn
 
   resetQueue([baseOperation, concurrentSameQueuedAt]);
 
-  clearQueue([baseOperation]);
+  await clearQueue([baseOperation]);
 
   assert.deepEqual(getQueue(), [concurrentSameQueuedAt]);
 });
 
-test('malformed JSON is quarantined and cleared on first read', () => {
+test('malformed JSON is quarantined and cleared on first read', async () => {
   resetQueue();
   const queueKey = getSyncQueueStorageKey();
   const quarantineKey = `${queueKey}__corrupt_backup`;
@@ -297,7 +297,7 @@ test('malformed JSON is quarantined and cleared on first read', () => {
   }
 });
 
-test('subsequent reads after malformed JSON return stable empty queue without repeated parse warnings', () => {
+test('subsequent reads after malformed JSON return stable empty queue without repeated parse warnings', async () => {
   resetQueue();
   const queueKey = getSyncQueueStorageKey();
   localStorage.setItem(queueKey, '{bad json');
@@ -318,7 +318,7 @@ test('subsequent reads after malformed JSON return stable empty queue without re
   }
 });
 
-test('identity-based removal succeeds under concurrent writes where index-based removal fails', () => {
+test('identity-based removal succeeds under concurrent writes where index-based removal fails', async () => {
   const opA = createOp('session-a', 100);
   const opB = createOp('session-b', 200);
   const opC = createOp('session-c', 300);
@@ -329,24 +329,24 @@ test('identity-based removal succeeds under concurrent writes where index-based 
   const staleTargetB = staleSnapshot[staleIndexForB];
 
   // Simulate a concurrent writer that removed opA while the caller still holds stale index data.
-  setQueue([staleSnapshot[1], staleSnapshot[2]], staleSnapshot);
+  await setQueue([staleSnapshot[1], staleSnapshot[2]], staleSnapshot);
 
   // Legacy behavior removes by positional index and therefore deletes opC, not opB.
-  removeOperationByIndexLegacy(staleIndexForB);
+  await removeOperationByIndexLegacy(staleIndexForB);
   assert.deepEqual(getQueue(), [opB]);
 
   // New behavior removes by stable identity key and correctly removes the intended opB.
   resetQueue([opB, opC]);
-  removeOperationByIdentity(staleTargetB);
+  await removeOperationByIdentity(staleTargetB);
   assert.deepEqual(getQueue(), [opC]);
 });
 
-test('coalesces create then update into create with latest payload', () => {
+test('coalesces create then update into create with latest payload', async () => {
   resetQueue();
   const created = makeSession('session-1');
   const updated = { ...created, notes: 'latest note' };
 
-  setQueue(
+  await setQueue(
     [
       { type: 'CREATE', session: created, queuedAt: 100 },
       { type: 'UPDATE', session: updated, queuedAt: 200 },
@@ -359,10 +359,10 @@ test('coalesces create then update into create with latest payload', () => {
   ]);
 });
 
-test('coalesces create then delete into no-op', () => {
+test('coalesces create then delete into no-op', async () => {
   resetQueue();
 
-  setQueue(
+  await setQueue(
     [
       { type: 'CREATE', session: makeSession('session-1'), queuedAt: 100 },
       { type: 'DELETE', id: 'session-1', queuedAt: 200 },
@@ -373,10 +373,10 @@ test('coalesces create then delete into no-op', () => {
   assert.deepEqual(getQueue(), []);
 });
 
-test('coalesces update then delete into delete', () => {
+test('coalesces update then delete into delete', async () => {
   resetQueue();
 
-  setQueue(
+  await setQueue(
     [
       { type: 'UPDATE', session: makeSession('session-1'), queuedAt: 100 },
       { type: 'DELETE', id: 'session-1', queuedAt: 200 },
@@ -389,11 +389,11 @@ test('coalesces update then delete into delete', () => {
   ]);
 });
 
-test('coalesces delete then create into recreate create', () => {
+test('coalesces delete then create into recreate create', async () => {
   resetQueue();
   const recreated = { ...makeSession('session-1'), notes: 'recreated' };
 
-  setQueue(
+  await setQueue(
     [
       { type: 'DELETE', id: 'session-1', queuedAt: 100 },
       { type: 'CREATE', session: recreated, queuedAt: 200 },
@@ -406,7 +406,7 @@ test('coalesces delete then create into recreate create', () => {
   ]);
 });
 
-test('coalesces delete then create then update into create with latest payload', () => {
+test('coalesces delete then create then update into create with latest payload', async () => {
   resetQueue();
   const recreated = { ...makeSession('session-1'), notes: 'recreated' };
   const updatedAfterRecreate = {
@@ -414,7 +414,7 @@ test('coalesces delete then create then update into create with latest payload',
     notes: 'updated after recreate',
   };
 
-  setQueue(
+  await setQueue(
     [
       { type: 'DELETE', id: 'session-1', queuedAt: 100 },
       { type: 'CREATE', session: recreated, queuedAt: 200 },
@@ -428,14 +428,14 @@ test('coalesces delete then create then update into create with latest payload',
   ]);
 });
 
-test('coalesces delete then update into create to avoid missing-record updates', () => {
+test('coalesces delete then update into create to avoid missing-record updates', async () => {
   resetQueue();
   const updatedAfterDelete = {
     ...makeSession('session-1'),
     notes: 'updated after delete',
   };
 
-  setQueue(
+  await setQueue(
     [
       { type: 'DELETE', id: 'session-1', queuedAt: 100 },
       { type: 'UPDATE', session: updatedAfterDelete, queuedAt: 200 },
@@ -448,7 +448,7 @@ test('coalesces delete then update into create to avoid missing-record updates',
   ]);
 });
 
-test('getQueue keeps valid operations when persisted array has corrupt entries', () => {
+test('getQueue keeps valid operations when persisted array has corrupt entries', async () => {
   const validOperation = createOp('session-valid', 100);
   localStorage.clear();
   localStorage.setItem(
@@ -465,7 +465,7 @@ test('getQueue keeps valid operations when persisted array has corrupt entries',
   assert.deepEqual(getQueue(), [validOperation]);
 });
 
-test('getQueue clears storage and warns when all persisted entries are invalid', () => {
+test('getQueue clears storage and warns when all persisted entries are invalid', async () => {
   localStorage.clear();
   localStorage.setItem(
     getSyncQueueStorageKey(),
@@ -494,4 +494,46 @@ test('getQueue clears storage and warns when all persisted entries are invalid',
     totalEntries: 3,
     validEntries: 0,
   });
+});
+
+test('concurrent queueOperation calls do not drop operations across identities', async () => {
+  resetQueue();
+
+  await Promise.all([
+    queueOperation({ type: 'CREATE', session: makeSession('session-1') }),
+    queueOperation({ type: 'CREATE', session: makeSession('session-2') }),
+    queueOperation({ type: 'CREATE', session: makeSession('session-3') }),
+    queueOperation({ type: 'CREATE', session: makeSession('session-4') }),
+  ]);
+
+  const ids = getQueue().map((operation: SyncOperation) =>
+    operation.type === 'DELETE' ? operation.id : operation.session.id
+  );
+
+  assert.deepEqual(ids.sort(), [
+    'session-1',
+    'session-2',
+    'session-3',
+    'session-4',
+  ]);
+});
+
+test('concurrent mixed mutators retain union of writes under lease', async () => {
+  resetQueue();
+
+  await Promise.all([
+    setQueue(
+      [{ type: 'CREATE', session: makeSession('session-a'), queuedAt: 100 }],
+      []
+    ),
+    queueOperation({ type: 'CREATE', session: makeSession('session-b') }),
+  ]);
+
+  const finalQueue = getQueue();
+  const ids = finalQueue.map((operation: SyncOperation) =>
+    operation.type === 'DELETE' ? operation.id : operation.session.id
+  );
+
+  assert.ok(ids.includes('session-a'));
+  assert.ok(ids.includes('session-b'));
 });
