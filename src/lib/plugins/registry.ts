@@ -35,20 +35,8 @@ const applyEnabledOverride = (manifest: PluginManifest): PluginManifest => {
   };
 };
 
-export const getPluginRegistryRevision = (): number => pluginRegistryRevision;
-
-export const subscribePluginRegistry = (listener: () => void): (() => void) => {
-  pluginRegistryListeners.add(listener);
-  return () => {
-    pluginRegistryListeners.delete(listener);
-  };
-};
-
-export const getLocalPluginManifestCandidates = (): unknown[] =>
-  localPluginManifestSources;
-
 export const loadPluginManifests = (): PluginManifest[] =>
-  getLocalPluginManifestCandidates()
+  localPluginManifestSources
     .map((candidate) =>
       validatePluginManifest(candidate, {
         validateDeclaredComponentsAtRuntime: true,

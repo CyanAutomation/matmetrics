@@ -319,11 +319,3 @@ export const validatePluginManifest = (
     issues,
   };
 };
-
-export const isManifestValidationError = (
-  issue: PluginValidationIssue
-): boolean => issue.severity === 'error';
-
-export const isManifestLike = (
-  value: unknown
-): value is Record<string, unknown> => isRecord(value);

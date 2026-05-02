@@ -1,27 +1,17 @@
 import React from 'react';
 
 import { initializePluginComponentRegistry } from '@/lib/plugins/plugin-component-bootstrap';
+import {
+  type DashboardTabRenderer,
+  type PluginComponentRegistration,
+  getDashboardTabRenderer,
+  registerPluginComponent,
+  clearDashboardTabRendererRegistryForTests,
+} from '@/lib/plugins/plugin-component-registry';
 import { type PluginRuntimeWarning } from '@/lib/plugins/types';
-import { type TabRenderContext } from '@/lib/navigation/tab-definitions';
 
-export type DashboardTabRenderer = (
-  context: TabRenderContext
-) => React.ReactNode;
-
-export type PluginComponentRegistration = {
-  componentId: string;
-  renderer: DashboardTabRenderer;
-};
-
-const dashboardTabRenderers = new Map<string, DashboardTabRenderer>();
-
-export const registerPluginComponent = (
-  componentId: string,
-  renderer: DashboardTabRenderer
-): PluginComponentRegistration => {
-  dashboardTabRenderers.set(componentId, renderer);
-  return { componentId, renderer };
-};
+export type { DashboardTabRenderer, PluginComponentRegistration };
+export { getDashboardTabRenderer, registerPluginComponent, clearDashboardTabRendererRegistryForTests };
 
 export const resolveDashboardTabRenderer = async (
   componentId: string
@@ -29,11 +19,6 @@ export const resolveDashboardTabRenderer = async (
   await initializePluginComponentRegistry();
   return getDashboardTabRenderer(componentId);
 };
-
-export const getDashboardTabRenderer = (
-  componentId: string
-): DashboardTabRenderer | null =>
-  dashboardTabRenderers.get(componentId) ?? null;
 
 export const createUnresolvedDashboardComponentWarning = (
   componentId: string,
@@ -61,7 +46,3 @@ export const createMissingCapabilityDashboardWarning = (
   pluginId,
   extensionId,
 });
-
-export const clearDashboardTabRendererRegistryForTests = (): void => {
-  dashboardTabRenderers.clear();
-};

@@ -67,21 +67,11 @@ const loadFilesystemManifestCandidates = async (
   }
 };
 
-export const discoverPluginManifestCandidates = async (
-  options: DiscoveryOptions = {}
-): Promise<unknown[]> => {
-  const pluginsRoot = options.pluginsRoot ?? getPluginsRoot();
-  const filesystemCandidates =
-    await loadFilesystemManifestCandidates(pluginsRoot);
-  const approvedCandidates = options.approvedManifestSources ?? [];
-
-  return [...filesystemCandidates, ...approvedCandidates];
-};
-
-export const discoverValidatedPluginManifests = async (
+const discoverValidatedPluginManifests = async (
   options: DiscoveryOptions = {}
 ): Promise<PluginManifest[]> => {
-  const candidates = await discoverPluginManifestCandidates(options);
+  const pluginsRoot = options.pluginsRoot ?? getPluginsRoot();
+  const candidates = await loadFilesystemManifestCandidates(pluginsRoot);
   const enabledOverrides =
     options.enabledOverrides ?? (await loadPluginEnabledOverrides());
 
