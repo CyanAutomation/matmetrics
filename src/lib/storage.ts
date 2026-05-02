@@ -173,6 +173,7 @@ const SYNC_LOCK_BACKOFF_MAX_MS = 28;
 const SYNC_LOCK_VERIFY_DELAY_MIN_MS = 1;
 const SYNC_LOCK_VERIFY_DELAY_MAX_MS = 6;
 const SYNC_LOCK_NAME = 'matmetrics-sync';
+const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
 
 type ActiveSyncLease =
   | {
@@ -188,6 +189,23 @@ type ActiveSyncLease =
 
 let activeSyncLease: ActiveSyncLease | null = null;
 let localLeaseEpochCounter = 0;
+
+type LeaseTakeoverReason = 'expired' | 'forced-reclaim' | 'race-revalidate';
+
+function emitLeaseTakeoverDiagnostic(payload: {
+  reason: LeaseTakeoverReason;
+  attempt: number;
+  previousOwner: string | null;
+  previousEpoch: number | null;
+  previousExpiresAt: number | null;
+  nextEpoch: number;
+}): void {
+  console.info('sync_lease_takeover', {
+    event: 'sync_lease_takeover',
+    at: new Date().toISOString(),
+    ...payload,
+  });
+}
 
 class SyncRequestError extends Error {
   constructor(
@@ -509,13 +527,37 @@ async function tryAcquireSyncLease(): Promise<boolean> {
     return true;
   }
 
+  let stableContenderSignature: string | null = null;
+  let stableContenderObservations = 0;
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
     const existingLease = readSyncLease();
+    const freshLease = readSyncLease();
+    const observedLease = freshLease ?? existingLease;
+    const leaseIsOwnedAndAlive =
+      observedLease &&
+      observedLease.owner !== syncOwnerId &&
+      observedLease.expiresAt >= now;
+    const contenderSignature = leaseIsOwnedAndAlive
+      ? `${observedLease.owner}:${observedLease.nonce}:${observedLease.epoch}:${observedLease.expiresAt}`
+      : null;
+    if (contenderSignature && contenderSignature === stableContenderSignature) {
+      stableContenderObservations += 1;
+    } else if (contenderSignature) {
+      stableContenderSignature = contenderSignature;
+      stableContenderObservations = 1;
+    } else {
+      stableContenderSignature = null;
+      stableContenderObservations = 0;
+    }
+    const forcedReclaimAttempt =
+      leaseIsOwnedAndAlive &&
+      observedLease.expiresAt - now <= syncLockHeartbeatMs &&
+      stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD;
+
     if (
-      existingLease &&
-      existingLease.owner !== syncOwnerId &&
-      existingLease.expiresAt > now
+      leaseIsOwnedAndAlive &&
+      !forcedReclaimAttempt
     ) {
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());
@@ -527,8 +569,23 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       owner: syncOwnerId,
       expiresAt: now + syncLockTtlMs,
       nonce: createSyncLeaseNonce(),
-      epoch: getNextSyncLeaseEpoch(existingLease?.epoch ?? 0),
+      epoch: getNextSyncLeaseEpoch(observedLease?.epoch ?? 0),
     };
+    if (observedLease && observedLease.owner !== syncOwnerId) {
+      emitLeaseTakeoverDiagnostic({
+        reason:
+          observedLease.expiresAt < now
+            ? 'expired'
+            : forcedReclaimAttempt
+              ? 'forced-reclaim'
+              : 'race-revalidate',
+        attempt,
+        previousOwner: observedLease.owner,
+        previousEpoch: observedLease.epoch,
+        previousExpiresAt: observedLease.expiresAt,
+        nextEpoch: nextLease.epoch,
+      });
+    }
     const syncLockStorageKey = getSyncLockStorageKey();
     let overwrittenByStorageEvent = false;
     const onStorage = (event: StorageEvent) => {
@@ -557,6 +614,19 @@ async function tryAcquireSyncLease(): Promise<boolean> {
     };
 
     window.addEventListener('storage', onStorage);
+    const lastObservedLease = readSyncLease();
+    if (
+      lastObservedLease &&
+      lastObservedLease.owner !== syncOwnerId &&
+      lastObservedLease.expiresAt >= Date.now() &&
+      lastObservedLease.epoch > (observedLease?.epoch ?? -Infinity)
+    ) {
+      window.removeEventListener('storage', onStorage);
+      if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
+        await sleep(randomBackoffMs());
+      }
+      continue;
+    }
     localStorage.setItem(syncLockStorageKey, JSON.stringify(nextLease));
     await sleep(randomVerifyDelayMs());
 
