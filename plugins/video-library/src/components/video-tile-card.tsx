@@ -157,7 +157,7 @@ export function VideoTileCard({
             <Star className="h-4 w-4" />
           </Button>
 
-          <div className="ml-auto opacity-100 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:opacity-0">
+          <div className="ml-auto transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
