@@ -10,6 +10,8 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PluginMediaTile } from '@/components/plugins/plugin-media-tile';
+import { PluginTileActions } from '@/components/plugins/plugin-tile-actions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,16 +76,15 @@ export function VideoTileCard({
   const hostname = row.provider || row.entry.hostname || 'Unknown provider';
 
   return (
-    <article className="group overflow-hidden rounded-xl border bg-card shadow-sm">
-      <div className="aspect-video rounded-b-none rounded-t-xl bg-muted p-3">
-        <div
-          className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 bg-cover bg-center p-3"
-          style={
-            safeThumbnailUrl
-              ? { backgroundImage: `url(\"${safeThumbnailUrl}\")` }
-              : undefined
-          }
-        >
+    <PluginMediaTile
+      title={title}
+      previewBackgroundStyle={
+        safeThumbnailUrl
+          ? { backgroundImage: `url(\"${safeThumbnailUrl}\")` }
+          : undefined
+      }
+      previewContent={
+        <>
           <div className="flex items-start justify-between gap-2">
             <Badge
               variant={getStatusVariant(row.displayStatus)}
@@ -91,73 +92,69 @@ export function VideoTileCard({
             >
               {getEntryStatusLabel(row.displayStatus)}
             </Badge>
-            <Film className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Film
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
           </div>
           <p className="line-clamp-2 text-sm font-medium">{title}</p>
-        </div>
-      </div>
-
-      <div className="space-y-3 p-4">
-        <div className="space-y-1">
-          <p className="line-clamp-2 font-semibold">{title}</p>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{row.session.date}</span>
-            <span aria-hidden="true">•</span>
-            <span>{row.session.category}</span>
-            <Badge variant="outline" aria-label={`Host: ${hostname}`}>
-              {hostname}
-            </Badge>
-          </div>
-          <p
-            className="line-clamp-1 text-xs text-muted-foreground"
-            title={
-              row.latestCheck
-                ? `Checked at ${new Date(row.latestCheck.checkedAt).toLocaleString()}`
-                : 'Not checked yet'
-            }
-          >
-            {row.session.techniques.join(', ') || 'No techniques listed'}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {row.entry.url ? (
-            <Button type="button" asChild className="flex-1 sm:flex-none">
-              <a
-                href={row.entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Watch video for ${title}`}
+        </>
+      }
+      metadata={
+        <>
+          <span>{row.session.date}</span>
+          <span aria-hidden="true">•</span>
+          <span>{row.session.category}</span>
+          <Badge variant="outline" aria-label={`Host: ${hostname}`}>
+            {hostname}
+          </Badge>
+        </>
+      }
+      supportingText={
+        row.session.techniques.join(', ') || 'No techniques listed'
+      }
+      actions={
+        <PluginTileActions
+          leadingActions={
+            <>
+              {row.entry.url ? (
+                <Button type="button" asChild className="flex-1 sm:flex-none">
+                  <a
+                    href={row.entry.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Watch video for ${title}`}
+                  >
+                    Watch
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              ) : null}
+              {nextRow?.entry.url ? (
+                <Button type="button" variant="outline" asChild>
+                  <a
+                    href={nextRow.entry.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Play next
+                  </a>
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
+                disabled
+                aria-label={`Saved toggle placeholder for ${title}`}
+                title="Saved toggle coming soon"
               >
-                Watch
-                <ExternalLink className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
-          ) : null}
-          {nextRow?.entry.url ? (
-            <Button type="button" variant="outline" asChild>
-              <a
-                href={nextRow.entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Play next
-              </a>
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground"
-            disabled
-            aria-label={`Saved toggle placeholder for ${title}`}
-            title="Saved toggle coming soon"
-          >
-            <Star className="h-4 w-4" />
-          </Button>
-
-          <div className="ml-auto transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <Star className="h-4 w-4" />
+              </Button>
+            </>
+          }
+          menuAction={
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -194,9 +191,9 @@ export function VideoTileCard({
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    </article>
+          }
+        />
+      }
+    />
   );
 }
