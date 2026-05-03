@@ -213,7 +213,7 @@ test('lounge-first browse behavior still supports both mode labels and table fal
     }),
   });
 
-  assert.equal(VIDEO_LIBRARY_MODE_LOUNGE_LABEL, 'Lounge');
+  assert.equal(VIDEO_LIBRARY_MODE_LOUNGE_LABEL, 'Gallery');
   assert.equal(VIDEO_LIBRARY_MODE_TABLE_LABEL, 'Table');
   assert.equal(tableBrowse.hasRows, true);
   assert.equal(loungeBrowse.hasRows, true);
@@ -247,6 +247,17 @@ test('browse-state empty behavior in lounge mode prioritizes no-playable-url gui
   assert.equal(browseState.hasRows, false);
   assert.equal(browseState.title, VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE);
   assert.equal(browseState.ctaLabel, VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL);
+});
+
+test('empty inventory copy reflects saved-videos-first intent and edit/log CTA', () => {
+  const inventoryEmpty = deriveVideoLibraryEmptyState({
+    tab: 'all',
+    search: '',
+    hasAdvancedFiltersApplied: false,
+  });
+
+  assert.equal(inventoryEmpty.title, 'No saved videos yet');
+  assert.equal(VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL, 'Edit or log a session');
 });
 
 test('control tiers default to simple controls and reveal advanced panel when toggled', () => {

@@ -131,12 +131,12 @@ const SESSION_CATEGORY_OPTIONS: SessionCategory[] = [
 
 export const VIDEO_LIBRARY_LOADING_LABEL = 'Checking...';
 export const VIDEO_LIBRARY_MODE_TABLE_LABEL = 'Table';
-export const VIDEO_LIBRARY_MODE_LOUNGE_LABEL = 'Lounge';
+export const VIDEO_LIBRARY_MODE_LOUNGE_LABEL = 'Gallery';
 export const VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL = 'View all sessions';
 export const VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL = 'Reset Advanced filters';
 export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
-  'Log sessions as usual; add videos when useful';
+  'Edit or log a session';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
 export const VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL = 'Library settings';
@@ -332,9 +332,9 @@ export function deriveVideoLibraryEmptyState({
   }
 
   return {
-    title: 'No sessions yet',
+    title: 'No saved videos yet',
     description:
-      'Your session list will appear here. Add video links whenever they are useful.',
+      'Edit a session or log a new one to add video links when they are useful.',
     ctaLabel: VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
     action: 'editSession',
   };
@@ -1192,7 +1192,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   role="group"
                   aria-label="Presentation mode"
                 >
-                  {(['table', 'lounge'] as VideoLibraryPresentationMode[]).map(
+                  {(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
                     (mode) => (
                       <Button
                         key={mode}
@@ -1323,7 +1323,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       ) : null}
 
       <PluginTableSection
-        title="Video Lounge"
+        title="Saved Videos"
         description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
         hasRows={browseState.hasRows}
         emptyTitle={browseState.title}
