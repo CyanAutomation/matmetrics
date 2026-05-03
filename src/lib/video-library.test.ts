@@ -160,7 +160,7 @@ test('reconcileVideoLinkChecks invalidates disallowed-domain snapshots when cust
 test('deriveVideoLibraryRows merges persisted latest checks and review state', () => {
   const rows = deriveVideoLibraryRows({
     sessions: [
-      makeSession('reachable', 'https://youtube.com/watch?v=123'),
+      makeSession('reachable', 'https://youtube.com/watch?v=dQw4w9WgXcQ'),
       makeSession('broken', 'https://youtube.com/watch?v=456'),
       makeSession('missing'),
     ],
@@ -184,22 +184,22 @@ test('deriveVideoLibraryRows merges persisted latest checks and review state', (
   assert.equal(rows[0]?.displayTitle, '2026-03-29 • Technical');
   assert.equal(
     rows[0]?.thumbnailUrl,
-    'https://img.youtube.com/vi/123/hqdefault.jpg'
+    'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
   );
 });
 
 test('resolveVideoThumbnailUrl parses youtube URLs deterministically', () => {
   assert.equal(
-    resolveVideoThumbnailUrl('https://www.youtube.com/watch?v=abc123'),
-    'https://img.youtube.com/vi/abc123/hqdefault.jpg'
+    resolveVideoThumbnailUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+    'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
   );
   assert.equal(
-    resolveVideoThumbnailUrl('https://youtu.be/xyz789?t=4'),
-    'https://img.youtube.com/vi/xyz789/hqdefault.jpg'
+    resolveVideoThumbnailUrl('https://youtu.be/oHg5SJYRHA0?t=4'),
+    'https://img.youtube.com/vi/oHg5SJYRHA0/hqdefault.jpg'
   );
   assert.equal(
-    resolveVideoThumbnailUrl('https://youtube.com/shorts/shorts123'),
-    'https://img.youtube.com/vi/shorts123/hqdefault.jpg'
+    resolveVideoThumbnailUrl('https://youtube.com/shorts/9bZkp7q19f0'),
+    'https://img.youtube.com/vi/9bZkp7q19f0/hqdefault.jpg'
   );
 });
 
