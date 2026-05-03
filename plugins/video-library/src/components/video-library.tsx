@@ -26,6 +26,7 @@ import {
 } from '@/components/plugins/plugin-data-surface';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
+import { PluginGallerySection } from '@/components/plugins/plugin-gallery-section';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { VideoTileCard } from './video-tile-card';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
@@ -135,8 +136,7 @@ export const VIDEO_LIBRARY_MODE_LOUNGE_LABEL = 'Gallery';
 export const VIDEO_LIBRARY_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL = 'View all sessions';
 export const VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL = 'Reset Advanced filters';
-export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL =
-  'Edit or log a session';
+export const VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL = 'Edit or log a session';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
 export const VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL = 'Library settings';
@@ -1322,17 +1322,17 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
         />
       ) : null}
 
-      <PluginTableSection
-        title="Saved Videos"
-        description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
-        hasRows={browseState.hasRows}
-        emptyTitle={browseState.title}
-        emptyDescription={browseState.description}
-        emptyCtaLabel={browseState.ctaLabel}
-        onEmptyCta={handleEmptyStateAction}
-        emptyIcon={<AlertCircle className="h-4 w-4" />}
-      >
-        {presentationMode === 'table' ? (
+      {presentationMode === 'table' ? (
+        <PluginTableSection
+          title="Saved Videos"
+          description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
+          hasRows={browseState.hasRows}
+          emptyTitle={browseState.title}
+          emptyDescription={browseState.description}
+          emptyCtaLabel={browseState.ctaLabel}
+          onEmptyCta={handleEmptyStateAction}
+          emptyIcon={<AlertCircle className="h-4 w-4" />}
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -1433,31 +1433,40 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               ))}
             </TableBody>
           </Table>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {loungeRows.map((row, index) => {
-              const nextRow =
-                presentationMode === 'lounge' && playNextEnabled
-                  ? loungeRows[index + 1]
-                  : undefined;
-              return (
-                <VideoTileCard
-                  key={row.session.id}
-                  row={row}
-                  nextRow={nextRow}
-                  showAdvanced={showAdvanced}
-                  isCheckingLinks={isCheckingLinks}
-                  getStatusVariant={getStatusVariant}
-                  getEntryStatusLabel={getEntryStatusLabel}
-                  onEdit={(item) => setEditingSession(item.session)}
-                  onRemove={(item) => setSessionPendingClear(item.session)}
-                  onCheck={(item) => void handleCheckLinks([item.session.id])}
-                />
-              );
-            })}
-          </div>
-        )}
-      </PluginTableSection>
+        </PluginTableSection>
+      ) : (
+        <PluginGallerySection
+          title="Saved Videos"
+          description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
+          hasTiles={loungeRows.length > 0}
+          emptyTitle={browseState.title}
+          emptyDescription={browseState.description}
+          emptyCtaLabel={browseState.ctaLabel}
+          onEmptyCta={handleEmptyStateAction}
+          emptyIcon={<AlertCircle className="h-4 w-4" />}
+        >
+          {loungeRows.map((row, index) => {
+            const nextRow =
+              presentationMode === 'lounge' && playNextEnabled
+                ? loungeRows[index + 1]
+                : undefined;
+            return (
+              <VideoTileCard
+                key={row.session.id}
+                row={row}
+                nextRow={nextRow}
+                showAdvanced={showAdvanced}
+                isCheckingLinks={isCheckingLinks}
+                getStatusVariant={getStatusVariant}
+                getEntryStatusLabel={getEntryStatusLabel}
+                onEdit={(item) => setEditingSession(item.session)}
+                onRemove={(item) => setSessionPendingClear(item.session)}
+                onCheck={(item) => void handleCheckLinks([item.session.id])}
+              />
+            );
+          })}
+        </PluginGallerySection>
+      )}
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
