@@ -32,6 +32,27 @@ export function VideoTileCard({
   onRemove,
   onCheck,
 }: VideoTileCardProps) {
+  const safeThumbnailUrl = (() => {
+    if (!row.thumbnailUrl) {
+      return null;
+    }
+    try {
+      const parsed = new URL(row.thumbnailUrl);
+      if (parsed.protocol !== 'https:') {
+        return null;
+      }
+      if (
+        parsed.hostname !== 'img.youtube.com' &&
+        !parsed.hostname.endsWith('.img.youtube.com')
+      ) {
+        return null;
+      }
+      return parsed.toString();
+    } catch {
+      return null;
+    }
+  })();
+
   const title =
     row.displayTitle ||
     row.session.description?.trim() ||
@@ -44,8 +65,8 @@ export function VideoTileCard({
         <div
           className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 bg-cover bg-center p-3"
           style={
-            row.thumbnailUrl
-              ? { backgroundImage: `url(${row.thumbnailUrl})` }
+            safeThumbnailUrl
+              ? { backgroundImage: `url(\"${safeThumbnailUrl}\")` }
               : undefined
           }
         >
