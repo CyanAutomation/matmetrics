@@ -373,7 +373,7 @@ function getYouTubeVideoId(parsed: URL): string | null {
     const id = parsed.pathname.split('/').filter(Boolean)[0];
     return isValidYouTubeId(id ?? null) ? id : null;
   }
-  if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+  if (host === 'youtube.com' || (host.includes('.') && host.endsWith('.youtube.com'))) {
     const fromQuery = parsed.searchParams.get('v');
     if (isValidYouTubeId(fromQuery)) {
       return fromQuery;
