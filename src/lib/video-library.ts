@@ -366,19 +366,22 @@ function getVideoProviderLabel(hostname?: string): string {
 }
 
 function getYouTubeVideoId(parsed: URL): string | null {
+  const isValidYouTubeId = (value: string | null): value is string =>
+    Boolean(value && /^[a-zA-Z0-9_-]{11}$/.test(value));
   const host = normalizeVideoHostname(parsed.hostname);
   if (host === 'youtu.be') {
     const id = parsed.pathname.split('/').filter(Boolean)[0];
-    return id || null;
+    return isValidYouTubeId(id ?? null) ? id : null;
   }
-  if (host.endsWith('youtube.com')) {
+  if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
     const fromQuery = parsed.searchParams.get('v');
-    if (fromQuery) {
+    if (isValidYouTubeId(fromQuery)) {
       return fromQuery;
     }
     const segments = parsed.pathname.split('/').filter(Boolean);
     if (segments[0] === 'shorts' || segments[0] === 'embed') {
-      return segments[1] ?? null;
+      const candidate = segments[1] ?? null;
+      return isValidYouTubeId(candidate) ? candidate : null;
     }
   }
   return null;
