@@ -536,7 +536,15 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       observedLease &&
       observedLease.owner !== syncOwnerId &&
       observedLease.expiresAt >= now;
-    const contenderSignature = leaseIsOwnedAndAlive
+    const leaseIsExpired =
+      observedLease &&
+      observedLease.owner !== syncOwnerId &&
+      observedLease.expiresAt < now;
+    const leaseIsStale =
+      observedLease &&
+      observedLease.owner !== syncOwnerId &&
+      (leaseIsExpired || leaseIsOwnedAndAlive);
+    const contenderSignature = leaseIsStale
       ? `${observedLease.owner}:${observedLease.nonce}:${observedLease.epoch}:${observedLease.expiresAt}`
       : null;
     if (contenderSignature && contenderSignature === stableContenderSignature) {
@@ -549,9 +557,9 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       stableContenderObservations = 0;
     }
     const forcedReclaimAttempt =
-      leaseIsOwnedAndAlive &&
-      observedLease.expiresAt < now &&
-      stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD;
+      leaseIsStale &&
+      (leaseIsExpired ||
+        stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD);
 
     if (
       leaseIsOwnedAndAlive &&
@@ -779,7 +787,7 @@ async function reconcilePermanentFailure(): Promise<void> {
 
 function handleMutationSyncFailure(
   error: unknown,
-  retryOperation: () => void,
+  retryOperation: () => void | Promise<void>,
   mutationId: string,
   version: number
 ): Promise<MutationResult> {
@@ -791,7 +799,10 @@ function handleMutationSyncFailure(
     });
   }
 
-  retryOperation();
+  const result = retryOperation();
+  if (result instanceof Promise) {
+    return result.then(() => ({ status: 'queued' }));
+  }
   return Promise.resolve({ status: 'queued' });
 }
 
@@ -944,7 +955,7 @@ export async function saveSession(
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'CREATE', session, queuedAt: version });
+  await queueOperation({ type: 'CREATE', session, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -1014,7 +1025,7 @@ export async function updateSession(
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'UPDATE', session, queuedAt: version });
+  await queueOperation({ type: 'UPDATE', session, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -1075,7 +1086,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   }
 
   // Offline: queue the operation
-  queueOperation({ type: 'DELETE', id, queuedAt: version });
+  await queueOperation({ type: 'DELETE', id, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -1590,7 +1601,7 @@ async function syncPendingOperations(): Promise<void> {
             if (!isStorageGenerationCurrent(generation)) {
               return;
             }
-            setQueue(remainingOperations, queue);
+            await setQueue(remainingOperations, queue);
             await reconcilePermanentFailure();
             return;
           }
@@ -1609,7 +1620,7 @@ async function syncPendingOperations(): Promise<void> {
           if (!isStorageGenerationCurrent(generation)) {
             return;
           }
-          setQueue(remainingOperations, queue);
+          await setQueue(remainingOperations, queue);
           return;
         }
       }
@@ -1618,7 +1629,7 @@ async function syncPendingOperations(): Promise<void> {
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      clearQueue(queue);
+      await clearQueue(queue);
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {
