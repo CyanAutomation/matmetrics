@@ -557,8 +557,8 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       stableContenderObservations = 0;
     }
     const forcedReclaimAttempt =
-      leaseIsStale &&
-      (leaseIsExpired ||
+      leaseIsExpired ||
+      (leaseIsOwnedAndAlive &&
         stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD);
 
     if (
