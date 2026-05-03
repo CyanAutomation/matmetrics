@@ -27,6 +27,7 @@ import {
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import { VideoTileCard } from './video-tile-card';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   PluginStatCard,
@@ -1433,74 +1434,25 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
             </TableBody>
           </Table>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loungeRows.map((row, index) => {
               const nextRow =
                 presentationMode === 'lounge' && playNextEnabled
                   ? loungeRows[index + 1]
                   : undefined;
               return (
-                <article
+                <VideoTileCard
                   key={row.session.id}
-                  className="space-y-3 rounded-lg border bg-card p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{row.session.date}</p>
-                      <p
-                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
-                      >
-                        {row.session.category}
-                      </p>
-                    </div>
-                    <Badge variant={getStatusVariant(row.displayStatus)}>
-                      {getEntryStatusLabel(row.displayStatus)}
-                    </Badge>
-                  </div>
-                  <p
-                    className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
-                  >
-                    {row.session.techniques.join(', ') ||
-                      'No techniques listed'}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                      {row.entry.hostname ??
-                        row.latestCheck?.hostname ??
-                        'unknown host'}
-                    </Badge>
-                    <Badge variant="secondary">
-                      {row.latestCheck
-                        ? `Checked ${new Date(
-                            row.latestCheck.checkedAt
-                          ).toLocaleDateString()}`
-                        : 'Not checked yet'}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" asChild>
-                      <a
-                        href={row.entry.url || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Watch
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </a>
-                    </Button>
-                    {nextRow?.entry.url ? (
-                      <Button type="button" variant="outline" asChild>
-                        <a
-                          href={nextRow.entry.url || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Play next
-                        </a>
-                      </Button>
-                    ) : null}
-                  </div>
-                </article>
+                  row={row}
+                  nextRow={nextRow}
+                  showAdvanced={showAdvanced}
+                  isCheckingLinks={isCheckingLinks}
+                  getStatusVariant={getStatusVariant}
+                  getEntryStatusLabel={getEntryStatusLabel}
+                  onEdit={(item) => setEditingSession(item.session)}
+                  onRemove={(item) => setSessionPendingClear(item.session)}
+                  onCheck={(item) => void handleCheckLinks([item.session.id])}
+                />
               );
             })}
           </div>
