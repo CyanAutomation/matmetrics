@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils';
 
 const Sheet = SheetPrimitive.Root;
 
-const SheetTrigger = SheetPrimitive.Trigger;
+const _SheetTrigger = SheetPrimitive.Trigger;
 
-const SheetClose = SheetPrimitive.Close;
+const _SheetClose = SheetPrimitive.Close;
 
 const SheetPortal = SheetPrimitive.Portal;
 
