@@ -33,15 +33,22 @@ export function VideoTileCard({
   onCheck,
 }: VideoTileCardProps) {
   const title =
+    row.displayTitle ||
     row.session.description?.trim() ||
     `${row.session.date} • ${row.session.category}`;
-  const hostname =
-    row.entry.hostname ?? row.latestCheck?.hostname ?? 'unknown host';
+  const hostname = row.provider || row.entry.hostname || 'Unknown provider';
 
   return (
     <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
       <div className="aspect-video rounded-b-none rounded-t-xl bg-muted p-3">
-        <div className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 p-3">
+        <div
+          className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 bg-cover bg-center p-3"
+          style={
+            row.thumbnailUrl
+              ? { backgroundImage: `url(${row.thumbnailUrl})` }
+              : undefined
+          }
+        >
           <div className="flex items-start justify-between gap-2">
             <Badge
               variant={getStatusVariant(row.displayStatus)}
@@ -49,10 +56,7 @@ export function VideoTileCard({
             >
               {getEntryStatusLabel(row.displayStatus)}
             </Badge>
-            <Film
-              className="h-4 w-4 text-muted-foreground"
-              aria-hidden="true"
-            />
+            <Film className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </div>
           <p className="line-clamp-2 text-sm font-medium">{title}</p>
         </div>
