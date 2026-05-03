@@ -1,7 +1,21 @@
-import { ExternalLink, Film, Pencil, RefreshCcw, Trash2 } from 'lucide-react';
+import {
+  ExternalLink,
+  Film,
+  MoreHorizontal,
+  Pencil,
+  RefreshCcw,
+  Star,
+  Trash2,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type {
   VideoLibraryRow,
   VideoLibraryStatusFilter,
@@ -60,7 +74,7 @@ export function VideoTileCard({
   const hostname = row.provider || row.entry.hostname || 'Unknown provider';
 
   return (
-    <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <article className="group overflow-hidden rounded-xl border bg-card shadow-sm">
       <div className="aspect-video rounded-b-none rounded-t-xl bg-muted p-3">
         <div
           className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 bg-cover bg-center p-3"
@@ -131,37 +145,56 @@ export function VideoTileCard({
               </a>
             </Button>
           ) : null}
-          {showAdvanced && row.isCheckable ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onCheck(row)}
-              disabled={isCheckingLinks}
-              aria-label={`Check link for ${title}`}
-            >
-              <RefreshCcw className="h-4 w-4" />
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => onEdit(row)}
-            aria-label={`Edit ${title}`}
+            className="text-muted-foreground"
+            disabled
+            aria-label={`Saved toggle placeholder for ${title}`}
+            title="Saved toggle coming soon"
           >
-            <Pencil className="h-4 w-4" />
+            <Star className="h-4 w-4" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            interaction="destructive"
-            onClick={() => onRemove(row)}
-            aria-label={`Remove video from ${title}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+          <div className="ml-auto transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`More actions for ${title}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {showAdvanced && row.isCheckable ? (
+                  <DropdownMenuItem
+                    onClick={() => onCheck(row)}
+                    disabled={isCheckingLinks}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Refresh link health
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={() => onEdit(row)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                {row.entry.url ? (
+                  <DropdownMenuItem
+                    onClick={() => onRemove(row)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </article>
