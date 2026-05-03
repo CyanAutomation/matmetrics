@@ -14,6 +14,7 @@ import {
   matchesAllowedVideoDomain,
   mergeVideoLinkCheckResults,
   normalizeVideoDomainInput,
+  resolveVideoThumbnailUrl,
   reconcileVideoLinkChecks,
 } from '@/lib/video-library';
 
@@ -179,6 +180,41 @@ test('deriveVideoLibraryRows merges persisted latest checks and review state', (
   assert.equal(rows[1]?.needsReview, true);
   assert.equal(rows[2]?.displayStatus, 'missing');
   assert.equal(rows[2]?.needsReview, false);
+  assert.equal(rows[0]?.provider, 'YouTube');
+  assert.equal(rows[0]?.displayTitle, '2026-03-29 • Technical');
+  assert.equal(
+    rows[0]?.thumbnailUrl,
+    'https://img.youtube.com/vi/123/hqdefault.jpg'
+  );
+});
+
+test('resolveVideoThumbnailUrl parses youtube URLs deterministically', () => {
+  assert.equal(
+    resolveVideoThumbnailUrl('https://www.youtube.com/watch?v=abc123'),
+    'https://img.youtube.com/vi/abc123/hqdefault.jpg'
+  );
+  assert.equal(
+    resolveVideoThumbnailUrl('https://youtu.be/xyz789?t=4'),
+    'https://img.youtube.com/vi/xyz789/hqdefault.jpg'
+  );
+  assert.equal(
+    resolveVideoThumbnailUrl('https://youtube.com/shorts/shorts123'),
+    'https://img.youtube.com/vi/shorts123/hqdefault.jpg'
+  );
+});
+
+test('rows keep unknown providers as valid items and use thumbnail fallback', () => {
+  const rows = deriveVideoLibraryRows({
+    sessions: [makeSession('custom', 'https://videos.example.org/watch/1')],
+    customAllowedDomains: ['example.org'],
+    linkChecksBySessionId: {},
+    expectedVideoCategories: ['Technical'],
+  });
+
+  assert.equal(rows[0]?.entry.status, 'allowed_unchecked');
+  assert.equal(rows[0]?.provider, 'videos.example.org');
+  assert.equal(rows[0]?.thumbnailUrl, null);
+  assert.equal(rows[0]?.entry.url, 'https://videos.example.org/watch/1');
 });
 
 test('filterVideoLibraryRows respects tab, search, status, and checked filters', () => {

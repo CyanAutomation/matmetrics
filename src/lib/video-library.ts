@@ -48,6 +48,11 @@ export interface VideoLibraryRow {
   isCheckable: boolean;
   isChecked: boolean;
   missingVideoExpected: boolean;
+  displayTitle: string;
+  thumbnailUrl: string | null;
+  provider: string;
+  durationLabel?: string;
+  savedAtLabel?: string;
   searchText: string;
 }
 
@@ -324,8 +329,12 @@ function buildRowSearchText(row: {
   session: JudoSession;
   hostname?: string;
   latestCheck?: VideoLinkCheckSnapshot;
+  provider?: string;
+  displayTitle?: string;
 }): string {
   return [
+    row.displayTitle ?? '',
+    row.provider ?? '',
     row.session.date,
     row.session.category,
     row.hostname ?? '',
@@ -336,6 +345,63 @@ function buildRowSearchText(row: {
   ]
     .join(' ')
     .toLowerCase();
+}
+
+function getVideoProviderLabel(hostname?: string): string {
+  if (!hostname) {
+    return 'Unknown provider';
+  }
+  if (
+    hostname === 'youtube.com' ||
+    hostname.endsWith('.youtube.com') ||
+    hostname === 'youtu.be' ||
+    hostname.endsWith('.youtu.be')
+  ) {
+    return 'YouTube';
+  }
+  if (hostname === 'vimeo.com' || hostname.endsWith('.vimeo.com')) {
+    return 'Vimeo';
+  }
+  return hostname;
+}
+
+function getYouTubeVideoId(parsed: URL): string | null {
+  const host = normalizeVideoHostname(parsed.hostname);
+  if (host === 'youtu.be') {
+    const id = parsed.pathname.split('/').filter(Boolean)[0];
+    return id || null;
+  }
+  if (host.endsWith('youtube.com')) {
+    const fromQuery = parsed.searchParams.get('v');
+    if (fromQuery) {
+      return fromQuery;
+    }
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments[0] === 'shorts' || segments[0] === 'embed') {
+      return segments[1] ?? null;
+    }
+  }
+  return null;
+}
+
+export function resolveVideoThumbnailUrl(url?: string): string | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    const parsed = new URL(url);
+    const host = normalizeVideoHostname(parsed.hostname);
+    const youtubeId = getYouTubeVideoId(parsed);
+    if (youtubeId) {
+      return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    }
+    if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
+      return null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export function deriveVideoLibraryRows({
@@ -364,6 +430,14 @@ export function deriveVideoLibraryRows({
       entry.status === 'missing' &&
       expectedVideoCategories.includes(entry.session.category);
 
+    const displayTitle =
+      entry.session.description?.trim() ||
+      `${entry.session.date} • ${entry.session.category}`;
+    const provider = getVideoProviderLabel(
+      entry.hostname ?? latestCheck?.hostname
+    );
+    const thumbnailUrl = resolveVideoThumbnailUrl(entry.url);
+
     return {
       session: entry.session,
       entry,
@@ -373,10 +447,15 @@ export function deriveVideoLibraryRows({
       isCheckable: canCheckVideoEntry(entry),
       isChecked: !!latestCheck,
       missingVideoExpected,
+      displayTitle,
+      thumbnailUrl,
+      provider,
       searchText: buildRowSearchText({
         session: entry.session,
         hostname: entry.hostname,
         latestCheck,
+        provider,
+        displayTitle,
       }),
     };
   });
