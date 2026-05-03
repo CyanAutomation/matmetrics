@@ -82,17 +82,19 @@ export function VideoTileCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" asChild className="flex-1 sm:flex-none">
-            <a
-              href={row.entry.url || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Watch video for ${title}`}
-            >
-              Watch
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </a>
-          </Button>
+          {row.entry.url ? (
+            <Button type="button" asChild className="flex-1 sm:flex-none">
+              <a
+                href={row.entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Watch video for ${title}`}
+              >
+                Watch
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
+          ) : null}
           {nextRow?.entry.url ? (
             <Button type="button" variant="outline" asChild>
               <a
