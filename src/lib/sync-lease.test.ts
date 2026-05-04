@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, sleep, setActiveSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type SyncLease } from './sync-lease';
+import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, sleep, setActiveSyncLease, tryAcquireSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type LeaseTakeoverDiagnosticPayload, type SyncLease } from './sync-lease';
 
 test('sync-lease module', async (t) => {
   await t.test('randomBackoffMs', async (t) => {
@@ -95,6 +95,70 @@ test('sync-lease module', async (t) => {
     await sleep(50);
     const after = Date.now();
     assert(after - before >= 40);
+  });
+
+  await t.test('tryAcquireSyncLease', async (t) => {
+    await t.test(
+      'forces reclaim after stable observations of a live competing lease',
+      async () => {
+        beforeEach();
+        const diagnostics: LeaseTakeoverDiagnosticPayload[] = [];
+        initializeSyncLeaseModule({
+          syncOwnerId: 'test-owner',
+          syncLockTtlMs: 45000,
+          getSyncLockStorageKey: () => 'matmetrics_sync_lock_test',
+          isStorageEventForKey: (event, key) =>
+            event.storageArea === global.localStorage && event.key === key,
+          emitLeaseTakeoverDiagnostic: (payload) => diagnostics.push(payload),
+        });
+
+        const contender: SyncLease = {
+          owner: 'contender-owner',
+          expiresAt: Date.now() + 60_000,
+          nonce: 'contender-nonce',
+          epoch: 200,
+        };
+        if (typeof localStorage === 'undefined') {
+          throw new Error('localStorage unavailable in test environment');
+        }
+        localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(contender));
+
+        const acquired = await tryAcquireSyncLease();
+        assert.equal(acquired, true);
+
+        const persistedLease = readSyncLease();
+        assert.equal(persistedLease?.owner, 'test-owner');
+        assert(diagnostics.some((item) => item.reason === 'forced-reclaim'));
+        afterEach();
+      }
+    );
+
+    await t.test('does not force reclaim a fresh lease before threshold', async () => {
+      beforeEach();
+      const contender: SyncLease = {
+        owner: 'contender-owner',
+        expiresAt: Date.now() + 60_000,
+        nonce: 'fresh-contender',
+        epoch: 300,
+      };
+      if (typeof localStorage === 'undefined') {
+        throw new Error('localStorage unavailable in test environment');
+      }
+      localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(contender));
+
+      const originalNow = Date.now;
+      let acquired = false;
+      try {
+        Date.now = () => 1_000;
+        acquired = await tryAcquireSyncLease();
+      } finally {
+        Date.now = originalNow;
+      }
+
+      assert.equal(acquired, false);
+      assert.deepEqual(readSyncLease(), contender);
+      afterEach();
+    });
   });
 });
 
