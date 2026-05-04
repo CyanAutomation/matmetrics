@@ -19,8 +19,15 @@ function getBearerToken(request: NextRequest): string | null {
   return token;
 }
 
+function isAuthTestModeEnabled(): boolean {
+  return (
+    process.env.MATMETRICS_AUTH_TEST_MODE === 'true' &&
+    process.env.NODE_ENV === 'test'
+  );
+}
+
 async function verifyToken(token: string): Promise<DecodedIdToken> {
-  if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {
+  if (isAuthTestModeEnabled()) {
     if (token !== 'test-token') {
       throw new Error('Invalid test token');
     }
@@ -52,8 +59,7 @@ export async function requireAuthenticatedUser(
   }
 
   if (
-    !isFirebaseAdminConfigured() &&
-    process.env.MATMETRICS_AUTH_TEST_MODE !== 'true'
+    !isFirebaseAdminConfigured() && !isAuthTestModeEnabled()
   ) {
     return NextResponse.json(
       { error: 'Firebase admin is not configured' },
