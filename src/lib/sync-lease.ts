@@ -183,13 +183,6 @@ export function readSyncLease(): SyncLease | null {
 }
 
 /**
- * Check if a lease is owned by another process and still alive
- */
-function isLeaseAlive(lease: SyncLease | null, now: number): boolean {
-  return lease !== null && lease.owner !== syncOwnerId && lease.expiresAt >= now;
-}
-
-/**
  * Create a signature for identifying stable contenders
  */
 function getContenderSignature(lease: SyncLease | null): string | null {
@@ -201,14 +194,14 @@ function getContenderSignature(lease: SyncLease | null): string | null {
  * Check if forced reclaim should be attempted
  */
 function shouldForceReclaim(
-  leaseIsAlive: boolean,
+  leaseOwnedByAnother: boolean,
+  leaseExpired: boolean,
   stableObservations: number,
-  expiresAt: number,
-  now: number
+  leaseIsAlive: boolean
 ): boolean {
   return (
-    leaseIsAlive &&
-    expiresAt < now &&
+    leaseOwnedByAnother &&
+    (leaseExpired || leaseIsAlive) &&
     stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
   );
 }
@@ -299,9 +292,14 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
     const observedLease = readSyncLease();
-    const leaseIsOwnedAndAlive = isLeaseAlive(observedLease, now);
+    const leaseOwnedByAnother =
+      observedLease !== null && observedLease.owner !== syncOwnerId;
+    const leaseExpired =
+      observedLease !== null && observedLease.expiresAt < now;
+    const leaseIsOwnedAndAlive =
+      leaseOwnedByAnother && !leaseExpired;
     const contenderSignature = getContenderSignature(
-      leaseIsOwnedAndAlive ? observedLease : null
+      leaseOwnedByAnother ? observedLease : null
     );
 
     // Track contender stability across observations
@@ -316,10 +314,10 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     }
 
     const forcedReclaimAttempt = shouldForceReclaim(
-      leaseIsOwnedAndAlive,
+      leaseOwnedByAnother,
+      leaseExpired,
       stableContenderObservations,
-      observedLease?.expiresAt ?? 0,
-      now
+      leaseIsOwnedAndAlive,
     );
 
     // If another process owns the lease and we're not forcing reclaim, back off
