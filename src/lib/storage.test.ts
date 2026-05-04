@@ -1074,7 +1074,7 @@ serialTest(
   }
 );
 serialTest(
-  'tab crash stale lease is forcibly reclaimed after bounded retries',
+  'alive foreign lease is not reclaimed before expiry',
   async () => {
     const { localStorage } = installBrowserEnv();
     setActiveUserId('user-1');
@@ -1089,25 +1089,52 @@ serialTest(
       syncLockStorageKey,
       JSON.stringify({
         owner: 'crashed-tab',
-        expiresAt: Date.now() + 500,
+        expiresAt: Date.now() + 800,
         nonce: 'crashed-nonce',
         epoch: 100,
       })
     );
 
-    const infoCalls: unknown[] = [];
-    const originalInfo = console.info;
-    console.info = (...args: unknown[]) => {
-      infoCalls.push(args);
-    };
+    try {
+      assert.equal(await __tryAcquireSyncLeaseForTests(), false);
+      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+      assert.equal(lease.owner, 'crashed-tab');
+      assert.equal(lease.nonce, 'crashed-nonce');
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'two contenders cannot steal a live lease before expiry',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+    localStorage.setItem(
+      syncLockStorageKey,
+      JSON.stringify({
+        owner: 'live-owner',
+        expiresAt: Date.now() + 800,
+        nonce: 'live-nonce',
+        epoch: 5,
+      })
+    );
 
     try {
+      const [firstBeforeExpiry, secondBeforeExpiry] = await Promise.all([
+        __tryAcquireSyncLeaseForTests(),
+        __tryAcquireSyncLeaseForTests(),
+      ]);
+      assert.equal(firstBeforeExpiry, false);
+      assert.equal(secondBeforeExpiry, false);
+
+      await delay(850);
       assert.equal(await __tryAcquireSyncLeaseForTests(), true);
-      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
-      assert.notEqual(lease.owner, 'crashed-tab');
-      assert.ok(infoCalls.some((call) => String(call[0]) === 'sync_lease_takeover'));
     } finally {
-      console.info = originalInfo;
       teardownStorageListeners();
       __resetStorageStateForTests();
     }
@@ -1609,7 +1636,7 @@ serialTest(
 );
 
 serialTest(
-  'clock drift edge: local clock ahead can reclaim externally-expired lease',
+  'clock drift edge: local clock skew cannot reclaim a still-live foreign lease',
   async () => {
     const { localStorage } = installBrowserEnv();
     setActiveUserId('user-1');
@@ -1634,9 +1661,9 @@ serialTest(
     Date.now = () => originalNow() - 12_000;
 
     try {
-      assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+      assert.equal(await __tryAcquireSyncLeaseForTests(), false);
       const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
-      assert.notEqual(lease.owner, 'clock-ahead-tab');
+      assert.equal(lease.owner, 'clock-ahead-tab');
     } finally {
       Date.now = originalNow;
       teardownStorageListeners();
