@@ -201,7 +201,7 @@ function shouldForceReclaim(
 ): boolean {
   return (
     leaseOwnedByAnother &&
-    (leaseExpired || leaseIsAlive) &&
+    (!leaseIsAlive || leaseExpired) &&
     stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
   );
 }
