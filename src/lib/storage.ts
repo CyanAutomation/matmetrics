@@ -173,7 +173,6 @@ const SYNC_LOCK_BACKOFF_MAX_MS = 28;
 const SYNC_LOCK_VERIFY_DELAY_MIN_MS = 1;
 const SYNC_LOCK_VERIFY_DELAY_MAX_MS = 6;
 const SYNC_LOCK_NAME = 'matmetrics-sync';
-const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
 
 type ActiveSyncLease =
   | {
@@ -190,7 +189,7 @@ type ActiveSyncLease =
 let activeSyncLease: ActiveSyncLease | null = null;
 let localLeaseEpochCounter = 0;
 
-type LeaseTakeoverReason = 'expired' | 'forced-reclaim' | 'race-revalidate';
+type LeaseTakeoverReason = 'expired' | 'race-revalidate';
 
 function emitLeaseTakeoverDiagnostic(payload: {
   reason: LeaseTakeoverReason;
@@ -527,8 +526,6 @@ async function tryAcquireSyncLease(): Promise<boolean> {
     return true;
   }
 
-  let stableContenderSignature: string | null = null;
-  let stableContenderObservations = 0;
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
     const observedLease = readSyncLease();
@@ -540,31 +537,7 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       observedLease &&
       observedLease.owner !== syncOwnerId &&
       observedLease.expiresAt < now;
-    const leaseIsStale =
-      observedLease &&
-      observedLease.owner !== syncOwnerId &&
-      (leaseIsExpired || leaseIsOwnedAndAlive);
-    const contenderSignature = leaseIsStale
-      ? `${observedLease.owner}:${observedLease.nonce}:${observedLease.epoch}:${observedLease.expiresAt}`
-      : null;
-    if (contenderSignature && contenderSignature === stableContenderSignature) {
-      stableContenderObservations += 1;
-    } else if (contenderSignature) {
-      stableContenderSignature = contenderSignature;
-      stableContenderObservations = 1;
-    } else {
-      stableContenderSignature = null;
-      stableContenderObservations = 0;
-    }
-    const forcedReclaimAttempt =
-      leaseIsExpired ||
-      (leaseIsOwnedAndAlive &&
-        stableContenderObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD);
-
-    if (
-      leaseIsOwnedAndAlive &&
-      !forcedReclaimAttempt
-    ) {
+    if (leaseIsOwnedAndAlive) {
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());
       }
@@ -582,9 +555,7 @@ async function tryAcquireSyncLease(): Promise<boolean> {
         reason:
           observedLease.expiresAt < now
             ? 'expired'
-            : forcedReclaimAttempt
-              ? 'forced-reclaim'
-              : 'race-revalidate',
+            : 'race-revalidate',
         attempt,
         previousOwner: observedLease.owner,
         previousEpoch: observedLease.epoch,
