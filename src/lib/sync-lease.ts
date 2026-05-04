@@ -188,6 +188,8 @@ export function readSyncLease(): SyncLease | null {
 function getContenderSignature(lease: SyncLease | null): string | null {
   if (!lease) return null;
   return `${lease.owner}:${lease.nonce}:${lease.epoch}:${lease.expiresAt}`;
+}
+
 function shouldForceReclaim(
   leaseOwnedByAnother: boolean,
   leaseExpired: boolean,
@@ -494,11 +496,20 @@ export function releaseSyncLease(): void {
   }
 
   if (typeof window === 'undefined' || !getSyncLockStorageKeyFn) {
+    activeSyncLease = null;
     return;
   }
 
   if (activeSyncLease?.mode === 'storage') {
-    localStorage.removeItem(getSyncLockStorageKeyFn());
+    const persistedLease = readSyncLease();
+    const ownsPersistedLease =
+      persistedLease?.owner === activeSyncLease.owner &&
+      persistedLease?.nonce === activeSyncLease.nonce &&
+      persistedLease?.epoch === activeSyncLease.epoch;
+
+    if (ownsPersistedLease) {
+      localStorage.removeItem(getSyncLockStorageKeyFn());
+    }
   }
 
   activeSyncLease = null;
