@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, sleep, setActiveSyncLease, tryAcquireSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type LeaseTakeoverDiagnosticPayload, type SyncLease } from './sync-lease';
+import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, releaseSyncLease, sleep, setActiveSyncLease, tryAcquireSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type LeaseTakeoverDiagnosticPayload, type SyncLease } from './sync-lease';
 
 test('sync-lease module', async (t) => {
   await t.test('randomBackoffMs', async (t) => {
@@ -88,6 +88,41 @@ test('sync-lease module', async (t) => {
     });
 
     afterEach();
+  });
+
+
+  await t.test('releaseSyncLease', async (t) => {
+    await t.test(
+      'does not remove persisted lease when local active lease is stale',
+      () => {
+        beforeEach();
+
+        const tabALease = {
+          mode: 'storage' as const,
+          owner: 'owner-a',
+          nonce: 'nonce-a',
+          epoch: 10,
+        };
+        const tabBLease: SyncLease = {
+          owner: 'owner-b',
+          nonce: 'nonce-b',
+          epoch: 11,
+          expiresAt: Date.now() + 30_000,
+        };
+
+        setActiveSyncLease(tabALease);
+        if (typeof localStorage === 'undefined') {
+          throw new Error('localStorage unavailable in test environment');
+        }
+        localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(tabBLease));
+
+        releaseSyncLease();
+
+        assert.deepEqual(readSyncLease(), tabBLease);
+        assert.equal(readSyncLease()?.owner, 'owner-b');
+        afterEach();
+      }
+    );
   });
 
   await t.test('sleep', async () => {
