@@ -32,6 +32,20 @@ The Video Library plugin provides a **dashboard tab** for browsing linked sessio
 5. Add custom domains if you are signed in and preferences are available.
 6. Use browse-first tabs (`Watchable`, `Needs attention`, `All`, optional `No video`), plus filters and per-row or filtered bulk checks for deeper audits.
 
+## Reusable gallery primitives
+
+Video Library now composes shared plugin card-gallery primitives from `src/components/plugins/` so other plugin pages can adopt the same interaction and layout model.
+
+- `PluginGallerySection`: section wrapper with consistent empty-state behavior for tile galleries.
+- `PluginMediaTile`: reusable media/card shell with preview, metadata, supporting text, and action slots.
+- `PluginTileActions`: shared layout for leading quick actions plus a trailing overflow menu.
+
+### Component contract notes
+
+- Prefer `PluginGallerySection` when a plugin feature has card or media tiles and needs the same empty-state + responsive-grid behavior as Video Library.
+- Use `PluginMediaTile` to keep card frame, preview container, and metadata typography token-aligned (`text.subtle`, `tone.inline.default`) via `getPluginUiTokenClassNames`.
+- Place primary/secondary buttons in `leadingActions` and contextual overflow actions in `menuAction` when using `PluginTileActions`.
+
 ## Verification
 
 Run these checks:
