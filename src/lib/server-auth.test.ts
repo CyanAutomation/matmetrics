@@ -5,10 +5,48 @@ import { NextRequest } from 'next/server';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const AUTH_TEST_MODE_ENV = 'MATMETRICS_AUTH_TEST_MODE';
+const NODE_ENV_VAR = 'NODE_ENV';
+
 const requestForAuthorization = (authorization?: string) =>
   new NextRequest('http://localhost/api/test', {
     headers: authorization ? { authorization } : undefined,
   });
+
+const withEnv = async (
+  env: Partial<Record<typeof AUTH_TEST_MODE_ENV | typeof NODE_ENV_VAR, string>>,
+  fn: () => Promise<void>
+) => {
+  const previousAuthTestMode = process.env[AUTH_TEST_MODE_ENV];
+  const previousNodeEnv = process.env[NODE_ENV_VAR];
+
+  if (env[AUTH_TEST_MODE_ENV] === undefined) {
+    delete process.env[AUTH_TEST_MODE_ENV];
+  } else {
+    process.env[AUTH_TEST_MODE_ENV] = env[AUTH_TEST_MODE_ENV];
+  }
+
+  if (env[NODE_ENV_VAR] === undefined) {
+    delete process.env[NODE_ENV_VAR];
+  } else {
+    process.env[NODE_ENV_VAR] = env[NODE_ENV_VAR];
+  }
+
+  try {
+    await fn();
+  } finally {
+    if (previousAuthTestMode === undefined) {
+      delete process.env[AUTH_TEST_MODE_ENV];
+    } else {
+      process.env[AUTH_TEST_MODE_ENV] = previousAuthTestMode;
+    }
+
+    if (previousNodeEnv === undefined) {
+      delete process.env[NODE_ENV_VAR];
+    } else {
+      process.env[NODE_ENV_VAR] = previousNodeEnv;
+    }
+  }
+};
 
 const assertUnauthorizedResponse = async (
   result: Awaited<ReturnType<typeof requireAuthenticatedUser>>,
@@ -24,55 +62,95 @@ const assertUnauthorizedResponse = async (
   assert.deepEqual(body, { error: expectedError });
 };
 
-test.before(() => {
-  process.env[AUTH_TEST_MODE_ENV] = 'true';
-});
+test('test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization', async () => {
+  await withEnv(
+    { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'test' },
+    async () => {
+      const result = await requireAuthenticatedUser(
+        requestForAuthorization('Bearer test-token')
+      );
 
-test.after(() => {
-  delete process.env[AUTH_TEST_MODE_ENV];
-});
+      assert.equal('status' in result, false);
+      if ('status' in result) {
+        assert.fail('Expected decoded token in test mode');
+      }
 
-test('requireAuthenticatedUser accepts valid Bearer authorization variants', async () => {
-  const validHeaders = [
-    { name: 'canonical bearer scheme', authorization: 'Bearer test-token' },
-    { name: 'lowercase bearer scheme', authorization: 'bearer test-token' },
-  ];
-
-  for (const { name, authorization } of validHeaders) {
-    const result = await requireAuthenticatedUser(
-      requestForAuthorization(authorization)
-    );
-
-    assert.equal('status' in result, false, `${name} should authenticate`);
-    if ('status' in result) {
-      assert.fail(`Expected decoded token for ${name}`);
+      assert.equal(result.uid, 'test-user');
     }
+  );
+});
 
-    assert.equal(result.uid, 'test-user');
-  }
+test('non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal auth path', async () => {
+  await withEnv(
+    { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'development' },
+    async () => {
+      const result = await requireAuthenticatedUser(
+        requestForAuthorization('Bearer test-token')
+      );
+
+      assert.equal('status' in result, true);
+      if (!('status' in result)) {
+        assert.fail('Expected error response when Firebase admin is unavailable');
+      }
+
+      assert.equal(result.status, 500);
+      const body = await result.json();
+      assert.deepEqual(body, { error: 'Firebase admin is not configured' });
+    }
+  );
+});
+
+test('normal auth path unchanged when test mode is disabled', async () => {
+  await withEnv(
+    { [AUTH_TEST_MODE_ENV]: 'false', [NODE_ENV_VAR]: 'test' },
+    async () => {
+      const result = await requireAuthenticatedUser(
+        requestForAuthorization('Bearer test-token')
+      );
+
+      assert.equal('status' in result, true);
+      if (!('status' in result)) {
+        assert.fail('Expected normal auth path without Firebase config');
+      }
+
+      assert.equal(result.status, 500);
+      const body = await result.json();
+      assert.deepEqual(body, { error: 'Firebase admin is not configured' });
+    }
+  );
 });
 
 test('requireAuthenticatedUser rejects malformed authorization header variants', async () => {
-  const malformedHeaders = [
-    { authorization: 'Bearer', error: 'Authentication required' },
-    { authorization: 'Basic test-token', error: 'Authentication required' },
-    { authorization: 'Token test-token', error: 'Authentication required' },
-    { authorization: 'test-token', error: 'Authentication required' },
-  ];
+  await withEnv(
+    { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'test' },
+    async () => {
+      const malformedHeaders = [
+        { authorization: 'Bearer', error: 'Authentication required' },
+        { authorization: 'Basic test-token', error: 'Authentication required' },
+        { authorization: 'Token test-token', error: 'Authentication required' },
+        { authorization: 'test-token', error: 'Authentication required' },
+      ];
 
-  for (const { authorization, error } of malformedHeaders) {
-    const result = await requireAuthenticatedUser(
-      requestForAuthorization(authorization)
-    );
+      for (const { authorization, error } of malformedHeaders) {
+        const result = await requireAuthenticatedUser(
+          requestForAuthorization(authorization)
+        );
 
-    await assertUnauthorizedResponse(result, error);
-  }
+        await assertUnauthorizedResponse(result, error);
+      }
+    }
+  );
 });
 
-test('requireAuthenticatedUser rejects invalid test-mode token', async () => {
-  const result = await requireAuthenticatedUser(
-    requestForAuthorization('Bearer invalid')
-  );
+test('requireAuthenticatedUser rejects invalid test-mode token in test env', async () => {
+  await withEnv(
+    { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'test' },
+    async () => {
+      const result = await requireAuthenticatedUser(
+        requestForAuthorization('Bearer invalid')
+      );
 
-  await assertUnauthorizedResponse(result, 'Invalid authentication token');
+      await assertUnauthorizedResponse(result, 'Invalid authentication token');
+    }
+  );
 });
