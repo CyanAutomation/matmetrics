@@ -188,11 +188,6 @@ export function readSyncLease(): SyncLease | null {
 function getContenderSignature(lease: SyncLease | null): string | null {
   if (!lease) return null;
   return `${lease.owner}:${lease.nonce}:${lease.epoch}:${lease.expiresAt}`;
-}
-
-/**
- * Check if forced reclaim should be attempted
- */
 function shouldForceReclaim(
   leaseOwnedByAnother: boolean,
   leaseExpired: boolean,
@@ -200,8 +195,7 @@ function shouldForceReclaim(
   leaseIsAlive: boolean
 ): boolean {
   return (
-    leaseOwnedByAnother &&
-    (!leaseIsAlive || leaseExpired) &&
+    leaseIsAlive &&
     stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
   );
 }
