@@ -266,8 +266,8 @@ export async function PUT(
 
     const body = payload;
 
-    // Ensure ID matches
-    if (body.id !== id) {
+    // Ensure ID matches when explicitly provided in request body.
+    if (body.id !== undefined && body.id !== id) {
       return NextResponse.json(
         { error: 'Session ID mismatch' },
         { status: 400 }
