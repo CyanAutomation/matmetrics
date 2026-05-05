@@ -416,7 +416,7 @@ test('default branch refresh invalidates prior-branch manifest scope', async () 
       await createSessionOnGitHub(makeSession('trigger'), config);
 
       const trunkPath = await findSessionPathOnGitHubById('shared', config);
-      assert.equal(trunkPath, 'data/2025/03/20250314-matmetrics-shared.md');
+      assert.equal(trunkPath, null);
       assert.ok(treeMainCalls >= 1);
       assert.equal(treeTrunkCalls, 0);
     }
