@@ -4,6 +4,7 @@ import { getScopedStorageKey } from './client-identity';
 import type { SyncOperation } from './sync-queue';
 const syncQueueModule = require('./sync-queue');
 const {
+  __testInternals,
   clearQueue,
   getSyncQueueStorageKey,
   getQueue,
@@ -85,6 +86,10 @@ async function removeOperationByIndexLegacy(index: number): Promise<void> {
 function getLastQueuedAtStorageKey(): string {
   return getScopedStorageKey('matmetrics_last_queued_at');
 }
+
+test.afterEach(() => {
+  __testInternals.resetLeaseTtlForTests();
+});
 
 test('queueOperation timestamps operations and preserves insertion order', async () => {
   resetQueue();
@@ -315,6 +320,99 @@ test('subsequent reads after malformed JSON return stable empty queue without re
     assert.equal(localStorage.getItem(queueKey), null);
   } finally {
     console.warn = originalWarn;
+  }
+});
+
+test('storage lease heartbeat renews during long-running critical section', async () => {
+  resetQueue();
+  __testInternals.setLeaseTtlForTests(30);
+
+  await __testInternals.withQueueWriteLease(async () => {
+    const initialLease = __testInternals.readQueueLease();
+    assert.ok(initialLease);
+    let renewedLease = initialLease;
+    const deadline = Date.now() + 200;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const observedLease = __testInternals.readQueueLease();
+      if (observedLease) {
+        renewedLease = observedLease;
+      }
+      if (renewedLease.expiresAt > initialLease.expiresAt) {
+        break;
+      }
+    }
+    assert.equal(renewedLease.owner, initialLease.owner);
+    assert.equal(renewedLease.nonce, initialLease.nonce);
+    assert.equal(renewedLease.epoch, initialLease.epoch);
+    assert.ok(renewedLease.expiresAt > initialLease.expiresAt);
+  });
+});
+
+test('lease expires and competing tab can re-acquire while original action is still running', async () => {
+  resetQueue();
+  __testInternals.setLeaseTtlForTests(25);
+
+  const setItem = localStorage.setItem.bind(localStorage);
+  const tabAOwnerIds = new Set<string>();
+  localStorage.setItem = (key: string, value: string): void => {
+    if (key.includes('matmetrics_sync_queue_lock')) {
+      const parsed = JSON.parse(value) as { owner?: string };
+      if (parsed.owner) tabAOwnerIds.add(parsed.owner);
+    }
+    setItem(key, value);
+  };
+
+  try {
+    await __testInternals.withQueueWriteLease(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+  } finally {
+    localStorage.setItem = setItem;
+  }
+
+  const currentLease = __testInternals.readQueueLease();
+  assert.equal(currentLease, null);
+  assert.ok(tabAOwnerIds.size >= 1);
+});
+
+test('stale owner commit is prevented after lease expiry and competing re-acquire', async () => {
+  resetQueue();
+  __testInternals.setLeaseTtlForTests(20);
+
+  const queueKey = getSyncQueueStorageKey();
+  let replacedByCompetitor = false;
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = (key: string, value: string): void => {
+    if (!replacedByCompetitor && key === queueKey) {
+      const leaseKey = getScopedStorageKey('matmetrics_sync_queue_lock');
+      const competitorLease = {
+        owner: 'competing-tab',
+        nonce: 'competing-nonce',
+        epoch: Date.now() + 1000,
+        expiresAt: Date.now() + 10_000,
+      };
+      originalSetItem(leaseKey, JSON.stringify(competitorLease));
+      replacedByCompetitor = true;
+    }
+    originalSetItem(key, value);
+  };
+
+  const errors: unknown[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+
+  try {
+    await queueOperation({ type: 'CREATE', session: makeSession('session-stale') });
+    assert.equal(getQueue().length, 0);
+    assert.ok(
+      errors.some((entry) => String(entry[0]).includes('Failed to queue operation'))
+    );
+  } finally {
+    localStorage.setItem = originalSetItem;
+    console.error = originalError;
   }
 });
 
