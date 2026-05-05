@@ -15,9 +15,9 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { isDuplicateSessionIdError } from '@/lib/file-storage';
+import { validateSessionPayload } from '@/lib/session-validation';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
-import { isBlockedNetworkHostname } from '@/lib/network-safety';
 
 // TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
 // between this TypeScript route handler and the Go backend
