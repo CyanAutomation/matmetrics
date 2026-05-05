@@ -14,8 +14,8 @@ test('TS validator matches shared fixtures', async (t) => {
   for (const fixture of fixtures) {
     await t.test(fixture.name, () => {
       const result = validateSessionPayload(fixture.session, { generateIdWhenMissing: false });
-      const error = result.ok ? '' : result.error.toLowerCase();
-      assert.equal(error, fixture.error.toLowerCase());
+      const error = result.ok ? '' : result.error;
+      assert.equal(error, fixture.error);
     });
   }
 });
