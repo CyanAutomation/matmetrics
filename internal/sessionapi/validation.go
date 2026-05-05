@@ -16,14 +16,6 @@ const maxSessionIDLength = 100
 
 var safeSessionIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-// TODO(P4): Validation logic is duplicated between this Go backend and
-// src/app/api/sessions/[id]/route.ts (TypeScript). With P6 (dual backend
-// support), both paths exist. See:
-// https://github.com/CyanAutomation/matmetrics/issues/XXX
-// A future refactor should consolidate validation into a shared layer or
-// remove the TypeScript-side validation entirely when Go is the primary
-// backend for session mutations.
-
 func ValidateSession(session model.Session) error {
 	if err := validateSessionID(session.ID); err != nil {
 		return err
@@ -31,14 +23,14 @@ func ValidateSession(session model.Session) error {
 	if strings.TrimSpace(session.Date) == "" {
 		return fmt.Errorf("missing required field: date")
 	}
+	if !regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`).MatchString(session.Date) {
+		return fmt.Errorf("invalid date: expected YYYY-MM-DD format")
+	}
 	if _, err := time.Parse("2006-01-02", session.Date); err != nil {
 		return fmt.Errorf("invalid date: must be a real calendar date")
 	}
-	if len(session.Date) != 10 {
-		return fmt.Errorf("invalid date: must be a real calendar date")
-	}
 	if session.Effort < 1 || session.Effort > 5 {
-		return fmt.Errorf("invalid effort level (must be 1-5)")
+		return fmt.Errorf("invalid effort level (must be an integer 1-5)")
 	}
 	switch session.Category {
 	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai:
@@ -64,46 +56,33 @@ func validateSessionID(value string) error {
 	if trimmedID == "" {
 		return fmt.Errorf("missing required field: id")
 	}
-
 	if len(trimmedID) > maxSessionIDLength {
 		return fmt.Errorf("invalid id: exceeds maximum length of %d characters", maxSessionIDLength)
 	}
-
 	if !safeSessionIDPattern.MatchString(trimmedID) {
 		return fmt.Errorf("invalid id: contains invalid characters; only letters, digits, \"-\" and \"_\" are allowed")
 	}
-
 	return nil
 }
 
 func validateOptionalVideoURL(value string) error {
 	trimmed := strings.TrimSpace(value)
-	if value == "" {
+	if trimmed == "" {
 		return nil
 	}
-	if trimmed == "" {
-		return fmt.Errorf("invalid videoUrl: expected a valid absolute URL")
-	}
-
 	parsedURL, err := url.Parse(trimmed)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 		return fmt.Errorf("invalid videoUrl: expected a valid absolute URL")
 	}
-
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 		return fmt.Errorf("invalid videoUrl: protocol must be http or https")
 	}
-
-	host := parsedURL.Hostname()
-	if isDisallowedVideoHost(host) {
+	if isDisallowedVideoHost(parsedURL.Hostname()) {
 		return fmt.Errorf("invalid videoUrl: private or internal network addresses are not allowed")
 	}
-
 	return nil
 }
 
 var lookupIP = net.LookupIP
 
-func isDisallowedVideoHost(host string) bool {
-	return networkvalidator.IsDisallowedVideoHost(host, lookupIP)
-}
+func isDisallowedVideoHost(host string) bool { return networkvalidator.IsDisallowedVideoHost(host, lookupIP) }

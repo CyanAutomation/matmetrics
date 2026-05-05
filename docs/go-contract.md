@@ -16,6 +16,35 @@ This document freezes the cross-language contract between the existing TypeScrip
 - `duration?: number` (session duration in minutes)
 - `videoUrl?: string` (optional absolute `http://` or `https://` URL to a session video; empty or whitespace-only values are normalized to omitted)
 
+
+## Canonical Validation Contract
+
+All session mutation paths (TypeScript routes in `src/app/api/sessions/*` and Go handlers in `api/go/sessions/*`) MUST apply identical validation semantics and error messages through shared fixtures in `testdata/validation/session-validation-fixtures.json`.
+
+Validation rules:
+
+- `id`
+  - Create route: missing/`null` id is auto-generated.
+  - Update/proxy/go mutation: id is required and trimmed; empty fails with `missing required field: id`.
+  - Max length 100; pattern `^[A-Za-z0-9_-]+$`.
+- `date`
+  - Required, format must match `YYYY-MM-DD` exactly or fail with `invalid date: expected YYYY-MM-DD format`.
+  - Calendar-invalid dates fail with `invalid date: must be a real calendar date`.
+- `effort`
+  - Must be integer in range 1..5 or fail with `invalid effort level (must be an integer 1-5)`.
+- `category`
+  - Must be one of `Technical`, `Randori`, `Shiai`; else `invalid category`.
+- `techniques`
+  - Must be array of strings; each item is trimmed and non-empty, with index-specific errors like `invalid techniques[0]: value cannot be empty`.
+  - Values are deduplicated after trimming in TS route persistence.
+- `description`, `notes`
+  - Optional; if present must be strings.
+- `duration`
+  - Optional; if present must be a non-negative integer.
+- `videoUrl`
+  - Optional; empty/whitespace-only values are normalized to omitted.
+  - Non-empty values must be absolute HTTP(S) URLs and must not target private/internal hosts.
+
 ## Markdown format
 
 Each session markdown file must use YAML frontmatter followed by fixed headings. Frontmatter is canonical; the title is informational.
