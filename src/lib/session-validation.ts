@@ -32,7 +32,7 @@ function validateSessionId(value: unknown, generateWhenMissing: boolean): { ok: 
   }
   if (typeof value !== 'string') return { ok: false, error: 'Invalid id: expected a string' };
   const trimmed = value.trim();
-  if (!trimmed) return { ok: false, error: 'Invalid id: expected a non-empty string' };
+  if (!trimmed) return { ok: false, error: 'Missing required field: id' };
   if (trimmed.length > MAX_SESSION_ID_LENGTH) return { ok: false, error: `Invalid id: exceeds maximum length of ${MAX_SESSION_ID_LENGTH} characters` };
   if (!SAFE_SESSION_ID_PATTERN.test(trimmed)) return { ok: false, error: 'Invalid id: contains invalid characters; only letters, digits, "-" and "_" are allowed' };
   return { ok: true, value: trimmed };
