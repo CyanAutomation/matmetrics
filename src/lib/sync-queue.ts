@@ -14,7 +14,8 @@ const SYNC_QUEUE_KEY_BASE = 'matmetrics_sync_queue';
 const SYNC_QUEUE_QUARANTINE_KEY_SUFFIX = '__corrupt_backup';
 const SYNC_QUEUE_LOCK_KEY_BASE = 'matmetrics_sync_queue_lock';
 const SYNC_QUEUE_LOCK_NAME = 'matmetrics-sync-queue';
-const SYNC_QUEUE_LEASE_TTL_MS = 1500;
+const DEFAULT_SYNC_QUEUE_LEASE_TTL_MS = 5000;
+let syncQueueLeaseTtlMs = DEFAULT_SYNC_QUEUE_LEASE_TTL_MS;
 const SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS = 7;
 const SYNC_QUEUE_LOCK_BACKOFF_MIN_MS = 4;
 const SYNC_QUEUE_LOCK_BACKOFF_MAX_MS = 20;
@@ -379,6 +380,49 @@ function releaseQueueLease(): void {
   activeQueueLease = null;
 }
 
+function getActiveStorageQueueLease(): ActiveQueueLease & {
+  mode: 'storage';
+} {
+  if (!activeQueueLease || activeQueueLease.mode !== 'storage') {
+    throw new Error('No active storage lease');
+  }
+
+  return activeQueueLease;
+}
+
+function ensureActiveStorageLeaseOwnership(): void {
+  if (!activeQueueLease || activeQueueLease.mode !== 'storage') {
+    return;
+  }
+
+  const lease = readQueueLease();
+  if (
+    !lease ||
+    lease.owner !== activeQueueLease.owner ||
+    lease.nonce !== activeQueueLease.nonce ||
+    lease.epoch !== activeQueueLease.epoch ||
+    lease.expiresAt <= Date.now()
+  ) {
+    throw new Error('Storage lease is no longer owned by current tab');
+  }
+}
+
+function renewActiveStorageQueueLease(): void {
+  const storageLease = getActiveStorageQueueLease();
+  ensureActiveStorageLeaseOwnership();
+  const renewedLease: QueueWriteLease = {
+    owner: storageLease.owner,
+    nonce: storageLease.nonce,
+    epoch: storageLease.epoch,
+    expiresAt: Date.now() + syncQueueLeaseTtlMs,
+  };
+  localStorage.setItem(
+    getSyncQueueLockStorageKey(),
+    JSON.stringify(renewedLease)
+  );
+  ensureActiveStorageLeaseOwnership();
+}
+
 async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
   if (
     typeof navigator === 'undefined' ||
@@ -444,7 +488,7 @@ async function acquireQueueWriteLease(): Promise<boolean> {
     }
     const nextLease: QueueWriteLease = {
       owner: queueOwnerId,
-      expiresAt: now + SYNC_QUEUE_LEASE_TTL_MS,
+      expiresAt: now + syncQueueLeaseTtlMs,
       nonce: createQueueLeaseNonce(),
       epoch: Math.max(
         (existingLease?.epoch ?? 0) + 1,
@@ -493,9 +537,22 @@ async function withQueueWriteLease(action: () => void | Promise<void>): Promise<
   if (!acquired) {
     throw new Error('Failed to acquire sync queue write lease');
   }
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  if (activeQueueLease?.mode === 'storage') {
+    heartbeatTimer = setInterval(() => {
+      try {
+        renewActiveStorageQueueLease();
+      } catch {
+        // Action path will fail on next lease verification before commit.
+      }
+    }, Math.max(25, Math.floor(syncQueueLeaseTtlMs / 3)));
+  }
   try {
     await action();
   } finally {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+    }
     releaseQueueLease();
   }
 }
@@ -529,6 +586,7 @@ function writeQueueWithLatestMerge(
   nextQueue: SyncOperationInput[],
   baseQueue?: SyncOperationInput[]
 ): void {
+  ensureActiveStorageLeaseOwnership();
   const latestQueue = readQueueFromStorage();
   const normalizedNextQueue = dedupeOperations(nextQueue);
   const normalizedBaseQueue = baseQueue
@@ -584,12 +642,31 @@ function writeQueueWithLatestMerge(
     : normalizedNextQueue;
 
   if (mergedQueue.length === 0) {
+    ensureActiveStorageLeaseOwnership();
     localStorage.removeItem(getSyncQueueStorageKey());
     return;
   }
 
+  ensureActiveStorageLeaseOwnership();
   localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(mergedQueue));
+  try {
+    ensureActiveStorageLeaseOwnership();
+  } catch (error) {
+    localStorage.removeItem(getSyncQueueStorageKey());
+    throw error;
+  }
 }
+
+export const __testInternals = {
+  withQueueWriteLease,
+  readQueueLease,
+  setLeaseTtlForTests(ttlMs: number): void {
+    syncQueueLeaseTtlMs = ttlMs;
+  },
+  resetLeaseTtlForTests(): void {
+    syncQueueLeaseTtlMs = DEFAULT_SYNC_QUEUE_LEASE_TTL_MS;
+  },
+};
 
 /**
  * Add an operation to the sync queue (called when offline)
