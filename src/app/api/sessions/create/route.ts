@@ -13,6 +13,15 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { validateSessionPayload } from '@/lib/session-validation';
 
+const CREATE_CONFLICT_SIGNATURES = [
+  'already exists',
+  'session id conflict',
+  'duplicate',
+];
+
+const CREATE_CONFLICT_ERROR =
+  'Session already exists for this date. Please edit the existing session or choose a different date.';
+
 /**
  * POST /api/sessions/create
  * Create a new session and save it as a markdown file
