@@ -152,6 +152,39 @@ test('PUT updates local markdown storage when GitHub is not configured', async (
   });
 });
 
+test('PUT updates local markdown storage when body omits id', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'put-local-id-omit-body-id';
+      await createLocalSession(makeSession(sessionId, '2025-01-10'));
+
+      const response = await PUT(
+        new NextRequest(`http://localhost/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: {
+            authorization: 'Bearer test-token',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            date: '2025-01-10',
+            effort: 4,
+            category: 'Technical',
+            techniques: ['osoto-gari'],
+            notes: 'updated without body id',
+          }),
+        }),
+        { params: Promise.resolve({ id: sessionId }) }
+      );
+
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.id, sessionId);
+      assert.equal(payload.notes, 'updated without body id');
+      assert.deepEqual(payload.techniques, ['osoto-gari']);
+    });
+  });
+});
+
 test('PUT returns 409 when local storage has duplicate files for the same session ID', async () => {
   await withStoredGitHubConfig('null', async () => {
     await withTempDataDir(async () => {
@@ -668,17 +701,6 @@ test('PUT returns 400 when request body is not a JSON object', async (t) => {
 test('PUT returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
-      name: 'missing id field',
-      sessionId: 'put-missing-id',
-      body: {
-        date: '2025-01-10',
-        effort: 3,
-        category: 'Technical',
-        techniques: ['uchi-mata'],
-      },
-      error: 'Session ID mismatch',
-    },
-    {
       name: 'missing techniques field',
       sessionId: 'put-missing-techniques',
       body: {
@@ -688,6 +710,18 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
         category: 'Technical',
       },
       error: 'Invalid techniques: expected an array of non-empty strings',
+    },
+    {
+      name: 'id mismatch',
+      sessionId: 'put-id-mismatch',
+      body: {
+        id: 'different-id',
+        date: '2025-01-10',
+        effort: 3,
+        category: 'Technical',
+        techniques: ['uchi-mata'],
+      },
+      error: 'Session ID mismatch',
     },
     {
       name: 'techniques element type',
