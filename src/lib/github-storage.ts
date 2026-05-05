@@ -119,7 +119,13 @@ function getDefaultBranchCacheKey(owner: string, repo: string): string {
 }
 
 function invalidateDefaultBranchCache(owner: string, repo: string): void {
-  defaultBranchCache.delete(getDefaultBranchCacheKey(owner, repo));
+  const cacheKey = getDefaultBranchCacheKey(owner, repo);
+  const cachedBranch = defaultBranchCache.get(cacheKey);
+  defaultBranchCache.delete(cacheKey);
+  invalidateManifestScopeForBranch(owner, repo, DEFAULT_MANIFEST_SCOPE);
+  if (cachedBranch) {
+    invalidateManifestScopeForBranch(owner, repo, cachedBranch.branch);
+  }
 }
 
 export function __resetDefaultBranchCacheForTests(): void {
@@ -128,7 +134,27 @@ export function __resetDefaultBranchCacheForTests(): void {
 
 // P3: Manifest cache helpers
 function getManifestScopeKey(config: GitHubConfig): string {
-  return `${getDefaultBranchCacheKey(config.owner, config.repo)}:${config.branch?.trim() || DEFAULT_MANIFEST_SCOPE}`;
+  return getManifestScopeKeyForBranch(
+    config.owner,
+    config.repo,
+    config.branch?.trim() || DEFAULT_MANIFEST_SCOPE
+  );
+}
+
+function getManifestScopeKeyForBranch(
+  owner: string,
+  repo: string,
+  branchScope: string
+): string {
+  return `${getDefaultBranchCacheKey(owner, repo)}:${branchScope}`;
+}
+
+function invalidateManifestScopeForBranch(
+  owner: string,
+  repo: string,
+  branchScope: string
+): void {
+  manifestCache.delete(getManifestScopeKeyForBranch(owner, repo, branchScope));
 }
 
 function loadManifest(config: GitHubConfig): SessionManifest {
@@ -414,9 +440,9 @@ async function resolveBranch(
   }
 
   const cacheKey = getDefaultBranchCacheKey(config.owner, config.repo);
+  const cachedBranch = defaultBranchCache.get(cacheKey);
 
   if (!options?.forceRefresh) {
-    const cachedBranch = defaultBranchCache.get(cacheKey);
     if (cachedBranch) {
       const ageMs = Date.now() - cachedBranch.cachedAt;
       if (ageMs < DEFAULT_BRANCH_CACHE_TTL_MS) {
@@ -442,6 +468,24 @@ async function resolveBranch(
       branch: defaultBranch,
       cachedAt: Date.now(),
     });
+
+    if (
+      options?.forceRefresh &&
+      cachedBranch &&
+      cachedBranch.branch !== defaultBranch
+    ) {
+      invalidateManifestScopeForBranch(
+        config.owner,
+        config.repo,
+        DEFAULT_MANIFEST_SCOPE
+      );
+      invalidateManifestScopeForBranch(
+        config.owner,
+        config.repo,
+        cachedBranch.branch
+      );
+    }
+
     return defaultBranch;
   } catch (error) {
     const errorMessage =
@@ -505,13 +549,25 @@ export async function findSessionPathOnGitHubById(
   sessionId: string,
   config: GitHubConfig
 ): Promise<string | null> {
+  const branch = await resolveBranch(config);
+
   // P3: Check manifest cache first
   const manifestEntry = getManifestEntry(sessionId, config);
   if (manifestEntry) {
-    return manifestEntry.path;
+    const manifestSha = await getFileSha(
+      config.owner,
+      config.repo,
+      manifestEntry.path,
+      branch
+    );
+
+    if (manifestSha) {
+      return manifestEntry.path;
+    }
+
+    removeManifestEntry(sessionId, config);
   }
 
-  const branch = await resolveBranch(config);
   const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
   const sessionEntries = await getTreeEntriesForPath(
     config.owner,

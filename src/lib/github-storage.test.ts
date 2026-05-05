@@ -232,6 +232,197 @@ test('findSessionPathOnGitHubById does not reuse manifest entries across branche
   );
 });
 
+test('findSessionPathOnGitHubById evicts stale manifest entry and falls back to tree scan', async () => {
+  let treeCalls = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+
+      if (path === '/repos/o/r/git/ref/heads/main') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-main', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-main') {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-main' } }), {
+          status: 200,
+        });
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-main') {
+        treeCalls++;
+        return new Response(
+          JSON.stringify({
+            truncated: false,
+            tree: [
+              {
+                path: 'data/2025/03/20250314-matmetrics-fresh.md',
+                type: 'blob',
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (
+        path === '/repos/o/r/contents/data/2025/03/20250314-matmetrics-stale.md'
+      ) {
+        return new Response(JSON.stringify({ message: 'Not Found' }), {
+          status: 404,
+        });
+      }
+
+      return new Response(JSON.stringify({ message: `Unexpected path: ${path}` }), {
+        status: 500,
+      });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r', branch: 'main' };
+
+      const stalePath = await findSessionPathOnGitHubById('stale', config);
+      assert.equal(stalePath, null);
+
+      const freshPath = await findSessionPathOnGitHubById('fresh', config);
+      assert.equal(freshPath, 'data/2025/03/20250314-matmetrics-fresh.md');
+      assert.equal(treeCalls, 2);
+    }
+  );
+});
+
+test('default branch refresh invalidates prior-branch manifest scope', async () => {
+  let repoLookupCount = 0;
+  let treeMainCalls = 0;
+  let treeTrunkCalls = 0;
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      const path = parsed.pathname;
+
+      if (path === '/repos/o/r') {
+        repoLookupCount++;
+        return new Response(
+          JSON.stringify({
+            default_branch: repoLookupCount === 1 ? 'main' : 'trunk',
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-shared.md' &&
+        (init?.method ?? 'GET') === 'GET'
+      ) {
+        const ref = parsed.searchParams.get('ref');
+        if (ref === 'main') {
+          return new Response(JSON.stringify({ message: 'Not Found' }), {
+            status: 404,
+          });
+        }
+
+        if (ref === 'trunk') {
+          return new Response(JSON.stringify({ message: 'Not Found' }), {
+            status: 404,
+          });
+        }
+      }
+
+      if (path === '/repos/o/r/git/ref/heads/main') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-main', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/ref/heads/trunk') {
+        return new Response(
+          JSON.stringify({ object: { sha: 'commit-trunk', type: 'commit' } }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-main') {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-main' } }), {
+          status: 200,
+        });
+      }
+
+      if (path === '/repos/o/r/git/commits/commit-trunk') {
+        return new Response(JSON.stringify({ tree: { sha: 'tree-trunk' } }), {
+          status: 200,
+        });
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-main') {
+        treeMainCalls++;
+        return new Response(
+          JSON.stringify({
+            truncated: false,
+            tree: [
+              {
+                path: 'data/2025/03/20250314-matmetrics-shared.md',
+                type: 'blob',
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (path === '/repos/o/r/git/trees/tree-trunk') {
+        treeTrunkCalls++;
+        return new Response(JSON.stringify({ truncated: false, tree: [] }), {
+          status: 200,
+        });
+      }
+
+      if (
+        path ===
+          '/repos/o/r/contents/data/2025/03/20250314-matmetrics-trigger.md' &&
+        (init?.method ?? 'GET') === 'PUT'
+      ) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { branch: string };
+        if (body.branch === 'main') {
+          return new Response(
+            JSON.stringify({
+              message: 'Invalid request.\n\nNo commit found for the ref main',
+            }),
+            { status: 422 }
+          );
+        }
+
+        return new Response(JSON.stringify({ content: { sha: 'sha-trigger' } }), {
+          status: 200,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ message: `Unexpected request: ${init?.method ?? 'GET'} ${path}` }),
+        { status: 500 }
+      );
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r' };
+
+      const mainPath = await findSessionPathOnGitHubById('shared', config);
+      assert.equal(mainPath, 'data/2025/03/20250314-matmetrics-shared.md');
+
+      await createSessionOnGitHub(makeSession('trigger'), config);
+
+      const trunkPath = await findSessionPathOnGitHubById('shared', config);
+      assert.equal(trunkPath, 'data/2025/03/20250314-matmetrics-shared.md');
+      assert.ok(treeMainCalls >= 1);
+      assert.equal(treeTrunkCalls, 0);
+    }
+  );
+});
+
 test('findSessionPathOnGitHubById surfaces non-404 GitHub errors', async () => {
   await withMockedGitHub(
     (async (url: string | URL | Request) => {
