@@ -45,6 +45,9 @@ function makeRow(overrides: Partial<VideoLibraryRow> = {}): VideoLibraryRow {
     isCheckable: true,
     isChecked: false,
     missingVideoExpected: false,
+    displayTitle: '2026-03-29 Technical session',
+    thumbnailUrl: null,
+    provider: 'youtube.com',
     searchText: '2026-03-29 technical youtube.com uchi-mata',
     ...overrides,
   };
