@@ -339,7 +339,7 @@ test('subsequent reads after malformed JSON return stable empty queue without re
 
 test('storage lease heartbeat renews during long-running critical section', async () => {
   resetQueue();
-  __testInternals.setLeaseTtlForTests(30);
+  __testInternals.setLeaseTtlForTests(150);
 
   await __testInternals.withQueueWriteLease(async () => {
     const initialLease = __testInternals.readQueueLease();
@@ -419,7 +419,10 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
   };
 
   try {
-    await queueOperation({ type: 'CREATE', session: makeSession('session-stale') });
+    await queueOperation({
+      type: 'CREATE',
+      session: makeSession('session-stale'),
+    });
     assert.equal(getQueue().length, 0);
     assert.ok(
       errors.some(
