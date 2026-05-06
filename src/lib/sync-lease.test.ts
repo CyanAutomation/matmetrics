@@ -73,6 +73,14 @@ Object.defineProperty(global, 'window', {
   value: windowMock,
 });
 
+// Disable navigator.locks in the test environment so tests use storage-based acquisition
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'locks', {
+    value: undefined,
+    configurable: true,
+  });
+}
+
 test('sync-lease module', async (t) => {
   await t.test('randomBackoffMs', async (t) => {
     await t.test('returns a value within expected range', () => {
