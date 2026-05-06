@@ -315,10 +315,13 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     // Track contender stability across observations
     if (contenderSignature && contenderSignature === stableContenderSignature) {
       stableContenderObservations += 1;
+      console.log(`[attempt ${attempt}] signature MATCHED (${contenderSignature})`);
     } else if (contenderSignature) {
+      console.log(`[attempt ${attempt}] signature CHANGED: old=${stableContenderSignature}, new=${contenderSignature}`);
       stableContenderSignature = contenderSignature;
       stableContenderObservations = 1;
     } else {
+      console.log(`[attempt ${attempt}] NO signature (no competing lease)`);
       stableContenderSignature = null;
       stableContenderObservations = 0;
     }
@@ -329,6 +332,8 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       stableContenderObservations,
       leaseIsOwnedAndAlive
     );
+
+    console.log(`[attempt ${attempt}] stableObs=${stableContenderObservations}, forcedReclaim=${forcedReclaimAttempt}`);
 
     // If another process owns the lease and we're not forcing reclaim, back off
     if (leaseIsOwnedAndAlive && !forcedReclaimAttempt) {
@@ -409,16 +414,19 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     }
 
     // Try to claim the lease
+    console.log(`[attempt ${attempt}] writing lease with owner=${syncOwnerId}`);
     localStorage.setItem(syncLockStorageKey, JSON.stringify(nextLease));
     await sleep(randomVerifyDelayMs());
 
     // Verify our claim succeeded
     const confirmedLease = readSyncLease();
+    console.log(`[attempt ${attempt}] confirmed: owner=${confirmedLease?.owner}, overwritten=${overwrittenByStorageEvent}`);
     window.removeEventListener('storage', onStorage);
 
     if (
       validateLeaseClaim(confirmedLease, nextLease, overwrittenByStorageEvent)
     ) {
+      console.log(`[attempt ${attempt}] validation PASSED, returning true`);
       activeSyncLease = {
         mode: 'storage',
         owner: nextLease.owner,
@@ -427,6 +435,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       };
       return true;
     }
+    console.log(`[attempt ${attempt}] validation FAILED`);
 
     if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
       await sleep(randomBackoffMs());
