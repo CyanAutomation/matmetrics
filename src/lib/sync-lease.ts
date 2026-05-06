@@ -30,7 +30,10 @@ export type ActiveSyncLease =
       epoch: number;
     };
 
-export type LeaseTakeoverReason = 'expired' | 'forced-reclaim' | 'race-revalidate';
+export type LeaseTakeoverReason =
+  | 'expired'
+  | 'forced-reclaim'
+  | 'race-revalidate';
 
 // ============================================================================
 // Constants
@@ -51,15 +54,21 @@ export const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
 let syncOwnerId = '';
 let syncLockTtlMs = 45_000;
 let getSyncLockStorageKeyFn: (() => string) | null = null;
-let isStorageEventForKeyFn: ((event: StorageEvent, key: string) => boolean) | null = null;
-let emitDiagnosticFn: ((payload: LeaseTakeoverDiagnosticPayload) => void) | null = null;
+let isStorageEventForKeyFn:
+  | ((event: StorageEvent, key: string) => boolean)
+  | null = null;
+let emitDiagnosticFn:
+  | ((payload: LeaseTakeoverDiagnosticPayload) => void)
+  | null = null;
 
 export function initializeSyncLeaseModule(options: {
   syncOwnerId: string;
   syncLockTtlMs: number;
   getSyncLockStorageKey: () => string;
   isStorageEventForKey: (event: StorageEvent, key: string) => boolean;
-  emitLeaseTakeoverDiagnostic?: (payload: LeaseTakeoverDiagnosticPayload) => void;
+  emitLeaseTakeoverDiagnostic?: (
+    payload: LeaseTakeoverDiagnosticPayload
+  ) => void;
 }): void {
   syncOwnerId = options.syncOwnerId;
   syncLockTtlMs = options.syncLockTtlMs;
@@ -100,11 +109,13 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function randomBackoffMs(): number {
+export function randomBackoffMs(
+  randomSource: () => number = Math.random
+): number {
   return (
     SYNC_LOCK_BACKOFF_MIN_MS +
     Math.floor(
-      Math.random() * (SYNC_LOCK_BACKOFF_MAX_MS - SYNC_LOCK_BACKOFF_MIN_MS + 1)
+      randomSource() * (SYNC_LOCK_BACKOFF_MAX_MS - SYNC_LOCK_BACKOFF_MIN_MS + 1)
     )
   );
 }
@@ -197,8 +208,7 @@ function shouldForceReclaim(
   leaseIsAlive: boolean
 ): boolean {
   return (
-    leaseIsAlive &&
-    stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
+    leaseIsAlive && stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
   );
 }
 
@@ -274,7 +284,12 @@ async function tryAcquireNavigatorLock(): Promise<boolean> {
  * Reduces cognitive complexity by extracting core loop and validation logic
  */
 export async function tryAcquireSyncLease(): Promise<boolean> {
-  if (typeof window === 'undefined' || !getSyncLockStorageKeyFn || !isStorageEventForKeyFn || !emitDiagnosticFn) {
+  if (
+    typeof window === 'undefined' ||
+    !getSyncLockStorageKeyFn ||
+    !isStorageEventForKeyFn ||
+    !emitDiagnosticFn
+  ) {
     return false;
   }
 
@@ -292,8 +307,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       observedLease !== null && observedLease.owner !== syncOwnerId;
     const leaseExpired =
       observedLease !== null && observedLease.expiresAt < now;
-    const leaseIsOwnedAndAlive =
-      leaseOwnedByAnother && !leaseExpired;
+    const leaseIsOwnedAndAlive = leaseOwnedByAnother && !leaseExpired;
     const contenderSignature = getContenderSignature(
       leaseOwnedByAnother ? observedLease : null
     );
@@ -313,7 +327,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       leaseOwnedByAnother,
       leaseExpired,
       stableContenderObservations,
-      leaseIsOwnedAndAlive,
+      leaseIsOwnedAndAlive
     );
 
     // If another process owns the lease and we're not forcing reclaim, back off
@@ -402,7 +416,9 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     const confirmedLease = readSyncLease();
     window.removeEventListener('storage', onStorage);
 
-    if (validateLeaseClaim(confirmedLease, nextLease, overwrittenByStorageEvent)) {
+    if (
+      validateLeaseClaim(confirmedLease, nextLease, overwrittenByStorageEvent)
+    ) {
       activeSyncLease = {
         mode: 'storage',
         owner: nextLease.owner,
