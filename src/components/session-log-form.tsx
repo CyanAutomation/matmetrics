@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import {
   Card,
   CardContent,
@@ -31,11 +31,7 @@ import {
   JudoSession,
   SessionCategory,
 } from '@/lib/types';
-import {
-  saveSession,
-  updateSession,
-  getTransformerPrompt,
-} from '@/lib/storage';
+import { saveSession, updateSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { cn, formatLocalDateInputValue } from '@/lib/utils';
 import {
@@ -45,10 +41,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getAuthHeaders } from '@/lib/auth-session';
 import { useAuth } from '@/components/auth-provider';
 import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
+import { useSessionFormAi } from '@/hooks/use-session-form-ai';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -90,18 +86,10 @@ export function SessionLogForm({
   );
   const [notes, setNotes] = useState(sessionToEdit?.notes || '');
   const [videoUrl, setVideoUrl] = useState(sessionToEdit?.videoUrl || '');
-  const [isSuggesting, setIsSuggesting] = useState(false);
-  const [isTransforming, setIsTransforming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const descriptionRef = useRef(description);
-  const transformRequestIdRef = useRef(0);
-  const suggestRequestIdRef = useRef(0);
-  const transformFeedback = useActionFeedback();
-  const suggestFeedback = useActionFeedback();
   const submitFeedback = useActionFeedback();
-  const resetTransformFeedback = transformFeedback.reset;
-  const resetSuggestFeedback = suggestFeedback.reset;
   const resetSubmitFeedback = submitFeedback.reset;
+  const aiForm = useSessionFormAi();
 
   useEffect(() => {
     setDate(sessionToEdit?.date || '');
@@ -113,20 +101,10 @@ export function SessionLogForm({
     setCategory(sessionToEdit?.category || 'Technical');
     setNotes(sessionToEdit?.notes || '');
     setVideoUrl(sessionToEdit?.videoUrl || '');
-    setIsSuggesting(false);
-    setIsTransforming(false);
     setIsSubmitting(false);
-    transformRequestIdRef.current += 1;
-    suggestRequestIdRef.current += 1;
-    resetTransformFeedback();
-    resetSuggestFeedback();
+    aiForm.reset();
     resetSubmitFeedback();
-  }, [
-    sessionToEdit,
-    resetTransformFeedback,
-    resetSuggestFeedback,
-    resetSubmitFeedback,
-  ]);
+  }, [sessionToEdit, aiForm, resetSubmitFeedback]);
 
   useEffect(() => {
     if (!date && !isEditing) {
@@ -134,9 +112,7 @@ export function SessionLogForm({
     }
   }, [date, isEditing]);
 
-  useEffect(() => {
-    descriptionRef.current = description;
-  }, [description]);
+
 
   const handleAddTech = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -151,153 +127,19 @@ export function SessionLogForm({
   };
 
   const handleTransform = async () => {
-    if (!canUseAi) {
-      toast({
-        title: 'Sign-in required',
-        description: authAvailable
-          ? 'AI description transforms are available after sign-in.'
-          : 'AI description transforms are unavailable because authentication is not configured.',
-      });
-      return;
-    }
-
-    if (!description.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Nothing to transform',
-        description: 'Please write a draft of what you practiced first.',
-      });
-      return;
-    }
-
-    transformFeedback.startLoading();
-    setIsTransforming(true);
-    const requestId = ++transformRequestIdRef.current;
-    const submittedDescription = description;
-    try {
-      const customPrompt = getTransformerPrompt();
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/ai/transform-description', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          description,
-          customPrompt,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to transform description');
-      }
-      const result = await response.json();
-      if (
-        requestId !== transformRequestIdRef.current ||
-        descriptionRef.current !== submittedDescription
-      ) {
-        return;
-      }
-      setDescription(result.transformedDescription);
-      transformFeedback.showSuccess();
-      toast({
-        title: 'Description Refined',
-        description:
-          'AI has polished your training notes based on your prompt settings.',
-      });
-    } catch {
-      transformFeedback.showError();
-      toast({
-        variant: 'destructive',
-        title: 'Transformation Failed',
-        description: 'There was an error refining your description.',
-      });
-    } finally {
-      setIsTransforming(false);
-    }
+    await aiForm.transform(description, (transformedDescription) => {
+      setDescription(transformedDescription);
+    });
   };
 
   const handleSuggest = async () => {
-    if (!canUseAi) {
-      toast({
-        title: 'Sign-in required',
-        description: authAvailable
-          ? 'AI tag suggestions are available after sign-in.'
-          : 'AI tag suggestions are unavailable because authentication is not configured.',
+    await aiForm.suggest(description, techniques, (suggestions) => {
+      setTechniques((previousTechniques) => {
+        const merged = new Set(previousTechniques);
+        suggestions.forEach((technique) => merged.add(technique));
+        return Array.from(merged);
       });
-      return;
-    }
-
-    if (!description.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing description',
-        description: 'Please write what you practiced to get suggestions.',
-      });
-      return;
-    }
-
-    suggestFeedback.startLoading();
-    setIsSuggesting(true);
-    const requestId = ++suggestRequestIdRef.current;
-    const submittedDescription = description;
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/ai/suggest-techniques', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ description }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to suggest techniques');
-      }
-      const payload = await response.json();
-      const suggestions: string[] = Array.isArray(payload.suggestions)
-        ? payload.suggestions.filter(
-            (suggestion: unknown): suggestion is string =>
-              typeof suggestion === 'string'
-          )
-        : [];
-      const uniqueNew = suggestions.filter(
-        (suggestion) => !techniques.includes(suggestion)
-      );
-      if (
-        requestId !== suggestRequestIdRef.current ||
-        descriptionRef.current !== submittedDescription
-      ) {
-        return;
-      }
-      if (uniqueNew.length > 0) {
-        setTechniques((previousTechniques) => {
-          const merged = new Set(previousTechniques);
-          uniqueNew.forEach((technique) => merged.add(technique));
-          return Array.from(merged);
-        });
-        suggestFeedback.showSuccess();
-        toast({
-          title: 'AI Suggestions Added',
-          description: `Identified ${uniqueNew.length} techniques from your description.`,
-        });
-      } else {
-        suggestFeedback.reset();
-        toast({
-          description:
-            suggestions.length > 0
-              ? 'All suggested techniques are already tagged.'
-              : "AI couldn't identify specific techniques.",
-        });
-      }
-    } catch {
-      suggestFeedback.showError();
-      toast({
-        variant: 'destructive',
-        title: 'AI Suggestion Failed',
-        description: 'There was an error connecting to the AI helper.',
-      });
-    } finally {
-      setIsSuggesting(false);
-    }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -601,14 +443,14 @@ export function SessionLogForm({
                 onClick={handleTransform}
                 interaction="subtle"
                 feedbackState={
-                  isTransforming ? 'loading' : transformFeedback.feedbackState
+                  aiForm.isLoadingTransform ? 'loading' : 'idle'
                 }
                 disabled={
-                  !canUseAi || isTransforming || isSubmitting || !description
+                  !canUseAi || aiForm.isLoadingTransform || isSubmitting || !description
                 }
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
               >
-                {isTransforming ? (
+                {aiForm.isLoadingTransform ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Wand2 className="h-3.5 w-3.5" />
@@ -665,14 +507,14 @@ export function SessionLogForm({
                   size="sm"
                   onClick={handleSuggest}
                   feedbackState={
-                    isSuggesting ? 'loading' : suggestFeedback.feedbackState
+                    aiForm.isLoadingSuggest ? 'loading' : 'idle'
                   }
                   disabled={
-                    !canUseAi || isSuggesting || isSubmitting || !description
+                    !canUseAi || aiForm.isLoadingSuggest || isSubmitting || !description
                   }
                   className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
                 >
-                  {isSuggesting ? (
+                  {aiForm.isLoadingSuggest ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <Sparkles className="h-3 w-3" />
