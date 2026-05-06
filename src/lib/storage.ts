@@ -533,10 +533,6 @@ async function tryAcquireSyncLease(): Promise<boolean> {
       observedLease &&
       observedLease.owner !== syncOwnerId &&
       observedLease.expiresAt >= now;
-    const leaseIsExpired =
-      observedLease &&
-      observedLease.owner !== syncOwnerId &&
-      observedLease.expiresAt < now;
     if (leaseIsOwnedAndAlive) {
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());

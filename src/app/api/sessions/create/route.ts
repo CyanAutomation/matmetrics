@@ -13,14 +13,8 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { validateSessionPayload } from '@/lib/session-validation';
 
-const CREATE_CONFLICT_SIGNATURES = [
-  'already exists',
-  'session id conflict',
-  'duplicate',
-];
-
 const CREATE_CONFLICT_ERROR =
-  'Session already exists for this date. Please edit the existing session or choose a different date.';
+  'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
 
 /**
  * POST /api/sessions/create
@@ -85,11 +79,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error ?? '');
-    const isConflictError = CREATE_CONFLICT_SIGNATURES.some((signature) =>
-      errorMessage.toLowerCase().includes(signature.toLowerCase())
-    );
-
-    if (isConflictError) {
+    
+    if (errorMessage.includes('already exists')) {
       return NextResponse.json(
         {
           error: CREATE_CONFLICT_ERROR,
