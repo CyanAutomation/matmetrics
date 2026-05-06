@@ -2,17 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getScopedStorageKey } from './client-identity';
 import type { SyncOperation } from './sync-queue';
-const syncQueueModule = require('./sync-queue');
-const {
-  __testInternals,
-  clearQueue,
-  getSyncQueueStorageKey,
-  getQueue,
-  queueOperation,
-  removeOperationByIdentity,
-  setQueue,
-} = syncQueueModule;
-import type { JudoSession } from './types';
 
 class LocalStorageMock implements Storage {
   private store = new Map<string, string>();
@@ -43,8 +32,33 @@ class LocalStorageMock implements Storage {
 }
 
 const localStorageMock = new LocalStorageMock();
+// Ensure the same localStorage instance is used everywhere
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+Object.defineProperty(global, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
 (globalThis as any).window = globalThis;
-(globalThis as any).localStorage = localStorageMock;
+// Ensure navigator is set up so navigator.locks falls through to storage-based locking
+if (typeof globalThis.navigator === 'undefined') {
+  (globalThis as any).navigator = {};
+}
+
+// NOW require the sync-queue module AFTER localStorage is set up
+const syncQueueModule = require('./sync-queue');
+const {
+  __testInternals,
+  clearQueue,
+  getSyncQueueStorageKey,
+  getQueue,
+  queueOperation,
+  removeOperationByIdentity,
+  setQueue,
+} = syncQueueModule;
+import type { JudoSession } from './types';
 
 function makeSession(id: string): JudoSession {
   return {
