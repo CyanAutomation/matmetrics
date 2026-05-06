@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-30T12:29:33.735Z",
+  "generatedAt": "2026-05-06T21:33:41.057Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
   "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "2773b1d13adf6bf19a83613b7848a13895178520d59389fbbee8880deaf814b5",
+  "cacheKey": "6d7cb987622e09e6138886c1b5ce18ecc2a605c0214081e9305c74c790346d79",
   "plugins": [
     {
       "id": "github-sync",
@@ -10,7 +10,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "9f7abd263c247a2488b393abb133c0be66070a1c512ec38278a882cb11a22eb7"
+      "manifestEvidenceHash": "6b0a07fe3284ed17352ffcd042e9dee12725b4ce3ddcb3ab4f9539017f586d44"
     },
     {
       "id": "log-doctor",
@@ -18,7 +18,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-29",
-      "manifestEvidenceHash": "faf58ddf30dfb6d737354a81bb01f5927198e35bd32669205ac2ac540437051b"
+      "manifestEvidenceHash": "a1786e925846449a9e5f99f0be51464b59df587d38a590c6094712413387c6e2"
     },
     {
       "id": "prompt-settings",
@@ -26,7 +26,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "23110e96646d9869311702fee8b27a5f5926ea8b48a1b9eaa7e4139145a5b7b5"
+      "manifestEvidenceHash": "de061a16842ff2c610ca16df8bc1b8e04ca103f16e58ed3c46ad7e020d442727"
     },
     {
       "id": "tag-manager",
@@ -34,7 +34,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "56a77486fa3bdc7102b95dae20091f32b197ef9195318cb4e04811ff01919932"
+      "manifestEvidenceHash": "021e4c520a59ba1cff9fe8f8e3fda5733db498413a47378dd61901ef721e1985"
     },
     {
       "id": "video-library",
