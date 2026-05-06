@@ -12,6 +12,15 @@ const requestForAuthorization = (authorization?: string) =>
     headers: authorization ? { authorization } : undefined,
   });
 
+const setEnvVar = (key: string, value: string | undefined): void => {
+  if (value === undefined) {
+    Reflect.deleteProperty(process.env, key);
+    return;
+  }
+
+  Reflect.set(process.env, key, value);
+};
+
 const withEnv = async (
   env: Partial<Record<typeof AUTH_TEST_MODE_ENV | typeof NODE_ENV_VAR, string>>,
   fn: () => Promise<void>
@@ -19,32 +28,14 @@ const withEnv = async (
   const previousAuthTestMode = process.env[AUTH_TEST_MODE_ENV];
   const previousNodeEnv = process.env[NODE_ENV_VAR];
 
-  if (env[AUTH_TEST_MODE_ENV] === undefined) {
-    delete process.env[AUTH_TEST_MODE_ENV];
-  } else {
-    process.env[AUTH_TEST_MODE_ENV] = env[AUTH_TEST_MODE_ENV];
-  }
-
-  if (env[NODE_ENV_VAR] === undefined) {
-    delete process.env[NODE_ENV_VAR];
-  } else {
-    process.env[NODE_ENV_VAR] = env[NODE_ENV_VAR];
-  }
+  setEnvVar(AUTH_TEST_MODE_ENV, env[AUTH_TEST_MODE_ENV]);
+  setEnvVar(NODE_ENV_VAR, env[NODE_ENV_VAR]);
 
   try {
     await fn();
   } finally {
-    if (previousAuthTestMode === undefined) {
-      delete process.env[AUTH_TEST_MODE_ENV];
-    } else {
-      process.env[AUTH_TEST_MODE_ENV] = previousAuthTestMode;
-    }
-
-    if (previousNodeEnv === undefined) {
-      delete process.env[NODE_ENV_VAR];
-    } else {
-      process.env[NODE_ENV_VAR] = previousNodeEnv;
-    }
+    setEnvVar(AUTH_TEST_MODE_ENV, previousAuthTestMode);
+    setEnvVar(NODE_ENV_VAR, previousNodeEnv);
   }
 };
 

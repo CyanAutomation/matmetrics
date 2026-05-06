@@ -422,7 +422,11 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
     await queueOperation({ type: 'CREATE', session: makeSession('session-stale') });
     assert.equal(getQueue().length, 0);
     assert.ok(
-      errors.some((entry) => String(entry[0]).includes('Failed to queue operation'))
+      errors.some(
+        (entry) =>
+          Array.isArray(entry) &&
+          String(entry[0]).includes('Failed to queue operation')
+      )
     );
   } finally {
     localStorage.setItem = originalSetItem;
