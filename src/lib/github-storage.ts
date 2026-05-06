@@ -120,12 +120,8 @@ function getDefaultBranchCacheKey(owner: string, repo: string): string {
 
 function invalidateDefaultBranchCache(owner: string, repo: string): void {
   const cacheKey = getDefaultBranchCacheKey(owner, repo);
-  const cachedBranch = defaultBranchCache.get(cacheKey);
   defaultBranchCache.delete(cacheKey);
   invalidateManifestScopeForBranch(owner, repo, DEFAULT_MANIFEST_SCOPE);
-  if (cachedBranch) {
-    invalidateManifestScopeForBranch(owner, repo, cachedBranch.branch);
-  }
 }
 
 export function __resetDefaultBranchCacheForTests(): void {
@@ -479,11 +475,6 @@ async function resolveBranch(
         config.repo,
         DEFAULT_MANIFEST_SCOPE
       );
-      invalidateManifestScopeForBranch(
-        config.owner,
-        config.repo,
-        cachedBranch.branch
-      );
     }
 
     return defaultBranch;
@@ -596,8 +587,17 @@ export async function findSessionPathOnGitHubById(
     }
 
     if (fileName.endsWith(encodedSuffix)) {
-      // P3: Cache this entry in the manifest
-      // P3: Skip caching here - SHA will be cached when actually fetched
+      // Cache this entry in the manifest
+      // Get the SHA for the file from GitHub
+      const fileSha = await getFileSha(
+        config.owner,
+        config.repo,
+        entry.path,
+        branch
+      );
+      if (fileSha) {
+        setManifestEntry(sessionId, entry.path, fileSha, config);
+      }
       return entry.path;
     }
   }
