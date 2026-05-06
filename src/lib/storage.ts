@@ -31,6 +31,7 @@ import {
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
 import { createTagService } from './tags/service';
+import { initializeSyncLeaseModule } from './sync-lease';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -1434,6 +1435,14 @@ async function syncPendingOperations(): Promise<void> {
     return inFlightSync;
   }
 
+  // Ensure sync-lease module is properly initialized with current timing
+  initializeSyncLeaseModule({
+    syncOwnerId,
+    syncLockTtlMs,
+    getSyncLockStorageKey,
+    isStorageEventForKey,
+  });
+
   inFlightSync = (async () => {
     const generation = storageGeneration;
     isSyncing = true;
@@ -1646,6 +1655,15 @@ export function __resetStorageStateForTests(): void {
     DEFAULT_SYNC_LOCK_HEARTBEAT_MS,
     Math.max(MIN_SYNC_LOCK_HEARTBEAT_MS, Math.floor(syncLockTtlMs / 3))
   );
+
+  // Reset sync-lease module timing to defaults
+  initializeSyncLeaseModule({
+    syncOwnerId,
+    syncLockTtlMs,
+    getSyncLockStorageKey,
+    isStorageEventForKey,
+  });
+
   dirtyMutations.clear();
   resolveAuthenticatedUserId = () => {
     try {
@@ -1704,6 +1722,14 @@ export function __setSyncLeaseTimingForTests(overrides: {
       overrides.heartbeatMs
     );
   }
+
+  // Propagate timing overrides to sync-lease module
+  initializeSyncLeaseModule({
+    syncOwnerId,
+    syncLockTtlMs,
+    getSyncLockStorageKey,
+    isStorageEventForKey,
+  });
 }
 
 export function __setGitHubRefreshTimingForTests(overrides: {
