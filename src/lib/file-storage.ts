@@ -1251,158 +1251,192 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 /**
+ * Helper: Check if a directory path is safe (not a symlink, within data dir)
+ * Handles all symlink and escape validation errors by returning null (skip this directory)
+ */
+async function checkAndValidateDirectory(
+  dirPath: string
+): Promise<string | null> {
+  try {
+    return await ensureNonSymlinkDirectory(dirPath);
+  } catch (error) {
+    // Expected conditions: symlinks, escapes, missing directories
+    if (
+      error instanceof Error &&
+      (error.message.startsWith('Unsafe session directory:') ||
+        error.message.includes('escapes data directory'))
+    ) {
+      return null;
+    }
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    // Unexpected errors propagate
+    throw error;
+  }
+}
+
+/**
+ * Helper: Safely scan a directory for subdirectories matching a validator
+ * Returns empty array if directory doesn't exist; throws on unexpected errors
+ */
+async function scanDirectoryEntries(
+  dirPath: string,
+  operationName: string,
+  sessionId: string
+): Promise<string[]> {
+  try {
+    return await fs.readdir(dirPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    throw new SessionLookupOperationalError(
+      sessionId,
+      `Failed to ${operationName} for directory ${dirPath}`,
+      { cause: error }
+    );
+  }
+}
+
+/**
+ * Helper: Parse and match a session file by ID
+ * Returns the file path if it matches; returns null if file doesn't match or is unreadable
+ */
+async function tryParseSessionFile(
+  filePath: string,
+  sessionId: string,
+  safeId: string
+): Promise<string | null> {
+  try {
+    const resolvedPath = await ensureExistingPathWithinDataDir(filePath);
+    const markdown = await fs.readFile(resolvedPath, 'utf-8');
+    const parsedSession = markdownToSession(markdown);
+    if (parsedSession.id === safeId) {
+      return resolvedPath;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    console.warn(
+      `Skipping unreadable or malformed session file during lookup for ${safeId}: ${filePath}`,
+      error
+    );
+  }
+  return null;
+}
+
+/**
+ * Helper: Check the index record and return the path if valid
+ * Returns null if the index entry is stale, unsafe, or malformed
+ */
+async function checkIndexedSessionRecord(
+  sessionId: string,
+  safeId: string
+): Promise<string | null> {
+  const indexedRecord = await readSessionIndex(safeId);
+  if (!indexedRecord) {
+    return null;
+  }
+
+  try {
+    const markdown = await fs.readFile(
+      await ensureExistingPathWithinDataDir(indexedRecord.path),
+      'utf-8'
+    );
+    const parsedSession = markdownToSession(markdown);
+    if (parsedSession.id === safeId) {
+      return indexedRecord.path;
+    }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
+      // Stale index record; continue to full scan.
+    } else if (
+      error instanceof Error &&
+      error.message.includes('escapes data directory')
+    ) {
+      console.warn(`Ignoring unsafe index entry for ${safeId}`, error);
+    } else {
+      console.warn(
+        `Skipping invalid indexed session record for ${safeId}; falling back to directory scan`,
+        error
+      );
+    }
+  }
+
+  return null;
+}
+
+/**
  * Find the file path of a session by its ID
  * Returns null if not found
  */
 export async function findSessionFileById(id: string): Promise<string | null> {
   const safeId = sanitizeSessionId(id);
   const matchingPaths = new Set<string>();
-  const indexedRecord = await readSessionIndex(safeId);
-  if (indexedRecord) {
-    try {
-      const markdown = await fs.readFile(
-        await ensureExistingPathWithinDataDir(indexedRecord.path),
-        'utf-8'
-      );
-      const parsedSession = markdownToSession(markdown);
-      if (parsedSession.id === safeId) {
-        matchingPaths.add(indexedRecord.path);
-      }
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        // Stale index record; continue to full scan.
-      } else if (
-        error instanceof Error &&
-        error.message.includes('escapes data directory')
-      ) {
-        console.warn(`Ignoring unsafe index entry for ${safeId}`, error);
-      } else {
-        console.warn(
-          `Skipping invalid indexed session record for ${safeId}; falling back to directory scan`,
-          error
-        );
-      }
-    }
+
+  // Check the index record first (fast path)
+  const indexedPath = await checkIndexedSessionRecord(id, safeId);
+  if (indexedPath) {
+    matchingPaths.add(indexedPath);
   }
 
+  // Scan the directory tree for all matching sessions
   const rootDir = getDataDir();
-  let years: string[];
-  try {
-    years = await fs.readdir(rootDir);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return null;
-    }
-    throw new SessionLookupOperationalError(
-      safeId,
-      `Failed to scan session directory for ${safeId}`,
-      { cause: error }
-    );
+  const years = await scanDirectoryEntries(
+    rootDir,
+    'scan session directory',
+    safeId
+  );
+  if (years.length === 0 && matchingPaths.size === 0) {
+    return null;
   }
 
   for (const year of years) {
     if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
-    const yearPath = path.join(rootDir, year);
-    let safeYearPath: string;
-    try {
-      safeYearPath = await ensureNonSymlinkDirectory(yearPath);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.startsWith('Unsafe session directory:') ||
-          error.message.includes('escapes data directory'))
-      ) {
-        continue;
-      }
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        continue;
-      }
-      throw new SessionLookupOperationalError(
-        safeId,
-        `Failed to inspect session year directory ${yearPath}`,
-        { cause: error }
-      );
-    }
 
-    let months: string[];
-    try {
-      months = await fs.readdir(safeYearPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        continue;
-      }
-      throw new SessionLookupOperationalError(
-        safeId,
-        `Failed to read session year directory ${safeYearPath}`,
-        { cause: error }
-      );
-    }
+    const yearPath = path.join(rootDir, year);
+    const safeYearPath = await checkAndValidateDirectory(yearPath);
+    if (!safeYearPath) continue;
+
+    const months = await scanDirectoryEntries(
+      safeYearPath,
+      'read session year directory',
+      safeId
+    );
+
     for (const month of months) {
       if (!isMonthDirName(month)) continue;
-      const monthPath = path.join(safeYearPath, month);
-      let safeMonthPath: string;
-      try {
-        safeMonthPath = await ensureNonSymlinkDirectory(monthPath);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          (error.message.startsWith('Unsafe session directory:') ||
-            error.message.includes('escapes data directory'))
-        ) {
-          continue;
-        }
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          continue;
-        }
-        throw new SessionLookupOperationalError(
-          safeId,
-          `Failed to inspect session month directory ${monthPath}`,
-          { cause: error }
-        );
-      }
 
-      let files: string[];
-      try {
-        files = await fs.readdir(safeMonthPath);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-          continue;
-        }
-        throw new SessionLookupOperationalError(
-          safeId,
-          `Failed to read session month directory ${safeMonthPath}`,
-          { cause: error }
-        );
-      }
+      const monthPath = path.join(safeYearPath, month);
+      const safeMonthPath = await checkAndValidateDirectory(monthPath);
+      if (!safeMonthPath) continue;
+
+      const files = await scanDirectoryEntries(
+        safeMonthPath,
+        'read session month directory',
+        safeId
+      );
+
       for (const file of files) {
         if (!file.endsWith('.md')) continue;
-        try {
-          const filePath = await ensureExistingPathWithinDataDir(
-            path.join(safeMonthPath, file)
-          );
-          const markdown = await fs.readFile(filePath, 'utf-8');
-          const parsedSession = markdownToSession(markdown);
-          if (parsedSession.id === safeId) {
-            matchingPaths.add(filePath);
-          }
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            continue;
-          }
-          console.warn(
-            `Skipping unreadable or malformed session file during lookup for ${safeId}: ${path.join(
-              safeMonthPath,
-              file
-            )}`,
-            error
-          );
-          continue;
+
+        const filePath = path.join(safeMonthPath, file);
+        const matchedPath = await tryParseSessionFile(
+          filePath,
+          id,
+          safeId
+        );
+        if (matchedPath) {
+          matchingPaths.add(matchedPath);
         }
       }
     }
   }
 
+  // Handle results: no matches, single match, or duplicates
   const uniqueMatches = [...matchingPaths].sort();
   if (uniqueMatches.length === 0) {
     return null;
