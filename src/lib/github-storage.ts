@@ -121,7 +121,6 @@ function getDefaultBranchCacheKey(owner: string, repo: string): string {
 function invalidateDefaultBranchCache(owner: string, repo: string): void {
   const cacheKey = getDefaultBranchCacheKey(owner, repo);
   defaultBranchCache.delete(cacheKey);
-  invalidateManifestScopeForBranch(owner, repo, DEFAULT_MANIFEST_SCOPE);
 }
 
 export function __resetDefaultBranchCacheForTests(): void {
@@ -470,11 +469,8 @@ async function resolveBranch(
       cachedBranch &&
       cachedBranch.branch !== defaultBranch
     ) {
-      invalidateManifestScopeForBranch(
-        config.owner,
-        config.repo,
-        DEFAULT_MANIFEST_SCOPE
-      );
+      // Don't invalidate manifest scope for default branch changes
+      // Cached paths will be validated when used on the new branch
     }
 
     return defaultBranch;
@@ -556,7 +552,11 @@ export async function findSessionPathOnGitHubById(
       return manifestEntry.path;
     }
 
+    // File doesn't exist on this branch, remove stale entry
     removeManifestEntry(sessionId, config);
+    // Return null instead of searching the tree
+    // If the file was found on another branch but not on this one, it's gone for this user
+    return null;
   }
 
   const encodedSuffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
@@ -588,16 +588,8 @@ export async function findSessionPathOnGitHubById(
 
     if (fileName.endsWith(encodedSuffix)) {
       // Cache this entry in the manifest
-      // Get the SHA for the file from GitHub
-      const fileSha = await getFileSha(
-        config.owner,
-        config.repo,
-        entry.path,
-        branch
-      );
-      if (fileSha) {
-        setManifestEntry(sessionId, entry.path, fileSha, config);
-      }
+      // Use empty string as sentinel for tree-discovered entries
+      setManifestEntry(sessionId, entry.path, '', config);
       return entry.path;
     }
   }
