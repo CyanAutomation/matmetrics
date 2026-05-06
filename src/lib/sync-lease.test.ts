@@ -83,12 +83,19 @@ test('sync-lease module', async (t) => {
       }
     });
 
-    await t.test('returns different values on multiple calls', () => {
-      const values = new Set(
-        Array.from({ length: 20 }, () => randomBackoffMs())
-      );
-      assert(values.size > 1);
-    });
+    await t.test(
+      'maps injected random values to deterministic boundaries',
+      () => {
+        assert.strictEqual(
+          randomBackoffMs(() => 0),
+          SYNC_LOCK_BACKOFF_MIN_MS
+        );
+        assert.strictEqual(
+          randomBackoffMs(() => 0.999999),
+          SYNC_LOCK_BACKOFF_MAX_MS
+        );
+      }
+    );
   });
 
   await t.test('randomVerifyDelayMs', async (t) => {
