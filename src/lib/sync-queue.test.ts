@@ -42,9 +42,19 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
 });
 (globalThis as any).window = globalThis;
-// Ensure navigator is set up so navigator.locks falls through to storage-based locking
-if (typeof globalThis.navigator === 'undefined') {
-  (globalThis as any).navigator = {};
+// Disable navigator.locks so that storage-based locking is used for tests
+// (navigator.locks is available in Node.js but may cause race conditions in tests)
+if (typeof globalThis.navigator !== 'undefined') {
+  try {
+    Object.defineProperty(globalThis.navigator, 'locks', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    // If we can't override navigator.locks, the getter returns an object
+    // We need to ensure tryAcquireNavigatorQueueLock returns false
+  }
 }
 
 // NOW require the sync-queue module AFTER localStorage is set up
