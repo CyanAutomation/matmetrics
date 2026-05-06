@@ -26,7 +26,7 @@
     "evidence": {
       "testFiles": [
         "plugins/tag-manager/plugin.test.ts",
-        "plugins/tag-manager/src/index.test.ts",
+        "plugins/tag-manager/src/index.behavior.test.ts",
         "plugins/tag-manager/src/components/tag-manager.loading.test.ts",
         "plugins/tag-manager/src/components/tag-manager.destructive.test.tsx",
         "plugins/tag-manager/src/components/tag-manager.ux.test.tsx"

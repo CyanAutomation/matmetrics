@@ -26,7 +26,6 @@
     "evidence": {
       "testFiles": [
         "plugins/prompt-settings/plugin.test.ts",
-        "plugins/prompt-settings/src/index.test.ts",
         "plugins/prompt-settings/src/components/prompt-settings.test.tsx"
       ],
       "uxCriteria": {
