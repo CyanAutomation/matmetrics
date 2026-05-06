@@ -2,6 +2,61 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, releaseSyncLease, sleep, setActiveSyncLease, tryAcquireSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type LeaseTakeoverDiagnosticPayload, type SyncLease } from './sync-lease';
 
+// Mock localStorage for Node.js test environment
+class LocalStorageMock implements Storage {
+  private store = new Map<string, string>();
+
+  getItem(key: string): string | null {
+    return this.store.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.store.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  key(index: number): string | null {
+    const keys = Array.from(this.store.keys());
+    return keys[index] ?? null;
+  }
+
+  get length(): number {
+    return this.store.size;
+  }
+}
+
+// Set up global localStorage mock for Node.js test environment
+const localStorageMock = new LocalStorageMock();
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+Object.defineProperty(global, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+
+// Set up global window mock
+const windowMock = Object.assign(new EventTarget(), {
+  localStorage: localStorageMock,
+  location: { origin: 'http://localhost' },
+});
+Object.defineProperty(globalThis, 'window', {
+  configurable: true,
+  value: windowMock,
+});
+Object.defineProperty(global, 'window', {
+  configurable: true,
+  value: windowMock,
+});
+
 test('sync-lease module', async (t) => {
   await t.test('randomBackoffMs', async (t) => {
     await t.test('returns a value within expected range', () => {
