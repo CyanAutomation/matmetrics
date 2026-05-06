@@ -1701,3 +1701,170 @@ test('extractDateFromPath extracts dates from Windows-style session paths', () =
     '2025-01-10'
   );
 });
+
+/**
+ * Edge-case tests for file-storage refactoring (Phase 2.1)
+ * These tests verify the extracted helper functions handle edge cases correctly
+ */
+
+test(
+  'findSessionFileById skips unreadable duplicates and returns the readable one',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const originalReadFile = fs.readFile;
+      const session = makeSession({
+        id: 'session-duplicate-unreadable',
+        date: '2025-01-10',
+      });
+      const readablePath = await createSession(session);
+      const unreadablePath = getSessionFilePath(
+        '2025-02-10',
+        undefined,
+        session.id
+      );
+
+      // Create a duplicate file
+      await fs.mkdir(path.dirname(unreadablePath), { recursive: true });
+      await fs.writeFile(
+        unreadablePath,
+        await readFile(readablePath, 'utf8'),
+        'utf-8'
+      );
+
+      // Make the second copy unreadable on first attempt
+      let readAttempts = 0;
+      fs.readFile = (async (...args: Parameters<typeof fs.readFile>) => {
+        const [targetPath] = args;
+        if (targetPath.toString() === unreadablePath) {
+          readAttempts++;
+          if (readAttempts === 1) {
+            throw Object.assign(new Error('simulated read failure'), {
+              code: 'EACCES',
+            });
+          }
+        }
+        return originalReadFile.call(fs, ...args);
+      }) as typeof fs.readFile;
+
+      try {
+        // Should return the readable duplicate, skipping the unreadable one
+        const found = await findSessionFileById(session.id);
+        assert.equal(found, readablePath);
+      } finally {
+        fs.readFile = originalReadFile;
+      }
+    });
+  }
+);
+
+test(
+  'findSessionFileById skips symlink year directories and continues scanning',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-symlink-year',
+        date: '2025-01-10',
+      });
+      const sessionPath = await createSession(session);
+      const baseDir = path.dirname(
+        path.dirname(path.dirname(sessionPath))
+      );
+      const symlinkYearDir = path.join(baseDir, '2024');
+      const outsideDir = await mkdtemp(
+        path.join(tmpdir(), 'matmetrics-symlink-escape-')
+      );
+
+      try {
+        // Create a symlink pointing outside the data directory
+        await (fs.symlink as any)(outsideDir, symlinkYearDir, 'dir');
+
+        // findSessionFileById should skip the symlink and still find the real session
+        const found = await findSessionFileById(session.id);
+        assert.equal(found, sessionPath);
+      } finally {
+        try {
+          await fs.unlink(symlinkYearDir);
+        } catch (_e) {
+          // ignore
+        }
+        await rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+  }
+);
+
+test(
+  'findSessionFileById skips symlink month directories and continues scanning',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'session-symlink-month',
+        date: '2025-01-10',
+      });
+      const sessionPath = await createSession(session);
+      const yearDir = path.dirname(path.dirname(sessionPath));
+      const symlinkMonthDir = path.join(yearDir, '02');
+      const outsideDir = await mkdtemp(
+        path.join(tmpdir(), 'matmetrics-symlink-escape-')
+      );
+
+      try {
+        // Create a symlink pointing outside the data directory
+        await (fs.symlink as any)(outsideDir, symlinkMonthDir, 'dir');
+
+        // findSessionFileById should skip the symlink and still find the real session
+        const found = await findSessionFileById(session.id);
+        assert.equal(found, sessionPath);
+      } finally {
+        try {
+          await fs.unlink(symlinkMonthDir);
+        } catch (_e) {
+          // ignore
+        }
+        await rm(outsideDir, { recursive: true, force: true });
+      }
+    });
+  }
+);
+
+test(
+  'findSessionFileById collects all matching paths before checking for duplicates',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const sessionId = 'session-multi-duplicate';
+      const session = makeSession({
+        id: sessionId,
+        date: '2025-01-10',
+      });
+
+      // Create the same session in three different locations
+      const path1 = await createSession(session);
+      const path2 = getSessionFilePath('2025-02-10', undefined, sessionId);
+      const path3 = getSessionFilePath('2025-03-10', undefined, sessionId);
+
+      const markdown = sessionToMarkdown(session);
+      await fs.mkdir(path.dirname(path2), { recursive: true });
+      await fs.writeFile(path2, markdown, 'utf-8');
+      await fs.mkdir(path.dirname(path3), { recursive: true });
+      await fs.writeFile(path3, markdown, 'utf-8');
+
+      // Should detect all three duplicates
+      await assert.rejects(
+        findSessionFileById(sessionId),
+        (error: unknown) => {
+          assert.equal(error instanceof DuplicateSessionIdError, true);
+          if (!(error instanceof DuplicateSessionIdError)) {
+            return false;
+          }
+          assert.equal(error.paths.length, 3);
+          assert.deepEqual(error.paths, [path1, path2, path3].sort());
+          return true;
+        }
+      );
+    });
+  }
+);
