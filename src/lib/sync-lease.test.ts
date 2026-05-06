@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomBackoffMs, randomVerifyDelayMs, createSyncLeaseNonce, getNextSyncLeaseEpoch, readSyncLease, initializeSyncLeaseModule, releaseSyncLease, sleep, setActiveSyncLease, tryAcquireSyncLease, SYNC_LOCK_BACKOFF_MIN_MS, SYNC_LOCK_BACKOFF_MAX_MS, SYNC_LOCK_VERIFY_DELAY_MIN_MS, SYNC_LOCK_VERIFY_DELAY_MAX_MS, type LeaseTakeoverDiagnosticPayload, type SyncLease } from './sync-lease';
+import {
+  randomBackoffMs,
+  randomVerifyDelayMs,
+  createSyncLeaseNonce,
+  getNextSyncLeaseEpoch,
+  readSyncLease,
+  initializeSyncLeaseModule,
+  releaseSyncLease,
+  setActiveSyncLease,
+  tryAcquireSyncLease,
+  SYNC_LOCK_BACKOFF_MIN_MS,
+  SYNC_LOCK_BACKOFF_MAX_MS,
+  SYNC_LOCK_VERIFY_DELAY_MIN_MS,
+  SYNC_LOCK_VERIFY_DELAY_MAX_MS,
+  type LeaseTakeoverDiagnosticPayload,
+  type SyncLease,
+} from './sync-lease';
 
 // Mock localStorage for Node.js test environment
 class LocalStorageMock implements Storage {
@@ -136,7 +152,10 @@ test('sync-lease module', async (t) => {
         epoch: 12345,
       };
       if (typeof global.localStorage !== 'undefined') {
-        global.localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(lease));
+        global.localStorage.setItem(
+          'matmetrics_sync_lock_test',
+          JSON.stringify(lease)
+        );
         const read = readSyncLease();
         assert.deepEqual(read, lease);
       }
@@ -144,7 +163,6 @@ test('sync-lease module', async (t) => {
 
     afterEach();
   });
-
 
   await t.test('releaseSyncLease', async (t) => {
     await t.test(
@@ -169,7 +187,10 @@ test('sync-lease module', async (t) => {
         if (typeof localStorage === 'undefined') {
           throw new Error('localStorage unavailable in test environment');
         }
-        localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(tabBLease));
+        localStorage.setItem(
+          'matmetrics_sync_lock_test',
+          JSON.stringify(tabBLease)
+        );
 
         releaseSyncLease();
 
@@ -179,14 +200,6 @@ test('sync-lease module', async (t) => {
       }
     );
   });
-
-  await t.test('sleep', async () => {
-    const before = Date.now();
-    await sleep(50);
-    const after = Date.now();
-    assert(after - before >= 40);
-  });
-
   await t.test('tryAcquireSyncLease', async (t) => {
     await t.test(
       'forces reclaim after stable observations of a live competing lease',
@@ -204,51 +217,79 @@ test('sync-lease module', async (t) => {
 
         const contender: SyncLease = {
           owner: 'contender-owner',
-          expiresAt: Date.now() + 60_000,
+          expiresAt: 61_000,
           nonce: 'contender-nonce',
           epoch: 200,
         };
         if (typeof localStorage === 'undefined') {
           throw new Error('localStorage unavailable in test environment');
         }
-        localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(contender));
+        localStorage.setItem(
+          'matmetrics_sync_lock_test',
+          JSON.stringify(contender)
+        );
 
-        const acquired = await tryAcquireSyncLease();
-        assert.equal(acquired, true);
+        const delays = await withDeterministicLeaseTiming(async () => {
+          const acquired = await tryAcquireSyncLease();
+          assert.equal(acquired, true);
+        });
 
         const persistedLease = readSyncLease();
         assert.equal(persistedLease?.owner, 'test-owner');
         assert(diagnostics.some((item) => item.reason === 'forced-reclaim'));
+        assert.deepEqual(delays, [
+          SYNC_LOCK_BACKOFF_MIN_MS,
+          SYNC_LOCK_BACKOFF_MIN_MS,
+          SYNC_LOCK_VERIFY_DELAY_MIN_MS,
+        ]);
         afterEach();
       }
     );
 
-    await t.test('does not force reclaim a fresh lease before threshold', async () => {
-      beforeEach();
-      const contender: SyncLease = {
-        owner: 'contender-owner',
-        expiresAt: Date.now() + 60_000,
-        nonce: 'fresh-contender',
-        epoch: 300,
-      };
-      if (typeof localStorage === 'undefined') {
-        throw new Error('localStorage unavailable in test environment');
-      }
-      localStorage.setItem('matmetrics_sync_lock_test', JSON.stringify(contender));
+    await t.test(
+      'backs off without reclaiming while competing lease keeps changing',
+      async () => {
+        beforeEach();
+        if (typeof localStorage === 'undefined') {
+          throw new Error('localStorage unavailable in test environment');
+        }
 
-      const originalNow = Date.now;
-      let acquired = false;
-      try {
-        Date.now = () => 1_000;
-        acquired = await tryAcquireSyncLease();
-      } finally {
-        Date.now = originalNow;
-      }
+        let contenderEpoch = 300;
+        const writeFreshContender = () => {
+          const contender: SyncLease = {
+            owner: 'contender-owner',
+            expiresAt: 61_000,
+            nonce: `fresh-contender-${contenderEpoch}`,
+            epoch: contenderEpoch,
+          };
+          localStorage.setItem(
+            'matmetrics_sync_lock_test',
+            JSON.stringify(contender)
+          );
+          contenderEpoch += 1;
+        };
+        writeFreshContender();
 
-      assert.equal(acquired, false);
-      assert.deepEqual(readSyncLease(), contender);
-      afterEach();
-    });
+        const delays = await withDeterministicLeaseTiming(
+          async () => {
+            const acquired = await tryAcquireSyncLease();
+            assert.equal(acquired, false);
+          },
+          (ms) => {
+            if (ms === SYNC_LOCK_BACKOFF_MIN_MS) {
+              writeFreshContender();
+            }
+          }
+        );
+
+        assert.deepEqual(
+          delays,
+          Array.from({ length: 6 }, () => SYNC_LOCK_BACKOFF_MIN_MS)
+        );
+        assert.equal(readSyncLease()?.owner, 'contender-owner');
+        afterEach();
+      }
+    );
   });
 });
 
@@ -272,4 +313,41 @@ function afterEach() {
     global.localStorage.clear();
   }
   setActiveSyncLease(null);
+}
+
+async function withDeterministicLeaseTiming(
+  run: () => Promise<void>,
+  onDelay?: (ms: number) => void
+): Promise<number[]> {
+  const delays: number[] = [];
+  const originalNow = Date.now;
+  const originalRandom = Math.random;
+  const originalSetTimeout = globalThis.setTimeout;
+
+  try {
+    Date.now = () => 1_000;
+    Math.random = () => 0;
+    globalThis.setTimeout = ((
+      handler: Parameters<typeof setTimeout>[0],
+      timeout?: number,
+      ...args: any[]
+    ) => {
+      const ms = timeout ?? 0;
+      delays.push(ms);
+      onDelay?.(ms);
+      queueMicrotask(() => {
+        if (typeof handler === 'function') {
+          handler(...args);
+        }
+      });
+      return originalSetTimeout(() => undefined, 0);
+    }) as unknown as typeof setTimeout;
+
+    await run();
+    return delays;
+  } finally {
+    Date.now = originalNow;
+    Math.random = originalRandom;
+    globalThis.setTimeout = originalSetTimeout;
+  }
 }
