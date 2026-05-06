@@ -21,7 +21,7 @@ import {
   deleteSession,
   teardownStorageListeners,
 } from './storage';
-import { getQueue, getSyncQueueStorageKey } from './sync-queue';
+import { getQueue, getSyncQueueStorageKey, __testInternals as syncQueueTestInternals } from './sync-queue';
 import type { SyncOperation } from './sync-queue';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
@@ -1366,6 +1366,9 @@ serialTest(
       ttlMs: 30_000,
       heartbeatMs: 7_777,
     });
+    // Coordinate sync-queue lease timing to match sync-lease heartbeat
+    // heartbeat = floor(ttlMs / 3), so 7777 = floor(23331 / 3)
+    syncQueueTestInternals.setLeaseTtlForTests(23_331);
 
     localStorage.setItem(
       getSyncQueueStorageKey(),
@@ -1409,6 +1412,7 @@ serialTest(
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
+      syncQueueTestInternals.resetLeaseTtlForTests();
       global.setInterval = originalSetInterval;
       global.clearInterval = originalClearInterval;
       global.fetch = originalFetch;
@@ -1426,6 +1430,9 @@ serialTest(
       ttlMs: 6_000,
       heartbeatMs: 10_000,
     });
+    // Clamped heartbeat = min(10_000, 6_000/2) = 3_000
+    // Coordinate sync-queue: floor(9_000 / 3) = 3_000
+    syncQueueTestInternals.setLeaseTtlForTests(9_000);
 
     localStorage.setItem(
       getSyncQueueStorageKey(),
@@ -1469,6 +1476,7 @@ serialTest(
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
+      syncQueueTestInternals.resetLeaseTtlForTests();
       global.setInterval = originalSetInterval;
       global.clearInterval = originalClearInterval;
       global.fetch = originalFetch;
