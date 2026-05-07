@@ -405,17 +405,17 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
   __testInternals.setLeaseTtlForTests(20);
 
   const queueKey = getSyncQueueStorageKey();
+  const leaseKey = getScopedStorageKey('matmetrics_sync_queue_lock');
+  const competitorLease = {
+    owner: 'competing-tab',
+    nonce: 'competing-nonce',
+    epoch: 1_000_000,
+    expiresAt: Number.MAX_SAFE_INTEGER,
+  };
   let replacedByCompetitor = false;
   const originalSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = (key: string, value: string): void => {
     if (!replacedByCompetitor && key === queueKey) {
-      const leaseKey = getScopedStorageKey('matmetrics_sync_queue_lock');
-      const competitorLease = {
-        owner: 'competing-tab',
-        nonce: 'competing-nonce',
-        epoch: Date.now() + 1000,
-        expiresAt: Date.now() + 10_000,
-      };
       originalSetItem(leaseKey, JSON.stringify(competitorLease));
       replacedByCompetitor = true;
     }
@@ -433,7 +433,10 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
       type: 'CREATE',
       session: makeSession('session-stale'),
     });
-    assert.equal(getQueue().length, 0);
+
+    assert.equal(replacedByCompetitor, true);
+    assert.deepEqual(getQueue(), []);
+    assert.deepEqual(__testInternals.readQueueLease(), competitorLease);
     assert.ok(
       errors.some(
         (entry) =>
