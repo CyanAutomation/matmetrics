@@ -25,7 +25,6 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/log-doctor/plugin.test.ts",
         "plugins/log-doctor/src/components/log-doctor-state.test.ts",
         "plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts",
         "plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx",
