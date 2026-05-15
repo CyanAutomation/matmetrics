@@ -1,130 +1,153 @@
-=== RUN   TestValidateSessionParityFixtures
-=== RUN   TestValidateSessionParityFixtures/valid
-=== RUN   TestValidateSessionParityFixtures/bad_date_format
-=== RUN   TestValidateSessionParityFixtures/bad_date_real
-=== RUN   TestValidateSessionParityFixtures/bad_effort
-=== RUN   TestValidateSessionParityFixtures/bad_category
-=== RUN   TestValidateSessionParityFixtures/empty_technique
-=== RUN   TestValidateSessionParityFixtures/negative_duration
-=== RUN   TestValidateSessionParityFixtures/bad_protocol
-=== RUN   TestValidateSessionParityFixtures/private_video_host
-=== RUN   TestValidateSessionParityFixtures/whitespace_video_allowed
---- PASS: TestValidateSessionParityFixtures (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/valid (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/bad_date_format (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/bad_date_real (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/bad_effort (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/bad_category (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/empty_technique (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/negative_duration (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/bad_protocol (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/private_video_host (0.00s)
-    --- PASS: TestValidateSessionParityFixtures/whitespace_video_allowed (0.00s)
-=== RUN   TestValidateSessionIDValidation
-=== RUN   TestValidateSessionIDValidation/rejects_blank_ids_after_trimming_whitespace
-=== RUN   TestValidateSessionIDValidation/rejects_invalid_characters
-=== RUN   TestValidateSessionIDValidation/rejects_too-long_ids
-=== RUN   TestValidateSessionIDValidation/accepts_max-length_id_with_allowed_charset
---- PASS: TestValidateSessionIDValidation (0.00s)
-    --- PASS: TestValidateSessionIDValidation/rejects_blank_ids_after_trimming_whitespace (0.00s)
-    --- PASS: TestValidateSessionIDValidation/rejects_invalid_characters (0.00s)
-    --- PASS: TestValidateSessionIDValidation/rejects_too-long_ids (0.00s)
-    --- PASS: TestValidateSessionIDValidation/accepts_max-length_id_with_allowed_charset (0.00s)
-=== RUN   TestValidateSessionRejectsInvalidDateCases
-=== RUN   TestValidateSessionRejectsInvalidDateCases/invalid_month
-    validation_test.go:114: ValidateSession() error = "Invalid date: must be a real calendar date", want "invalid date: must be a real calendar date"
-=== RUN   TestValidateSessionRejectsInvalidDateCases/invalid_day
-    validation_test.go:114: ValidateSession() error = "Invalid date: must be a real calendar date", want "invalid date: must be a real calendar date"
-=== RUN   TestValidateSessionRejectsInvalidDateCases/non_leap_day
-    validation_test.go:114: ValidateSession() error = "Invalid date: must be a real calendar date", want "invalid date: must be a real calendar date"
-=== RUN   TestValidateSessionRejectsInvalidDateCases/malformed_format
-    validation_test.go:114: ValidateSession() error = "Invalid date: expected YYYY-MM-DD format", want "invalid date: expected YYYY-MM-DD format"
---- FAIL: TestValidateSessionRejectsInvalidDateCases (0.00s)
-    --- FAIL: TestValidateSessionRejectsInvalidDateCases/invalid_month (0.00s)
-    --- FAIL: TestValidateSessionRejectsInvalidDateCases/invalid_day (0.00s)
-    --- FAIL: TestValidateSessionRejectsInvalidDateCases/non_leap_day (0.00s)
-    --- FAIL: TestValidateSessionRejectsInvalidDateCases/malformed_format (0.00s)
-=== RUN   TestValidateSessionVideoURLValidation
-=== RUN   TestValidateSessionVideoURLValidation/accepts_empty_video_url
-=== RUN   TestValidateSessionVideoURLValidation/allows_whitespace-only_video_url
-=== RUN   TestValidateSessionVideoURLValidation/rejects_invalid_url
-    validation_test.go:173: ValidateSession() error = "Invalid videoUrl: expected a valid absolute URL", want "invalid videoUrl: expected a valid absolute URL"
-=== RUN   TestValidateSessionVideoURLValidation/rejects_unsupported_protocol
-    validation_test.go:173: ValidateSession() error = "Invalid videoUrl: protocol must be http or https", want "invalid videoUrl: protocol must be http or https"
-=== RUN   TestValidateSessionVideoURLValidation/accepts_valid_https_url
-=== RUN   TestValidateSessionVideoURLValidation/accepts_valid_http_url
---- FAIL: TestValidateSessionVideoURLValidation (0.00s)
-    --- PASS: TestValidateSessionVideoURLValidation/accepts_empty_video_url (0.00s)
-    --- PASS: TestValidateSessionVideoURLValidation/allows_whitespace-only_video_url (0.00s)
-    --- FAIL: TestValidateSessionVideoURLValidation/rejects_invalid_url (0.00s)
-    --- FAIL: TestValidateSessionVideoURLValidation/rejects_unsupported_protocol (0.00s)
-    --- PASS: TestValidateSessionVideoURLValidation/accepts_valid_https_url (0.00s)
-    --- PASS: TestValidateSessionVideoURLValidation/accepts_valid_http_url (0.00s)
-=== RUN   TestValidateSessionAllowsMissingVideoURL
---- PASS: TestValidateSessionAllowsMissingVideoURL (0.00s)
-=== RUN   TestValidateSessionDurationValidation
-=== RUN   TestValidateSessionDurationValidation/rejects_negative_duration
-    validation_test.go:235: ValidateSession() error = "Invalid duration: expected a non-negative integer", want "invalid duration: expected a non-negative integer"
-=== RUN   TestValidateSessionDurationValidation/accepts_zero_duration
-=== RUN   TestValidateSessionDurationValidation/accepts_positive_duration
-=== RUN   TestValidateSessionDurationValidation/accepts_nil_duration
---- FAIL: TestValidateSessionDurationValidation (0.00s)
-    --- FAIL: TestValidateSessionDurationValidation/rejects_negative_duration (0.00s)
-    --- PASS: TestValidateSessionDurationValidation/accepts_zero_duration (0.00s)
-    --- PASS: TestValidateSessionDurationValidation/accepts_positive_duration (0.00s)
-    --- PASS: TestValidateSessionDurationValidation/accepts_nil_duration (0.00s)
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/localhost
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/127.0.0.1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/::1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/10.0.0.1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/172.16.0.1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/192.168.1.1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/169.254.169.254
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/fc00::1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/fe80::1
-    validation_test.go:268: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
---- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/localhost (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/127.0.0.1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/::1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/10.0.0.1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/172.16.0.1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/192.168.1.1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/169.254.169.254 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/fc00::1 (0.00s)
-    --- FAIL: TestValidateSessionRejectsPrivateVideoURLHosts/fe80::1 (0.00s)
-=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior
-=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback
-    validation_test.go:314: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local
-    validation_test.go:314: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames
-    validation_test.go:314: ValidateSession() error = "Invalid videoUrl: private or internal network addresses are not allowed", want "invalid videoUrl: private or internal network addresses are not allowed"
-=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts
---- FAIL: TestValidateSessionVideoURLDNSResolutionBehavior (0.00s)
-    --- FAIL: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback (0.00s)
-    --- FAIL: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local (0.00s)
-    --- FAIL: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames (0.00s)
-    --- PASS: TestValidateSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts (0.00s)
-FAIL
-FAIL	matmetrics/internal/sessionapi	0.009s
-=== RUN   TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub
---- PASS: TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub (0.00s)
-=== RUN   TestHandlerRejectsInvalidDateBeforeCallingGitHub
---- PASS: TestHandlerRejectsInvalidDateBeforeCallingGitHub (0.00s)
-PASS
-ok  	matmetrics/api/go/sessions/create	0.008s
-=== RUN   TestHandlerRejectsMalformedDateBeforeCallingGitHub
---- PASS: TestHandlerRejectsMalformedDateBeforeCallingGitHub (0.00s)
-PASS
-ok  	matmetrics/api/go/sessions/update	0.004s
-FAIL
+✔ github-sync manifest declares the expected settings tab copy and icon (1.395589ms)
+✔ github-sync manifest evidence tracks sync-specific UX safeguards (1.068677ms)
+✔ returns a validation error when owner or repo are missing (0.839636ms)
+✔ deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations (0.42724ms)
+✔ builds failure messages for API/network errors (1.079134ms)
+✔ deriveDisableOutcome returns deterministic results for edge destructive states (0.758881ms)
+✔ deriveClearOutcome returns deterministic results for edge destructive states (0.317805ms)
+✔ runLoadGitHubSyncHistory maps error and empty responses to semantic user-facing messages (20.379995ms)
+✔ runLoadGitHubSyncHistory maps summary payload fields and warnings into success state data (0.798941ms)
+✔ runLoadGitHubSyncHistory supports retry callback behavior by allowing a second invocation to recover from an error (0.869042ms)
+✔ initPlugin registers github settings renderer (1.122984ms)
+✔ createDomSafePathId returns deterministic, DOM-safe ids for complex paths (0.945042ms)
+✔ parseApiResponse surfaces JSON error payload message (5.516807ms)
+✔ parseApiResponse handles text/plain error payload with status and route hint (0.685208ms)
+✔ parseApiResponse handles HTML 404 payload with clear fallback messaging (0.537632ms)
+✔ parseApiResponse reports malformed JSON payload with controlled message (0.529256ms)
+✔ apply confirmation requires strong APPLY phrase (1.415769ms)
+✔ canceling reset confirmation does not mutate diagnostics state (0.44374ms)
+✔ confirming reset returns empty state and keeps undo snapshot (1.188774ms)
+✔ audit review content groups flags with plain-language headings and helper text (1.36808ms)
+✔ createUiState returns idle state copy (1.110313ms)
+✔ createUiState returns loading state with long-running messaging (0.209121ms)
+✔ createUiState returns empty state for no logs and no findings (1.156373ms)
+✔ createUiState returns error state with concise reason and recovery step (0.205213ms)
+✔ createUiState returns success state (0.208434ms)
+✔ createUiState interruption flow uses cancellation next step guidance (0.213983ms)
+✔ createUiState error for config issues uses server/proxy guidance (0.229845ms)
+✔ createUiState error for generic preview failures keeps refresh guidance (0.165093ms)
+✔ detectNoTechniquesHighEffort: flags high effort (>= 4) with zero techniques (1.273293ms)
+✔ detectNoTechniquesHighEffort: flags effort 5 with zero techniques (0.202246ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 3 with zero techniques (0.128856ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 5 with techniques (0.106522ms)
+✔ detectNoTechniquesHighEffort: respects custom effort threshold (0.191923ms)
+✔ detectEmptyDescription: flags missing description (0.145056ms)
+✔ detectEmptyDescription: flags empty string description (0.161405ms)
+✔ detectEmptyDescription: flags whitespace-only description (0.129822ms)
+✔ detectEmptyDescription: does not flag non-empty description (0.212586ms)
+✔ detectEmptyNotes: flags missing notes (0.401933ms)
+✔ detectEmptyNotes: flags empty notes (0.186485ms)
+✔ detectEmptyNotes: flags whitespace-only notes (0.158261ms)
+✔ detectEmptyNotes: does not flag non-empty notes (0.145808ms)
+✔ detectDurationOutlier: does not flag when duration is undefined (0.22196ms)
+✔ detectDurationOutlier: does not flag when less than 3 sessions with duration (0.19879ms)
+✔ detectDurationOutlier: flags large duration outliers with 1 std dev multiplier (0.239793ms)
+✔ detectDurationOutlier: flags small duration outliers with 1 std dev multiplier (0.17165ms)
+✔ detectDurationOutlier: does not flag duration within 2 std deviations (0.101566ms)
+✔ detectDurationOutlier: respects custom std dev multiplier (0.10086ms)
+✔ runAuditRules: runs all enabled rules (0.285586ms)
+✔ runAuditRules: skips disabled rules (0.163993ms)
+✔ runAuditRules: returns empty array for clean session (0.102995ms)
+✔ runAuditRulesForAllSessions: returns flagged sessions only (0.247899ms)
+✔ runAuditRulesForAllSessions: includes sessions with no flags in original list (0.101231ms)
+✔ github-sync manifest contract (5.070041ms)
+✔ log-doctor manifest contract (0.570341ms)
+✔ prompt-settings manifest contract (0.384907ms)
+✔ tag-manager manifest contract (0.488174ms)
+✔ video-library manifest contract (0.368144ms)
+✔ initPlugin registers github-sync ids exactly once (1.477947ms)
+✔ initPlugin registers log-doctor ids exactly once (0.224552ms)
+✔ initPlugin registers prompt-settings ids exactly once (0.140612ms)
+✔ initPlugin registers tag-manager ids exactly once (0.193378ms)
+✔ initPlugin registers video-library ids exactly once (0.212971ms)
+✔ plugin sources avoid hardcoded semantic color utility classes (2.861284ms)
+✔ composition conformance passes for a sectioned dashboard shell with destructive flow wrapper (10.259458ms)
+✔ composition conformance fails when layout is not shell-rooted, not sectioned, and uses raw destructive button (1.187022ms)
+✔ composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported (1.523989ms)
+✔ github-sync uses standardized plugin state helpers (1.15051ms)
+✔ prompt-settings uses standardized plugin state helpers (0.291423ms)
+✔ tag-manager uses standardized plugin state helpers (0.301498ms)
+✔ video-library uses standardized plugin state helpers (0.32374ms)
+✔ log-doctor uses standardized plugin state helpers (1.281547ms)
+✔ required helper contract check fails when helper is missing (0.714058ms)
+✔ prompt-settings manifest declares the expected dashboard tab copy and icon (0.856733ms)
+✔ prompt-settings manifest evidence tracks prompt settings UX coverage (0.691705ms)
+✔ delete flow exposes loading labels and disabled actions while async work is in progress (0.969617ms)
+✔ delete flow surfaces recoverable errors and supports retry after apply failure (0.57057ms)
+✔ initPlugin registers tag manager renderer with refresh wiring (1.137882ms)
+✔ plugins/test-plugin-manifest-contract.ts (320.220364ms)
+✔ plugins/test-plugin-registration-contract.ts (373.774482ms)
+✔ fallback prompt uses shared default constant with mixed-discipline preservation guidance (1.562376ms)
+✔ prompt payload keeps custom prompt override and raw mixed-language input unchanged (0.215036ms)
+✔ log-doctor fix route proxies to /api/go/github/log-doctor/fix with expected body mapping (7.515017ms)
+✔ log-doctor fix route rejects invalid payloads before proxying (3.59305ms)
+✔ log-doctor fix route maps malformed proxy base URL to a configuration-specific 500 message (0.4586ms)
+✔ log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo/branch (7.409374ms)
+✔ log-doctor route rejects invalid body before proxying (1.897869ms)
+✔ log-doctor route returns upstream 404 when proxied go route is absent (1.423306ms)
+✔ log-doctor route maps malformed proxy base URL to a configuration-specific 500 message (0.52334ms)
+✔ derivePluginManagerInstalledViewState maps lifecycle scenarios to visible UI states (23.981301ms)
+✔ installed content renders behavior-defining UI surfaces for each scenario state (5.088879ms)
+✔ deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls (10.337735ms)
+✔ isActiveRefreshRequest only applies responses for the latest mounted refresh (0.290501ms)
+✔ isActiveRefreshRequest prevents out-of-order completion from regressing current UI state (0.610794ms)
+✔ installed table uses semantic tone utility classes for maturity and severity badges (4.11549ms)
+✔ PluginPageShell renders title, description, icon, and content regions (11.963885ms)
+✔ PluginNotice renders notice title and description content (1.872583ms)
+✔ VersionHistoryModal clears loading and renders release content after a successful fetch (151.613129ms)
+✔ VersionHistoryModal clears loading and surfaces an error message after a failed fetch (3.878252ms)
+✔ useSessionFormAi hook structure is verified (0.767024ms)
+✔ APP_VERSION matches package.json version (4.117668ms)
+✔ APP_VERSION matches the latest CHANGELOG.md entry (2.522371ms)
+✔ guest normalization (null/undefined/blank -> guest) (1.187971ms)
+✔ active user switching (0.376179ms)
+✔ scoped key generation for explicit user (0.491745ms)
+✔ guest-mode predicate behavior (0.407554ms)
+✔ canonical design token keys match DESIGN.md section 2 source of truth (1.752616ms)
+✔ canonical design token keys remain kebab-case and do not introduce underscores (0.312641ms)
+✔ updateSession moves the markdown file when the session date changes (38.768138ms)
+✔ updateSession leaves exactly one markdown file for the session after a date move (12.058102ms)
+✔ findSessionFileById locates a session even when the file path month no longer matches frontmatter date (5.33545ms)
+✔ updateSession rejects a conflicting destination file and preserves the original file (23.573119ms)
+✔ updateSession overwrites an existing destination file when it has the same session ID with stale content (14.553901ms)
+✔ concurrent updateSession calls for the same file return a conflict for one caller (13.031942ms)
+✔ updateSession releases same-path lock when commit rename fails (19.671831ms)
+✔ concurrent deleteSession and updateSession cannot resurrect a session (19.796394ms)
+✔ updateSession returns SessionNotFoundError when delete wins before update acquires the lock (22.06836ms)
+✔ shouldReclaimSessionUpdateLock keeps alive PID locks even when old (2.105964ms)
+✔ updateSession reclaims same-path lock when owner PID is dead regardless of age (11.38728ms)
+✔ updateSession reclaims malformed same-path lock metadata (10.251164ms)
+✔ updateSession keeps conflict behavior when same-path lock is active (5.058702ms)
+✔ acquireSessionUpdateLock allows same-owner reentrant acquisition (7.826802ms)
+✔ acquireSessionUpdateLock keeps conflicts for different-owner active locks (5.425471ms)
+✔ reentrant release ordering cannot delete another owner reclaimed lock (4.93994ms)
+✔ shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age (2.090344ms)
+✔ concurrent date-move updates avoid deadlock and resolve with one winner (16.231664ms)
+✔ deleteSession racing with date move yields deterministic deleted state (13.967636ms)
+✔ updateSession release lock is robust on normal and ENOENT cleanup paths (13.412546ms)
+✔ late release does not delete a reclaimed lock owned by another caller (23.106654ms)
+✔ createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file (8.849004ms)
+✔ createSession resolves concurrent create when the winning writer completes after 200ms (575.754187ms)
+✔ findSessionFileById throws DuplicateSessionIdError when multiple files share an ID (6.432421ms)
+Skipping unreadable or malformed session file during lookup for session-duplicate-with-malformed: /tmp/matmetrics-file-storage-vynJS4/2025/03/20250310-matmetrics-session-malformed-neighbor.md Error: Missing or invalid "id" in frontmatter
+    at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1427:29)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1244:7)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1214:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+✔ findSessionFileById still detects duplicate IDs when malformed files are present (30.687652ms)
+Skipping unreadable or malformed session file during lookup for session-read-error: /tmp/matmetrics-file-storage-KW6zJd/2025/01/20250110-matmetrics-session-read-error-bad.md Error: Missing or invalid "id" in frontmatter
+    at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1427:29)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1275:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1263:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
