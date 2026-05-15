@@ -74,7 +74,7 @@ type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
 type AuditStep = 'run-check' | 'review-findings' | 'resolve-findings';
 
-const emitDestructiveActionEvent = (
+export const emitDestructiveActionEvent = (
   action: LogDoctorDestructiveAction,
   stage: LogDoctorDestructiveStage,
   metadata?: Record<string, string | number | boolean>

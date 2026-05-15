@@ -8,6 +8,7 @@ import {
   resolveResetDiagnosticsSnapshot,
   type LogDoctorUiState,
   type ScanResult,
+  type ScanFileResult,
   type FixResult,
   type DiagnosticsSnapshot,
 } from '../components/log-doctor-state';
@@ -15,7 +16,7 @@ import {
   parseApiResponse,
   toErrorReason,
   emitDestructiveActionEvent,
-} from '../lib/log-doctor-utils';
+} from '../components/log-doctor';
 import { ToastAction } from '@/components/ui/toast';
 
 interface UseLogDoctorValidationState {
@@ -90,7 +91,7 @@ export function useLogDoctorValidation(): UseLogDoctorValidationState &
 
   const selectIdByPath = useMemo(() => {
     const map = new Map<string, string>();
-    invalidFiles.forEach((file, rowIndex) => {
+    invalidFiles.forEach((file: ScanFileResult, rowIndex: number) => {
       const id = `log-doctor-file-${rowIndex}-${file.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
       map.set(file.path, id);
     });
@@ -102,7 +103,7 @@ export function useLogDoctorValidation(): UseLogDoctorValidationState &
     if (!normalizedSearch) {
       return invalidFiles;
     }
-    return invalidFiles.filter((file) =>
+    return invalidFiles.filter((file: ScanFileResult) =>
       file.path.toLowerCase().includes(normalizedSearch)
     );
   }, [fileSearch, invalidFiles]);
