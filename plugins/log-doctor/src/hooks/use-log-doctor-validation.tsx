@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { useToast } from '@/hooks/use-toast';
 import {

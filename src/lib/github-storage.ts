@@ -144,14 +144,6 @@ function getManifestScopeKeyForBranch(
   return `${getDefaultBranchCacheKey(owner, repo)}:${branchScope}`;
 }
 
-function invalidateManifestScopeForBranch(
-  owner: string,
-  repo: string,
-  branchScope: string
-): void {
-  manifestCache.delete(getManifestScopeKeyForBranch(owner, repo, branchScope));
-}
-
 function loadManifest(config: GitHubConfig): SessionManifest {
   const scopeKey = getManifestScopeKey(config);
   const existing = manifestCache.get(scopeKey);
