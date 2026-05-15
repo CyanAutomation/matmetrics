@@ -1555,6 +1555,7 @@ export function __resetStorageStateForTests(): void {
   latestAppliedSeq = 0;
   storageGeneration = 0;
   resetMutationVersion();
+  clearAllDirtyMutations();
   activeSyncLease = null;
   localLeaseEpochCounter = 0;
   syncLockTtlMs = DEFAULT_SYNC_LOCK_TTL_MS;
@@ -1571,7 +1572,6 @@ export function __resetStorageStateForTests(): void {
     isStorageEventForKey,
   });
 
-  clearAllDirtyMutations();
   resolveAuthenticatedUserId = () => {
     try {
       return getFirebaseAuth().currentUser?.uid ?? null;
