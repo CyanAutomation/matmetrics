@@ -24,26 +24,26 @@ func ValidateSession(session model.Session) error {
 		return fmt.Errorf("missing required field: date")
 	}
 	if !regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`).MatchString(session.Date) {
-		return fmt.Errorf("invalid date: expected YYYY-MM-DD format")
+		return fmt.Errorf("Invalid date: expected YYYY-MM-DD format")
 	}
 	if _, err := time.Parse("2006-01-02", session.Date); err != nil {
-		return fmt.Errorf("invalid date: must be a real calendar date")
+		return fmt.Errorf("Invalid date: must be a real calendar date")
 	}
 	if session.Effort < 1 || session.Effort > 5 {
-		return fmt.Errorf("invalid effort level (must be an integer 1-5)")
+		return fmt.Errorf("Invalid effort level (must be an integer 1-5)")
 	}
 	switch session.Category {
 	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai:
 	default:
-		return fmt.Errorf("invalid category")
+		return fmt.Errorf("Invalid category")
 	}
 	for index, technique := range session.Techniques {
 		if strings.TrimSpace(technique) == "" {
-			return fmt.Errorf("invalid techniques[%d]: value cannot be empty", index)
+			return fmt.Errorf("Invalid techniques[%d]: value cannot be empty", index)
 		}
 	}
 	if session.Duration != nil && *session.Duration < 0 {
-		return fmt.Errorf("invalid duration: expected a non-negative integer")
+		return fmt.Errorf("Invalid duration: expected a non-negative integer")
 	}
 	if err := validateOptionalVideoURL(session.VideoURL); err != nil {
 		return err
@@ -72,17 +72,19 @@ func validateOptionalVideoURL(value string) error {
 	}
 	parsedURL, err := url.Parse(trimmed)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return fmt.Errorf("invalid videoUrl: expected a valid absolute URL")
+		return fmt.Errorf("Invalid videoUrl: expected a valid absolute URL")
 	}
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("invalid videoUrl: protocol must be http or https")
+		return fmt.Errorf("Invalid videoUrl: protocol must be http or https")
 	}
 	if isDisallowedVideoHost(parsedURL.Hostname()) {
-		return fmt.Errorf("invalid videoUrl: private or internal network addresses are not allowed")
+		return fmt.Errorf("Invalid videoUrl: private or internal network addresses are not allowed")
 	}
 	return nil
 }
 
 var lookupIP = net.LookupIP
 
-func isDisallowedVideoHost(host string) bool { return networkvalidator.IsDisallowedVideoHost(host, lookupIP) }
+func isDisallowedVideoHost(host string) bool {
+	return networkvalidator.IsDisallowedVideoHost(host, lookupIP)
+}
