@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -15,14 +15,6 @@ import {
 } from '@/components/ui/sidebar';
 import { SessionLogForm } from '@/components/session-log-form';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import {
-  getSessions,
-  getSessionFileIssues,
-  initializeStorage,
-  getSyncStatus,
-  saveSession,
-} from '@/lib/storage';
-import { JudoSession, SessionFileIssue } from '@/lib/types';
 import {
   Info,
   Plus,
@@ -55,33 +47,19 @@ import {
 import { useAuth } from '@/components/auth-provider';
 import { SignInScreen } from '@/components/sign-in-screen';
 import { RessaImage } from '@/components/ressa-image';
-import {
-  clearGuestWorkspaceAfterImport,
-  dismissGuestImport,
-  getGuestSessionsForImport,
-  getGuestWorkspaceSummary,
-  retainGuestSessionsAfterPartialImport,
-  shouldPromptGuestImport,
-} from '@/lib/guest-mode';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import {
-  coreTabs,
-  mapDashboardExtensionsToTabs,
-  TAB_IDS,
-  type TabDefinition,
-  type TabId,
-} from '@/lib/navigation/tab-definitions';
-import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
-import { loadEnabledDashboardTabExtensions } from '@/lib/plugins/registry';
-import { loadDashboardTabExtensions } from '@/lib/plugins/load-dashboard-tab-extensions';
+import { TAB_IDS } from '@/lib/navigation/tab-definitions';
+import { useDashboardState } from '@/hooks/use-dashboard-state';
+import { useSessionsData } from '@/hooks/use-sessions-data';
+import { usePluginTabs } from '@/hooks/use-plugin-tabs';
+import { useGuestImport } from '@/hooks/use-guest-import';
+import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
 
 const legacyPluginRegistryFallbackEnabled =
   process.env.NEXT_PUBLIC_ENABLE_LEGACY_PLUGIN_REGISTRY === 'true';
 
 export default function Home() {
-  const { toast } = useToast();
   const {
     authReady,
     preferencesReady,
@@ -90,127 +68,42 @@ export default function Home() {
     authMode,
     authAvailable,
   } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>(TAB_IDS.dashboard);
-  const [sessions, setSessions] = useState<JudoSession[]>([]);
-  const [sessionFileIssues, setSessionFileIssues] = useState<
-    SessionFileIssue[]
-  >([]);
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
-  const [isImportingGuestData, setIsImportingGuestData] = useState(false);
-  const [syncStatus, setSyncStatus] = useState(getSyncStatus());
-  const [guestWorkspace, setGuestWorkspace] = useState(() =>
-    getGuestWorkspaceSummary()
-  );
-  const [pluginExtensions, setPluginExtensions] = useState<
-    ResolvedDashboardTabExtension[]
-  >(() =>
-    legacyPluginRegistryFallbackEnabled
-      ? loadEnabledDashboardTabExtensions()
-      : []
-  );
 
-  const [resolvedPluginTabs, setResolvedPluginTabs] = useState<TabDefinition[]>(
-    []
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const resolvePluginTabs = async () => {
-      const tabs = await mapDashboardExtensionsToTabs(pluginExtensions);
-      if (!cancelled) {
-        setResolvedPluginTabs(tabs);
-      }
-    };
-
-    void resolvePluginTabs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pluginExtensions]);
-
-  const allTabs = React.useMemo(
-    () =>
-      resolvedPluginTabs.length > 0
-        ? [...coreTabs, ...resolvedPluginTabs]
-        : [...coreTabs],
-    [resolvedPluginTabs]
-  );
-
-  const refreshSessions = useCallback(() => {
-    setSessions(getSessions());
-    setSessionFileIssues(getSessionFileIssues());
-    setSyncStatus(getSyncStatus());
-    setGuestWorkspace(getGuestWorkspaceSummary());
-  }, []);
-
-  const refreshPluginExtensions = useCallback(async () => {
-    const nextExtensions = await loadDashboardTabExtensions({
-      useLegacyRegistryFallback: legacyPluginRegistryFallbackEnabled,
-      fallbackLoader: loadEnabledDashboardTabExtensions,
-    });
-
-    setPluginExtensions(nextExtensions);
-  }, []);
-
-  useEffect(() => {
-    void refreshPluginExtensions();
-  }, [refreshPluginExtensions]);
-
-  useEffect(() => {
-    initializeStorage();
-    refreshSessions();
-
-    const handleStorageSync = () => {
-      refreshSessions();
-    };
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key?.startsWith('matmetrics_sessions:')) {
-        refreshSessions();
-      }
-    };
-
-    window.addEventListener('storageSync', handleStorageSync);
-    window.addEventListener('storage', handleStorageChange);
-
-    const statusInterval = setInterval(() => {
-      setSyncStatus(getSyncStatus());
-    }, 500);
-
-    return () => {
-      window.removeEventListener('storageSync', handleStorageSync);
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(statusInterval);
-    };
-  }, [refreshSessions, user?.uid, authMode]);
-
-  useEffect(() => {
-    if (!user) {
-      setIsImportDialogOpen(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const updateImportDialogState = async () => {
-      const shouldPrompt = await shouldPromptGuestImport(user.uid);
-      if (!cancelled) {
-        setIsImportDialogOpen(shouldPrompt);
-      }
-    };
-
-    setIsAuthDialogOpen(false);
-    void updateImportDialogState();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, sessions.length]);
+  // Custom hooks for state management
+  const { activeTab, setActiveTab } = useDashboardNavigation();
+  const { sessions, sessionFileIssues, syncStatus, guestWorkspace, refreshSessions } =
+    useSessionsData({ userId: user?.uid, authMode });
+  const {
+    isLogModalOpen,
+    setIsLogModalOpen,
+    isAuthDialogOpen,
+    setIsAuthDialogOpen,
+    isImportDialogOpen: _isImportDialogOpen,
+    isVersionHistoryOpen,
+    setIsVersionHistoryOpen,
+  } = useDashboardState();
+  const {
+    visibleTabs,
+    selectedTab,
+    refreshPluginExtensions,
+  } = usePluginTabs({
+    legacyPluginRegistryFallbackEnabled,
+    activeTab,
+    hasUser: Boolean(user),
+    isGuest: authMode === 'guest',
+    authAvailable,
+  });
+  const {
+    isImportDialogOpen,
+    setIsImportDialogOpen,
+    isImportingGuestData,
+    handleDismissGuestImport,
+    handleImportGuestData,
+  } = useGuestImport({
+    userId: user?.uid,
+    sessionsLength: sessions.length,
+    onImportComplete: refreshSessions,
+  });
 
   const handleSessionAdded = () => {
     refreshSessions();
@@ -218,90 +111,7 @@ export default function Home() {
     if (activeTab !== TAB_IDS.history) setActiveTab(TAB_IDS.history);
   };
 
-  const handleDismissGuestImport = async () => {
-    if (!user) {
-      return;
-    }
-
-    await dismissGuestImport(user.uid);
-    setIsImportDialogOpen(false);
-  };
-
-  const handleImportGuestData = async () => {
-    if (!user) {
-      return;
-    }
-
-    setIsImportingGuestData(true);
-    try {
-      const guestSessions = getGuestSessionsForImport();
-      const results = await Promise.allSettled(
-        guestSessions.map(async (session) => ({
-          session,
-          result: await saveSession(session),
-        }))
-      );
-      const successfulSessions = results.flatMap((entry) =>
-        entry.status === 'fulfilled' ? [entry.value] : []
-      );
-      const permanentlyFailedSessions = results.flatMap((entry, index) =>
-        entry.status === 'rejected' ? [guestSessions[index]] : []
-      );
-
-      if (permanentlyFailedSessions.length === 0) {
-        clearGuestWorkspaceAfterImport();
-      } else {
-        retainGuestSessionsAfterPartialImport(permanentlyFailedSessions);
-      }
-
-      refreshSessions();
-      if (permanentlyFailedSessions.length === 0) {
-        setIsImportDialogOpen(false);
-        const queuedCount = successfulSessions.filter(
-          ({ result }) => result.status === 'queued'
-        ).length;
-        toast({
-          title: 'Guest sessions imported',
-          description:
-            queuedCount > 0
-              ? `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} moved into your account. ${queuedCount} ${queuedCount === 1 ? 'is' : 'are'} queued to finish syncing.`
-              : `${successfulSessions.length} local session${successfulSessions.length === 1 ? '' : 's'} moved into your account.`,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Guest import incomplete',
-          description: `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} imported, ${permanentlyFailedSessions.length} left in guest mode for retry.`,
-        });
-      }
-    } finally {
-      setIsImportingGuestData(false);
-    }
-  };
-
   const isGuest = authMode === 'guest';
-  const visibleTabs = allTabs.filter(
-    (tab) =>
-      tab.isVisible?.({
-        hasUser: Boolean(user),
-        isGuest,
-        authAvailable,
-      }) ?? true
-  );
-  const selectedTab =
-    visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0] ?? null;
-
-  if (!authReady || !preferencesReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Loading your workspace...</span>
-        </div>
-      </div>
-    );
-  }
-
   const initials = (
     user?.displayName ||
     user?.email ||
@@ -314,7 +124,6 @@ export default function Home() {
     .toUpperCase();
   const guestBadgeLabel =
     guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview';
-
   const syncStatusText = !syncStatus.isOnline
     ? 'Offline'
     : syncStatus.isSyncing
@@ -322,6 +131,18 @@ export default function Home() {
       : syncStatus.pendingCount > 0
         ? `${syncStatus.pendingCount} pending`
         : 'Synced';
+
+  if (!authReady || !preferencesReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading your workspace...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--color-surface-container-low))]">
