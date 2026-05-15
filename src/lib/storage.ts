@@ -32,6 +32,18 @@ import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
 import { createTagService } from './tags/service';
 import { initializeSyncLeaseModule } from './sync-lease';
+import {
+  markDirtyMutation,
+  clearDirtyMutation,
+  hydrateDirtyMutationsFromQueue,
+  getOptimisticSessions,
+  getDirtyMutations,
+  clearAllDirtyMutations,
+  resetMutationVersion,
+  sessionsEqual,
+  type DirtyMutation,
+  type DirtyMutationInput,
+} from './mutation-state';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -100,7 +112,6 @@ let inFlightSync: Promise<void> | null = null;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
-let mutationVersion = 0;
 let inFlightRefresh: Promise<void> | null = null;
 let inFlightRefreshForce = false;
 let queuedForcedRefresh = false;
@@ -136,30 +147,6 @@ let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
 let readPreferences: PreferenceReader = () => getCurrentPreferences();
 let persistGitHubSettingsPreference: GitHubSettingsSaver =
   saveGitHubSettingsPreference;
-
-type DirtyMutation =
-  | {
-      type: 'CREATE' | 'UPDATE';
-      session: JudoSession;
-      version: number;
-    }
-  | {
-      type: 'DELETE';
-      id: string;
-      version: number;
-    };
-
-type DirtyMutationInput =
-  | {
-      type: 'CREATE' | 'UPDATE';
-      session: JudoSession;
-    }
-  | {
-      type: 'DELETE';
-      id: string;
-    };
-
-const dirtyMutations = new Map<string, DirtyMutation>();
 
 type SyncLease = {
   owner: string;
@@ -234,86 +221,6 @@ function parseRetryAfterMs(headerValue: string | null): number | null {
   }
 
   return Math.max(0, retryAt - Date.now());
-}
-
-function nextMutationVersion(): number {
-  mutationVersion += 1;
-  return mutationVersion;
-}
-
-function markDirtyMutation(
-  mutation: DirtyMutationInput,
-  version = nextMutationVersion()
-): number {
-  const id = mutation.type === 'DELETE' ? mutation.id : mutation.session.id;
-  dirtyMutations.set(id, {
-    ...mutation,
-    version,
-  } as DirtyMutation);
-  return version;
-}
-
-function clearDirtyMutation(id: string, version?: number): void {
-  const existing = dirtyMutations.get(id);
-  if (!existing) {
-    return;
-  }
-
-  if (version !== undefined && existing.version !== version) {
-    return;
-  }
-
-  dirtyMutations.delete(id);
-}
-
-function hydrateDirtyMutationsFromQueue(): void {
-  dirtyMutations.clear();
-
-  for (const operation of getQueue()) {
-    if (operation.type === 'DELETE') {
-      markDirtyMutation(
-        { type: 'DELETE', id: operation.id },
-        operation.queuedAt
-      );
-      continue;
-    }
-
-    markDirtyMutation(
-      { type: operation.type, session: operation.session },
-      operation.queuedAt
-    );
-  }
-}
-
-function sessionsEqual(left: JudoSession, right: JudoSession): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function applyOptimisticMutation(
-  baseSessions: JudoSession[],
-  mutation: DirtyMutation
-): JudoSession[] {
-  if (mutation.type === 'DELETE') {
-    return baseSessions.filter((session) => session.id !== mutation.id);
-  }
-
-  const existingIndex = baseSessions.findIndex(
-    (session) => session.id === mutation.session.id
-  );
-
-  if (existingIndex === -1) {
-    return [mutation.session, ...baseSessions];
-  }
-
-  return baseSessions.map((session, index) =>
-    index === existingIndex ? mutation.session : session
-  );
-}
-
-function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[] {
-  return Array.from(dirtyMutations.values())
-    .sort((left, right) => left.version - right.version)
-    .reduce(applyOptimisticMutation, baseSessions);
 }
 
 function commitLocalSessions(sessions: JudoSession[]): void {
@@ -1214,7 +1121,7 @@ export function clearAllData(): void {
   localStorage.removeItem(getSyncQueueStorageKey());
   localStorage.removeItem(getSyncLockStorageKey());
   sessionCache = [];
-  dirtyMutations.clear();
+  clearAllDirtyMutations();
   dispatchStorageSync([]);
 }
 
@@ -1388,17 +1295,17 @@ async function refreshSessionsFromAPI(options?: {
 
       const mergedSessions = getOptimisticSessions(sessions);
 
-      for (const [id, mutation] of dirtyMutations.entries()) {
+      for (const [id, mutation] of getDirtyMutations().entries()) {
         if (mutation.type === 'DELETE') {
           if (!sessions.some((session) => session.id === id)) {
-            dirtyMutations.delete(id);
+            clearDirtyMutation(id);
           }
           continue;
         }
 
         const remoteSession = sessions.find((session) => session.id === id);
         if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
-          dirtyMutations.delete(id);
+          clearDirtyMutation(id);
         }
       }
 
@@ -1647,7 +1554,7 @@ export function __resetStorageStateForTests(): void {
   refreshSeq = 0;
   latestAppliedSeq = 0;
   storageGeneration = 0;
-  mutationVersion = 0;
+  resetMutationVersion();
   activeSyncLease = null;
   localLeaseEpochCounter = 0;
   syncLockTtlMs = DEFAULT_SYNC_LOCK_TTL_MS;
@@ -1664,7 +1571,7 @@ export function __resetStorageStateForTests(): void {
     isStorageEventForKey,
   });
 
-  dirtyMutations.clear();
+  clearAllDirtyMutations();
   resolveAuthenticatedUserId = () => {
     try {
       return getFirebaseAuth().currentUser?.uid ?? null;
