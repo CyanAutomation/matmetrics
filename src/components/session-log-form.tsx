@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useId } from 'react';
+import React, { useId, useCallback, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -25,15 +25,12 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import {
-  EffortLevel,
   EFFORT_LABELS,
   EFFORT_COLORS,
   JudoSession,
-  SessionCategory,
 } from '@/lib/types';
-import { saveSession, updateSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
-import { cn, formatLocalDateInputValue } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -45,6 +42,11 @@ import { useAuth } from '@/components/auth-provider';
 import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { useSessionFormAi } from '@/hooks/use-session-form-ai';
+import {
+  useSessionFormState,
+  useVideoUrlValidation,
+  useFormSubmit,
+} from '@/hooks/use-session-form';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -66,201 +68,98 @@ export function SessionLogForm({
   const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, 'id');
   const fid = (suffix: string) => `judo-log-${uniquePrefix}-${suffix}`;
 
-  const isEditing = !!sessionToEdit;
-  const shouldHideHeader = isEditing || hideHeader;
-
-  const [date, setDate] = useState(sessionToEdit?.date || '');
-  const [duration, setDuration] = useState<string>(
-    sessionToEdit?.duration?.toString() ?? ''
-  );
-  const [description, setDescription] = useState(
-    sessionToEdit?.description || ''
-  );
-  const [techniques, setTechniques] = useState<string[]>(
-    sessionToEdit?.techniques || []
-  );
-  const [newTech, setNewTech] = useState('');
-  const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 3);
-  const [category, setCategory] = useState<SessionCategory>(
-    sessionToEdit?.category || 'Technical'
-  );
-  const [notes, setNotes] = useState(sessionToEdit?.notes || '');
-  const [videoUrl, setVideoUrl] = useState(sessionToEdit?.videoUrl || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const submitFeedback = useActionFeedback();
-  const resetSubmitFeedback = submitFeedback.reset;
+  const shouldHideHeader = !!sessionToEdit || hideHeader;
   const aiForm = useSessionFormAi();
+  const submitFeedback = useActionFeedback();
 
+  // Use custom hooks for form state management
+  const formState = useSessionFormState(sessionToEdit);
+  const videoUrlValidationMessage = useVideoUrlValidation(formState.videoUrl);
+
+  // Reset AI form and feedback when sessionToEdit changes
   useEffect(() => {
-    setDate(sessionToEdit?.date || '');
-    setDuration(sessionToEdit?.duration?.toString() ?? '');
-    setDescription(sessionToEdit?.description || '');
-    setTechniques(sessionToEdit?.techniques || []);
-    setNewTech('');
-    setEffort(sessionToEdit?.effort || 3);
-    setCategory(sessionToEdit?.category || 'Technical');
-    setNotes(sessionToEdit?.notes || '');
-    setVideoUrl(sessionToEdit?.videoUrl || '');
-    setIsSubmitting(false);
     aiForm.reset();
-    resetSubmitFeedback();
-  }, [sessionToEdit, aiForm, resetSubmitFeedback]);
+    submitFeedback.reset();
+  }, [sessionToEdit, aiForm, submitFeedback]);
 
-  useEffect(() => {
-    if (!date && !isEditing) {
-      setDate(formatLocalDateInputValue(new Date()));
+  // Form submit hook
+  const { isSubmitting, submit: submitForm } = useFormSubmit(
+    {
+      date: formState.date,
+      duration: formState.duration,
+      description: formState.description,
+      techniques: formState.techniques,
+      effort: formState.effort,
+      category: formState.category,
+      notes: formState.notes,
+      videoUrl: formState.videoUrl,
+    },
+    sessionToEdit,
+    {
+      onSuccess: () => {
+        if (!formState.isEditing) {
+          formState.reset();
+        }
+        submitFeedback.showSuccess();
+        onSuccess();
+      },
+      onError: () => {
+        submitFeedback.showError();
+      },
+      onStart: () => {
+        submitFeedback.startLoading();
+      },
+      showToast: (toastProps) => {
+        toast({
+          variant: toastProps.variant as any,
+          title: toastProps.title,
+          description: toastProps.description,
+        });
+      },
     }
-  }, [date, isEditing]);
+  );
 
+  const handleAddTech = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (formState.newTech.trim() && !formState.techniques.includes(formState.newTech.trim())) {
+        formState.setTechniques([...formState.techniques, formState.newTech.trim()]);
+        formState.setNewTech('');
+      }
+    },
+    [formState]
+  );
 
-
-  const handleAddTech = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (newTech.trim() && !techniques.includes(newTech.trim())) {
-      setTechniques([...techniques, newTech.trim()]);
-      setNewTech('');
-    }
-  };
-
-  const removeTech = (tech: string) => {
-    setTechniques(techniques.filter((t) => t !== tech));
-  };
-
-  const handleTransform = async () => {
-    await aiForm.transform(description, (transformedDescription) => {
-      setDescription(transformedDescription);
+  const handleTransform = useCallback(async () => {
+    await aiForm.transform(formState.description, (transformedDescription) => {
+      formState.setDescription(transformedDescription);
     });
-  };
+  }, [aiForm, formState]);
 
-  const handleSuggest = async () => {
-    await aiForm.suggest(description, techniques, (suggestions) => {
-      setTechniques((previousTechniques) => {
+  const handleSuggest = useCallback(async () => {
+    await aiForm.suggest(formState.description, formState.techniques, (suggestions) => {
+      formState.setTechniques((previousTechniques) => {
         const merged = new Set(previousTechniques);
         suggestions.forEach((technique) => merged.add(technique));
         return Array.from(merged);
       });
     });
-  };
+  }, [aiForm, formState]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) {
-      return;
-    }
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      await submitForm();
+    },
+    [submitForm]
+  );
 
-    if (techniques.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Incomplete log',
-        description: 'Please add at least one technique tag.',
-      });
-      return;
-    }
-
-    const parsedDuration =
-      duration.trim() !== '' ? parseInt(duration, 10) : undefined;
-    const trimmedVideoUrl = videoUrl.trim();
-
-    if (trimmedVideoUrl) {
-      try {
-        const parsedVideoUrl = new URL(trimmedVideoUrl);
-        if (
-          parsedVideoUrl.protocol !== 'http:' &&
-          parsedVideoUrl.protocol !== 'https:'
-        ) {
-          throw new Error('unsupported protocol');
-        }
-      } catch {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid video URL',
-          description:
-            'Please provide a valid absolute http(s) URL (for example, a YouTube link).',
-        });
-        return;
-      }
-    }
-
-    const sessionData: JudoSession = {
-      id:
-        sessionToEdit?.id ||
-        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : typeof crypto !== 'undefined' &&
-              typeof crypto.getRandomValues === 'function'
-            ? Array.from(crypto.getRandomValues(new Uint8Array(16)))
-                .map((byte) => byte.toString(16).padStart(2, '0'))
-                .join('')
-            : `session-${Date.now().toString(36)}-${Math.random().toString(36).substring(2)}`),
-      date,
-      techniques,
-      effort,
-      category,
-      description,
-      notes,
-      ...(trimmedVideoUrl && { videoUrl: trimmedVideoUrl }),
-      ...(Number.isFinite(parsedDuration) && { duration: parsedDuration }),
-    };
-
-    setIsSubmitting(true);
-    submitFeedback.startLoading();
-
-    try {
-      const result = isEditing
-        ? await updateSession(sessionData)
-        : await saveSession(sessionData);
-
-      toast({
-        title: isEditing ? 'Session Updated!' : 'Session Saved!',
-        description:
-          result.status === 'queued'
-            ? 'Changes are saved locally and queued to sync when the connection is ready.'
-            : undefined,
-      });
-
-      if (!isEditing) {
-        setTechniques([]);
-        setDescription('');
-        setNotes('');
-        setVideoUrl('');
-        setDuration('');
-        setEffort(3);
-        setCategory('Technical');
-      }
-
-      submitFeedback.showSuccess();
-      onSuccess();
-    } catch {
-      submitFeedback.showError();
-      toast({
-        variant: 'destructive',
-        title: isEditing ? 'Update Failed' : 'Save Failed',
-        description:
-          'The change could not be saved. Your local view has been reconciled to match persisted data.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const videoUrlValidationMessage = (() => {
-    const trimmedVideoUrl = videoUrl.trim();
-    if (!trimmedVideoUrl) {
-      return '';
-    }
-    try {
-      const parsedVideoUrl = new URL(trimmedVideoUrl);
-      if (
-        parsedVideoUrl.protocol !== 'http:' &&
-        parsedVideoUrl.protocol !== 'https:'
-      ) {
-        return 'Use an absolute URL that starts with http:// or https://.';
-      }
-      return '';
-    } catch {
-      return 'Use a valid absolute URL (for example, https://youtube.com/watch?v=...).';
-    }
-  })();
+  const handleRemoveTech = useCallback(
+    (tech: string) => {
+      formState.setTechniques((prev) => prev.filter((t) => t !== tech));
+    },
+    [formState]
+  );
 
   return (
     <Card
@@ -329,8 +228,8 @@ export function SessionLogForm({
                       id={fid('date')}
                       name="sessionDate"
                       type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      value={formState.date}
+                      onChange={(e) => formState.setDate(e.target.value)}
                       required
                       className="bg-background h-11"
                     />
@@ -353,8 +252,8 @@ export function SessionLogForm({
                       placeholder="90"
                       title="How long was your practice session in minutes?"
                       aria-label="Session duration in minutes"
-                      value={duration}
-                      onChange={(e) => setDuration(e.target.value)}
+                      value={formState.duration}
+                      onChange={(e) => formState.setDuration(e.target.value)}
                       className="bg-background h-11"
                     />
                   </div>
@@ -369,9 +268,9 @@ export function SessionLogForm({
                     </Label>
                     <Select
                       name="sessionCategory"
-                      value={category}
+                      value={formState.category}
                       onValueChange={(val) =>
-                        setCategory(val as SessionCategory)
+                        formState.setCategory(val as typeof formState.category)
                       }
                     >
                       <SelectTrigger
@@ -396,18 +295,18 @@ export function SessionLogForm({
                       Effort Level
                     </Label>
                     <span className="text-xs text-muted-foreground">
-                      {EFFORT_LABELS[effort]}
+                      {EFFORT_LABELS[formState.effort]}
                     </span>
                   </div>
                   <div className="flex gap-2 h-11 bg-background/90 rounded-md p-1.5">
                     {[1, 2, 3, 4, 5].map((val) => {
-                      const effortVal = val as EffortLevel;
-                      const isSelected = effort === effortVal;
+                      const effortVal = val as typeof formState.effort;
+                      const isSelected = formState.effort === effortVal;
                       return (
                         <Button
                           key={fid(`effort-${val}`)}
                           type="button"
-                          onClick={() => setEffort(effortVal)}
+                          onClick={() => formState.setEffort(effortVal)}
                           className={cn(
                             'flex-1 px-0 font-semibold transition-all duration-200 text-sm',
                             isSelected
@@ -446,7 +345,7 @@ export function SessionLogForm({
                   aiForm.isLoadingTransform ? 'loading' : 'idle'
                 }
                 disabled={
-                  !canUseAi || aiForm.isLoadingTransform || isSubmitting || !description
+                  !canUseAi || aiForm.isLoadingTransform || isSubmitting || !formState.description
                 }
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
               >
@@ -462,8 +361,8 @@ export function SessionLogForm({
               id={fid('description')}
               name="practiceDescription"
               placeholder="Quick notes about drills, throws, or focus..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formState.description}
+              onChange={(e) => formState.setDescription(e.target.value)}
               className="min-h-[140px] bg-background text-base"
             />
 
@@ -480,8 +379,8 @@ export function SessionLogForm({
                   name="sessionVideoUrl"
                   type="url"
                   placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
+                  value={formState.videoUrl}
+                  onChange={(e) => formState.setVideoUrl(e.target.value)}
                   aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
                   className="bg-background"
                 />
@@ -510,7 +409,7 @@ export function SessionLogForm({
                     aiForm.isLoadingSuggest ? 'loading' : 'idle'
                   }
                   disabled={
-                    !canUseAi || aiForm.isLoadingSuggest || isSubmitting || !description
+                    !canUseAi || aiForm.isLoadingSuggest || isSubmitting || !formState.description
                   }
                   className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
                 >
@@ -523,13 +422,13 @@ export function SessionLogForm({
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">
-                {techniques.length === 0 && (
+                {formState.techniques.length === 0 && (
                   <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
                     <Brain className="h-4 w-4" />
                     Tags will appear here...
                   </span>
                 )}
-                {techniques.map((tech) => (
+                {formState.techniques.map((tech) => (
                   <Badge
                     key={fid(`tech-badge-${tech}`)}
                     className="gap-1 bg-primary text-white py-1.5 px-3 text-sm"
@@ -537,7 +436,7 @@ export function SessionLogForm({
                     {tech}
                     <button
                       type="button"
-                      onClick={() => removeTech(tech)}
+                      onClick={() => handleRemoveTech(tech)}
                       className="ml-1 rounded-full transition-[color,transform] duration-200 ease-snappy hover:text-destructive hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -550,8 +449,8 @@ export function SessionLogForm({
                   id={fid('manual-tag')}
                   name="manualTagEntry"
                   placeholder="Manual tag (e.g. O-soto-gari)"
-                  value={newTech}
-                  onChange={(e) => setNewTech(e.target.value)}
+                  value={formState.newTech}
+                  onChange={(e) => formState.setNewTech(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -585,8 +484,8 @@ export function SessionLogForm({
               id={fid('notes')}
               name="personalNotes"
               placeholder="How did you feel?"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={formState.notes}
+              onChange={(e) => formState.setNotes(e.target.value)}
               className="bg-background"
             />
           </div>
@@ -627,7 +526,7 @@ export function SessionLogForm({
             ) : (
               <Save className="h-5 w-5" />
             )}
-            {isEditing ? 'Update Session' : 'Log Training Session'}
+            {formState.isEditing ? 'Update Session' : 'Log Training Session'}
           </Button>
         </CardFooter>
       </form>

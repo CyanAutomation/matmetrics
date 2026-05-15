@@ -28,6 +28,7 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
   const [techniques, setTechniques] = useState<string[]>(
     sessionToEdit?.techniques || []
   );
+  const [newTech, setNewTech] = useState('');
   const [effort, setEffort] = useState<EffortLevel>(sessionToEdit?.effort || 3);
   const [category, setCategory] = useState<SessionCategory>(
     sessionToEdit?.category || 'Technical'
@@ -41,6 +42,7 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
     setDuration(sessionToEdit?.duration?.toString() ?? '');
     setDescription(sessionToEdit?.description || '');
     setTechniques(sessionToEdit?.techniques || []);
+    setNewTech('');
     setEffort(sessionToEdit?.effort || 3);
     setCategory(sessionToEdit?.category || 'Technical');
     setNotes(sessionToEdit?.notes || '');
@@ -62,6 +64,7 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
     setDuration('');
     setEffort(3);
     setCategory('Technical');
+    setNewTech('');
   }, []);
 
   return {
@@ -73,6 +76,8 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
     setDescription,
     techniques,
     setTechniques,
+    newTech,
+    setNewTech,
     effort,
     setEffort,
     category,
