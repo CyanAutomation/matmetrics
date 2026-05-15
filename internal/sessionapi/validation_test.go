@@ -91,14 +91,14 @@ func TestValidateSessionIDValidation(t *testing.T) {
 
 func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 	tests := []struct {
-		name string
-		date string
+		name    string
+		date    string
 		wantErr string
 	}{
-		{name: "invalid month", date: "2025-13-01", wantErr: "invalid date: must be a real calendar date"},
-		{name: "invalid day", date: "2025-02-30", wantErr: "invalid date: must be a real calendar date"},
-		{name: "non leap day", date: "2025-02-29", wantErr: "invalid date: must be a real calendar date"},
-		{name: "malformed format", date: "01/12/2025", wantErr: "invalid date: expected YYYY-MM-DD format"},
+		{name: "invalid month", date: "2025-13-01", wantErr: "Invalid date: must be a real calendar date"},
+		{name: "invalid day", date: "2025-02-30", wantErr: "Invalid date: must be a real calendar date"},
+		{name: "non leap day", date: "2025-02-29", wantErr: "Invalid date: must be a real calendar date"},
+		{name: "malformed format", date: "01/12/2025", wantErr: "Invalid date: expected YYYY-MM-DD format"},
 	}
 
 	for _, tc := range tests {
@@ -135,12 +135,12 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 		{
 			name:     "rejects invalid url",
 			videoURL: "not-a-url",
-			wantErr:  "invalid videoUrl: expected a valid absolute URL",
+			wantErr:  "Invalid videoUrl: expected a valid absolute URL",
 		},
 		{
 			name:     "rejects unsupported protocol",
 			videoURL: "ftp://example.com/video.mp4",
-			wantErr:  "invalid videoUrl: protocol must be http or https",
+			wantErr:  "Invalid videoUrl: protocol must be http or https",
 		},
 		{
 			name:     "accepts valid https url",
@@ -197,7 +197,7 @@ func TestValidateSessionDurationValidation(t *testing.T) {
 		{
 			name:     "rejects negative duration",
 			duration: &negativeDuration,
-			wantErr:  "invalid duration: expected a non-negative integer",
+			wantErr:  "Invalid duration: expected a non-negative integer",
 		},
 		{
 			name:     "accepts zero duration",
@@ -264,7 +264,7 @@ func TestValidateSessionRejectsPrivateVideoURLHosts(t *testing.T) {
 			if err == nil {
 				t.Fatalf("ValidateSession() error = nil, want non-nil for host %q", host)
 			}
-			if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
+			if got, want := err.Error(), "Invalid videoUrl: private or internal network addresses are not allowed"; got != want {
 				t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 			}
 		})
@@ -310,7 +310,7 @@ func TestValidateSessionVideoURLDNSResolutionBehavior(t *testing.T) {
 				if err == nil {
 					t.Fatalf("ValidateSession() error = nil, want non-nil")
 				}
-				if got, want := err.Error(), "invalid videoUrl: private or internal network addresses are not allowed"; got != want {
+				if got, want := err.Error(), "Invalid videoUrl: private or internal network addresses are not allowed"; got != want {
 					t.Fatalf("ValidateSession() error = %q, want %q", got, want)
 				}
 				return

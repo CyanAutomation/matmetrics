@@ -32,7 +32,7 @@ func TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 
-	if got := recorder.Body.String(); got == "" || !bytes.Contains([]byte(got), []byte("Invalid effort level (must be 1-5)")) {
+	if got := recorder.Body.String(); got == "" || !bytes.Contains([]byte(got), []byte("Invalid effort level (must be an integer 1-5)")) {
 		t.Fatalf("unexpected body: %s", got)
 	}
 }
