@@ -205,7 +205,13 @@ function compareOperations(left: SyncOperation, right: SyncOperation): number {
   );
 }
 
-function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
+/**
+ * Group operations by session ID, normalizing timestamps.
+ * Returns a Map of session ID to operation arrays.
+ */
+function groupOperationsBySession(
+  operations: SyncOperationInput[]
+): Map<string, SyncOperation[]> {
   const groupedBySession = new Map<string, SyncOperation[]>();
 
   for (const operation of operations) {
@@ -216,33 +222,66 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
     groupedBySession.set(sessionId, existingGroup);
   }
 
-  const reducedOperations: SyncOperation[] = [];
+  return groupedBySession;
+}
 
-  for (const operationsForSession of groupedBySession.values()) {
-    const sortedOperations = [...operationsForSession].sort(compareOperations);
+/**
+ * Merge consecutive operations for a single session into a reduced operation.
+ * Implements state machine logic: CREATE+UPDATE=CREATE, UPDATE+DELETE=DELETE, etc.
+ * Returns the reduced operation, or undefined if the net result is deletion.
+ */
+function mergeConsecutiveOperations(
+  sortedOperations: SyncOperation[]
+): SyncOperation | undefined {
+  let reducedOperation: SyncOperation | undefined;
 
-    let reducedOperation: SyncOperation | undefined;
-    for (const operation of sortedOperations) {
-      if (!reducedOperation) {
+  for (const operation of sortedOperations) {
+    if (!reducedOperation) {
+      reducedOperation = operation;
+      continue;
+    }
+
+    if (reducedOperation.type === 'CREATE') {
+      if (operation.type === 'UPDATE') {
+        reducedOperation = {
+          type: 'CREATE',
+          session: operation.session,
+          queuedAt: reducedOperation.queuedAt,
+        };
+        continue;
+      }
+
+      if (operation.type === 'DELETE') {
+        reducedOperation = undefined;
+        continue;
+      }
+
+      reducedOperation = {
+        type: 'CREATE',
+        session: operation.session,
+        queuedAt: operation.queuedAt,
+      };
+      continue;
+    }
+
+    if (reducedOperation.type === 'UPDATE') {
+      if (operation.type === 'DELETE') {
         reducedOperation = operation;
         continue;
       }
 
-      if (reducedOperation.type === 'CREATE') {
-        if (operation.type === 'UPDATE') {
-          reducedOperation = {
-            type: 'CREATE',
-            session: operation.session,
-            queuedAt: reducedOperation.queuedAt,
-          };
-          continue;
-        }
-
-        if (operation.type === 'DELETE') {
-          reducedOperation = undefined;
-          continue;
-        }
-
+      // UPDATE followed by UPDATE or CREATE (edge case: treat as UPDATE with latest data)
+      if (operation.type === 'UPDATE' || operation.type === 'CREATE') {
+        reducedOperation = {
+          type: 'UPDATE',
+          session: operation.session,
+          queuedAt: operation.queuedAt,
+        };
+        continue;
+      }
+    } else {
+      // DELETE followed by CREATE is a true recreate and must replay as CREATE.
+      if (operation.type === 'CREATE') {
         reducedOperation = {
           type: 'CREATE',
           session: operation.session,
@@ -251,48 +290,35 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
         continue;
       }
 
-      if (reducedOperation.type === 'UPDATE') {
-        if (operation.type === 'DELETE') {
-          reducedOperation = operation;
-          continue;
-        }
-
-        // UPDATE followed by UPDATE or CREATE (edge case: treat as UPDATE with latest data)
-        if (operation.type === 'UPDATE' || operation.type === 'CREATE') {
-          reducedOperation = {
-            type: 'UPDATE',
-            session: operation.session,
-            queuedAt: operation.queuedAt,
-          };
-          continue;
-        }
-      } else {
-        // DELETE followed by CREATE is a true recreate and must replay as CREATE.
-        if (operation.type === 'CREATE') {
-          reducedOperation = {
-            type: 'CREATE',
-            session: operation.session,
-            queuedAt: operation.queuedAt,
-          };
-          continue;
-        }
-
-        // DELETE followed by UPDATE should avoid a guaranteed 404 path for missing records.
-        // Treat as CREATE so replay remains safe when the delete has already applied remotely.
-        if (operation.type === 'UPDATE') {
-          reducedOperation = {
-            type: 'CREATE',
-            session: operation.session,
-            queuedAt: operation.queuedAt,
-          };
-          continue;
-        }
-
-        // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
-        // Both deletes are equivalent, but preserve the original operation timing
+      // DELETE followed by UPDATE should avoid a guaranteed 404 path for missing records.
+      // Treat as CREATE so replay remains safe when the delete has already applied remotely.
+      if (operation.type === 'UPDATE') {
+        reducedOperation = {
+          type: 'CREATE',
+          session: operation.session,
+          queuedAt: operation.queuedAt,
+        };
         continue;
       }
+
+      // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
+      // Both deletes are equivalent, but preserve the original operation timing
+      continue;
     }
+  }
+
+  return reducedOperation;
+}
+
+function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
+  // Group operations by session ID
+  const groupedBySession = groupOperationsBySession(operations);
+  const reducedOperations: SyncOperation[] = [];
+
+  // Reduce each session's operations to a single operation (or deletion)
+  for (const operationsForSession of groupedBySession.values()) {
+    const sortedOperations = [...operationsForSession].sort(compareOperations);
+    const reducedOperation = mergeConsecutiveOperations(sortedOperations);
 
     if (reducedOperation) {
       reducedOperations.push(reducedOperation);
