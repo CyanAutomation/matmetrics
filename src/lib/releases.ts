@@ -57,8 +57,13 @@ const assertValidIsoDate = (value: string, context: string) => {
   }
 };
 
-export const parseChangelog = (source: string): ReleaseEntry[] => {
-  const lines = source.split(/\r?\n/);
+/**
+ * Parse lines and extract release entries with sections and items.
+ * Returns all parsed releases in order they appear in the source.
+ */
+const parseSectionBlocks = (
+  lines: string[]
+): ReleaseEntry[] => {
   const releases: ReleaseEntry[] = [];
   let currentRelease: ReleaseEntry | null = null;
   let currentSection: ReleaseEntry['sections'][number] | null = null;
@@ -107,6 +112,13 @@ export const parseChangelog = (source: string): ReleaseEntry[] => {
     }
   }
 
+  return releases;
+};
+
+/**
+ * Validate that all releases have at least one section with at least one item.
+ */
+const validateReleaseStructure = (releases: ReleaseEntry[]) => {
   if (releases.length === 0) {
     throw new Error('CHANGELOG.md does not contain any release entries.');
   }
@@ -126,7 +138,12 @@ export const parseChangelog = (source: string): ReleaseEntry[] => {
       }
     }
   }
+};
 
+/**
+ * Validate that releases have unique versions and are ordered newest-first.
+ */
+const validateReleasesOrder = (releases: ReleaseEntry[]) => {
   const versions = new Set<string>();
   for (const release of releases) {
     if (versions.has(release.version)) {
@@ -149,7 +166,13 @@ export const parseChangelog = (source: string): ReleaseEntry[] => {
       throw new Error('CHANGELOG.md releases must be ordered newest-first.');
     }
   }
+};
 
+export const parseChangelog = (source: string): ReleaseEntry[] => {
+  const lines = source.split(/\r?\n/);
+  const releases = parseSectionBlocks(lines);
+  validateReleaseStructure(releases);
+  validateReleasesOrder(releases);
   return releases;
 };
 
