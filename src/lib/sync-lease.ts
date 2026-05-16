@@ -280,6 +280,97 @@ async function tryAcquireNavigatorLock(): Promise<boolean> {
 }
 
 /**
+ * Monitor storage events for conflicts that might overwrite our lease claim.
+ * Returns true if lease was overwritten by a storage event.
+ */
+function monitorStorageForLeaseConflict(
+  syncLockStorageKey: string,
+  nextLease: SyncLease
+): {
+  cleanup: () => void;
+  isConflicted: () => boolean;
+} {
+  let overwrittenByStorageEvent = false;
+
+  const onStorage = (event: StorageEvent) => {
+    if (!isStorageEventForKeyFn!(event, syncLockStorageKey)) {
+      return;
+    }
+
+    const nextValue = event.newValue;
+    if (!nextValue) {
+      overwrittenByStorageEvent = true;
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(nextValue) as Partial<SyncLease>;
+      if (
+        parsed.owner !== nextLease.owner ||
+        parsed.nonce !== nextLease.nonce ||
+        parsed.epoch !== nextLease.epoch
+      ) {
+        overwrittenByStorageEvent = true;
+      }
+    } catch {
+      overwrittenByStorageEvent = true;
+    }
+  };
+
+  window.addEventListener('storage', onStorage);
+
+  return {
+    cleanup: () => {
+      window.removeEventListener('storage', onStorage);
+    },
+    isConflicted: () => overwrittenByStorageEvent,
+  };
+}
+
+/**
+ * Evaluate whether to attempt lease acquisition based on contender stability.
+ * Returns true if we should proceed with acquisition (either no contender or forced reclaim).
+ */
+function shouldAttemptLeaseAcquisition(
+  contenderSignature: string | null,
+  stableContenderSignature: string | null,
+  stableContenderObservations: number,
+  leaseOwnedByAnother: boolean,
+  leaseExpired: boolean,
+  leaseIsOwnedAndAlive: boolean
+): { attempt: boolean; updatedStableSignature: string | null; updatedObservations: number } {
+  // Track contender stability across observations
+  let updatedSignature = stableContenderSignature;
+  let updatedObservations = stableContenderObservations;
+
+  if (contenderSignature && contenderSignature === stableContenderSignature) {
+    updatedObservations += 1;
+  } else if (contenderSignature) {
+    updatedSignature = contenderSignature;
+    updatedObservations = 1;
+  } else {
+    updatedSignature = null;
+    updatedObservations = 0;
+  }
+
+  const forcedReclaimAttempt = shouldForceReclaim(
+    leaseOwnedByAnother,
+    leaseExpired,
+    updatedObservations,
+    leaseIsOwnedAndAlive
+  );
+
+  // If another process owns the lease and we're not forcing reclaim, back off
+  const shouldBackOff = leaseIsOwnedAndAlive && !forcedReclaimAttempt;
+
+  return {
+    attempt: !shouldBackOff,
+    updatedStableSignature: updatedSignature,
+    updatedObservations: updatedObservations,
+  };
+}
+
+/**
  * Attempt to acquire a sync lease using localStorage with retry logic
  * Reduces cognitive complexity by extracting core loop and validation logic
  */
@@ -312,26 +403,21 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       leaseOwnedByAnother ? observedLease : null
     );
 
-    // Track contender stability across observations
-    if (contenderSignature && contenderSignature === stableContenderSignature) {
-      stableContenderObservations += 1;
-    } else if (contenderSignature) {
-      stableContenderSignature = contenderSignature;
-      stableContenderObservations = 1;
-    } else {
-      stableContenderSignature = null;
-      stableContenderObservations = 0;
-    }
-
-    const forcedReclaimAttempt = shouldForceReclaim(
+    // Evaluate if we should attempt acquisition
+    const leaseEval = shouldAttemptLeaseAcquisition(
+      contenderSignature,
+      stableContenderSignature,
+      stableContenderObservations,
       leaseOwnedByAnother,
       leaseExpired,
-      stableContenderObservations,
       leaseIsOwnedAndAlive
     );
 
-    // If another process owns the lease and we're not forcing reclaim, back off
-    if (leaseIsOwnedAndAlive && !forcedReclaimAttempt) {
+    stableContenderSignature = leaseEval.updatedStableSignature;
+    stableContenderObservations = leaseEval.updatedObservations;
+
+    // Back off if another process owns an alive lease
+    if (!leaseEval.attempt) {
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());
       }
@@ -348,6 +434,13 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
 
     // Emit diagnostic if taking over another process's lease
     if (observedLease && observedLease.owner !== syncOwnerId) {
+      const forcedReclaimAttempt = shouldForceReclaim(
+        leaseOwnedByAnother,
+        leaseExpired,
+        stableContenderObservations,
+        leaseIsOwnedAndAlive
+      );
+
       emitDiagnosticFn({
         reason:
           observedLease.expiresAt < now
@@ -365,33 +458,10 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
 
     // Monitor for storage events that might overwrite our claim
     const syncLockStorageKey = getSyncLockStorageKeyFn();
-    let overwrittenByStorageEvent = false;
-    const onStorage = (event: StorageEvent) => {
-      if (!isStorageEventForKeyFn!(event, syncLockStorageKey)) {
-        return;
-      }
-
-      const nextValue = event.newValue;
-      if (!nextValue) {
-        overwrittenByStorageEvent = true;
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(nextValue) as Partial<SyncLease>;
-        if (
-          parsed.owner !== nextLease.owner ||
-          parsed.nonce !== nextLease.nonce ||
-          parsed.epoch !== nextLease.epoch
-        ) {
-          overwrittenByStorageEvent = true;
-        }
-      } catch {
-        overwrittenByStorageEvent = true;
-      }
-    };
-
-    window.addEventListener('storage', onStorage);
+    const storageMonitor = monitorStorageForLeaseConflict(
+      syncLockStorageKey,
+      nextLease
+    );
 
     // Check if a newer lease appeared after we started this iteration
     const lastObservedLease = readSyncLease();
@@ -401,7 +471,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       lastObservedLease.expiresAt >= Date.now() &&
       lastObservedLease.epoch > (observedLease?.epoch ?? -Infinity)
     ) {
-      window.removeEventListener('storage', onStorage);
+      storageMonitor.cleanup();
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());
       }
@@ -414,10 +484,10 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
 
     // Verify our claim succeeded
     const confirmedLease = readSyncLease();
-    window.removeEventListener('storage', onStorage);
+    storageMonitor.cleanup();
 
     if (
-      validateLeaseClaim(confirmedLease, nextLease, overwrittenByStorageEvent)
+      validateLeaseClaim(confirmedLease, nextLease, storageMonitor.isConflicted())
     ) {
       activeSyncLease = {
         mode: 'storage',
