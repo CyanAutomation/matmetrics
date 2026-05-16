@@ -34,7 +34,7 @@ const getDashboardTabExtension = (
   return dashboardTab as DashboardTabExtension;
 };
 
-const testPluginManifestContract = ({
+export const testPluginManifestContract = ({
   pluginId,
   dashboardExtensionId,
   componentId,

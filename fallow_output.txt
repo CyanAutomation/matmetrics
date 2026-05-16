@@ -1,5 +1,5 @@
 
-■ Metrics: dead files 34.3% (93 of 271) · dead exports 11.8% (90 of 760) · MI 84.7 (moderate) · 1 churn hotspot
+■ Metrics: dead files 34.3% (93 of 271) · dead exports 3.7% (26 of 696) · MI 85.4 (good) · 1 churn hotspot
   271 files analyzed
   33 entry points detected (23 plugin, 10 package.json)
   7 refactoring targets — start with storage.ts (complexity)
@@ -23,37 +23,12 @@
   Files not reachable from any entry point — https://docs.fallow.tools/explanations/dead-code#unused-files
   To suppress: // fallow-ignore-next-line unused-files
 
-● Unused exports (78)
-  src/lib/storage.ts (15)
-    :977 getAllTags
-    :984 renameTag
-    :997 deleteTag
-    :1007 mergeTags
-    :1024 saveTransformerPrompt
-    ... and 10 more (--format json for full list)
-  src/lib/sync-lease.ts (7)
-    :42 SYNC_LOCK_ACQUIRE_ATTEMPTS
-    :47 SYNC_LOCK_NAME
-    :48 STALE_LEASE_RECLAIM_RETRY_THRESHOLD
-    :96 getActiveSyncLease
-    :108 sleep
-    ... and 2 more (--format json for full list)
-  src/lib/plugins/api-contract.ts (5)
-    :43 toRelativeRepoPath
-    :165 mergePreserveUnknownKeys
-    :185 ensurePathUnderRoot
-    :206 writePluginManifest
-    :216 toPluginDirectoryName
+● Unused exports (14)
   src/components/ui/dialog.tsx (4)
     :113 DialogPortal
     :114 DialogOverlay
     :115 DialogClose
     :116 DialogTrigger
-  src/lib/mutation-state.ts (4)
-    :53 nextMutationVersion
-    :152 applyOptimisticMutation
-    :186 hasPendingMutations
-    :193 getPendingMutationCount
   src/components/ui/dropdown-menu.tsx (3)
     :189 DropdownMenuCheckboxItem
     :190 DropdownMenuRadioItem
@@ -62,18 +37,12 @@
     :154 SelectGroup
     :158 SelectLabel
     :160 SelectSeparator
-  src/lib/github-storage.ts (3)
-    :956 deleteSessionOnGitHub
-    :1095 createGitHubReadme
-    :1258 validateGitHubCredentials
-  src/lib/session-storage.ts (3)
-    :125 shouldUseGitHubStorage
-    :438 listSessionsForConfig
-    :465 readSessionByIdFromGitHub
   src/components/ui/chart.tsx (2)
     :456 ChartLegend
     :457 ChartLegendContent
-  ... and 29 more in 23 files (--format json for full list)
+  src/components/ui/table.tsx (2)
+    :116 TableFooter
+    :120 TableCaption
   Exported symbols with no known consumers — https://docs.fallow.tools/explanations/dead-code#unused-exports
   To auto-fix: fallow fix --dry-run
   To suppress: // fallow-ignore-next-line unused-exports
@@ -108,14 +77,6 @@
 
 ── Dependencies ─────────────────────────────────────
 
-● Unused dependencies (4)
-  @hookform/resolvers
-  framer-motion
-  patch-package
-  react-hook-form
-  Listed in dependencies but never imported — https://docs.fallow.tools/explanations/dead-code#unused-dependencies
-  To suppress: // fallow-ignore-next-line unused-dependencies
-
 ● Unlisted dependencies (3)
   glob
   postcss-load-config
@@ -124,8 +85,8 @@
   To suppress: // fallow-ignore-next-line unlisted-dependencies
 
 ● Test-only production dependencies (consider moving to devDependencies) (2)
-  react-dom
   tailwindcss-animate
+  react-dom
 
 ── Structure ─────────────────────────────────────
 
@@ -145,11 +106,11 @@
   Same export name defined in multiple files; barrel re-exports may resolve ambiguously — https://docs.fallow.tools/explanations/dead-code#duplicate-exports
   To suppress: // fallow-ignore-next-line duplicate-exports
 
-✗ 93 files · 78 exports · 6 types · 4 unused dependencies · 4 class members · 3 unlisted dependencies · 3 duplicate pairs · 2 test-only dependencies (0.16s)
+✗ 93 files · 14 exports · 6 types · 4 class members · 3 unlisted dependencies · 3 duplicate pairs · 2 test-only dependencies (0.25s)
 
 ── Duplication ────────────────────────────────────
 
-● Duplicates (173 clone groups)
+● Duplicates (174 clone groups)
 
      98 lines  3 instances
     src/lib/plugins/maturity.test.ts:193-285
@@ -196,7 +157,7 @@
     src/app/api/github/sync-all/route.ts:1-51
     src/app/api/github/validate/route.ts:1-51
 
-  ... and 163 more clone groups
+  ... and 164 more clone groups
   Identical code blocks detected via suffix-array analysis — https://docs.fallow.tools/explanations/duplication#clone-groups
 
 ● Clone families (25 with multiple groups)
@@ -239,11 +200,11 @@
 
   Groups of related clones across the same files — https://docs.fallow.tools/explanations/duplication#clone-families
 
-✗ 6,450 lines (11.2%) duplicated across 72 files (0.24s)
+✗ 6,516 lines (11.4%) duplicated across 72 files (0.38s)
 
 ── Complexity ─────────────────────────────────────
 
-■ Metrics: 58,231 LOC · dead files 34.3% · dead exports 11.8% · avg cyclomatic 2.4 · p90 cyclomatic 5 · maintainability 84.7 (moderate) · 1 churn hotspot · 4 unused deps
+■ Metrics: 58,231 LOC · dead files 34.3% · dead exports 3.7% · avg cyclomatic 2.4 · p90 cyclomatic 5 · maintainability 85.4 (good) · 1 churn hotspot
 
   Function size: 63% low · 18% medium · 14% high · 5% very high  (1-15 / 16-30 / 31-60 / >60 LOC)
   Parameters:    98% low · 2% medium · 0% high · 0% very high  (0-2 / 3-4 / 5-6 / >=7 params)
@@ -1677,153 +1638,159 @@
 
   Composite file quality scores based on complexity, coupling, and dead code. Risk: low <15, moderate 15-30, high >=30. CRAP estimated from export references (85% direct, 40% indirect, 0% untested). Use --coverage for exact scores. https://docs.fallow.tools/explanations/health#file-health-scores
 
-● Hotspots (160 files, since 6 months)
+● Hotspots (166 files, since 6 months)
 
    64.7 ▼  src/lib/storage.ts
-          78 commits   4608 churn  0.22 density  10 fan-in  ▼ cooling
+          79 commits   4638 churn  0.22 density  10 fan-in  ▼ cooling
 
-   36.7 ▼  src/lib/file-storage.ts
-          53 commits   2810 churn  0.19 density   8 fan-in  ▼ cooling
+   37.1 ▼  src/lib/file-storage.ts
+          54 commits   2812 churn  0.19 density   8 fan-in  ▼ cooling
 
-   29.4 ▼  plugins/log-doctor/src/components/log-doctor.tsx
+   28.9 ▼  plugins/log-doctor/src/components/log-doctor.tsx
           43 commits   4655 churn  0.18 density   3 fan-in  ▼ cooling
 
-   28.0 ▼  src/app/page.tsx
+   27.5 ▼  src/app/page.tsx
           56 commits   2563 churn  0.14 density   0 fan-in  ▼ cooling
 
-   26.3 ▼  src/components/session-log-form.tsx
+   25.8 ▼  src/components/session-log-form.tsx
           61 commits   2721 churn  0.12 density   3 fan-in  ▼ cooling
 
-   25.9 ▼  src/lib/sync-queue.ts
+   25.4 ▼  src/lib/sync-queue.ts
           29 commits   1339 churn  0.23 density   4 fan-in  ▼ cooling
 
-   22.8 ▼  src/lib/github-storage.ts
-          38 commits   2365 churn  0.16 density   6 fan-in  ▼ cooling
+   23.2 ▼  src/lib/github-storage.ts
+          39 commits   2371 churn  0.16 density   6 fan-in  ▼ cooling
 
-   20.2 ▼  src/components/plugin-manager.tsx
+   19.8 ▼  src/components/plugin-manager.tsx
           39 commits   4712 churn  0.14 density   2 fan-in  ▼ cooling
 
-   19.2 ▼  src/app/api/sessions/[id]/route.ts
+   19.1 ▼  src/lib/markdown-serializer.ts
+          25 commits    814 churn  0.21 density   6 fan-in  ▼ cooling
+
+   18.8 ▼  src/app/api/sessions/[id]/route.ts
           37 commits   1325 churn  0.14 density   1 fan-in  ▼ cooling
 
-   18.3 ▼  src/lib/markdown-serializer.ts
-          24 commits    812 churn  0.21 density   6 fan-in  ▼ cooling
-
-   16.2 ▼  src/lib/plugins/maturity.ts
+   15.9 ▼  src/lib/plugins/maturity.ts
           21 commits   1772 churn  0.21 density   4 fan-in  ▼ cooling
 
-   15.4 ▼  src/app/api/sessions/create/route.ts
+   15.1 ▼  src/app/api/sessions/create/route.ts
           32 commits    984 churn  0.13 density   1 fan-in  ▼ cooling
 
-   13.5 ▼  src/lib/session-storage.ts
-          18 commits    855 churn  0.21 density   7 fan-in  ▼ cooling
+   14.4 ▼  src/lib/session-storage.ts
+          19 commits    861 churn  0.21 density   7 fan-in  ▼ cooling
 
-   13.4 ▼  src/lib/file-storage.test.ts [test]
+   13.2 ▼  src/lib/file-storage.test.ts [test]
           36 commits   4344 churn  0.10 density   0 fan-in  ▼ cooling
 
-   12.6 ▼  src/lib/storage.test.ts [test]
+   13.0 ▼  src/lib/sync-lease.ts
+          12 commits   1828 churn  0.22 density   2 fan-in  ▼ cooling
+
+   12.7 ▼  src/lib/video-library.ts
+          13 commits    825 churn  0.24 density   5 fan-in  ▼ cooling
+
+   12.4 ▼  src/lib/storage.test.ts [test]
           34 commits   4535 churn  0.10 density   0 fan-in  ▼ cooling
 
-   12.1 ▼  src/lib/sync-lease.ts
-          11 commits   1814 churn  0.22 density   2 fan-in  ▼ cooling
+   12.3 ▼  src/lib/user-preferences.ts
+          15 commits   1100 churn  0.22 density  10 fan-in  ▼ cooling
 
-   11.7 ▼  src/lib/video-library.ts
-          12 commits    821 churn  0.24 density   5 fan-in  ▼ cooling
+   12.1 ▼  plugins/video-library/src/components/video-library.tsx
+          19 commits   3170 churn  0.16 density   3 fan-in  ▼ cooling
 
-   11.4 ▼  plugins/video-library/src/components/video-library.tsx
-          18 commits   3168 churn  0.16 density   3 fan-in  ▼ cooling
+   11.9 ▼  src/lib/session-validation.ts
+           7 commits    274 churn  0.34 density   3 fan-in  ▼ cooling
 
-   11.3 ▲  src/lib/user-preferences.ts
-          14 commits   1096 churn  0.22 density  10 fan-in  ▲ accelerating
-
-   10.5 ▼  src/components/session-history.tsx
+   10.3 ▼  src/components/session-history.tsx
           24 commits   1124 churn  0.12 density   1 fan-in  ▼ cooling
 
-   10.3 ▼  src/lib/session-validation.ts
-           6 commits    270 churn  0.34 density   3 fan-in  ▼ cooling
+   10.1 ▼  src/lib/plugins/api-contract.ts
+          14 commits    276 churn  0.20 density   7 fan-in  ▼ cooling
 
-   10.0 ▼  src/lib/github-storage.test.ts [test]
+    9.8 ▼  src/lib/github-storage.test.ts [test]
           17 commits   1821 churn  0.16 density   0 fan-in  ▼ cooling
 
-    9.4 ▼  src/app/api/plugins/list/route.ts
+    9.2 ▼  src/app/api/plugins/list/route.ts
           16 commits    528 churn  0.16 density   1 fan-in  ▼ cooling
 
-    9.2 ▼  src/lib/plugins/api-contract.ts
-          13 commits    266 churn  0.20 density   7 fan-in  ▼ cooling
-
-    8.9 ▼  src/lib/sync-lease.test.ts [test]
+    8.7 ▼  src/lib/sync-lease.test.ts [test]
           10 commits    712 churn  0.18 density   0 fan-in  ▼ cooling
 
-    8.5 ▼  src/lib/sync-queue.test.ts [test]
-          21 commits    869 churn  0.10 density   1 fan-in  ▼ cooling
-
-    8.5 ▼  src/lib/plugins/discovery.server.ts
+    8.4 ▼  src/lib/plugins/discovery.server.ts
           11 commits    165 churn  0.21 density   2 fan-in  ▼ cooling
 
-    8.5 ▼  src/lib/network-safety.ts
+    8.3 ▼  src/lib/sync-queue.test.ts [test]
+          21 commits    869 churn  0.10 density   1 fan-in  ▼ cooling
+
+    8.3 ▼  src/lib/network-safety.ts
           10 commits    302 churn  0.22 density   6 fan-in  ▼ cooling
 
-    8.3 ▼  src/lib/plugins/registry.ts
+    8.2 ▼  src/lib/plugins/registry.ts
           11 commits    412 churn  0.20 density   4 fan-in  ▼ cooling
 
-    7.1 ▼  src/lib/plugins/plugin-component-bootstrap.ts
+    7.0 ▼  src/lib/plugins/plugin-component-bootstrap.ts
           10 commits    211 churn  0.19 density   5 fan-in  ▼ cooling
 
-    7.0 ▼  src/lib/plugins/validate.ts
-          14 commits    376 churn  0.13 density   8 fan-in  ▼ cooling
-
-    7.0 ▼  src/components/dashboard-overview.tsx
+    6.9 ▼  src/components/dashboard-overview.tsx
           24 commits    988 churn  0.08 density   1 fan-in  ▼ cooling
 
-    6.9 ▼  src/app/api/plugins/validate/route.ts
+    6.8 ▼  src/lib/plugins/validate.ts
+          14 commits    376 churn  0.13 density   8 fan-in  ▼ cooling
+
+    6.8 ▼  src/app/api/plugins/validate/route.ts
           11 commits    435 churn  0.17 density   1 fan-in  ▼ cooling
 
-    6.7 ▼  src/app/api/sessions/list/route.ts
+    6.6 ▼  src/app/api/sessions/list/route.ts
           12 commits    104 churn  0.16 density   1 fan-in  ▼ cooling
 
-    6.5 ▼  src/lib/navigation/tab-definitions.test.ts [test]
+    6.4 ▼  src/lib/navigation/tab-definitions.test.ts [test]
           14 commits    534 churn  0.13 density   0 fan-in  ▼ cooling
 
-    6.5 ▼  src/tests/api-sessions-id-route.test.ts [test]
+    6.4 ▼  src/tests/api-sessions-id-route.test.ts [test]
           22 commits   1550 churn  0.08 density   0 fan-in  ▼ cooling
 
-    6.1 ▼  scripts/validate-plugin-ui-contract.ts
+    6.0 ▼  scripts/validate-plugin-ui-contract.ts
            7 commits   1025 churn  0.23 density   1 fan-in  ▼ cooling
 
-    6.1 ▼  src/lib/plugins/plugin-contract-gate.ts
+    6.0 ▼  src/lib/plugins/plugin-contract-gate.ts
            9 commits    349 churn  0.18 density   3 fan-in  ▼ cooling
 
-    5.6 ─  src/app/api/github/log-doctor/fix/route.ts
+    5.5 ─  src/app/api/github/log-doctor/fix/route.ts
            6 commits    205 churn  0.25 density   1 fan-in  ─ stable
 
-    5.2 ▼  src/lib/navigation/tab-definitions.ts
+    5.3 ▼  src/lib/plugins/plugin-surface.tsx
+           8 commits    333 churn  0.17 density   2 fan-in  ▼ cooling
+
+    5.1 ▼  src/lib/navigation/tab-definitions.ts
           18 commits    518 churn  0.08 density  10 fan-in  ▼ cooling
 
-    5.2 ▼  src/lib/server-auth.ts
+    5.1 ▼  src/lib/server-auth.ts
            7 commits    125 churn  0.19 density  16 fan-in  ▼ cooling
 
-    5.1 ▲  src/lib/guest-mode.ts
+    5.0 ▲  src/lib/guest-mode.ts
            7 commits    299 churn  0.21 density   4 fan-in  ▲ accelerating
 
-    4.7 ▼  src/lib/go-function-proxy.ts
+    4.7 ▼  src/components/version-history-modal.tsx
+           8 commits    594 churn  0.15 density   2 fan-in  ▼ cooling
+
+    4.6 ▼  src/lib/go-function-proxy.ts
            7 commits    156 churn  0.19 density  10 fan-in  ▼ cooling
 
-    4.7 ▼  src/lib/plugins/ui-migration.ts
+    4.6 ▼  src/lib/plugins/ui-migration.ts
            6 commits    336 churn  0.21 density   2 fan-in  ▼ cooling
 
-    4.5 ▼  src/lib/plugins/plugin-surface.tsx
-           7 commits    331 churn  0.17 density   2 fan-in  ▼ cooling
-
-    4.5 ▲  src/components/ui/chart.tsx
+    4.4 ▲  src/components/ui/chart.tsx
            6 commits    697 churn  0.21 density   2 fan-in  ▲ accelerating
 
-    4.4 ─  src/tests/api-plugins-routes.test.ts [test]
+    4.4 ▼  src/lib/firebase-admin.ts
+           7 commits    186 churn  0.17 density   5 fan-in  ▼ cooling
+
+    4.3 ─  src/tests/api-plugins-routes.test.ts [test]
           15 commits    975 churn  0.08 density   0 fan-in  ─ stable
 
-    4.4 ─  src/lib/plugins/maturity.test.ts [test]
+    4.3 ─  src/lib/plugins/maturity.test.ts [test]
           20 commits   1632 churn  0.06 density   0 fan-in  ─ stable
 
-    4.4 ▼  src/tests/api-sessions-create-route.test.ts [test]
+    4.3 ▼  src/tests/api-sessions-create-route.test.ts [test]
           20 commits   1106 churn  0.06 density   0 fan-in  ▼ cooling
 
     4.2 ▲  src/app/api/video-library/check-links/route.ts
@@ -1835,65 +1802,65 @@
     4.1 ─  src/lib/plugins/github-sync-plugin.test.ts [test]
            7 commits     87 churn  0.16 density   0 fan-in  ─ stable
 
-    4.0 ▼  src/components/version-history-modal.test.ts [test]
+    4.0 ▼  src/hooks/use-session-form.ts
+           3 commits    304 churn  0.25 density   1 fan-in  ▼ cooling
+
+    3.9 ▼  src/components/version-history-modal.test.ts [test]
            7 commits    193 churn  0.15 density   0 fan-in  ▼ cooling
 
-    4.0 ▼  src/components/version-history-modal.tsx
-           7 commits    592 churn  0.15 density   2 fan-in  ▼ cooling
+    3.9 ▼  src/lib/server-github-authz.ts
+           7 commits    119 churn  0.15 density   5 fan-in  ▼ cooling
 
-    3.9 ─  src/lib/utils.test.ts [test]
+    3.8 ─  src/lib/utils.test.ts [test]
            8 commits    168 churn  0.14 density   0 fan-in  ─ stable
 
-    3.9 ▲  src/app/api/github/sync-all/route.ts
+    3.8 ▲  src/app/api/github/sync-all/route.ts
            6 commits    101 churn  0.19 density   0 fan-in  ▲ accelerating
-
-    3.8 ▲  src/lib/interaction.test.ts [test]
-           6 commits    287 churn  0.18 density   0 fan-in  ▲ accelerating
 
     3.8 ▼  src/components/sign-in-screen.tsx
           10 commits    889 churn  0.11 density   1 fan-in  ▼ cooling
 
-    3.8 ─  plugins/video-library/src/components/video-tile-card.tsx
+    3.7 ▲  src/lib/interaction.test.ts [test]
+           6 commits    287 churn  0.18 density   0 fan-in  ▲ accelerating
+
+    3.7 ─  plugins/video-library/src/components/video-tile-card.tsx
            7 commits    451 churn  0.11 density   1 fan-in  ─ stable
 
     3.7 ─  src/lib/plugins/plugin-manager-client.ts
            6 commits    219 churn  0.17 density   3 fan-in  ─ stable
 
-    3.6 ▲  src/lib/plugins/validate.test.ts [test]
+    3.6 ▼  plugins/tag-manager/src/components/tag-manager.tsx
+           6 commits    839 churn  0.15 density   6 fan-in  ▼ cooling
+
+    3.5 ▲  src/lib/plugins/validate.test.ts [test]
           14 commits    650 churn  0.07 density   0 fan-in  ▲ accelerating
 
-    3.6 ▼  src/lib/firebase-admin.ts
-           6 commits    184 churn  0.17 density   5 fan-in  ▼ cooling
-
-    3.4 ▼  src/lib/server-auth.test.ts [test]
+    3.3 ▼  src/lib/server-auth.test.ts [test]
            6 commits    385 churn  0.14 density   0 fan-in  ▼ cooling
-
-    3.3 ▼  src/lib/plugins/capabilities.ts
-           4 commits    148 churn  0.23 density   3 fan-in  ▼ cooling
-
-    3.3 ▼  src/lib/client-identity.ts
-           4 commits     53 churn  0.24 density   9 fan-in  ▼ cooling
-
-    3.2 ▼  plugins/tag-manager/src/index.behavior.test.ts [test]
-           5 commits     48 churn  0.17 density   0 fan-in  ▼ cooling
-
-    3.2 ─  src/tests/api-video-library-check-links-route.test.ts [test]
-           7 commits    449 churn  0.12 density   0 fan-in  ─ stable
 
     3.2 ▼  src/lib/video-library.test.ts [test]
            9 commits    436 churn  0.09 density   0 fan-in  ▼ cooling
 
-    3.2 ▼  src/lib/server-github-authz.ts
-           6 commits    117 churn  0.15 density   5 fan-in  ▼ cooling
-
     3.2 ─  src/app/api/github/validate/route.ts
            5 commits     79 churn  0.19 density   0 fan-in  ─ stable
 
-    3.0 ▲  plugins/prompt-settings/src/components/prompt-settings.tsx
-           6 commits    591 churn  0.13 density   2 fan-in  ▲ accelerating
+    3.2 ▼  src/lib/plugins/capabilities.ts
+           4 commits    148 churn  0.23 density   3 fan-in  ▼ cooling
+
+    3.2 ▼  src/lib/client-identity.ts
+           4 commits     53 churn  0.24 density   9 fan-in  ▼ cooling
+
+    3.1 ▼  plugins/tag-manager/src/index.behavior.test.ts [test]
+           5 commits     48 churn  0.17 density   0 fan-in  ▼ cooling
+
+    3.1 ─  src/tests/api-video-library-check-links-route.test.ts [test]
+           7 commits    449 churn  0.12 density   0 fan-in  ─ stable
 
     3.0 ▼  src/hooks/use-toast.ts
            5 commits    440 churn  0.17 density  15 fan-in  ▼ cooling
+
+    2.9 ▲  plugins/prompt-settings/src/components/prompt-settings.tsx
+           6 commits    591 churn  0.13 density   2 fan-in  ▲ accelerating
 
     2.9 ▼  src/components/auth-provider.tsx
            6 commits    317 churn  0.14 density  11 fan-in  ▼ cooling
@@ -1907,26 +1874,26 @@
     2.8 ▼  src/lib/plugins/plugin-maturity-regression.test.ts [test]
            5 commits    193 churn  0.15 density   0 fan-in  ▼ cooling
 
-    2.8 ─  plugins/tag-manager/src/components/tag-manager.tsx
-           5 commits    837 churn  0.15 density   6 fan-in  ─ stable
+    2.8 ▼  src/lib/interaction.ts
+           4 commits     72 churn  0.18 density   7 fan-in  ▼ cooling
 
     2.7 ▼  plugins/github-sync/plugin.test.ts [test]
            7 commits    132 churn  0.10 density   0 fan-in  ▼ cooling
 
-    2.7 ▲  src/lib/plugins/plugin-contract-gate.test.ts [test]
-           8 commits    306 churn  0.09 density   0 fan-in  ▲ accelerating
+    2.7 ▲  src/lib/releases.ts
+           3 commits    212 churn  0.19 density   4 fan-in  ▲ accelerating
 
     2.6 ▼  src/lib/session-storage.test.ts [test]
           10 commits    642 churn  0.07 density   0 fan-in  ▼ cooling
 
-    2.5 ▼  src/lib/plugins/load-dashboard-tab-extensions.test.ts [test]
+    2.6 ▲  src/lib/plugins/plugin-contract-gate.test.ts [test]
+           8 commits    306 churn  0.09 density   0 fan-in  ▲ accelerating
+
+    2.4 ▼  src/lib/plugins/load-dashboard-tab-extensions.test.ts [test]
            5 commits    240 churn  0.14 density   0 fan-in  ▼ cooling
 
-    2.5 ─  plugins/log-doctor/src/components/log-doctor-audit-settings.tsx
+    2.4 ─  plugins/log-doctor/src/components/log-doctor-audit-settings.tsx
            6 commits   1332 churn  0.11 density   2 fan-in  ─ stable
-
-    2.4 ▲  src/hooks/use-action-feedback.ts
-           4 commits     99 churn  0.17 density   4 fan-in  ▲ accelerating
 
     2.4 ▼  src/components/mode-toggle.tsx
            7 commits     84 churn  0.10 density   1 fan-in  ▼ cooling
@@ -1934,44 +1901,50 @@
     2.4 ▼  src/components/plugins/plugin-bulk-actions.tsx
            5 commits     65 churn  0.12 density   3 fan-in  ▼ cooling
 
+    2.4 ▼  src/lib/firebase-client.ts
+           3 commits     63 churn  0.20 density   4 fan-in  ▼ cooling
+
+    2.4 ▼  src/lib/auth-session.ts
+           3 commits     34 churn  0.20 density   7 fan-in  ▼ cooling
+
     2.4 ▲  src/lib/utils.ts
            4 commits     46 churn  0.19 density  45 fan-in  ▲ accelerating
 
     2.3 ─  src/lib/guest-mode.test.ts [test]
            6 commits    193 churn  0.11 density   0 fan-in  ─ stable
 
-    2.3 ▼  src/lib/markdown-serializer.test.ts [test]
-          12 commits    710 churn  0.05 density   0 fan-in  ▼ cooling
-
-    2.3 ▲  plugins/github-sync/src/components/github-settings.tsx
-           5 commits    841 churn  0.12 density   3 fan-in  ▲ accelerating
-
-    2.3 ─  plugins/log-doctor/src/components/log-doctor-review-dialog.tsx
-           5 commits    408 churn  0.12 density   1 fan-in  ─ stable
-
-    2.3 ▲  src/app/api/ai/transform-description/route.ts
-           3 commits     42 churn  0.22 density   0 fan-in  ▲ accelerating
+    2.3 ▲  src/hooks/use-action-feedback.ts
+           4 commits     99 churn  0.17 density   4 fan-in  ▲ accelerating
 
     2.3 ─  src/ai/flows/practice-description-transformer.ts
           11 commits    189 churn  0.06 density   3 fan-in  ─ stable
 
-    2.2 ▼  src/components/plugin-manager.test.ts [test]
-           8 commits    441 churn  0.07 density   0 fan-in  ▼ cooling
-
     2.2 ▼  plugins/video-library/src/components/video-library.ux.test.tsx [test]
           11 commits    387 churn  0.05 density   0 fan-in  ▼ cooling
 
-    2.2 ▼  plugins/tag-manager/src/index.ts
-           3 commits     21 churn  0.20 density   4 fan-in  ▼ cooling
+    2.2 ▼  src/lib/markdown-serializer.test.ts [test]
+          12 commits    710 churn  0.05 density   0 fan-in  ▼ cooling
 
-    2.1 ▲  plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
-           3 commits    394 churn  0.13 density   0 fan-in  ▲ accelerating
+    2.2 ▲  plugins/github-sync/src/components/github-settings.tsx
+           5 commits    841 churn  0.12 density   3 fan-in  ▲ accelerating
+
+    2.2 ─  plugins/log-doctor/src/components/log-doctor-review-dialog.tsx
+           5 commits    408 churn  0.12 density   1 fan-in  ─ stable
+
+    2.2 ▲  src/app/api/ai/transform-description/route.ts
+           3 commits     42 churn  0.22 density   0 fan-in  ▲ accelerating
+
+    2.1 ▼  src/components/plugin-manager.test.ts [test]
+           8 commits    441 churn  0.07 density   0 fan-in  ▼ cooling
 
     2.1 ─  plugins/log-doctor/src/components/log-doctor-audit-results.tsx
            4 commits    256 churn  0.14 density   2 fan-in  ─ stable
 
-    2.0 ▲  src/components/ui/button.test.tsx [test]
-           7 commits    129 churn  0.08 density   0 fan-in  ▲ accelerating
+    2.1 ▼  plugins/tag-manager/src/index.ts
+           3 commits     21 churn  0.20 density   4 fan-in  ▼ cooling
+
+    2.0 ▲  plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+           3 commits    394 churn  0.13 density   0 fan-in  ▲ accelerating
 
     2.0 ▲  src/app/api/github/log-doctor/route.ts
            3 commits    123 churn  0.18 density   1 fan-in  ▲ accelerating
@@ -1979,11 +1952,8 @@
     2.0 ▼  plugins/plugin-ui-contract-usage.test.ts [test]
            6 commits    160 churn  0.09 density   0 fan-in  ▼ cooling
 
-    1.9 ▼  plugins/prompt-settings/src/components/prompt-settings.test.tsx [test]
-           7 commits    644 churn  0.07 density   0 fan-in  ▼ cooling
-
-    1.9 ▲  src/lib/interaction.ts
-           3 commits     70 churn  0.18 density   7 fan-in  ▲ accelerating
+    1.9 ▲  src/components/ui/button.test.tsx [test]
+           7 commits    129 churn  0.08 density   0 fan-in  ▲ accelerating
 
     1.9 ▲  src/lib/plugins/runtime-component-validation.ts
            4 commits     74 churn  0.13 density   2 fan-in  ▲ accelerating
@@ -1991,14 +1961,14 @@
     1.8 ▲  plugins/github-sync/src/index.behavior.test.ts [test]
            3 commits     36 churn  0.16 density   0 fan-in  ▲ accelerating
 
+    1.8 ▼  plugins/prompt-settings/src/components/prompt-settings.test.tsx [test]
+           7 commits    644 churn  0.07 density   0 fan-in  ▼ cooling
+
     1.8 ▼  src/lib/plugins/plugin-ui-migration-regression.test.ts [test]
            3 commits     38 churn  0.16 density   0 fan-in  ▼ cooling
 
     1.6 ▼  src/lib/tags/service.test.ts [test]
            3 commits    180 churn  0.15 density   0 fan-in  ▼ cooling
-
-    1.6 ▼  src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts [test]
-           4 commits     91 churn  0.11 density   0 fan-in  ▼ cooling
 
     1.6 ▼  src/lib/server-github-authz.test.ts [test]
            5 commits    112 churn  0.09 density   0 fan-in  ▼ cooling
@@ -2012,14 +1982,14 @@
     1.6 ▼  src/lib/plugins/design-token-variants.ts
            3 commits     93 churn  0.14 density   1 fan-in  ▼ cooling
 
+    1.5 ▼  src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts [test]
+           4 commits     91 churn  0.11 density   0 fan-in  ▼ cooling
+
     1.5 ▼  plugins/log-doctor/src/components/log-doctor-state.test.ts [test]
            4 commits     81 churn  0.10 density   0 fan-in  ▼ cooling
 
-    1.5 ─  src/lib/plugins/plugin-manager-client.test.ts [test]
+    1.4 ─  src/lib/plugins/plugin-manager-client.test.ts [test]
            8 commits    479 churn  0.05 density   0 fan-in  ─ stable
-
-    1.4 ▼  src/lib/network-safety.test.ts [test]
-           3 commits     87 churn  0.11 density   0 fan-in  ▼ cooling
 
     1.4 ▼  plugins/prompt-settings/plugin.test.ts [test]
            5 commits    118 churn  0.07 density   0 fan-in  ▼ cooling
@@ -2030,17 +2000,20 @@
     1.4 ▼  src/lib/plugins/dashboard-tab-adapters.tsx
            6 commits    124 churn  0.06 density  12 fan-in  ▼ cooling
 
-    1.4 ▼  src/lib/tags/service.ts
-           3 commits    684 churn  0.13 density   3 fan-in  ▼ cooling
+    1.3 ▼  plugins/test-plugin-manifest-contract.ts
+           3 commits     99 churn  0.10 density   1 fan-in  ▼ cooling
 
     1.3 ▼  src/app/api/github/log-doctor/route.test.ts [test]
            3 commits    183 churn  0.12 density   0 fan-in  ▼ cooling
 
-    1.3 ▼  src/lib/plugins/discovery.server.test.ts [test]
-           3 commits    160 churn  0.12 density   0 fan-in  ▼ cooling
+    1.3 ▼  src/lib/network-safety.test.ts [test]
+           3 commits     87 churn  0.11 density   0 fan-in  ▼ cooling
 
     1.3 ▼  src/components/ui/select.tsx
            6 commits    253 churn  0.06 density   3 fan-in  ▼ cooling
+
+    1.3 ▼  src/lib/tags/service.ts
+           3 commits    684 churn  0.13 density   3 fan-in  ▼ cooling
 
     1.3 ▲  src/app/layout.tsx
           13 commits    133 churn  0.03 density   0 fan-in  ▲ accelerating
@@ -2051,6 +2024,9 @@
     1.2 ▼  src/app/api/github/log-doctor/fix/route.test.ts [test]
            4 commits    200 churn  0.08 density   0 fan-in  ▼ cooling
 
+    1.2 ▼  src/lib/plugins/discovery.server.test.ts [test]
+           3 commits    160 churn  0.12 density   0 fan-in  ▼ cooling
+
     1.2 ─  plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx [test]
            4 commits     57 churn  0.08 density   0 fan-in  ─ stable
 
@@ -2060,29 +2036,26 @@
     1.2 ▲  src/components/ui/card.tsx
            5 commits    134 churn  0.07 density   6 fan-in  ▲ accelerating
 
-    1.1 ▼  src/components/plugins/plugin-kit.test.tsx [test]
-           4 commits    295 churn  0.07 density   0 fan-in  ▼ cooling
-
     1.1 ▼  src/components/ui/sidebar.tsx
            4 commits   1296 churn  0.08 density   1 fan-in  ▼ cooling
-
-    1.1 ─  plugins/log-doctor/src/components/log-doctor-audit-flag-content.ts
-           4 commits     81 churn  0.07 density   3 fan-in  ─ stable
 
     1.1 ─  src/components/ressa-image.tsx
            4 commits    121 churn  0.08 density   4 fan-in  ─ stable
 
+    1.0 ▼  src/components/plugins/plugin-kit.test.tsx [test]
+           4 commits    295 churn  0.07 density   0 fan-in  ▼ cooling
+
     1.0 ▲  src/lib/client-identity.test.ts [test]
            4 commits    190 churn  0.07 density   0 fan-in  ▲ accelerating
-
-    1.0 ─  src/components/ui/dropdown-menu.tsx
-           4 commits    306 churn  0.06 density   3 fan-in  ─ stable
 
     1.0 ▼  src/app/api/plugins/update/route.ts
            4 commits    275 churn  0.07 density   1 fan-in  ▼ cooling
 
-    0.9 ▼  src/tests/api-sessions-list-route.test.ts [test]
-           3 commits    129 churn  0.08 density   0 fan-in  ▼ cooling
+    1.0 ▼  src/components/ui/button.tsx
+           7 commits    153 churn  0.04 density  21 fan-in  ▼ cooling
+
+    1.0 ─  plugins/log-doctor/src/components/log-doctor-audit-flag-content.ts
+           4 commits     81 churn  0.07 density   3 fan-in  ─ stable
 
     0.9 ▲  src/lib/app-version.test.ts [test]
            3 commits     39 churn  0.08 density   0 fan-in  ▲ accelerating
@@ -2096,14 +2069,17 @@
     0.9 ▼  plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts [test]
            5 commits    158 churn  0.05 density   0 fan-in  ▼ cooling
 
+    0.9 ─  src/components/ui/dropdown-menu.tsx
+           4 commits    306 churn  0.06 density   3 fan-in  ─ stable
+
     0.9 ▼  src/components/plugins/plugin-action-row.tsx
            3 commits     84 churn  0.08 density   5 fan-in  ▼ cooling
 
-    0.8 ▲  src/components/ui/button.tsx
-           6 commits    151 churn  0.04 density  21 fan-in  ▲ accelerating
+    0.8 ▼  src/tests/api-sessions-list-route.test.ts [test]
+           3 commits    129 churn  0.08 density   0 fan-in  ▼ cooling
 
-    0.8 ─  src/components/plugins/plugin-kit.tsx
-           4 commits    156 churn  0.05 density   6 fan-in  ─ stable
+    0.8 ▼  plugins/test-plugin-registration-contract.ts
+           4 commits    118 churn  0.05 density   1 fan-in  ▼ cooling
 
     0.8 ─  src/components/ui/sheet.tsx
            5 commits    235 churn  0.04 density   1 fan-in  ─ stable
@@ -2114,14 +2090,17 @@
     0.7 ▲  src/components/ui/table.tsx
            3 commits    181 churn  0.07 density   1 fan-in  ▲ accelerating
 
+    0.7 ─  src/components/plugins/plugin-kit.tsx
+           4 commits    156 churn  0.05 density   6 fan-in  ─ stable
+
     0.7 ▲  src/components/ui/input.tsx
            5 commits     44 churn  0.04 density   9 fan-in  ▲ accelerating
 
     0.7 ▲  src/components/ui/alert.tsx
            4 commits    101 churn  0.05 density   7 fan-in  ▲ accelerating
 
-    0.6 ▼  plugins/test-plugin-registration-contract.ts
-           3 commits    116 churn  0.05 density   1 fan-in  ▼ cooling
+    0.7 ▲  src/components/ui/badge.tsx
+           6 commits     83 churn  0.03 density  11 fan-in  ▲ accelerating
 
     0.6 ▼  src/components/plugins/plugin-page-shell.tsx
            3 commits     80 churn  0.05 density   7 fan-in  ▼ cooling
@@ -2132,14 +2111,8 @@
     0.5 ─  src/lib/firebase-admin.test.ts [test]
            5 commits    259 churn  0.03 density   0 fan-in  ─ stable
 
-    0.5 ▲  src/components/ui/badge.tsx
-           5 commits     81 churn  0.03 density  11 fan-in  ▲ accelerating
-
     0.5 ▲  src/components/ui/dialog.tsx
            3 commits    180 churn  0.05 density   7 fan-in  ▲ accelerating
-
-    0.5 ▼  src/components/plugins/plugin-filter-bar.tsx
-           3 commits     27 churn  0.04 density   1 fan-in  ▼ cooling
 
     0.5 ▲  src/components/ui/textarea.tsx
            4 commits     58 churn  0.04 density   2 fan-in  ▲ accelerating
@@ -2150,16 +2123,22 @@
     0.4 ▼  src/lib/plugins/capabilities.test.ts [test]
            4 commits    229 churn  0.03 density   0 fan-in  ▼ cooling
 
-    0.3 ▼  src/lib/design-tokens.ts
-           3 commits    149 churn  0.02 density   1 fan-in  ▼ cooling
+    0.4 ─  src/lib/design-tokens.ts
+           4 commits    153 churn  0.02 density   1 fan-in  ─ stable
+
+    0.4 ▼  src/components/plugins/plugin-filter-bar.tsx
+           3 commits     27 churn  0.04 density   1 fan-in  ▼ cooling
 
     0.3 ▼  src/ai/flows/ai-technique-suggester.ts
            3 commits     86 churn  0.03 density   2 fan-in  ▼ cooling
 
-    0.2 ─  src/components/plugins/plugin-theme.ts
+    0.3 ▼  src/lib/plugins/ui-conformance-rules.ts
+           3 commits     46 churn  0.02 density   1 fan-in  ▼ cooling
+
+    0.1 ─  src/components/plugins/plugin-theme.ts
            4 commits    138 churn  0.01 density   7 fan-in  ─ stable
 
-  95 files excluded (< 3 commits)
+  89 files excluded (< 3 commits)
 
   Files with high churn and high complexity — https://docs.fallow.tools/explanations/health#hotspot-metrics
 
@@ -2167,30 +2146,29 @@
   2 medium · 5 high
     score = quick-win ROI (higher = better) · pri = absolute priority
 
-   18.9  pri:56.6    src/lib/storage.ts
+   15.9  pri:47.8    src/lib/storage.ts
          complexity · effort:high · confidence:high  Extract processSingleQueueOperation (cognitive: 33) in 1719-LOC file into smaller functions
 
-   16.6  pri:33.2    src/lib/session-validation.ts
-         high impact · effort:medium · confidence:medium  Split high-impact file (145 LOC) — 3 dependents amplify every change
-
-   10.6  pri:21.2    src/app/page.tsx
+   10.6  pri:21.1    src/app/page.tsx
          complexity · effort:medium · confidence:high  Extract Home (cognitive: 32) in 406-LOC file into smaller functions
 
-    9.1  pri:27.3    plugins/log-doctor/src/components/log-doctor.tsx
+   10.1  pri:20.2    src/lib/session-validation.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (145 LOC) — 3 dependents amplify every change
+
+    9.0  pri:27.1    plugins/log-doctor/src/components/log-doctor.tsx
          complexity · effort:high · confidence:high  Extract LogDoctor (cognitive: 70) in 1300-LOC file into smaller functions
 
-    6.5  pri:19.6    src/lib/sync-lease.ts
-         complexity · effort:high · confidence:high  Extract tryAcquireSyncLease (cognitive: 36) in 603-LOC file into smaller functions
-
-    5.9  pri:17.6    src/lib/plugins/maturity.ts
+    5.8  pri:17.5    src/lib/plugins/maturity.ts
          complexity · effort:high · confidence:high  Extract scorePluginMaturity (cognitive: 115) in 1153-LOC file into smaller functions
+
+    4.3  pri:12.9    src/lib/sync-lease.ts
+         complexity · effort:high · confidence:high  Extract tryAcquireSyncLease (cognitive: 36) in 603-LOC file into smaller functions
 
     3.7  pri:11.2    scripts/validate-plugin-ui-contract.ts
          complexity · effort:high · confidence:high  Extract getImportedPrimitives (cognitive: 42) in 838-LOC file into smaller functions
 
   Prioritized refactoring recommendations based on complexity, churn, and coupling signals — https://docs.fallow.tools/explanations/health#refactoring-targets
 
-✗ 368 above threshold · 3214 analyzed · maintainability 84.7 (moderate) (0.02s)
-  Maintainability scale: good ≥85, moderate ≥65, low <65 (0–100)
+✗ 368 above threshold · 3214 analyzed · maintainability 85.4 (good) (0.02s)
 
-Failed: dead-code (200 issues), dupes (173 clone groups), health (368 above threshold) — start with storage.ts
+Failed: dead-code (132 issues), dupes (174 clone groups), health (368 above threshold) — start with storage.ts
