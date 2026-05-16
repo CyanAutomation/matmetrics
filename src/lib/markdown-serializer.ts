@@ -418,7 +418,7 @@ function validateTitlePresence(content: string): void {
  * Validate that a JudoSession can roundtrip through markdown
  * Returns true if session -> markdown -> session produces equivalent data
  */
-export function validateRoundtrip(session: JudoSession): boolean {
+function validateRoundtrip(session: JudoSession): boolean {
   try {
     const markdown = sessionToMarkdown(session);
     const recovered = markdownToSession(markdown);

@@ -141,7 +141,7 @@ export const VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL = 'Remove domain';
 export const VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL = 'Cancel';
 export const VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL = 'Library settings';
 export const VIDEO_LIBRARY_LOUNGE_EMPTY_TITLE = 'No linked videos in this view';
-export const VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION =
+const VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION =
   'This filtered set has sessions, but none currently have a playable URL.';
 
 export function getVideoLibraryReviewAlertDescription(reviewCount: number) {

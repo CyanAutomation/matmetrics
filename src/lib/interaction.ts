@@ -12,7 +12,7 @@ export const FIELD_INTERACTION_CLASS =
 export const CARD_INTERACTION_CLASS =
   'ui-card-interaction transition-[transform,box-shadow,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/20';
 
-export function getFeedbackResetDelay(state: Exclude<FeedbackState, 'idle'>) {
+function getFeedbackResetDelay(state: Exclude<FeedbackState, 'idle'>) {
   return state === 'error' ? 1800 : 1400;
 }
 

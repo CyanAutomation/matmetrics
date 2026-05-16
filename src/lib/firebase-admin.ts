@@ -94,7 +94,7 @@ export function parseServiceAccountKey(
  * Throws an error if FIREBASE_SERVICE_ACCOUNT_KEY is missing or contains invalid data.
  * Call this at module load or app startup to fail fast.
  */
-export function validateFirebaseConfig(): void {
+function validateFirebaseConfig(): void {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) {
     throw new Error(

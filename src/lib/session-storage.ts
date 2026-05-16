@@ -122,7 +122,7 @@ export function normalizeGitHubConfig(
   return { owner, repo, ...(branch ? { branch } : {}) };
 }
 
-export function shouldUseGitHubStorage(
+function shouldUseGitHubStorage(
   config: GitHubConfig | undefined
 ): config is GitHubConfig {
   return !!config && isGitHubConfigured();
@@ -435,7 +435,7 @@ export async function scanSessionsFromGitHub(
   };
 }
 
-export async function listSessionsForConfig(
+async function listSessionsForConfig(
   config: GitHubConfig | undefined
 ): Promise<JudoSession[]> {
   const { sessions } = await listSessionsForConfigWithIssues(config);
@@ -462,7 +462,7 @@ export async function listSessionsForConfigWithIssues(
   };
 }
 
-export async function readSessionByIdFromGitHub(
+async function readSessionByIdFromGitHub(
   id: string,
   config: GitHubConfig
 ): Promise<JudoSession | null> {

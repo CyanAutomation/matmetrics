@@ -40,7 +40,7 @@ const isObjectRecord = (value: unknown): value is JsonRecord =>
 
 export const getPluginsRoot = (): string => path.join(process.cwd(), 'plugins');
 
-export const toRelativeRepoPath = (absolutePath: string): string =>
+const toRelativeRepoPath = (absolutePath: string): string =>
   path.relative(process.cwd(), absolutePath).replace(/\\/g, '/');
 
 export const listStoredPluginManifests = async (): Promise<
@@ -162,7 +162,7 @@ export const createContractPayload = (
   unresolvedInputs: payload.unresolvedInputs ?? [],
 });
 
-export const mergePreserveUnknownKeys = (
+const mergePreserveUnknownKeys = (
   base: unknown,
   update: unknown
 ): unknown => {
@@ -182,7 +182,7 @@ export const mergePreserveUnknownKeys = (
   return merged;
 };
 
-export const ensurePathUnderRoot = (
+const ensurePathUnderRoot = (
   root: string,
   targetPath: string
 ): string => {
@@ -203,7 +203,7 @@ export const ensurePathUnderRoot = (
   return resolvedTarget;
 };
 
-export const writePluginManifest = async (
+const writePluginManifest = async (
   absolutePath: string,
   manifest: unknown
 ): Promise<void> => {
@@ -213,7 +213,7 @@ export const writePluginManifest = async (
   await writeFile(safePath, serialized, 'utf8');
 };
 
-export const toPluginDirectoryName = (pluginId: string): string =>
+const toPluginDirectoryName = (pluginId: string): string =>
   pluginId
     .trim()
     .toLowerCase()

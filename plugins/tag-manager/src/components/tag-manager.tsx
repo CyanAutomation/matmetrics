@@ -56,7 +56,7 @@ interface DeleteDialogState {
   isApplyingDelete: boolean;
 }
 
-export const TAG_MANAGER_ERROR_RECOVERY_HINT =
+const TAG_MANAGER_ERROR_RECOVERY_HINT =
   'If this keeps happening, refresh and retry.';
 export const TAG_MANAGER_EMPTY_SEARCH_CTA_LABEL = 'Clear search';
 export const TAG_MANAGER_EMPTY_HISTORY_CTA_LABEL = 'Refresh tags';

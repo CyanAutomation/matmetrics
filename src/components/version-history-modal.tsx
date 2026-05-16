@@ -183,7 +183,7 @@ interface VersionHistoryButtonProps {
   onClick: () => void;
 }
 
-export const VersionHistoryButton: React.FC<VersionHistoryButtonProps> = ({
+const VersionHistoryButton: React.FC<VersionHistoryButtonProps> = ({
   onClick,
 }) => {
   return (
