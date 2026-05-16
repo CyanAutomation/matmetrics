@@ -1,0 +1,2196 @@
+
+■ Metrics: dead files 34.3% (93 of 271) · dead exports 11.8% (90 of 760) · MI 84.7 (moderate) · 1 churn hotspot
+  271 files analyzed
+  33 entry points detected (23 plugin, 10 package.json)
+  7 refactoring targets — start with storage.ts (complexity)
+
+── Dead Code ──────────────────────────────────────
+
+── Unused Code ─────────────────────────────────────
+
+● Unused files (93)
+  plugins/github-sync/plugin.test.ts
+  plugins/github-sync/src/components/github-settings.destructive.test.tsx
+  plugins/github-sync/src/components/github-settings.test.ts
+  plugins/github-sync/src/components/github-settings.ux.test.tsx
+  plugins/github-sync/src/components/github-sync-results.integration.test.ts
+  plugins/github-sync/src/components/github-sync-results.test.tsx
+  plugins/github-sync/src/index.behavior.test.ts
+  plugins/log-doctor/src/components/dom-safe-id.test.ts
+  plugins/log-doctor/src/components/log-doctor-api-response.test.ts
+  plugins/log-doctor/src/components/log-doctor-audit-results.test.tsx
+  ... and 83 more (--format json for full list)
+  Files not reachable from any entry point — https://docs.fallow.tools/explanations/dead-code#unused-files
+  To suppress: // fallow-ignore-next-line unused-files
+
+● Unused exports (78)
+  src/lib/storage.ts (15)
+    :977 getAllTags
+    :984 renameTag
+    :997 deleteTag
+    :1007 mergeTags
+    :1024 saveTransformerPrompt
+    ... and 10 more (--format json for full list)
+  src/lib/sync-lease.ts (7)
+    :42 SYNC_LOCK_ACQUIRE_ATTEMPTS
+    :47 SYNC_LOCK_NAME
+    :48 STALE_LEASE_RECLAIM_RETRY_THRESHOLD
+    :96 getActiveSyncLease
+    :108 sleep
+    ... and 2 more (--format json for full list)
+  src/lib/plugins/api-contract.ts (5)
+    :43 toRelativeRepoPath
+    :165 mergePreserveUnknownKeys
+    :185 ensurePathUnderRoot
+    :206 writePluginManifest
+    :216 toPluginDirectoryName
+  src/components/ui/dialog.tsx (4)
+    :113 DialogPortal
+    :114 DialogOverlay
+    :115 DialogClose
+    :116 DialogTrigger
+  src/lib/mutation-state.ts (4)
+    :53 nextMutationVersion
+    :152 applyOptimisticMutation
+    :186 hasPendingMutations
+    :193 getPendingMutationCount
+  src/components/ui/dropdown-menu.tsx (3)
+    :189 DropdownMenuCheckboxItem
+    :190 DropdownMenuRadioItem
+    :193 DropdownMenuShortcut
+  src/components/ui/select.tsx (3)
+    :154 SelectGroup
+    :158 SelectLabel
+    :160 SelectSeparator
+  src/lib/github-storage.ts (3)
+    :956 deleteSessionOnGitHub
+    :1095 createGitHubReadme
+    :1258 validateGitHubCredentials
+  src/lib/session-storage.ts (3)
+    :125 shouldUseGitHubStorage
+    :438 listSessionsForConfig
+    :465 readSessionByIdFromGitHub
+  src/components/ui/chart.tsx (2)
+    :456 ChartLegend
+    :457 ChartLegendContent
+  ... and 29 more in 23 files (--format json for full list)
+  Exported symbols with no known consumers — https://docs.fallow.tools/explanations/dead-code#unused-exports
+  To auto-fix: fallow fix --dry-run
+  To suppress: // fallow-ignore-next-line unused-exports
+  (5 more in files already reported as unused)
+
+● Unused type exports (6)
+  plugins/log-doctor/src/components/drlog-image.tsx
+    :6 DrLogPose
+  src/components/ressa-image.tsx
+    :6 RessaPose
+  src/components/ui/button.tsx
+    :38 ButtonProps
+  src/lib/plugins/dashboard-tab-adapters.tsx
+    :11 PluginComponentRegistration (re-export)
+  src/lib/plugins/manifest-schema.ts
+    :83 PluginExtensionBaseSchema
+  src/lib/tags/service.ts
+    :506 TagService
+  Type exports with no known consumers — https://docs.fallow.tools/explanations/dead-code#unused-types
+  To auto-fix: fallow fix --dry-run
+  To suppress: // fallow-ignore-next-line unused-types
+  (1 more in files already reported as unused)
+
+● Unused class members (4)
+  src/lib/file-storage.ts (4)
+    :28 DuplicateSessionIdError.code
+    :52 SessionUpdateConflictError.code
+    :73 SessionNotFoundError.code
+    :90 SessionLookupOperationalError.code
+  Class methods or properties never referenced outside their class — https://docs.fallow.tools/explanations/dead-code#unused-class-members
+  To suppress: // fallow-ignore-next-line unused-class-members
+
+── Dependencies ─────────────────────────────────────
+
+● Unused dependencies (4)
+  @hookform/resolvers
+  framer-motion
+  patch-package
+  react-hook-form
+  Listed in dependencies but never imported — https://docs.fallow.tools/explanations/dead-code#unused-dependencies
+  To suppress: // fallow-ignore-next-line unused-dependencies
+
+● Unlisted dependencies (3)
+  glob
+  postcss-load-config
+  sharp
+  Packages imported in code but missing from package.json — https://docs.fallow.tools/explanations/dead-code#unlisted-dependencies
+  To suppress: // fallow-ignore-next-line unlisted-dependencies
+
+● Test-only production dependencies (consider moving to devDependencies) (2)
+  react-dom
+  tailwindcss-animate
+
+── Structure ─────────────────────────────────────
+
+● Duplicate exports (4)
+  plugins/github-sync/src/index.ts
+    ↔ log-doctor/src/index.ts (2 exports)
+    PluginContext, initPlugin
+
+  plugins/log-doctor/src/components/log-doctor-state.ts
+    ↔ src/lib/types.ts (1 export)
+    AuditRunResult
+
+  src/lib/github-storage.ts
+    ↔ types.ts (1 export)
+    GitHubConfig
+
+  Same export name defined in multiple files; barrel re-exports may resolve ambiguously — https://docs.fallow.tools/explanations/dead-code#duplicate-exports
+  To suppress: // fallow-ignore-next-line duplicate-exports
+
+✗ 93 files · 78 exports · 6 types · 4 unused dependencies · 4 class members · 3 unlisted dependencies · 3 duplicate pairs · 2 test-only dependencies (0.16s)
+
+── Duplication ────────────────────────────────────
+
+● Duplicates (173 clone groups)
+
+     98 lines  3 instances
+    src/lib/plugins/maturity.test.ts:193-285
+    src/lib/plugins/maturity.test.ts:298-395
+    src/lib/plugins/maturity.test.ts:437-527
+
+     91 lines  3 instances
+    scripts/regenerate-plugin-maturity-scorecards.ts:37-127
+    scripts/regenerate-plugin-ui-migration-scorecards.ts:11-65
+    src/lib/plugins/plugin-maturity-regression.test.ts:30-64
+
+     75 lines  2 instances
+    src/lib/plugins/maturity.test.ts:193-267
+    src/lib/plugins/maturity.test.ts:437-509
+
+     68 lines  2 instances
+    src/lib/plugins/maturity.test.ts:454-521
+    src/lib/plugins/maturity.test.ts:559-626
+
+     59 lines  4 instances
+    src/lib/plugins/maturity.test.ts:663-721
+    src/lib/plugins/maturity.test.ts:733-787
+    src/lib/plugins/maturity.test.ts:871-918
+    src/lib/plugins/maturity.test.ts:936-983
+
+     59 lines  2 instances
+    src/tests/api-plugins-routes.test.ts:433-486
+    src/tests/api-plugins-routes.test.ts:531-589
+
+     58 lines  2 instances
+    plugins/log-doctor/src/components/drlog-image.tsx:49-106
+    src/components/ressa-image.tsx:50-107
+
+     58 lines  3 instances
+    src/lib/plugins/maturity.test.ts:663-720
+    src/lib/plugins/maturity.test.ts:871-917
+    src/lib/plugins/maturity.test.ts:936-982
+
+     55 lines  2 instances
+    plugins/log-doctor/src/components/log-doctor.tsx:281-335
+    plugins/log-doctor/src/hooks/use-log-doctor-audit.ts:97-149
+
+     51 lines  2 instances
+    src/app/api/github/sync-all/route.ts:1-51
+    src/app/api/github/validate/route.ts:1-51
+
+  ... and 163 more clone groups
+  Identical code blocks detected via suffix-array analysis — https://docs.fallow.tools/explanations/duplication#clone-groups
+
+● Clone families (25 with multiple groups)
+
+  9 groups, 315 lines across plugins/log-doctor/src/components/log-doctor.tsx, plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+    → Extract 9 shared clone groups (315 lines) from log-doctor.tsx, use-log-doctor-audit.ts into a shared directory
+
+  6 groups, 215 lines across plugins/log-doctor/src/components/log-doctor.tsx, plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+    → Extract 6 shared clone groups (215 lines) from log-doctor.tsx, use-log-doctor-validation.tsx into a shared directory
+
+  2 groups, 14 lines across plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+    → Extract shared function (7 lines) from use-log-doctor-audit.ts, use-log-doctor-audit.ts
+    → Extract shared function (7 lines) from use-log-doctor-audit.ts, use-log-doctor-audit.ts
+
+  2 groups, 45 lines across scripts/regenerate-plugin-maturity-scorecards.ts, scripts/regenerate-plugin-ui-migration-scorecards.ts
+    → Extract shared function (35 lines) from regenerate-plugin-maturity-scorecards.ts, regenerate-plugin-ui-migration-scorecards.ts
+    → Extract shared function (10 lines) from regenerate-plugin-maturity-scorecards.ts, regenerate-plugin-ui-migration-scorecards.ts
+
+  4 groups, 104 lines across src/app/api/github/log-doctor/fix/route.test.ts, src/app/api/github/log-doctor/route.test.ts
+    → Extract 4 shared clone groups (104 lines) from route.test.ts, route.test.ts into a shared directory
+
+  2 groups, 44 lines across src/app/api/github/log-doctor/fix/route.ts, src/app/api/github/log-doctor/route.ts, src/app/api/github/sync-all/route.ts, src/app/api/github/validate/route.ts
+    → Extract shared function (24 lines) from route.ts, route.ts, route.ts, route.ts
+    → Extract shared function (20 lines) from route.ts, route.ts, route.ts, route.ts
+
+  3 groups, 51 lines across src/app/api/sessions/[id]/route.ts, src/app/api/sessions/create/route.ts
+    → Extract 3 shared clone groups (51 lines) from route.ts, route.ts into a shared directory
+
+  4 groups, 57 lines across src/lib/file-storage.test.ts
+    → Extract 4 shared clone groups (57 lines) from file-storage.test.ts into src/lib
+
+  2 groups, 29 lines across src/lib/file-storage.ts
+    → Extract shared function (12 lines) from file-storage.ts, file-storage.ts
+    → Extract shared function (17 lines) from file-storage.ts, file-storage.ts
+
+  9 groups, 131 lines across src/lib/github-storage.test.ts
+    → Extract 9 shared clone groups (131 lines) from github-storage.test.ts into src/lib
+
+  ... and 15 more families
+
+  Groups of related clones across the same files — https://docs.fallow.tools/explanations/duplication#clone-families
+
+✗ 6,450 lines (11.2%) duplicated across 72 files (0.24s)
+
+── Complexity ─────────────────────────────────────
+
+■ Metrics: 58,231 LOC · dead files 34.3% · dead exports 11.8% · avg cyclomatic 2.4 · p90 cyclomatic 5 · maintainability 84.7 (moderate) · 1 churn hotspot · 4 unused deps
+
+  Function size: 63% low · 18% medium · 14% high · 5% very high  (1-15 / 16-30 / 31-60 / >60 LOC)
+  Parameters:    98% low · 2% medium · 0% high · 0% very high  (0-2 / 3-4 / 5-6 / >=7 params)
+
+● Large functions (10 shown, 170 total)
+  plugins/video-library/src/components/video-library.tsx
+    :406 VideoLibrary  1255 lines
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :179 LogDoctor  1121 lines
+  plugins/github-sync/src/components/github-settings.tsx
+    :65 GitHubSettings  737 lines
+  src/lib/plugins/maturity.ts
+    :418 scorePluginMaturity  735 lines
+  plugins/tag-manager/src/components/tag-manager.tsx
+    :152 TagManager  618 lines
+  src/components/plugin-manager.tsx
+    :348 PluginManager  567 lines
+  src/components/session-log-form.tsx
+    :59 SessionLogForm  477 lines
+  src/lib/tags/service.ts
+    :50 createTagService  455 lines
+  src/app/page.tsx
+    :62 Home  344 lines
+  src/components/dashboard-overview.tsx
+    :23 DashboardOverview  342 lines
+  Functions exceeding 60 lines of code (very high risk): https://docs.fallow.tools/explanations/health#unit-size
+  use --top 170 to see all
+
+● High complexity functions (368)
+  src/lib/plugins/maturity.ts
+    :418 scorePluginMaturity CRITICAL
+         134 cyclomatic  115 cognitive  735 lines
+         18090.0 CRAP
+  src/app/page.tsx
+    :62 Home CRITICAL
+          41 cyclomatic   32 cognitive  344 lines
+         1722.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :179 LogDoctor CRITICAL
+          40 cyclomatic   70 cognitive  1121 lines
+         1640.0 CRAP
+  src/components/ui/chart.tsx
+    :247 <arrow> CRITICAL
+          34 cyclomatic   28 cognitive   98 lines
+         1190.0 CRAP
+  plugins/tag-manager/src/components/tag-manager.tsx
+    :152 TagManager CRITICAL
+          32 cyclomatic   24 cognitive  618 lines
+         1056.0 CRAP
+  plugins/github-sync/src/components/github-settings.tsx
+    :65 GitHubSettings CRITICAL
+          31 cyclomatic   24 cognitive  737 lines
+         992.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :406 VideoLibrary CRITICAL
+          30 cyclomatic   26 cognitive  1255 lines
+         930.0 CRAP
+  src/components/session-log-form.tsx
+    :59 SessionLogForm CRITICAL
+          28 cyclomatic   23 cognitive  477 lines
+         812.0 CRAP
+  src/lib/sync-lease.ts
+    :377 tryAcquireSyncLease CRITICAL
+          28 cyclomatic   36 cognitive  131 lines
+         812.0 CRAP
+  src/lib/storage.ts
+    :429 tryAcquireSyncLease CRITICAL
+          27 cyclomatic   28 cognitive  111 lines
+         756.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :68 runLoadGitHubSyncHistory CRITICAL
+          26 cyclomatic   24 cognitive  133 lines
+         702.0 CRAP
+  src/lib/storage.ts
+    :1412 processSingleQueueOperation CRITICAL
+          26 cyclomatic   33 cognitive  103 lines
+         702.0 CRAP
+  src/lib/github-storage.test.ts
+    :303 <arrow> CRITICAL
+          24 cyclomatic   23 cognitive  107 lines
+         600.0 CRAP
+  src/lib/session-validation.ts
+    :125 validateSessionPayload CRITICAL
+          23 cyclomatic   21 cognitive   20 lines
+         552.0 CRAP
+  src/lib/plugins/plugin-component-bootstrap.ts
+    :20 initializePluginsStatically CRITICAL
+          21 cyclomatic   25 cognitive  124 lines
+         462.0 CRAP
+  src/lib/plugins/plugin-contract-gate.ts
+    :112 runPluginContractGate CRITICAL
+          21 cyclomatic   26 cognitive  138 lines
+         462.0 CRAP
+  plugins/prompt-settings/src/components/prompt-settings.tsx
+    :235 PromptSettings CRITICAL
+          20 cyclomatic   19 cognitive  319 lines
+         420.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :249 getImportedPrimitives CRITICAL
+          20 cyclomatic   42 cognitive   68 lines
+         420.0 CRAP
+  src/app/api/github/log-doctor/fix/route.ts
+    :28 POST CRITICAL
+          20 cyclomatic   18 cognitive   98 lines
+         420.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :214 <arrow> CRITICAL
+          19 cyclomatic    7 cognitive   41 lines
+         380.0 CRAP
+  src/app/api/plugins/toggle/route.ts
+    :12 POST CRITICAL
+          18 cyclomatic   16 cognitive  129 lines
+         342.0 CRAP
+  src/components/sign-in-screen.tsx
+    :20 SignInScreen CRITICAL
+          18 cyclomatic   18 cognitive  285 lines
+         342.0 CRAP
+  src/lib/video-library.ts
+    :509 <arrow> CRITICAL
+          18 cyclomatic   17 cognitive   47 lines
+         342.0 CRAP
+  src/lib/sync-lease.ts
+    :512 renewSyncLease CRITICAL
+          18 cyclomatic    7 cognitive   39 lines
+         342.0 CRAP
+  src/lib/github-storage.test.ts
+    :590 <arrow> CRITICAL
+          17 cyclomatic   13 cognitive   82 lines
+         306.0 CRAP
+  src/lib/file-storage.ts
+    :387 parseStructuredLockOwnerMetadata CRITICAL
+          17 cyclomatic   14 cognitive   48 lines
+         306.0 CRAP
+    :945 createSession CRITICAL
+          16 cyclomatic   27 cognitive  104 lines
+         272.0 CRAP
+  src/lib/user-preferences.ts
+    :219 normalizeVideoLibraryPreferences CRITICAL
+          16 cyclomatic   24 cognitive   68 lines
+         272.0 CRAP
+  src/lib/storage.ts
+    :1285 refreshSessionsFromAPI CRITICAL
+          16 cyclomatic   14 cognitive   83 lines
+         272.0 CRAP
+  src/hooks/use-session-form.ts
+    :40 <arrow> CRITICAL
+          16 cyclomatic    8 cognitive   11 lines
+         272.0 CRAP
+    :18 useSessionFormState CRITICAL
+          16 cyclomatic    8 cognitive   75 lines
+         272.0 CRAP
+  plugins/github-sync/src/components/github-settings-view-model.ts
+    :30 deriveGitHubSettingsControlState CRITICAL
+          16 cyclomatic   12 cognitive   32 lines
+         272.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :164 resolvePluginComponentEntrypoints CRITICAL
+          15 cyclomatic   21 cognitive   84 lines
+         240.0 CRAP
+    :706 validate CRITICAL
+          15 cyclomatic   29 cognitive  100 lines
+         240.0 CRAP
+  src/lib/session-storage.ts
+    :207 listGitHubSessionPaths CRITICAL
+          15 cyclomatic   26 cognitive   63 lines
+         240.0 CRAP
+  src/lib/user-preferences.ts
+    :102 normalizeGitHubSettings CRITICAL
+          15 cyclomatic   15 cognitive   38 lines
+         240.0 CRAP
+    :508 initializeUserPreferences CRITICAL
+          15 cyclomatic   13 cognitive   77 lines
+         240.0 CRAP
+  src/lib/github-storage.ts
+    :421 resolveBranch CRITICAL
+          15 cyclomatic   14 cognitive   56 lines
+         240.0 CRAP
+  src/lib/file-storage.ts
+    :277 releaseSessionUpdateLock CRITICAL
+          14 cyclomatic   21 cognitive   53 lines
+         210.0 CRAP
+    :436 parseLockOwnerMetadata CRITICAL
+          14 cyclomatic   19 cognitive   52 lines
+         210.0 CRAP
+    :1076 updateSession CRITICAL
+          14 cyclomatic   18 cognitive  116 lines
+         210.0 CRAP
+  src/components/ui/chart.tsx
+    :195 tooltipLabel CRITICAL
+          14 cyclomatic    8 cognitive   27 lines
+         210.0 CRAP
+  src/lib/video-library.ts
+    :423 <arrow> CRITICAL
+          14 cyclomatic    5 cognitive   42 lines
+         210.0 CRAP
+  src/lib/storage.ts
+    :262 scheduleRefresh CRITICAL
+          14 cyclomatic   12 cognitive   43 lines
+         210.0 CRAP
+    :541 renewSyncLease CRITICAL
+          14 cyclomatic    6 cognitive   35 lines
+         210.0 CRAP
+  src/app/api/sessions/[id]/route.ts
+    :90 PUT CRITICAL
+          14 cyclomatic   14 cognitive   86 lines
+         210.0 CRAP
+  src/lib/github-storage.ts
+    :304 getTreeEntriesForPath CRITICAL
+          14 cyclomatic   12 cognitive   57 lines
+         210.0 CRAP
+  src/lib/file-storage.ts
+    :860 listSessions CRITICAL
+          13 cyclomatic   28 cognitive   58 lines
+         182.0 CRAP
+  src/lib/github-storage.ts
+    :367 listTreeEntriesFromContentsApi CRITICAL
+          13 cyclomatic   22 cognitive   53 lines
+         182.0 CRAP
+  src/lib/plugins/maturity.ts
+    :336 findTestEvidenceFiles CRITICAL
+          13 cyclomatic   21 cognitive   81 lines
+         182.0 CRAP
+  src/lib/github-storage.test.ts
+    :462 <arrow> CRITICAL
+          13 cyclomatic    9 cognitive   45 lines
+         182.0 CRAP
+    :799 <arrow> CRITICAL
+          13 cyclomatic   14 cognitive   52 lines
+         182.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-state.ts
+    :155 createUiState CRITICAL
+          13 cyclomatic   15 cognitive   59 lines
+         182.0 CRAP
+  src/lib/tags/service.ts
+    :347 mergeTags CRITICAL
+          13 cyclomatic   11 cognitive  114 lines
+         182.0 CRAP
+  src/lib/plugins/plugin-manager-client.ts
+    :103 <arrow> CRITICAL
+          13 cyclomatic    7 cognitive   33 lines
+         182.0 CRAP
+  src/app/api/sessions/[id]/route.ts
+    :182 DELETE CRITICAL
+          13 cyclomatic   15 cognitive   82 lines
+         182.0 CRAP
+  src/lib/sync-lease.ts
+    :577 releaseSyncLease CRITICAL
+          13 cyclomatic    7 cognitive   26 lines
+         182.0 CRAP
+  src/lib/markdown-serializer.ts
+    :281 extractSectionContent CRITICAL
+          13 cyclomatic   15 cognitive   61 lines
+         182.0 CRAP
+  src/app/api/sessions/create/route.ts
+    :27 POST CRITICAL
+          13 cyclomatic   13 cognitive   72 lines
+         182.0 CRAP
+  src/components/session-history.tsx
+    :65 SessionRow CRITICAL
+          13 cyclomatic   13 cognitive  133 lines
+         182.0 CRAP
+  src/components/plugin-manager.tsx
+    :388 refreshInstalledPlugins CRITICAL
+          12 cyclomatic   17 cognitive  109 lines
+         156.0 CRAP
+    :766 <arrow> CRITICAL
+          12 cyclomatic   20 cognitive  143 lines
+         156.0 CRAP
+    :348 PluginManager CRITICAL
+          12 cyclomatic   18 cognitive  567 lines
+         156.0 CRAP
+  src/lib/github-storage.ts
+    :654 createSessionOnGitHub CRITICAL
+          12 cyclomatic   16 cognitive   90 lines
+         156.0 CRAP
+  src/lib/sync-queue.ts
+    :233 mergeConsecutiveOperations CRITICAL
+          12 cyclomatic   27 cognitive   79 lines
+         156.0 CRAP
+  src/lib/video-library.ts
+    :368 getYouTubeVideoId CRITICAL
+          12 cyclomatic   16 cognitive   21 lines
+         156.0 CRAP
+  src/components/ui/chart.tsx
+    :413 getPayloadConfigFromPayload CRITICAL
+          12 cyclomatic    9 cognitive   37 lines
+         156.0 CRAP
+  plugins/github-sync/src/components/github-settings.tsx
+    :108 parseApiResponse CRITICAL
+          12 cyclomatic    7 cognitive   40 lines
+         156.0 CRAP
+  src/lib/storage.ts
+    :577 hasActiveSyncLeaseOwnership CRITICAL
+          12 cyclomatic    3 cognitive   18 lines
+         156.0 CRAP
+  plugins/video-library/src/components/video-tile-card.tsx
+    :40 VideoTileCard CRITICAL
+          12 cyclomatic    9 cognitive  160 lines
+         156.0 CRAP
+  src/app/api/github/validate/route.ts
+    :11 POST CRITICAL
+          12 cyclomatic   12 cognitive   53 lines
+         156.0 CRAP
+  src/lib/sync-lease.ts
+    :555 hasActiveSyncLeaseOwnership CRITICAL
+          12 cyclomatic    3 cognitive   18 lines
+         156.0 CRAP
+  src/lib/sync-queue.ts
+    :493 acquireQueueWriteLease CRITICAL
+          12 cyclomatic    9 cognitive   67 lines
+         156.0 CRAP
+  src/app/api/github/sync-all/route.ts
+    :11 POST CRITICAL
+          12 cyclomatic   12 cognitive   53 lines
+         156.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :405 expressionToJsxRoots CRITICAL
+          12 cyclomatic   14 cognitive   36 lines
+         156.0 CRAP
+  src/hooks/use-session-form-ai.ts
+    :118 suggest CRITICAL
+          12 cyclomatic   15 cognitive   87 lines
+         156.0 CRAP
+  src/lib/file-storage.test.ts
+    :818 <arrow> CRITICAL
+          12 cyclomatic    8 cognitive   36 lines
+         156.0 CRAP
+  src/hooks/use-guest-import.ts
+    :58 handleImportGuestData CRITICAL
+          11 cyclomatic   18 cognitive   53 lines
+         132.0 CRAP
+  src/lib/plugins/ui-migration.ts
+    :74 getUiEntrypoints CRITICAL
+          11 cyclomatic   21 cognitive   55 lines
+         132.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-audit-settings.tsx
+    :226 <arrow> CRITICAL
+          11 cyclomatic    9 cognitive   95 lines
+         132.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :707 action CRITICAL
+          11 cyclomatic    5 cognitive   10 lines
+         132.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :360 SyncResultsDetailPane CRITICAL
+          11 cyclomatic    9 cognitive   79 lines
+         132.0 CRAP
+  src/components/plugin-manager.tsx
+    :259 <arrow> CRITICAL
+          11 cyclomatic   14 cognitive   85 lines
+         132.0 CRAP
+    :588 togglePluginEnabled CRITICAL
+          11 cyclomatic   11 cognitive   83 lines
+         132.0 CRAP
+  src/lib/storage.ts
+    :841 updateSession CRITICAL
+          11 cyclomatic   14 cognitive   66 lines
+         132.0 CRAP
+  src/lib/user-preferences.ts
+    :288 normalizeSessionAudits CRITICAL
+          11 cyclomatic   13 cognitive   36 lines
+         132.0 CRAP
+  src/app/api/plugins/list/route.ts
+    :63 GET CRITICAL
+          11 cyclomatic   13 cognitive  158 lines
+         132.0 CRAP
+  src/lib/file-storage.ts
+    :659 readSessionIndex CRITICAL
+          11 cyclomatic   12 cognitive   36 lines
+         132.0 CRAP
+  src/app/api/github/log-doctor/route.ts
+    :12 POST CRITICAL
+          11 cyclomatic   10 cognitive   48 lines
+         132.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-review-dialog.tsx
+    :42 AuditReviewDialog CRITICAL
+          11 cyclomatic   11 cognitive  187 lines
+         132.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :753 handleCheckLinks CRITICAL
+          11 cyclomatic    8 cognitive   63 lines
+         132.0 CRAP
+  plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+    :330 action CRITICAL
+          11 cyclomatic    5 cognitive   11 lines
+         132.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :599 computePrimitiveUsage CRITICAL
+          10 cyclomatic   18 cognitive   86 lines
+         110.0 CRAP
+  src/lib/file-storage.ts
+    :563 acquireSessionUpdateLock CRITICAL
+          10 cyclomatic   20 cognitive   65 lines
+         110.0 CRAP
+  plugins/github-sync/src/components/github-settings.tsx
+    :244 handleBulkSync CRITICAL
+          10 cyclomatic   11 cognitive   70 lines
+         110.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :144 parseApiResponse CRITICAL
+          10 cyclomatic   13 cognitive   34 lines
+         110.0 CRAP
+  src/lib/video-library.ts
+    :85 normalizeVideoDomainInput CRITICAL
+          10 cyclomatic    6 cognitive   31 lines
+         110.0 CRAP
+    :220 reconcileVideoLinkChecks CRITICAL
+          10 cyclomatic   14 cognitive   47 lines
+         110.0 CRAP
+    :293 areVideoLinkCheckMapsEqual CRITICAL
+          10 cyclomatic    7 cognitive   34 lines
+         110.0 CRAP
+  src/lib/storage.ts
+    :596 releaseSyncLease CRITICAL
+          10 cyclomatic    4 cognitive   22 lines
+         110.0 CRAP
+    :738 getSessions CRITICAL
+          10 cyclomatic   11 cognitive   34 lines
+         110.0 CRAP
+    :911 deleteSession CRITICAL
+          10 cyclomatic   14 cognitive   57 lines
+         110.0 CRAP
+  src/components/version-history-modal.tsx
+    :56 loadReleases CRITICAL
+          10 cyclomatic   11 cognitive   43 lines
+         110.0 CRAP
+  src/lib/plugins/validate.ts
+    :170 validatePluginManifest CRITICAL
+          10 cyclomatic   10 cognitive  149 lines
+         110.0 CRAP
+  src/lib/tags/service.ts
+    :88 summarizeRenameOrMerge CRITICAL
+          10 cyclomatic   10 cognitive  132 lines
+         110.0 CRAP
+  src/app/api/sessions/[id]/route.ts
+    :34 GET CRITICAL
+          10 cyclomatic    9 cognitive   50 lines
+         110.0 CRAP
+  src/components/plugins/plugin-section-card.tsx
+    :22 PluginSectionCard CRITICAL
+          10 cyclomatic   15 cognitive   37 lines
+         110.0 CRAP
+  src/hooks/use-session-form.ts
+    :195 buildSessionData CRITICAL
+          10 cyclomatic    9 cognitive   28 lines
+         110.0 CRAP
+  src/lib/plugins/capabilities.ts
+    :36 getRequiredCapabilityForExtension CRITICAL
+          10 cyclomatic   10 cognitive   38 lines
+         110.0 CRAP
+  src/lib/sync-lease.ts
+    :159 readSyncLease CRITICAL
+          10 cyclomatic    8 cognitive   36 lines
+         110.0 CRAP
+  src/lib/go-function-proxy.ts
+    :48 proxyGoFunction CRITICAL
+          10 cyclomatic   10 cognitive   48 lines
+         110.0 CRAP
+  src/lib/markdown-serializer.ts
+    :421 validateRoundtrip CRITICAL
+          10 cyclomatic    2 cognitive   21 lines
+         110.0 CRAP
+  src/lib/github-storage.ts
+    :527 findSessionPathOnGitHubById CRITICAL
+          10 cyclomatic   13 cognitive   64 lines
+         110.0 CRAP
+    :838 updateWithRetry CRITICAL
+          10 cyclomatic   13 cognitive   48 lines
+         110.0 CRAP
+    :1163 bulkPushSessions CRITICAL
+          10 cyclomatic   12 cognitive   91 lines
+         110.0 CRAP
+  src/tests/api-plugins-routes.test.ts
+    :288 <arrow> CRITICAL
+          10 cyclomatic   11 cognitive  119 lines
+         110.0 CRAP
+  src/lib/plugins/maturity.ts
+    :161 fileAssertsUxState CRITICAL
+          10 cyclomatic   11 cognitive   34 lines
+         110.0 CRAP
+    :238 findFilesAssertingCriterionHeuristically CRITICAL
+          10 cyclomatic   15 cognitive   46 lines
+         110.0 CRAP
+  src/lib/sync-queue.ts
+    :81 isValidSyncOperationInput CRITICAL
+          10 cyclomatic    9 cognitive   24 lines
+         110.0 CRAP
+  src/components/plugins/plugin-confirmation.tsx
+    :38 PluginConfirmationDialog CRITICAL
+          10 cyclomatic    8 cognitive   98 lines
+         110.0 CRAP
+  src/app/api/sessions/list/route.ts
+    :18 GET CRITICAL
+          10 cyclomatic   10 cognitive   43 lines
+         110.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :100 toErrorReason HIGH
+           9 cyclomatic    6 cognitive   20 lines
+          90.0 CRAP
+  src/lib/firebase-admin.ts
+    :50 parseServiceAccountKey HIGH
+           9 cyclomatic    6 cognitive   41 lines
+          90.0 CRAP
+  src/lib/storage.ts
+    :780 saveSession HIGH
+           9 cyclomatic   12 cognitive   57 lines
+          90.0 CRAP
+    :1312 <arrow> HIGH
+           9 cyclomatic    6 cognitive   53 lines
+          90.0 CRAP
+  src/components/version-history-modal.tsx
+    :40 VersionHistoryModal HIGH
+           9 cyclomatic    7 cognitive  141 lines
+          90.0 CRAP
+  src/hooks/use-plugin-tabs.ts
+    :71 <arrow> HIGH
+           9 cyclomatic    3 cognitive    6 lines
+          90.0 CRAP
+  src/lib/session-storage.ts
+    :142 readGitHubFileContent HIGH
+           9 cyclomatic    9 cognitive   48 lines
+          90.0 CRAP
+  src/components/ui/sidebar.tsx
+    :172 Sidebar HIGH
+           9 cyclomatic    8 cognitive   96 lines
+          90.0 CRAP
+  src/lib/user-preferences.ts
+    :155 rules HIGH
+           9 cyclomatic    4 cognitive   19 lines
+          90.0 CRAP
+  src/lib/sync-lease.ts
+    :218 validateLeaseClaim HIGH
+           9 cyclomatic    1 cognitive   13 lines
+          90.0 CRAP
+  src/lib/github-storage.ts
+    :595 putFile HIGH
+           9 cyclomatic   10 cognitive   55 lines
+          90.0 CRAP
+  plugins/prompt-settings/src/components/prompt-settings.tsx
+    :191 derivePromptSettingsViewState HIGH
+           9 cyclomatic    5 cognitive   43 lines
+          90.0 CRAP
+  src/lib/sync-queue.ts
+    :389 releaseQueueLease HIGH
+           9 cyclomatic    5 cognitive   19 lines
+          90.0 CRAP
+  src/lib/plugins/ui-migration.ts
+    :163 rows HIGH
+           9 cyclomatic    9 cognitive   51 lines
+          90.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :345 resolveImportedNameMap HIGH
+           9 cyclomatic   11 cognitive   29 lines
+          90.0 CRAP
+    :531 visit HIGH
+           9 cyclomatic    9 cognitive   57 lines
+          90.0 CRAP
+  src/hooks/use-session-form-ai.ts
+    :44 transform HIGH
+           9 cyclomatic   10 cognitive   70 lines
+          90.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :1347 <arrow> HIGH
+           9 cyclomatic    6 cognitive   87 lines
+          90.0 CRAP
+  src/app/api/ai/transform-description/route.ts
+    :5 POST HIGH
+           9 cyclomatic    6 cognitive   36 lines
+          90.0 CRAP
+  src/lib/video-library.test.ts
+    :160 <arrow> HIGH
+           8 cyclomatic    0 cognitive   30 lines
+          72.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :202 SyncResultsMainPanel HIGH
+           8 cyclomatic    8 cognitive   90 lines
+          72.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-status-alerts.tsx
+    :19 LogDoctorStatusAlerts HIGH
+           8 cyclomatic    8 cognitive   37 lines
+          72.0 CRAP
+  src/lib/video-library.ts
+    :328 buildRowSearchText HIGH
+           8 cyclomatic    6 cognitive   21 lines
+          72.0 CRAP
+    :350 getVideoProviderLabel HIGH
+           8 cyclomatic    5 cognitive   17 lines
+          72.0 CRAP
+    :484 rowMatchesTab HIGH
+           8 cyclomatic    2 cognitive   17 lines
+          72.0 CRAP
+  src/app/api/video-library/check-links/route.ts
+    :82 fetchWithRedirectTraversal HIGH
+           8 cyclomatic   12 cognitive   51 lines
+          72.0 CRAP
+    :157 checkVideoLink HIGH
+           8 cyclomatic    9 cognitive   67 lines
+          72.0 CRAP
+  src/lib/storage.ts
+    :306 readSyncLease HIGH
+           8 cyclomatic    5 cognitive   34 lines
+          72.0 CRAP
+    :688 initializeStorage HIGH
+           8 cyclomatic    6 cognitive   32 lines
+          72.0 CRAP
+    :1530 <arrow> HIGH
+           8 cyclomatic    9 cognitive   66 lines
+          72.0 CRAP
+  src/lib/releases.ts
+    :64 parseSectionBlocks HIGH
+           8 cyclomatic   14 cognitive   53 lines
+          72.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-audit-results.tsx
+    :66 <arrow> HIGH
+           8 cyclomatic   10 cognitive   91 lines
+          72.0 CRAP
+  plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+    :62 useLogDoctorAudit HIGH
+           8 cyclomatic    1 cognitive  294 lines
+          72.0 CRAP
+  src/lib/network-safety.ts
+    :35 isBlockedNetworkHostname HIGH
+           8 cyclomatic    8 cognitive   30 lines
+          72.0 CRAP
+  src/lib/github-storage.test.ts
+    :159 <arrow> HIGH
+           8 cyclomatic    7 cognitive   60 lines
+          72.0 CRAP
+    :530 <arrow> HIGH
+           8 cyclomatic    6 cognitive   43 lines
+          72.0 CRAP
+  src/lib/plugins/plugin-manager-client.ts
+    :137 fetchInstalledPlugins HIGH
+           8 cyclomatic    5 cognitive   45 lines
+          72.0 CRAP
+  src/hooks/use-session-form.ts
+    :224 submit HIGH
+           8 cyclomatic    8 cognitive   41 lines
+          72.0 CRAP
+  src/lib/session-storage.ts
+    :300 isRetryableGitHubReadError HIGH
+           8 cyclomatic    8 cognitive   15 lines
+          72.0 CRAP
+    :343 scanSessionsFromGitHub HIGH
+           8 cyclomatic    4 cognitive   94 lines
+          72.0 CRAP
+  src/lib/user-preferences.ts
+    :469 readLegacyPreferences HIGH
+           8 cyclomatic    7 cognitive   25 lines
+          72.0 CRAP
+  src/lib/plugins/plugin-surface.tsx
+    :39 extractElementTypeName HIGH
+           8 cyclomatic    2 cognitive   21 lines
+          72.0 CRAP
+  src/lib/file-storage.ts
+    :1196 deleteSession HIGH
+           8 cyclomatic   12 cognitive   56 lines
+          72.0 CRAP
+    :1455 findSessionFileById HIGH
+           8 cyclomatic    9 cognitive   35 lines
+          72.0 CRAP
+  src/lib/markdown-serializer.ts
+    :196 validateVideoUrl HIGH
+           8 cyclomatic    7 cognitive   39 lines
+          72.0 CRAP
+  src/lib/plugins/load-dashboard-tab-extensions.ts
+    :11 loadDashboardTabExtensions HIGH
+           8 cyclomatic    9 cognitive   51 lines
+          72.0 CRAP
+  src/lib/plugins/design-token-variants.ts
+    :35 validateAndNormalizeDesignTokenVariant HIGH
+           8 cyclomatic   10 cognitive   49 lines
+          72.0 CRAP
+  plugins/tag-manager/src/components/tag-manager.tsx
+    :100 deriveDeleteDialogActions HIGH
+           8 cyclomatic    7 cognitive   22 lines
+          72.0 CRAP
+  src/lib/github-storage.ts
+    :956 deleteSessionOnGitHub HIGH
+           8 cyclomatic    9 cognitive   79 lines
+          72.0 CRAP
+  src/lib/session-validation.ts
+    :17 validateVideoUrl HIGH
+           8 cyclomatic    7 cognitive   43 lines
+          72.0 CRAP
+    :112 validateSessionId HIGH
+           8 cyclomatic    8 cognitive   12 lines
+          72.0 CRAP
+  src/lib/plugins/maturity.ts
+    :196 fileAssertsPatternWithAssertion HIGH
+           8 cyclomatic    8 cognitive   25 lines
+          72.0 CRAP
+    :285 collectTestFiles HIGH
+           8 cyclomatic    8 cognitive   29 lines
+          72.0 CRAP
+  src/lib/sync-queue.ts
+    :419 ensureActiveStorageLeaseOwnership HIGH
+           8 cyclomatic    4 cognitive   16 lines
+          72.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :653 visit HIGH
+           8 cyclomatic   11 cognitive   19 lines
+          72.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :166 getStatusVariant HIGH
+           8 cyclomatic    1 cognitive   16 lines
+          72.0 CRAP
+  src/lib/utils.test.ts
+    :48 <arrow> HIGH
+           8 cyclomatic   13 cognitive   41 lines
+          72.0 CRAP
+  src/lib/file-storage.test.ts
+    :225 <arrow> HIGH
+           8 cyclomatic    4 cognitive   28 lines
+          72.0 CRAP
+    :1135 <arrow> HIGH
+           8 cyclomatic    4 cognitive   17 lines
+          72.0 CRAP
+  src/tests/api-video-library-check-links-route.test.ts
+    :183 <arrow> HIGH
+           8 cyclomatic    5 cognitive   28 lines
+          72.0 CRAP
+  src/lib/navigation/tab-definitions.ts
+    :127 resolveDashboardExtensionsToTabs HIGH
+           7 cyclomatic    7 cognitive   59 lines
+          56.0 CRAP
+  src/components/ui/chart.tsx
+    :381 <arrow> HIGH
+           7 cyclomatic    3 cognitive   25 lines
+          56.0 CRAP
+  src/lib/server-github-authz.ts
+    :59 resolveAuthorizedGitHubConfig HIGH
+           7 cyclomatic    5 cognitive   37 lines
+          56.0 CRAP
+  scripts/check-theme-contrast.mjs
+    :47 extractBlock HIGH
+           7 cyclomatic   10 cognitive   22 lines
+          56.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :47 parseErrorMessage HIGH
+           7 cyclomatic    3 cognitive   20 lines
+          56.0 CRAP
+  scripts/convert-images.js
+    :13 convertCharacterImages HIGH
+           7 cyclomatic    7 cognitive   51 lines
+          56.0 CRAP
+  src/tests/api-sessions-create-route.test.ts
+    :111 <arrow> HIGH
+           7 cyclomatic    3 cognitive   16 lines
+          56.0 CRAP
+  src/components/plugin-manager.tsx
+    :180 PluginManagerInstalledContent HIGH
+           7 cyclomatic    7 cognitive  167 lines
+          56.0 CRAP
+  src/lib/storage.ts
+    :473 onStorage HIGH
+           7 cyclomatic    5 cognitive   24 lines
+          56.0 CRAP
+    :1204 handleStorageEvent HIGH
+           7 cyclomatic    4 cognitive   20 lines
+          56.0 CRAP
+  src/hooks/use-toast.ts
+    :47 reducer HIGH
+           7 cyclomatic    6 cognitive   54 lines
+          56.0 CRAP
+  src/lib/plugins/validate.test.ts
+    :287 <arrow> HIGH
+           7 cyclomatic    1 cognitive   70 lines
+          56.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-state.ts
+    :131 createErrorMessage HIGH
+           7 cyclomatic   10 cognitive   23 lines
+          56.0 CRAP
+  src/lib/plugins/plugin-manager-client.ts
+    :80 parsePluginApiError HIGH
+           7 cyclomatic    6 cognitive   19 lines
+          56.0 CRAP
+  src/hooks/use-plugin-tabs.ts
+    :18 usePluginTabs HIGH
+           7 cyclomatic    1 cognitive   91 lines
+          56.0 CRAP
+  src/lib/session-storage.ts
+    :372 worker HIGH
+           7 cyclomatic   13 cognitive   42 lines
+          56.0 CRAP
+  src/lib/user-preferences.ts
+    :306 flags HIGH
+           7 cyclomatic    3 cognitive    7 lines
+          56.0 CRAP
+    :343 flags HIGH
+           7 cyclomatic    3 cognitive    7 lines
+          56.0 CRAP
+    :337 sessions HIGH
+           7 cyclomatic    3 cognitive   15 lines
+          56.0 CRAP
+  src/lib/sync-lease.ts
+    :295 onStorage HIGH
+           7 cyclomatic    5 cognitive   24 lines
+          56.0 CRAP
+  src/lib/plugins/plugin-surface.tsx
+    :64 walk HIGH
+           7 cyclomatic    6 cognitive   24 lines
+          56.0 CRAP
+  src/lib/file-storage.ts
+    :505 shouldReclaimSessionUpdateLock HIGH
+           7 cyclomatic    7 cognitive   43 lines
+          56.0 CRAP
+    :1334 checkIndexedSessionRecord HIGH
+           7 cyclomatic    8 cognitive   37 lines
+          56.0 CRAP
+    :1495 hasAnySessions HIGH
+           7 cyclomatic    9 cognitive   24 lines
+          56.0 CRAP
+  src/lib/markdown-serializer.ts
+    :122 validateDate HIGH
+           7 cyclomatic    5 cognitive   24 lines
+          56.0 CRAP
+  src/app/api/github/log-doctor/fix/route.ts
+    :10 isSafeLogPath HIGH
+           7 cyclomatic    6 cognitive   13 lines
+          56.0 CRAP
+  src/lib/github-storage.ts
+    :59 getActionableGitHubErrorMessage HIGH
+           7 cyclomatic   10 cognitive   30 lines
+          56.0 CRAP
+    :749 resolveSessionFileMetadata HIGH
+           7 cyclomatic    9 cognitive   34 lines
+          56.0 CRAP
+    :788 handleSessionPathMove HIGH
+           7 cyclomatic    3 cognitive   45 lines
+          56.0 CRAP
+  plugins/prompt-settings/src/components/prompt-settings.tsx
+    :290 handleSave HIGH
+           7 cyclomatic    4 cognitive   37 lines
+          56.0 CRAP
+  src/lib/sync-queue.ts
+    :368 readQueueLease HIGH
+           7 cyclomatic    4 cognitive   20 lines
+          56.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :205 visit HIGH
+           7 cyclomatic    6 cognitive   25 lines
+          56.0 CRAP
+    :469 isLikelyComponentFunction HIGH
+           7 cyclomatic    5 cognitive   15 lines
+          56.0 CRAP
+  src/lib/file-storage.test.ts
+    :1488 <arrow> HIGH
+           7 cyclomatic    4 cognitive   21 lines
+          56.0 CRAP
+  src/lib/storage.test.ts
+    :1696 contenderAcquire HIGH
+           7 cyclomatic    6 cognitive   30 lines
+          56.0 CRAP
+  src/components/ui/chart.tsx
+    :106 <arrow>
+           6 cyclomatic    4 cognitive   15 lines
+          42.0 CRAP
+    :170 ChartTooltipContent
+           6 cyclomatic    4 cognitive  179 lines
+          42.0 CRAP
+  scripts/check-theme-contrast.mjs
+    :112 hslToRgb
+           6 cyclomatic    6 cognitive   19 lines
+          42.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :420 handleIgnoreRule
+           6 cyclomatic    4 cognitive   38 lines
+          42.0 CRAP
+    :1035 <arrow>
+           6 cyclomatic    4 cognitive   49 lines
+          42.0 CRAP
+  src/lib/plugins/discovery.server.ts
+    :35 <arrow>
+           6 cyclomatic    4 cognitive   22 lines
+          42.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :147 normalizedFiles
+           6 cyclomatic    5 cognitive   15 lines
+          42.0 CRAP
+  src/tests/api-sessions-create-route.test.ts
+    :181 <arrow>
+           6 cyclomatic    3 cognitive   21 lines
+          42.0 CRAP
+  src/lib/video-library.ts
+    :146 toNormalizedSessionUrl
+           6 cyclomatic    5 cognitive   27 lines
+          42.0 CRAP
+    :390 resolveVideoThumbnailUrl
+           6 cyclomatic    5 cognitive   19 lines
+          42.0 CRAP
+  src/components/plugin-manager.tsx
+    :159 derivePluginManagerInstalledViewState
+           6 cyclomatic    5 cognitive   20 lines
+          42.0 CRAP
+  src/app/api/github/log-doctor/fix/route.test.ts
+    :21 <arrow>
+           6 cyclomatic    5 cognitive   72 lines
+          42.0 CRAP
+  src/lib/storage.ts
+    :386 tryAcquireNavigatorLock
+           6 cyclomatic    4 cognitive   42 lines
+          42.0 CRAP
+    :1250 parseSessionListResponse
+           6 cyclomatic    4 cognitive   14 lines
+          42.0 CRAP
+    :1269 reconcileDirtyMutations
+           6 cyclomatic    9 cognitive   15 lines
+          42.0 CRAP
+  src/lib/releases.ts
+    :121 validateReleaseStructure
+           6 cyclomatic    9 cognitive   21 lines
+          42.0 CRAP
+    :146 validateReleasesOrder
+           6 cyclomatic    7 cognitive   24 lines
+          42.0 CRAP
+  src/lib/navigation/tab-definitions.test.ts
+    :21 createDashboardTabExtensionFixture
+           6 cyclomatic    2 cognitive   19 lines
+          42.0 CRAP
+  plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+    :244 handleIgnoreRule
+           6 cyclomatic    4 cognitive   35 lines
+          42.0 CRAP
+  src/app/api/github/log-doctor/route.test.ts
+    :21 <arrow>
+           6 cyclomatic    5 cognitive   53 lines
+          42.0 CRAP
+  src/lib/github-storage.test.ts
+    :89 <arrow>
+           6 cyclomatic    5 cognitive   36 lines
+          42.0 CRAP
+  src/app/api/plugins/validate/route.ts
+    :47 pluginRows
+           6 cyclomatic    7 cognitive   47 lines
+          42.0 CRAP
+    :35 POST
+           6 cyclomatic    7 cognitive  101 lines
+          42.0 CRAP
+  src/lib/audit-presets.ts
+    :91 inferStrictnessPresetFromAudit
+           6 cyclomatic    5 cognitive   26 lines
+          42.0 CRAP
+  src/lib/plugins/validate.ts
+    :201 <arrow>
+           6 cyclomatic    8 cognitive   60 lines
+          42.0 CRAP
+  plugins/video-library/src/components/video-tile-card.tsx
+    :51 safeThumbnailUrl
+           6 cyclomatic    5 cognitive   20 lines
+          42.0 CRAP
+  src/hooks/use-session-form.ts
+    :161 validateForm
+           6 cyclomatic    7 cognitive   33 lines
+          42.0 CRAP
+  src/lib/session-storage.ts
+    :84 sanitizeGitHubBranch
+           6 cyclomatic    5 cognitive   22 lines
+          42.0 CRAP
+  src/lib/user-preferences.ts
+    :141 normalizeAuditConfig
+           6 cyclomatic    3 cognitive   36 lines
+          42.0 CRAP
+    :356 normalizePreferences
+           6 cyclomatic    5 cognitive   29 lines
+          42.0 CRAP
+  src/lib/sync-lease.ts
+    :239 tryAcquireNavigatorLock
+           6 cyclomatic    4 cognitive   42 lines
+          42.0 CRAP
+  src/lib/guest-mode.ts
+    :51 getDismissKeyForUser
+           6 cyclomatic    2 cognitive   14 lines
+          42.0 CRAP
+    :81 readGuestWorkspaceMeta
+           6 cyclomatic    5 cognitive   25 lines
+          42.0 CRAP
+  src/lib/file-storage.ts
+    :721 resolveIndexedSessionPath
+           6 cyclomatic   12 cognitive   37 lines
+          42.0 CRAP
+    :825 getNextCounter
+           6 cyclomatic    7 cognitive   30 lines
+          42.0 CRAP
+    :1257 checkAndValidateDirectory
+           6 cyclomatic    7 cognitive   21 lines
+          42.0 CRAP
+  src/lib/markdown-serializer.ts
+    :34 sessionToMarkdown
+           6 cyclomatic    6 cognitive   39 lines
+          42.0 CRAP
+    :166 validateCategory
+           6 cyclomatic    3 cognitive   16 lines
+          42.0 CRAP
+  src/lib/plugins/state.server.ts
+    :14 normalizePluginEnabledOverrides
+           6 cyclomatic    5 cognitive   16 lines
+          42.0 CRAP
+    :31 applyPluginEnabledOverrides
+           6 cyclomatic    4 cognitive   23 lines
+          42.0 CRAP
+  plugins/tag-manager/src/components/tag-manager.tsx
+    :252 handleRename
+           6 cyclomatic    4 cognitive   34 lines
+          42.0 CRAP
+    :320 handleMerge
+           6 cyclomatic    4 cognitive   33 lines
+          42.0 CRAP
+    :384 handleDelete
+           6 cyclomatic    5 cognitive   40 lines
+          42.0 CRAP
+  src/lib/github-storage.ts
+    :203 githubApiRequest
+           6 cyclomatic    6 cognitive   37 lines
+          42.0 CRAP
+    :270 getFileContent
+           6 cyclomatic    6 cognitive   33 lines
+          42.0 CRAP
+    :478 isInvalidBranchWriteError
+           6 cyclomatic    4 cognitive   17 lines
+          42.0 CRAP
+    :890 updateSessionOnGitHub
+           6 cyclomatic    6 cognitive   62 lines
+          42.0 CRAP
+  src/lib/session-validation.ts
+    :97 validateDate
+           6 cyclomatic    4 cognitive   14 lines
+          42.0 CRAP
+  plugins/log-doctor/src/lib/audit-rules.ts
+    :69 detectDurationOutlier
+           6 cyclomatic    5 cognitive   39 lines
+          42.0 CRAP
+    :114 runAuditRules
+           6 cyclomatic    8 cognitive   47 lines
+          42.0 CRAP
+  src/components/plugins/plugin-bulk-actions.tsx
+    :14 PluginBulkActions
+           6 cyclomatic    6 cognitive   36 lines
+          42.0 CRAP
+  src/lib/sync-queue.ts
+    :452 tryAcquireNavigatorQueueLock
+           6 cyclomatic    4 cognitive   40 lines
+          42.0 CRAP
+  src/tests/api-sessions-id-route.test.ts
+    :245 <arrow>
+           6 cyclomatic    3 cognitive   15 lines
+          42.0 CRAP
+    :314 <arrow>
+           6 cyclomatic    3 cognitive   21 lines
+          42.0 CRAP
+    :534 <arrow>
+           6 cyclomatic    3 cognitive   14 lines
+          42.0 CRAP
+  src/lib/plugins/ui-migration.ts
+    :30 resolveModuleImport
+           6 cyclomatic    7 cognitive   36 lines
+          42.0 CRAP
+  plugins/plugin-ui-contract-usage.test.ts
+    :65 <arrow>
+           6 cyclomatic    6 cognitive   35 lines
+          42.0 CRAP
+  src/app/api/ai/suggest-techniques/route.ts
+    :5 POST
+           6 cyclomatic    4 cognitive   32 lines
+          42.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :97 resolveImportPath
+           6 cyclomatic    7 cognitive   26 lines
+          42.0 CRAP
+    :146 visit
+           6 cyclomatic    5 cognitive   14 lines
+          42.0 CRAP
+    :540 <arrow>
+           6 cyclomatic    5 cognitive   29 lines
+          42.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :610 handleExpectedCategoryToggle
+           6 cyclomatic    5 cognitive   41 lines
+          42.0 CRAP
+    :652 handleAddDomain
+           6 cyclomatic    5 cognitive   58 lines
+          42.0 CRAP
+    :834 <arrow>
+           6 cyclomatic    4 cognitive   27 lines
+          42.0 CRAP
+  src/lib/file-storage.test.ts
+    :292 <arrow>
+           6 cyclomatic    4 cognitive   18 lines
+          42.0 CRAP
+  src/components/auth-provider.tsx
+    :81 loadPreferencesForUser
+           5 cyclomatic    7 cognitive   23 lines
+          30.0 CRAP
+    :146 value
+           5 cyclomatic    4 cognitive   48 lines
+          30.0 CRAP
+  scripts/check-theme-contrast.mjs
+    :80 resolveToken
+           5 cyclomatic    4 cognitive   18 lines
+          30.0 CRAP
+  plugins/github-sync/src/components/github-settings.tsx
+    :181 handleTestConnection
+           5 cyclomatic    5 cognitive   62 lines
+          30.0 CRAP
+  plugins/log-doctor/src/components/log-doctor-audit-settings.tsx
+    :82 AuditSettings
+           5 cyclomatic    4 cognitive  263 lines
+          30.0 CRAP
+  plugins/log-doctor/src/components/log-doctor.tsx
+    :132 getRouteHint
+           5 cyclomatic    4 cognitive   11 lines
+          30.0 CRAP
+    :351 handleMarkResolved
+           5 cyclomatic    3 cognitive   32 lines
+          30.0 CRAP
+    :384 handleDismissForNow
+           5 cyclomatic    3 cognitive   35 lines
+          30.0 CRAP
+    :459 handleUnignoreRule
+           5 cyclomatic    3 cognitive   36 lines
+          30.0 CRAP
+    :539 handlePreviewFixes
+           5 cyclomatic    4 cognitive   50 lines
+          30.0 CRAP
+    :590 executeApplyFixes
+           5 cyclomatic    4 cognitive   50 lines
+          30.0 CRAP
+    :738 summaryAction
+           5 cyclomatic    5 cognitive   31 lines
+          30.0 CRAP
+  src/lib/plugins/api-contract.ts
+    :153 createContractPayload
+           5 cyclomatic    4 cognitive   11 lines
+          30.0 CRAP
+    :165 mergePreserveUnknownKeys
+           5 cyclomatic    4 cognitive   19 lines
+          30.0 CRAP
+  plugins/github-sync/src/components/github-sync-results.tsx
+    :293 SyncResultsHistoryList
+           5 cyclomatic    4 cognitive   66 lines
+          30.0 CRAP
+  src/lib/plugins/version-utils.ts
+    :7 compareVersions
+           5 cyclomatic    5 cognitive   15 lines
+          30.0 CRAP
+  src/app/api/video-library/check-links/route.ts
+    :26 getAllowedDomainsForUser
+           5 cyclomatic    3 cognitive   25 lines
+          30.0 CRAP
+    :225 POST
+           5 cyclomatic    4 cognitive   98 lines
+          30.0 CRAP
+  src/lib/storage.ts
+    :209 parseRetryAfterMs
+           5 cyclomatic    4 cognitive   17 lines
+          30.0 CRAP
+    :1229 buildSessionListUrl
+           5 cyclomatic    6 cognitive   17 lines
+          30.0 CRAP
+    :1674 __setSyncLeaseTimingForTests
+           5 cyclomatic    4 cognitive   26 lines
+          30.0 CRAP
+    :1701 __setGitHubRefreshTimingForTests
+           5 cyclomatic    4 cognitive   18 lines
+          30.0 CRAP
+  src/lib/releases.ts
+    :31 compareSemanticVersions
+           5 cyclomatic    5 cognitive   14 lines
+          30.0 CRAP
+  plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+    :169 handleMarkResolved
+           5 cyclomatic    3 cognitive   32 lines
+          30.0 CRAP
+    :205 handleDismissForNow
+           5 cyclomatic    3 cognitive   35 lines
+          30.0 CRAP
+    :283 handleUnignoreRule
+           5 cyclomatic    3 cognitive   33 lines
+          30.0 CRAP
+  src/components/sign-in-screen.tsx
+    :46 handleSubmit
+           5 cyclomatic    5 cognitive   36 lines
+          30.0 CRAP
+  src/lib/network-safety.ts
+    :184 ipv6ToBigInt
+           5 cyclomatic    4 cognitive   31 lines
+          30.0 CRAP
+  src/lib/plugins/validate.test.ts
+    :568 <arrow>
+           5 cyclomatic    2 cognitive   34 lines
+          30.0 CRAP
+  src/lib/github-storage.test.ts
+    :239 <arrow>
+           5 cyclomatic    4 cognitive   45 lines
+          30.0 CRAP
+  src/app/api/plugins/validate/route.ts
+    :20 asGateManifest
+           5 cyclomatic    2 cognitive   14 lines
+          30.0 CRAP
+  src/lib/plugins/validate.ts
+    :29 validateManifestComponentRenderersAtRuntime
+           5 cyclomatic    5 cognitive   36 lines
+          30.0 CRAP
+    :101 validateKnownExtension
+           5 cyclomatic    1 cognitive   68 lines
+          30.0 CRAP
+  scripts/regenerate-plugin-maturity-scorecards.ts
+    :77 plugins
+           5 cyclomatic    3 cognitive   29 lines
+          30.0 CRAP
+  src/hooks/use-session-form.ts
+    :283 useVideoUrlValidation
+           5 cyclomatic    4 cognitive   20 lines
+          30.0 CRAP
+  src/lib/session-storage.ts
+    :45 isValidGitHubRepo
+           5 cyclomatic    4 cognitive   15 lines
+          30.0 CRAP
+    :107 normalizeGitHubConfig
+           5 cyclomatic    4 cognitive   17 lines
+          30.0 CRAP
+    :320 readGitHubFileContentWithRetry
+           5 cyclomatic    7 cognitive   22 lines
+          30.0 CRAP
+  src/components/ui/sidebar.tsx
+    :553 SidebarMenuButton
+           5 cyclomatic    4 cognitive   48 lines
+          30.0 CRAP
+  src/lib/user-preferences.ts
+    :178 normalizeAuditMode
+           5 cyclomatic    3 cognitive    9 lines
+          30.0 CRAP
+    :325 normalizeLastAuditRun
+           5 cyclomatic    4 cognitive   30 lines
+          30.0 CRAP
+  src/app/api/plugins/list/route.ts
+    :24 asGateManifest
+           5 cyclomatic    2 cognitive   14 lines
+          30.0 CRAP
+    :98 pluginRows
+           5 cyclomatic    4 cognitive   74 lines
+          30.0 CRAP
+  src/lib/sync-lease.ts
+    :334 shouldAttemptLeaseAcquisition
+           5 cyclomatic    5 cognitive   38 lines
+          30.0 CRAP
+  src/lib/plugins/plugin-maturity-regression.test.ts
+    :74 actualRows
+           5 cyclomatic    3 cognitive   26 lines
+          30.0 CRAP
+  src/lib/file-storage.ts
+    :125 sanitizeSessionId
+           5 cyclomatic    4 cognitive   19 lines
+          30.0 CRAP
+    :186 findClosestExistingAncestor
+           5 cyclomatic    8 cognitive   22 lines
+          30.0 CRAP
+    :759 validateAndNormalizeDate
+           5 cyclomatic    3 cognitive   25 lines
+          30.0 CRAP
+    :1376 scanMonthDirectory
+           5 cyclomatic    6 cognitive   27 lines
+          30.0 CRAP
+    :1408 scanYearDirectory
+           5 cyclomatic    6 cognitive   27 lines
+          30.0 CRAP
+  src/lib/server-auth.ts
+    :8 getBearerToken
+           5 cyclomatic    3 cognitive   13 lines
+          30.0 CRAP
+    :50 requireAuthenticatedUser
+           5 cyclomatic    4 cognitive   30 lines
+          30.0 CRAP
+  src/lib/markdown-serializer.ts
+    :80 markdownToSession
+           5 cyclomatic    4 cognitive   34 lines
+          30.0 CRAP
+    :151 validateEffort
+           5 cyclomatic    3 cognitive   14 lines
+          30.0 CRAP
+    :183 validateDuration
+           5 cyclomatic    3 cognitive   12 lines
+          30.0 CRAP
+    :239 extractTechniques
+           5 cyclomatic    7 cognitive   20 lines
+          30.0 CRAP
+    :362 getSectionHeadingsOutsideFencedCodeBlocks
+           5 cyclomatic    6 cognitive   26 lines
+          30.0 CRAP
+    :394 validateTitlePresence
+           5 cyclomatic    5 cognitive   22 lines
+          30.0 CRAP
+  src/lib/plugins/state.server.ts
+    :56 loadPluginEnabledOverrides
+           5 cyclomatic    3 cognitive   21 lines
+          30.0 CRAP
+  plugins/tag-manager/src/components/tag-manager.tsx
+    :219 handleAnalyzeRename
+           5 cyclomatic    4 cognitive   32 lines
+          30.0 CRAP
+    :287 handleAnalyzeMerge
+           5 cyclomatic    4 cognitive   32 lines
+          30.0 CRAP
+  src/lib/github-storage.ts
+    :1258 validateGitHubCredentials
+           5 cyclomatic    5 cognitive   28 lines
+          30.0 CRAP
+  plugins/test-plugin-manifest-contract.ts
+    :43 <arrow>
+           5 cyclomatic    2 cognitive   50 lines
+          30.0 CRAP
+  src/lib/session-validation.ts
+    :65 validateTechniques
+           5 cyclomatic    6 cognitive   31 lines
+          30.0 CRAP
+  plugins/prompt-settings/src/components/prompt-settings.tsx
+    :328 handleReset
+           5 cyclomatic    3 cognitive   31 lines
+          30.0 CRAP
+  src/lib/sync-queue.ts
+    :57 lastQueuedAt
+           5 cyclomatic    7 cognitive   13 lines
+          30.0 CRAP
+    :106 getNextQueuedAt
+           5 cyclomatic    7 cognitive   24 lines
+          30.0 CRAP
+    :561 withQueueWriteLease
+           5 cyclomatic    3 cognitive   24 lines
+          30.0 CRAP
+    :586 readQueueFromStorage
+           5 cyclomatic    4 cognitive   24 lines
+          30.0 CRAP
+    :611 writeQueueWithLatestMerge
+           5 cyclomatic    4 cognitive   74 lines
+          30.0 CRAP
+    :718 getQueue
+           5 cyclomatic    7 cognitive   29 lines
+          30.0 CRAP
+  src/tests/api-sessions-id-route.test.ts
+    :443 <arrow>
+           5 cyclomatic    2 cognitive   14 lines
+          30.0 CRAP
+  src/lib/firebase-client.ts
+    :14 getFirebaseClientConfig
+           5 cyclomatic    2 cognitive   19 lines
+          30.0 CRAP
+  src/components/dashboard-overview.tsx
+    :23 DashboardOverview
+           5 cyclomatic    3 cognitive  342 lines
+          30.0 CRAP
+  scripts/validate-plugin-ui-contract.ts
+    :318 collectLocalImports
+           5 cyclomatic    7 cognitive   26 lines
+          30.0 CRAP
+    :387 unwrapExpression
+           5 cyclomatic    6 cognitive   17 lines
+          30.0 CRAP
+    :485 findEnclosingFunctionLike
+           5 cyclomatic    4 cognitive   16 lines
+          30.0 CRAP
+  plugins/video-library/src/components/video-library.tsx
+    :189 getSortLabel
+           5 cyclomatic    1 cognitive   12 lines
+          30.0 CRAP
+    :343 deriveVideoLibraryBulkActionState
+           5 cyclomatic    4 cognitive   20 lines
+          30.0 CRAP
+    :374 getTabLabel
+           5 cyclomatic    1 cognitive   12 lines
+          30.0 CRAP
+    :720 handleConfirmRemoveDomain
+           5 cyclomatic    3 cognitive   31 lines
+          30.0 CRAP
+    :869 handleClearVideo
+           5 cyclomatic    4 cognitive   39 lines
+          30.0 CRAP
+    :909 handleEmptyStateAction
+           5 cyclomatic    4 cognitive   30 lines
+          30.0 CRAP
+  plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+    :162 handlePreviewFixes
+           5 cyclomatic    4 cognitive   50 lines
+          30.0 CRAP
+    :213 executeApplyFixes
+           5 cyclomatic    4 cognitive   50 lines
+          30.0 CRAP
+  src/lib/plugins/plugin-manager-client.test.ts
+    :431 fetchImpl
+           5 cyclomatic    1 cognitive   11 lines
+          30.0 CRAP
+  src/tests/api-video-library-check-links-route.test.ts
+    :114 <arrow>
+           5 cyclomatic    2 cognitive    7 lines
+          30.0 CRAP
+  Functions exceeding cyclomatic, cognitive, or CRAP thresholds (https://docs.fallow.tools/explanations/health#complexity-metrics)
+  To suppress: // fallow-ignore-next-line complexity
+
+● File health scores (255 files)
+
+   64.9    plugins/log-doctor/src/hooks/use-log-doctor-audit.ts
+            356 LOC    0 fan-in    8 fan-out  100% dead  0.21 density  72.0 risk
+
+   68.0    src/lib/plugins/tag-manager-plugin.test.ts
+            106 LOC    0 fan-in    5 fan-out  100% dead  0.16 density  20.0 risk
+
+   68.9    plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+            387 LOC    0 fan-in    5 fan-out  100% dead  0.13 density  132.0 risk
+
+   68.9    src/lib/navigation/tab-definitions.test.ts
+            423 LOC    0 fan-in    5 fan-out  100% dead  0.13 density  42.0 risk
+
+   69.7    src/lib/github-storage.test.ts
+            864 LOC    0 fan-in    3 fan-out  100% dead  0.16 density  600.0 risk
+
+   69.8    src/tests/api-plugins-routes.test.ts
+            678 LOC    0 fan-in    6 fan-out  100% dead  0.08 density  110.0 risk
+
+   70.0    plugins/tag-manager/src/index.behavior.test.ts
+             35 LOC    0 fan-in    4 fan-out  100% dead  0.17 density  12.0 risk
+
+   70.1    src/components/plugins/plugin-kit.test.tsx
+            184 LOC    0 fan-in    6 fan-out  100% dead  0.07 density  2.0 risk
+
+   70.2    src/lib/plugins/github-sync-plugin.test.ts
+             44 LOC    0 fan-in    3 fan-out  100% dead  0.16 density  2.0 risk
+
+   70.3    src/lib/plugins/load-dashboard-tab-extensions.test.ts
+            147 LOC    0 fan-in    3 fan-out  100% dead  0.14 density  12.0 risk
+
+  ... and 245 more files (--format json for full list)
+
+  Composite file quality scores based on complexity, coupling, and dead code. Risk: low <15, moderate 15-30, high >=30. CRAP estimated from export references (85% direct, 40% indirect, 0% untested). Use --coverage for exact scores. https://docs.fallow.tools/explanations/health#file-health-scores
+
+● Hotspots (160 files, since 6 months)
+
+   64.7 ▼  src/lib/storage.ts
+          78 commits   4608 churn  0.22 density  10 fan-in  ▼ cooling
+
+   36.7 ▼  src/lib/file-storage.ts
+          53 commits   2810 churn  0.19 density   8 fan-in  ▼ cooling
+
+   29.4 ▼  plugins/log-doctor/src/components/log-doctor.tsx
+          43 commits   4655 churn  0.18 density   3 fan-in  ▼ cooling
+
+   28.0 ▼  src/app/page.tsx
+          56 commits   2563 churn  0.14 density   0 fan-in  ▼ cooling
+
+   26.3 ▼  src/components/session-log-form.tsx
+          61 commits   2721 churn  0.12 density   3 fan-in  ▼ cooling
+
+   25.9 ▼  src/lib/sync-queue.ts
+          29 commits   1339 churn  0.23 density   4 fan-in  ▼ cooling
+
+   22.8 ▼  src/lib/github-storage.ts
+          38 commits   2365 churn  0.16 density   6 fan-in  ▼ cooling
+
+   20.2 ▼  src/components/plugin-manager.tsx
+          39 commits   4712 churn  0.14 density   2 fan-in  ▼ cooling
+
+   19.2 ▼  src/app/api/sessions/[id]/route.ts
+          37 commits   1325 churn  0.14 density   1 fan-in  ▼ cooling
+
+   18.3 ▼  src/lib/markdown-serializer.ts
+          24 commits    812 churn  0.21 density   6 fan-in  ▼ cooling
+
+   16.2 ▼  src/lib/plugins/maturity.ts
+          21 commits   1772 churn  0.21 density   4 fan-in  ▼ cooling
+
+   15.4 ▼  src/app/api/sessions/create/route.ts
+          32 commits    984 churn  0.13 density   1 fan-in  ▼ cooling
+
+   13.5 ▼  src/lib/session-storage.ts
+          18 commits    855 churn  0.21 density   7 fan-in  ▼ cooling
+
+   13.4 ▼  src/lib/file-storage.test.ts [test]
+          36 commits   4344 churn  0.10 density   0 fan-in  ▼ cooling
+
+   12.6 ▼  src/lib/storage.test.ts [test]
+          34 commits   4535 churn  0.10 density   0 fan-in  ▼ cooling
+
+   12.1 ▼  src/lib/sync-lease.ts
+          11 commits   1814 churn  0.22 density   2 fan-in  ▼ cooling
+
+   11.7 ▼  src/lib/video-library.ts
+          12 commits    821 churn  0.24 density   5 fan-in  ▼ cooling
+
+   11.4 ▼  plugins/video-library/src/components/video-library.tsx
+          18 commits   3168 churn  0.16 density   3 fan-in  ▼ cooling
+
+   11.3 ▲  src/lib/user-preferences.ts
+          14 commits   1096 churn  0.22 density  10 fan-in  ▲ accelerating
+
+   10.5 ▼  src/components/session-history.tsx
+          24 commits   1124 churn  0.12 density   1 fan-in  ▼ cooling
+
+   10.3 ▼  src/lib/session-validation.ts
+           6 commits    270 churn  0.34 density   3 fan-in  ▼ cooling
+
+   10.0 ▼  src/lib/github-storage.test.ts [test]
+          17 commits   1821 churn  0.16 density   0 fan-in  ▼ cooling
+
+    9.4 ▼  src/app/api/plugins/list/route.ts
+          16 commits    528 churn  0.16 density   1 fan-in  ▼ cooling
+
+    9.2 ▼  src/lib/plugins/api-contract.ts
+          13 commits    266 churn  0.20 density   7 fan-in  ▼ cooling
+
+    8.9 ▼  src/lib/sync-lease.test.ts [test]
+          10 commits    712 churn  0.18 density   0 fan-in  ▼ cooling
+
+    8.5 ▼  src/lib/sync-queue.test.ts [test]
+          21 commits    869 churn  0.10 density   1 fan-in  ▼ cooling
+
+    8.5 ▼  src/lib/plugins/discovery.server.ts
+          11 commits    165 churn  0.21 density   2 fan-in  ▼ cooling
+
+    8.5 ▼  src/lib/network-safety.ts
+          10 commits    302 churn  0.22 density   6 fan-in  ▼ cooling
+
+    8.3 ▼  src/lib/plugins/registry.ts
+          11 commits    412 churn  0.20 density   4 fan-in  ▼ cooling
+
+    7.1 ▼  src/lib/plugins/plugin-component-bootstrap.ts
+          10 commits    211 churn  0.19 density   5 fan-in  ▼ cooling
+
+    7.0 ▼  src/lib/plugins/validate.ts
+          14 commits    376 churn  0.13 density   8 fan-in  ▼ cooling
+
+    7.0 ▼  src/components/dashboard-overview.tsx
+          24 commits    988 churn  0.08 density   1 fan-in  ▼ cooling
+
+    6.9 ▼  src/app/api/plugins/validate/route.ts
+          11 commits    435 churn  0.17 density   1 fan-in  ▼ cooling
+
+    6.7 ▼  src/app/api/sessions/list/route.ts
+          12 commits    104 churn  0.16 density   1 fan-in  ▼ cooling
+
+    6.5 ▼  src/lib/navigation/tab-definitions.test.ts [test]
+          14 commits    534 churn  0.13 density   0 fan-in  ▼ cooling
+
+    6.5 ▼  src/tests/api-sessions-id-route.test.ts [test]
+          22 commits   1550 churn  0.08 density   0 fan-in  ▼ cooling
+
+    6.1 ▼  scripts/validate-plugin-ui-contract.ts
+           7 commits   1025 churn  0.23 density   1 fan-in  ▼ cooling
+
+    6.1 ▼  src/lib/plugins/plugin-contract-gate.ts
+           9 commits    349 churn  0.18 density   3 fan-in  ▼ cooling
+
+    5.6 ─  src/app/api/github/log-doctor/fix/route.ts
+           6 commits    205 churn  0.25 density   1 fan-in  ─ stable
+
+    5.2 ▼  src/lib/navigation/tab-definitions.ts
+          18 commits    518 churn  0.08 density  10 fan-in  ▼ cooling
+
+    5.2 ▼  src/lib/server-auth.ts
+           7 commits    125 churn  0.19 density  16 fan-in  ▼ cooling
+
+    5.1 ▲  src/lib/guest-mode.ts
+           7 commits    299 churn  0.21 density   4 fan-in  ▲ accelerating
+
+    4.7 ▼  src/lib/go-function-proxy.ts
+           7 commits    156 churn  0.19 density  10 fan-in  ▼ cooling
+
+    4.7 ▼  src/lib/plugins/ui-migration.ts
+           6 commits    336 churn  0.21 density   2 fan-in  ▼ cooling
+
+    4.5 ▼  src/lib/plugins/plugin-surface.tsx
+           7 commits    331 churn  0.17 density   2 fan-in  ▼ cooling
+
+    4.5 ▲  src/components/ui/chart.tsx
+           6 commits    697 churn  0.21 density   2 fan-in  ▲ accelerating
+
+    4.4 ─  src/tests/api-plugins-routes.test.ts [test]
+          15 commits    975 churn  0.08 density   0 fan-in  ─ stable
+
+    4.4 ─  src/lib/plugins/maturity.test.ts [test]
+          20 commits   1632 churn  0.06 density   0 fan-in  ─ stable
+
+    4.4 ▼  src/tests/api-sessions-create-route.test.ts [test]
+          20 commits   1106 churn  0.06 density   0 fan-in  ▼ cooling
+
+    4.2 ▲  src/app/api/video-library/check-links/route.ts
+           8 commits    388 churn  0.14 density   1 fan-in  ▲ accelerating
+
+    4.1 ─  src/lib/plugins/tag-manager-plugin.test.ts [test]
+           7 commits    121 churn  0.16 density   0 fan-in  ─ stable
+
+    4.1 ─  src/lib/plugins/github-sync-plugin.test.ts [test]
+           7 commits     87 churn  0.16 density   0 fan-in  ─ stable
+
+    4.0 ▼  src/components/version-history-modal.test.ts [test]
+           7 commits    193 churn  0.15 density   0 fan-in  ▼ cooling
+
+    4.0 ▼  src/components/version-history-modal.tsx
+           7 commits    592 churn  0.15 density   2 fan-in  ▼ cooling
+
+    3.9 ─  src/lib/utils.test.ts [test]
+           8 commits    168 churn  0.14 density   0 fan-in  ─ stable
+
+    3.9 ▲  src/app/api/github/sync-all/route.ts
+           6 commits    101 churn  0.19 density   0 fan-in  ▲ accelerating
+
+    3.8 ▲  src/lib/interaction.test.ts [test]
+           6 commits    287 churn  0.18 density   0 fan-in  ▲ accelerating
+
+    3.8 ▼  src/components/sign-in-screen.tsx
+          10 commits    889 churn  0.11 density   1 fan-in  ▼ cooling
+
+    3.8 ─  plugins/video-library/src/components/video-tile-card.tsx
+           7 commits    451 churn  0.11 density   1 fan-in  ─ stable
+
+    3.7 ─  src/lib/plugins/plugin-manager-client.ts
+           6 commits    219 churn  0.17 density   3 fan-in  ─ stable
+
+    3.6 ▲  src/lib/plugins/validate.test.ts [test]
+          14 commits    650 churn  0.07 density   0 fan-in  ▲ accelerating
+
+    3.6 ▼  src/lib/firebase-admin.ts
+           6 commits    184 churn  0.17 density   5 fan-in  ▼ cooling
+
+    3.4 ▼  src/lib/server-auth.test.ts [test]
+           6 commits    385 churn  0.14 density   0 fan-in  ▼ cooling
+
+    3.3 ▼  src/lib/plugins/capabilities.ts
+           4 commits    148 churn  0.23 density   3 fan-in  ▼ cooling
+
+    3.3 ▼  src/lib/client-identity.ts
+           4 commits     53 churn  0.24 density   9 fan-in  ▼ cooling
+
+    3.2 ▼  plugins/tag-manager/src/index.behavior.test.ts [test]
+           5 commits     48 churn  0.17 density   0 fan-in  ▼ cooling
+
+    3.2 ─  src/tests/api-video-library-check-links-route.test.ts [test]
+           7 commits    449 churn  0.12 density   0 fan-in  ─ stable
+
+    3.2 ▼  src/lib/video-library.test.ts [test]
+           9 commits    436 churn  0.09 density   0 fan-in  ▼ cooling
+
+    3.2 ▼  src/lib/server-github-authz.ts
+           6 commits    117 churn  0.15 density   5 fan-in  ▼ cooling
+
+    3.2 ─  src/app/api/github/validate/route.ts
+           5 commits     79 churn  0.19 density   0 fan-in  ─ stable
+
+    3.0 ▲  plugins/prompt-settings/src/components/prompt-settings.tsx
+           6 commits    591 churn  0.13 density   2 fan-in  ▲ accelerating
+
+    3.0 ▼  src/hooks/use-toast.ts
+           5 commits    440 churn  0.17 density  15 fan-in  ▼ cooling
+
+    2.9 ▼  src/components/auth-provider.tsx
+           6 commits    317 churn  0.14 density  11 fan-in  ▼ cooling
+
+    2.9 ▼  scripts/regenerate-plugin-maturity-scorecards.ts
+           6 commits    160 churn  0.13 density   0 fan-in  ▼ cooling
+
+    2.8 ▼  plugins/plugin-ui-color-classes.test.ts [test]
+           5 commits    174 churn  0.15 density   0 fan-in  ▼ cooling
+
+    2.8 ▼  src/lib/plugins/plugin-maturity-regression.test.ts [test]
+           5 commits    193 churn  0.15 density   0 fan-in  ▼ cooling
+
+    2.8 ─  plugins/tag-manager/src/components/tag-manager.tsx
+           5 commits    837 churn  0.15 density   6 fan-in  ─ stable
+
+    2.7 ▼  plugins/github-sync/plugin.test.ts [test]
+           7 commits    132 churn  0.10 density   0 fan-in  ▼ cooling
+
+    2.7 ▲  src/lib/plugins/plugin-contract-gate.test.ts [test]
+           8 commits    306 churn  0.09 density   0 fan-in  ▲ accelerating
+
+    2.6 ▼  src/lib/session-storage.test.ts [test]
+          10 commits    642 churn  0.07 density   0 fan-in  ▼ cooling
+
+    2.5 ▼  src/lib/plugins/load-dashboard-tab-extensions.test.ts [test]
+           5 commits    240 churn  0.14 density   0 fan-in  ▼ cooling
+
+    2.5 ─  plugins/log-doctor/src/components/log-doctor-audit-settings.tsx
+           6 commits   1332 churn  0.11 density   2 fan-in  ─ stable
+
+    2.4 ▲  src/hooks/use-action-feedback.ts
+           4 commits     99 churn  0.17 density   4 fan-in  ▲ accelerating
+
+    2.4 ▼  src/components/mode-toggle.tsx
+           7 commits     84 churn  0.10 density   1 fan-in  ▼ cooling
+
+    2.4 ▼  src/components/plugins/plugin-bulk-actions.tsx
+           5 commits     65 churn  0.12 density   3 fan-in  ▼ cooling
+
+    2.4 ▲  src/lib/utils.ts
+           4 commits     46 churn  0.19 density  45 fan-in  ▲ accelerating
+
+    2.3 ─  src/lib/guest-mode.test.ts [test]
+           6 commits    193 churn  0.11 density   0 fan-in  ─ stable
+
+    2.3 ▼  src/lib/markdown-serializer.test.ts [test]
+          12 commits    710 churn  0.05 density   0 fan-in  ▼ cooling
+
+    2.3 ▲  plugins/github-sync/src/components/github-settings.tsx
+           5 commits    841 churn  0.12 density   3 fan-in  ▲ accelerating
+
+    2.3 ─  plugins/log-doctor/src/components/log-doctor-review-dialog.tsx
+           5 commits    408 churn  0.12 density   1 fan-in  ─ stable
+
+    2.3 ▲  src/app/api/ai/transform-description/route.ts
+           3 commits     42 churn  0.22 density   0 fan-in  ▲ accelerating
+
+    2.3 ─  src/ai/flows/practice-description-transformer.ts
+          11 commits    189 churn  0.06 density   3 fan-in  ─ stable
+
+    2.2 ▼  src/components/plugin-manager.test.ts [test]
+           8 commits    441 churn  0.07 density   0 fan-in  ▼ cooling
+
+    2.2 ▼  plugins/video-library/src/components/video-library.ux.test.tsx [test]
+          11 commits    387 churn  0.05 density   0 fan-in  ▼ cooling
+
+    2.2 ▼  plugins/tag-manager/src/index.ts
+           3 commits     21 churn  0.20 density   4 fan-in  ▼ cooling
+
+    2.1 ▲  plugins/log-doctor/src/hooks/use-log-doctor-validation.tsx
+           3 commits    394 churn  0.13 density   0 fan-in  ▲ accelerating
+
+    2.1 ─  plugins/log-doctor/src/components/log-doctor-audit-results.tsx
+           4 commits    256 churn  0.14 density   2 fan-in  ─ stable
+
+    2.0 ▲  src/components/ui/button.test.tsx [test]
+           7 commits    129 churn  0.08 density   0 fan-in  ▲ accelerating
+
+    2.0 ▲  src/app/api/github/log-doctor/route.ts
+           3 commits    123 churn  0.18 density   1 fan-in  ▲ accelerating
+
+    2.0 ▼  plugins/plugin-ui-contract-usage.test.ts [test]
+           6 commits    160 churn  0.09 density   0 fan-in  ▼ cooling
+
+    1.9 ▼  plugins/prompt-settings/src/components/prompt-settings.test.tsx [test]
+           7 commits    644 churn  0.07 density   0 fan-in  ▼ cooling
+
+    1.9 ▲  src/lib/interaction.ts
+           3 commits     70 churn  0.18 density   7 fan-in  ▲ accelerating
+
+    1.9 ▲  src/lib/plugins/runtime-component-validation.ts
+           4 commits     74 churn  0.13 density   2 fan-in  ▲ accelerating
+
+    1.8 ▲  plugins/github-sync/src/index.behavior.test.ts [test]
+           3 commits     36 churn  0.16 density   0 fan-in  ▲ accelerating
+
+    1.8 ▼  src/lib/plugins/plugin-ui-migration-regression.test.ts [test]
+           3 commits     38 churn  0.16 density   0 fan-in  ▼ cooling
+
+    1.6 ▼  src/lib/tags/service.test.ts [test]
+           3 commits    180 churn  0.15 density   0 fan-in  ▼ cooling
+
+    1.6 ▼  src/tests/api-plugins-discovered-dashboard-tabs-route.test.ts [test]
+           4 commits     91 churn  0.11 density   0 fan-in  ▼ cooling
+
+    1.6 ▼  src/lib/server-github-authz.test.ts [test]
+           5 commits    112 churn  0.09 density   0 fan-in  ▼ cooling
+
+    1.6 ▲  src/app/api/ai/suggest-techniques/route.ts
+           3 commits     38 churn  0.16 density   0 fan-in  ▲ accelerating
+
+    1.6 ▼  scripts/regenerate-plugin-ui-migration-scorecards.ts
+           3 commits    117 churn  0.14 density   0 fan-in  ▼ cooling
+
+    1.6 ▼  src/lib/plugins/design-token-variants.ts
+           3 commits     93 churn  0.14 density   1 fan-in  ▼ cooling
+
+    1.5 ▼  plugins/log-doctor/src/components/log-doctor-state.test.ts [test]
+           4 commits     81 churn  0.10 density   0 fan-in  ▼ cooling
+
+    1.5 ─  src/lib/plugins/plugin-manager-client.test.ts [test]
+           8 commits    479 churn  0.05 density   0 fan-in  ─ stable
+
+    1.4 ▼  src/lib/network-safety.test.ts [test]
+           3 commits     87 churn  0.11 density   0 fan-in  ▼ cooling
+
+    1.4 ▼  plugins/prompt-settings/plugin.test.ts [test]
+           5 commits    118 churn  0.07 density   0 fan-in  ▼ cooling
+
+    1.4 ▼  src/app/api/plugins/toggle/route.ts
+           3 commits    164 churn  0.13 density   1 fan-in  ▼ cooling
+
+    1.4 ▼  src/lib/plugins/dashboard-tab-adapters.tsx
+           6 commits    124 churn  0.06 density  12 fan-in  ▼ cooling
+
+    1.4 ▼  src/lib/tags/service.ts
+           3 commits    684 churn  0.13 density   3 fan-in  ▼ cooling
+
+    1.3 ▼  src/app/api/github/log-doctor/route.test.ts [test]
+           3 commits    183 churn  0.12 density   0 fan-in  ▼ cooling
+
+    1.3 ▼  src/lib/plugins/discovery.server.test.ts [test]
+           3 commits    160 churn  0.12 density   0 fan-in  ▼ cooling
+
+    1.3 ▼  src/components/ui/select.tsx
+           6 commits    253 churn  0.06 density   3 fan-in  ▼ cooling
+
+    1.3 ▲  src/app/layout.tsx
+          13 commits    133 churn  0.03 density   0 fan-in  ▲ accelerating
+
+    1.3 ▼  plugins/log-doctor/src/components/log-doctor-state.ts
+           3 commits    253 churn  0.12 density  10 fan-in  ▼ cooling
+
+    1.2 ▼  src/app/api/github/log-doctor/fix/route.test.ts [test]
+           4 commits    200 churn  0.08 density   0 fan-in  ▼ cooling
+
+    1.2 ─  plugins/log-doctor/src/components/log-doctor-status-alerts.test.tsx [test]
+           4 commits     57 churn  0.08 density   0 fan-in  ─ stable
+
+    1.2 ▼  src/app/api/plugins/create/route.ts
+           5 commits    303 churn  0.07 density   1 fan-in  ▼ cooling
+
+    1.2 ▲  src/components/ui/card.tsx
+           5 commits    134 churn  0.07 density   6 fan-in  ▲ accelerating
+
+    1.1 ▼  src/components/plugins/plugin-kit.test.tsx [test]
+           4 commits    295 churn  0.07 density   0 fan-in  ▼ cooling
+
+    1.1 ▼  src/components/ui/sidebar.tsx
+           4 commits   1296 churn  0.08 density   1 fan-in  ▼ cooling
+
+    1.1 ─  plugins/log-doctor/src/components/log-doctor-audit-flag-content.ts
+           4 commits     81 churn  0.07 density   3 fan-in  ─ stable
+
+    1.1 ─  src/components/ressa-image.tsx
+           4 commits    121 churn  0.08 density   4 fan-in  ─ stable
+
+    1.0 ▲  src/lib/client-identity.test.ts [test]
+           4 commits    190 churn  0.07 density   0 fan-in  ▲ accelerating
+
+    1.0 ─  src/components/ui/dropdown-menu.tsx
+           4 commits    306 churn  0.06 density   3 fan-in  ─ stable
+
+    1.0 ▼  src/app/api/plugins/update/route.ts
+           4 commits    275 churn  0.07 density   1 fan-in  ▼ cooling
+
+    0.9 ▼  src/tests/api-sessions-list-route.test.ts [test]
+           3 commits    129 churn  0.08 density   0 fan-in  ▼ cooling
+
+    0.9 ▲  src/lib/app-version.test.ts [test]
+           3 commits     39 churn  0.08 density   0 fan-in  ▲ accelerating
+
+    0.9 ▼  src/components/plugins/plugin-page-shell.test.ts [test]
+           4 commits     99 churn  0.06 density   0 fan-in  ▼ cooling
+
+    0.9 ─  src/lib/plugins/api-contract.test.ts [test]
+           5 commits    226 churn  0.05 density   0 fan-in  ─ stable
+
+    0.9 ▼  plugins/log-doctor/src/components/log-doctor-destructive-actions.test.ts [test]
+           5 commits    158 churn  0.05 density   0 fan-in  ▼ cooling
+
+    0.9 ▼  src/components/plugins/plugin-action-row.tsx
+           3 commits     84 churn  0.08 density   5 fan-in  ▼ cooling
+
+    0.8 ▲  src/components/ui/button.tsx
+           6 commits    151 churn  0.04 density  21 fan-in  ▲ accelerating
+
+    0.8 ─  src/components/plugins/plugin-kit.tsx
+           4 commits    156 churn  0.05 density   6 fan-in  ─ stable
+
+    0.8 ─  src/components/ui/sheet.tsx
+           5 commits    235 churn  0.04 density   1 fan-in  ─ stable
+
+    0.8 ▲  next.config.ts
+           6 commits     66 churn  0.04 density   0 fan-in  ▲ accelerating
+
+    0.7 ▲  src/components/ui/table.tsx
+           3 commits    181 churn  0.07 density   1 fan-in  ▲ accelerating
+
+    0.7 ▲  src/components/ui/input.tsx
+           5 commits     44 churn  0.04 density   9 fan-in  ▲ accelerating
+
+    0.7 ▲  src/components/ui/alert.tsx
+           4 commits    101 churn  0.05 density   7 fan-in  ▲ accelerating
+
+    0.6 ▼  plugins/test-plugin-registration-contract.ts
+           3 commits    116 churn  0.05 density   1 fan-in  ▼ cooling
+
+    0.6 ▼  src/components/plugins/plugin-page-shell.tsx
+           3 commits     80 churn  0.05 density   7 fan-in  ▼ cooling
+
+    0.6 ▲  src/components/ui/separator.tsx
+           3 commits     53 churn  0.06 density   2 fan-in  ▲ accelerating
+
+    0.5 ─  src/lib/firebase-admin.test.ts [test]
+           5 commits    259 churn  0.03 density   0 fan-in  ─ stable
+
+    0.5 ▲  src/components/ui/badge.tsx
+           5 commits     81 churn  0.03 density  11 fan-in  ▲ accelerating
+
+    0.5 ▲  src/components/ui/dialog.tsx
+           3 commits    180 churn  0.05 density   7 fan-in  ▲ accelerating
+
+    0.5 ▼  src/components/plugins/plugin-filter-bar.tsx
+           3 commits     27 churn  0.04 density   1 fan-in  ▼ cooling
+
+    0.5 ▲  src/components/ui/textarea.tsx
+           4 commits     58 churn  0.04 density   2 fan-in  ▲ accelerating
+
+    0.5 ▼  src/components/plugins/plugin-style-policy.ts
+           6 commits    121 churn  0.02 density  11 fan-in  ▼ cooling
+
+    0.4 ▼  src/lib/plugins/capabilities.test.ts [test]
+           4 commits    229 churn  0.03 density   0 fan-in  ▼ cooling
+
+    0.3 ▼  src/lib/design-tokens.ts
+           3 commits    149 churn  0.02 density   1 fan-in  ▼ cooling
+
+    0.3 ▼  src/ai/flows/ai-technique-suggester.ts
+           3 commits     86 churn  0.03 density   2 fan-in  ▼ cooling
+
+    0.2 ─  src/components/plugins/plugin-theme.ts
+           4 commits    138 churn  0.01 density   7 fan-in  ─ stable
+
+  95 files excluded (< 3 commits)
+
+  Files with high churn and high complexity — https://docs.fallow.tools/explanations/health#hotspot-metrics
+
+● Refactoring targets (7)
+  2 medium · 5 high
+    score = quick-win ROI (higher = better) · pri = absolute priority
+
+   18.9  pri:56.6    src/lib/storage.ts
+         complexity · effort:high · confidence:high  Extract processSingleQueueOperation (cognitive: 33) in 1719-LOC file into smaller functions
+
+   16.6  pri:33.2    src/lib/session-validation.ts
+         high impact · effort:medium · confidence:medium  Split high-impact file (145 LOC) — 3 dependents amplify every change
+
+   10.6  pri:21.2    src/app/page.tsx
+         complexity · effort:medium · confidence:high  Extract Home (cognitive: 32) in 406-LOC file into smaller functions
+
+    9.1  pri:27.3    plugins/log-doctor/src/components/log-doctor.tsx
+         complexity · effort:high · confidence:high  Extract LogDoctor (cognitive: 70) in 1300-LOC file into smaller functions
+
+    6.5  pri:19.6    src/lib/sync-lease.ts
+         complexity · effort:high · confidence:high  Extract tryAcquireSyncLease (cognitive: 36) in 603-LOC file into smaller functions
+
+    5.9  pri:17.6    src/lib/plugins/maturity.ts
+         complexity · effort:high · confidence:high  Extract scorePluginMaturity (cognitive: 115) in 1153-LOC file into smaller functions
+
+    3.7  pri:11.2    scripts/validate-plugin-ui-contract.ts
+         complexity · effort:high · confidence:high  Extract getImportedPrimitives (cognitive: 42) in 838-LOC file into smaller functions
+
+  Prioritized refactoring recommendations based on complexity, churn, and coupling signals — https://docs.fallow.tools/explanations/health#refactoring-targets
+
+✗ 368 above threshold · 3214 analyzed · maintainability 84.7 (moderate) (0.02s)
+  Maintainability scale: good ≥85, moderate ≥65, low <65 (0–100)
+
+Failed: dead-code (200 issues), dupes (173 clone groups), health (368 above threshold) — start with storage.ts
