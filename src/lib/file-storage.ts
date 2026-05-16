@@ -1370,6 +1370,85 @@ async function checkIndexedSessionRecord(
 }
 
 /**
+ * Scan a month directory for session files matching the given ID.
+ * Returns a Set of matching file paths found.
+ */
+async function scanMonthDirectory(
+  monthPath: string,
+  id: string,
+  safeId: string
+): Promise<Set<string>> {
+  const matchingPaths = new Set<string>();
+  const safeMonthPath = await checkAndValidateDirectory(monthPath);
+  if (!safeMonthPath) return matchingPaths;
+
+  const files = await scanDirectoryEntries(
+    safeMonthPath,
+    'read session month directory',
+    safeId
+  );
+
+  for (const file of files) {
+    if (!file.endsWith('.md')) continue;
+
+    const filePath = path.join(safeMonthPath, file);
+    const matchedPath = await tryParseSessionFile(filePath, id, safeId);
+    if (matchedPath) {
+      matchingPaths.add(matchedPath);
+    }
+  }
+
+  return matchingPaths;
+}
+
+/**
+ * Scan a year directory for months containing session files matching the given ID.
+ * Returns a Set of matching file paths found.
+ */
+async function scanYearDirectory(
+  yearPath: string,
+  id: string,
+  safeId: string
+): Promise<Set<string>> {
+  const matchingPaths = new Set<string>();
+  const safeYearPath = await checkAndValidateDirectory(yearPath);
+  if (!safeYearPath) return matchingPaths;
+
+  const months = await scanDirectoryEntries(
+    safeYearPath,
+    'read session year directory',
+    safeId
+  );
+
+  for (const month of months) {
+    if (!isMonthDirName(month)) continue;
+
+    const monthPath = path.join(safeYearPath, month);
+    const monthMatches = await scanMonthDirectory(monthPath, id, safeId);
+    for (const match of monthMatches) {
+      matchingPaths.add(match);
+    }
+  }
+
+  return matchingPaths;
+}
+
+/**
+ * Resolve duplicate session matches, throwing error if multiple paths found.
+ * Returns the single matching path or null if no matches.
+ */
+function resolveDuplicates(matchingPaths: Set<string>, safeId: string): string | null {
+  const uniqueMatches = [...matchingPaths].sort();
+  if (uniqueMatches.length === 0) {
+    return null;
+  }
+  if (uniqueMatches.length === 1) {
+    return uniqueMatches[0];
+  }
+  throw new DuplicateSessionIdError(safeId, uniqueMatches);
+}
+
+/**
  * Find the file path of a session by its ID
  * Returns null if not found
  */
@@ -1390,6 +1469,7 @@ export async function findSessionFileById(id: string): Promise<string | null> {
     'scan session directory',
     safeId
   );
+
   if (years.length === 0 && matchingPaths.size === 0) {
     return null;
   }
@@ -1398,53 +1478,14 @@ export async function findSessionFileById(id: string): Promise<string | null> {
     if (isSessionIndexDirName(year) || !isYearDirName(year)) continue;
 
     const yearPath = path.join(rootDir, year);
-    const safeYearPath = await checkAndValidateDirectory(yearPath);
-    if (!safeYearPath) continue;
-
-    const months = await scanDirectoryEntries(
-      safeYearPath,
-      'read session year directory',
-      safeId
-    );
-
-    for (const month of months) {
-      if (!isMonthDirName(month)) continue;
-
-      const monthPath = path.join(safeYearPath, month);
-      const safeMonthPath = await checkAndValidateDirectory(monthPath);
-      if (!safeMonthPath) continue;
-
-      const files = await scanDirectoryEntries(
-        safeMonthPath,
-        'read session month directory',
-        safeId
-      );
-
-      for (const file of files) {
-        if (!file.endsWith('.md')) continue;
-
-        const filePath = path.join(safeMonthPath, file);
-        const matchedPath = await tryParseSessionFile(
-          filePath,
-          id,
-          safeId
-        );
-        if (matchedPath) {
-          matchingPaths.add(matchedPath);
-        }
-      }
+    const yearMatches = await scanYearDirectory(yearPath, id, safeId);
+    for (const match of yearMatches) {
+      matchingPaths.add(match);
     }
   }
 
-  // Handle results: no matches, single match, or duplicates
-  const uniqueMatches = [...matchingPaths].sort();
-  if (uniqueMatches.length === 0) {
-    return null;
-  }
-  if (uniqueMatches.length === 1) {
-    return uniqueMatches[0];
-  }
-  throw new DuplicateSessionIdError(safeId, uniqueMatches);
+  // Resolve and validate matches
+  return resolveDuplicates(matchingPaths, safeId);
 }
 
 /**
