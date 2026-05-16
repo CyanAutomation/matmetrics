@@ -10,6 +10,90 @@ export type ValidationResult =
   | { ok: true; session: JudoSession }
   | { ok: false; error: string };
 
+/**
+ * Validate and normalize a video URL.
+ * Returns the validated URL as a string, or an error object.
+ */
+export function validateVideoUrl(
+  url: unknown
+): { ok: true; value: string | undefined } | { ok: false; error: string } {
+  if (url === undefined) {
+    return { ok: true, value: undefined };
+  }
+
+  if (typeof url !== 'string') {
+    return { ok: false, error: 'Invalid videoUrl: expected a string' };
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return { ok: true, value: undefined };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return {
+      ok: false,
+      error: 'Invalid videoUrl: expected a valid absolute URL',
+    };
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return {
+      ok: false,
+      error: 'Invalid videoUrl: protocol must be http or https',
+    };
+  }
+
+  if (isBlockedNetworkHostname(parsed.hostname)) {
+    return {
+      ok: false,
+      error:
+        'Invalid videoUrl: private or internal network addresses are not allowed',
+    };
+  }
+
+  return { ok: true, value: parsed.toString() };
+}
+
+/**
+ * Validate and deduplicate techniques array.
+ * Returns deduplicated techniques list, or an error object.
+ */
+export function validateTechniques(
+  techniques: unknown
+): { ok: true; value: string[] } | { ok: false; error: string } {
+  if (!Array.isArray(techniques)) {
+    return {
+      ok: false,
+      error: 'Invalid techniques: expected an array of non-empty strings',
+    };
+  }
+
+  const validated: string[] = [];
+  for (let i = 0; i < techniques.length; i += 1) {
+    const t = techniques[i];
+    if (typeof t !== 'string') {
+      return { ok: false, error: `Invalid techniques[${i}]: expected a string` };
+    }
+
+    const trimmed = t.trim();
+    if (!trimmed) {
+      return {
+        ok: false,
+        error: `Invalid techniques[${i}]: value cannot be empty`,
+      };
+    }
+
+    validated.push(trimmed);
+  }
+
+  // Deduplicate while preserving order
+  return { ok: true, value: [...new Set(validated)] };
+}
+
 function validateDate(dateValue: unknown): { ok: true; value: string } | { ok: false; error: string } {
   if (typeof dateValue !== 'string') return { ok: false, error: 'Invalid date: expected YYYY-MM-DD format' };
   const match = ISO_DATE_PATTERN.exec(dateValue);
@@ -46,31 +130,15 @@ export function validateSessionPayload(payload: Record<string, unknown>, options
   if (!date.ok) return date;
   if (!Number.isInteger(payload.effort) || (payload.effort as number) < 1 || (payload.effort as number) > 5) return { ok: false, error: 'Invalid effort level (must be an integer 1-5)' };
   if (!['Technical', 'Randori', 'Shiai'].includes(String(payload.category))) return { ok: false, error: 'Invalid category' };
-  if (!Array.isArray(payload.techniques)) return { ok: false, error: 'Invalid techniques: expected an array of non-empty strings' };
-  const techniques: string[] = [];
-  for (let i = 0; i < payload.techniques.length; i += 1) {
-    const t = payload.techniques[i];
-    if (typeof t !== 'string') return { ok: false, error: `Invalid techniques[${i}]: expected a string` };
-    const trimmed = t.trim();
-    if (!trimmed) return { ok: false, error: `Invalid techniques[${i}]: value cannot be empty` };
-    techniques.push(trimmed);
-  }
+  const techniquesResult = validateTechniques(payload.techniques);
+  if (!techniquesResult.ok) return techniquesResult;
   for (const field of ['description', 'notes'] as const) {
     const value = payload[field];
     if (value !== undefined && typeof value !== 'string') return { ok: false, error: `Invalid ${field}: expected a string` };
   }
-  let videoUrl: string | undefined;
-  if (payload.videoUrl !== undefined) {
-    if (typeof payload.videoUrl !== 'string') return { ok: false, error: 'Invalid videoUrl: expected a string' };
-    const trimmed = payload.videoUrl.trim();
-    if (trimmed) {
-      let parsed: URL;
-      try { parsed = new URL(trimmed); } catch { return { ok: false, error: 'Invalid videoUrl: expected a valid absolute URL' }; }
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { ok: false, error: 'Invalid videoUrl: protocol must be http or https' };
-      if (isBlockedNetworkHostname(parsed.hostname)) return { ok: false, error: 'Invalid videoUrl: private or internal network addresses are not allowed' };
-      videoUrl = parsed.toString();
-    }
-  }
+  const videoUrlResult = validateVideoUrl(payload.videoUrl);
+  if (!videoUrlResult.ok) return videoUrlResult;
+  const videoUrl = videoUrlResult.value;
   if (payload.duration !== undefined && (!Number.isInteger(payload.duration) || (payload.duration as number) < 0)) return { ok: false, error: 'Invalid duration: expected a non-negative integer' };
-  return { ok: true, session: { id: idResult.value, date: date.value, effort: payload.effort as 1|2|3|4|5, category: payload.category as JudoSession['category'], techniques: [...new Set(techniques)], ...(payload.description !== undefined && { description: payload.description as string }), ...(payload.notes !== undefined && { notes: payload.notes as string }), ...(videoUrl !== undefined && { videoUrl }), ...(payload.duration !== undefined && { duration: payload.duration as number }) } };
+  return { ok: true, session: { id: idResult.value, date: date.value, effort: payload.effort as 1|2|3|4|5, category: payload.category as JudoSession['category'], techniques: techniquesResult.value, ...(payload.description !== undefined && { description: payload.description as string }), ...(payload.notes !== undefined && { notes: payload.notes as string }), ...(videoUrl !== undefined && { videoUrl }), ...(payload.duration !== undefined && { duration: payload.duration as number }) } };
 }
