@@ -1,153 +1,891 @@
-✔ github-sync manifest declares the expected settings tab copy and icon (1.395589ms)
-✔ github-sync manifest evidence tracks sync-specific UX safeguards (1.068677ms)
-✔ returns a validation error when owner or repo are missing (0.839636ms)
-✔ deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations (0.42724ms)
-✔ builds failure messages for API/network errors (1.079134ms)
-✔ deriveDisableOutcome returns deterministic results for edge destructive states (0.758881ms)
-✔ deriveClearOutcome returns deterministic results for edge destructive states (0.317805ms)
-✔ runLoadGitHubSyncHistory maps error and empty responses to semantic user-facing messages (20.379995ms)
-✔ runLoadGitHubSyncHistory maps summary payload fields and warnings into success state data (0.798941ms)
-✔ runLoadGitHubSyncHistory supports retry callback behavior by allowing a second invocation to recover from an error (0.869042ms)
-✔ initPlugin registers github settings renderer (1.122984ms)
-✔ createDomSafePathId returns deterministic, DOM-safe ids for complex paths (0.945042ms)
-✔ parseApiResponse surfaces JSON error payload message (5.516807ms)
-✔ parseApiResponse handles text/plain error payload with status and route hint (0.685208ms)
-✔ parseApiResponse handles HTML 404 payload with clear fallback messaging (0.537632ms)
-✔ parseApiResponse reports malformed JSON payload with controlled message (0.529256ms)
-✔ apply confirmation requires strong APPLY phrase (1.415769ms)
-✔ canceling reset confirmation does not mutate diagnostics state (0.44374ms)
-✔ confirming reset returns empty state and keeps undo snapshot (1.188774ms)
-✔ audit review content groups flags with plain-language headings and helper text (1.36808ms)
-✔ createUiState returns idle state copy (1.110313ms)
-✔ createUiState returns loading state with long-running messaging (0.209121ms)
-✔ createUiState returns empty state for no logs and no findings (1.156373ms)
-✔ createUiState returns error state with concise reason and recovery step (0.205213ms)
-✔ createUiState returns success state (0.208434ms)
-✔ createUiState interruption flow uses cancellation next step guidance (0.213983ms)
-✔ createUiState error for config issues uses server/proxy guidance (0.229845ms)
-✔ createUiState error for generic preview failures keeps refresh guidance (0.165093ms)
-✔ detectNoTechniquesHighEffort: flags high effort (>= 4) with zero techniques (1.273293ms)
-✔ detectNoTechniquesHighEffort: flags effort 5 with zero techniques (0.202246ms)
-✔ detectNoTechniquesHighEffort: does not flag effort 3 with zero techniques (0.128856ms)
-✔ detectNoTechniquesHighEffort: does not flag effort 5 with techniques (0.106522ms)
-✔ detectNoTechniquesHighEffort: respects custom effort threshold (0.191923ms)
-✔ detectEmptyDescription: flags missing description (0.145056ms)
-✔ detectEmptyDescription: flags empty string description (0.161405ms)
-✔ detectEmptyDescription: flags whitespace-only description (0.129822ms)
-✔ detectEmptyDescription: does not flag non-empty description (0.212586ms)
-✔ detectEmptyNotes: flags missing notes (0.401933ms)
-✔ detectEmptyNotes: flags empty notes (0.186485ms)
-✔ detectEmptyNotes: flags whitespace-only notes (0.158261ms)
-✔ detectEmptyNotes: does not flag non-empty notes (0.145808ms)
-✔ detectDurationOutlier: does not flag when duration is undefined (0.22196ms)
-✔ detectDurationOutlier: does not flag when less than 3 sessions with duration (0.19879ms)
-✔ detectDurationOutlier: flags large duration outliers with 1 std dev multiplier (0.239793ms)
-✔ detectDurationOutlier: flags small duration outliers with 1 std dev multiplier (0.17165ms)
-✔ detectDurationOutlier: does not flag duration within 2 std deviations (0.101566ms)
-✔ detectDurationOutlier: respects custom std dev multiplier (0.10086ms)
-✔ runAuditRules: runs all enabled rules (0.285586ms)
-✔ runAuditRules: skips disabled rules (0.163993ms)
-✔ runAuditRules: returns empty array for clean session (0.102995ms)
-✔ runAuditRulesForAllSessions: returns flagged sessions only (0.247899ms)
-✔ runAuditRulesForAllSessions: includes sessions with no flags in original list (0.101231ms)
-✔ github-sync manifest contract (5.070041ms)
-✔ log-doctor manifest contract (0.570341ms)
-✔ prompt-settings manifest contract (0.384907ms)
-✔ tag-manager manifest contract (0.488174ms)
-✔ video-library manifest contract (0.368144ms)
-✔ initPlugin registers github-sync ids exactly once (1.477947ms)
-✔ initPlugin registers log-doctor ids exactly once (0.224552ms)
-✔ initPlugin registers prompt-settings ids exactly once (0.140612ms)
-✔ initPlugin registers tag-manager ids exactly once (0.193378ms)
-✔ initPlugin registers video-library ids exactly once (0.212971ms)
-✔ plugin sources avoid hardcoded semantic color utility classes (2.861284ms)
-✔ composition conformance passes for a sectioned dashboard shell with destructive flow wrapper (10.259458ms)
-✔ composition conformance fails when layout is not shell-rooted, not sectioned, and uses raw destructive button (1.187022ms)
-✔ composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported (1.523989ms)
-✔ github-sync uses standardized plugin state helpers (1.15051ms)
-✔ prompt-settings uses standardized plugin state helpers (0.291423ms)
-✔ tag-manager uses standardized plugin state helpers (0.301498ms)
-✔ video-library uses standardized plugin state helpers (0.32374ms)
-✔ log-doctor uses standardized plugin state helpers (1.281547ms)
-✔ required helper contract check fails when helper is missing (0.714058ms)
-✔ prompt-settings manifest declares the expected dashboard tab copy and icon (0.856733ms)
-✔ prompt-settings manifest evidence tracks prompt settings UX coverage (0.691705ms)
-✔ delete flow exposes loading labels and disabled actions while async work is in progress (0.969617ms)
-✔ delete flow surfaces recoverable errors and supports retry after apply failure (0.57057ms)
-✔ initPlugin registers tag manager renderer with refresh wiring (1.137882ms)
-✔ plugins/test-plugin-manifest-contract.ts (320.220364ms)
-✔ plugins/test-plugin-registration-contract.ts (373.774482ms)
-✔ fallback prompt uses shared default constant with mixed-discipline preservation guidance (1.562376ms)
-✔ prompt payload keeps custom prompt override and raw mixed-language input unchanged (0.215036ms)
-✔ log-doctor fix route proxies to /api/go/github/log-doctor/fix with expected body mapping (7.515017ms)
-✔ log-doctor fix route rejects invalid payloads before proxying (3.59305ms)
-✔ log-doctor fix route maps malformed proxy base URL to a configuration-specific 500 message (0.4586ms)
-✔ log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo/branch (7.409374ms)
-✔ log-doctor route rejects invalid body before proxying (1.897869ms)
-✔ log-doctor route returns upstream 404 when proxied go route is absent (1.423306ms)
-✔ log-doctor route maps malformed proxy base URL to a configuration-specific 500 message (0.52334ms)
-✔ derivePluginManagerInstalledViewState maps lifecycle scenarios to visible UI states (23.981301ms)
-✔ installed content renders behavior-defining UI surfaces for each scenario state (5.088879ms)
-✔ deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls (10.337735ms)
-✔ isActiveRefreshRequest only applies responses for the latest mounted refresh (0.290501ms)
-✔ isActiveRefreshRequest prevents out-of-order completion from regressing current UI state (0.610794ms)
-✔ installed table uses semantic tone utility classes for maturity and severity badges (4.11549ms)
-✔ PluginPageShell renders title, description, icon, and content regions (11.963885ms)
-✔ PluginNotice renders notice title and description content (1.872583ms)
-✔ VersionHistoryModal clears loading and renders release content after a successful fetch (151.613129ms)
-✔ VersionHistoryModal clears loading and surfaces an error message after a failed fetch (3.878252ms)
-✔ useSessionFormAi hook structure is verified (0.767024ms)
-✔ APP_VERSION matches package.json version (4.117668ms)
-✔ APP_VERSION matches the latest CHANGELOG.md entry (2.522371ms)
-✔ guest normalization (null/undefined/blank -> guest) (1.187971ms)
-✔ active user switching (0.376179ms)
-✔ scoped key generation for explicit user (0.491745ms)
-✔ guest-mode predicate behavior (0.407554ms)
-✔ canonical design token keys match DESIGN.md section 2 source of truth (1.752616ms)
-✔ canonical design token keys remain kebab-case and do not introduce underscores (0.312641ms)
-✔ updateSession moves the markdown file when the session date changes (38.768138ms)
-✔ updateSession leaves exactly one markdown file for the session after a date move (12.058102ms)
-✔ findSessionFileById locates a session even when the file path month no longer matches frontmatter date (5.33545ms)
-✔ updateSession rejects a conflicting destination file and preserves the original file (23.573119ms)
-✔ updateSession overwrites an existing destination file when it has the same session ID with stale content (14.553901ms)
-✔ concurrent updateSession calls for the same file return a conflict for one caller (13.031942ms)
-✔ updateSession releases same-path lock when commit rename fails (19.671831ms)
-✔ concurrent deleteSession and updateSession cannot resurrect a session (19.796394ms)
-✔ updateSession returns SessionNotFoundError when delete wins before update acquires the lock (22.06836ms)
-✔ shouldReclaimSessionUpdateLock keeps alive PID locks even when old (2.105964ms)
-✔ updateSession reclaims same-path lock when owner PID is dead regardless of age (11.38728ms)
-✔ updateSession reclaims malformed same-path lock metadata (10.251164ms)
-✔ updateSession keeps conflict behavior when same-path lock is active (5.058702ms)
-✔ acquireSessionUpdateLock allows same-owner reentrant acquisition (7.826802ms)
-✔ acquireSessionUpdateLock keeps conflicts for different-owner active locks (5.425471ms)
-✔ reentrant release ordering cannot delete another owner reclaimed lock (4.93994ms)
-✔ shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age (2.090344ms)
-✔ concurrent date-move updates avoid deadlock and resolve with one winner (16.231664ms)
-✔ deleteSession racing with date move yields deterministic deleted state (13.967636ms)
-✔ updateSession release lock is robust on normal and ENOENT cleanup paths (13.412546ms)
-✔ late release does not delete a reclaimed lock owned by another caller (23.106654ms)
-✔ createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file (8.849004ms)
-✔ createSession resolves concurrent create when the winning writer completes after 200ms (575.754187ms)
-✔ findSessionFileById throws DuplicateSessionIdError when multiple files share an ID (6.432421ms)
-Skipping unreadable or malformed session file during lookup for session-duplicate-with-malformed: /tmp/matmetrics-file-storage-vynJS4/2025/03/20250310-matmetrics-session-malformed-neighbor.md Error: Missing or invalid "id" in frontmatter
+
+> nextn@1.2.0 test:all
+> npm run validate:plugin-ui-contract && NODE_ENV=test node --import tsx --test $(find plugins src -name '*.test.ts' ! -path 'src/lib/storage.test.ts') && NODE_ENV=test node --import tsx src/lib/storage.test.ts
+
+
+> nextn@1.2.0 validate:plugin-ui-contract
+> node --import tsx scripts/validate-plugin-ui-contract.ts
+
+✅ Plugin UI contract validation passed.
+✔ github-sync manifest declares the expected settings tab copy and icon (1.220814ms)
+✔ github-sync manifest evidence tracks sync-specific UX safeguards (1.029045ms)
+✔ returns a validation error when owner or repo are missing (1.157645ms)
+✔ deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations (0.586127ms)
+✔ builds failure messages for API/network errors (0.257034ms)
+✔ deriveDisableOutcome returns deterministic results for edge destructive states (1.229923ms)
+✔ deriveClearOutcome returns deterministic results for edge destructive states (0.421622ms)
+✔ runLoadGitHubSyncHistory maps error and empty responses to semantic user-facing messages (54.547414ms)
+✔ runLoadGitHubSyncHistory maps summary payload fields and warnings into success state data (2.830378ms)
+✔ runLoadGitHubSyncHistory supports retry callback behavior by allowing a second invocation to recover from an error (3.202477ms)
+✔ initPlugin registers github settings renderer (1.491955ms)
+✔ createDomSafePathId returns deterministic, DOM-safe ids for complex paths (3.161862ms)
+✔ parseApiResponse surfaces JSON error payload message (5.966683ms)
+✔ parseApiResponse handles text/plain error payload with status and route hint (0.851344ms)
+✔ parseApiResponse handles HTML 404 payload with clear fallback messaging (0.811196ms)
+✔ parseApiResponse reports malformed JSON payload with controlled message (0.792366ms)
+✔ apply confirmation requires strong APPLY phrase (1.491456ms)
+✔ canceling reset confirmation does not mutate diagnostics state (0.470594ms)
+✔ confirming reset returns empty state and keeps undo snapshot (1.149438ms)
+✔ audit review content groups flags with plain-language headings and helper text (2.310303ms)
+✔ createUiState returns idle state copy (3.783785ms)
+✔ createUiState returns loading state with long-running messaging (0.270943ms)
+✔ createUiState returns empty state for no logs and no findings (0.274118ms)
+✔ createUiState returns error state with concise reason and recovery step (0.290974ms)
+✔ createUiState returns success state (0.205072ms)
+✔ createUiState interruption flow uses cancellation next step guidance (0.442182ms)
+✔ createUiState error for config issues uses server/proxy guidance (0.35465ms)
+✔ createUiState error for generic preview failures keeps refresh guidance (0.254028ms)
+✔ detectNoTechniquesHighEffort: flags high effort (>= 4) with zero techniques (4.189349ms)
+✔ detectNoTechniquesHighEffort: flags effort 5 with zero techniques (1.30799ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 3 with zero techniques (0.170741ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 5 with techniques (0.231876ms)
+✔ detectNoTechniquesHighEffort: respects custom effort threshold (0.351014ms)
+✔ detectEmptyDescription: flags missing description (0.214515ms)
+✔ detectEmptyDescription: flags empty string description (0.760145ms)
+✔ detectEmptyDescription: flags whitespace-only description (0.207096ms)
+✔ detectEmptyDescription: does not flag non-empty description (0.242594ms)
+✔ detectEmptyNotes: flags missing notes (0.405267ms)
+✔ detectEmptyNotes: flags empty notes (0.194589ms)
+✔ detectEmptyNotes: flags whitespace-only notes (0.145382ms)
+✔ detectEmptyNotes: does not flag non-empty notes (3.430974ms)
+✔ detectDurationOutlier: does not flag when duration is undefined (0.294783ms)
+✔ detectDurationOutlier: does not flag when less than 3 sessions with duration (0.195255ms)
+✔ detectDurationOutlier: flags large duration outliers with 1 std dev multiplier (0.213286ms)
+✔ detectDurationOutlier: flags small duration outliers with 1 std dev multiplier (0.418401ms)
+✔ detectDurationOutlier: does not flag duration within 2 std deviations (0.47754ms)
+✔ detectDurationOutlier: respects custom std dev multiplier (0.2771ms)
+✔ runAuditRules: runs all enabled rules (2.254715ms)
+✔ runAuditRules: skips disabled rules (0.284981ms)
+✔ runAuditRules: returns empty array for clean session (0.184855ms)
+✔ runAuditRulesForAllSessions: returns flagged sessions only (0.35904ms)
+✔ runAuditRulesForAllSessions: includes sessions with no flags in original list (0.157029ms)
+/workspaces/matmetrics/plugins/plugin-manifest-contract.test.ts:51
+  testPluginManifestContract({
+  ^
+
+TypeError: (0 , import_test_plugin_manifest_contract.testPluginManifestContract) is not a function
+    at videoLibraryManifest (/workspaces/matmetrics/plugins/plugin-manifest-contract.test.ts:51:3)
+    at Object.<anonymous> (/workspaces/matmetrics/plugins/plugin-manifest-contract.test.ts:57:1)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object.transformer (/workspaces/matmetrics/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:336:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:239:7)
+
+Node.js v24.11.1
+✖ plugins/plugin-manifest-contract.test.ts (312.240387ms)
+/workspaces/matmetrics/plugins/plugin-registration-contract.test.ts:9
+testPluginRegistrationContract({
+^
+
+TypeError: (0 , import_test_plugin_registration_contract.testPluginRegistrationContract) is not a function
+    at initVideoLibraryPlugin (/workspaces/matmetrics/plugins/plugin-registration-contract.test.ts:9:1)
+    at Object.<anonymous> (/workspaces/matmetrics/plugins/plugin-registration-contract.test.ts:42:2)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object.transformer (/workspaces/matmetrics/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:336:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:239:7)
+
+Node.js v24.11.1
+✖ plugins/plugin-registration-contract.test.ts (1418.378437ms)
+✔ plugin sources avoid hardcoded semantic color utility classes (4.026762ms)
+✔ composition conformance passes for a sectioned dashboard shell with destructive flow wrapper (17.970963ms)
+✔ composition conformance fails when layout is not shell-rooted, not sectioned, and uses raw destructive button (2.481571ms)
+✔ composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported (3.118575ms)
+✔ github-sync uses standardized plugin state helpers (1.574361ms)
+✔ prompt-settings uses standardized plugin state helpers (0.419112ms)
+✔ tag-manager uses standardized plugin state helpers (0.468453ms)
+✔ video-library uses standardized plugin state helpers (0.437601ms)
+✔ log-doctor uses standardized plugin state helpers (0.542788ms)
+✔ required helper contract check fails when helper is missing (0.995482ms)
+✔ prompt-settings manifest declares the expected dashboard tab copy and icon (1.253243ms)
+✔ prompt-settings manifest evidence tracks prompt settings UX coverage (1.388606ms)
+✔ delete flow exposes loading labels and disabled actions while async work is in progress (1.30508ms)
+✔ delete flow surfaces recoverable errors and supports retry after apply failure (0.89647ms)
+✔ initPlugin registers tag manager renderer with refresh wiring (3.858275ms)
+✔ fallback prompt uses shared default constant with mixed-discipline preservation guidance (2.171367ms)
+✔ prompt payload keeps custom prompt override and raw mixed-language input unchanged (0.315832ms)
+✔ log-doctor fix route proxies to /api/go/github/log-doctor/fix with expected body mapping (11.709102ms)
+✔ log-doctor fix route rejects invalid payloads before proxying (4.843337ms)
+✔ log-doctor fix route maps malformed proxy base URL to a configuration-specific 500 message (0.55098ms)
+✔ log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo/branch (15.645309ms)
+✔ log-doctor route rejects invalid body before proxying (2.461148ms)
+✔ log-doctor route returns upstream 404 when proxied go route is absent (1.667803ms)
+✔ log-doctor route maps malformed proxy base URL to a configuration-specific 500 message (0.634239ms)
+✔ derivePluginManagerInstalledViewState maps lifecycle scenarios to visible UI states (41.548507ms)
+✔ installed content renders behavior-defining UI surfaces for each scenario state (6.9018ms)
+✔ deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls (14.36092ms)
+✔ isActiveRefreshRequest only applies responses for the latest mounted refresh (0.277398ms)
+✔ isActiveRefreshRequest prevents out-of-order completion from regressing current UI state (0.554034ms)
+✔ installed table uses semantic tone utility classes for maturity and severity badges (3.344099ms)
+✔ PluginPageShell renders title, description, icon, and content regions (21.121215ms)
+✔ PluginNotice renders notice title and description content (2.475512ms)
+✔ VersionHistoryModal clears loading and renders release content after a successful fetch (323.410594ms)
+✔ VersionHistoryModal clears loading and surfaces an error message after a failed fetch (24.293393ms)
+✔ useSessionFormAi hook structure is verified (1.040413ms)
+✔ APP_VERSION matches package.json version (5.869658ms)
+✔ APP_VERSION matches the latest CHANGELOG.md entry (3.3669ms)
+✔ guest normalization (null/undefined/blank -> guest) (2.134499ms)
+✔ active user switching (0.632533ms)
+✔ scoped key generation for explicit user (0.8214ms)
+✔ guest-mode predicate behavior (0.505478ms)
+✖ canonical design token keys match DESIGN.md section 2 source of truth (9.419503ms)
+✖ canonical design token keys remain kebab-case and do not introduce underscores (0.247415ms)
+✔ updateSession moves the markdown file when the session date changes (62.126724ms)
+✔ updateSession leaves exactly one markdown file for the session after a date move (15.637147ms)
+✔ findSessionFileById locates a session even when the file path month no longer matches frontmatter date (6.217108ms)
+✔ updateSession rejects a conflicting destination file and preserves the original file (12.443486ms)
+✔ updateSession overwrites an existing destination file when it has the same session ID with stale content (28.61282ms)
+✔ concurrent updateSession calls for the same file return a conflict for one caller (18.718061ms)
+✔ updateSession releases same-path lock when commit rename fails (16.728022ms)
+✔ concurrent deleteSession and updateSession cannot resurrect a session (28.988914ms)
+✔ updateSession returns SessionNotFoundError when delete wins before update acquires the lock (22.488431ms)
+✔ shouldReclaimSessionUpdateLock keeps alive PID locks even when old (2.053051ms)
+✔ updateSession reclaims same-path lock when owner PID is dead regardless of age (12.165622ms)
+✔ updateSession reclaims malformed same-path lock metadata (18.20842ms)
+✔ updateSession keeps conflict behavior when same-path lock is active (6.833556ms)
+✔ acquireSessionUpdateLock allows same-owner reentrant acquisition (10.448307ms)
+✔ acquireSessionUpdateLock keeps conflicts for different-owner active locks (4.868917ms)
+✔ reentrant release ordering cannot delete another owner reclaimed lock (5.007441ms)
+✔ shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age (2.17686ms)
+✔ concurrent date-move updates avoid deadlock and resolve with one winner (20.384761ms)
+✔ deleteSession racing with date move yields deterministic deleted state (15.274471ms)
+✔ updateSession release lock is robust on normal and ENOENT cleanup paths (16.249862ms)
+✔ late release does not delete a reclaimed lock owned by another caller (25.677909ms)
+✔ createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file (10.496464ms)
+✔ createSession resolves concurrent create when the winning writer completes after 200ms (575.746261ms)
+✔ findSessionFileById throws DuplicateSessionIdError when multiple files share an ID (7.642078ms)
+Skipping unreadable or malformed session file during lookup for session-duplicate-with-malformed: /tmp/matmetrics-file-storage-3YfhNM/2025/03/20250310-matmetrics-session-malformed-neighbor.md Error: Missing or invalid "id" in frontmatter
     at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
     at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
     at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
-    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1427:29)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
     at async waitForActual (node:assert:646:5)
     at async strict.rejects (node:assert:769:25)
     at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1244:7)
     at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
-    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1214:5)
-    at async Test.run (node:internal/test_runner/test:1113:7)
-✔ findSessionFileById still detects duplicate IDs when malformed files are present (30.687652ms)
-Skipping unreadable or malformed session file during lookup for session-read-error: /tmp/matmetrics-file-storage-KW6zJd/2025/01/20250110-matmetrics-session-read-error-bad.md Error: Missing or invalid "id" in frontmatter
+✔ findSessionFileById still detects duplicate IDs when malformed files are present (45.721643ms)
+Skipping unreadable or malformed session file during lookup for session-read-error: /tmp/matmetrics-file-storage-J5UMwT/2025/01/20250110-matmetrics-session-read-error-bad.md Error: Missing or invalid "id" in frontmatter
     at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
     at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
     at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
-    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1427:29)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
     at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1275:20)
     at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
     at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1263:5)
     at async Test.run (node:internal/test_runner/test:1113:7)
+✔ findSessionFileById skips malformed sibling markdown files and still finds valid matches (13.788312ms)
+Skipping invalid indexed session record for session-malformed-indexed; falling back to directory scan Error: Missing or invalid "date" in frontmatter
+    at validateDate (/workspaces/matmetrics/src/lib/markdown-serializer.ts:124:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:85:16)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1348:27)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1306:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1284:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
     at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Skipping unreadable or malformed session file during lookup for session-malformed-indexed: /tmp/matmetrics-file-storage-4k1vGA/2025/04/20250421-matmetrics-session-malformed-indexed.md Error: Missing or invalid "date" in frontmatter
+    at validateDate (/workspaces/matmetrics/src/lib/markdown-serializer.ts:124:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:85:16)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1306:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1284:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+✔ findSessionFileById falls back to full scan when indexed file is malformed (15.104885ms)
+Skipping invalid indexed session record for session-caller-read-error; falling back to directory scan Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1344:31)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async updateSession (/workspaces/matmetrics/src/lib/file-storage.ts:1078:24)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1331:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1315:5)
+    at async Test.run (node:internal/test_runner/test:1113:7) {
+  code: 'EIO'
+}
+Skipping unreadable or malformed session file during lookup for session-caller-read-error: /tmp/matmetrics-file-storage-cblwX8/2025/01/20250110-matmetrics-session-caller-read-error.md Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async updateSession (/workspaces/matmetrics/src/lib/file-storage.ts:1078:24)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1331:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5) {
+  code: 'EIO'
+}
+Skipping invalid indexed session record for session-caller-read-error; falling back to directory scan Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1344:31)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async deleteSession (/workspaces/matmetrics/src/lib/file-storage.ts:1198:23)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1338:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1315:5)
+    at async Test.run (node:internal/test_runner/test:1113:7) {
+  code: 'EIO'
+}
+Skipping unreadable or malformed session file during lookup for session-caller-read-error: /tmp/matmetrics-file-storage-cblwX8/2025/01/20250110-matmetrics-session-caller-read-error.md Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async deleteSession (/workspaces/matmetrics/src/lib/file-storage.ts:1198:23)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1338:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5) {
+  code: 'EIO'
+}
+✔ updateSession and deleteSession return not-found when all matching files are unreadable (10.639781ms)
+✔ updateSession and deleteSession throw DuplicateSessionIdError when session ID is duplicated (9.808187ms)
+✔ deleteSession treats ENOENT as already deleted and still removes the index entry (10.526738ms)
+✔ deleteSession retries once after ENOENT and deletes a moved session file (12.611872ms)
+✔ createSession rolls back index lock when markdown write fails (5.920334ms)
+✔ listSessions and hasAnySessions ignore index-only directories (2.902523ms)
+Failed to read session index for session-outside-index Error: Resolved session file path escapes data directory
+    at ensureResolvedPathWithinDataDir (/workspaces/matmetrics/src/lib/file-storage.ts:154:11)
+    at ensureExistingPathWithinDataDir (/workspaces/matmetrics/src/lib/file-storage.ts:175:20)
+    at readSessionIndex (/workspaces/matmetrics/src/lib/file-storage.ts:675:21)
+    at async checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1338:25)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1589:22)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1560:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ findSessionFileById ignores index records that point outside the data root (8.679731ms)
+✔ listSessions and hasAnySessions ignore symlinked year directories that escape the data root (3.516925ms)
+✔ getNextCounter rejects invalid dates before constructing paths (1.956538ms)
+✔ getNextCounter counts existing sessions for a normalized valid date (7.60737ms)
+✔ extractDateFromPath extracts dates from POSIX-style session paths (0.329751ms)
+✔ extractDateFromPath extracts dates from Windows-style session paths (0.171842ms)
+Skipping unreadable or malformed session file during lookup for session-duplicate-unreadable: /tmp/matmetrics-file-storage-4BjpdP/2025/02/20250210-matmetrics-session-duplicate-unreadable.md Error: simulated read failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1742:33)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1752:23)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1714:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  code: 'EACCES'
+}
+✔ findSessionFileById skips unreadable duplicates and returns the readable one (23.140929ms)
+✔ findSessionFileById skips symlink year directories and continues scanning (6.49584ms)
+✔ findSessionFileById skips symlink month directories and continues scanning (5.975137ms)
+✔ findSessionFileById collects all matching paths before checking for duplicates (8.75539ms)
+FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON. SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at parseServiceAccountKey (/workspaces/matmetrics/src/lib/firebase-admin.ts:60:19)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/firebase-admin.test.ts:142:22)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.start (node:internal/test_runner/test:1003:17)
+    at TestContext.test (node:internal/test_runner/test:378:20)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/firebase-admin.test.ts:141:13)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+▶ parseServiceAccountKey table-driven behavior
+  ✔ returns null for undefined input (0.930935ms)
+  ✔ returns null for malformed JSON (3.458824ms)
+  ✔ returns null when required fields are missing (0.216555ms)
+  ✔ rejects non-string project_id (0.131713ms)
+  ✔ rejects non-string client_email (1.487017ms)
+  ✔ rejects non-string private_key (0.142456ms)
+  ✔ rejects empty project_id after trimming (0.117308ms)
+  ✔ rejects empty client_email after trimming (0.167648ms)
+  ✔ rejects empty private_key after trimming (0.170426ms)
+  ✔ tolerates extra fields and returns exact parsed shape (1.048251ms)
+  ✔ rejects non-object JSON payload (0.11023ms)
+  ✔ normalizes escaped private key newlines (2.467915ms)
+  ✔ preserves already normalized private key newlines (0.173344ms)
+✔ parseServiceAccountKey table-driven behavior (13.323079ms)
+✔ getGitHubSessionPath encodes reserved characters and rejects oversized IDs (2.833849ms)
+✔ findSessionPathOnGitHubById traverses directory listings when the tree is truncated (31.944472ms)
+✔ findSessionPathOnGitHubById returns null when the branch ref is missing (1.559711ms)
+✔ findSessionPathOnGitHubById does not reuse manifest entries across branches (4.547653ms)
+✔ findSessionPathOnGitHubById evicts stale manifest entry and falls back to tree scan (1.980555ms)
+✔ default branch refresh invalidates prior-branch manifest scope (6.850369ms)
+✔ findSessionPathOnGitHubById surfaces non-404 GitHub errors (1.02232ms)
+✔ bulkPushSessions reports README update failure after pushing session content (3.551099ms)
+✔ createSessionOnGitHub treats an identical existing file as success (2.491132ms)
+✔ updateSessionOnGitHub moves the file when the session date changes (2.800817ms)
+✔ resolveBranch cache is isolated by token fingerprint (3.437442ms)
+✔ default branch cache expires after TTL (3.04666ms)
+✔ createSessionOnGitHub invalidates stale default branch cache and retries once on invalid ref write failure (1.548085ms)
+✔ proxyGoFunction returns JSON payloads for JSON upstream errors (12.108019ms)
+✔ proxyGoFunction returns plain text responses with status and key headers (2.056442ms)
+✔ proxyGoFunction preserves empty non-JSON responses (1.282711ms)
+✔ proxyGoFunction throws a controlled error for malformed MATMETRICS_GO_PROXY_BASE_URL (1.307186ms)
+✔ guest workspace seeds demo data the first time guest mode initializes (3.597343ms)
+✔ demo sessions fixture enforces stable product invariants (0.659152ms)
+✔ guest workspace becomes importable after local edits and can be dismissed (11.590805ms)
+✔ clearing guest workspace removes guest sessions and metadata (0.452118ms)
+✔ action feedback controller eventually transitions success and error to idle (2.228955ms)
+✔ error reset is scheduled later than success reset (0.479482ms)
+✔ reset() and dispose() cancel pending idle resets (0.45311ms)
+✔ EOF without trailing newline preserves notes text (6.727303ms)
+✔ CRLF and mixed newline parsing preserve sections (2.297858ms)
+✔ Roundtrip preserves techniques/description/notes (2.611428ms)
+✔ Roundtrip preserves videoUrl when present (1.548741ms)
+✔ sessionToMarkdown writes videoUrl in frontmatter when present (0.806576ms)
+✔ markdownToSession reads videoUrl from frontmatter when present (0.638987ms)
+✔ markdown without videoUrl still parses (0.63262ms)
+✔ serializer always emits description and notes headings (0.360858ms)
+✔ title may differ from frontmatter and still parse (1.019063ms)
+✔ Description and notes preserve embedded "## " strings in paragraphs (0.560622ms)
+✔ Description and notes preserve fenced code blocks with "## " lines (1.299587ms)
+✔ title must still be a level-1 heading (0.809685ms)
+✔ invalid date frontmatter values are rejected (0.314327ms)
+✔ invalid effort frontmatter values are rejected (0.34191ms)
+✔ invalid category frontmatter values are rejected (0.294525ms)
+✔ invalid duration frontmatter values are rejected (1.090959ms)
+✔ videoUrl SSRF-protected hosts are rejected (2.764944ms)
+✔ videoUrl with public hosts is allowed (2.193156ms)
+✔ missing each required section is rejected (0.673227ms)
+✔ required headings only inside fenced code blocks are rejected (0.526573ms)
+✔ fully valid canonical markdown passes required section validation (0.298175ms)
+Plugin runtime warning {
+  code: 'dashboard_tab_renderer_unresolved',
+  severity: 'warning',
+  path: 'plugins.missing-renderer-plugin.uiExtensions.missing-renderer-extension.config.component',
+  message: 'Dashboard tab component "unknown_component" is not registered to a renderer.',
+  pluginId: 'missing-renderer-plugin',
+  extensionId: 'missing-renderer-extension',
+  componentId: 'unknown_component'
+}
+Plugin runtime warning {
+  code: 'dashboard_tab_missing_capability',
+  severity: 'warning',
+  path: 'plugins.missing-capability-plugin.capabilities',
+  message: 'Dashboard extension "tag-manager-dashboard-tab" requires capability "tag_mutation" and was not rendered.',
+  pluginId: 'missing-capability-plugin',
+  extensionId: 'tag-manager-dashboard-tab'
+}
+✔ maps dashboard tab extension fixture into plugin tab metadata (297.459489ms)
+✔ integration: loadEnabledDashboardTabExtensions wires into tab mapping (6.646038ms)
+✔ core tabs no longer include prompt settings (0.407724ms)
+✔ plugins is the last core navigation item (0.165299ms)
+✔ resolves plugin tab when renderer is registered in the registry (0.631507ms)
+✔ captures structured runtime warning when plugin component cannot be resolved (1.854013ms)
+✔ captures runtime warning and skips tab when required capability is missing (0.677479ms)
+Plugin runtime warning {
+  code: 'dashboard_tab_design_token_variants_missing',
+  severity: 'warning',
+  path: 'plugins.wide-plugin.uiContract.designTokenVariants',
+  message: 'Dashboard extension "wide-extension" should declare uiContract.designTokenVariants to document shared token usage and prevent style drift.',
+  pluginId: 'wide-plugin',
+  extensionId: 'wide-extension'
+}
+✔ awaits async plugin init before resolving renderers to avoid timing warnings (10.783681ms)
+✔ wraps plugin tab renderer in wide layout surface when uiContract.layoutVariant is wide (9.893884ms)
+✔ emits runtime warning when required UX state helpers are missing from plugin render tree (1.389555ms)
+✔ emits runtime warning when uiContract.designTokenVariants is missing for a dashboard tab (0.512561ms)
+✔ blocks hostname policy for localhost and local domains (3.685402ms)
+✔ blocks URL bypass targets across ipv4 and ipv6 (1.253211ms)
+✔ blocks additional private and internal address families (2.775579ms)
+✔ allows public internet hosts and addresses (0.287147ms)
+✔ treats malformed ip literals as blocked (0.456313ms)
+✔ handles valid expanded and compressed ipv6 addresses (0.359387ms)
+✔ autoDisablePluginIfNeeded - returns manifest unchanged if no issues (59.797318ms)
+✔ autoDisablePluginIfNeeded - disables plugin with missing capabilities (3.105722ms)
+✔ autoDisablePluginIfNeeded - disables plugin with version mismatch (1.921407ms)
+✔ autoDisablePluginIfNeeded - respects already disabled plugins (2.022198ms)
+✔ autoDisablePluginIfNeeded - handles non-object manifests gracefully (1.778094ms)
+✔ toValidationTable skips runtime renderer checks by default (server-safe) (2.867836ms)
+✔ server-side validation files avoid static bootstrap import chains (2.66697ms)
+✔ returns required capability for extension types covered by policy (1.331044ms)
+✔ returns null for malformed extension config shape (0.2736ms)
+✔ returns null for unknown ids and unknown extension types (0.490317ms)
+✔ discoverEnabledDashboardTabExtensions returns empty list when no plugins exist (20.088919ms)
+✔ discoverEnabledDashboardTabExtensions returns one extension for one valid plugin (6.957497ms)
+✔ discoverEnabledDashboardTabExtensions skips invalid plugin manifests (3.703924ms)
+✔ discoverEnabledDashboardTabExtensions ignores disabled plugins (3.75588ms)
+✔ discoverEnabledDashboardTabExtensions applies enabled overrides over manifest defaults (2.876972ms)
+✔ github-sync initPlugin tolerates missing runtime registration hooks (0.814231ms)
+✔ github-sync runtime wiring registers a renderer that returns GitHubSettings (0.523129ms)
+/workspaces/matmetrics/src/lib/plugins/load-dashboard-tab-extensions.test.ts:24
+const pluginEnabledStateIsolation = createPluginEnabledStateIsolation();
+                                    ^
+
+TypeError: (0 , import_registry2.createPluginEnabledStateIsolation) is not a function
+    at assert (/workspaces/matmetrics/src/lib/plugins/load-dashboard-tab-extensions.test.ts:24:37)
+    at Object.<anonymous> (/workspaces/matmetrics/src/lib/plugins/load-dashboard-tab-extensions.test.ts:146:2)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object.transformer (/workspaces/matmetrics/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:336:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:239:7)
+
+Node.js v24.11.1
+✖ src/lib/plugins/load-dashboard-tab-extensions.test.ts (372.921862ms)
+✔ scorePluginMaturity returns Bronze for minimally documented plugin (13.30815ms)
+✔ scorePluginMaturity caps plugin at Bronze when capability warning exists (6.67328ms)
+✔ scorePluginMaturity returns Silver for a fully documented and tested first-party plugin (11.186928ms)
+✔ scorePluginMaturity requires explicit manifest gold tier for Gold promotion (13.856984ms)
+✔ scorePluginMaturity blocks Gold when evidence is heuristic-only even if review tier is gold (9.785779ms)
+✔ scorePluginMaturity blocks Gold when support docs are missing (6.375683ms)
+✔ scorePluginMaturity awards feature-quality points for test-asserted UX states even with different implementation text (7.001798ms)
+✔ scorePluginMaturity does not require undeclared error/empty criteria when policy gates relevance (5.394089ms)
+✔ scorePluginMaturity ignores keyword-only UX matches when no criterion is relevant (7.095469ms)
+✔ scorePluginMaturity still warns when declared error criterion lacks test assertion evidence (4.55533ms)
+✔ scorePluginMaturity preserves destructive-action relevance gating when no signal marks it relevant (4.749445ms)
+✔ scorePluginMaturity does not warn when manifest component matches plugin registration and file (3.440266ms)
+✔ scorePluginMaturity static scan matches optional/non-optional and spacing variants for registerPluginComponent (9.229727ms)
+✔ scorePluginMaturity warns when manifest component is missing from plugin registration (4.347595ms)
+✔ scorePluginMaturity accepts runtime registration without local/shared component files (2.915755ms)
+✔ scorePluginMaturity accepts plugin-local component files as component evidence (5.07677ms)
+✔ scorePluginMaturity warns when declared component has no local, shared, or runtime evidence (3.428012ms)
+✔ scorePluginMaturity counts src/lib/tags/service.test.ts as evidence for tag-manager (5.905808ms)
+✔ scorePluginMaturity accepts explicit ux evidence without heuristic keywords in tests (4.978228ms)
+✔ scorePluginMaturity exposes heuristic verification details when explicit evidence is absent (5.064978ms)
+✔ runPluginContractGate passes when entrypoint, component, and README checks succeed (10.325097ms)
+✔ runPluginContractGate fails when required files and sections are missing (3.312917ms)
+✔ runPluginContractGate accepts explicit runtime registration from src/index.ts (3.982567ms)
+✔ runPluginContractGate emits non-blocking warning when packaged runtime lacks source artifacts (3.08141ms)
+✔ runPluginContractGate accepts README heading contracts for plugin operation docs (5.804429ms)
+✔ runPluginContractGate fails when entrypoint imports plugin UI from shared src/components (3.549105ms)
+✔ getPluginManagerAccessState requires auth configuration before plugin access (0.768978ms)
+✔ normalizeInstalledPluginRows keeps only valid manifest rows (0.290921ms)
+✔ normalizeInstalledPluginRows keeps maturity when contract gate errors exist (0.163621ms)
+✔ fetchInstalledPlugins adds auth headers and parses valid plugin rows (20.16404ms)
+✔ fetchInstalledPlugins ignores non-string maturity metadata values (0.53135ms)
+✔ fetchInstalledPlugins surfaces API error payloads for auth failures (0.764844ms)
+✔ toggleInstalledPlugin sends auth headers and toggle payload (2.333836ms)
+✔ published maturity scorecard artifact matches current manifest evidence (44.140658ms)
+✔ published plugin UI migration artifact matches current plugin entrypoint usage (14.986544ms)
+✔ validateManifestComponentRenderers resolves declared github-sync component id (664.511101ms)
+✔ validateManifestComponentRenderers flags unresolved component id predictably (0.44738ms)
+✔ persistPluginEnabledOverride stores and loads overrides in auth test mode (1.603753ms)
+✔ persistPluginEnabledOverride rejects when firebase admin is unavailable outside test mode (0.732894ms)
+✔ applyPluginEnabledOverrides changes enabled state only when an override exists (0.25824ms)
+✔ tag-manager manifest contract includes required runtime fields (2.267395ms)
+✔ tag-manager initPlugin wires register and registerPluginComponent (0.470128ms)
+✔ tag-manager renderer returns TagManager and forwards refreshSessions as onRefresh (0.841573ms)
+✔ tag-manager dashboard renderer resolves after plugin bootstrap (164.495666ms)
+✔ valid manifest passes with no issues (2.826462ms)
+✔ invalid manifest reports normalized errors with paths and severity (1.021871ms)
+✔ unknown extension type is warning by default (0.260703ms)
+✔ unknown extension type can be explicitly accepted as experimental (0.321785ms)
+✔ sensitive extension without required capability returns warning (0.256362ms)
+✔ unknown capability returns warning (0.210096ms)
+✔ known capability declaration passes without warnings (0.228632ms)
+✔ video audit capability declaration passes without warnings (0.186025ms)
+✔ manifest accepts optional first-party metadata and maturity metadata (0.543957ms)
+✔ plugin with acceptable minVersion passes (0.437997ms)
+✔ plugin with too-high minVersion returns warning (0.212381ms)
+✔ plugin without explicit minVersion passes regardless of version (0.210743ms)
+✔ runtime component renderer checks run only when explicitly enabled (616.034093ms)
+✔ manifest accepts uiContract metadata (1.345107ms)
+✔ malformed uiContract is rejected (1.145541ms)
+✔ uiContract designTokenVariants reject unknown underscore token keys (0.932821ms)
+✔ uiContract designTokenVariants warn on explicit legacy migration mappings (0.342212ms)
+✔ compareVersions - compares semantic versions correctly (1.638479ms)
+✔ compareVersions - handles missing patch versions (0.257767ms)
+✔ meetsMinimumVersion - returns true when version meets or exceeds minimum (0.220023ms)
+✔ meetsMinimumVersion - returns false when version is below minimum (0.161306ms)
+✔ meetsMinimumVersion - handles real-world version scenarios (0.3165ms)
+✔ parseChangelog parses releases in descending order (3.378691ms)
+✔ getRecentReleasesFromSource returns the latest three releases (0.391367ms)
+✔ parseChangelog rejects unsupported section labels (0.589656ms)
+✔ parseChangelog rejects invalid release dates (0.230999ms)
+✔ assertReleaseVersionConsistency rejects mismatched versions (0.3666ms)
+Failed to verify Firebase ID token Error: Invalid test token
+    at verifyToken (/workspaces/matmetrics/src/lib/server-auth.ts:32:13)
+    at requireAuthenticatedUser (/workspaces/matmetrics/src/lib/server-auth.ts:71:18)
+    at <anonymous> (/workspaces/matmetrics/src/lib/server-auth.test.ts:140:28)
+    at withEnv (/workspaces/matmetrics/src/lib/server-auth.test.ts:35:11)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/server-auth.test.ts:137:9)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+    at Test.run (node:internal/test_runner/test:1163:12)
+✔ test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization (6.432518ms)
+✔ non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal auth path (5.954393ms)
+✔ normal auth path unchanged when test mode is disabled (1.114044ms)
+✔ requireAuthenticatedUser rejects malformed authorization header variants (3.314239ms)
+✔ requireAuthenticatedUser rejects invalid test-mode token in test env (13.735881ms)
+✔ resolveAuthorizedGitHubConfig treats null and undefined missing-state inputs identically (4.588229ms)
+✔ resolveAuthorizedGitHubConfig allows omitted requested branch when stored branch is present (0.787156ms)
+✔ resolveAuthorizedGitHubConfig rejects explicit mismatched branch (3.660113ms)
+[CORRUPT] Skipping GitHub session file at data/2025/03/20250315-matmetrics-broken-session.md: Missing or invalid "id" in frontmatter
+✔ listSessionsFromGitHub includes modern and legacy matmetrics session markdown paths (75.074259ms)
+✔ scanSessionsFromGitHub returns sessions and file-level issues for mixed-validity repositories (2.997027ms)
+✔ listSessionsFromGitHub preserves legacy behavior by returning valid sessions only (3.916892ms)
+✔ scanSessionsFromGitHub bounds concurrent GitHub file reads (62.506488ms)
+✔ scanSessionsFromGitHub retries retryable GitHub read failures before read_failed (2.032952ms)
+✔ normalizeGitHubConfig rejects owner names longer than 39 characters (0.464717ms)
+✔ normalizeGitHubConfig accepts repo names up to 100 characters (0.307568ms)
+✔ normalizeGitHubConfig rejects invalid owner/repo traversal and control characters (0.19129ms)
+✔ session-storage error helpers classify typed local storage errors (0.463081ms)
+▶ TS validator matches shared fixtures
+  ✔ valid (1.810284ms)
+  ✔ bad date format (0.267239ms)
+  ✔ bad date real (1.930806ms)
+  ✔ bad effort (0.162778ms)
+  ✔ bad category (0.14461ms)
+  ✔ empty technique (0.143626ms)
+  ✔ negative duration (0.133273ms)
+  ✔ bad protocol (0.208572ms)
+  ✔ private video host (0.653184ms)
+  ✔ whitespace video allowed (0.24855ms)
+✔ TS validator matches shared fixtures (8.316547ms)
+▶ sync-lease module
+  ▶ randomBackoffMs
+    ✔ returns a value within expected range (1.109253ms)
+    ✔ maps injected random values to deterministic boundaries (0.295008ms)
+  ✔ randomBackoffMs (2.635545ms)
+  ▶ randomVerifyDelayMs
+    ✔ returns a value within expected range (0.406685ms)
+  ✔ randomVerifyDelayMs (2.399909ms)
+  ▶ createSyncLeaseNonce
+    ✔ creates unique nonces (0.733772ms)
+    ✔ creates strings (0.229358ms)
+  ✔ createSyncLeaseNonce (1.521873ms)
+  ▶ getNextSyncLeaseEpoch
+    ✔ returns increasing epochs (0.247451ms)
+    ✔ ensures epoch is not less than current timestamp (0.234023ms)
+  ✔ getNextSyncLeaseEpoch (0.962913ms)
+  ▶ readSyncLease
+    ✔ returns null when no lease exists (0.240441ms)
+    ✔ parses a valid lease from localStorage (1.04036ms)
+  ✔ readSyncLease (1.787882ms)
+  ▶ releaseSyncLease
+    ✔ does not remove persisted lease when local active lease is stale (0.353506ms)
+  ✔ releaseSyncLease (0.573737ms)
+  ▶ tryAcquireSyncLease
+    ✔ forces reclaim after stable observations of a live competing lease (1.386419ms)
+    ✔ backs off without reclaiming while competing lease keeps changing (0.869163ms)
+  ✔ tryAcquireSyncLease (2.600765ms)
+✔ sync-lease module (13.953695ms)
+✔ queueOperation timestamps operations and preserves insertion order (32.695916ms)
+✔ queueOperation uses persisted last queuedAt to recover from stale in-memory state (10.465593ms)
+✔ queueOperation remains strictly monotonic across interleaved two-tab writes (12.034212ms)
+✔ setQueue preserves a newer concurrent operation with the same identity (6.660068ms)
+✔ clearQueue keeps a newer concurrent operation instead of deleting it (6.201333ms)
+✔ setQueue retains concurrent operations that share queuedAt with stale base snapshots (3.842963ms)
+✔ concurrent create and update with identical queuedAt coalesce deterministically (4.790521ms)
+✔ setQueue deterministically keeps one equal-timestamp concurrent update for the same identity (3.735772ms)
+✔ clearQueue removes the persisted storage key when there is no concurrent work (5.906486ms)
+✔ clearQueue keeps concurrent operations when queuedAt matches stale base snapshot (1.113934ms)
+✔ malformed JSON is quarantined and cleared on first read (0.829199ms)
+✔ subsequent reads after malformed JSON return stable empty queue without repeated parse warnings (0.396997ms)
+✔ storage lease heartbeat renews during long-running critical section (56.090539ms)
+✔ lease expires and competing tab can re-acquire while original action is still running (54.112434ms)
+✔ stale owner commit is prevented after lease expiry and competing re-acquire (3.201313ms)
+✔ identity-based removal succeeds under concurrent writes where index-based removal fails (15.00968ms)
+✔ coalesces create then update into create with latest payload (0.910678ms)
+✔ coalesces create then delete into no-op (3.733147ms)
+✔ coalesces update then delete into delete (5.936858ms)
+✔ coalesces delete then create into recreate create (3.879516ms)
+✔ coalesces delete then create then update into create with latest payload (5.864073ms)
+✔ coalesces delete then update into create to avoid missing-record updates (3.272527ms)
+✔ getQueue keeps valid operations when persisted array has corrupt entries (0.325432ms)
+✔ getQueue clears storage and warns when all persisted entries are invalid (0.348869ms)
+✔ concurrent queueOperation calls do not drop operations across identities (23.758369ms)
+✔ concurrent mixed mutators retain union of writes under lease (22.543647ms)
+✔ rename returns a case conflict when target casing already exists (21.267281ms)
+✔ rename to existing tag returns a conflict instead of mutating sessions (0.340573ms)
+✔ merge into same tag returns conflict and performs no updates (0.467625ms)
+✔ delete nonexistent tag returns conflict and supports dry-run (0.411884ms)
+✔ analysis APIs return accurate impact details for representative datasets (1.317927ms)
+✔ rename stops on first failed session update and reports failed ids (0.558066ms)
+✔ plugin severity tones map to semantic utility classes (1.935276ms)
+✔ plugin maturity tiers map to semantic trend classes (0.243858ms)
+✔ dashboard category bars resolve to chart palette token order (0.276876ms)
+✔ video library defaults include technical expected category (1.86744ms)
+✔ normalizeExpectedVideoCategories keeps valid categories in canonical order (0.365952ms)
+✔ normalizeExpectedVideoCategories falls back to default when invalid or empty (0.227831ms)
+✔ date-only helpers preserve calendar semantics without timezone drift (14.8386ms)
+✔ formatLocalDateInputValue uses local calendar components (0.277691ms)
+✔ formatLocalDateInputValue zero-pads single-digit month/day values (0.162268ms)
+✔ formatLocalDateInputValue stays stable near midnight local boundaries (0.176796ms)
+✔ formatLocalDateInputValue remains stable across timezone-offset transition days (0.674952ms)
+✔ parseDateOnly returns an invalid date object for malformed input (0.174017ms)
+✔ normalizeVideoDomainInput accepts bare hostnames only (4.212149ms)
+✔ getAllowedVideoDomains merges starter and custom domains (1.068523ms)
+✔ matchesAllowedVideoDomain supports exact and subdomain suffix matches (0.205139ms)
+✔ deriveVideoLibraryEntries classifies missing, allowed, and disallowed domains (3.38799ms)
+✔ deriveVideoLibraryEntries and API hostname policy classify hosts identically (1.114092ms)
+✔ reconcileVideoLinkChecks drops stale entries when session URL changes or becomes invalid (0.71475ms)
+✔ reconcileVideoLinkChecks invalidates disallowed-domain snapshots when custom allowlist changes (0.310038ms)
+✔ deriveVideoLibraryRows merges persisted latest checks and review state (0.966303ms)
+✔ resolveVideoThumbnailUrl parses youtube URLs deterministically (0.3893ms)
+✔ rows keep unknown providers as valid items and use thumbnail fallback (0.530717ms)
+✔ filterVideoLibraryRows respects tab, search, status, and checked filters (0.620711ms)
+✔ getVideoLibraryTabCounts returns grouped counts (0.526735ms)
+✔ no-video tab/count only include categories marked as expected (1.107929ms)
+✔ getVideoDomainRemovalImpact counts sessions that would become disallowed (0.479214ms)
+✔ mergeVideoLinkCheckResults and equality helper support persisted updates (0.34714ms)
+✔ discovered dashboard tabs route is force-dynamic and no-store (29.371084ms)
+✔ discovered dashboard tabs route reflects enabled overrides (12.049411ms)
+✔ GET /api/plugins/list returns manifests and contract payload (35.792747ms)
+✔ GET /api/plugins/list surfaces plugin contract gate violations (8.155844ms)
+✔ GET /api/plugins/list treats packaged artifact-unavailable contract checks as non-blocking (6.001303ms)
+✔ POST /api/plugins/toggle persists enabled override without mutating plugin.json (13.370705ms)
+✔ plugin create/update routes are deprecated and return disabled responses (5.021503ms)
+✔ GET /api/plugins/list returns current maturity scores for bundled plugins (59.402754ms)
+✔ POST /api/plugins/validate returns contract gate violations (11.956751ms)
+Error processing plugin "tags" in /api/plugins/list: Simulated plugin contract gate failure
+✔ GET /api/plugins/list continues when one plugin contract gate throws (11.37832ms)
+Error processing plugin "tags" in /api/plugins/validate: Simulated plugin contract gate failure
+✔ POST /api/plugins/validate continues when one plugin contract gate throws (7.146261ms)
+✔ deprecated create/update routes do not mutate plugin manifests (3.648734ms)
+✔ GET recent releases returns the latest three releases and current version (12.525407ms)
+✔ POST persists the session to local markdown storage when GitHub is not configured (29.807782ms)
+✔ POST returns 500 when GitHub create fails in primary mode (3.602108ms)
+✔ POST uses stored GitHub config when body omits gitHubConfig (2.055231ms)
+✔ POST returns 403 when request GitHub repo does not match user preferences (1.322568ms)
+✔ POST returns 409 for duplicate session ID conflicts with different content (14.529458ms)
+▶ POST returns 400 when request JSON is not an object
+  ✔ null (0.952414ms)
+  ✔ string (0.821113ms)
+  ✔ number (0.81476ms)
+✔ POST returns 400 when request JSON is not an object (4.144945ms)
+▶ POST returns 400 for invalid session payload fields
+  ✔ id number (1.120617ms)
+  ✔ id object (0.548972ms)
+  ✔ id empty string (0.507354ms)
+  ✔ id with invalid characters (0.608204ms)
+  ✔ id exceeds max length (0.48252ms)
+  ✔ techniques element type (0.539188ms)
+  ✔ date string (0.494881ms)
+  ✔ duration type (0.598193ms)
+  ✔ effort integer (0.668514ms)
+  ✔ description type (0.734867ms)
+  ✔ videoUrl type (0.543109ms)
+  ✔ videoUrl invalid url (0.480041ms)
+  ✔ videoUrl unsupported protocol (0.61294ms)
+  ✔ videoUrl private network host (0.846287ms)
+  ✔ videoUrl blocks loopback alias 127.0.0.2 (0.712623ms)
+  ✔ videoUrl blocks ipv6 loopback ::1 (0.82467ms)
+  ✔ videoUrl blocks mapped ipv4 loopback (0.655364ms)
+  ✔ videoUrl blocks ipv4 link-local range (0.656987ms)
+✔ POST returns 400 for invalid session payload fields (13.545362ms)
+✔ POST treats empty string videoUrl as undefined (28.168163ms)
+✔ POST treats whitespace-only videoUrl as undefined (5.062299ms)
+✔ POST accepts valid videoUrl and includes it in created session (5.66529ms)
+✔ POST returns 401 when authorization header is missing (0.546677ms)
+✔ GET returns 404 when session does not exist (13.320786ms)
+✔ GET returns the local markdown session when present (18.00554ms)
+✔ GET returns local session videoUrl when present (11.903061ms)
+✔ PUT updates local markdown storage when GitHub is not configured (20.735079ms)
+✔ PUT updates local markdown storage when body omits id (13.453897ms)
+✔ PUT returns 409 when local storage has duplicate files for the same session ID (8.305029ms)
+✔ PUT returns 500 when GitHub update fails in primary mode (1.920994ms)
+✔ PUT uses stored GitHub config when body omits gitHubConfig (1.001666ms)
+✔ DELETE removes the local markdown session when GitHub is not configured (12.284096ms)
+✔ DELETE returns 409 when local storage has duplicate files for the same session ID (11.387911ms)
+✔ DELETE proxies Go validation error when id is empty after trim (1.058804ms)
+✔ DELETE returns 500 when GitHub delete fails in primary mode (0.713248ms)
+✔ DELETE uses stored GitHub config when body omits gitHubConfig (1.036015ms)
+✔ DELETE returns 400 when request body contains malformed JSON (0.732921ms)
+✔ GET returns 403 when query repo does not match user preferences (0.628954ms)
+✔ PUT returns 403 when body repo does not match user preferences (0.657312ms)
+✔ DELETE returns 403 when body repo does not match user preferences (0.58058ms)
+▶ PUT returns 400 when request body is not a JSON object
+  ✔ null (0.439317ms)
+  ✔ string primitive (0.357633ms)
+  ✔ number primitive (0.440797ms)
+  ✔ boolean primitive (0.391943ms)
+  ✔ array (0.321907ms)
+✔ PUT returns 400 when request body is not a JSON object (2.84768ms)
+▶ PUT returns 400 for invalid session payload fields
+  ✔ missing techniques field (0.495864ms)
+  ✔ id mismatch (0.311433ms)
+  ✔ techniques element type (0.341026ms)
+  ✔ date string (0.454682ms)
+  ✔ duration type (0.586764ms)
+  ✔ effort integer (0.41817ms)
+  ✔ notes type (0.530566ms)
+  ✔ videoUrl type (0.902433ms)
+  ✔ videoUrl invalid url (0.633244ms)
+  ✔ videoUrl unsupported protocol (0.416597ms)
+  ✔ videoUrl private network host (0.543407ms)
+  ✔ videoUrl blocks loopback alias 127.0.0.2 (0.533381ms)
+  ✔ videoUrl blocks ipv6 loopback ::1 (0.774975ms)
+  ✔ videoUrl blocks mapped ipv4 loopback (0.821027ms)
+  ✔ videoUrl blocks ipv4 link-local range (0.688434ms)
+✔ PUT returns 400 for invalid session payload fields (9.728161ms)
+✔ PUT treats empty string videoUrl as undefined (67.478942ms)
+✔ PUT treats whitespace-only videoUrl as undefined (55.900347ms)
+✔ PUT accepts valid videoUrl and includes it in updated session (14.849124ms)
+✔ GET list returns local sessions when no GitHub config is requested (33.018657ms)
+✔ GET list returns 403 when requested repo does not match user preferences (1.371538ms)
+✔ POST requires authentication (9.097988ms)
+✔ POST reports disallowed domains without making outbound requests (29.667993ms)
+✔ POST falls back to GET when HEAD is rejected (10.06921ms)
+✔ POST classifies remote failures as check_failed (7.369352ms)
+✔ POST blocks redirect from allowed domain to private network host (7.891562ms)
+✔ POST returns row-friendly per-session payloads for mixed result sets (25.992425ms)
+✔ POST limits processed sessions and includes truncation metadata when sessionIds are omitted (279.533641ms)
+✔ POST checks links with bounded concurrency (216.879886ms)
+ℹ tests 509
+ℹ suites 0
+ℹ pass 504
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54580.318872
+
+✖ failing tests:
+
+test at plugins/plugin-manifest-contract.test.ts:1:1
+✖ plugins/plugin-manifest-contract.test.ts (312.240387ms)
+  'test failed'
+
+test at plugins/plugin-registration-contract.test.ts:1:1
+✖ plugins/plugin-registration-contract.test.ts (1418.378437ms)
+  'test failed'
+
+test at src/lib/design-tokens.test.ts:2:1814
+✖ canonical design token keys match DESIGN.md section 2 source of truth (9.419503ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'primary',
+  -   'primary-container',
+  -   'primary-fixed',
+  -   'on-primary',
+  -   'on-primary-container',
+  -   'on-primary-fixed',
+  -   'secondary',
+  -   'tertiary',
+  -   'secondary-container',
+  -   'on-secondary',
+  -   'on-secondary-container',
+  -   'surface',
+  -   'surface-container-low',
+  -   'surface-container-lowest',
+  -   'surface-container-high',
+  -   'surface-bright',
+  -   'surface-tint',
+  -   'surface-variant',
+  -   'on-surface',
+  -   'on-surface-variant',
+  -   'outline',
+  -   'outline-variant',
+  -   'success',
+  -   'success-container',
+  -   'on-success',
+  -   'on-success-container',
+  -   'warning',
+  -   'warning-container',
+  -   'on-warning',
+  -   'on-warning-container',
+  -   'error',
+  -   'error-container',
+  -   'on-error',
+  -   'on-error-container',
+  -   'info',
+  -   'info-container',
+  -   'on-info',
+  -   'on-info-container',
+  -   'primary-hover',
+  -   'primary-pressed',
+  -   'primary-focus',
+  -   'primary-disabled',
+  -   'secondary-hover',
+  -   'secondary-pressed',
+  -   'secondary-focus',
+  -   'secondary-disabled',
+  -   'trend-positive',
+  -   'trend-positive-container',
+  -   'on-trend-positive-container',
+  -   'trend-negative',
+  -   'trend-negative-container',
+  -   'on-trend-negative-container',
+  -   'trend-neutral',
+  -   'trend-neutral-container',
+  -   'on-trend-neutral-container'
+  - ]
+  
+      at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/design-tokens.test.ts:30:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [
+      'primary',                     'primary-container',
+      'primary-fixed',               'on-primary',
+      'on-primary-container',        'on-primary-fixed',
+      'secondary',                   'tertiary',
+      'secondary-container',         'on-secondary',
+      'on-secondary-container',      'surface',
+      'surface-container-low',       'surface-container-lowest',
+      'surface-container-high',      'surface-bright',
+      'surface-tint',                'surface-variant',
+      'on-surface',                  'on-surface-variant',
+      'outline',                     'outline-variant',
+      'success',                     'success-container',
+      'on-success',                  'on-success-container',
+      'warning',                     'warning-container',
+      'on-warning',                  'on-warning-container',
+      'error',                       'error-container',
+      'on-error',                    'on-error-container',
+      'info',                        'info-container',
+      'on-info',                     'on-info-container',
+      'primary-hover',               'primary-pressed',
+      'primary-focus',               'primary-disabled',
+      'secondary-hover',             'secondary-pressed',
+      'secondary-focus',             'secondary-disabled',
+      'trend-positive',              'trend-positive-container',
+      'on-trend-positive-container', 'trend-negative',
+      'trend-negative-container',    'on-trend-negative-container',
+      'trend-neutral',               'trend-neutral-container',
+      'on-trend-neutral-container'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/lib/design-tokens.test.ts:2:2073
+✖ canonical design token keys remain kebab-case and do not introduce underscores (0.247415ms)
+  TypeError: Cannot read properties of undefined (reading 'filter')
+      at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/design-tokens.test.ts:34:54)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at src/lib/plugins/load-dashboard-tab-extensions.test.ts:1:1
+✖ src/lib/plugins/load-dashboard-tab-extensions.test.ts (372.921862ms)
+  'test failed'

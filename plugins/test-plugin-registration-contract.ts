@@ -62,7 +62,7 @@ const assertPluginInitRegistration = ({
   );
 };
 
-const testPluginRegistrationContract = ({
+export const testPluginRegistrationContract = ({
   pluginId,
   dashboardExtensionId,
   componentId,

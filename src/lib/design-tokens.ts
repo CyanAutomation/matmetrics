@@ -1,4 +1,4 @@
-const CANONICAL_DESIGN_TOKEN_KEYS = [
+export const CANONICAL_DESIGN_TOKEN_KEYS = [
   'primary',
   'primary-container',
   'primary-fixed',
@@ -61,5 +61,5 @@ export type CanonicalDesignTokenKey =
 
 const kebabCaseTokenPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const isKebabCaseDesignTokenKey = (value: string): boolean =>
+export const isKebabCaseDesignTokenKey = (value: string): boolean =>
   kebabCaseTokenPattern.test(value);
