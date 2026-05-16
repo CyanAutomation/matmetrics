@@ -743,6 +743,148 @@ export async function createSessionOnGitHub(
 }
 
 /**
+ * Resolve session file metadata (SHA and path) using manifest cache, direct lookup, and discovery.
+ * Returns { sha, discoveredPath } where discoveredPath may differ from expectedPath if file was moved.
+ */
+async function resolveSessionFileMetadata(
+  sessionId: string,
+  expectedPath: string,
+  config: GitHubConfig,
+  branch: string
+): Promise<{ sha: string | null; discoveredPath: string | null }> {
+  // P3: Try manifest first for SHA/path
+  const manifestEntry = getManifestEntry(sessionId, config);
+  let sha: string | null = null;
+  let discoveredPath: string | null = null;
+
+  if (manifestEntry) {
+    sha = await getFileSha(config.owner, config.repo, manifestEntry.path, branch);
+    if (sha) {
+      discoveredPath = manifestEntry.path;
+    }
+  }
+
+  if (!sha) {
+    sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+    if (sha) {
+      discoveredPath = expectedPath;
+    }
+  }
+
+  if (!sha) {
+    discoveredPath = await findSessionPathOnGitHubById(sessionId, config);
+    if (discoveredPath) {
+      sha = await getFileSha(config.owner, config.repo, discoveredPath, branch);
+    }
+  }
+
+  return { sha, discoveredPath };
+}
+
+/**
+ * Handle session file move: create at new location and delete old one.
+ * Updates manifest cache accordingly.
+ */
+async function handleSessionPathMove(
+  sessionId: string,
+  expectedPath: string,
+  discoveredPath: string,
+  markdown: string,
+  config: GitHubConfig,
+  session: JudoSession,
+  oldSha: string
+): Promise<GitHubSyncResult> {
+  const createResult = await putFile(
+    config,
+    expectedPath,
+    markdown,
+    `Move session: ${session.date}`
+  );
+
+  if (!createResult.success) {
+    return createResult;
+  }
+
+  const branch = await resolveBranch(config);
+  const deleteResult = await githubDeleteWithBranchRetry(
+    config,
+    discoveredPath,
+    {
+      message: `Move session: ${session.date}`,
+      branch,
+      sha: oldSha,
+    }
+  );
+
+  // P3: Update manifest - old path removed, new path added
+  removeManifestEntry(sessionId, config);
+  if (createResult.sha) {
+    setManifestEntry(sessionId, expectedPath, createResult.sha, config);
+  }
+
+  return {
+    success: true,
+    message: 'Session updated on GitHub',
+    filePath: expectedPath,
+    sha: createResult.sha ?? deleteResult?.content?.sha ?? deleteResult?.sha,
+    branch,
+  };
+}
+
+/**
+ * Update file on GitHub with retry logic for SHA conflicts.
+ * Handles 422/409 conflicts by re-fetching SHA and retrying.
+ */
+async function updateWithRetry(
+  config: GitHubConfig,
+  expectedPath: string,
+  sessionId: string,
+  markdown: string,
+  initialSha: string,
+  session: JudoSession,
+  branch: string
+): Promise<GitHubSyncResult> {
+  const message = `Update session: ${session.date}`;
+  let sha = initialSha;
+
+  let retries = 0;
+  const maxRetries = 2;
+
+  while (true) {
+    const result = await putFile(config, expectedPath, markdown, message, sha);
+    if (result.success) {
+      // P3: Update manifest cache
+      if (result.sha) {
+        setManifestEntry(sessionId, expectedPath, result.sha, config);
+      }
+      return result;
+    }
+
+    // Check if this is a conflict / precondition-failed error from a stale SHA.
+    const isShaConflict =
+      result.message.includes('422') ||
+      result.message.includes('409') ||
+      result.message.toLowerCase().includes('conflict') ||
+      result.message.toLowerCase().includes('sha');
+
+    if (isShaConflict && retries < maxRetries) {
+      retries += 1;
+      const newSha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+      if (!newSha) {
+        return {
+          success: false,
+          message: `GitHub session update for ${sessionId} failed: file disappeared after ${retries} retry attempt(s)`,
+        };
+      }
+      sha = newSha;
+      continue;
+    }
+
+    return result;
+  }
+}
+
+/**
  * Update an existing session file in GitHub
  */
 export async function updateSessionOnGitHub(
@@ -754,38 +896,13 @@ export async function updateSessionOnGitHub(
     const expectedPath = getGitHubSessionPath(session);
     const markdown = sessionToMarkdown(session);
 
-    // P3: Try manifest first for SHA/path
-    const manifestEntry = getManifestEntry(session.id, config);
-    let sha: string | null = null;
-    let discoveredPath: string | null = null;
-
-    if (manifestEntry) {
-      sha = await getFileSha(
-        config.owner,
-        config.repo,
-        manifestEntry.path,
-        branch
-      );
-      if (sha) {
-        discoveredPath = manifestEntry.path;
-      }
-    }
-
-    if (!sha) {
-      sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
-    }
-
-    if (!sha) {
-      discoveredPath = await findSessionPathOnGitHubById(session.id, config);
-      if (discoveredPath) {
-        sha = await getFileSha(
-          config.owner,
-          config.repo,
-          discoveredPath,
-          branch
-        );
-      }
-    }
+    // Resolve file metadata: SHA and actual path
+    const { sha, discoveredPath } = await resolveSessionFileMetadata(
+      session.id,
+      expectedPath,
+      config,
+      branch
+    );
 
     if (!sha) {
       // File doesn't exist yet; create the session file instead.
@@ -799,80 +916,29 @@ export async function updateSessionOnGitHub(
       return result;
     }
 
+    // Handle path move if file was found at a different location
     if (discoveredPath && discoveredPath !== expectedPath) {
-      const createResult = await putFile(
-        config,
+      return await handleSessionPathMove(
+        session.id,
         expectedPath,
-        markdown,
-        `Move session: ${session.date}`
-      );
-
-      if (!createResult.success) {
-        return createResult;
-      }
-
-      const deleteResult = await githubDeleteWithBranchRetry(
-        config,
         discoveredPath,
-        {
-          message: `Move session: ${session.date}`,
-          branch,
-          sha,
-        }
+        markdown,
+        config,
+        session,
+        sha
       );
-
-      // P3: Update manifest - old path removed, new path added
-      removeManifestEntry(session.id, config);
-      if (createResult.sha) {
-        setManifestEntry(session.id, expectedPath, createResult.sha, config);
-      }
-
-      return {
-        success: true,
-        message: 'Session updated on GitHub',
-        filePath: expectedPath,
-        sha:
-          createResult.sha ?? deleteResult?.content?.sha ?? deleteResult?.sha,
-        branch,
-      };
     }
 
-    const message = `Update session: ${session.date}`;
-
-    // Retry loop for race conditions: re-fetch SHA on 422/409 (max 3 attempts).
-    let retries = 0;
-    const maxRetries = 2;
-    while (true) {
-      const result = await putFile(config, expectedPath, markdown, message, sha);
-      if (result.success) {
-        // P3: Update manifest cache
-        if (result.sha) {
-          setManifestEntry(session.id, expectedPath, result.sha, config);
-        }
-        return result;
-      }
-
-      // Check if this is a conflict / precondition-failed error from a stale SHA.
-      const isShaConflict =
-        result.message.includes('422') ||
-        result.message.includes('409') ||
-        result.message.toLowerCase().includes('conflict') ||
-        result.message.toLowerCase().includes('sha');
-
-      if (isShaConflict && retries < maxRetries) {
-        retries += 1;
-        sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
-        if (!sha) {
-          return {
-            success: false,
-            message: `GitHub session update for ${session.id} failed: file disappeared after ${retries} retry attempt(s)`,
-          };
-        }
-        continue;
-      }
-
-      return result;
-    }
+    // Normal update case: file exists at expected path
+    return await updateWithRetry(
+      config,
+      expectedPath,
+      session.id,
+      markdown,
+      sha,
+      session,
+      branch
+    );
   } catch (error) {
     return {
       success: false,

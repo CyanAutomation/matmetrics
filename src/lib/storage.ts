@@ -15,6 +15,7 @@ import {
   hasPendingOperations,
   setQueue,
   getSyncQueueStorageKey,
+  type SyncOperation,
 } from './sync-queue';
 import { getScopedStorageKey, isGuestMode } from './client-identity';
 import { getAuthHeaders } from './auth-session';
@@ -1221,6 +1222,66 @@ function handleStorageEvent(event: StorageEvent): void {
   }
 }
 
+/**
+ * Build the URL for fetching sessions from the API.
+ * Includes GitHub configuration parameters if enabled.
+ */
+function buildSessionListUrl(
+  gitHubConfig: ReturnType<typeof getGitHubConfig>,
+  force: boolean
+): URL {
+  const url = new URL('/api/sessions/list', window.location.origin);
+  if (gitHubConfig && isGitHubEnabled()) {
+    url.searchParams.set('owner', gitHubConfig.owner);
+    url.searchParams.set('repo', gitHubConfig.repo);
+    if (gitHubConfig.branch) {
+      url.searchParams.set('branch', gitHubConfig.branch);
+    }
+    if (force) {
+      url.searchParams.set('force', '1');
+    }
+  }
+  return url;
+}
+
+/**
+ * Parse the API response and extract sessions and issues.
+ */
+function parseSessionListResponse(payload: unknown): {
+  sessions: JudoSession[];
+  issues: SessionFileIssue[];
+} {
+  const sessions: JudoSession[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as any)?.sessions)
+      ? (payload as any).sessions
+      : [];
+  const issues: SessionFileIssue[] = Array.isArray((payload as any)?.issues)
+    ? (payload as any).issues
+    : [];
+  return { sessions, issues };
+}
+
+/**
+ * Reconcile dirty mutations against remote sessions.
+ * Clears mutations that have been applied upstream.
+ */
+function reconcileDirtyMutations(sessions: JudoSession[]): void {
+  for (const [id, mutation] of getDirtyMutations().entries()) {
+    if (mutation.type === 'DELETE') {
+      if (!sessions.some((session) => session.id === id)) {
+        clearDirtyMutation(id);
+      }
+      continue;
+    }
+
+    const remoteSession = sessions.find((session) => session.id === id);
+    if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
+      clearDirtyMutation(id);
+    }
+  }
+}
+
 async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
@@ -1254,20 +1315,10 @@ async function refreshSessionsFromAPI(options?: {
 
     try {
       const gitHubConfig = getGitHubConfig();
-      const url = new URL('/api/sessions/list', window.location.origin);
-      if (gitHubConfig && isGitHubEnabled()) {
-        url.searchParams.set('owner', gitHubConfig.owner);
-        url.searchParams.set('repo', gitHubConfig.repo);
-        if (gitHubConfig.branch) {
-          url.searchParams.set('branch', gitHubConfig.branch);
-        }
-        if (force) {
-          url.searchParams.set('force', '1');
-        }
-      }
-
+      const url = buildSessionListUrl(gitHubConfig, force);
       const headers = await getAuthHeaders();
       const res = await fetch(url.toString(), { headers });
+
       if (!res.ok) {
         console.warn(
           `Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`
@@ -1276,16 +1327,8 @@ async function refreshSessionsFromAPI(options?: {
       }
 
       const payload = await res.json();
-      const sessions: JudoSession[] = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.sessions)
-          ? payload.sessions
-          : [];
-      const sessionFileIssues: SessionFileIssue[] = Array.isArray(
-        payload?.issues
-      )
-        ? payload.issues
-        : [];
+      const { sessions, issues } = parseSessionListResponse(payload);
+
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
@@ -1294,24 +1337,11 @@ async function refreshSessionsFromAPI(options?: {
       }
 
       const mergedSessions = getOptimisticSessions(sessions);
-
-      for (const [id, mutation] of getDirtyMutations().entries()) {
-        if (mutation.type === 'DELETE') {
-          if (!sessions.some((session) => session.id === id)) {
-            clearDirtyMutation(id);
-          }
-          continue;
-        }
-
-        const remoteSession = sessions.find((session) => session.id === id);
-        if (remoteSession && sessionsEqual(remoteSession, mutation.session)) {
-          clearDirtyMutation(id);
-        }
-      }
+      reconcileDirtyMutations(sessions);
 
       latestAppliedSeq = seq;
       lastSuccessfulRemoteRefreshAt = Date.now();
-      sessionFileIssuesCache = sessionFileIssues;
+      sessionFileIssuesCache = issues;
       commitLocalSessions(mergedSessions);
       dispatchStorageSync(mergedSessions);
     } catch (error) {
@@ -1336,6 +1366,153 @@ async function refreshSessionsFromAPI(options?: {
   return inFlightRefresh;
 }
 
+/**
+ * Prepare and start lease acquisition with heartbeat renewal.
+ * Returns cleanup function to call when lease is no longer needed.
+ */
+async function prepareAndStartLease(): Promise<{
+  acquired: boolean;
+  clearHeartbeat: () => void;
+}> {
+  let leaseHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+  const leaseAcquired = await tryAcquireSyncLease();
+  if (!leaseAcquired) {
+    return { acquired: false, clearHeartbeat: () => {} };
+  }
+
+  const heartbeatIntervalMs = Math.min(
+    Math.max(MIN_SYNC_LOCK_HEARTBEAT_MS, syncLockHeartbeatMs),
+    Math.max(MIN_SYNC_LOCK_HEARTBEAT_MS, Math.floor(syncLockTtlMs / 2))
+  );
+
+  leaseHeartbeat = setInterval(() => {
+    if (!renewSyncLease()) {
+      if (leaseHeartbeat) {
+        clearInterval(leaseHeartbeat);
+        leaseHeartbeat = null;
+      }
+    }
+  }, heartbeatIntervalMs);
+
+  return {
+    acquired: true,
+    clearHeartbeat: () => {
+      if (leaseHeartbeat) {
+        clearInterval(leaseHeartbeat);
+      }
+    },
+  };
+}
+
+/**
+ * Process a single queue operation with lease ownership verification and error handling.
+ * Returns true if processing should continue, false if lease was lost or error occurred.
+ */
+async function processSingleQueueOperation(
+  operation: SyncOperation,
+  index: number,
+  queue: SyncOperation[],
+  generation: number,
+  gitHubConfig: ReturnType<typeof getGitHubConfig>,
+  gitHubEnabled: boolean,
+  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
+): Promise<{ success: boolean; shouldContinue: boolean }> {
+  // Check lease ownership before operation
+  if (!hasActiveSyncLeaseOwnership() || !renewSyncLease()) {
+    await onAbort(queue.slice(index));
+    return { success: false, shouldContinue: false };
+  }
+
+  try {
+    // Build operation-specific request body and URL
+    let body: Record<string, unknown> = {};
+    let url: string;
+
+    switch (operation.type) {
+      case 'CREATE': {
+        url = '/api/sessions/create';
+        body = { ...operation.session };
+        if (gitHubConfig && gitHubEnabled) {
+          body.gitHubConfig = gitHubConfig;
+        }
+        break;
+      }
+
+      case 'UPDATE': {
+        url = `/api/sessions/${operation.session.id}`;
+        body = { ...operation.session };
+        if (gitHubConfig && gitHubEnabled) {
+          body.gitHubConfig = gitHubConfig;
+        }
+        break;
+      }
+
+      case 'DELETE': {
+        url = `/api/sessions/${operation.id}`;
+        if (gitHubConfig && gitHubEnabled) {
+          body.gitHubConfig = gitHubConfig;
+        }
+        break;
+      }
+    }
+
+    const headers = await getAuthHeaders({
+      'Content-Type': 'application/json',
+    });
+
+    await syncRequest(url, {
+      method: operation.type === 'CREATE' ? 'POST' : operation.type === 'UPDATE' ? 'PUT' : 'DELETE',
+      headers,
+      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+    });
+
+    // Verify lease still owned after operation
+    if (!hasActiveSyncLeaseOwnership()) {
+      await onAbort(queue.slice(index));
+      return { success: false, shouldContinue: false };
+    }
+
+    // Mark mutation as synced
+    const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
+    clearDirtyMutation(sessionId, operation.queuedAt);
+
+    return { success: true, shouldContinue: true };
+  } catch (error) {
+    console.error('Error syncing operation', error);
+
+    // Handle permanent failures
+    if (error instanceof SyncRequestError && !error.retryable) {
+      const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
+      clearDirtyMutation(sessionId, operation.queuedAt);
+
+      const remainingOperations = queue.filter((_, i) => i !== index);
+      if (isStorageGenerationCurrent(generation)) {
+        await setQueue(remainingOperations, queue);
+        await reconcilePermanentFailure();
+      }
+      return { success: false, shouldContinue: false };
+    }
+
+    // Handle retryable errors with backoff
+    if (
+      error instanceof SyncRequestError &&
+      error.retryAfterMs !== null &&
+      error.retryAfterMs > 0
+    ) {
+      const retryAfterMs = error.retryAfterMs;
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+    }
+
+    // Stop syncing on error; queue remaining operations for retry
+    const remainingOperations = queue.slice(index);
+    if (isStorageGenerationCurrent(generation)) {
+      await setQueue(remainingOperations, queue);
+    }
+    return { success: false, shouldContinue: false };
+  }
+}
+
 async function syncPendingOperations(): Promise<void> {
   if (!isOnline || isGuestMode()) return;
   if (inFlightSync) {
@@ -1354,161 +1531,46 @@ async function syncPendingOperations(): Promise<void> {
     const generation = storageGeneration;
     isSyncing = true;
     let leaseAcquired = false;
-    let leaseHeartbeat: ReturnType<typeof setInterval> | null = null;
 
     try {
-      leaseAcquired = await tryAcquireSyncLease();
+      // Acquire lease and setup heartbeat
+      const lease = await prepareAndStartLease();
+      leaseAcquired = lease.acquired;
+
       if (!leaseAcquired) {
         return;
       }
 
-      const heartbeatIntervalMs = Math.min(
-        Math.max(MIN_SYNC_LOCK_HEARTBEAT_MS, syncLockHeartbeatMs),
-        Math.max(MIN_SYNC_LOCK_HEARTBEAT_MS, Math.floor(syncLockTtlMs / 2))
-      );
-      leaseHeartbeat = setInterval(() => {
-        if (!renewSyncLease()) {
-          if (leaseHeartbeat) {
-            clearInterval(leaseHeartbeat);
-            leaseHeartbeat = null;
-          }
-        }
-      }, heartbeatIntervalMs);
-
       const queue = getQueue();
       const gitHubConfig = getGitHubConfig();
       const gitHubEnabled = isGitHubEnabled();
-      const abortForLeaseLoss = (remainingOperations: typeof queue): void => {
-        if (leaseHeartbeat) {
-          clearInterval(leaseHeartbeat);
-          leaseHeartbeat = null;
+
+      // Abort handler: clear heartbeat and update queue on lease loss
+      const onAbort = async (remainingOps: SyncOperation[]) => {
+        lease.clearHeartbeat();
+        if (isStorageGenerationCurrent(generation)) {
+          await setQueue(remainingOps, queue);
         }
-        if (!isStorageGenerationCurrent(generation)) {
-          return;
-        }
-        setQueue(remainingOperations, queue);
       };
+
+      // Process each operation in the queue
       for (const [index, operation] of queue.entries()) {
-        if (!hasActiveSyncLeaseOwnership() || !renewSyncLease()) {
-          abortForLeaseLoss(queue.slice(index));
-          return;
-        }
+        const result = await processSingleQueueOperation(
+          operation,
+          index,
+          queue,
+          generation,
+          gitHubConfig,
+          gitHubEnabled,
+          onAbort
+        );
 
-        try {
-          switch (operation.type) {
-            case 'CREATE':
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              const createBody: any = { ...operation.session };
-              if (gitHubConfig && gitHubEnabled) {
-                createBody.gitHubConfig = gitHubConfig;
-              }
-              const createHeaders = await getAuthHeaders({
-                'Content-Type': 'application/json',
-              });
-              await syncRequest('/api/sessions/create', {
-                method: 'POST',
-                headers: createHeaders,
-                body: JSON.stringify(createBody),
-              });
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              clearDirtyMutation(operation.session.id, operation.queuedAt);
-              break;
-
-            case 'UPDATE':
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              const updateBody: any = { ...operation.session };
-              if (gitHubConfig && gitHubEnabled) {
-                updateBody.gitHubConfig = gitHubConfig;
-              }
-              const updateHeaders = await getAuthHeaders({
-                'Content-Type': 'application/json',
-              });
-              await syncRequest(`/api/sessions/${operation.session.id}`, {
-                method: 'PUT',
-                headers: updateHeaders,
-                body: JSON.stringify(updateBody),
-              });
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              clearDirtyMutation(operation.session.id, operation.queuedAt);
-              break;
-
-            case 'DELETE':
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              const deleteBody: any = {};
-              if (gitHubConfig && gitHubEnabled) {
-                deleteBody.gitHubConfig = gitHubConfig;
-              }
-              const deleteHeaders = await getAuthHeaders({
-                'Content-Type': 'application/json',
-              });
-              await syncRequest(`/api/sessions/${operation.id}`, {
-                method: 'DELETE',
-                headers: deleteHeaders,
-                body:
-                  Object.keys(deleteBody).length > 0
-                    ? JSON.stringify(deleteBody)
-                    : undefined,
-              });
-              if (!hasActiveSyncLeaseOwnership()) {
-                abortForLeaseLoss(queue.slice(index));
-                return;
-              }
-              clearDirtyMutation(operation.id, operation.queuedAt);
-              break;
-          }
-        } catch (error) {
-          console.error('Error syncing operation', error);
-          if (error instanceof SyncRequestError && !error.retryable) {
-            clearDirtyMutation(
-              operation.type === 'DELETE' ? operation.id : operation.session.id,
-              operation.queuedAt
-            );
-            const remainingOperations = queue.filter(
-              (_, remainingIndex) => remainingIndex !== index
-            );
-            if (!isStorageGenerationCurrent(generation)) {
-              return;
-            }
-            await setQueue(remainingOperations, queue);
-            await reconcilePermanentFailure();
-            return;
-          }
-
-          if (
-            error instanceof SyncRequestError &&
-            error.retryAfterMs !== null &&
-            error.retryAfterMs > 0
-          ) {
-            const retryAfterMs = error.retryAfterMs;
-            await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
-          }
-
-          // Stop syncing on first error; retries must include the failed operation to avoid data loss.
-          const remainingOperations = queue.slice(index);
-          if (!isStorageGenerationCurrent(generation)) {
-            return;
-          }
-          await setQueue(remainingOperations, queue);
+        if (!result.shouldContinue) {
           return;
         }
       }
 
-      // If all operations succeeded, clear the queue
+      // All operations succeeded, clear queue and refresh
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
@@ -1524,9 +1586,6 @@ async function syncPendingOperations(): Promise<void> {
         await refreshSessionsFromAPI();
       }
     } finally {
-      if (leaseHeartbeat) {
-        clearInterval(leaseHeartbeat);
-      }
       isSyncing = false;
       if (leaseAcquired) {
         releaseSyncLease();
