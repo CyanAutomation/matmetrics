@@ -16,7 +16,7 @@ export const pluginTierToneClass: Record<PluginMaturityTier, string> = {
   gold: 'ui-pill-trend-positive',
 };
 
-export const dashboardCategoryBarClass: Record<string, string> = {
+const dashboardCategoryBarClass: Record<string, string> = {
   Technical: 'bg-[hsl(var(--chart-1))]',
   Randori: 'bg-[hsl(var(--chart-2))]',
   Shiai: 'bg-[hsl(var(--chart-3))]',

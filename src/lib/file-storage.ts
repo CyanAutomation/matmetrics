@@ -919,7 +919,7 @@ export async function listSessions(): Promise<JudoSession[]> {
 /**
  * Read a single session by date and optional counter
  */
-export async function readSession(
+async function readSession(
   date: string,
   counter?: number
 ): Promise<JudoSession | null> {

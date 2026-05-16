@@ -96,7 +96,7 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
  *
  * Manages technique array manipulation (add, remove)
  */
-export function useTechniqueArray(initialTechniques: string[]) {
+function useTechniqueArray(initialTechniques: string[]) {
   const [techniques, setTechniques] = useState(initialTechniques);
   const [newTech, setNewTech] = useState('');
 

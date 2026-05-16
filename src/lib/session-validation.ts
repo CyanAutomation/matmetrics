@@ -14,7 +14,7 @@ export type ValidationResult =
  * Validate and normalize a video URL.
  * Returns the validated URL as a string, or an error object.
  */
-export function validateVideoUrl(
+function validateVideoUrl(
   url: unknown
 ): { ok: true; value: string | undefined } | { ok: false; error: string } {
   if (url === undefined) {
@@ -62,7 +62,7 @@ export function validateVideoUrl(
  * Validate and deduplicate techniques array.
  * Returns deduplicated techniques list, or an error object.
  */
-export function validateTechniques(
+function validateTechniques(
   techniques: unknown
 ): { ok: true; value: string[] } | { ok: false; error: string } {
   if (!Array.isArray(techniques)) {

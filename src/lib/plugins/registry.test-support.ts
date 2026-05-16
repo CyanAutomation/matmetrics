@@ -15,7 +15,7 @@ const getEnabledStateOrThrow = (pluginId: string): boolean => {
   return manifest.enabled;
 };
 
-export const createPluginEnabledStateIsolation = () => {
+const createPluginEnabledStateIsolation = () => {
   const originalEnabledStateByPluginId = new Map<string, boolean>();
 
   return {

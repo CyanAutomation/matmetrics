@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const VERSION_REGEX = /^\d+\.\d+\.\d+$/;
+const VERSION_REGEX = /^\d+\.\d+\.\d+$/;
 
-export const pluginExtensionBaseSchema = z.object({
+const pluginExtensionBaseSchema = z.object({
   type: z.string().min(1),
   id: z.string().min(1),
   title: z.string().min(1),

@@ -1,6 +1,6 @@
 import { getFirebaseAuth } from './firebase-client';
 
-export async function getCurrentIdToken(): Promise<string | null> {
+async function getCurrentIdToken(): Promise<string | null> {
   try {
     const currentUser = getFirebaseAuth().currentUser;
     return currentUser ? await currentUser.getIdToken() : null;

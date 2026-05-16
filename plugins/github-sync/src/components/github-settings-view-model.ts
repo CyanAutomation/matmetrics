@@ -11,7 +11,7 @@ export type GitHubSettingsControlState = {
   isClearDialogOpen: boolean;
 };
 
-export const GITHUB_SYNC_HISTORY_REFRESH_LABEL = 'Refresh history';
+const GITHUB_SYNC_HISTORY_REFRESH_LABEL = 'Refresh history';
 export const GITHUB_SYNC_HISTORY_REFRESH_LOADING_LABEL = 'Loading history…';
 export const GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
 export const GITHUB_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL = 'Clear Configuration';

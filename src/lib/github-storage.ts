@@ -953,7 +953,7 @@ export async function updateSessionOnGitHub(
 /**
  * Delete a session file from GitHub
  */
-export async function deleteSessionOnGitHub(
+async function deleteSessionOnGitHub(
   session: JudoSession,
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
@@ -1092,7 +1092,7 @@ export async function deleteSessionOnGitHubById(
 /**
  * Create or update a README.md in the repo with session stats
  */
-export async function createGitHubReadme(
+async function createGitHubReadme(
   config: GitHubConfig,
   sessionCount: number,
   latestDate?: string
@@ -1255,7 +1255,7 @@ export async function bulkPushSessions(
 /**
  * Validate GitHub credentials by testing the API
  */
-export async function validateGitHubCredentials(
+async function validateGitHubCredentials(
   config: GitHubConfig
 ): Promise<GitHubSyncResult> {
   try {

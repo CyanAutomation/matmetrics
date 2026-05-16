@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { APP_VERSION } from '@/lib/app-version';
 
-export const RELEASE_SECTION_LABELS = [
+const RELEASE_SECTION_LABELS = [
   'Features',
   'Improvements',
   'Fixes',
@@ -181,7 +181,7 @@ export const getRecentReleasesFromSource = (
   limit = 3
 ): ReleaseEntry[] => parseChangelog(source).slice(0, limit);
 
-export const readChangelog = async (): Promise<string> =>
+const readChangelog = async (): Promise<string> =>
   readFile(CHANGELOG_PATH, 'utf8');
 
 export const getRecentReleases = async (limit = 3): Promise<ReleaseEntry[]> =>

@@ -9,7 +9,7 @@ import {
   normalizeNetworkHostname,
 } from '@/lib/network-safety';
 
-export const STARTER_VIDEO_ALLOWED_DOMAINS = [
+const STARTER_VIDEO_ALLOWED_DOMAINS = [
   'youtube.com',
   'youtu.be',
   'vimeo.com',
@@ -211,7 +211,7 @@ export function deriveVideoLibraryEntries(
   });
 }
 
-export function canCheckVideoEntry(entry: VideoLibraryEntry): boolean {
+function canCheckVideoEntry(entry: VideoLibraryEntry): boolean {
   return (
     entry.status === 'allowed_unchecked' && !!entry.url && !!entry.hostname
   );

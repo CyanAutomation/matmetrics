@@ -29,7 +29,7 @@ function readTestModeGitHubConfig(): GitHubConfig | undefined {
   };
 }
 
-export async function getStoredGitHubConfigForUser(
+async function getStoredGitHubConfigForUser(
   uid: string
 ): Promise<GitHubConfig | undefined> {
   if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {

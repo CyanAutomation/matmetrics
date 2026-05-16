@@ -35,7 +35,7 @@ export function isFirebaseConfigured(): boolean {
   return getFirebaseClientConfig() !== null;
 }
 
-export function getFirebaseApp(): FirebaseApp {
+function getFirebaseApp(): FirebaseApp {
   const config = getFirebaseClientConfig();
   if (!config) {
     throw new Error('Firebase client configuration is missing');

@@ -14,7 +14,7 @@ export type PluginUIConformanceRule = {
   };
 };
 
-export const PLUGIN_UI_CONFORMANCE_RULES: Record<
+const PLUGIN_UI_CONFORMANCE_RULES: Record<
   PluginUIType,
   PluginUIConformanceRule
 > = {

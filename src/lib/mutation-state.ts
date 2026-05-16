@@ -50,7 +50,7 @@ let mutationVersion = 0;
 /**
  * Get the next mutation version number
  */
-export function nextMutationVersion(): number {
+function nextMutationVersion(): number {
   mutationVersion += 1;
   return mutationVersion;
 }
@@ -149,7 +149,7 @@ export function sessionsEqual(left: JudoSession, right: JudoSession): boolean {
  * Apply a single dirty mutation to a base sessions array
  * Returns the updated array
  */
-export function applyOptimisticMutation(
+function applyOptimisticMutation(
   baseSessions: JudoSession[],
   mutation: DirtyMutation
 ): JudoSession[] {
@@ -183,13 +183,13 @@ export function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[
 /**
  * Check if there are any pending mutations
  */
-export function hasPendingMutations(): boolean {
+function hasPendingMutations(): boolean {
   return dirtyMutations.size > 0;
 }
 
 /**
  * Get count of pending mutations
  */
-export function getPendingMutationCount(): number {
+function getPendingMutationCount(): number {
   return dirtyMutations.size;
 }

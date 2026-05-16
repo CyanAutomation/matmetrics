@@ -637,7 +637,7 @@ export async function saveGitHubSettingsPreference(
   );
 }
 
-export async function saveGitHubConfigPreference(
+async function saveGitHubConfigPreference(
   uid: string,
   config: GitHubConfig
 ): Promise<void> {
@@ -786,7 +786,7 @@ export async function saveSessionAudit(
   );
 }
 
-export async function deleteSessionAudit(
+async function deleteSessionAudit(
   uid: string,
   sessionId: string
 ): Promise<void> {

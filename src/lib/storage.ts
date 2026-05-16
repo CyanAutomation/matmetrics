@@ -974,14 +974,14 @@ const tagDomainService = createTagService({
 /**
  * @deprecated Use tagService.listTags from src/lib/tags instead.
  */
-export function getAllTags(): string[] {
+function getAllTags(): string[] {
   return tagDomainService.listTags();
 }
 
 /**
  * @deprecated Use tagService.renameTag from src/lib/tags instead.
  */
-export async function renameTag(
+async function renameTag(
   oldName: string,
   newName: string
 ): Promise<void> {
@@ -994,7 +994,7 @@ export async function renameTag(
 /**
  * @deprecated Use tagService.deleteTag from src/lib/tags instead.
  */
-export async function deleteTag(tagName: string): Promise<void> {
+async function deleteTag(tagName: string): Promise<void> {
   const result = await tagDomainService.deleteTag(tagName);
   if (result.conflicts.length > 0) {
     throw new Error(result.conflicts[0].message);
@@ -1004,7 +1004,7 @@ export async function deleteTag(tagName: string): Promise<void> {
 /**
  * @deprecated Use tagService.mergeTags from src/lib/tags instead.
  */
-export async function mergeTags(
+async function mergeTags(
   sourceTag: string,
   targetTag: string
 ): Promise<void> {
@@ -1021,63 +1021,63 @@ export function getTransformerPrompt(): string {
   );
 }
 
-export function saveTransformerPrompt(prompt: string): void {
+function saveTransformerPrompt(prompt: string): void {
   void prompt;
   console.warn(
     'saveTransformerPrompt is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
-export function resetTransformerPrompt(): void {
+function resetTransformerPrompt(): void {
   console.warn(
     'resetTransformerPrompt is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
 // GitHub Settings Persistence
-export function getGitHubSettings(): GitHubSettings {
+function getGitHubSettings(): GitHubSettings {
   return readPreferences().gitHub ?? { ...DEFAULT_GITHUB_SETTINGS };
 }
 
-export function getGitHubConfig(): GitHubConfig | null {
+function getGitHubConfig(): GitHubConfig | null {
   const settings = getGitHubSettings();
   return settings.config || null;
 }
 
-export function isGitHubEnabled(): boolean {
+function isGitHubEnabled(): boolean {
   return getGitHubSettings().enabled;
 }
 
-export function isGitHubMigrationDone(): boolean {
+function isGitHubMigrationDone(): boolean {
   return getGitHubSettings().migrationDone;
 }
 
-export function saveGitHubConfig(config: GitHubConfig): void {
+function saveGitHubConfig(config: GitHubConfig): void {
   void config;
   console.warn(
     'saveGitHubConfig is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
-export function enableGitHub(): void {
+function enableGitHub(): void {
   console.warn(
     'enableGitHub is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
-export function disableGitHub(): void {
+function disableGitHub(): void {
   console.warn(
     'disableGitHub is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
-export function clearGitHubConfig(): void {
+function clearGitHubConfig(): void {
   console.warn(
     'clearGitHubConfig is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
-export function setGitHubMigrationDone(): void {
+function setGitHubMigrationDone(): void {
   console.warn(
     'setGitHubMigrationDone is deprecated. Use the authenticated preference helpers instead.'
   );

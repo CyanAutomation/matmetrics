@@ -39,13 +39,13 @@ export type LeaseTakeoverReason =
 // Constants
 // ============================================================================
 
-export const SYNC_LOCK_ACQUIRE_ATTEMPTS = 7;
+const SYNC_LOCK_ACQUIRE_ATTEMPTS = 7;
 export const SYNC_LOCK_BACKOFF_MIN_MS = 6;
 export const SYNC_LOCK_BACKOFF_MAX_MS = 28;
 export const SYNC_LOCK_VERIFY_DELAY_MIN_MS = 1;
 export const SYNC_LOCK_VERIFY_DELAY_MAX_MS = 6;
-export const SYNC_LOCK_NAME = 'matmetrics-sync';
-export const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
+const SYNC_LOCK_NAME = 'matmetrics-sync';
+const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
 
 // ============================================================================
 // Dependencies (injected)
@@ -93,7 +93,7 @@ export type LeaseTakeoverDiagnosticPayload = {
 let activeSyncLease: ActiveSyncLease | null = null;
 let localLeaseEpochCounter = 0;
 
-export function getActiveSyncLease(): ActiveSyncLease | null {
+function getActiveSyncLease(): ActiveSyncLease | null {
   return activeSyncLease;
 }
 
@@ -105,7 +105,7 @@ export function setActiveSyncLease(lease: ActiveSyncLease | null): void {
 // Helper Functions (reduced cognitive complexity)
 // ============================================================================
 
-export function sleep(ms: number): Promise<void> {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -509,7 +509,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
 /**
  * Renew an existing sync lease
  */
-export function renewSyncLease(): boolean {
+function renewSyncLease(): boolean {
   if (typeof window === 'undefined' || !getSyncLockStorageKeyFn) {
     return false;
   }
@@ -552,7 +552,7 @@ export function renewSyncLease(): boolean {
 /**
  * Check if we currently own an active sync lease
  */
-export function hasActiveSyncLeaseOwnership(): boolean {
+function hasActiveSyncLeaseOwnership(): boolean {
   if (activeSyncLease?.mode === 'web-lock') {
     return true;
   }

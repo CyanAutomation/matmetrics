@@ -1,0 +1,75 @@
+Would remove export from src/lib/file-storage.ts:922 `readSession`
+Would remove export from src/lib/firebase-admin.ts:97 `validateFirebaseConfig`
+Would remove export from src/lib/session-storage.ts:465 `readSessionByIdFromGitHub`
+Would remove export from src/lib/session-storage.ts:438 `listSessionsForConfig`
+Would remove export from src/lib/session-storage.ts:125 `shouldUseGitHubStorage`
+Would remove export from src/lib/interaction.ts:15 `getFeedbackResetDelay`
+Would remove export from plugins/test-plugin-manifest-contract.ts:37 `testPluginManifestContract`
+Would remove export from src/hooks/use-session-form.ts:99 `useTechniqueArray`
+Would remove export from src/lib/markdown-serializer.ts:421 `validateRoundtrip`
+Would remove export from src/components/ui/badge.tsx:37 `badgeVariants`
+Would remove export from src/lib/plugins/registry.test-support.ts:18 `createPluginEnabledStateIsolation`
+Would remove export from src/lib/firebase-client.ts:38 `getFirebaseApp`
+Would remove export from src/lib/session-validation.ts:65 `validateTechniques`
+Would remove export from src/lib/session-validation.ts:17 `validateVideoUrl`
+Would remove export from src/lib/video-library.ts:214 `canCheckVideoEntry`
+Would remove export from src/lib/video-library.ts:12 `STARTER_VIDEO_ALLOWED_DOMAINS`
+Would remove export from src/lib/plugins/manifest-schema.ts:5 `pluginExtensionBaseSchema`
+Would remove export from src/lib/plugins/manifest-schema.ts:3 `VERSION_REGEX`
+Would remove export from plugins/test-plugin-registration-contract.ts:65 `testPluginRegistrationContract`
+Would remove export from src/lib/user-preferences.ts:789 `deleteSessionAudit`
+Would remove export from src/lib/user-preferences.ts:640 `saveGitHubConfigPreference`
+Would remove export from src/lib/design-tokens.ts:64 `isKebabCaseDesignTokenKey`
+Would remove export from src/lib/design-tokens.ts:1 `CANONICAL_DESIGN_TOKEN_KEYS`
+Would remove export from src/lib/server-github-authz.ts:32 `getStoredGitHubConfigForUser`
+Would remove export from plugins/github-sync/src/components/github-settings-view-model.ts:14 `GITHUB_SYNC_HISTORY_REFRESH_LABEL`
+Would remove export from src/lib/sync-lease.ts:555 `hasActiveSyncLeaseOwnership`
+Would remove export from src/lib/sync-lease.ts:512 `renewSyncLease`
+Would remove export from src/lib/sync-lease.ts:108 `sleep`
+Would remove export from src/lib/sync-lease.ts:96 `getActiveSyncLease`
+Would remove export from src/lib/sync-lease.ts:48 `STALE_LEASE_RECLAIM_RETRY_THRESHOLD`
+Would remove export from src/lib/sync-lease.ts:47 `SYNC_LOCK_NAME`
+Would remove export from src/lib/sync-lease.ts:42 `SYNC_LOCK_ACQUIRE_ATTEMPTS`
+Would remove export from src/lib/auth-session.ts:3 `getCurrentIdToken`
+Would remove export from src/lib/plugins/ui-conformance-rules.ts:17 `PLUGIN_UI_CONFORMANCE_RULES`
+Would remove export from src/lib/storage.ts:1080 `setGitHubMigrationDone`
+Would remove export from src/lib/storage.ts:1074 `clearGitHubConfig`
+Would remove export from src/lib/storage.ts:1068 `disableGitHub`
+Would remove export from src/lib/storage.ts:1062 `enableGitHub`
+Would remove export from src/lib/storage.ts:1055 `saveGitHubConfig`
+Would remove export from src/lib/storage.ts:1051 `isGitHubMigrationDone`
+Would remove export from src/lib/storage.ts:1047 `isGitHubEnabled`
+Would remove export from src/lib/storage.ts:1042 `getGitHubConfig`
+Would remove export from src/lib/storage.ts:1038 `getGitHubSettings`
+Would remove export from src/lib/storage.ts:1031 `resetTransformerPrompt`
+Would remove export from src/lib/storage.ts:1024 `saveTransformerPrompt`
+Would remove export from src/lib/storage.ts:1007 `mergeTags`
+Would remove export from src/lib/storage.ts:997 `deleteTag`
+Would remove export from src/lib/storage.ts:984 `renameTag`
+Would remove export from src/lib/storage.ts:977 `getAllTags`
+Would remove export from src/lib/plugins/plugin-surface.tsx:252 `getPluginSurfaceLayoutClassName`
+Would remove export from src/lib/releases.ts:184 `readChangelog`
+Would remove export from src/lib/releases.ts:6 `RELEASE_SECTION_LABELS`
+Would remove export from plugins/tag-manager/src/components/tag-manager.tsx:59 `TAG_MANAGER_ERROR_RECOVERY_HINT`
+Would remove export from src/lib/github-storage.ts:1258 `validateGitHubCredentials`
+Would remove export from src/lib/github-storage.ts:1095 `createGitHubReadme`
+Would remove export from src/lib/github-storage.ts:956 `deleteSessionOnGitHub`
+Would remove export from src/lib/mutation-state.ts:193 `getPendingMutationCount`
+Would remove export from src/lib/mutation-state.ts:186 `hasPendingMutations`
+Would remove export from src/lib/mutation-state.ts:152 `applyOptimisticMutation`
+Would remove export from src/lib/mutation-state.ts:53 `nextMutationVersion`
+Would remove export from src/lib/plugins/api-contract.ts:216 `toPluginDirectoryName`
+Would remove export from src/lib/plugins/api-contract.ts:206 `writePluginManifest`
+Would remove export from src/lib/plugins/api-contract.ts:185 `ensurePathUnderRoot`
+Would remove export from src/lib/plugins/api-contract.ts:165 `mergePreserveUnknownKeys`
+Would remove export from src/lib/plugins/api-contract.ts:43 `toRelativeRepoPath`
+Would remove export from src/components/version-history-modal.tsx:186 `VersionHistoryButton`
+Would remove export from src/components/ui/button.tsx:77 `buttonVariants`
+Would remove export from src/lib/ui-semantic.ts:19 `dashboardCategoryBarClass`
+Would remove export from plugins/video-library/src/components/video-library.tsx:144 `VIDEO_LIBRARY_LOUNGE_EMPTY_DESCRIPTION`
+Would remove `@hookform/resolvers` from dependencies in /workspaces/matmetrics/package.json
+Would remove `framer-motion` from dependencies in /workspaces/matmetrics/package.json
+Would remove `patch-package` from dependencies in /workspaces/matmetrics/package.json
+Would remove `react-hook-form` from dependencies in /workspaces/matmetrics/package.json
+Skipped duplicate-export config fix: no fallow config file at /workspaces/matmetrics. Run `fallow init` to create one, then re-run `fallow fix --yes`. (Note: `package.json#fallow` is not a supported config location.)
+Dry run complete. No files were modified.
