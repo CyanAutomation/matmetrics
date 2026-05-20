@@ -16,7 +16,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'bronze');
+      assert.equal(tier, 'Bronze');
     });
 
     it('should assign Bronze tier as default when score below Silver threshold', () => {
@@ -29,7 +29,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'bronze');
+      assert.equal(tier, 'Bronze');
     });
   });
 
@@ -186,7 +186,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'bronze');
+      assert.equal(tier, 'Bronze');
     });
 
     it('should handle partial evidence', () => {
