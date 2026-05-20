@@ -83,7 +83,13 @@ export class EvidenceAccumulator {
    * Get current evidence entries
    */
   getEvidence(): Record<PluginMaturityCategory, string[]> {
-    const result: Record<PluginMaturityCategory, string[]> = {};
+    const result: Record<PluginMaturityCategory, string[]> = {
+      contract_metadata: [],
+      runtime_integration: [],
+      feature_quality: [],
+      test_coverage: [],
+      operability_docs: [],
+    };
     for (const category in this.evidence) {
       result[category as PluginMaturityCategory] = [...this.evidence[category as PluginMaturityCategory]];
     }
