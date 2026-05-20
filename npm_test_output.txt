@@ -1,0 +1,1623 @@
+
+> nextn@1.2.0 test
+> npm run validate:plugin-ui-contract && NODE_ENV=test node --import tsx --test
+
+
+> nextn@1.2.0 validate:plugin-ui-contract
+> node --import tsx scripts/validate-plugin-ui-contract.ts
+
+✅ Plugin UI contract validation passed.
+✔ github-sync manifest declares the expected settings tab copy and icon (1.003327ms)
+✔ github-sync manifest evidence tracks sync-specific UX safeguards (0.915619ms)
+✔ returns a validation error when owner or repo are missing (1.1081ms)
+✔ deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations (2.623886ms)
+✔ builds failure messages for API/network errors (0.218614ms)
+✔ deriveDisableOutcome returns deterministic results for edge destructive states (1.044615ms)
+✔ deriveClearOutcome returns deterministic results for edge destructive states (2.569025ms)
+✔ runLoadGitHubSyncHistory maps error and empty responses to semantic user-facing messages (30.47061ms)
+✔ runLoadGitHubSyncHistory maps summary payload fields and warnings into success state data (1.071713ms)
+✔ runLoadGitHubSyncHistory supports retry callback behavior by allowing a second invocation to recover from an error (1.109484ms)
+✔ initPlugin registers github settings renderer (1.171856ms)
+✔ createDomSafePathId returns deterministic, DOM-safe ids for complex paths (1.466637ms)
+✔ parseApiResponse surfaces JSON error payload message (5.959541ms)
+✔ parseApiResponse handles text/plain error payload with status and route hint (0.86082ms)
+✔ parseApiResponse handles HTML 404 payload with clear fallback messaging (1.635202ms)
+✔ parseApiResponse reports malformed JSON payload with controlled message (2.744877ms)
+✔ apply confirmation requires strong APPLY phrase (3.227238ms)
+✔ canceling reset confirmation does not mutate diagnostics state (0.400446ms)
+✔ confirming reset returns empty state and keeps undo snapshot (3.010165ms)
+✔ audit review content groups flags with plain-language headings and helper text (2.413918ms)
+✔ createUiState returns idle state copy (4.385698ms)
+✔ createUiState returns loading state with long-running messaging (2.490677ms)
+✔ createUiState returns empty state for no logs and no findings (0.332282ms)
+✔ createUiState returns error state with concise reason and recovery step (0.679709ms)
+✔ createUiState returns success state (2.834858ms)
+✔ createUiState interruption flow uses cancellation next step guidance (1.77958ms)
+✔ createUiState error for config issues uses server/proxy guidance (0.42328ms)
+✔ createUiState error for generic preview failures keeps refresh guidance (0.259699ms)
+✔ detectNoTechniquesHighEffort: flags high effort (>= 4) with zero techniques (4.46603ms)
+✔ detectNoTechniquesHighEffort: flags effort 5 with zero techniques (1.00289ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 3 with zero techniques (1.749996ms)
+✔ detectNoTechniquesHighEffort: does not flag effort 5 with techniques (0.332288ms)
+✔ detectNoTechniquesHighEffort: respects custom effort threshold (2.805541ms)
+✔ detectEmptyDescription: flags missing description (1.656041ms)
+✔ detectEmptyDescription: flags empty string description (1.07541ms)
+✔ detectEmptyDescription: flags whitespace-only description (2.806975ms)
+✔ detectEmptyDescription: does not flag non-empty description (0.43493ms)
+✔ detectEmptyNotes: flags missing notes (1.91921ms)
+✔ detectEmptyNotes: flags empty notes (0.199752ms)
+✔ detectEmptyNotes: flags whitespace-only notes (0.137779ms)
+✔ detectEmptyNotes: does not flag non-empty notes (1.617649ms)
+✔ detectDurationOutlier: does not flag when duration is undefined (0.551733ms)
+✔ detectDurationOutlier: does not flag when less than 3 sessions with duration (2.694933ms)
+✔ detectDurationOutlier: flags large duration outliers with 1 std dev multiplier (0.208143ms)
+✔ detectDurationOutlier: flags small duration outliers with 1 std dev multiplier (0.154934ms)
+✔ detectDurationOutlier: does not flag duration within 2 std deviations (0.143336ms)
+✔ detectDurationOutlier: respects custom std dev multiplier (0.126349ms)
+✔ runAuditRules: runs all enabled rules (2.317096ms)
+✔ runAuditRules: skips disabled rules (0.455864ms)
+✔ runAuditRules: returns empty array for clean session (1.039059ms)
+✔ runAuditRulesForAllSessions: returns flagged sessions only (1.743536ms)
+✔ runAuditRulesForAllSessions: includes sessions with no flags in original list (1.432109ms)
+✔ github-sync manifest contract (11.271659ms)
+✔ log-doctor manifest contract (1.495599ms)
+✔ prompt-settings manifest contract (3.472544ms)
+✔ tag-manager manifest contract (1.311569ms)
+✔ video-library manifest contract (2.805201ms)
+✔ initPlugin registers github-sync ids exactly once (2.108164ms)
+✔ initPlugin registers log-doctor ids exactly once (0.226163ms)
+✔ initPlugin registers prompt-settings ids exactly once (0.165636ms)
+✔ initPlugin registers tag-manager ids exactly once (0.167229ms)
+✔ initPlugin registers video-library ids exactly once (0.20917ms)
+✔ plugin sources avoid hardcoded semantic color utility classes (11.989425ms)
+✔ composition conformance passes for a sectioned dashboard shell with destructive flow wrapper (62.158789ms)
+✔ composition conformance fails when layout is not shell-rooted, not sectioned, and uses raw destructive button (10.852519ms)
+✔ composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported (7.82009ms)
+✔ github-sync uses standardized plugin state helpers (1.658622ms)
+✔ prompt-settings uses standardized plugin state helpers (0.397937ms)
+✔ tag-manager uses standardized plugin state helpers (0.469841ms)
+✔ video-library uses standardized plugin state helpers (1.058624ms)
+✔ log-doctor uses standardized plugin state helpers (0.778369ms)
+✔ required helper contract check fails when helper is missing (1.019732ms)
+✔ prompt-settings manifest declares the expected dashboard tab copy and icon (3.654588ms)
+✔ prompt-settings manifest evidence tracks prompt settings UX coverage (1.000075ms)
+✔ delete flow exposes loading labels and disabled actions while async work is in progress (1.379473ms)
+✔ delete flow surfaces recoverable errors and supports retry after apply failure (0.860228ms)
+✔ initPlugin registers tag manager renderer with refresh wiring (3.470031ms)
+✔ plugins/test-plugin-manifest-contract.ts (846.608227ms)
+✔ plugins/test-plugin-registration-contract.ts (653.867154ms)
+✔ fallback prompt uses shared default constant with mixed-discipline preservation guidance (2.168113ms)
+✔ prompt payload keeps custom prompt override and raw mixed-language input unchanged (0.275422ms)
+✔ log-doctor fix route proxies to /api/go/github/log-doctor/fix with expected body mapping (26.596912ms)
+✔ log-doctor fix route rejects invalid payloads before proxying (6.817952ms)
+✔ log-doctor fix route maps malformed proxy base URL to a configuration-specific 500 message (1.675999ms)
+✔ log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo/branch (14.998378ms)
+✔ log-doctor route rejects invalid body before proxying (2.946627ms)
+✔ log-doctor route returns upstream 404 when proxied go route is absent (2.006467ms)
+✔ log-doctor route maps malformed proxy base URL to a configuration-specific 500 message (1.077308ms)
+✔ derivePluginManagerInstalledViewState maps lifecycle scenarios to visible UI states (37.40558ms)
+✔ installed content renders behavior-defining UI surfaces for each scenario state (5.381133ms)
+✔ deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls (15.546272ms)
+✔ isActiveRefreshRequest only applies responses for the latest mounted refresh (0.269659ms)
+✔ isActiveRefreshRequest prevents out-of-order completion from regressing current UI state (6.137655ms)
+✔ installed table uses semantic tone utility classes for maturity and severity badges (4.667568ms)
+✔ PluginPageShell renders title, description, icon, and content regions (17.090682ms)
+✔ PluginNotice renders notice title and description content (2.608248ms)
+✔ VersionHistoryModal clears loading and renders release content after a successful fetch (170.989942ms)
+✔ VersionHistoryModal clears loading and surfaces an error message after a failed fetch (4.310058ms)
+✔ useSessionFormAi hook structure is verified (0.668385ms)
+✔ APP_VERSION matches package.json version (4.092504ms)
+✔ APP_VERSION matches the latest CHANGELOG.md entry (2.228411ms)
+✔ guest normalization (null/undefined/blank -> guest) (1.831381ms)
+✔ active user switching (0.630353ms)
+✔ scoped key generation for explicit user (0.597029ms)
+✔ guest-mode predicate behavior (0.575425ms)
+✔ canonical design token keys match DESIGN.md section 2 source of truth (1.613415ms)
+✔ canonical design token keys remain kebab-case and do not introduce underscores (0.260512ms)
+✔ updateSession moves the markdown file when the session date changes (38.534123ms)
+✔ updateSession leaves exactly one markdown file for the session after a date move (11.65905ms)
+✔ findSessionFileById locates a session even when the file path month no longer matches frontmatter date (21.590183ms)
+✔ updateSession rejects a conflicting destination file and preserves the original file (18.424841ms)
+✔ updateSession overwrites an existing destination file when it has the same session ID with stale content (49.380641ms)
+✔ concurrent updateSession calls for the same file return a conflict for one caller (18.373169ms)
+✔ updateSession releases same-path lock when commit rename fails (14.289279ms)
+✔ concurrent deleteSession and updateSession cannot resurrect a session (20.98747ms)
+✔ updateSession returns SessionNotFoundError when delete wins before update acquires the lock (16.734361ms)
+✔ shouldReclaimSessionUpdateLock keeps alive PID locks even when old (1.675717ms)
+✔ updateSession reclaims same-path lock when owner PID is dead regardless of age (11.158805ms)
+✔ updateSession reclaims malformed same-path lock metadata (12.728874ms)
+✔ updateSession keeps conflict behavior when same-path lock is active (5.679991ms)
+✔ acquireSessionUpdateLock allows same-owner reentrant acquisition (8.385749ms)
+✔ acquireSessionUpdateLock keeps conflicts for different-owner active locks (4.758229ms)
+✔ reentrant release ordering cannot delete another owner reclaimed lock (4.771783ms)
+✔ shouldReclaimSessionUpdateLock reclaims unknown PID locks only after timeout age (2.329917ms)
+✔ concurrent date-move updates avoid deadlock and resolve with one winner (14.624ms)
+✔ deleteSession racing with date move yields deterministic deleted state (17.813576ms)
+✔ updateSession release lock is robust on normal and ENOENT cleanup paths (15.546595ms)
+✔ late release does not delete a reclaimed lock owned by another caller (22.772571ms)
+✔ createSession rejects same-ID concurrent creates across different dates and preserves a single canonical file (10.02305ms)
+✔ createSession resolves concurrent create when the winning writer completes after 200ms (580.524787ms)
+✔ findSessionFileById throws DuplicateSessionIdError when multiple files share an ID (6.57326ms)
+Skipping unreadable or malformed session file during lookup for session-duplicate-with-malformed: /tmp/matmetrics-file-storage-8dGnDV/2025/03/20250310-matmetrics-session-malformed-neighbor.md Error: Missing or invalid "id" in frontmatter
+    at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1244:7)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+✔ findSessionFileById still detects duplicate IDs when malformed files are present (20.537439ms)
+Skipping unreadable or malformed session file during lookup for session-read-error: /tmp/matmetrics-file-storage-Abiuvr/2025/01/20250110-matmetrics-session-read-error-bad.md Error: Missing or invalid "id" in frontmatter
+    at validateId (/workspaces/matmetrics/src/lib/markdown-serializer.ts:117:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:84:14)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1275:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1263:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+✔ findSessionFileById skips malformed sibling markdown files and still finds valid matches (21.807487ms)
+Skipping invalid indexed session record for session-malformed-indexed; falling back to directory scan Error: Missing or invalid "date" in frontmatter
+    at validateDate (/workspaces/matmetrics/src/lib/markdown-serializer.ts:124:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:85:16)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1348:27)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1306:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1284:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Skipping unreadable or malformed session file during lookup for session-malformed-indexed: /tmp/matmetrics-file-storage-kmq91N/2025/04/20250421-matmetrics-session-malformed-indexed.md Error: Missing or invalid "date" in frontmatter
+    at validateDate (/workspaces/matmetrics/src/lib/markdown-serializer.ts:124:11)
+    at markdownToSession (/workspaces/matmetrics/src/lib/markdown-serializer.ts:85:16)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1314:27)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1306:20)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1284:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+✔ findSessionFileById falls back to full scan when indexed file is malformed (13.26694ms)
+Skipping invalid indexed session record for session-caller-read-error; falling back to directory scan Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1344:31)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async updateSession (/workspaces/matmetrics/src/lib/file-storage.ts:1078:24)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1331:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1315:5)
+    at async Test.run (node:internal/test_runner/test:1113:7) {
+  code: 'EIO'
+}
+Skipping unreadable or malformed session file during lookup for session-caller-read-error: /tmp/matmetrics-file-storage-UBkpYX/2025/01/20250110-matmetrics-session-caller-read-error.md Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async updateSession (/workspaces/matmetrics/src/lib/file-storage.ts:1078:24)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1331:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5) {
+  code: 'EIO'
+}
+Skipping invalid indexed session record for session-caller-read-error; falling back to directory scan Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1344:31)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async deleteSession (/workspaces/matmetrics/src/lib/file-storage.ts:1198:23)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1338:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1315:5)
+    at async Test.run (node:internal/test_runner/test:1113:7) {
+  code: 'EIO'
+}
+Skipping unreadable or malformed session file during lookup for session-caller-read-error: /tmp/matmetrics-file-storage-UBkpYX/2025/01/20250110-matmetrics-session-caller-read-error.md Error: simulated io failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1323:31)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async deleteSession (/workspaces/matmetrics/src/lib/file-storage.ts:1198:23)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1338:9)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5) {
+  code: 'EIO'
+}
+✔ updateSession and deleteSession return not-found when all matching files are unreadable (9.532743ms)
+✔ updateSession and deleteSession throw DuplicateSessionIdError when session ID is duplicated (10.163892ms)
+✔ deleteSession treats ENOENT as already deleted and still removes the index entry (12.139403ms)
+✔ deleteSession retries once after ENOENT and deletes a moved session file (13.693946ms)
+✔ createSession rolls back index lock when markdown write fails (5.633981ms)
+✔ listSessions and hasAnySessions ignore index-only directories (2.840369ms)
+Failed to read session index for session-outside-index Error: Resolved session file path escapes data directory
+    at ensureResolvedPathWithinDataDir (/workspaces/matmetrics/src/lib/file-storage.ts:154:11)
+    at ensureExistingPathWithinDataDir (/workspaces/matmetrics/src/lib/file-storage.ts:175:20)
+    at readSessionIndex (/workspaces/matmetrics/src/lib/file-storage.ts:675:21)
+    at async checkIndexedSessionRecord (/workspaces/matmetrics/src/lib/file-storage.ts:1338:25)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1460:23)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1589:22)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1560:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ findSessionFileById ignores index records that point outside the data root (7.745062ms)
+✔ listSessions and hasAnySessions ignore symlinked year directories that escape the data root (3.107158ms)
+✔ getNextCounter rejects invalid dates before constructing paths (1.739163ms)
+✔ getNextCounter counts existing sessions for a normalized valid date (7.708742ms)
+✔ extractDateFromPath extracts dates from POSIX-style session paths (0.340494ms)
+✔ extractDateFromPath extracts dates from Windows-style session paths (0.201999ms)
+Skipping unreadable or malformed session file during lookup for session-duplicate-unreadable: /tmp/matmetrics-file-storage-49aYEn/2025/02/20250210-matmetrics-session-duplicate-unreadable.md Error: simulated read failure
+    at Object.import_fs.promises.readFile (/workspaces/matmetrics/src/lib/file-storage.test.ts:1742:33)
+    at tryParseSessionFile (/workspaces/matmetrics/src/lib/file-storage.ts:1313:31)
+    at async scanMonthDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1395:25)
+    at async scanYearDirectory (/workspaces/matmetrics/src/lib/file-storage.ts:1427:26)
+    at async findSessionFileById (/workspaces/matmetrics/src/lib/file-storage.ts:1481:25)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1752:23)
+    at async withTempDataDir (/workspaces/matmetrics/src/lib/file-storage.test.ts:66:5)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/file-storage.test.ts:1714:5)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  code: 'EACCES'
+}
+✔ findSessionFileById skips unreadable duplicates and returns the readable one (13.089706ms)
+✔ findSessionFileById skips symlink year directories and continues scanning (14.519405ms)
+✔ findSessionFileById skips symlink month directories and continues scanning (5.765275ms)
+✔ findSessionFileById collects all matching paths before checking for duplicates (7.066352ms)
+FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON. SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at parseServiceAccountKey (/workspaces/matmetrics/src/lib/firebase-admin.ts:60:19)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/firebase-admin.test.ts:142:22)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.start (node:internal/test_runner/test:1003:17)
+    at TestContext.test (node:internal/test_runner/test:378:20)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/firebase-admin.test.ts:141:13)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+▶ parseServiceAccountKey table-driven behavior
+  ✔ returns null for undefined input (0.606565ms)
+  ✔ returns null for malformed JSON (2.861623ms)
+  ✔ returns null when required fields are missing (0.180503ms)
+  ✔ rejects non-string project_id (0.0804ms)
+  ✔ rejects non-string client_email (0.110035ms)
+  ✔ rejects non-string private_key (0.085384ms)
+  ✔ rejects empty project_id after trimming (0.128029ms)
+  ✔ rejects empty client_email after trimming (0.13438ms)
+  ✔ rejects empty private_key after trimming (0.143511ms)
+  ✔ tolerates extra fields and returns exact parsed shape (0.77164ms)
+  ✔ rejects non-object JSON payload (0.071718ms)
+  ✔ normalizes escaped private key newlines (0.097143ms)
+  ✔ preserves already normalized private key newlines (0.111333ms)
+✔ parseServiceAccountKey table-driven behavior (7.248744ms)
+✔ getGitHubSessionPath encodes reserved characters and rejects oversized IDs (2.255129ms)
+✔ findSessionPathOnGitHubById traverses directory listings when the tree is truncated (63.036126ms)
+✔ findSessionPathOnGitHubById returns null when the branch ref is missing (6.650857ms)
+✔ findSessionPathOnGitHubById does not reuse manifest entries across branches (7.00774ms)
+✔ findSessionPathOnGitHubById evicts stale manifest entry and falls back to tree scan (3.712955ms)
+✔ default branch refresh invalidates prior-branch manifest scope (7.629603ms)
+✔ findSessionPathOnGitHubById surfaces non-404 GitHub errors (1.324908ms)
+✔ bulkPushSessions reports README update failure after pushing session content (4.325203ms)
+✔ createSessionOnGitHub treats an identical existing file as success (4.115887ms)
+✔ updateSessionOnGitHub moves the file when the session date changes (4.291653ms)
+✔ resolveBranch cache is isolated by token fingerprint (4.011153ms)
+✔ default branch cache expires after TTL (2.96442ms)
+✔ createSessionOnGitHub invalidates stale default branch cache and retries once on invalid ref write failure (1.634814ms)
+✔ proxyGoFunction returns JSON payloads for JSON upstream errors (6.546247ms)
+✔ proxyGoFunction returns plain text responses with status and key headers (1.183865ms)
+✔ proxyGoFunction preserves empty non-JSON responses (0.650591ms)
+✔ proxyGoFunction throws a controlled error for malformed MATMETRICS_GO_PROXY_BASE_URL (0.788479ms)
+✔ guest workspace seeds demo data the first time guest mode initializes (2.905457ms)
+✔ demo sessions fixture enforces stable product invariants (0.592233ms)
+✔ guest workspace becomes importable after local edits and can be dismissed (21.991359ms)
+✔ clearing guest workspace removes guest sessions and metadata (1.37114ms)
+✔ action feedback controller eventually transitions success and error to idle (1.439972ms)
+✔ error reset is scheduled later than success reset (0.331173ms)
+✔ reset() and dispose() cancel pending idle resets (0.310934ms)
+✔ EOF without trailing newline preserves notes text (4.095694ms)
+✔ CRLF and mixed newline parsing preserve sections (1.302629ms)
+✔ Roundtrip preserves techniques/description/notes (1.593195ms)
+✔ Roundtrip preserves videoUrl when present (0.859992ms)
+✔ sessionToMarkdown writes videoUrl in frontmatter when present (0.496725ms)
+✔ markdownToSession reads videoUrl from frontmatter when present (0.414301ms)
+✔ markdown without videoUrl still parses (0.363967ms)
+✔ serializer always emits description and notes headings (0.221095ms)
+✔ title may differ from frontmatter and still parse (0.431368ms)
+✔ Description and notes preserve embedded "## " strings in paragraphs (0.457568ms)
+✔ Description and notes preserve fenced code blocks with "## " lines (0.304176ms)
+✔ title must still be a level-1 heading (0.754324ms)
+✔ invalid date frontmatter values are rejected (0.227584ms)
+✔ invalid effort frontmatter values are rejected (0.213395ms)
+✔ invalid category frontmatter values are rejected (0.24211ms)
+✔ invalid duration frontmatter values are rejected (0.294059ms)
+✔ videoUrl SSRF-protected hosts are rejected (1.867945ms)
+✔ videoUrl with public hosts is allowed (0.830781ms)
+✔ missing each required section is rejected (0.484176ms)
+✔ required headings only inside fenced code blocks are rejected (0.219543ms)
+✔ fully valid canonical markdown passes required section validation (0.208556ms)
+Plugin runtime warning {
+  code: 'dashboard_tab_renderer_unresolved',
+  severity: 'warning',
+  path: 'plugins.missing-renderer-plugin.uiExtensions.missing-renderer-extension.config.component',
+  message: 'Dashboard tab component "unknown_component" is not registered to a renderer.',
+  pluginId: 'missing-renderer-plugin',
+  extensionId: 'missing-renderer-extension',
+  componentId: 'unknown_component'
+}
+Plugin runtime warning {
+  code: 'dashboard_tab_missing_capability',
+  severity: 'warning',
+  path: 'plugins.missing-capability-plugin.capabilities',
+  message: 'Dashboard extension "tag-manager-dashboard-tab" requires capability "tag_mutation" and was not rendered.',
+  pluginId: 'missing-capability-plugin',
+  extensionId: 'tag-manager-dashboard-tab'
+}
+✔ maps dashboard tab extension fixture into plugin tab metadata (142.068814ms)
+✔ integration: loadEnabledDashboardTabExtensions wires into tab mapping (3.974798ms)
+✔ core tabs no longer include prompt settings (0.17111ms)
+✔ plugins is the last core navigation item (0.144531ms)
+✔ resolves plugin tab when renderer is registered in the registry (0.327581ms)
+✔ captures structured runtime warning when plugin component cannot be resolved (1.302878ms)
+✔ captures runtime warning and skips tab when required capability is missing (0.532527ms)
+Plugin runtime warning {
+  code: 'dashboard_tab_design_token_variants_missing',
+  severity: 'warning',
+  path: 'plugins.wide-plugin.uiContract.designTokenVariants',
+  message: 'Dashboard extension "wide-extension" should declare uiContract.designTokenVariants to document shared token usage and prevent style drift.',
+  pluginId: 'wide-plugin',
+  extensionId: 'wide-extension'
+}
+✔ awaits async plugin init before resolving renderers to avoid timing warnings (7.020658ms)
+✔ wraps plugin tab renderer in wide layout surface when uiContract.layoutVariant is wide (8.716128ms)
+✔ emits runtime warning when required UX state helpers are missing from plugin render tree (0.870297ms)
+✔ emits runtime warning when uiContract.designTokenVariants is missing for a dashboard tab (0.348355ms)
+✔ blocks hostname policy for localhost and local domains (0.999003ms)
+✔ blocks URL bypass targets across ipv4 and ipv6 (0.69404ms)
+✔ blocks additional private and internal address families (0.372285ms)
+✔ allows public internet hosts and addresses (0.196365ms)
+✔ treats malformed ip literals as blocked (0.201994ms)
+✔ handles valid expanded and compressed ipv6 addresses (0.227413ms)
+✔ autoDisablePluginIfNeeded - returns manifest unchanged if no issues (32.389351ms)
+✔ autoDisablePluginIfNeeded - disables plugin with missing capabilities (1.925659ms)
+✔ autoDisablePluginIfNeeded - disables plugin with version mismatch (1.627008ms)
+✔ autoDisablePluginIfNeeded - respects already disabled plugins (1.756268ms)
+✔ autoDisablePluginIfNeeded - handles non-object manifests gracefully (0.814279ms)
+✔ toValidationTable skips runtime renderer checks by default (server-safe) (2.227462ms)
+✔ server-side validation files avoid static bootstrap import chains (2.285625ms)
+✔ returns required capability for extension types covered by policy (0.79092ms)
+✔ returns null for malformed extension config shape (0.195213ms)
+✔ returns null for unknown ids and unknown extension types (0.135218ms)
+✔ discoverEnabledDashboardTabExtensions returns empty list when no plugins exist (17.765911ms)
+✔ discoverEnabledDashboardTabExtensions returns one extension for one valid plugin (6.288131ms)
+✔ discoverEnabledDashboardTabExtensions skips invalid plugin manifests (4.32652ms)
+✔ discoverEnabledDashboardTabExtensions ignores disabled plugins (3.455552ms)
+✔ discoverEnabledDashboardTabExtensions applies enabled overrides over manifest defaults (2.774983ms)
+✔ github-sync initPlugin tolerates missing runtime registration hooks (0.789795ms)
+✔ github-sync runtime wiring registers a renderer that returns GitHubSettings (0.493497ms)
+✔ loadDashboardTabExtensions uses discovery API response when available (18.346622ms)
+✔ loadDashboardTabExtensions falls back to local registry when discovery fails (0.480549ms)
+✔ loadDashboardTabExtensions logs API error payload before falling back (0.607028ms)
+✔ loadDashboardTabExtensions legacy fallback respects enabled filtering (890.74533ms)
+✔ scorePluginMaturity returns Bronze for minimally documented plugin (12.738082ms)
+✔ scorePluginMaturity caps plugin at Bronze when capability warning exists (6.070635ms)
+✔ scorePluginMaturity returns Silver for a fully documented and tested first-party plugin (12.322378ms)
+✔ scorePluginMaturity requires explicit manifest gold tier for Gold promotion (13.585189ms)
+✔ scorePluginMaturity blocks Gold when evidence is heuristic-only even if review tier is gold (9.073871ms)
+✔ scorePluginMaturity blocks Gold when support docs are missing (6.289439ms)
+✔ scorePluginMaturity awards feature-quality points for test-asserted UX states even with different implementation text (7.962527ms)
+✔ scorePluginMaturity does not require undeclared error/empty criteria when policy gates relevance (7.28942ms)
+✔ scorePluginMaturity ignores keyword-only UX matches when no criterion is relevant (8.739773ms)
+✔ scorePluginMaturity still warns when declared error criterion lacks test assertion evidence (6.849104ms)
+✔ scorePluginMaturity preserves destructive-action relevance gating when no signal marks it relevant (6.058923ms)
+✔ scorePluginMaturity does not warn when manifest component matches plugin registration and file (4.474661ms)
+✔ scorePluginMaturity static scan matches optional/non-optional and spacing variants for registerPluginComponent (13.98878ms)
+✔ scorePluginMaturity warns when manifest component is missing from plugin registration (4.264452ms)
+✔ scorePluginMaturity accepts runtime registration without local/shared component files (2.851984ms)
+✔ scorePluginMaturity accepts plugin-local component files as component evidence (7.325958ms)
+✔ scorePluginMaturity warns when declared component has no local, shared, or runtime evidence (4.936236ms)
+✔ scorePluginMaturity counts src/lib/tags/service.test.ts as evidence for tag-manager (6.046048ms)
+✔ scorePluginMaturity accepts explicit ux evidence without heuristic keywords in tests (5.620447ms)
+✔ scorePluginMaturity exposes heuristic verification details when explicit evidence is absent (7.774542ms)
+✔ runPluginContractGate passes when entrypoint, component, and README checks succeed (9.736061ms)
+✔ runPluginContractGate fails when required files and sections are missing (3.47353ms)
+✔ runPluginContractGate accepts explicit runtime registration from src/index.ts (3.789011ms)
+✔ runPluginContractGate emits non-blocking warning when packaged runtime lacks source artifacts (2.659582ms)
+✔ runPluginContractGate accepts README heading contracts for plugin operation docs (7.031701ms)
+✔ runPluginContractGate fails when entrypoint imports plugin UI from shared src/components (3.393444ms)
+✔ getPluginManagerAccessState requires auth configuration before plugin access (0.737737ms)
+✔ normalizeInstalledPluginRows keeps only valid manifest rows (0.319045ms)
+✔ normalizeInstalledPluginRows keeps maturity when contract gate errors exist (0.166554ms)
+✔ fetchInstalledPlugins adds auth headers and parses valid plugin rows (18.272132ms)
+✔ fetchInstalledPlugins ignores non-string maturity metadata values (0.506022ms)
+✔ fetchInstalledPlugins surfaces API error payloads for auth failures (0.739981ms)
+✔ toggleInstalledPlugin sends auth headers and toggle payload (2.214856ms)
+✔ published maturity scorecard artifact matches current manifest evidence (38.918828ms)
+✔ published plugin UI migration artifact matches current plugin entrypoint usage (12.615078ms)
+✔ validateManifestComponentRenderers resolves declared github-sync component id (555.302463ms)
+✔ validateManifestComponentRenderers flags unresolved component id predictably (0.420773ms)
+✔ persistPluginEnabledOverride stores and loads overrides in auth test mode (1.579165ms)
+✔ persistPluginEnabledOverride rejects when firebase admin is unavailable outside test mode (0.695056ms)
+✔ applyPluginEnabledOverrides changes enabled state only when an override exists (0.258425ms)
+✔ tag-manager manifest contract includes required runtime fields (1.513305ms)
+✔ tag-manager initPlugin wires register and registerPluginComponent (0.305361ms)
+✔ tag-manager renderer returns TagManager and forwards refreshSessions as onRefresh (0.528891ms)
+✔ tag-manager dashboard renderer resolves after plugin bootstrap (155.399005ms)
+✔ valid manifest passes with no issues (2.813816ms)
+✔ invalid manifest reports normalized errors with paths and severity (1.061616ms)
+✔ unknown extension type is warning by default (0.267061ms)
+✔ unknown extension type can be explicitly accepted as experimental (0.348294ms)
+✔ sensitive extension without required capability returns warning (0.271365ms)
+✔ unknown capability returns warning (0.206069ms)
+✔ known capability declaration passes without warnings (0.226087ms)
+✔ video audit capability declaration passes without warnings (0.163306ms)
+✔ manifest accepts optional first-party metadata and maturity metadata (0.540336ms)
+✔ plugin with acceptable minVersion passes (0.418452ms)
+✔ plugin with too-high minVersion returns warning (0.238145ms)
+✔ plugin without explicit minVersion passes regardless of version (0.200405ms)
+✔ runtime component renderer checks run only when explicitly enabled (837.021549ms)
+✔ manifest accepts uiContract metadata (0.743671ms)
+✔ malformed uiContract is rejected (1.177653ms)
+✔ uiContract designTokenVariants reject unknown underscore token keys (0.902163ms)
+✔ uiContract designTokenVariants warn on explicit legacy migration mappings (0.343015ms)
+✔ compareVersions - compares semantic versions correctly (0.820749ms)
+✔ compareVersions - handles missing patch versions (0.172128ms)
+✔ meetsMinimumVersion - returns true when version meets or exceeds minimum (0.128821ms)
+✔ meetsMinimumVersion - returns false when version is below minimum (0.099499ms)
+✔ meetsMinimumVersion - handles real-world version scenarios (0.155393ms)
+✔ parseChangelog parses releases in descending order (1.975647ms)
+✔ getRecentReleasesFromSource returns the latest three releases (0.302211ms)
+✔ parseChangelog rejects unsupported section labels (0.389554ms)
+✔ parseChangelog rejects invalid release dates (0.148244ms)
+✔ assertReleaseVersionConsistency rejects mismatched versions (0.249706ms)
+Failed to verify Firebase ID token Error: Invalid test token
+    at verifyToken (/workspaces/matmetrics/src/lib/server-auth.ts:32:13)
+    at requireAuthenticatedUser (/workspaces/matmetrics/src/lib/server-auth.ts:71:18)
+    at <anonymous> (/workspaces/matmetrics/src/lib/server-auth.test.ts:140:28)
+    at withEnv (/workspaces/matmetrics/src/lib/server-auth.test.ts:35:11)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/server-auth.test.ts:137:9)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+    at Test.run (node:internal/test_runner/test:1163:12)
+✔ test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization (3.493802ms)
+✔ non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal auth path (5.614182ms)
+✔ normal auth path unchanged when test mode is disabled (0.937013ms)
+✔ requireAuthenticatedUser rejects malformed authorization header variants (2.771168ms)
+✔ requireAuthenticatedUser rejects invalid test-mode token in test env (4.298163ms)
+✔ resolveAuthorizedGitHubConfig treats null and undefined missing-state inputs identically (1.761047ms)
+✔ resolveAuthorizedGitHubConfig allows omitted requested branch when stored branch is present (0.572372ms)
+✔ resolveAuthorizedGitHubConfig rejects explicit mismatched branch (2.459397ms)
+[CORRUPT] Skipping GitHub session file at data/2025/03/20250315-matmetrics-broken-session.md: Missing or invalid "id" in frontmatter
+✔ listSessionsFromGitHub includes modern and legacy matmetrics session markdown paths (30.367385ms)
+✔ scanSessionsFromGitHub returns sessions and file-level issues for mixed-validity repositories (2.167366ms)
+✔ listSessionsFromGitHub preserves legacy behavior by returning valid sessions only (2.164114ms)
+✔ scanSessionsFromGitHub bounds concurrent GitHub file reads (56.06538ms)
+✔ scanSessionsFromGitHub retries retryable GitHub read failures before read_failed (3.176264ms)
+✔ normalizeGitHubConfig rejects owner names longer than 39 characters (0.362531ms)
+✔ normalizeGitHubConfig accepts repo names up to 100 characters (0.288422ms)
+✔ normalizeGitHubConfig rejects invalid owner/repo traversal and control characters (0.172043ms)
+✔ session-storage error helpers classify typed local storage errors (0.448008ms)
+▶ TS validator matches shared fixtures
+  ✔ valid (2.037046ms)
+  ✔ bad date format (0.173646ms)
+  ✔ bad date real (0.086341ms)
+  ✔ bad effort (0.126201ms)
+  ✔ bad category (0.073072ms)
+  ✔ empty technique (0.074509ms)
+  ✔ negative duration (0.070753ms)
+  ✔ bad protocol (0.128116ms)
+  ✔ private video host (0.525606ms)
+  ✔ whitespace video allowed (0.217198ms)
+✔ TS validator matches shared fixtures (5.041147ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:211:27)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.start (node:internal/test_runner/test:1003:17)
+    at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:212:7)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:216:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+✔ stale refresh does not overwrite an optimistic create while the create request is in flight (37.458725ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at Timeout.<anonymous> (/workspaces/matmetrics/src/lib/storage.ts:302:10)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:298:13)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:299:13)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ getSessions does not repeatedly refresh GitHub-backed data while cache is warm (6.786584ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at Timeout.<anonymous> (/workspaces/matmetrics/src/lib/storage.ts:302:10)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:344:13)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+✔ successful GitHub-backed mutations coalesce into one deferred refresh (44.391215ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:388:9)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Error syncing mutation SyncRequestError: Request failed with status 400
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async saveSession (/workspaces/matmetrics/src/lib/storage.ts:810:7)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:387:7)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  retryable: false,
+  retryAfterMs: null
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at reconcilePermanentFailure (/workspaces/matmetrics/src/lib/storage.ts:655:11)
+    at handleMutationSyncFailure (/workspaces/matmetrics/src/lib/storage.ts:673:12)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:817:14)
+    at async waitForActual (node:assert:646:5)
+✔ teardownStorageListeners cancels scheduled refresh callbacks (43.246486ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:393:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ non-retryable create failures are not queued and optimistic state is reconciled away (17.86458ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at Timeout.<anonymous> (/workspaces/matmetrics/src/lib/storage.ts:302:10)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:447:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Error syncing mutation SyncRequestError: Request failed with status 409
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async saveSession (/workspaces/matmetrics/src/lib/storage.ts:810:7)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25) {
+  retryable: false,
+  retryAfterMs: null
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at reconcilePermanentFailure (/workspaces/matmetrics/src/lib/storage.ts:655:11)
+    at handleMutationSyncFailure (/workspaces/matmetrics/src/lib/storage.ts:673:12)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:817:14)
+    at async waitForActual (node:assert:646:5)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:767:10)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:501:7)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+✔ forced refresh runs after a stale in-flight refresh when reconciling permanent mutation failures (15.538774ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:505:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:546:28)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Error syncing mutation SyncRequestError: Request failed with status 503
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async saveSession (/workspaces/matmetrics/src/lib/storage.ts:810:7)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:546:22)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  retryable: true,
+  retryAfterMs: null
+}
+✔ refreshSessionsFromAPI preserves valid sessions and exposes file-level issues from list payload (4.291528ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:555:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ retryable create failures remain queued for later sync (17.861964ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Error syncing operation SyncRequestError: Request failed with status 429
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1464:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:24) {
+  retryable: true,
+  retryAfterMs: 0
+}
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+✔ 429 replay failure keeps failed and later queued operations (31.787948ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Error syncing operation SyncRequestError: Request failed with status 400
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1464:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:24) {
+  retryable: false,
+  retryAfterMs: null
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at reconcilePermanentFailure (/workspaces/matmetrics/src/lib/storage.ts:655:11)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1492:15)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:24)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:653:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:696:28)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:828:12)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:696:22)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Skipping cache refresh from /api/sessions/list due to non-OK status 500
+✔ non-retryable queued create failures are removed during sync replay (32.552457ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:701:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:707:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at updateSession (/workspaces/matmetrics/src/lib/storage.ts:877:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:756:28)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at updateSession (/workspaces/matmetrics/src/lib/storage.ts:898:12)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:756:22)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Skipping cache refresh from /api/sessions/list due to non-OK status 500
+✔ successful create clears dirty state even when immediate refresh fails (8.531995ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:760:20)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:764:20)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at deleteSession (/workspaces/matmetrics/src/lib/storage.ts:935:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:809:28)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at deleteSession (/workspaces/matmetrics/src/lib/storage.ts:959:12)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:809:22)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Skipping cache refresh from /api/sessions/list due to non-OK status 500
+✔ successful update clears dirty state even when immediate refresh fails (7.859971ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:813:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:818:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:858:7)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ successful delete clears dirty state even when immediate refresh fails (6.703034ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:861:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:902:7)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ guest create does not leak dirty mutation into later authenticated refresh merge (4.341715ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:905:20)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:945:7)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ guest update does not leak dirty mutation into later authenticated refresh merge (4.969044ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:949:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ guest delete does not leak dirty mutation into later authenticated refresh merge (7.551615ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1586:15)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1007:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1053:34)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+Error syncing mutation SyncRequestError: Request failed with status 503
+    at syncRequest (/workspaces/matmetrics/src/lib/storage.ts:646:9)
+    at async saveSession (/workspaces/matmetrics/src/lib/storage.ts:810:7)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1053:28)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  retryable: true,
+  retryAfterMs: null
+}
+✔ offline non-guest mutations remain queued and keep optimistic state until replay succeeds (36.403884ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1059:9)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1586:15)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1068:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ retryable queued create remains visible until replay succeeds (38.898792ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+✔ alive foreign lease is not reclaimed before expiry (113.649329ms)
+sync_lease_takeover {
+  event: 'sync_lease_takeover',
+  at: '2026-05-20T20:47:25.161Z',
+  reason: 'expired',
+  attempt: 0,
+  previousOwner: 'live-owner',
+  previousEpoch: 5,
+  previousExpiresAt: 1779310044987,
+  nextEpoch: 1779310045161
+}
+✔ two contenders cannot steal a live lease before expiry (979.737514ms)
+✔ sync lease prevents replay when another tab already owns the queue flush (29.753779ms)
+sync_lease_takeover {
+  event: 'sync_lease_takeover',
+  at: '2026-05-20T20:47:25.202Z',
+  reason: 'expired',
+  attempt: 3,
+  previousOwner: 'other-tab',
+  previousEpoch: 1,
+  previousExpiresAt: 1779310045198,
+  nextEpoch: 1779310045202
+}
+✔ sync lease acquisition retries when competing lease expires during backoff (26.768457ms)
+✔ sync lease owner can renew its own lease (1.814464ms)
+✔ stale sync lease owner cannot renew after another owner acquires lease (2.645217ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processTimers (node:internal/timers:538:9)
+✔ sync loop exits when lease renewal fails mid-flight (34.463443ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1586:15)
+✔ sync loop heartbeat cadence uses configured sync heartbeat value (30.186938ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1586:15)
+✔ sync loop heartbeat cadence is clamped by ttl safety bound (30.804238ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at processSingleQueueOperation (/workspaces/matmetrics/src/lib/storage.ts:1460:27)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1558:30)
+✔ sync loop aborts safely when lease expires during a delayed sync request (1252.936316ms)
+sync_lease_takeover {
+  event: 'sync_lease_takeover',
+  at: '2026-05-20T20:47:26.612Z',
+  reason: 'expired',
+  attempt: 1,
+  previousOwner: 'other-tab',
+  previousEpoch: 1,
+  previousExpiresAt: 1779310046576,
+  nextEpoch: 1779310046612
+}
+✔ compare-and-verify lease acquisition retries under interleaving writes (38.593187ms)
+✔ fallback lease acquisition aborts ownership when storage event signals immediate overwrite (126.511208ms)
+✔ clock drift edge: local clock skew cannot reclaim a still-live foreign lease (76.612975ms)
+✔ simultaneous fallback contenders allow only one sync critical-section owner (74.70241ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:767:10)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1842:7)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+✔ only one contender acquires web lock when racing simultaneously (2.233128ms)
+✔ clearAllData clears scoped sync queue and lock keys and emits storage sync event (0.315334ms)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1856:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:807:29)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1891:27)
+    at Test.runInAsyncScope (node:async_hooks:214:14)
+    at Test.run (node:internal/test_runner/test:1106:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+    at Test.postRun (node:internal/test_runner/test:1235:19)
+✔ clearAllData prevents stale in-flight refresh from repopulating sessions (5.6619ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at saveSession (/workspaces/matmetrics/src/lib/storage.ts:828:12)
+    at async TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1900:7)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+Failed to read Firebase ID token Error: Firebase client configuration is missing
+    at getFirebaseApp (/workspaces/matmetrics/src/lib/firebase-client.ts:41:11)
+    at getFirebaseAuth (/workspaces/matmetrics/src/lib/firebase-client.ts:48:18)
+    at getCurrentIdToken (/workspaces/matmetrics/src/lib/auth-session.ts:5:25)
+    at getAuthHeaders (/workspaces/matmetrics/src/lib/auth-session.ts:16:23)
+    at <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1319:29)
+    at refreshSessionsFromAPI (/workspaces/matmetrics/src/lib/storage.ts:1364:3)
+    at getSessions (/workspaces/matmetrics/src/lib/storage.ts:745:12)
+    at TestContext.<anonymous> (/workspaces/matmetrics/src/lib/storage.test.ts:1903:24)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ clearAllData prevents stale in-flight sync from restoring queue or sessions (5.341932ms)
+Error refreshing sessions from API TypeError: fetch failed
+    at node:internal/deps/undici/undici:15845:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async <anonymous> (/workspaces/matmetrics/src/lib/storage.ts:1320:19) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+✔ setGitHubSyncStatus persists via preferences and remains observable after reload/init (3.112951ms)
+✔ setGitHubSyncStatus warns and no-ops when no authenticated user is available (2.949631ms)
+▶ sync-lease module
+  ▶ randomBackoffMs
+    ✔ returns a value within expected range (15.423814ms)
+    ✔ maps injected random values to deterministic boundaries (0.293851ms)
+  ✔ randomBackoffMs (18.575551ms)
+  ▶ randomVerifyDelayMs
+    ✔ returns a value within expected range (0.378836ms)
+  ✔ randomVerifyDelayMs (4.564989ms)
+  ▶ createSyncLeaseNonce
+    ✔ creates unique nonces (2.448906ms)
+    ✔ creates strings (0.21798ms)
+  ✔ createSyncLeaseNonce (9.729275ms)
+  ▶ getNextSyncLeaseEpoch
+    ✔ returns increasing epochs (0.264705ms)
+    ✔ ensures epoch is not less than current timestamp (0.245904ms)
+  ✔ getNextSyncLeaseEpoch (0.989503ms)
+  ▶ readSyncLease
+    ✔ returns null when no lease exists (4.949126ms)
+    ✔ parses a valid lease from localStorage (1.766524ms)
+  ✔ readSyncLease (7.272972ms)
+  ▶ releaseSyncLease
+    ✔ does not remove persisted lease when local active lease is stale (2.910603ms)
+  ✔ releaseSyncLease (3.56521ms)
+  ▶ tryAcquireSyncLease
+    ✔ forces reclaim after stable observations of a live competing lease (10.858528ms)
+    ✔ backs off without reclaiming while competing lease keeps changing (1.875856ms)
+  ✔ tryAcquireSyncLease (13.116767ms)
+✔ sync-lease module (60.250944ms)
+✔ queueOperation timestamps operations and preserves insertion order (17.568807ms)
+✔ queueOperation uses persisted last queuedAt to recover from stale in-memory state (9.975136ms)
+✔ queueOperation remains strictly monotonic across interleaved two-tab writes (13.327939ms)
+✔ setQueue preserves a newer concurrent operation with the same identity (2.514177ms)
+✔ clearQueue keeps a newer concurrent operation instead of deleting it (3.155703ms)
+✔ setQueue retains concurrent operations that share queuedAt with stale base snapshots (5.020122ms)
+✔ concurrent create and update with identical queuedAt coalesce deterministically (1.968554ms)
+✔ setQueue deterministically keeps one equal-timestamp concurrent update for the same identity (4.39049ms)
+✔ clearQueue removes the persisted storage key when there is no concurrent work (3.062365ms)
+✔ clearQueue keeps concurrent operations when queuedAt matches stale base snapshot (1.97391ms)
+✔ malformed JSON is quarantined and cleared on first read (0.417228ms)
+✔ subsequent reads after malformed JSON return stable empty queue without repeated parse warnings (0.246141ms)
+✔ storage lease heartbeat renews during long-running critical section (55.347668ms)
+✔ lease expires and competing tab can re-acquire while original action is still running (54.198453ms)
+✔ stale owner commit is prevented after lease expiry and competing re-acquire (2.776806ms)
+✔ identity-based removal succeeds under concurrent writes where index-based removal fails (11.400641ms)
+✔ coalesces create then update into create with latest payload (5.101158ms)
+✔ coalesces create then delete into no-op (3.810843ms)
+✔ coalesces update then delete into delete (4.785918ms)
+✔ coalesces delete then create into recreate create (5.58894ms)
+✔ coalesces delete then create then update into create with latest payload (2.780083ms)
+✔ coalesces delete then update into create to avoid missing-record updates (1.672653ms)
+✔ getQueue keeps valid operations when persisted array has corrupt entries (0.239172ms)
+✔ getQueue clears storage and warns when all persisted entries are invalid (0.782829ms)
+✔ concurrent queueOperation calls do not drop operations across identities (25.532045ms)
+✔ concurrent mixed mutators retain union of writes under lease (9.054451ms)
+✔ rename returns a case conflict when target casing already exists (8.101141ms)
+✔ rename to existing tag returns a conflict instead of mutating sessions (0.295479ms)
+✔ merge into same tag returns conflict and performs no updates (0.324233ms)
+✔ delete nonexistent tag returns conflict and supports dry-run (0.329955ms)
+✔ analysis APIs return accurate impact details for representative datasets (0.692801ms)
+✔ rename stops on first failed session update and reports failed ids (1.380022ms)
+✔ plugin severity tones map to semantic utility classes (1.160657ms)
+✔ plugin maturity tiers map to semantic trend classes (0.200856ms)
+✔ dashboard category bars resolve to chart palette token order (0.169627ms)
+✔ video library defaults include technical expected category (1.185547ms)
+✔ normalizeExpectedVideoCategories keeps valid categories in canonical order (0.278938ms)
+✔ normalizeExpectedVideoCategories falls back to default when invalid or empty (0.145053ms)
+✔ date-only helpers preserve calendar semantics without timezone drift (7.941522ms)
+✔ formatLocalDateInputValue uses local calendar components (0.168024ms)
+✔ formatLocalDateInputValue zero-pads single-digit month/day values (0.098755ms)
+✔ formatLocalDateInputValue stays stable near midnight local boundaries (0.145048ms)
+✔ formatLocalDateInputValue remains stable across timezone-offset transition days (0.368523ms)
+✔ parseDateOnly returns an invalid date object for malformed input (0.106915ms)
+✔ normalizeVideoDomainInput accepts bare hostnames only (1.093002ms)
+✔ getAllowedVideoDomains merges starter and custom domains (0.722402ms)
+✔ matchesAllowedVideoDomain supports exact and subdomain suffix matches (0.12916ms)
+✔ deriveVideoLibraryEntries classifies missing, allowed, and disallowed domains (0.688918ms)
+✔ deriveVideoLibraryEntries and API hostname policy classify hosts identically (0.798599ms)
+✔ reconcileVideoLinkChecks drops stale entries when session URL changes or becomes invalid (0.330215ms)
+✔ reconcileVideoLinkChecks invalidates disallowed-domain snapshots when custom allowlist changes (0.205339ms)
+✔ deriveVideoLibraryRows merges persisted latest checks and review state (0.689564ms)
+✔ resolveVideoThumbnailUrl parses youtube URLs deterministically (0.240062ms)
+✔ rows keep unknown providers as valid items and use thumbnail fallback (0.331245ms)
+✔ filterVideoLibraryRows respects tab, search, status, and checked filters (0.484355ms)
+✔ getVideoLibraryTabCounts returns grouped counts (0.360062ms)
+✔ no-video tab/count only include categories marked as expected (0.233444ms)
+✔ getVideoDomainRemovalImpact counts sessions that would become disallowed (0.418475ms)
+✔ mergeVideoLinkCheckResults and equality helper support persisted updates (0.320625ms)
+✔ discovered dashboard tabs route is force-dynamic and no-store (13.55025ms)
+✔ discovered dashboard tabs route reflects enabled overrides (15.692509ms)
+✔ GET /api/plugins/list returns manifests and contract payload (25.104962ms)
+✔ GET /api/plugins/list surfaces plugin contract gate violations (8.003851ms)
+✔ GET /api/plugins/list treats packaged artifact-unavailable contract checks as non-blocking (7.582374ms)
+✔ POST /api/plugins/toggle persists enabled override without mutating plugin.json (7.903393ms)
+✔ plugin create/update routes are deprecated and return disabled responses (2.304863ms)
+✔ GET /api/plugins/list returns current maturity scores for bundled plugins (32.539787ms)
+✔ POST /api/plugins/validate returns contract gate violations (4.273508ms)
+Error processing plugin "tags" in /api/plugins/list: Simulated plugin contract gate failure
+✔ GET /api/plugins/list continues when one plugin contract gate throws (12.709855ms)
+Error processing plugin "tags" in /api/plugins/validate: Simulated plugin contract gate failure
+✔ POST /api/plugins/validate continues when one plugin contract gate throws (7.768918ms)
+✔ deprecated create/update routes do not mutate plugin manifests (4.085604ms)
+✔ GET recent releases returns the latest three releases and current version (8.298836ms)
+✔ POST persists the session to local markdown storage when GitHub is not configured (21.369684ms)
+✔ POST returns 500 when GitHub create fails in primary mode (2.211381ms)
+✔ POST uses stored GitHub config when body omits gitHubConfig (1.128462ms)
+✔ POST returns 403 when request GitHub repo does not match user preferences (1.077987ms)
+✔ POST returns 409 for duplicate session ID conflicts with different content (9.203968ms)
+▶ POST returns 400 when request JSON is not an object
+  ✔ null (0.714626ms)
+  ✔ string (0.682033ms)
+  ✔ number (1.124664ms)
+✔ POST returns 400 when request JSON is not an object (3.149788ms)
+▶ POST returns 400 for invalid session payload fields
+  ✔ id number (0.675298ms)
+  ✔ id object (0.341005ms)
+  ✔ id empty string (0.354801ms)
+  ✔ id with invalid characters (0.285488ms)
+  ✔ id exceeds max length (0.350417ms)
+  ✔ techniques element type (0.37952ms)
+  ✔ date string (0.305547ms)
+  ✔ duration type (0.327496ms)
+  ✔ effort integer (0.315035ms)
+  ✔ description type (0.293699ms)
+  ✔ videoUrl type (0.397803ms)
+  ✔ videoUrl invalid url (0.288554ms)
+  ✔ videoUrl unsupported protocol (0.43639ms)
+  ✔ videoUrl private network host (0.490071ms)
+  ✔ videoUrl blocks loopback alias 127.0.0.2 (0.460786ms)
+  ✔ videoUrl blocks ipv6 loopback ::1 (0.623935ms)
+  ✔ videoUrl blocks mapped ipv4 loopback (0.455985ms)
+  ✔ videoUrl blocks ipv4 link-local range (0.454511ms)
+✔ POST returns 400 for invalid session payload fields (8.521215ms)
+✔ POST treats empty string videoUrl as undefined (16.85586ms)
+✔ POST treats whitespace-only videoUrl as undefined (4.298456ms)
+✔ POST accepts valid videoUrl and includes it in created session (5.468329ms)
+✔ POST returns 401 when authorization header is missing (0.37977ms)
+✔ GET returns 404 when session does not exist (12.860345ms)
+✔ GET returns the local markdown session when present (14.672096ms)
+✔ GET returns local session videoUrl when present (6.976507ms)
+✔ PUT updates local markdown storage when GitHub is not configured (14.430742ms)
+✔ PUT updates local markdown storage when body omits id (10.832343ms)
+✔ PUT returns 409 when local storage has duplicate files for the same session ID (6.974521ms)
+✔ PUT returns 500 when GitHub update fails in primary mode (2.235074ms)
+✔ PUT uses stored GitHub config when body omits gitHubConfig (0.975611ms)
+✔ DELETE removes the local markdown session when GitHub is not configured (10.428097ms)
+✔ DELETE returns 409 when local storage has duplicate files for the same session ID (10.17721ms)
+✔ DELETE proxies Go validation error when id is empty after trim (1.122818ms)
+✔ DELETE returns 500 when GitHub delete fails in primary mode (0.879783ms)
+✔ DELETE uses stored GitHub config when body omits gitHubConfig (0.756164ms)
+✔ DELETE returns 400 when request body contains malformed JSON (0.573567ms)
+✔ GET returns 403 when query repo does not match user preferences (0.597287ms)
+✔ PUT returns 403 when body repo does not match user preferences (0.518465ms)
+✔ DELETE returns 403 when body repo does not match user preferences (0.372858ms)
+▶ PUT returns 400 when request body is not a JSON object
+  ✔ null (0.354389ms)
+  ✔ string primitive (0.293609ms)
+  ✔ number primitive (0.419148ms)
+  ✔ boolean primitive (0.358887ms)
+  ✔ array (0.287782ms)
+✔ PUT returns 400 when request body is not a JSON object (2.236984ms)
+▶ PUT returns 400 for invalid session payload fields
+  ✔ missing techniques field (0.463214ms)
+  ✔ id mismatch (0.292963ms)
+  ✔ techniques element type (0.344195ms)
+  ✔ date string (0.446783ms)
+  ✔ duration type (0.5946ms)
+  ✔ effort integer (0.382862ms)
+  ✔ notes type (0.536841ms)
+  ✔ videoUrl type (0.860299ms)
+  ✔ videoUrl invalid url (0.554323ms)
+  ✔ videoUrl unsupported protocol (0.393557ms)
+  ✔ videoUrl private network host (0.575243ms)
+  ✔ videoUrl blocks loopback alias 127.0.0.2 (0.511835ms)
+  ✔ videoUrl blocks ipv6 loopback ::1 (0.780432ms)
+  ✔ videoUrl blocks mapped ipv4 loopback (0.796997ms)
+  ✔ videoUrl blocks ipv4 link-local range (0.552346ms)
+✔ PUT returns 400 for invalid session payload fields (9.333371ms)
+✔ PUT treats empty string videoUrl as undefined (36.999755ms)
+✔ PUT treats whitespace-only videoUrl as undefined (11.602287ms)
+✔ PUT accepts valid videoUrl and includes it in updated session (10.759088ms)
+✔ GET list returns local sessions when no GitHub config is requested (32.510513ms)
+✔ GET list returns 403 when requested repo does not match user preferences (1.232393ms)
+✔ POST requires authentication (6.229454ms)
+✔ POST reports disallowed domains without making outbound requests (19.104718ms)
+✔ POST falls back to GET when HEAD is rejected (7.410463ms)
+✔ POST classifies remote failures as check_failed (6.855682ms)
+✔ POST blocks redirect from allowed domain to private network host (7.497687ms)
+✔ POST returns row-friendly per-session payloads for mixed result sets (16.747981ms)
+✔ POST limits processed sessions and includes truncation metadata when sessionIds are omitted (276.785714ms)
+✔ POST checks links with bounded concurrency (211.085107ms)
+✔ queueOperation timestamps operations and preserves insertion order (30.516244ms)
+✔ queueOperation uses persisted last queuedAt to recover from stale in-memory state (9.389687ms)
+✔ queueOperation remains strictly monotonic across interleaved two-tab writes (12.785586ms)
+✔ setQueue preserves a newer concurrent operation with the same identity (4.646516ms)
+✔ clearQueue keeps a newer concurrent operation instead of deleting it (5.20354ms)
+✔ setQueue retains concurrent operations that share queuedAt with stale base snapshots (2.912966ms)
+✔ concurrent create and update with identical queuedAt coalesce deterministically (4.120313ms)
+✔ setQueue deterministically keeps one equal-timestamp concurrent update for the same identity (4.001559ms)
+✔ clearQueue removes the persisted storage key when there is no concurrent work (4.012058ms)
+✔ clearQueue keeps concurrent operations when queuedAt matches stale base snapshot (4.90341ms)
+✔ malformed JSON is quarantined and cleared on first read (0.464548ms)
+✔ subsequent reads after malformed JSON return stable empty queue without repeated parse warnings (0.293461ms)
+✔ storage lease heartbeat renews during long-running critical section (53.920962ms)
+✔ lease expires and competing tab can re-acquire while original action is still running (53.695728ms)
+✔ stale owner commit is prevented after lease expiry and competing re-acquire (3.098089ms)
+✔ identity-based removal succeeds under concurrent writes where index-based removal fails (13.952656ms)
+✔ coalesces create then update into create with latest payload (5.990439ms)
+✔ coalesces create then delete into no-op (2.082121ms)
+✔ coalesces update then delete into delete (3.249125ms)
+✔ coalesces delete then create into recreate create (6.524057ms)
+✔ coalesces delete then create then update into create with latest payload (4.694252ms)
+✔ coalesces delete then update into create to avoid missing-record updates (1.788501ms)
+✔ getQueue keeps valid operations when persisted array has corrupt entries (0.468932ms)
+✔ getQueue clears storage and warns when all persisted entries are invalid (0.309388ms)
+✔ concurrent queueOperation calls do not drop operations across identities (25.961255ms)
+✔ concurrent mixed mutators retain union of writes under lease (23.118785ms)
+ℹ tests 586
+ℹ suites 0
+ℹ pass 586
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64583.284736
