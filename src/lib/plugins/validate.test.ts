@@ -293,7 +293,7 @@ test('manifest accepts optional first-party metadata and maturity metadata', () 
     owner: 'Matmetrics',
     homepage: 'https://example.com/plugins/mature-plugin',
     maturity: {
-      tier: 'bronze',
+      tier: 'Bronze',
       notes: 'Initial baseline.',
       lastReviewedAt: '2026-03-24',
       uxStates: {

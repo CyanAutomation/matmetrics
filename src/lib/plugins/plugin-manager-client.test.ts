@@ -265,7 +265,7 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
               },
               maturity: {
                 score: 62,
-                tier: 'bronze',
+                tier: 'Bronze',
                 categoryScores: {
                   contract_metadata: {
                     label: 'Contract & Metadata',
