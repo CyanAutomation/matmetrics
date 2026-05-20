@@ -1,0 +1,10 @@
+
+> nextn@1.2.0 test
+> npm run validate:plugin-ui-contract && NODE_ENV=test node --import tsx --test --passWithNoTests
+
+
+> nextn@1.2.0 validate:plugin-ui-contract
+> node --import tsx scripts/validate-plugin-ui-contract.ts
+
+✅ Plugin UI contract validation passed.
+node: bad option: --passWithNoTests
