@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
-import { parseLogDoctorApiResponse } from '../lib/api-parser';
-import { createUiState, toErrorReason } from '../components/log-doctor-state';
+import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
+import { createUiState } from '../components/log-doctor-state';
 import type { ScanResult, FixResult, LogDoctorUiState } from '../components/log-doctor-state';
 
 interface FileValidationConfig {
