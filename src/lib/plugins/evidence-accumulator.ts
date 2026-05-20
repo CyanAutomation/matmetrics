@@ -8,9 +8,9 @@ import type {
  * Centralizes state mutations to improve traceability and testability.
  */
 export class EvidenceAccumulator {
-  private categoryScores: Record<PluginMaturityCategory, number> = {};
-  private evidence: Record<PluginMaturityCategory, string[]> = {};
-  private reasons: Record<PluginMaturityCategory, string> = {};
+  private categoryScores: Record<PluginMaturityCategory, number> = {} as Record<PluginMaturityCategory, number>;
+  private evidence: Record<PluginMaturityCategory, string[]> = {} as Record<PluginMaturityCategory, string[]>;
+  private reasons: Record<PluginMaturityCategory, string> = {} as Record<PluginMaturityCategory, string>;
   private nextActions: string[] = [];
 
   /**
@@ -65,13 +65,7 @@ export class EvidenceAccumulator {
    * Get current evidence entries
    */
   getEvidence(): Record<PluginMaturityCategory, string[]> {
-    const result: Record<PluginMaturityCategory, string[]> = {
-      contract_metadata: [],
-      runtime_integration: [],
-      feature_quality: [],
-      test_coverage: [],
-      operability_docs: [],
-    };
+    const result: Record<PluginMaturityCategory, string[]> = {};
     for (const category in this.evidence) {
       result[category as PluginMaturityCategory] = [...this.evidence[category as PluginMaturityCategory]];
     }
@@ -82,7 +76,11 @@ export class EvidenceAccumulator {
    * Get current reasons
    */
   getReasons(): Record<PluginMaturityCategory, string> {
-    return { ...this.reasons };
+    const result: Record<PluginMaturityCategory, string> = {};
+    for (const category in this.reasons) {
+      result[category as PluginMaturityCategory] = this.reasons[category as PluginMaturityCategory];
+    }
+    return result;
   }
 
   /**
