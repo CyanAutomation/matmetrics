@@ -1406,6 +1406,122 @@ async function prepareAndStartLease(): Promise<{
 }
 
 /**
+ * Helper: Build the request body for a sync operation
+ */
+function buildOperationRequestBody(
+  operation: SyncOperation,
+  gitHubConfig: ReturnType<typeof getGitHubConfig>,
+  gitHubEnabled: boolean
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+
+  switch (operation.type) {
+    case 'CREATE':
+    case 'UPDATE':
+      Object.assign(body, operation.session);
+      break;
+    case 'DELETE':
+      // DELETE operations don't include body for session data
+      break;
+  }
+
+  if (gitHubConfig && gitHubEnabled) {
+    body.gitHubConfig = gitHubConfig;
+  }
+
+  return body;
+}
+
+/**
+ * Helper: Get the API endpoint URL for a sync operation
+ */
+function getOperationUrl(operation: SyncOperation): string {
+  switch (operation.type) {
+    case 'CREATE':
+      return '/api/sessions/create';
+    case 'UPDATE':
+      return `/api/sessions/${operation.session.id}`;
+    case 'DELETE':
+      return `/api/sessions/${operation.id}`;
+  }
+}
+
+/**
+ * Helper: Get the HTTP method for a sync operation
+ */
+function getOperationMethod(operation: SyncOperation): 'POST' | 'PUT' | 'DELETE' {
+  switch (operation.type) {
+    case 'CREATE':
+      return 'POST';
+    case 'UPDATE':
+      return 'PUT';
+    case 'DELETE':
+      return 'DELETE';
+  }
+}
+
+/**
+ * Helper: Extract session ID from a sync operation (needed for mutation tracking)
+ */
+function getSessionIdFromOperation(operation: SyncOperation): string {
+  switch (operation.type) {
+    case 'CREATE':
+    case 'UPDATE':
+      return operation.session.id;
+    case 'DELETE':
+      return operation.id;
+  }
+}
+
+/**
+ * Helper: Handle a successful sync operation
+ */
+function handleOperationSuccess(
+  operation: SyncOperation,
+  index: number,
+  queue: SyncOperation[]
+): void {
+  const sessionId = getSessionIdFromOperation(operation);
+  clearDirtyMutation(sessionId, operation.queuedAt);
+}
+
+/**
+ * Helper: Handle sync operation errors (permanent vs retryable)
+ */
+async function handleOperationError(
+  error: unknown,
+  operation: SyncOperation,
+  index: number,
+  queue: SyncOperation[],
+  generation: number,
+  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
+): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
+  if (!(error instanceof SyncRequestError)) {
+    // Non-SyncRequestError: retryable
+    return { retryable: true, retryAfterMs: null };
+  }
+
+  // Handle permanent failures (mark as synced to avoid retry loop)
+  if (!error.retryable) {
+    const sessionId = getSessionIdFromOperation(operation);
+    clearDirtyMutation(sessionId, operation.queuedAt);
+
+    const remainingOperations = queue.filter((_, i) => i !== index);
+    if (isStorageGenerationCurrent(generation)) {
+      await setQueue(remainingOperations, queue);
+      await reconcilePermanentFailure();
+    }
+    return { retryable: false, retryAfterMs: null };
+  }
+
+  // Retryable error with optional backoff
+  return {
+    retryable: true,
+    retryAfterMs: error.retryAfterMs,
+  };
+}
+
+/**
  * Process a single queue operation with lease ownership verification and error handling.
  * Returns true if processing should continue, false if lease was lost or error occurred.
  */
@@ -1425,44 +1541,18 @@ async function processSingleQueueOperation(
   }
 
   try {
-    // Build operation-specific request body and URL
-    let body: Record<string, unknown> = {};
-    let url: string;
-
-    switch (operation.type) {
-      case 'CREATE': {
-        url = '/api/sessions/create';
-        body = { ...operation.session };
-        if (gitHubConfig && gitHubEnabled) {
-          body.gitHubConfig = gitHubConfig;
-        }
-        break;
-      }
-
-      case 'UPDATE': {
-        url = `/api/sessions/${operation.session.id}`;
-        body = { ...operation.session };
-        if (gitHubConfig && gitHubEnabled) {
-          body.gitHubConfig = gitHubConfig;
-        }
-        break;
-      }
-
-      case 'DELETE': {
-        url = `/api/sessions/${operation.id}`;
-        if (gitHubConfig && gitHubEnabled) {
-          body.gitHubConfig = gitHubConfig;
-        }
-        break;
-      }
-    }
+    // Build request
+    const body = buildOperationRequestBody(operation, gitHubConfig, gitHubEnabled);
+    const url = getOperationUrl(operation);
+    const method = getOperationMethod(operation);
 
     const headers = await getAuthHeaders({
       'Content-Type': 'application/json',
     });
 
+    // Send request
     await syncRequest(url, {
-      method: operation.type === 'CREATE' ? 'POST' : operation.type === 'UPDATE' ? 'PUT' : 'DELETE',
+      method,
       headers,
       body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });
@@ -1474,41 +1564,34 @@ async function processSingleQueueOperation(
     }
 
     // Mark mutation as synced
-    const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
-    clearDirtyMutation(sessionId, operation.queuedAt);
+    handleOperationSuccess(operation, index, queue);
 
     return { success: true, shouldContinue: true };
   } catch (error) {
     console.error('Error syncing operation', error);
 
-    // Handle permanent failures
-    if (error instanceof SyncRequestError && !error.retryable) {
-      const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
-      clearDirtyMutation(sessionId, operation.queuedAt);
+    const { retryable, retryAfterMs } = await handleOperationError(
+      error,
+      operation,
+      index,
+      queue,
+      generation,
+      onAbort
+    );
 
-      const remainingOperations = queue.filter((_, i) => i !== index);
-      if (isStorageGenerationCurrent(generation)) {
-        await setQueue(remainingOperations, queue);
-        await reconcilePermanentFailure();
-      }
-      return { success: false, shouldContinue: false };
-    }
-
-    // Handle retryable errors with backoff
-    if (
-      error instanceof SyncRequestError &&
-      error.retryAfterMs !== null &&
-      error.retryAfterMs > 0
-    ) {
-      const retryAfterMs = error.retryAfterMs;
+    // Handle backoff for retryable errors with retry-after header
+    if (retryable && retryAfterMs !== null && retryAfterMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
     }
 
     // Stop syncing on error; queue remaining operations for retry
-    const remainingOperations = queue.slice(index);
-    if (isStorageGenerationCurrent(generation)) {
-      await setQueue(remainingOperations, queue);
+    if (retryable) {
+      const remainingOperations = queue.slice(index);
+      if (isStorageGenerationCurrent(generation)) {
+        await setQueue(remainingOperations, queue);
+      }
     }
+
     return { success: false, shouldContinue: false };
   }
 }
