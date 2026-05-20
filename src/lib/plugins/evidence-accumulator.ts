@@ -65,7 +65,7 @@ export class EvidenceAccumulator {
    * Get current evidence entries
    */
   getEvidence(): Record<PluginMaturityCategory, string[]> {
-    const result: Record<PluginMaturityCategory, string[]> = {};
+    const result: Record<PluginMaturityCategory, string[]> = {} as Record<PluginMaturityCategory, string[]>;
     for (const category in this.evidence) {
       result[category as PluginMaturityCategory] = [...this.evidence[category as PluginMaturityCategory]];
     }
@@ -76,7 +76,7 @@ export class EvidenceAccumulator {
    * Get current reasons
    */
   getReasons(): Record<PluginMaturityCategory, string> {
-    const result: Record<PluginMaturityCategory, string> = {};
+    const result: Record<PluginMaturityCategory, string> = {} as Record<PluginMaturityCategory, string>;
     for (const category in this.reasons) {
       result[category as PluginMaturityCategory] = this.reasons[category as PluginMaturityCategory];
     }
