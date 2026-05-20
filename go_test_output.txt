@@ -1,0 +1,282 @@
+=== RUN   TestSessionGitHubPathEncodesIdentifiers
+--- PASS: TestSessionGitHubPathEncodesIdentifiers (0.00s)
+=== RUN   TestValidateUsesDefaultBranchWhenBranchUnset
+--- PASS: TestValidateUsesDefaultBranchWhenBranchUnset (0.00s)
+=== RUN   TestSyncAllSkipsUnchangedAndPushesChangedSessions
+--- PASS: TestSyncAllSkipsUnchangedAndPushesChangedSessions (0.00s)
+=== RUN   TestListSessionsUsesRecentCache
+--- PASS: TestListSessionsUsesRecentCache (0.00s)
+=== RUN   TestCreateSessionInvalidatesListSessionsCache
+--- PASS: TestCreateSessionInvalidatesListSessionsCache (0.00s)
+=== RUN   TestGetFileEncodesPathSegmentsAndRefQuery
+--- PASS: TestGetFileEncodesPathSegmentsAndRefQuery (0.00s)
+=== RUN   TestListTreeEntriesFromContentsAPIEncodesPathAndRef
+--- PASS: TestListTreeEntriesFromContentsAPIEncodesPathAndRef (0.00s)
+=== RUN   TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames
+=== RUN   TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames/nested_branch_name
+=== RUN   TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames/simple_branch_name_unchanged
+--- PASS: TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames (0.00s)
+    --- PASS: TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames/nested_branch_name (0.00s)
+    --- PASS: TestGetTreeEntriesForPathBranchEndpointHandlesNestedAndSimpleBranchNames/simple_branch_name_unchanged (0.00s)
+=== RUN   TestGetTreeEntriesForPathReturnsNon404BranchRefError
+--- PASS: TestGetTreeEntriesForPathReturnsNon404BranchRefError (0.00s)
+=== RUN   TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix
+--- PASS: TestFindSessionPathOnGitHubByIDFallsBackToLegacySanitizedSuffix (0.00s)
+=== RUN   TestDiagnoseLogsHappyPath
+--- PASS: TestDiagnoseLogsHappyPath (0.00s)
+=== RUN   TestDiagnoseLogsMixedValidAndInvalidFiles
+--- PASS: TestDiagnoseLogsMixedValidAndInvalidFiles (0.00s)
+=== RUN   TestDiagnoseLogsRepoNotFound
+--- PASS: TestDiagnoseLogsRepoNotFound (0.00s)
+=== RUN   TestDiagnoseLogsPathNotFoundReturnsEmptyReport
+--- PASS: TestDiagnoseLogsPathNotFoundReturnsEmptyReport (0.00s)
+=== RUN   TestFixLogsDryRunProvidesPreview
+--- PASS: TestFixLogsDryRunProvidesPreview (0.00s)
+=== RUN   TestFixLogsApplyRequiresConfirmation
+--- PASS: TestFixLogsApplyRequiresConfirmation (0.00s)
+=== RUN   TestFixLogsRejectsUnsafePath
+--- PASS: TestFixLogsRejectsUnsafePath (0.00s)
+PASS
+ok  	matmetrics/internal/githubapi	0.013s
+=== RUN   TestRequireAuthenticatedUserRejectsMissingAuthorization
+--- PASS: TestRequireAuthenticatedUserRejectsMissingAuthorization (0.00s)
+=== RUN   TestRequireAuthenticatedUserAcceptsTestModeToken
+--- PASS: TestRequireAuthenticatedUserAcceptsTestModeToken (0.00s)
+=== RUN   TestRequireAuthenticatedUserAcceptsLowercaseBearerScheme
+--- PASS: TestRequireAuthenticatedUserAcceptsLowercaseBearerScheme (0.00s)
+=== RUN   TestRequireAuthenticatedUserRejectsInvalidTestModeToken
+--- PASS: TestRequireAuthenticatedUserRejectsInvalidTestModeToken (0.00s)
+=== RUN   TestRequireAuthenticatedUserRejectsMalformedAuthorizationHeaders
+--- PASS: TestRequireAuthenticatedUserRejectsMalformedAuthorizationHeaders (0.00s)
+PASS
+ok  	matmetrics/internal/httpapi	0.007s
+=== RUN   TestSplitFrontmatterWithLF
+--- PASS: TestSplitFrontmatterWithLF (0.00s)
+=== RUN   TestSplitFrontmatterWithCRLF
+--- PASS: TestSplitFrontmatterWithCRLF (0.00s)
+=== RUN   TestSplitFrontmatterMissingOrInvalidTerminator
+=== RUN   TestSplitFrontmatterMissingOrInvalidTerminator/missing_terminator
+=== RUN   TestSplitFrontmatterMissingOrInvalidTerminator/invalid_terminator
+--- PASS: TestSplitFrontmatterMissingOrInvalidTerminator (0.00s)
+    --- PASS: TestSplitFrontmatterMissingOrInvalidTerminator/missing_terminator (0.00s)
+    --- PASS: TestSplitFrontmatterMissingOrInvalidTerminator/invalid_terminator (0.00s)
+=== RUN   TestRoundTripSessionMarkdown
+--- PASS: TestRoundTripSessionMarkdown (0.00s)
+=== RUN   TestMarkdownToSessionWithoutVideoURLStillParses
+--- PASS: TestMarkdownToSessionWithoutVideoURLStillParses (0.00s)
+=== RUN   TestSessionToMarkdownWritesVideoURLFrontmatter
+--- PASS: TestSessionToMarkdownWritesVideoURLFrontmatter (0.00s)
+=== RUN   TestMarkdownToSessionRejectsInvalidVideoURL
+--- PASS: TestMarkdownToSessionRejectsInvalidVideoURL (0.00s)
+=== RUN   TestMarkdownParserHandlesEndOfFileWithoutTrailingNewline
+--- PASS: TestMarkdownParserHandlesEndOfFileWithoutTrailingNewline (0.00s)
+=== RUN   TestMarkdownOutputUsesExpectedHeadings
+--- PASS: TestMarkdownOutputUsesExpectedHeadings (0.00s)
+=== RUN   TestMarkdownToSessionWithSingleQuotedFrontmatter
+--- PASS: TestMarkdownToSessionWithSingleQuotedFrontmatter (0.00s)
+=== RUN   TestMarkdownToSessionWithMixedQuotedFrontmatter
+--- PASS: TestMarkdownToSessionWithMixedQuotedFrontmatter (0.00s)
+=== RUN   TestNormalizeMarkdownReordersAndAddsRequiredSections
+--- PASS: TestNormalizeMarkdownReordersAndAddsRequiredSections (0.00s)
+=== RUN   TestNormalizeMarkdownReturnsErrorsForInvalidFrontmatter
+--- PASS: TestNormalizeMarkdownReturnsErrorsForInvalidFrontmatter (0.00s)
+=== RUN   TestMarkdownToSessionAllowsEditedInformationalTitle
+--- PASS: TestMarkdownToSessionAllowsEditedInformationalTitle (0.00s)
+=== RUN   TestMarkdownToSessionRequiresLevelOneTitle
+--- PASS: TestMarkdownToSessionRequiresLevelOneTitle (0.00s)
+=== RUN   TestMarkdownToSessionRequiresAllStandardSections
+--- PASS: TestMarkdownToSessionRequiresAllStandardSections (0.00s)
+=== RUN   TestMarkdownToSessionRejectsSectionKeywordsInParagraph
+--- PASS: TestMarkdownToSessionRejectsSectionKeywordsInParagraph (0.00s)
+=== RUN   TestMarkdownToSessionRejectsSectionKeywordsInFencedCodeBlock
+--- PASS: TestMarkdownToSessionRejectsSectionKeywordsInFencedCodeBlock (0.00s)
+=== RUN   TestMarkdownToSessionAcceptsTrueSectionHeadings
+--- PASS: TestMarkdownToSessionAcceptsTrueSectionHeadings (0.00s)
+=== RUN   TestMarkdownToSessionRejectsNegativeDuration
+--- PASS: TestMarkdownToSessionRejectsNegativeDuration (0.00s)
+=== RUN   TestMarkdownToSessionPreservesEmbeddedHashesAndFencedCode
+--- PASS: TestMarkdownToSessionPreservesEmbeddedHashesAndFencedCode (0.00s)
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/localhost
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/127.0.0.1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/::1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/10.0.0.1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/172.16.0.1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/192.168.1.1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/169.254.169.254
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/fc00::1
+=== RUN   TestMarkdownToSessionRejectsVideoURLPrivateHosts/fe80::1
+--- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/localhost (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/127.0.0.1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/::1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/10.0.0.1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/172.16.0.1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/192.168.1.1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/169.254.169.254 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/fc00::1 (0.00s)
+    --- PASS: TestMarkdownToSessionRejectsVideoURLPrivateHosts/fe80::1 (0.00s)
+=== RUN   TestMarkdownToSessionVideoURLDNSResolutionBehavior
+=== RUN   TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback
+=== RUN   TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local
+=== RUN   TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames
+=== RUN   TestMarkdownToSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts
+--- PASS: TestMarkdownToSessionVideoURLDNSResolutionBehavior (0.00s)
+    --- PASS: TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback (0.00s)
+    --- PASS: TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local (0.00s)
+    --- PASS: TestMarkdownToSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames (0.00s)
+    --- PASS: TestMarkdownToSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts (0.00s)
+PASS
+ok  	matmetrics/internal/markdown	0.014s
+?   	matmetrics/internal/model	[no test files]
+?   	matmetrics/internal/networkvalidator	[no test files]
+=== RUN   TestValidateSessionParityFixtures
+=== RUN   TestValidateSessionParityFixtures/valid
+=== RUN   TestValidateSessionParityFixtures/bad_date_format
+=== RUN   TestValidateSessionParityFixtures/bad_date_real
+=== RUN   TestValidateSessionParityFixtures/bad_effort
+=== RUN   TestValidateSessionParityFixtures/bad_category
+=== RUN   TestValidateSessionParityFixtures/empty_technique
+=== RUN   TestValidateSessionParityFixtures/negative_duration
+=== RUN   TestValidateSessionParityFixtures/bad_protocol
+=== RUN   TestValidateSessionParityFixtures/private_video_host
+=== RUN   TestValidateSessionParityFixtures/whitespace_video_allowed
+--- PASS: TestValidateSessionParityFixtures (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/valid (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/bad_date_format (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/bad_date_real (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/bad_effort (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/bad_category (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/empty_technique (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/negative_duration (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/bad_protocol (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/private_video_host (0.00s)
+    --- PASS: TestValidateSessionParityFixtures/whitespace_video_allowed (0.00s)
+=== RUN   TestValidateSessionIDValidation
+=== RUN   TestValidateSessionIDValidation/rejects_blank_ids_after_trimming_whitespace
+=== RUN   TestValidateSessionIDValidation/rejects_invalid_characters
+=== RUN   TestValidateSessionIDValidation/rejects_too-long_ids
+=== RUN   TestValidateSessionIDValidation/accepts_max-length_id_with_allowed_charset
+--- PASS: TestValidateSessionIDValidation (0.00s)
+    --- PASS: TestValidateSessionIDValidation/rejects_blank_ids_after_trimming_whitespace (0.00s)
+    --- PASS: TestValidateSessionIDValidation/rejects_invalid_characters (0.00s)
+    --- PASS: TestValidateSessionIDValidation/rejects_too-long_ids (0.00s)
+    --- PASS: TestValidateSessionIDValidation/accepts_max-length_id_with_allowed_charset (0.00s)
+=== RUN   TestValidateSessionRejectsInvalidDateCases
+=== RUN   TestValidateSessionRejectsInvalidDateCases/invalid_month
+=== RUN   TestValidateSessionRejectsInvalidDateCases/invalid_day
+=== RUN   TestValidateSessionRejectsInvalidDateCases/non_leap_day
+=== RUN   TestValidateSessionRejectsInvalidDateCases/malformed_format
+--- PASS: TestValidateSessionRejectsInvalidDateCases (0.00s)
+    --- PASS: TestValidateSessionRejectsInvalidDateCases/invalid_month (0.00s)
+    --- PASS: TestValidateSessionRejectsInvalidDateCases/invalid_day (0.00s)
+    --- PASS: TestValidateSessionRejectsInvalidDateCases/non_leap_day (0.00s)
+    --- PASS: TestValidateSessionRejectsInvalidDateCases/malformed_format (0.00s)
+=== RUN   TestValidateSessionVideoURLValidation
+=== RUN   TestValidateSessionVideoURLValidation/accepts_empty_video_url
+=== RUN   TestValidateSessionVideoURLValidation/allows_whitespace-only_video_url
+=== RUN   TestValidateSessionVideoURLValidation/rejects_invalid_url
+=== RUN   TestValidateSessionVideoURLValidation/rejects_unsupported_protocol
+=== RUN   TestValidateSessionVideoURLValidation/accepts_valid_https_url
+=== RUN   TestValidateSessionVideoURLValidation/accepts_valid_http_url
+--- PASS: TestValidateSessionVideoURLValidation (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/accepts_empty_video_url (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/allows_whitespace-only_video_url (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/rejects_invalid_url (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/rejects_unsupported_protocol (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/accepts_valid_https_url (0.00s)
+    --- PASS: TestValidateSessionVideoURLValidation/accepts_valid_http_url (0.00s)
+=== RUN   TestValidateSessionAllowsMissingVideoURL
+--- PASS: TestValidateSessionAllowsMissingVideoURL (0.00s)
+=== RUN   TestValidateSessionDurationValidation
+=== RUN   TestValidateSessionDurationValidation/rejects_negative_duration
+=== RUN   TestValidateSessionDurationValidation/accepts_zero_duration
+=== RUN   TestValidateSessionDurationValidation/accepts_positive_duration
+=== RUN   TestValidateSessionDurationValidation/accepts_nil_duration
+--- PASS: TestValidateSessionDurationValidation (0.00s)
+    --- PASS: TestValidateSessionDurationValidation/rejects_negative_duration (0.00s)
+    --- PASS: TestValidateSessionDurationValidation/accepts_zero_duration (0.00s)
+    --- PASS: TestValidateSessionDurationValidation/accepts_positive_duration (0.00s)
+    --- PASS: TestValidateSessionDurationValidation/accepts_nil_duration (0.00s)
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/localhost
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/127.0.0.1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/::1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/10.0.0.1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/172.16.0.1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/192.168.1.1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/169.254.169.254
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/fc00::1
+=== RUN   TestValidateSessionRejectsPrivateVideoURLHosts/fe80::1
+--- PASS: TestValidateSessionRejectsPrivateVideoURLHosts (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/localhost (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/127.0.0.1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/::1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/10.0.0.1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/172.16.0.1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/192.168.1.1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/169.254.169.254 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/fc00::1 (0.00s)
+    --- PASS: TestValidateSessionRejectsPrivateVideoURLHosts/fe80::1 (0.00s)
+=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior
+=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback
+=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local
+=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames
+=== RUN   TestValidateSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts
+--- PASS: TestValidateSessionVideoURLDNSResolutionBehavior (0.00s)
+    --- PASS: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_loopback (0.00s)
+    --- PASS: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_dns-resolved_link-local (0.00s)
+    --- PASS: TestValidateSessionVideoURLDNSResolutionBehavior/rejects_unresolved_hostnames (0.00s)
+    --- PASS: TestValidateSessionVideoURLDNSResolutionBehavior/accepts_dns-resolved_public_hosts (0.00s)
+PASS
+ok  	matmetrics/internal/sessionapi	0.015s
+=== RUN   TestGetSessionFilePathEncodesID
+--- PASS: TestGetSessionFilePathEncodesID (0.00s)
+=== RUN   TestGetSessionFilePathKeepsSpecialCharacterIDsDistinct
+--- PASS: TestGetSessionFilePathKeepsSpecialCharacterIDsDistinct (0.00s)
+=== RUN   TestEncodedSessionIDMatchesTypeScriptBehavior
+--- PASS: TestEncodedSessionIDMatchesTypeScriptBehavior (0.00s)
+=== RUN   TestSessionIDPathSuffixCandidatesIncludesLegacySanitizedFallback
+--- PASS: TestSessionIDPathSuffixCandidatesIncludesLegacySanitizedFallback (0.00s)
+=== RUN   TestListSessionsSortsNewestFirst
+--- PASS: TestListSessionsSortsNewestFirst (0.00s)
+PASS
+ok  	matmetrics/internal/storage	0.014s
+?   	matmetrics/go/cmd/matmetrics-cli	[no test files]
+?   	matmetrics/api/go/github/log-doctor	[no test files]
+=== RUN   TestHandlerValidationAndDryRun
+=== RUN   TestHandlerValidationAndDryRun/dry-run_success
+=== RUN   TestHandlerValidationAndDryRun/apply_without_confirmation_rejected
+=== RUN   TestHandlerValidationAndDryRun/empty_path_list_rejected
+=== RUN   TestHandlerValidationAndDryRun/invalid_mode_rejected
+=== RUN   TestHandlerValidationAndDryRun/unsafe_path_rejected
+--- PASS: TestHandlerValidationAndDryRun (0.00s)
+    --- PASS: TestHandlerValidationAndDryRun/dry-run_success (0.00s)
+    --- PASS: TestHandlerValidationAndDryRun/apply_without_confirmation_rejected (0.00s)
+    --- PASS: TestHandlerValidationAndDryRun/empty_path_list_rejected (0.00s)
+    --- PASS: TestHandlerValidationAndDryRun/invalid_mode_rejected (0.00s)
+    --- PASS: TestHandlerValidationAndDryRun/unsafe_path_rejected (0.00s)
+=== RUN   TestHandlerServiceFailure
+--- PASS: TestHandlerServiceFailure (0.00s)
+PASS
+ok  	matmetrics/api/go/github/log-doctor/fix	0.005s
+?   	matmetrics/api/go/github/sync-all	[no test files]
+?   	matmetrics/api/go/github/validate	[no test files]
+=== RUN   TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub
+--- PASS: TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub (0.00s)
+=== RUN   TestHandlerRejectsInvalidDateBeforeCallingGitHub
+--- PASS: TestHandlerRejectsInvalidDateBeforeCallingGitHub (0.00s)
+PASS
+ok  	matmetrics/api/go/sessions/create	0.008s
+=== RUN   TestHandlerReturnsBadRequestWhenIDIsEmpty
+--- PASS: TestHandlerReturnsBadRequestWhenIDIsEmpty (0.00s)
+=== RUN   TestHandlerReturnsConfigValidationErrorForValidIDWhenOwnerRepoMissing
+--- PASS: TestHandlerReturnsConfigValidationErrorForValidIDWhenOwnerRepoMissing (0.00s)
+PASS
+ok  	matmetrics/api/go/sessions/delete	0.007s
+?   	matmetrics/api/go/sessions/get	[no test files]
+?   	matmetrics/api/go/sessions/list	[no test files]
+=== RUN   TestHandlerRejectsMalformedDateBeforeCallingGitHub
+--- PASS: TestHandlerRejectsMalformedDateBeforeCallingGitHub (0.00s)
+PASS
+ok  	matmetrics/api/go/sessions/update	0.004s
