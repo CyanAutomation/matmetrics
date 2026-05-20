@@ -44,7 +44,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
 
     it('should require total score >= 70 for Silver', () => {
@@ -58,7 +58,7 @@ describe('TierEvaluator', () => {
 
       const tier = evaluator.evaluateTier(scores);
       // Total = 70, should be Silver
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
 
     it('should stay Silver if any category is 0', () => {
@@ -71,7 +71,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
   });
 
@@ -94,7 +94,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'gold');
+      assert.equal(tier, 'Gold');
     });
 
     it('should require total score >= 85 for Gold', () => {
@@ -116,7 +116,7 @@ describe('TierEvaluator', () => {
 
       // Total = 86, but needs explicit in all categories
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'gold');
+      assert.equal(tier, 'Gold');
     });
 
     it('should not promote to Gold without explicit evidence', () => {
@@ -137,7 +137,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
 
     it('should not promote to Gold if any critical category is missing evidence', () => {
@@ -158,7 +158,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
   });
 
@@ -173,7 +173,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, undefined);
-      assert.equal(tier, 'silver');
+      assert.equal(tier, 'Silver');
     });
 
     it('should handle empty scores', () => {
@@ -205,7 +205,7 @@ describe('TierEvaluator', () => {
       } as any;
 
       const tier = evaluator.evaluateTier(scores, partialEvidence);
-      assert.ok(['silver', 'bronze'].includes(tier));
+      assert.ok(['Silver', 'Bronze'].includes(tier));
     });
   });
 });
