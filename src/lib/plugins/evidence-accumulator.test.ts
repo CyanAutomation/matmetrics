@@ -7,9 +7,27 @@ describe('EvidenceAccumulator', () => {
   it('should initialize empty', () => {
     const acc = new EvidenceAccumulator();
 
-    assert.deepEqual(acc.getCategoryScores(), {});
-    assert.deepEqual(acc.getEvidence(), {});
-    assert.deepEqual(acc.getReasons(), {});
+    assert.deepEqual(acc.getCategoryScores(), {
+      contract_metadata: 0,
+      runtime_integration: 0,
+      feature_quality: 0,
+      test_coverage: 0,
+      operability_docs: 0,
+    });
+    assert.deepEqual(acc.getEvidence(), {
+      contract_metadata: [],
+      runtime_integration: [],
+      feature_quality: [],
+      test_coverage: [],
+      operability_docs: [],
+    });
+    assert.deepEqual(acc.getReasons(), {
+      contract_metadata: '',
+      runtime_integration: '',
+      feature_quality: '',
+      test_coverage: '',
+      operability_docs: '',
+    });
     assert.deepEqual(acc.getNextActions(), []);
   });
 

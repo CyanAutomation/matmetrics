@@ -98,7 +98,7 @@ export type PluginManifest = {
   uiExtensions: UIExtension[];
 };
 
-export type PluginMaturityTier = 'bronze' | 'silver' | 'gold';
+export type PluginMaturityTier = 'Bronze' | 'Silver' | 'Gold';
 
 export type PluginMaturityUxCriterion =
   | 'loadingStatePresent'

@@ -24,7 +24,7 @@ describe('Maturity Scoring Integration', () => {
       bronzeAcc.addEvidence('contract_metadata', 'explicit', 'Basic metadata');
 
       const bronzeTier = evaluator.evaluateTier(bronzeAcc.getCategoryScores());
-      assert.equal(bronzeTier, 'Bronze');
+      assert.equal(bronzeTier, 'bronze');
 
       // Silver tier
       const silverAcc = new EvidenceAccumulator();
@@ -36,7 +36,7 @@ describe('Maturity Scoring Integration', () => {
       silverAcc.addEvidence('contract_metadata', 'explicit', 'Complete metadata');
 
       const silverTier = evaluator.evaluateTier(silverAcc.getCategoryScores());
-      assert.equal(silverTier, 'Silver');
+      assert.equal(silverTier, 'silver');
 
       // Gold tier
       const goldAcc = new EvidenceAccumulator();
@@ -55,7 +55,7 @@ describe('Maturity Scoring Integration', () => {
         goldAcc.getCategoryScores(),
         goldAcc.getEvidence()
       );
-      assert.equal(goldTier, 'Gold');
+      assert.equal(goldTier, 'gold');
     });
 
     it('should use primitives registry in evidence collection', () => {
