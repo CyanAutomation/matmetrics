@@ -1,5 +1,35 @@
 # Maturity Scoring Rubric
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [How Agents Should Use This Rubric](#how-agents-should-use-this-rubric)
+  - [Core Principle](#core-principle)
+- [Scoring System Structure](#scoring-system-structure)
+- [Base Rubric Categories](#base-rubric-categories)
+  - [Base Score Calculation](#base-score-calculation)
+- [Base Rubric Details](#base-rubric-details)
+  - [1. Repository Completeness (Weight: 10)](#1-repository-completeness-weight-10)
+  - [2. Setup & Reproducibility (Weight: 15)](#2-setup--reproducibility-weight-15)
+  - [3. Runtime Operability (Weight: 15)](#3-runtime-operability-weight-15)
+  - [4. Testing & Verification (Weight: 15)](#4-testing--verification-weight-15)
+  - [5. CI/CD & Delivery (Weight: 10)](#5-cicd--delivery-weight-10)
+  - [6. Codebase Maintainability (Weight: 10)](#6-codebase-maintainability-weight-10)
+  - [7. Security & Dependency Hygiene (Weight: 10)](#7-security--dependency-hygiene-weight-10)
+  - [8. Documentation Depth (Weight: 10)](#8-documentation-depth-weight-10)
+  - [9. Project Governance Signals (Weight: 5)](#9-project-governance-signals-weight-5)
+- [Modifiers (±10 max)](#modifiers-10-max)
+  - [App / Product](#app--product)
+  - [Library / Tooling](#library--tooling)
+  - [Hardware-Integrated](#hardware-integrated)
+  - [Experimental / Prototype](#experimental--prototype)
+- [Penalties (0–20 max)](#penalties-020-max)
+  - [Critical Penalties (-10 each)](#critical-penalties-10-each)
+  - [Medium Penalties (-5 each)](#medium-penalties-5-each)
+  - [Minor Penalties (-2 to -3 each)](#minor-penalties-2-to-3-each)
+- [Output Interpretation](#output-interpretation)
+- [Scoring Examples](#scoring-examples)
+
 ## Overview
 
 This rubric measures how close a repository is to being a reliable, runnable, and maintainable product—not how clever, large, or popular it is. Use this rubric to assess any open-source or internal project and identify the most impactful areas for improvement.
