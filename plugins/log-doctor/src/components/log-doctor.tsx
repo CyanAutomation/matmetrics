@@ -257,7 +257,7 @@ export const LogDoctor = (): React.ReactElement => {
       showAuditSuccess();
     } finally {
     }
-  }, [user?.uid, auditConfig, startAuditLoading, showAuditSuccess]);
+  }, [user?.uid, auditConfig, startAuditLoading, showAuditSuccess, setAuditResults, setAuditRanAt, setAuditStep]);
 
   const handleReviewSession = (sessionId: string): void => {
     setAuditStep('resolve-findings');

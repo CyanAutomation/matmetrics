@@ -1,7 +1,8 @@
+// @ts-expect-error jsdom types not available
 import { JSDOM } from 'jsdom';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 
 // Setup jsdom for DOM-dependent tests
 const dom = new JSDOM();
@@ -19,7 +20,7 @@ describe('useAuditStateManager', () => {
     sessionId: mockSessionId,
     sessionDate: '2026-03-18',
     flags: [
-      { code: 'INVALID_MARKDOWN' as AuditFlagCode, message: 'Invalid markdown' },
+      { code: 'INVALID_MARKDOWN' as AuditFlagCode, severity: 'error', message: 'Invalid markdown' },
     ],
     reviewedAt: undefined,
     ignoredRules: [],
