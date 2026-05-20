@@ -3,18 +3,10 @@
 import React from 'react';
 import {
   SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
   SidebarTrigger,
   SidebarInset,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { SessionLogForm } from '@/components/session-log-form';
-import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import {
   Info,
   Plus,
@@ -48,13 +40,19 @@ import { useAuth } from '@/components/auth-provider';
 import { SignInScreen } from '@/components/sign-in-screen';
 import { RessaImage } from '@/components/ressa-image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { DashboardNav } from '@/components/dashboard-nav';
 import { TAB_IDS } from '@/lib/navigation/tab-definitions';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { useSessionsData } from '@/hooks/use-sessions-data';
 import { usePluginTabs } from '@/hooks/use-plugin-tabs';
 import { useGuestImport } from '@/hooks/use-guest-import';
 import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
+import {
+  getUserInitials,
+  getSyncStatusText,
+  getGuestModeAlertMessage,
+  getSignInButtonText,
+} from '@/lib/dashboard-utils';
 
 const legacyPluginRegistryFallbackEnabled =
   process.env.NEXT_PUBLIC_ENABLE_LEGACY_PLUGIN_REGISTRY === 'true';
@@ -112,25 +110,13 @@ export default function Home() {
   };
 
   const isGuest = authMode === 'guest';
-  const initials = (
-    user?.displayName ||
-    user?.email ||
-    (isGuest ? 'Guest' : 'MM')
-  )
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-  const guestBadgeLabel =
-    guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview';
-  const syncStatusText = !syncStatus.isOnline
-    ? 'Offline'
-    : syncStatus.isSyncing
-      ? 'Syncing'
-      : syncStatus.pendingCount > 0
-        ? `${syncStatus.pendingCount} pending`
-        : 'Synced';
+  const initials = getUserInitials(user?.displayName, user?.email, isGuest);
+  const syncStatusText = getSyncStatusText(syncStatus);
+  const alertMessage = getGuestModeAlertMessage(
+    guestWorkspace.source,
+    authAvailable
+  );
+  const signInButtonText = getSignInButtonText(authAvailable);
 
   if (!authReady || !preferencesReady) {
     return (
@@ -146,56 +132,13 @@ export default function Home() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--color-surface-container-low))]">
-        <Sidebar className="glass-surface bg-sidebar/90 shadow-[inset_-1px_0_0_hsl(var(--sidebar-border)/0.12)] [[data-contrast='high']_&]:shadow-[inset_-1px_0_0_hsl(var(--color-outline-variant)/0.92)]">
-          <SidebarHeader className="p-4">
-            <div className="flex items-center gap-3">
-              <MatMetricsLogo size="md" variant="solid" />
-              <div>
-                <div className="text-display-sm font-black text-primary">
-                  MatMetrics
-                </div>
-                {isGuest && (
-                  <Badge variant="outline" className="mt-1 border-primary/20">
-                    {guestBadgeLabel}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </SidebarHeader>
-          <SidebarContent className="p-2">
-            <SidebarMenu className="gap-2">
-              {visibleTabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <SidebarMenuItem key={tab.id}>
-                    <SidebarMenuButton
-                      isActive={activeTab === tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className="py-6 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-base font-semibold">
-                        {tab.title}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarContent>
-          {isGuest && (
-            <SidebarFooter className="p-4">
-              <div className="flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
-                <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-fixed))]" />
-                <span className="text-[hsl(var(--color-on-primary-fixed))]">
-                  {guestWorkspace.source === 'custom'
-                    ? 'Local guest data'
-                    : 'Demo data loaded'}
-                </span>
-              </div>
-            </SidebarFooter>
-          )}
-        </Sidebar>
+        <DashboardNav
+          activeTab={activeTab}
+          visibleTabs={visibleTabs}
+          onTabChange={setActiveTab}
+          isGuest={isGuest}
+          guestWorkspaceSource={guestWorkspace.source}
+        />
 
         <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
           <header className="glass-surface h-14 flex items-center px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
@@ -211,11 +154,12 @@ export default function Home() {
                   <WifiOff className="h-4 w-4 text-[hsl(var(--color-on-warning-container))]" />
                 </span>
               )}
-              {syncStatus.isOnline && (syncStatus.isSyncing || syncStatus.pendingCount > 0) && (
-                <span title={syncStatusText} className="flex items-center">
-                  <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--color-on-info-container))]" />
-                </span>
-              )}
+              {syncStatus.isOnline &&
+                (syncStatus.isSyncing || syncStatus.pendingCount > 0) && (
+                  <span title={syncStatusText} className="flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--color-on-info-container))]" />
+                  </span>
+                )}
               <Button
                 variant="outline"
                 size="icon"
@@ -238,7 +182,7 @@ export default function Home() {
                       {user?.displayName || user?.email || 'Guest Mode'}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {user?.email || guestBadgeLabel}
+                      {user?.email || (guestWorkspace.source === 'custom' ? 'Guest Workspace' : 'Demo Preview')}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -273,22 +217,25 @@ export default function Home() {
                   <LockKeyhole className="h-4 w-4 text-[hsl(var(--color-on-primary-fixed))]" />
                   <AlertTitle className="flex items-center gap-2">
                     Guest access is active
-                    <Badge variant="outline">{guestBadgeLabel}</Badge>
+                    {guestWorkspace.source === 'custom' && (
+                      <span className="text-xs px-2 py-1 rounded border border-current">
+                        Guest Workspace
+                      </span>
+                    )}
+                    {guestWorkspace.source === 'demo' && (
+                      <span className="text-xs px-2 py-1 rounded border border-current">
+                        Demo Preview
+                      </span>
+                    )}
                   </AlertTitle>
                   <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>
-                      {guestWorkspace.source === 'custom'
-                        ? 'You can keep logging sessions locally in this browser. Sign in to unlock AI tools, GitHub sync, and cloud-backed preferences.'
-                        : 'You are browsing a seeded preview workspace. Start editing to turn it into your own local guest workspace.'}
-                    </span>
+                    <span>{alertMessage}</span>
                     <Button
                       size="sm"
                       onClick={() => setIsAuthDialogOpen(true)}
                       variant="outline"
                     >
-                      {authAvailable
-                        ? 'Sign in to unlock more'
-                        : 'View sign-in setup'}
+                      {signInButtonText}
                     </Button>
                   </AlertDescription>
                 </Alert>
