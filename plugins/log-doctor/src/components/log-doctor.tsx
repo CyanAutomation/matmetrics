@@ -33,15 +33,12 @@ import { Stethoscope } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
-import { getAuthHeaders } from '@/lib/auth-session';
-import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
 import { useAuditStateManager } from '../hooks/use-audit-state-manager';
 import { useFileValidationController } from '../hooks/use-file-validation-controller';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import {
   getSessionAudit,
-  saveSessionAudit,
   getAuditConfig,
   getAuditMode,
   getLastAuditRun,
@@ -54,7 +51,6 @@ import type {
   AuditMode,
   AuditRunResult,
   JudoSession,
-  SessionAudit,
 } from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
@@ -64,13 +60,9 @@ import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 
 import {
   createEmptyDiagnosticsSnapshot,
-  createUiState,
   resolveResetDiagnosticsSnapshot,
   type AuditSessionResult,
   type DiagnosticsSnapshot,
-  type FixResult,
-  type LogDoctorUiState,
-  type ScanResult,
 } from './log-doctor-state';
 
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';

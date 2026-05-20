@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderHook, act } from '@testing-library/react';
 
@@ -9,7 +9,6 @@ global.document = dom.window.document as any;
 global.window = dom.window as any;
 
 // Mock React hooks before importing
-import { useToast } from '@/hooks/use-toast';
 const mockToast = { toast: () => {} };
 
 import { useAuditStateManager } from './use-audit-state-manager';
