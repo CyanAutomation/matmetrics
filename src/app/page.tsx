@@ -13,7 +13,6 @@ import {
   WifiOff,
   Loader2,
   LockKeyhole,
-  Sparkles,
   History,
   LogOut,
   LogIn,

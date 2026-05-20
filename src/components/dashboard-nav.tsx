@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { Sparkles, Badge as BadgeIcon } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getGuestBadgeLabel, getGuestWorkspaceDescription } from '@/lib/dashboard-utils';
 import type { DashboardTab } from '@/lib/navigation/tab-definitions';

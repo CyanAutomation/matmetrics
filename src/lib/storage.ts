@@ -42,8 +42,6 @@ import {
   clearAllDirtyMutations,
   resetMutationVersion,
   sessionsEqual,
-  type DirtyMutation,
-  type DirtyMutationInput,
 } from './mutation-state';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';

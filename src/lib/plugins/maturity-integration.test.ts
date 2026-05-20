@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { MATURITY_PRIMITIVES } from './maturity-config';
 import { EvidenceAccumulator } from './evidence-accumulator';
 import { TierEvaluator } from './tier-evaluator';
-import type { PluginManifest } from './types';
 
 /**
  * Integration tests for maturity scoring extractors.

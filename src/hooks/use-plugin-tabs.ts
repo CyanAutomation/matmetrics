@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   coreTabs,
   mapDashboardExtensionsToTabs,
-  TAB_IDS,
   type TabDefinition,
   type TabId,
 } from '@/lib/navigation/tab-definitions';
