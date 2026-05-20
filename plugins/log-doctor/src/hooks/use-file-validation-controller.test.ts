@@ -1,8 +1,14 @@
+import { JSDOM } from 'jsdom';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderHook, act } from '@testing-library/react';
 import { useFileValidationController } from './use-file-validation-controller';
 import type { ScanResult, FixResult } from '../components/log-doctor-state';
+
+// Setup jsdom for DOM-dependent tests
+const dom = new JSDOM();
+global.document = dom.window.document as any;
+global.window = dom.window as any;
 
 describe('useFileValidationController', () => {
   const mockAuthHeaders = { 'Authorization': 'Bearer token' };
