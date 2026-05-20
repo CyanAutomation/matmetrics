@@ -1,9 +1,15 @@
+import { JSDOM } from 'jsdom';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderHook, act } from '@testing-library/react';
 import { useAuditStateManager } from './use-audit-state-manager';
 import type { AuditSessionResult } from '../components/log-doctor-state';
 import type { AuditFlagCode } from '@/lib/types';
+
+// Setup jsdom for DOM-dependent tests
+const dom = new JSDOM();
+global.document = dom.window.document as any;
+global.window = dom.window as any;
 
 // Manual mock for user preferences
 const mockSaveSessionAudit = async () => undefined;
