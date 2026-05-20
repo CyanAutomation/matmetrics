@@ -1,3 +1,4 @@
+// @ts-expect-error jsdom types not available
 import { JSDOM } from 'jsdom';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';

@@ -12,11 +12,11 @@ import {
   type FixResult,
   type DiagnosticsSnapshot,
 } from '../components/log-doctor-state';
+import { emitDestructiveActionEvent } from '../components/log-doctor';
 import {
-  parseApiResponse,
+  parseLogDoctorApiResponse as parseApiResponse,
   toErrorReason,
-  emitDestructiveActionEvent,
-} from '../components/log-doctor';
+} from '../lib/api-parser';
 import { ToastAction } from '@/components/ui/toast';
 
 interface UseLogDoctorValidationState {
@@ -141,8 +141,8 @@ export function useLogDoctorValidation(): UseLogDoctorValidationState &
       const payload = await parseApiResponse<ScanResult>(response);
       setScanResult(payload);
       const defaults = payload.files
-        .filter((file) => file.status === 'invalid')
-        .map((file) => file.path);
+        .filter((file: ScanFileResult) => file.status === 'invalid')
+        .map((file: ScanFileResult) => file.path);
       setSelectedPaths(defaults);
       setUiState(
         payload.summary.totalFiles === 0

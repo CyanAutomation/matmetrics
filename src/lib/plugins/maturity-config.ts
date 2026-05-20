@@ -54,9 +54,10 @@ export const MATURITY_PRIMITIVES = {
         typeof entry === 'object' &&
         entry !== null &&
         'names' in entry &&
-        entry.names.includes(primitiveName as any)
+        'source' in entry &&
+        (entry.names as readonly string[]).includes(primitiveName)
       ) {
-        return (entry as any).source;
+        return entry.source;
       }
     }
     return null;

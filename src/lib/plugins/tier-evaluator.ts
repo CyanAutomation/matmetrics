@@ -27,16 +27,16 @@ export class TierEvaluator {
 
     // Check Gold tier criteria
     if (this.shouldPromoteToGold(totalScore, categoryScores, evidence)) {
-      return 'Gold';
+      return 'gold';
     }
 
     // Check Silver tier criteria
     if (totalScore >= this.SILVER_THRESHOLD) {
-      return 'Silver';
+      return 'silver';
     }
 
     // Default to Bronze
-    return 'Bronze';
+    return 'bronze';
   }
 
   /**

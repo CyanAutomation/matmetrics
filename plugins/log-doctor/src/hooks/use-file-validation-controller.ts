@@ -21,7 +21,7 @@ export const useFileValidationController = (config: FileValidationConfig) => {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [uiState, setUiState] = useState<LogDoctorUiState>({ kind: 'idle' });
+  const [uiState, setUiState] = useState<LogDoctorUiState>({ phase: 'idle', operation: null, message: '' });
   const [activeController, setActiveController] = useState<AbortController | null>(null);
 
   const performValidationAction = useCallback(
@@ -147,7 +147,7 @@ export const useFileValidationController = (config: FileValidationConfig) => {
     setScanResult(null);
     setFixResult(null);
     setErrorMessage(null);
-    setUiState({ kind: 'idle' });
+    setUiState({ phase: 'idle', operation: null, message: '' });
   }, []);
 
   return {
