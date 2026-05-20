@@ -64,6 +64,8 @@ export type TabDefinition = {
   isVisible?: (context: TabVisibilityContext) => boolean;
 };
 
+export type DashboardTab = TabDefinition;
+
 export type DashboardTabResolutionResult = {
   tabs: TabDefinition[];
   warnings: PluginRuntimeWarning[];
