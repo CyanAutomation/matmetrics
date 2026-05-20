@@ -37,7 +37,7 @@ export const pluginManifestSchema = z.object({
   uiContract: pluginUiContractSchema.optional(),
   maturity: z
     .object({
-      tier: z.enum(['bronze', 'silver', 'gold']).optional(),
+      tier: z.enum(['Bronze', 'Silver', 'Gold']).optional(),
       notes: z.string().min(1).optional(),
       lastReviewedAt: z.string().min(1).optional(),
       uxStates: z

@@ -16,7 +16,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'Bronze');
+      assert.equal(tier, 'bronze');
     });
 
     it('should assign Bronze tier as default when score below Silver threshold', () => {
@@ -29,7 +29,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'Bronze');
+      assert.equal(tier, 'bronze');
     });
   });
 
@@ -44,7 +44,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
 
     it('should require total score >= 70 for Silver', () => {
@@ -58,7 +58,7 @@ describe('TierEvaluator', () => {
 
       const tier = evaluator.evaluateTier(scores);
       // Total = 70, should be Silver
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
 
     it('should stay Silver if any category is 0', () => {
@@ -71,7 +71,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
   });
 
@@ -94,7 +94,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'Gold');
+      assert.equal(tier, 'gold');
     });
 
     it('should require total score >= 85 for Gold', () => {
@@ -116,7 +116,7 @@ describe('TierEvaluator', () => {
 
       // Total = 86, but needs explicit in all categories
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'Gold');
+      assert.equal(tier, 'gold');
     });
 
     it('should not promote to Gold without explicit evidence', () => {
@@ -137,7 +137,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
 
     it('should not promote to Gold if any critical category is missing evidence', () => {
@@ -158,7 +158,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
   });
 
@@ -173,7 +173,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores, undefined);
-      assert.equal(tier, 'Silver');
+      assert.equal(tier, 'silver');
     });
 
     it('should handle empty scores', () => {
@@ -186,7 +186,7 @@ describe('TierEvaluator', () => {
       };
 
       const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'Bronze');
+      assert.equal(tier, 'bronze');
     });
 
     it('should handle partial evidence', () => {
@@ -205,7 +205,7 @@ describe('TierEvaluator', () => {
       } as any;
 
       const tier = evaluator.evaluateTier(scores, partialEvidence);
-      assert.ok(['Silver', 'Bronze'].includes(tier));
+      assert.ok(['silver', 'bronze'].includes(tier));
     });
   });
 });
