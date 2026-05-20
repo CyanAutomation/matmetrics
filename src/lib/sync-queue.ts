@@ -50,6 +50,12 @@ type SyncOperationPayload =
 
 export type SyncOperation = SyncOperationPayload & { queuedAt: number };
 
+export type SyncStatus = {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingCount: number;
+};
+
 type SyncOperationInput = SyncOperationPayload | SyncOperation;
 
 const LAST_QUEUED_AT_KEY_BASE = 'matmetrics_last_queued_at';
