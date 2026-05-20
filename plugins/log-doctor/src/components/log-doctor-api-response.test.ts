@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { parseApiResponse, toErrorReason } from './log-doctor';
+import { parseLogDoctorApiResponse as parseApiResponse, toErrorReason } from '../lib/api-parser';
 
 test('parseApiResponse surfaces JSON error payload message', async () => {
   const response = new Response(

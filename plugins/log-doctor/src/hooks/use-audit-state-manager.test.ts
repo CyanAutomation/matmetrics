@@ -1,18 +1,25 @@
 import { JSDOM } from 'jsdom';
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderHook, act } from '@testing-library/react';
-import { useAuditStateManager } from './use-audit-state-manager';
-import type { AuditSessionResult } from '../components/log-doctor-state';
-import type { AuditFlagCode } from '@/lib/types';
 
 // Setup jsdom for DOM-dependent tests
 const dom = new JSDOM();
 global.document = dom.window.document as any;
 global.window = dom.window as any;
 
-// Manual mock for user preferences
-const mockSaveSessionAudit = async () => undefined;
+// Mock React hooks before importing
+import { useToast } from '@/hooks/use-toast';
+const mockToast = { toast: () => {} };
+
+import { useAuditStateManager } from './use-audit-state-manager';
+import type { AuditSessionResult } from '../components/log-doctor-state';
+import type { AuditFlagCode } from '@/lib/types';
+
+// Mock the user-preferences module
+import * as userPreferences from '@/lib/user-preferences';
+const originalSaveSessionAudit = userPreferences.saveSessionAudit;
+userPreferences.saveSessionAudit = async () => undefined;
 
 describe('useAuditStateManager', () => {
   const mockUserId = 'test-user-123';

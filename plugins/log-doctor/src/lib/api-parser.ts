@@ -61,3 +61,29 @@ const getRouteHint = (response: Response): string => {
     return response.url || 'unknown route';
   }
 };
+
+const ABORTED_REQUEST_REASON = 'Request canceled';
+
+/**
+ * Convert an error thrown during a fetch/API call into a readable message
+ */
+export const toErrorReason = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return ABORTED_REQUEST_REASON;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error &&
+    'name' in error &&
+    (error as { name?: string }).name === 'AbortError'
+  ) {
+    return ABORTED_REQUEST_REASON;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return 'Unexpected response from the service.';
+};

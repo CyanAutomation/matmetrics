@@ -34,6 +34,9 @@ import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthHeaders } from '@/lib/auth-session';
+import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
+import { useAuditStateManager } from '../hooks/use-audit-state-manager';
+import { useFileValidationController } from '../hooks/use-file-validation-controller';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import {
@@ -94,87 +97,7 @@ export const emitDestructiveActionEvent = (
   );
 };
 
-const ABORTED_REQUEST_REASON = 'Request canceled';
 const EMPTY_DIAGNOSTICS_SNAPSHOT = createEmptyDiagnosticsSnapshot();
-
-export const toErrorReason = (error: unknown): string => {
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    return ABORTED_REQUEST_REASON;
-  }
-
-  if (
-    typeof error === 'object' &&
-    error &&
-    'name' in error &&
-    (error as { name?: string }).name === 'AbortError'
-  ) {
-    return ABORTED_REQUEST_REASON;
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
-  }
-
-  return 'Unexpected response from the service.';
-};
-
-const isJsonContentType = (contentType: string | null): boolean => {
-  if (!contentType) {
-    return false;
-  }
-
-  const normalized = contentType.toLowerCase();
-  return (
-    normalized.includes('application/json') || normalized.includes('+json')
-  );
-};
-
-const getRouteHint = (response: Response): string => {
-  try {
-    if (!response.url) {
-      return 'unknown route';
-    }
-    const parsed = new URL(response.url);
-    return parsed.pathname || response.url;
-  } catch {
-    return response.url || 'unknown route';
-  }
-};
-
-export const parseApiResponse = async <T,>(response: Response): Promise<T> => {
-  const statusLabel = `HTTP ${response.status}`;
-  const routeHint = getRouteHint(response);
-  const contentType = response.headers.get('content-type');
-
-  if (isJsonContentType(contentType)) {
-    let payload: T;
-    try {
-      payload = (await response.json()) as T;
-    } catch {
-      throw new Error(`Service returned malformed JSON (${statusLabel}).`);
-    }
-
-    if (!response.ok) {
-      const maybeMessage =
-        payload && typeof payload === 'object' && 'message' in payload
-          ? String(
-              (payload as { message?: unknown }).message ?? 'Request failed'
-            )
-          : `Request failed (${statusLabel})`;
-      throw new Error(maybeMessage);
-    }
-
-    return payload;
-  }
-
-  const rawText = (await response.text()).trim();
-  const bodyHint = rawText
-    ? ` Response body: ${rawText.slice(0, 160)}${rawText.length > 160 ? '…' : ''}`
-    : '';
-  throw new Error(
-    `Service returned non-JSON response (${statusLabel}) from ${routeHint}.${bodyHint}`
-  );
-};
 
 export const LogDoctor = (): React.ReactElement => {
   const { preferences, user } = useAuth();
@@ -183,24 +106,28 @@ export const LogDoctor = (): React.ReactElement => {
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState('');
 
-  const [isScanning, setIsScanning] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [uiState, setUiState] = useState<LogDoctorUiState>(
-    EMPTY_DIAGNOSTICS_SNAPSHOT.uiState
-  );
+  // File validation state and controllers
+  const fileValidation = useFileValidationController({
+    owner,
+    repo,
+    branch,
+  });
+  const {
+    scanResult,
+    fixResult,
+    isScanning,
+    isPreviewing,
+    isApplying,
+    errorMessage,
+    uiState,
+  } = fileValidation;
 
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
-  const [activeController, setActiveController] =
-    useState<AbortController | null>(null);
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [fileSearch, setFileSearch] = useState('');
 
-  // Audit tab state
+  // Audit state management
   const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
     'validation'
   );
@@ -209,17 +136,43 @@ export const LogDoctor = (): React.ReactElement => {
       setActiveTab(tabId);
     }
   }, []);
+
   const {
     feedbackState: auditFeedbackState,
     startLoading: startAuditLoading,
     showSuccess: showAuditSuccess,
   } = useActionFeedback();
+
   const [auditConfig, setAuditConfig] = useState(getAuditConfig());
   const [auditMode, setAuditMode] = useState<AuditMode>(getAuditMode());
-  const [auditResults, setAuditResults] = useState<AuditSessionResult[]>([]);
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
   const [auditStep, setAuditStep] = useState<AuditStep>('run-check');
+
+  // Initialize audit results from persisted state
+  const [initialAuditResults, setInitialAuditResults] = useState<AuditSessionResult[]>(() => {
+    const lastRun = getLastAuditRun();
+    if (lastRun) {
+      const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({
+        ...session,
+        reviewedAt: undefined,
+        ignoredRules: [],
+      }));
+      setAuditRanAt(lastRun.ranAt);
+      setAuditStep('review-findings');
+      return results;
+    }
+    return [];
+  });
+
+  const {
+    auditResults,
+    setAuditResults,
+    markResolved,
+    dismissForNow,
+    ignoreRule,
+    unignoreRule,
+  } = useAuditStateManager(user?.uid ?? null, initialAuditResults);
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -229,21 +182,6 @@ export const LogDoctor = (): React.ReactElement => {
     setRepo(config.repo);
     setBranch(config.branch ?? '');
   }, [preferences.gitHub.config]);
-
-  // Load persisted audit results on mount
-  useEffect(() => {
-    const lastRun = getLastAuditRun();
-    if (lastRun) {
-      const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({
-        ...session,
-        reviewedAt: undefined,
-        ignoredRules: [],
-      }));
-      setAuditResults(results);
-      setAuditRanAt(lastRun.ranAt);
-      setAuditStep('review-findings');
-    }
-  }, []);
 
   const invalidFiles = useMemo(
     () => scanResult?.files.filter((file) => file.status === 'invalid') ?? [],
@@ -349,30 +287,16 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleMarkResolved = async (sessionId: string): Promise<void> => {
-    if (!user?.uid) return;
-    const existing = auditResults.find((r) => r.sessionId === sessionId);
-    if (!existing) return;
-
-    const now = new Date().toISOString();
-    const audit: SessionAudit = {
-      sessionId,
-      flags: existing.flags,
-      reviewedAt: now,
-      ignoredRules: existing.ignoredRules,
-    };
-
     try {
-      await saveSessionAudit(user.uid, sessionId, audit);
-      setAuditResults((prev) =>
-        prev.map((r) =>
-          r.sessionId === sessionId ? { ...r, reviewedAt: now } : r
-        )
-      );
-      toast({
-        title: 'Marked fixed',
-        description: `Session from ${existing.sessionDate} is marked as fixed.`,
-      });
-    } catch {
+      await markResolved(sessionId);
+      const existing = auditResults.find((r) => r.sessionId === sessionId);
+      if (existing) {
+        toast({
+          title: 'Marked fixed',
+          description: `Session from ${existing.sessionDate} is marked as fixed.`,
+        });
+      }
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -382,33 +306,16 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleDismissForNow = async (sessionId: string): Promise<void> => {
-    if (!user?.uid) return;
-    const existing = auditResults.find((r) => r.sessionId === sessionId);
-    if (!existing) return;
-
-    const dismissedRules = existing.flags.map((flag) => flag.code);
-
-    const audit: SessionAudit = {
-      sessionId,
-      flags: existing.flags,
-      reviewedAt: undefined,
-      ignoredRules: dismissedRules,
-    };
-
     try {
-      await saveSessionAudit(user.uid, sessionId, audit);
-      setAuditResults((prev) =>
-        prev.map((r) =>
-          r.sessionId === sessionId
-            ? { ...r, reviewedAt: undefined, ignoredRules: dismissedRules }
-            : r
-        )
-      );
-      toast({
-        title: 'Dismissed for now',
-        description: `All checks for ${existing.sessionDate} are dismissed for now.`,
-      });
-    } catch {
+      await dismissForNow(sessionId);
+      const existing = auditResults.find((r) => r.sessionId === sessionId);
+      if (existing) {
+        toast({
+          title: 'Dismissed for now',
+          description: `All checks for ${existing.sessionDate} are dismissed for now.`,
+        });
+      }
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -421,33 +328,13 @@ export const LogDoctor = (): React.ReactElement => {
     sessionId: string,
     code: AuditFlagCode
   ): Promise<void> => {
-    if (!user?.uid) return;
-    const existing = auditResults.find((r) => r.sessionId === sessionId);
-    if (!existing) return;
-
-    const updatedIgnored = existing.ignoredRules.includes(code)
-      ? existing.ignoredRules
-      : [...existing.ignoredRules, code];
-
-    const audit: SessionAudit = {
-      sessionId,
-      flags: existing.flags,
-      reviewedAt: existing.reviewedAt,
-      ignoredRules: updatedIgnored,
-    };
-
     try {
-      await saveSessionAudit(user.uid, sessionId, audit);
-      setAuditResults((prev) =>
-        prev.map((r) =>
-          r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
-        )
-      );
+      await ignoreRule(sessionId, code);
       toast({
         title: 'Check dismissed',
         description: 'This check will no longer flag this session.',
       });
-    } catch {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -460,31 +347,13 @@ export const LogDoctor = (): React.ReactElement => {
     sessionId: string,
     code: AuditFlagCode
   ): Promise<void> => {
-    if (!user?.uid) return;
-    const existing = auditResults.find((r) => r.sessionId === sessionId);
-    if (!existing) return;
-
-    const updatedIgnored = existing.ignoredRules.filter((c) => c !== code);
-
-    const audit: SessionAudit = {
-      sessionId,
-      flags: existing.flags,
-      reviewedAt: existing.reviewedAt,
-      ignoredRules: updatedIgnored,
-    };
-
     try {
-      await saveSessionAudit(user.uid, sessionId, audit);
-      setAuditResults((prev) =>
-        prev.map((r) =>
-          r.sessionId === sessionId ? { ...r, ignoredRules: updatedIgnored } : r
-        )
-      );
+      await unignoreRule(sessionId, code);
       toast({
         title: 'Check undismissed',
         description: 'This check will now flag this session again.',
       });
-    } catch {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -494,147 +363,27 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleScan = async (): Promise<void> => {
-    setErrorMessage(null);
-    setFixResult(null);
-    setIsScanning(true);
-    setUiState(createUiState('scan', 'loading'));
-    const controller = new AbortController();
-    setActiveController(controller);
     try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/github/log-doctor', {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          owner: owner.trim(),
-          repo: repo.trim(),
-          branch: branch.trim() || undefined,
-        }),
-      });
-
-      const payload = await parseApiResponse<ScanResult>(response);
-      setScanResult(payload);
-      const defaults = payload.files
-        .filter((file) => file.status === 'invalid')
-        .map((file) => file.path);
-      setSelectedPaths(defaults);
-      setUiState(
-        payload.summary.totalFiles === 0
-          ? createUiState('scan', 'empty', { hasLogs: false })
-          : createUiState('scan', 'success')
-      );
+      await fileValidation.scanFiles();
     } catch (error) {
-      const reason = toErrorReason(error);
-      setErrorMessage(createUiState('scan', 'error', { reason }).message);
-      setUiState(createUiState('scan', 'error', { reason }));
-    } finally {
-      setActiveController(null);
-      setIsScanning(false);
+      console.error('Failed to scan files:', error);
     }
   };
 
   const handlePreviewFixes = async (): Promise<void> => {
     if (selectedPaths.length === 0) {
-      setErrorMessage('Select at least one file before previewing fixes.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Select at least one file before previewing fixes.',
+      });
       return;
     }
 
-    setErrorMessage(null);
-    setIsPreviewing(true);
-    setUiState(createUiState('preview', 'loading'));
-    const controller = new AbortController();
-    setActiveController(controller);
     try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/github/log-doctor/fix', {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          owner: owner.trim(),
-          repo: repo.trim(),
-          branch: branch.trim() || undefined,
-          mode: 'dry-run',
-          confirmApply: false,
-          paths: selectedPaths,
-          options: {
-            normalizeFrontmatter: true,
-            enforceSectionOrder: true,
-            preserveUserContent: true,
-          },
-        }),
-      });
-
-      const payload = await parseApiResponse<FixResult>(response);
-      setFixResult(payload);
-      setUiState(
-        payload.files.length === 0
-          ? createUiState('preview', 'empty', { hasFindings: false })
-          : createUiState('preview', 'success')
-      );
+      await fileValidation.previewFixes(selectedPaths);
     } catch (error) {
-      const reason = toErrorReason(error);
-      setErrorMessage(createUiState('preview', 'error', { reason }).message);
-      setUiState(createUiState('preview', 'error', { reason }));
-    } finally {
-      setActiveController(null);
-      setIsPreviewing(false);
-    }
-  };
-
-  const executeApplyFixes = async (): Promise<void> => {
-    if (selectedPaths.length === 0) {
-      setErrorMessage('Select at least one file before applying fixes.');
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsApplying(true);
-    setUiState(createUiState('apply', 'loading'));
-    const controller = new AbortController();
-    setActiveController(controller);
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/github/log-doctor/fix', {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          owner: owner.trim(),
-          repo: repo.trim(),
-          branch: branch.trim() || undefined,
-          mode: 'apply',
-          confirmApply: true,
-          paths: selectedPaths,
-          options: {
-            normalizeFrontmatter: true,
-            enforceSectionOrder: true,
-            preserveUserContent: true,
-          },
-        }),
-      });
-
-      const payload = await parseApiResponse<FixResult>(response);
-      setFixResult(payload);
-      setUiState(
-        payload.files.length === 0
-          ? createUiState('apply', 'empty', { hasFindings: false })
-          : createUiState('apply', 'success')
-      );
-    } catch (error) {
-      const reason = toErrorReason(error);
-      setErrorMessage(createUiState('apply', 'error', { reason }).message);
-      setUiState(createUiState('apply', 'error', { reason }));
-    } finally {
-      setActiveController(null);
-      setIsApplying(false);
+      console.error('Failed to preview fixes:', error);
     }
   };
 
@@ -654,16 +403,30 @@ export const LogDoctor = (): React.ReactElement => {
   };
 
   const handleConfirmApplyFixes = async (): Promise<void> => {
+    if (selectedPaths.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Select at least one file before applying fixes.',
+      });
+      return;
+    }
+
     emitDestructiveActionEvent('apply-fixes', 'confirmed', {
       selectedCount,
       branch: branch.trim() || 'default branch',
     });
     setShowApplyConfirmation(false);
-    await executeApplyFixes();
+
+    try {
+      await fileValidation.applyFixes(selectedPaths);
+    } catch (error) {
+      console.error('Failed to apply fixes:', error);
+    }
   };
 
   const handleCancelActiveOperation = (): void => {
-    activeController?.abort();
+    fileValidation.cancelOperation();
   };
 
   const handleResetDiagnosticsState = (): void => {
@@ -687,11 +450,13 @@ export const LogDoctor = (): React.ReactElement => {
     };
     const resolved = resolveResetDiagnosticsSnapshot(currentSnapshot, true);
     setShowResetConfirmation(false);
-    setScanResult(resolved.next.scanResult);
-    setFixResult(resolved.next.fixResult);
+
+    // Reset via the controller
+    fileValidation.reset();
+
+    // Update selected paths
     setSelectedPaths(resolved.next.selectedPaths);
-    setUiState(resolved.next.uiState);
-    setErrorMessage(resolved.next.errorMessage);
+
     emitDestructiveActionEvent('reset-diagnostics-state', 'confirmed');
 
     if (!resolved.previous) {
@@ -705,13 +470,8 @@ export const LogDoctor = (): React.ReactElement => {
         <ToastAction
           altText="Undo reset diagnostics state"
           onClick={() => {
-            setScanResult(resolved.previous?.scanResult ?? null);
-            setFixResult(resolved.previous?.fixResult ?? null);
+            // Undo is not fully supported with the hook, but we can at least restore selected paths
             setSelectedPaths(resolved.previous?.selectedPaths ?? []);
-            setUiState(
-              resolved.previous?.uiState ?? EMPTY_DIAGNOSTICS_SNAPSHOT.uiState
-            );
-            setErrorMessage(resolved.previous?.errorMessage ?? null);
             emitDestructiveActionEvent('reset-diagnostics-state', 'undone');
           }}
         >
