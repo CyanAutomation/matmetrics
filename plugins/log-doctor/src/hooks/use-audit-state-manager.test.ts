@@ -2,7 +2,7 @@
 import { JSDOM } from 'jsdom';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 
 // Mock localStorage before importing modules
 class LocalStorageMock implements Storage {
