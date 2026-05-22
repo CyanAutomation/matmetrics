@@ -992,7 +992,7 @@ export const scorePluginMaturity = async ({
     );
   const hasAnyTestEvidence = testEvidenceFiles.length > 0;
   const hasReadme = await fileExists(pluginReadmePath);
-  const isExplicitGoldReview = manifest.maturity?.tier === 'Gold';
+  const isExplicitGoldReview = manifest.maturity?.tier === 'gold';
   const allRelevantUxCriteriaExplicitlyVerified = criteriaToEvaluate.every(
     (criterion) =>
       criteriaDetails[criterion].verified &&
@@ -1010,7 +1010,7 @@ export const scorePluginMaturity = async ({
     normalizedReadmeSections.includes('troubleshooting') ||
     normalizedReadmeSections.includes('known limitations and dependencies');
 
-  let tier: PluginMaturityTier = 'Bronze';
+  let tier: PluginMaturityTier = 'bronze';
   if (
     totalScore >= 85 &&
     !hasValidationErrors &&
@@ -1025,7 +1025,7 @@ export const scorePluginMaturity = async ({
     hasGoldSupportDocs &&
     isExplicitGoldReview
   ) {
-    tier = 'Gold';
+    tier = 'gold';
   } else if (
     totalScore >= 70 &&
     !hasValidationErrors &&
@@ -1033,7 +1033,7 @@ export const scorePluginMaturity = async ({
     hasAnyTestEvidence &&
     hasReadme
   ) {
-    tier = 'Silver';
+    tier = 'silver';
   }
 
   if (hasValidationErrors) {
