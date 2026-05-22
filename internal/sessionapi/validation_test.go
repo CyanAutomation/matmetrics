@@ -144,12 +144,12 @@ func TestValidateSessionVideoURLValidation(t *testing.T) {
 		},
 		{
 			name:     "accepts valid https url",
-			videoURL: "https://example.com/video/123",
+			videoURL: "https://1.1.1.1/video/123",
 			wantErr:  "",
 		},
 		{
 			name:     "accepts valid http url",
-			videoURL: "http://example.com/video/123",
+			videoURL: "http://1.1.1.1/video/123",
 			wantErr:  "",
 		},
 	}
