@@ -11,9 +11,9 @@ export const pluginSeverityToneClass: Record<PluginValidationSeverity, string> =
   };
 
 export const pluginTierToneClass: Record<PluginMaturityTier, string> = {
-  Bronze: 'ui-pill-warning',
-  Silver: 'ui-pill-trend-neutral',
-  Gold: 'ui-pill-trend-positive',
+  bronze: 'ui-pill-warning',
+  silver: 'ui-pill-trend-neutral',
+  gold: 'ui-pill-trend-positive',
 };
 
 const dashboardCategoryBarClass: Record<string, string> = {
