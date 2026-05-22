@@ -72,6 +72,11 @@ For destructive actions (delete/reset/clear/replace):
 - Disabled states must be programmatic (`disabled`, `aria-disabled`) and visually apparent.
 - Color must not be the only channel for status meaning; pair with iconography or text labels.
 
+## TypeScript execution dependency
+
+- Contract validation and test scripts execute TypeScript through `node --import tsx`.
+- `tsx` is installed via `devDependencies`, so run a non-production dependency install (for example, `npm install`) before running those scripts.
+
 ## Required CI gates
 
 Plugin UI contract compliance is enforced at build/lint time.
