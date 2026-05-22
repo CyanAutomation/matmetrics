@@ -130,6 +130,24 @@ Firebase values come from:
 
 `npm run build` and `npm run typecheck` both read and write `.next` artifacts. Run them sequentially, or prefer `npm run verify`, instead of launching them in parallel.
 
+
+### CI dependency requirement for validation and tests
+
+CI/runner jobs that execute any of the following scripts must install **full dependencies** (including `devDependencies`):
+
+- `npm run validate:plugin-ui-contract`
+- `npm run test`
+- `npm run test:all`
+- `npm run ci:contracts`
+
+Do not use production-only install flags (`--omit=dev`, `NODE_ENV=production`) in those validation/test jobs. Immediately after install, run:
+
+```bash
+node -e "require.resolve('tsx')"
+```
+
+This preflight fails fast with a clear error when test tooling dependencies are missing.
+
 ## Test Authentication Contract
 
 When `MATMETRICS_AUTH_TEST_MODE=true`, both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same Authorization contract:
