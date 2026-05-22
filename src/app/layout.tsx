@@ -1,7 +1,13 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '@/components/app-providers';
 import { Analytics } from '@vercel/analytics/next';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'MatMetrics | Judo Practice Tracker',
@@ -20,7 +26,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-body antialiased bg-background">
+      <body className={`font-body antialiased bg-background ${inter.variable}`}
+      >
         <AppProviders>{children}</AppProviders>
         <Analytics />
       </body>
