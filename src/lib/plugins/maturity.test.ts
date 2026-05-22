@@ -119,7 +119,7 @@ test('scorePluginMaturity returns Bronze for minimally documented plugin', async
         pluginsRoot,
       });
 
-      assert.equal(scorecard.tier, 'Bronze');
+      assert.equal(scorecard.tier, 'bronze');
       assert.equal(scorecard.declaredTier, undefined);
       assert.ok(scorecard.nextActions.length > 0);
     }
@@ -174,7 +174,7 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Silver',
+            tier: 'silver',
             notes: 'Attempting to advance maturity.',
             lastReviewedAt: '2026-03-24',
           },
@@ -184,7 +184,7 @@ test('scorePluginMaturity caps plugin at Bronze when capability warning exists',
         pluginsRoot,
       });
 
-      assert.equal(scorecard.tier, 'Bronze');
+      assert.equal(scorecard.tier, 'bronze');
       assert.ok(scorecard.reasons.length > 0);
     }
   );
@@ -264,7 +264,7 @@ test('example panel renders with robust ux handling', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Silver',
+            tier: 'silver',
             notes: 'Reviewed and documented.',
             lastReviewedAt: '2026-03-24',
             uxCriteria: {
@@ -284,9 +284,9 @@ test('example panel renders with robust ux handling', () => {
         pluginsRoot,
       });
 
-      assert.equal(scorecard.tier, 'Silver');
+      assert.equal(scorecard.tier, 'silver');
       assert.ok(scorecard.score >= 70);
-      assert.equal(scorecard.declaredTier, 'Silver');
+      assert.equal(scorecard.declaredTier, 'silver');
       assert.ok(scorecard.reasons.every((reason) => !reason.includes('owner')));
       assert.ok(
         scorecard.nextActions.every((action) => !action.includes('owner'))
@@ -366,7 +366,7 @@ test('example panel renders with robust ux handling', () => {
     },
     async (pluginsRoot) => {
       const maturityWithoutGoldTier = {
-        tier: 'Silver',
+        tier: 'silver',
         notes: 'Reviewed and documented.',
         lastReviewedAt: '2026-03-24',
         uxCriteria: {
@@ -405,7 +405,7 @@ test('example panel renders with robust ux handling', () => {
       });
 
       assert.ok(scorecardWithoutGoldTier.score >= 85);
-      assert.notEqual(scorecardWithoutGoldTier.tier, 'Gold');
+      assert.notEqual(scorecardWithoutGoldTier.tier, 'gold');
       assert.ok(
         scorecardWithoutGoldTier.reasons.some((reason) =>
           reason.includes(
@@ -419,7 +419,7 @@ test('example panel renders with robust ux handling', () => {
           ...baseManifest,
           maturity: {
             ...maturityWithoutGoldTier,
-            tier: 'Gold',
+            tier: 'gold',
           },
         },
         validationIssues: [],
@@ -428,8 +428,8 @@ test('example panel renders with robust ux handling', () => {
       });
 
       assert.ok(scorecardWithGoldTier.score >= 85);
-      assert.equal(scorecardWithGoldTier.tier, 'Gold');
-      assert.equal(scorecardWithGoldTier.declaredTier, 'Gold');
+      assert.equal(scorecardWithGoldTier.tier, 'gold');
+      assert.equal(scorecardWithGoldTier.declaredTier, 'gold');
     }
   );
 });
@@ -506,7 +506,7 @@ test('example panel renders with robust ux handling', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Gold',
+            tier: 'gold',
             notes: 'Reviewed and documented.',
             lastReviewedAt: '2026-03-24',
             uxCriteria: {
@@ -527,7 +527,7 @@ test('example panel renders with robust ux handling', () => {
       });
 
       assert.ok(scorecard.score >= 85);
-      assert.equal(scorecard.tier, 'Silver');
+      assert.equal(scorecard.tier, 'silver');
       assert.ok(
         scorecard.reasons.some((reason) =>
           reason.includes(
@@ -611,7 +611,7 @@ test('example panel explicit ux handling', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Gold',
+            tier: 'gold',
             notes: 'Reviewed and documented.',
             lastReviewedAt: '2026-03-24',
             uxCriteria: {
@@ -648,7 +648,7 @@ test('example panel explicit ux handling', () => {
         pluginsRoot,
       });
 
-      assert.equal(scorecard.tier, 'Silver');
+      assert.equal(scorecard.tier, 'silver');
       assert.ok(
         scorecard.reasons.some((reason) =>
           reason.includes(
@@ -774,7 +774,7 @@ test('panel state handling', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Bronze',
+            tier: 'bronze',
             notes: 'Declared loading behavior reviewed.',
             lastReviewedAt: '2026-03-24',
             uxStates: {
@@ -1406,7 +1406,7 @@ test('example panel behavior', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Silver',
+            tier: 'silver',
             notes: 'Reviewed with explicit evidence.',
             lastReviewedAt: '2026-03-29',
             uxCriteria: {
@@ -1486,7 +1486,7 @@ test('example panel loading state', () => {
         manifest: {
           ...baseManifest,
           maturity: {
-            tier: 'Bronze',
+            tier: 'bronze',
             notes: 'Reviewed with fallback evidence.',
             lastReviewedAt: '2026-03-29',
             uxCriteria: {
