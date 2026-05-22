@@ -1,6 +1,8 @@
 import tagManagerPluginManifest from '../../../plugins/tag-manager/plugin.json';
 import githubSyncPluginManifest from '../../../plugins/github-sync/plugin.json';
 import promptSettingsPluginManifest from '../../../plugins/prompt-settings/plugin.json';
+import logDoctorPluginManifest from '../../../plugins/log-doctor/plugin.json';
+import videoLibraryPluginManifest from '../../../plugins/video-library/plugin.json';
 
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import {
@@ -13,6 +15,8 @@ const localPluginManifestSources: unknown[] = [
   tagManagerPluginManifest,
   githubSyncPluginManifest,
   promptSettingsPluginManifest,
+  logDoctorPluginManifest,
+  videoLibraryPluginManifest,
 ];
 const pluginEnabledOverrides = new Map<string, boolean>();
 const pluginRegistryListeners = new Set<() => void>();
