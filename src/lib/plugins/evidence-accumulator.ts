@@ -8,10 +8,20 @@ import type {
  * Centralizes state mutations to improve traceability and testability.
  */
 export class EvidenceAccumulator {
-  private categoryScores: Record<PluginMaturityCategory, number> = {} as Record<PluginMaturityCategory, number>;
+  private categoryScores: Record<PluginMaturityCategory, number>;
   private evidence: Record<PluginMaturityCategory, string[]> = {} as Record<PluginMaturityCategory, string[]>;
   private reasons: Record<PluginMaturityCategory, string> = {} as Record<PluginMaturityCategory, string>;
   private nextActions: string[] = [];
+
+  constructor() {
+    this.categoryScores = {
+      contract_metadata: 0,
+      runtime_integration: 0,
+      feature_quality: 0,
+      test_coverage: 0,
+      operability_docs: 0,
+    };
+  }
 
   /**
    * Add a score for a specific category
