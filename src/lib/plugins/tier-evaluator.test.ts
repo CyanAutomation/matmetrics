@@ -76,6 +76,7 @@ describe('TierEvaluator', () => {
   });
 
   describe('Gold tier', () => {
+    it('should promote to Gold tier with high scores and explicit evidence', () => {
       const scores = {
         contract_metadata: 20,
         runtime_integration: 20,

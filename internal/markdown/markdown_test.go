@@ -80,7 +80,7 @@ func TestRoundTripSessionMarkdown(t *testing.T) {
 		Description: "Roundtrip description with Z marker",
 		Notes:       "Roundtrip notes ending at file end Z",
 		Duration:    &duration,
-		VideoURL:    "https://example.com/videos/123",
+		VideoURL:    "https://1.1.1.1/videos/123",
 	}
 
 	rendered, err := SessionToMarkdown(session)
@@ -102,7 +102,7 @@ func TestRoundTripSessionMarkdown(t *testing.T) {
 	if parsed.Duration == nil || *parsed.Duration != 90 {
 		t.Fatalf("unexpected duration: %#v", parsed.Duration)
 	}
-	if parsed.VideoURL != "https://example.com/videos/123" {
+	if parsed.VideoURL != "https://1.1.1.1/videos/123" {
 		t.Fatalf("unexpected video URL: %q", parsed.VideoURL)
 	}
 }
@@ -145,7 +145,7 @@ func TestSessionToMarkdownWritesVideoURLFrontmatter(t *testing.T) {
 		Effort:     3,
 		Category:   model.CategoryTechnical,
 		Techniques: []string{"Uchi mata"},
-		VideoURL:   "https://example.com/videos/frontmatter",
+		VideoURL:   "https://1.1.1.1/videos/frontmatter",
 	}
 
 	rendered, err := SessionToMarkdown(session)
@@ -153,7 +153,7 @@ func TestSessionToMarkdownWritesVideoURLFrontmatter(t *testing.T) {
 		t.Fatalf("SessionToMarkdown() error = %v", err)
 	}
 
-	if !strings.Contains(rendered, `videoUrl: "https://example.com/videos/frontmatter"`) {
+	if !strings.Contains(rendered, `videoUrl: "https://1.1.1.1/videos/frontmatter"`) {
 		t.Fatalf("expected rendered markdown to include videoUrl frontmatter, got %q", rendered)
 	}
 }
