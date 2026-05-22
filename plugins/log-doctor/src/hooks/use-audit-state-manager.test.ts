@@ -1,13 +1,54 @@
 // @ts-expect-error jsdom types not available
 import { JSDOM } from 'jsdom';
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
+
+// Mock localStorage before importing modules
+class LocalStorageMock implements Storage {
+  private store = new Map<string, string>();
+
+  get length(): number {
+    return this.store.size;
+  }
+
+  getItem(key: string): string | null {
+    return this.store.has(key) ? this.store.get(key)! : null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.store.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+
+  key(index: number): string | null {
+    return Array.from(this.store.keys())[index] ?? null;
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+}
+
+const localStorageMock = new LocalStorageMock();
 
 // Setup jsdom for DOM-dependent tests
 const dom = new JSDOM();
 global.document = dom.window.document as any;
 global.window = dom.window as any;
+
+// Mock localStorage globally
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+Object.defineProperty(global, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
 
 import { useAuditStateManager } from './use-audit-state-manager';
 import type { AuditSessionResult } from '../components/log-doctor-state';
@@ -26,6 +67,10 @@ describe('useAuditStateManager', () => {
     ignoredRules: [],
   };
 
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
   it('should initialize with empty audit results', () => {
     const { result } = renderHook(() =>
       useAuditStateManager(mockUserId, [])
@@ -42,7 +87,28 @@ describe('useAuditStateManager', () => {
     assert.deepEqual(result.current.auditResults, [mockAuditResult]);
   });
 
-  // Skip Firebase-dependent tests since Firebase is not configured in test environment
-  // The hook implementation is tested via unit tests in the component integration tests
+  it('should handle missing user gracefully', () => {
+    const { result } = renderHook(() =>
+      useAuditStateManager(null, [mockAuditResult])
+    );
+
+    assert.deepEqual(result.current.auditResults, [mockAuditResult]);
+  });
+
+  it('should provide update methods', () => {
+    const { result } = renderHook(() =>
+      useAuditStateManager(mockUserId, [mockAuditResult])
+    );
+
+    assert.ok(typeof result.current.markResolved === 'function');
+    assert.ok(typeof result.current.dismissForNow === 'function');
+    assert.ok(typeof result.current.ignoreRule === 'function');
+    assert.ok(typeof result.current.unignoreRule === 'function');
+    assert.ok(typeof result.current.setAuditResults === 'function');
+  });
+
+  // Firebase-dependent async tests are skipped since Firebase is not configured
+  // in the test environment. The hook implementation is tested via
+  // component integration tests with proper Firebase setup.
 });
 
