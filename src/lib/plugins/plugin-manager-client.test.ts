@@ -49,7 +49,7 @@ test('normalizeInstalledPluginRows keeps only valid manifest rows', () => {
       },
       maturity: {
         score: 62,
-        tier: 'Bronze',
+        tier: 'bronze',
         categoryScores: {
           contract_metadata: {
             label: 'Contract & Metadata',
@@ -157,7 +157,7 @@ test('normalizeInstalledPluginRows keeps maturity when contract gate errors exis
       },
       maturity: {
         score: 40,
-        tier: 'Bronze',
+        tier: 'bronze',
         categoryScores: {
           contract_metadata: {
             label: 'Contract & Metadata',
@@ -265,7 +265,7 @@ test('fetchInstalledPlugins adds auth headers and parses valid plugin rows', asy
               },
               maturity: {
                 score: 62,
-                tier: 'Bronze',
+                tier: 'bronze',
                 categoryScores: {
                   contract_metadata: {
                     label: 'Contract & Metadata',

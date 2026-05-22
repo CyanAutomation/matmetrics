@@ -303,7 +303,7 @@ test('installed table uses semantic tone utility classes for maturity and severi
           },
         ],
         maturity: {
-          tier: 'Gold',
+          tier: 'gold',
           score: 92,
           reasons: [],
           nextActions: [],
