@@ -55,7 +55,7 @@ describe('Maturity Scoring Integration', () => {
         goldAcc.getCategoryScores(),
         goldAcc.getEvidence()
       );
-      assert.equal(goldTier, 'gold');
+      assert.strictEqual(goldTier, 'gold');
     });
 
     it('should use primitives registry in evidence collection', () => {
