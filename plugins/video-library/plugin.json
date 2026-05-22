@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Provides a dashboard tab for auditing session videos, link checks, and domain allowlists.",
   "maturity": {
-    "tier": "silver",
+    "tier": "Silver",
     "notes": "Silver review completed. The plugin now uses canonical plugin-local contract coverage and explicit UX evidence for loading, recovery, empty-state CTA, and destructive confirmation/cancellation flows.",
     "lastReviewedAt": "2026-03-30",
     "uxStates": {
