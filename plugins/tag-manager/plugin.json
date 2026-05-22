@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Provides a dashboard tab for managing tags.",
   "maturity": {
-    "tier": "Silver",
+    "tier": "silver",
     "notes": "Silver review completed. Manifest, plugin-local contract coverage, runtime registration coverage, and explicit UX criteria coverage are now aligned with the published maturity baseline.",
     "lastReviewedAt": "2026-03-30",
     "uxStates": {
