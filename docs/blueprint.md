@@ -98,7 +98,7 @@ The system uses **Inter** as the primary typographic engine, leveraging mathemat
 | `display-lg` to `display-sm` | Major milestones, session counts | "127 Sessions" |
 | `headline-lg` to `headline-sm` | Technique categories, section headers | "Nage-waza" |
 | `body-lg` to `body-sm` | Descriptive text, helper copy | Session descriptions |
-| `label-md` | Short, scannable UI labels | "KUMITE DURATION" |
+| `label-md` | Short, scannable UI labels | "RANDORI DURATION" |
 
 ### Typography Guidelines
 
