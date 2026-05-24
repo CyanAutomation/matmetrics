@@ -138,7 +138,8 @@ The system uses **Inter** as the primary typographic engine, leveraging mathemat
 
 ### Metric Cards
 
-```tsx<article className="rounded-2xl bg-[var(--color-surface-lowest)] p-6">
+```tsx
+<article className="rounded-2xl bg-[var(--color-surface-lowest)] p-6">
   <p className="text-xs uppercase tracking-[0.05em] text-[var(--color-on-surface-variant)]">
     Weekly Volume
   </p>
