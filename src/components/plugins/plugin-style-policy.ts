@@ -41,7 +41,6 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'action.destructive-menu-item': [
     'text-destructive',
     'focus:text-destructive',
-    'focus:bg-destructive/10',
   ],
   'tab.inactive': [
     'text-muted-foreground',
