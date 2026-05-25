@@ -917,28 +917,6 @@ export async function listSessions(): Promise<JudoSession[]> {
 }
 
 /**
- * Read a single session by date and optional counter
- */
-async function readSession(
-  date: string,
-  counter?: number
-): Promise<JudoSession | null> {
-  try {
-    const filePath = getSessionFilePath(date, counter);
-    const markdown = await fs.readFile(
-      await ensureExistingPathWithinDataDir(filePath),
-      'utf-8'
-    );
-    return markdownToSession(markdown);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-      return null;
-    }
-    throw e;
-  }
-}
-
-/**
  * Create a new session file
  * Uses ID-based filenames to avoid counter contention during concurrent writes
  */
