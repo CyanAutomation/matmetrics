@@ -964,71 +964,10 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   return { status: 'queued' };
 }
 
-const tagDomainService = createTagService({
-  getSessions,
-  updateSession,
-});
-
-/**
- * @deprecated Use tagService.listTags from src/lib/tags instead.
- */
-function getAllTags(): string[] {
-  return tagDomainService.listTags();
-}
-
-/**
- * @deprecated Use tagService.renameTag from src/lib/tags instead.
- */
-async function renameTag(
-  oldName: string,
-  newName: string
-): Promise<void> {
-  const result = await tagDomainService.renameTag(oldName, newName);
-  if (result.conflicts.length > 0) {
-    throw new Error(result.conflicts[0].message);
-  }
-}
-
-/**
- * @deprecated Use tagService.deleteTag from src/lib/tags instead.
- */
-async function deleteTag(tagName: string): Promise<void> {
-  const result = await tagDomainService.deleteTag(tagName);
-  if (result.conflicts.length > 0) {
-    throw new Error(result.conflicts[0].message);
-  }
-}
-
-/**
- * @deprecated Use tagService.mergeTags from src/lib/tags instead.
- */
-async function mergeTags(
-  sourceTag: string,
-  targetTag: string
-): Promise<void> {
-  const result = await tagDomainService.mergeTags(sourceTag, targetTag);
-  if (result.conflicts.length > 0) {
-    throw new Error(result.conflicts[0].message);
-  }
-}
-
 // AI Transformer Prompt Persistence
 export function getTransformerPrompt(): string {
   return (
     getCurrentPreferences().transformerPrompt || DEFAULT_TRANSFORMER_PROMPT
-  );
-}
-
-function saveTransformerPrompt(prompt: string): void {
-  void prompt;
-  console.warn(
-    'saveTransformerPrompt is deprecated. Use the authenticated preference helpers instead.'
-  );
-}
-
-function resetTransformerPrompt(): void {
-  console.warn(
-    'resetTransformerPrompt is deprecated. Use the authenticated preference helpers instead.'
   );
 }
 
@@ -1044,41 +983,6 @@ function getGitHubConfig(): GitHubConfig | null {
 
 function isGitHubEnabled(): boolean {
   return getGitHubSettings().enabled;
-}
-
-function isGitHubMigrationDone(): boolean {
-  return getGitHubSettings().migrationDone;
-}
-
-function saveGitHubConfig(config: GitHubConfig): void {
-  void config;
-  console.warn(
-    'saveGitHubConfig is deprecated. Use the authenticated preference helpers instead.'
-  );
-}
-
-function enableGitHub(): void {
-  console.warn(
-    'enableGitHub is deprecated. Use the authenticated preference helpers instead.'
-  );
-}
-
-function disableGitHub(): void {
-  console.warn(
-    'disableGitHub is deprecated. Use the authenticated preference helpers instead.'
-  );
-}
-
-function clearGitHubConfig(): void {
-  console.warn(
-    'clearGitHubConfig is deprecated. Use the authenticated preference helpers instead.'
-  );
-}
-
-function setGitHubMigrationDone(): void {
-  console.warn(
-    'setGitHubMigrationDone is deprecated. Use the authenticated preference helpers instead.'
-  );
 }
 
 export function setGitHubSyncStatus(
@@ -1290,7 +1194,7 @@ async function refreshSessionsFromAPI(options?: {
       if (!auth.currentUser) {
         return;
       }
-    } catch (_error) {
+    } catch {
       return;
     }
   }
@@ -1475,9 +1379,7 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
  * Helper: Handle a successful sync operation
  */
 function handleOperationSuccess(
-  operation: SyncOperation,
-  index: number,
-  queue: SyncOperation[]
+  operation: SyncOperation
 ): void {
   const sessionId = getSessionIdFromOperation(operation);
   clearDirtyMutation(sessionId, operation.queuedAt);
@@ -1489,10 +1391,7 @@ function handleOperationSuccess(
 async function handleOperationError(
   error: unknown,
   operation: SyncOperation,
-  index: number,
-  queue: SyncOperation[],
-  generation: number,
-  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
+  generation: number
 ): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
   if (!(error instanceof SyncRequestError)) {
     // Non-SyncRequestError: retryable

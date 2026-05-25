@@ -435,13 +435,6 @@ export async function scanSessionsFromGitHub(
   };
 }
 
-async function listSessionsForConfig(
-  config: GitHubConfig | undefined
-): Promise<JudoSession[]> {
-  const { sessions } = await listSessionsForConfigWithIssues(config);
-  return sessions;
-}
-
 export type SessionListResult = {
   sessions: JudoSession[];
   issues: SessionFileIssue[];
