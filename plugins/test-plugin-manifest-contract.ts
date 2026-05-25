@@ -125,6 +125,10 @@ export const testPluginManifestContract = ({
       `[${pluginId}] [PM-UI-001] uiContract.layoutVariant must map to supported runtime variants: ${SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS.join(', ')}`
     );
 
+    assert.ok(
+      uiContract.requiredUxStates,
+      `[${pluginId}] [PM-UI-002] expected uiContract.requiredUxStates to be defined`
+    );
     assertRequiredUxStates(pluginId, uiContract.requiredUxStates);
   });
 };
