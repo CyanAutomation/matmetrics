@@ -11,6 +11,14 @@ import type {
   PluginMaturityUxCriterion,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
+import {
+  scoreContractMetadata,
+  scoreRuntimeIntegration,
+  scoreFeatureQuality,
+  scoreTestCoverage,
+  scoreOperabilityDocs,
+  determineTier,
+} from '@/lib/plugins/scoring';
 
 type ScorePluginMaturityOptions = {
   manifest: PluginManifest;
@@ -42,9 +50,6 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
 
 const componentIdToComponentBasename = (componentId: string): string =>
   componentId.trim().toLowerCase().replace(/_/g, '-');
-
-const toComponentFileName = (componentId: string): string =>
-  `${componentIdToComponentBasename(componentId)}.tsx`;
 
 const pluginComponentRegistrationPattern =
   /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
@@ -483,7 +488,6 @@ export const scorePluginMaturity = async ({
   const repoRoot = path.dirname(pluginsRoot);
   const pluginReadmePath = path.join(pluginDir, 'README.md');
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
-  const pluginComponentsRoot = path.join(pluginDir, 'src', 'components');
   const componentIds = manifest.uiExtensions.flatMap((extension) => {
     const maybeComponent =
       'component' in extension.config ? extension.config.component : undefined;
@@ -499,203 +503,70 @@ export const scorePluginMaturity = async ({
       issue.message.includes('no dashboard renderer is registered')
   );
 
-  categoryScores.contract_metadata += 8;
-  pushUnique(evidence, 'Manifest passes required schema validation.');
-
-  if (manifest.enabled === true || manifest.enabled === false) {
-    categoryScores.contract_metadata += 2;
-  }
-
-  if ((manifest.capabilities ?? []).length > 0) {
-    categoryScores.contract_metadata += 2;
-    pushUnique(evidence, 'Manifest declares explicit capabilities.');
-  }
-
-  if (
-    manifest.maturity?.tier &&
-    manifest.maturity.notes &&
-    manifest.maturity.lastReviewedAt
-  ) {
-    categoryScores.contract_metadata += 2;
-    pushUnique(
-      evidence,
-      'Manifest includes maturity metadata and review notes.'
-    );
-  } else {
-    pushUnique(
-      reasons,
-      'Manifest is missing complete maturity review metadata.'
-    );
-    pushUnique(
-      nextActions,
-      'Add `maturity.tier`, `maturity.notes`, and `maturity.lastReviewedAt`.'
-    );
-  }
-
-  if (manifest.maturity?.evidence) {
-    categoryScores.contract_metadata += 2;
-    pushUnique(
-      evidence,
-      'Manifest includes explicit maturity evidence for tests and verified UX criteria.'
-    );
-  }
-
-  if (manifest.uiExtensions.length > 0) {
-    categoryScores.runtime_integration += 4;
-  }
-
-  if (await fileExists(pluginEntryPath)) {
-    categoryScores.runtime_integration += 6;
-    pushUnique(
-      evidence,
-      'Plugin entry module exists under plugins/<id>/src/index.ts.'
-    );
-    const entryContents = await readFile(pluginEntryPath, 'utf8');
-    const hasExtensionRegistrations = manifest.uiExtensions.every((extension) =>
-      entryContents.includes(extension.id)
-    );
-    if (hasExtensionRegistrations) {
-      categoryScores.runtime_integration += 4;
-      pushUnique(
-        evidence,
-        'Plugin entry registers its declared extension ids.'
-      );
-    } else {
-      pushUnique(
-        reasons,
-        'Plugin entry does not obviously register all declared extensions.'
-      );
-      pushUnique(
-        nextActions,
-        'Align plugin entry registration calls with the manifest.'
-      );
-    }
-
-    if (
-      componentIds.length === 0 ||
-      unresolvedRuntimeComponentWarnings.length === 0
-    ) {
-      categoryScores.runtime_integration += 4;
-      pushUnique(
-        evidence,
-        'Declared manifest components resolve to registered renderers after plugin bootstrap.'
-      );
-    } else {
-      pushUnique(
-        reasons,
-        'Some manifest component ids do not resolve to registered renderers at runtime.'
-      );
-      pushUnique(
-        nextActions,
-        'Register each declared manifest component id during plugin bootstrap.'
-      );
-    }
-
-    const registeredPluginComponents =
-      extractRegisteredPluginComponents(entryContents);
-    const missingComponentRegistrations = componentIds.filter(
-      (componentId) => !registeredPluginComponents.includes(componentId)
-    );
-    if (
-      componentIds.length === 0 ||
-      missingComponentRegistrations.length === 0
-    ) {
-      pushUnique(
-        evidence,
-        'Static plugin-entry scan aligns registerPluginComponent calls with manifest component ids.'
-      );
-    } else {
-      pushUnique(
-        reasons,
-        'Static plugin-entry scan did not find all manifest component ids (supplemental signal only).'
-      );
-      pushUnique(
-        nextActions,
-        'Keep registerPluginComponent calls aligned with manifest component ids for maintainability.'
-      );
-    }
-  } else {
-    pushUnique(reasons, 'Plugin entry module is missing.');
-    pushUnique(nextActions, 'Add plugins/<id>/src/index.ts for each plugin.');
-  }
-
-  const blockingWarnings = [
-    ...validationIssues
-      .filter((issue) => issue.severity === 'warning')
-      .map((issue) => issue.message),
-    ...autoDisabledWithWarnings,
-  ];
-  if (blockingWarnings.length === 0) {
-    categoryScores.runtime_integration += 6;
-  } else {
-    pushUnique(
-      reasons,
-      'Plugin has capability or compatibility warnings that reduce safe runtime confidence.'
-    );
-    pushUnique(
-      nextActions,
-      'Resolve manifest warnings before promoting the plugin beyond Bronze.'
-    );
-  }
-
-  if (componentIds.length > 0) {
-    categoryScores.feature_quality += 5;
-  }
-
+  // PHASE 2A REFACTORING: Call category scorers instead of inline accumulation
+  // ──────────────────────────────────────────────────────────────────────────
+  // Collect intermediate data needed by all scorers
   const pluginEntryExists = await fileExists(pluginEntryPath);
   const registeredPluginComponents = pluginEntryExists
     ? extractRegisteredPluginComponents(await readFile(pluginEntryPath, 'utf8'))
     : [];
-  const missingComponentEvidence: string[] = [];
-  let resolvedComponentCount = 0;
 
-  for (const componentId of componentIds) {
-    const componentFileName = toComponentFileName(componentId);
-    const pluginLocalComponentPath = path.join(
-      pluginComponentsRoot,
-      componentFileName
-    );
-    const sharedComponentPath = path.join(
-      repoRoot,
-      'src',
-      'components',
-      componentFileName
-    );
-    const [pluginLocalExists, sharedExists] = await Promise.all([
-      fileExists(pluginLocalComponentPath),
-      fileExists(sharedComponentPath),
-    ]);
-    const hasRuntimeRegistration =
-      pluginEntryExists && registeredPluginComponents.includes(componentId);
+  // Call all 5 category scorers in parallel
+  const [
+    contractMetadataResult,
+    runtimeIntegrationResult,
+    featureQualityResult,
+    _, // testCoverageResult placeholder; computed below
+    operabilityDocsResult,
+  ] = await Promise.all([
+    scoreContractMetadata(manifest),
+    scoreRuntimeIntegration(
+      manifest,
+      validationIssues,
+      pluginDirectoryName,
+      pluginsRoot,
+      autoDisabledWithWarnings
+    ),
+    scoreFeatureQuality(
+      manifest,
+      pluginDirectoryName,
+      pluginsRoot,
+      registeredPluginComponents
+    ),
+    // Note: testCoverageResult is computed below after test evidence discovery
+    Promise.resolve({ score: 0, evidence: [], reasons: [], nextActions: [], blockers: [] }),
+    scoreOperabilityDocs(manifest, pluginDirectoryName, pluginsRoot),
+  ]);
 
-    if (pluginLocalExists || sharedExists || hasRuntimeRegistration) {
-      resolvedComponentCount += 1;
-      continue;
+  // Merge category results into accumulators
+  // These are used for evidence, reasons, and nextActions only
+  // (scores are now in categoryScores via the result objects)
+  categoryScores.contract_metadata = contractMetadataResult.score;
+  categoryScores.runtime_integration = runtimeIntegrationResult.score;
+  categoryScores.feature_quality = featureQualityResult.score;
+  categoryScores.operability_docs = operabilityDocsResult.score;
+
+  // Merge evidence, reasons, and nextActions
+  const categoryResults = [
+    contractMetadataResult,
+    runtimeIntegrationResult,
+    featureQualityResult,
+    operabilityDocsResult,
+  ];
+
+  for (const result of categoryResults) {
+    for (const item of result.evidence) {
+      pushUnique(evidence, item);
     }
-
-    missingComponentEvidence.push(componentId);
+    for (const item of result.reasons) {
+      pushUnique(reasons, item);
+    }
+    for (const item of result.nextActions) {
+      pushUnique(nextActions, item);
+    }
   }
 
-  if (
-    resolvedComponentCount === componentIds.length &&
-    componentIds.length > 0
-  ) {
-    categoryScores.feature_quality += 10;
-    pushUnique(
-      evidence,
-      'Declared components resolve through plugin-local files, shared components, or runtime registration evidence.'
-    );
-  } else if (missingComponentEvidence.length > 0) {
-    pushUnique(
-      reasons,
-      'Some declared plugin components could not be resolved from plugin-local files, shared components, or runtime registration.'
-    );
-    pushUnique(
-      nextActions,
-      'For each declared component, add plugins/<id>/src/components/<component>.tsx, add src/components/<component>.tsx, or register it in plugins/<id>/src/index.ts.'
-    );
-  }
-
+  // Continue with test evidence discovery and UX criteria verification
   const declaredEvidence = manifest.maturity?.evidence;
   const declaredExplicitTestFiles = declaredEvidence?.testFiles ?? [];
   const explicitTestEvidenceFiles = await resolveExplicitEvidenceFiles(
@@ -729,44 +600,31 @@ export const scorePluginMaturity = async ({
       : heuristicTestEvidenceFiles.length > 0
         ? 'heuristic'
         : 'none';
-  if (testEvidenceFiles.length > 0) {
-    categoryScores.test_coverage += 12;
-    pushUnique(
-      evidence,
-      `Found automated test evidence in ${testEvidenceFiles.length} file(s).`
-    );
-    if (testEvidenceSource === 'explicit') {
-      categoryScores.test_coverage += 4;
-      pushUnique(
-        evidence,
-        'Manifest explicitly maps plugin maturity checks to test evidence files.'
-      );
-    }
-  } else {
-    pushUnique(
-      reasons,
-      'No plugin-specific automated test evidence was found.'
-    );
-    pushUnique(
-      nextActions,
-      'Add plugin-specific tests for manifest, runtime wiring, and primary feature behavior.'
-    );
+
+  // Score test coverage using the new scorer
+  const testCoverageResultFinal = await scoreTestCoverage({
+    testEvidenceFiles,
+    testEvidenceSource,
+    missingExplicitTestFiles,
+    manifest,
+    pluginId: manifest.id,
+  });
+
+  categoryScores.test_coverage = testCoverageResultFinal.score;
+  for (const item of testCoverageResultFinal.evidence) {
+    pushUnique(evidence, item);
   }
-  if (missingExplicitTestFiles.length > 0) {
-    pushUnique(
-      reasons,
-      'Some explicit maturity evidence test files declared in manifest could not be found.'
-    );
-    pushUnique(
-      nextActions,
-      'Update `maturity.evidence.testFiles` so every declared path exists in the repo.'
-    );
+  for (const item of testCoverageResultFinal.reasons) {
+    pushUnique(reasons, item);
+  }
+  for (const item of testCoverageResultFinal.nextActions) {
+    pushUnique(nextActions, item);
   }
 
   const runtimeAssertionsSatisfied =
     componentIds.length > 0 &&
     componentBasenames.length > 0 &&
-    resolvedComponentCount === componentIds.length &&
+    testEvidenceFiles.length > 0 &&
     unresolvedRuntimeComponentWarnings.length === 0;
   const manifestUxStates = manifest.maturity?.uxStates;
   const manifestUxCriteria = manifest.maturity?.uxCriteria;
@@ -1028,6 +886,15 @@ export const scorePluginMaturity = async ({
   const hasValidationErrors = validationIssues.some(
     (issue) => issue.severity === 'error'
   );
+
+  // Compute blockingWarnings for tier determination
+  const blockingWarnings = [
+    ...validationIssues
+      .filter((issue) => issue.severity === 'warning')
+      .map((issue) => issue.message),
+    ...autoDisabledWithWarnings,
+  ];
+
   const hasBlockingWarnings =
     blockingWarnings.length > 0 ||
     validationIssues.some(
@@ -1045,97 +912,33 @@ export const scorePluginMaturity = async ({
       criteriaDetails[criterion].source === 'explicit'
   );
   const hasExplicitTestEvidence = testEvidenceSource === 'explicit';
-  const hasGoldOperabilityDocs =
-    normalizedCategoryScores.operability_docs.earned >= 12;
-  const hasGoldRuntimeIntegration =
-    normalizedCategoryScores.runtime_integration.earned >= 18;
-  const hasGoldFeatureQuality =
-    normalizedCategoryScores.feature_quality.earned >= 20;
   const normalizedReadmeSections = detectedReadmeSections.map(normalizeHeading);
   const hasGoldSupportDocs =
     normalizedReadmeSections.includes('troubleshooting') ||
     normalizedReadmeSections.includes('known limitations and dependencies');
 
-  let tier: PluginMaturityTier = 'bronze';
-  if (
-    totalScore >= 85 &&
-    !hasValidationErrors &&
-    !hasBlockingWarnings &&
-    hasAnyTestEvidence &&
-    hasReadme &&
-    hasExplicitTestEvidence &&
-    allRelevantUxCriteriaExplicitlyVerified &&
-    hasGoldRuntimeIntegration &&
-    hasGoldFeatureQuality &&
-    hasGoldOperabilityDocs &&
-    hasGoldSupportDocs &&
-    isExplicitGoldReview
-  ) {
-    tier = 'gold';
-  } else if (
-    totalScore >= 70 &&
-    !hasValidationErrors &&
-    !hasBlockingWarnings &&
-    hasAnyTestEvidence &&
-    hasReadme
-  ) {
-    tier = 'silver';
-  }
+  // PHASE 2A REFACTORING: Use pure determineTier function for tier assignment
+  // ──────────────────────────────────────────────────────────────────────────
+  const tierResult = determineTier({
+    totalScore,
+    categoryScores,
+    hasValidationErrors,
+    hasBlockingWarnings,
+    hasAnyTestEvidence,
+    hasReadme,
+    hasExplicitTestEvidence,
+    allRelevantUxCriteriaExplicitlyVerified,
+    hasGoldSupportDocs,
+    isExplicitGoldReview,
+    validationIssues,
+    blockingWarnings,
+  });
 
-  if (hasValidationErrors) {
-    pushUnique(reasons, 'Manifest validation errors cap the plugin at Bronze.');
-  }
-  if (hasBlockingWarnings) {
-    pushUnique(
-      reasons,
-      'Capability or version warnings cap the plugin at Bronze until resolved.'
-    );
-  }
-  if (!hasAnyTestEvidence) {
-    pushUnique(
-      reasons,
-      'Missing automated test evidence caps the plugin at Bronze.'
-    );
-  }
-  if (!hasReadme) {
-    pushUnique(
-      reasons,
-      'Missing plugin documentation prevents promotion beyond Bronze/Silver.'
-    );
-  }
-  if (totalScore >= 85 && !isExplicitGoldReview) {
-    pushUnique(
-      reasons,
-      'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
-    );
-    pushUnique(
-      nextActions,
-      'Only mark a plugin Gold after a deliberate review updates `maturity.tier` to `gold`.'
-    );
-  }
-  if (totalScore >= 85 && isExplicitGoldReview && !hasExplicitTestEvidence) {
-    pushUnique(
-      reasons,
-      'Gold requires explicit test evidence declared in manifest maturity metadata.'
-    );
-    pushUnique(
-      nextActions,
-      'Add `maturity.evidence.testFiles` for Gold candidates instead of relying on heuristic test discovery.'
-    );
-  }
-  if (
-    totalScore >= 85 &&
-    isExplicitGoldReview &&
-    !allRelevantUxCriteriaExplicitlyVerified
-  ) {
-    pushUnique(
-      reasons,
-      'Gold requires every relevant UX criterion to be explicitly verified by mapped test evidence.'
-    );
-    pushUnique(
-      nextActions,
-      'Map each relevant UX criterion in `maturity.evidence.uxCriteria` to concrete test files and keep them passing.'
-    );
+  const tier = tierResult.tier;
+
+  // Merge tier determination blockers and next actions
+  for (const item of tierResult.nextActions) {
+    pushUnique(nextActions, item);
   }
   if (totalScore >= 85 && isExplicitGoldReview && !hasGoldRuntimeIntegration) {
     pushUnique(
