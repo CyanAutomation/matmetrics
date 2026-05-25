@@ -114,9 +114,6 @@ export const testPluginRegistrationContract = (
                 // intentionally omit registerPluginComponent to validate guardrail
               },
             });
-            assert.fail(
-              `[${params.pluginId}] Expected contract failure when context.registerPluginComponent is unavailable.`
-            );
           },
           /registerPluginComponent/
         );
