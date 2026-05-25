@@ -951,89 +951,6 @@ export async function updateSessionOnGitHub(
 }
 
 /**
- * Delete a session file from GitHub
- */
-async function deleteSessionOnGitHub(
-  session: JudoSession,
-  config: GitHubConfig
-): Promise<GitHubSyncResult> {
-  try {
-    const branch = await resolveBranch(config);
-    const expectedPath = getGitHubSessionPath(session);
-
-    // P3: Try manifest first
-    const manifestEntry = getManifestEntry(session.id, config);
-    let filePath = expectedPath;
-    let sha: string | null = null;
-
-    if (manifestEntry) {
-      sha = await getFileSha(
-        config.owner,
-        config.repo,
-        manifestEntry.path,
-        branch
-      );
-      if (sha) {
-        filePath = manifestEntry.path;
-      }
-    }
-
-    if (!sha) {
-      sha = await getFileSha(config.owner, config.repo, expectedPath, branch);
-    }
-
-    if (!sha) {
-      const discoveredPath = await findSessionPathOnGitHubById(
-        session.id,
-        config
-      );
-      if (discoveredPath) {
-        filePath = discoveredPath;
-        sha = await getFileSha(
-          config.owner,
-          config.repo,
-          discoveredPath,
-          branch
-        );
-      }
-    }
-
-    if (!sha) {
-      // P3: Clean up stale manifest entry
-      removeManifestEntry(session.id, config);
-      return {
-        success: true,
-        message: 'Session not found on GitHub (already deleted)',
-      };
-    }
-
-    await githubDeleteWithBranchRetry(config, filePath, {
-      message: `Delete session: ${session.date}`,
-      branch,
-      sha,
-    });
-
-    // P3: Remove from manifest cache
-    removeManifestEntry(session.id, config);
-
-    return {
-      success: true,
-      message: 'Session deleted from GitHub',
-      filePath,
-      branch,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: getActionableGitHubErrorMessage(
-        `GitHub session delete for ${session.id}`,
-        error
-      ),
-    };
-  }
-}
-
-/**
  * Delete a session file from GitHub when only session ID is known.
  */
 export async function deleteSessionOnGitHubById(
@@ -1248,38 +1165,6 @@ export async function bulkPushSessions(
       message: `Bulk push failed: ${errorMessage}`,
       successCount: 0,
       errors: [],
-    };
-  }
-}
-
-/**
- * Validate GitHub credentials by testing the API
- */
-async function validateGitHubCredentials(
-  config: GitHubConfig
-): Promise<GitHubSyncResult> {
-  try {
-    await githubApiRequest('GET', `/repos/${config.owner}/${config.repo}`);
-    const branch = await resolveBranch(config);
-
-    if (config.branch?.trim()) {
-      await githubApiRequest(
-        'GET',
-        `/repos/${config.owner}/${config.repo}/branches/${encodeURIComponent(branch)}`
-      );
-    }
-
-    return {
-      success: true,
-      message: `Successfully connected to ${config.owner}/${config.repo} on branch ${branch}`,
-      branch,
-    };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-    return {
-      success: false,
-      message: `Connection failed (owner=${config.owner}, repo=${config.repo}, branch=${config.branch || 'default'}): ${errorMessage}`,
     };
   }
 }

@@ -248,12 +248,3 @@ export const createPluginSurfaceRenderer = ({
 
   return PluginSurfaceRendererWithLayout;
 };
-
-const getPluginSurfaceLayoutClassName = (
-  layoutVariant: string | undefined
-): string =>
-  layoutVariant && isSupportedPluginSurfaceLayoutVariant(layoutVariant)
-    ? SURFACE_LAYOUT_CLASSNAMES[
-        layoutVariant as keyof typeof SURFACE_LAYOUT_CLASSNAMES
-      ]
-    : SURFACE_LAYOUT_CLASSNAMES.standard;
