@@ -27,10 +27,10 @@
 export { scoreContractMetadata } from './contract-metadata';
 export { scoreRuntimeIntegration } from './runtime-integration';
 export { scoreFeatureQuality } from './feature-quality';
-export { scoreTestCoverage } from './test-coverage';
+export { scoreTestCoverage } from './test-coverage-scoring';
 export { scoreOperabilityDocs } from './operability-docs';
 export { determineTier } from './determine-tier';
 
 export type { CategoryScoringResult, TierEvaluationResult } from './types';
-export type { TestCoverageInput } from './test-coverage';
+export type { TestCoverageInput } from './test-coverage-scoring';
 export type { TierDeterminationInput } from './determine-tier';
