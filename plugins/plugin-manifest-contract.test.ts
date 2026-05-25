@@ -4,6 +4,13 @@ import promptSettingsManifest from './prompt-settings/plugin.json';
 import tagManagerManifest from './tag-manager/plugin.json';
 import videoLibraryManifest from './video-library/plugin.json';
 import { testPluginManifestContract } from './test-plugin-manifest-contract';
+
+/**
+ * Requirement mapping (fixtures only):
+ * - PM-UI-001: uiContract.layoutVariant runtime compatibility.
+ * - PM-UI-002: uiContract.requiredUxStates completeness.
+ * - PM-UI-003: dashboard_tab identity and component wiring invariants.
+ */
 const pluginManifestFixtures = [
   {
     manifest: githubSyncManifest,
