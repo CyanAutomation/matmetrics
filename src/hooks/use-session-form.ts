@@ -92,40 +92,6 @@ export function useSessionFormState(sessionToEdit?: JudoSession) {
 }
 
 /**
- * useTechniqueArray Hook
- *
- * Manages technique array manipulation (add, remove)
- */
-function useTechniqueArray(initialTechniques: string[]) {
-  const [techniques, setTechniques] = useState(initialTechniques);
-  const [newTech, setNewTech] = useState('');
-
-  const addTechnique = useCallback((e?: React.FormEvent) => {
-    e?.preventDefault();
-    setTechniques((prev) => {
-      if (newTech.trim() && !prev.includes(newTech.trim())) {
-        return [...prev, newTech.trim()];
-      }
-      return prev;
-    });
-    setNewTech('');
-  }, [newTech]);
-
-  const removeTechnique = useCallback((tech: string) => {
-    setTechniques((prev) => prev.filter((t) => t !== tech));
-  }, []);
-
-  return {
-    techniques,
-    setTechniques,
-    newTech,
-    setNewTech,
-    addTechnique,
-    removeTechnique,
-  };
-}
-
-/**
  * useFormSubmit Hook
  *
  * Handles form validation, API calls, and submission logic

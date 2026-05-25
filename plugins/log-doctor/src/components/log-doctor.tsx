@@ -59,7 +59,6 @@ import { AuditSettings } from './log-doctor-audit-settings';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 
 import {
-  createEmptyDiagnosticsSnapshot,
   resolveResetDiagnosticsSnapshot,
   type AuditSessionResult,
   type DiagnosticsSnapshot,
@@ -88,8 +87,6 @@ export const emitDestructiveActionEvent = (
     })
   );
 };
-
-const EMPTY_DIAGNOSTICS_SNAPSHOT = createEmptyDiagnosticsSnapshot();
 
 export const LogDoctor = (): React.ReactElement => {
   const { preferences, user } = useAuth();
@@ -142,7 +139,7 @@ export const LogDoctor = (): React.ReactElement => {
   const [auditStep, setAuditStep] = useState<AuditStep>('run-check');
 
   // Initialize audit results from persisted state
-  const [initialAuditResults, setInitialAuditResults] = useState<AuditSessionResult[]>(() => {
+  const [auditResults, setAuditResults] = useState<AuditSessionResult[]>(() => {
     const lastRun = getLastAuditRun();
     if (lastRun) {
       const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({
@@ -288,7 +285,7 @@ export const LogDoctor = (): React.ReactElement => {
           description: `Session from ${existing.sessionDate} is marked as fixed.`,
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -307,7 +304,7 @@ export const LogDoctor = (): React.ReactElement => {
           description: `All checks for ${existing.sessionDate} are dismissed for now.`,
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -326,7 +323,7 @@ export const LogDoctor = (): React.ReactElement => {
         title: 'Check dismissed',
         description: 'This check will no longer flag this session.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -345,7 +342,7 @@ export const LogDoctor = (): React.ReactElement => {
         title: 'Check undismissed',
         description: 'This check will now flag this session again.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',

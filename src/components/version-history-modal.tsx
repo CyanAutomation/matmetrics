@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Info } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { APP_VERSION } from '@/lib/app-version';
 import type { ReleaseEntry } from '@/lib/releases';
 
 type RecentReleasesResponse = {
@@ -176,25 +174,5 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         {body}
       </DialogContent>
     </Dialog>
-  );
-};
-
-interface VersionHistoryButtonProps {
-  onClick: () => void;
-}
-
-const VersionHistoryButton: React.FC<VersionHistoryButtonProps> = ({
-  onClick,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-      title="View version history"
-      aria-label="View version history"
-    >
-      <Info className="h-3 w-3" />
-      <span className="text-xs font-medium">v{APP_VERSION}</span>
-    </button>
   );
 };

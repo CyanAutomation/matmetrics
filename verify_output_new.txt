@@ -1,0 +1,12 @@
+
+> nextn@1.2.0 verify
+> npm run test:all && npm run typecheck && npm run build && npm run go:test
+
+
+> nextn@1.2.0 test:all
+> npm run validate:plugin-ui-contract && node scripts/check-tsx-availability.cjs && NODE_ENV=test node --import tsx --test $(find plugins src -name '*.test.ts' ! -path 'src/lib/storage.test.ts') && NODE_ENV=test node --import tsx src/lib/storage.test.ts
+
+
+> nextn@1.2.0 validate:plugin-ui-contract
+> node scripts/check-tsx-availability.cjs && node --import tsx scripts/validate-plugin-ui-contract.ts
+

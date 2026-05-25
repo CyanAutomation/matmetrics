@@ -1786,7 +1786,7 @@ test(
       } finally {
         try {
           await fs.unlink(symlinkYearDir);
-        } catch (_e) {
+        } catch {
           // ignore
         }
         await rm(outsideDir, { recursive: true, force: true });
@@ -1821,7 +1821,7 @@ test(
       } finally {
         try {
           await fs.unlink(symlinkMonthDir);
-        } catch (_e) {
+        } catch {
           // ignore
         }
         await rm(outsideDir, { recursive: true, force: true });
