@@ -1,107 +1,126 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
-/**
- * Test suite for validate-plugin-ui-contract script.
- *
- * This test file validates the contract validation logic:
- * - Plugin manifest discovery and parsing
- * - Component entry point resolution
- * - Primitive usage discovery via import traversal
- * - Requirement verification per component
- * - Violations reporting and aggregation
- *
- * NOTE: These tests will support the Phase 2 refactoring where we extract:
- * - collectPluginComponents(manifestPath) -> { pluginId, componentIds[], entryPoints[] }
- * - trackPrimitiveUsageViaImports(entryPath) -> { primitiveUsage, visitedFiles[] }
- * - verifyComponentRequirements(componentId, entryPath, rules) -> { met, missing, violations }
- * - enumerateValidationJobs(plugins) -> flat job list
- * - buildViolationsReport(results[]) -> formatted violations
- */
+import {
+  computePrimitiveUsage,
+  discoverPluginManifests,
+  resolvePluginComponentEntrypoints,
+  verifyComponentRequirements,
+  type RequirementKey,
+} from './validate-plugin-ui-contract';
 
-test('validate-plugin-ui-contract: Plugin discovery and parsing', () => {
-  // FUTURE TEST: Plugin manifest discovery
-  // test('discovers all plugins with plugin.json manifests', () => { ... })
+const fixtureRoot = path.join(
+  process.cwd(),
+  'scripts',
+  '__fixtures__',
+  'validate-plugin-ui-contract'
+);
 
-  // FUTURE TEST: Manifest parsing
-  // test('parses plugin manifest and extracts UI extensions', () => { ... })
+const withTempFixtureRoot = async <T>(
+  fixtureName: string,
+  run: (root: string) => Promise<T>
+): Promise<T> => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'plugin-contract-'));
+  try {
+    const source = path.join(fixtureRoot, fixtureName);
+    const target = path.join(tempDir, 'plugins');
+    await import('node:fs/promises').then(({ cp }) =>
+      cp(source, target, { recursive: true })
+    );
+    return await run(target);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+};
 
-  // FUTURE TEST: Component ID extraction
-  // test('extracts component IDs from uiExtensions.config.component', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
+test('manifest discovery from fixture directories', async () => {
+  await withTempFixtureRoot('manifests', async (pluginsRoot) => {
+    const manifests = await discoverPluginManifests(pluginsRoot);
+    assert.deepEqual(manifests, [
+      path.join(pluginsRoot, 'plugin-a', 'plugin.json'),
+      path.join(pluginsRoot, 'plugin-b', 'plugin.json'),
+    ]);
+  });
 });
 
-test('validate-plugin-ui-contract: Entry point resolution', () => {
-  // FUTURE TEST: Entry point location
-  // test('locates component entry point file in src/components/', () => { ... })
+test('entrypoint resolution supports .ts/.tsx and /index variants', async () => {
+  await withTempFixtureRoot('entrypoints', async (pluginsRoot) => {
+    const pluginIndexPath = path.join(pluginsRoot, 'entrypoint-plugin', 'src', 'index.ts');
+    const resolved = await resolvePluginComponentEntrypoints(pluginIndexPath, [
+      'tab-ts',
+      'tab-tsx',
+      'tab-index',
+    ]);
 
-  // FUTURE TEST: Entry point variants
-  // test('resolves entry points with .ts, .tsx, index variants', () => { ... })
-
-  // FUTURE TEST: Missing entry point detection
-  // test('detects when component entry point is missing', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
+    assert.deepEqual(
+      Object.fromEntries(resolved.entries()),
+      {
+        'tab-index': path.join(pluginsRoot, 'entrypoint-plugin', 'src', 'components', 'index-variant', 'index.tsx'),
+        'tab-ts': path.join(pluginsRoot, 'entrypoint-plugin', 'src', 'components', 'ts-component.ts'),
+        'tab-tsx': path.join(pluginsRoot, 'entrypoint-plugin', 'src', 'components', 'tsx-component.tsx'),
+      }
+    );
+  });
 });
 
-test('validate-plugin-ui-contract: Primitive usage discovery via imports', () => {
-  // FUTURE TEST: Import traversal (BFS)
-  // test('traverses imports via breadth-first search', () => { ... })
+test('import graph traversal handles cycles while detecting required primitives', async () => {
+  const cycleFixture = path.join(
+    fixtureRoot,
+    'import-cycle',
+    'cycle-plugin',
+    'src',
+    'components',
+    'dashboard.tsx'
+  );
+  const usage = await computePrimitiveUsage(cycleFixture);
 
-  // FUTURE TEST: Primitive detection
-  // test('detects imported primitives (PluginPageShell, PluginTableSection, etc)', () => { ... })
+  const expected: Record<RequirementKey, boolean> = {
+    singleTopLevelPageShell: true,
+    primaryContentSections: true,
+    loadingState: true,
+    errorState: true,
+    emptyState: true,
+    successState: false,
+    destructiveConfirmation: false,
+  };
 
-  // FUTURE TEST: Prevents infinite loops
-  // test('does not revisit already-visited files', () => { ... })
-
-  // FUTURE TEST: Handles missing imports
-  // test('gracefully handles unresolvable imports', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
+  assert.deepEqual(usage, expected);
 });
 
-test('validate-plugin-ui-contract: Component requirement verification', () => {
-  // FUTURE TEST: Single requirement check
-  // test('verifies component meets single requirement', () => { ... })
+test('requirement verification returns exact failure payload shape', async () => {
+  const usage: Record<RequirementKey, boolean> = {
+    singleTopLevelPageShell: true,
+    primaryContentSections: false,
+    loadingState: true,
+    errorState: false,
+    emptyState: false,
+    successState: false,
+    destructiveConfirmation: false,
+  };
 
-  // FUTURE TEST: Multiple requirements
-  // test('verifies component meets multiple requirements', () => { ... })
+  const violations = verifyComponentRequirements({
+    pluginId: 'demo-plugin',
+    componentId: 'dashboard-main',
+    usage,
+    requiredChecks: ['primaryContentSections', 'errorState'],
+  });
 
-  // FUTURE TEST: Missing requirements
-  // test('detects missing requirements and generates violations', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
-});
-
-test('validate-plugin-ui-contract: Violations aggregation', () => {
-  // FUTURE TEST: Violations collection
-  // test('aggregates violations from all components', () => { ... })
-
-  // FUTURE TEST: Violation report formatting
-  // test('formats violations with plugin ID, component ID, requirement, and details', () => { ... })
-
-  // FUTURE TEST: No mutations during aggregation
-  // test('violations array is not mutated in multiple scopes', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
-});
-
-test('validate-plugin-ui-contract: Job enumeration and parallel processing', () => {
-  // FUTURE TEST: Job enumeration
-  // test('enumerates flat job list instead of nested loops', () => { ... })
-
-  // FUTURE TEST: Job structure
-  // test('each job contains pluginId, componentId, requirement, and entryPath', () => { ... })
-
-  // FUTURE TEST: Job count correctness
-  // test('job count = plugins × components × requirements', () => { ... })
-
-  // Placeholder assertion
-  assert.strictEqual(true, true);
+  assert.deepEqual(violations, [
+    {
+      pluginId: 'demo-plugin',
+      componentId: 'dashboard-main',
+      requirement: 'primaryContentSections',
+      message:
+        'Dashboard component must group primary content into PluginFormSection, PluginTableSection, or PluginSectionCard',
+    },
+    {
+      pluginId: 'demo-plugin',
+      componentId: 'dashboard-main',
+      requirement: 'errorState',
+      message: 'Missing required error state helper (PluginErrorState)',
+    },
+  ]);
 });
