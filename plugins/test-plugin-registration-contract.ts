@@ -94,13 +94,14 @@ export const testPluginRegistrationContract = (
     await t.test('negative: missing register fails with clear contract message', () => {
       assert.throws(
         () => {
-          params.initPlugin({
-            registerPluginComponent: () => {
-              // intentionally omit register to validate guardrail
+          runRegistrationAssertions({
+            ...params,
+            initPlugin: ({ registerPluginComponent }) => {
+              registerPluginComponent?.(params.componentId, {});
             },
           });
         },
-        /register/
+        /must call context\.register/
       );
     });
 
@@ -109,13 +110,14 @@ export const testPluginRegistrationContract = (
       () => {
         assert.throws(
           () => {
-            params.initPlugin({
-              register: () => {
-                // intentionally omit registerPluginComponent to validate guardrail
+            runRegistrationAssertions({
+              ...params,
+              initPlugin: ({ register }) => {
+                register?.(params.dashboardExtensionId);
               },
             });
           },
-          /registerPluginComponent/
+          /must call context\.registerPluginComponent/
         );
       }
     );
@@ -123,47 +125,17 @@ export const testPluginRegistrationContract = (
     await t.test('negative: duplicate registration attempt is rejected', () => {
       assert.throws(
         () => {
-          let extensionRegistered = false;
-          let componentRegistered = false;
-          params.initPlugin({
-            register: (extensionId) => {
-              if (extensionRegistered) {
-                throw new Error(
-                  `[${params.pluginId}] duplicate register('${extensionId}') call blocked by runtime`
-                );
-              }
-              extensionRegistered = true;
-            },
-            registerPluginComponent: (registeredComponentId) => {
-              if (componentRegistered) {
-                throw new Error(
-                  `[${params.pluginId}] duplicate registerPluginComponent('${registeredComponentId}') call blocked by runtime`
-                );
-              }
-              componentRegistered = true;
-            },
-          });
-
-          params.initPlugin({
-            register: (extensionId) => {
-              if (extensionRegistered) {
-                throw new Error(
-                  `[${params.pluginId}] duplicate register('${extensionId}') call blocked by runtime`
-                );
-              }
-              extensionRegistered = true;
-            },
-            registerPluginComponent: (registeredComponentId) => {
-              if (componentRegistered) {
-                throw new Error(
-                  `[${params.pluginId}] duplicate registerPluginComponent('${registeredComponentId}') call blocked by runtime`
-                );
-              }
-              componentRegistered = true;
+          runRegistrationAssertions({
+            ...params,
+            initPlugin: ({ register, registerPluginComponent }) => {
+              register?.(params.dashboardExtensionId);
+              register?.(params.dashboardExtensionId);
+              registerPluginComponent?.(params.componentId, {});
+              registerPluginComponent?.(params.componentId, {});
             },
           });
         },
-        /duplicate register|duplicate registerPluginComponent/
+        /register exactly one dashboard extension id|register exactly one component id/
       );
     });
   });
