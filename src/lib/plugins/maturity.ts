@@ -946,7 +946,15 @@ export const scorePluginMaturity = async ({
   // Merge tier determination blockers and next actions
   for (const item of tierResult.nextActions) {
     pushUnique(nextActions, item);
+    // Also add Gold requirement messages to reasons for user explanation
+    if (item.includes('Gold requires')) {
+      pushUnique(reasons, item);
+    }
   }
+  for (const item of tierResult.blockers) {
+    pushUnique(reasons, item);
+  }
+
   if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('runtime integration'))) {
     pushUnique(
       reasons,
