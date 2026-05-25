@@ -16,6 +16,7 @@ type PluginManifestContractParams = {
   dashboardExtensionId: string;
   componentId: string;
   manifest: unknown;
+  requirementSource?: string;
 };
 
 /**
@@ -31,7 +32,8 @@ const REQUIRED_UX_STATES = ['loading', 'error', 'empty'] as const;
 
 const getDashboardTabExtension = (
   manifest: PluginManifest,
-  pluginId: string
+  pluginId: string,
+  reqPrefix: string
 ): DashboardTabExtension => {
   const dashboardTab = manifest.uiExtensions.find(
     (extension) => extension.type === 'dashboard_tab'
@@ -39,7 +41,7 @@ const getDashboardTabExtension = (
 
   assert.ok(
     dashboardTab,
-    `[${pluginId}] [PM-UI-003] expected exactly one dashboard_tab extension for dashboard surface wiring`
+    `${reqPrefix}[${pluginId}] [PM-UI-003] expected exactly one dashboard_tab extension for dashboard surface wiring`
   );
 
   return dashboardTab as DashboardTabExtension;
@@ -47,21 +49,22 @@ const getDashboardTabExtension = (
 
 const assertRequiredUxStates = (
   pluginId: string,
-  requiredUxStates: readonly string[]
+  requiredUxStates: readonly string[],
+  reqPrefix: string
 ): void => {
   const requiredSet = new Set(requiredUxStates);
 
   for (const requiredState of REQUIRED_UX_STATES) {
     assert.ok(
       requiredSet.has(requiredState),
-      `[${pluginId}] [PM-UI-002] missing required UX state "${requiredState}" in uiContract.requiredUxStates`
+      `${reqPrefix}[${pluginId}] [PM-UI-002] missing required UX state "${requiredState}" in uiContract.requiredUxStates`
     );
   }
 
   assert.equal(
     requiredSet.size,
     requiredUxStates.length,
-    `[${pluginId}] [PM-UI-002] uiContract.requiredUxStates must not contain duplicates`
+    `${reqPrefix}[${pluginId}] [PM-UI-002] uiContract.requiredUxStates must not contain duplicates`
   );
 };
 
@@ -70,65 +73,68 @@ export const testPluginManifestContract = ({
   dashboardExtensionId,
   componentId,
   manifest,
+  requirementSource,
 }: PluginManifestContractParams): void => {
   test(`${pluginId} manifest contract`, () => {
+    const reqPrefix = requirementSource ? `[req:${requirementSource}] ` : '';
     const validation = validatePluginManifest(manifest);
 
     if (!validation.isValid) {
       assert.fail(
-        `Expected valid plugin manifest: ${validation.issues
+        `${reqPrefix}Expected valid plugin manifest: ${validation.issues
           .map((issue) => `${issue.path}: ${issue.message}`)
           .join('; ')}`
       );
     }
 
-    assert.equal(validation.manifest.id, pluginId);
+    assert.equal(validation.manifest.id, pluginId, `${reqPrefix}manifest id must match plugin id`);
 
     const dashboardTab = getDashboardTabExtension(
       validation.manifest,
-      pluginId
+      pluginId,
+      reqPrefix
     );
 
     assert.equal(
       dashboardTab.id,
       dashboardExtensionId,
-      `[${pluginId}] [PM-UI-003] dashboard tab extension id mismatch`
+      `${reqPrefix}[${pluginId}] [PM-UI-003] dashboard tab extension id mismatch`
     );
     assert.equal(
       dashboardTab.config.tabId,
       pluginId,
-      `[${pluginId}] [PM-UI-003] dashboard tab config.tabId must equal plugin id`
+      `${reqPrefix}[${pluginId}] [PM-UI-003] dashboard tab config.tabId must equal plugin id`
     );
     assert.equal(
       dashboardTab.id,
       `${dashboardTab.config.tabId}-dashboard-tab`,
-      `[${pluginId}] [PM-UI-003] dashboard tab id must align with tabId + "-dashboard-tab"`
+      `${reqPrefix}[${pluginId}] [PM-UI-003] dashboard tab id must align with tabId + "-dashboard-tab"`
     );
     assert.equal(
       dashboardTab.config.component,
       componentId,
-      `[${pluginId}] [PM-UI-003] dashboard component id mismatch`
+      `${reqPrefix}[${pluginId}] [PM-UI-003] dashboard component id mismatch`
     );
 
     const uiContract = validation.manifest.uiContract;
     assert.ok(
       uiContract,
-      `[${pluginId}] [PM-UI-001] expected uiContract metadata on the plugin manifest`
+      `${reqPrefix}[${pluginId}] [PM-UI-001] expected uiContract metadata on the plugin manifest`
     );
     assert.ok(
       uiContract.layoutVariant,
-      `[${pluginId}] [PM-UI-001] uiContract.layoutVariant must be set`
+      `${reqPrefix}[${pluginId}] [PM-UI-001] uiContract.layoutVariant must be set`
     );
     assert.equal(
       isSupportedPluginSurfaceLayoutVariant(uiContract.layoutVariant),
       true,
-      `[${pluginId}] [PM-UI-001] uiContract.layoutVariant must map to supported runtime variants: ${SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS.join(', ')}`
+      `${reqPrefix}[${pluginId}] [PM-UI-001] uiContract.layoutVariant must map to supported runtime variants: ${SUPPORTED_PLUGIN_SURFACE_LAYOUT_VARIANTS.join(', ')}`
     );
 
     assert.ok(
       uiContract.requiredUxStates,
-      `[${pluginId}] [PM-UI-002] expected uiContract.requiredUxStates to be defined`
+      `${reqPrefix}[${pluginId}] [PM-UI-002] expected uiContract.requiredUxStates to be defined`
     );
-    assertRequiredUxStates(pluginId, uiContract.requiredUxStates);
+    assertRequiredUxStates(pluginId, uiContract.requiredUxStates, reqPrefix);
   });
 };

@@ -11,6 +11,7 @@ type PluginRegistrationContractParams = {
   dashboardExtensionId: string;
   componentId: string;
   initPlugin: InitPlugin;
+  requirementSource?: string;
 };
 
 type RegistrationCapture = {
@@ -50,36 +51,38 @@ const runRegistrationAssertions = ({
   dashboardExtensionId,
   componentId,
   initPlugin,
+  requirementSource,
 }: PluginRegistrationContractParams): void => {
   const result = captureRegistration(initPlugin);
+  const reqPrefix = requirementSource ? `[req:${requirementSource}] ` : '';
 
   assert.ok(
     result.registerInvocationCount > 0,
-    `[${pluginId}] Contract violation: initPlugin must call context.register('<plugin>-dashboard-tab') so the runtime can expose the plugin tab.`
+    `${reqPrefix}[${pluginId}] Contract violation: initPlugin must call context.register('<plugin>-dashboard-tab') so the runtime can expose the plugin tab.`
   );
   assert.ok(
     result.registerComponentInvocationCount > 0,
-    `[${pluginId}] Contract violation: initPlugin must call context.registerPluginComponent('<component-id>', renderer) so the runtime can render the declared panel.`
+    `${reqPrefix}[${pluginId}] Contract violation: initPlugin must call context.registerPluginComponent('<component-id>', renderer) so the runtime can render the declared panel.`
   );
   assert.equal(
     result.registerCalls.length,
     1,
-    `[${pluginId}] Contract violation: initPlugin must register exactly one dashboard extension id (duplicate registration creates ambiguous runtime routing).`
+    `${reqPrefix}[${pluginId}] Contract violation: initPlugin must register exactly one dashboard extension id (duplicate registration creates ambiguous runtime routing).`
   );
   assert.equal(
     result.registerComponentCalls.length,
     1,
-    `[${pluginId}] Contract violation: initPlugin must register exactly one component id (duplicate component registration can cause non-deterministic renderer selection).`
+    `${reqPrefix}[${pluginId}] Contract violation: initPlugin must register exactly one component id (duplicate component registration can cause non-deterministic renderer selection).`
   );
   assert.deepEqual(
     result.registerCalls,
     [dashboardExtensionId],
-    `[${pluginId}] Contract violation: dashboard extension id must match plugin manifest/runtime expectation.`
+    `${reqPrefix}[${pluginId}] Contract violation: dashboard extension id must match plugin manifest/runtime expectation.`
   );
   assert.deepEqual(
     result.registerComponentCalls,
     [componentId],
-    `[${pluginId}] Contract violation: component id must match plugin manifest/runtime expectation.`
+    `${reqPrefix}[${pluginId}] Contract violation: component id must match plugin manifest/runtime expectation.`
   );
 };
 
