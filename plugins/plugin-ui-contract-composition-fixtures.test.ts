@@ -1,58 +1,57 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 
 import { evaluatePluginComponentCompositionFromSource } from '../scripts/validate-plugin-ui-contract';
 
-test('composition conformance passes for a sectioned dashboard shell with destructive flow wrapper', () => {
-  const source = `
-    import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
-    import { PluginFormSection } from '@/components/plugins/plugin-kit';
-    import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
+const repoRoot = process.cwd();
 
-    export function PassingFixture() {
-      return (
-        <PluginPageShell title="Fixture">
-          <PluginFormSection title="Primary">Body</PluginFormSection>
-          <PluginDestructiveAction
-            title="Danger"
-            description="Delete"
-            triggerLabel="Delete"
-            onConfirm={() => Promise.resolve()}
-          />
-        </PluginPageShell>
-      );
-    }
-  `;
+type PluginCompositionFixture = {
+  pluginId: string;
+  sourcePath: string;
+};
 
-  assert.deepEqual(evaluatePluginComponentCompositionFromSource(source), {
-    hasSingleTopLevelPageShell: true,
-    hasPrimaryContentSections: true,
-    hasDestructiveFlowComposition: true,
+const pluginCompositionFixtures: PluginCompositionFixture[] = [
+  {
+    pluginId: 'github-sync',
+    sourcePath: 'plugins/github-sync/src/components/github-settings.tsx',
+  },
+  {
+    pluginId: 'prompt-settings',
+    sourcePath: 'plugins/prompt-settings/src/components/prompt-settings.tsx',
+  },
+  {
+    pluginId: 'tag-manager',
+    sourcePath: 'plugins/tag-manager/src/components/tag-manager.tsx',
+  },
+  {
+    pluginId: 'video-library',
+    sourcePath: 'plugins/video-library/src/components/video-library.tsx',
+  },
+  {
+    pluginId: 'log-doctor',
+    sourcePath: 'plugins/log-doctor/src/components/log-doctor.tsx',
+  },
+];
+
+for (const fixture of pluginCompositionFixtures) {
+  test(`${fixture.pluginId} component entrypoint satisfies composition contract`, () => {
+    const source = readFileSync(path.join(repoRoot, fixture.sourcePath), 'utf8');
+
+    assert.deepEqual(
+      evaluatePluginComponentCompositionFromSource(source),
+      {
+        hasSingleTopLevelPageShell: true,
+        hasPrimaryContentSections: true,
+        hasDestructiveFlowComposition: true,
+      },
+      `[${fixture.pluginId}] expected composition contract in ${fixture.sourcePath}`
+    );
   });
-});
+}
 
-test('composition conformance fails when layout is not shell-rooted, not sectioned, and uses raw destructive button', () => {
-  const source = `
-    import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
-
-    export function FailingFixture() {
-      return (
-        <div>
-          <PluginPageShell title="Nested shell">content</PluginPageShell>
-          <button className="text-red-600">Delete everything</button>
-        </div>
-      );
-    }
-  `;
-
-  assert.deepEqual(evaluatePluginComponentCompositionFromSource(source), {
-    hasSingleTopLevelPageShell: false,
-    hasPrimaryContentSections: false,
-    hasDestructiveFlowComposition: false,
-  });
-});
-
-test('composition conformance fails when required blocks are outside PluginPageShell even if helpers are imported', () => {
+test('synthetic parser edge case: composition fails when required blocks are outside PluginPageShell', () => {
   const source = `
     import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
     import { PluginFormSection } from '@/components/plugins/plugin-kit';
