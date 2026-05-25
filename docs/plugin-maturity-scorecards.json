@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-05-07T08:10:52.662Z",
+  "generatedAt": "2026-05-25T16:56:29.545Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
   "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "3282efcee4e87e41f8c7aa30429bcc04f8ade493607cd88cafa008605973558c",
+  "cacheKey": "b4c842068aff9f9cdcff7ccbff1d1726b0977050db8661131ce79231f361b753",
   "plugins": [
     {
       "id": "github-sync",
-      "score": 91,
+      "score": 94,
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
@@ -14,7 +14,7 @@
     },
     {
       "id": "log-doctor",
-      "score": 89,
+      "score": 94,
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-29",
@@ -22,7 +22,7 @@
     },
     {
       "id": "prompt-settings",
-      "score": 91,
+      "score": 94,
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
@@ -30,7 +30,7 @@
     },
     {
       "id": "tag-manager",
-      "score": 93,
+      "score": 96,
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
@@ -38,7 +38,7 @@
     },
     {
       "id": "video-library",
-      "score": 91,
+      "score": 96,
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
