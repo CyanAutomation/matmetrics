@@ -210,6 +210,6 @@ For GitHub-backed session storage:
 | Firestore Security Rules | Step 3 | 🔴 Critical |
 | Firebase Authorised Domains | Step 4 | 🔴 Critical (most commonly missed) |
 | GitHub Token | Step 5 | 🟡 Important |
-| Vercel Deployment | Step 6 | 🟡 Important |
+| Vercel Deployment | Deployment Process | 🟡 Important |
 
 **Key Takeaway:** The most common deployment failures are missing Firebase Authorised Domains and improper FIREBASE_SERVICE_ACCOUNT_KEY formatting. Double-check these two items before deployment.
