@@ -370,6 +370,46 @@ function shouldAttemptLeaseAcquisition(
  * Attempt to acquire a sync lease using localStorage with retry logic
  * Reduces cognitive complexity by extracting core loop and validation logic
  */
+/**
+ * Acquire a sync lease using a retry loop with state machine fallback logic.
+ *
+ * ⚠️ COMPLEXITY NOTE (Phase 3 Refactoring Target, Low Priority):
+ * This function (603 LOC, cognitive complexity 36) encodes a multi-stage fallback
+ * strategy for distributed lock acquisition:
+ *
+ * STAGE 1: navigator.locks API (preferred for single-tab scenarios)
+ * STAGE 2: localStorage with storage events (fallback for multi-tab)
+ * STAGE 3: Direct acquisition + verification (final fallback)
+ *
+ * The retry loop (lines ~390–430) maintains state across iterations:
+ * - stableContenderSignature: tracks contender identity across observations
+ * - stableContenderObservations: counts consecutive identical contenders
+ * - These trigger forced reclaim logic when contender is "stable" (3+ observations)
+ *
+ * REFACTORING OPPORTUNITIES (Lower Priority):
+ * 1. Extract RetryAttemptState type:
+ *    type RetryAttemptState = {
+ *      attempt: number;
+ *      stableContenderSignature?: string;
+ *      stableContenderObservations: number;
+ *      currentLeaseId?: string;
+ *    }
+ *
+ * 2. Extract evaluateLeaseEligibility(observedLease, now):
+ *    Returns { eligible, reason, shouldForceReclaim, backoffMs }
+ *
+ * 3. Extract attemptSingleLeaseAcquisition(leaseData):
+ *    Returns { acquired, leaseId?, error? }
+ *
+ * 4. Flatten loop nesting by making retry strategy explicit
+ *
+ * Current complexity is acceptable because:
+ * - Logic is already well-extracted into helpers (shouldAttemptLeaseAcquisition, etc.)
+ * - Loop variables are used consistently (not mutated in 10+ places)
+ * - Retry count is hardcoded (7 attempts); unlikely to change
+ *
+ * However, extracting would improve clarity for future maintainers.
+ */
 export async function tryAcquireSyncLease(): Promise<boolean> {
   if (
     typeof window === 'undefined' ||
@@ -384,6 +424,18 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     return true;
   }
 
+  // RETRY LOOP STATE MACHINE (7 attempts with backoff and forced reclaim logic)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // stableContenderSignature: identity of contender from previous iteration
+  // stableContenderObservations: count of consecutive identical contenders
+  // 
+  // State transitions:
+  // 1. If contender same as previous: increment observations
+  // 2. If contender different: reset to new contender + reset observations to 1
+  // 3. If no contender: clear signature + reset observations to 0
+  // 4. If observations >= 3: attempt forced reclaim in next iteration
+  // 
+  // See shouldAttemptLeaseAcquisition() for decision logic.
   let stableContenderSignature: string | null = null;
   let stableContenderObservations = 0;
 

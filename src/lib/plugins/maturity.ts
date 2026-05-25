@@ -415,6 +415,45 @@ const findTestEvidenceFiles = async (
   return matches;
 };
 
+/**
+ * Scores a plugin's maturity across 5 categories: contract, runtime, features, tests, docs.
+ *
+ * ⚠️ COMPLEXITY NOTE (Phase 2 Refactoring Target):
+ * This function (723 LOC, cognitive complexity 115) uses 4 parallel accumulators
+ * that are mutated throughout the function:
+ *
+ * 1. categoryScores: Record<category, number> — accumulates numeric scores
+ * 2. evidence: string[] — accumulates positive findings
+ * 3. reasons: string[] — accumulates gaps/deficiencies
+ * 4. nextActions: string[] — accumulates recommended improvements
+ *
+ * These accumulators are modified in 20+ conditional paths across 5 scoring sections.
+ * This makes the function hard to unit-test (accumulators are implicit outputs).
+ *
+ * REFACTORING PLAN:
+ * Extract into 5 pure category-scoring functions that each return:
+ *   type CategoryScoringResult = {
+ *     score: number;
+ *     evidence: string[];
+ *     reasons: string[];
+ *     nextActions: string[];
+ *     blockers: string[];
+ *   }
+ *
+ * New functions:
+ * - scoreContractMetadata() → CategoryScoringResult
+ * - scoreRuntimeIntegration() → CategoryScoringResult
+ * - scoreFeatureQuality() → CategoryScoringResult
+ * - scoreTestCoverage() → CategoryScoringResult
+ * - scoreOperabilityDocs() → CategoryScoringResult
+ * - determineTier(categoryScores) → pure function (logic extracted from lines ~1000–1100)
+ *
+ * Benefits:
+ * - Each category scorer is <150 LOC, independently testable
+ * - No implicit accumulator mutations; all outputs explicit in result type
+ * - Tier logic is pure, decoupled from discovery phases
+ * - Main function becomes simple coordinator
+ */
 export const scorePluginMaturity = async ({
   manifest,
   validationIssues,
@@ -422,6 +461,7 @@ export const scorePluginMaturity = async ({
   pluginsRoot = path.join(process.cwd(), 'plugins'),
   autoDisabledWithWarnings = [],
 }: ScorePluginMaturityOptions): Promise<PluginMaturityScorecard> => {
+  // ACCUMULATOR 1: Category scores (mutated in ~60+ places across 5 sections)
   const categoryScores: CategoryAccumulator = {
     contract_metadata: 0,
     runtime_integration: 0,
@@ -429,8 +469,14 @@ export const scorePluginMaturity = async ({
     test_coverage: 0,
     operability_docs: 0,
   };
+
+  // ACCUMULATOR 2: Evidence (positive findings; mutated in ~40+ places)
   const evidence: string[] = [];
+
+  // ACCUMULATOR 3: Reasons (gaps; mutated in ~30+ places)
   const reasons: string[] = [];
+
+  // ACCUMULATOR 4: Next actions (improvements; mutated in ~35+ places)
   const nextActions: string[] = [];
 
   const pluginDir = path.join(pluginsRoot, pluginDirectoryName ?? manifest.id);
