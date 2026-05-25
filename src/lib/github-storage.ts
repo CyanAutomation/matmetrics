@@ -56,6 +56,27 @@ function isGitHubApiError(error: unknown): error is GitHubApiError {
   return error instanceof GitHubApiError;
 }
 
+class GitHubSessionCreationConflictError extends Error {
+  readonly code = 'SESSION_CREATION_CONFLICT';
+  readonly sessionId: string;
+  readonly existingPath: string;
+
+  constructor(sessionId: string, existingPath: string) {
+    super(
+      `Session ID ${sessionId} already exists with different content on GitHub at ${existingPath}`
+    );
+    this.name = 'GitHubSessionCreationConflictError';
+    this.sessionId = sessionId;
+    this.existingPath = existingPath;
+  }
+}
+
+function isGitHubSessionCreationConflictError(
+  error: unknown
+): error is GitHubSessionCreationConflictError {
+  return error instanceof GitHubSessionCreationConflictError;
+}
+
 function getActionableGitHubErrorMessage(
   action: string,
   error: unknown
@@ -688,10 +709,7 @@ export async function createSessionOnGitHub(
         };
       }
 
-      return {
-        success: false,
-        message: `GitHub session create for ${session.id} failed: ${filePath} already exists with different content`,
-      };
+      throw new GitHubSessionCreationConflictError(session.id, filePath);
     }
 
     const result = await putFile(config, filePath, markdown, message);
@@ -1168,3 +1186,9 @@ export async function bulkPushSessions(
     };
   }
 }
+
+// Export error types for consistent error handling
+export {
+  GitHubSessionCreationConflictError,
+  isGitHubSessionCreationConflictError,
+};

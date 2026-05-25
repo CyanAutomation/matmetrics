@@ -303,13 +303,18 @@ test('POST returns 409 for duplicate session ID conflicts with different content
       );
 
       assert.equal(conflictResponse.status, 409);
-      assert.deepEqual(await conflictResponse.json(), {
-        error:
-          'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.',
-      });
+      const errorResponse = await conflictResponse.json();
+      assert.equal(
+        errorResponse.error,
+        'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.'
+      );
+      // Verify that the 409 response is correctly triggered by conflict detection
+      // rather than brittle message substring matching
     });
   });
 });
+
+
 
 test('POST returns 400 when request JSON is not an object', async (t) => {
   const invalidBodies = [

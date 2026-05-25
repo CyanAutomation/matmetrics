@@ -7,6 +7,8 @@ import {
   isSessionNotFoundError as isLocalSessionNotFoundError,
   listSessions as listLocalSessions,
   updateSession as updateLocalSession,
+  SessionCreationConflictError,
+  isSessionCreationConflictError,
 } from './file-storage';
 import {
   createSessionOnGitHub,
@@ -16,6 +18,7 @@ import {
   isGitHubConfigured,
   updateSessionOnGitHub,
 } from './github-storage';
+
 import { markdownToSession } from './markdown-serializer';
 import type {
   GitHubConfig,
@@ -530,3 +533,14 @@ export async function deleteSessionForConfig(
   await deleteLocalSession(id);
   return null;
 }
+
+// Re-export error types for consistent error handling
+export {
+  SessionCreationConflictError,
+  isSessionCreationConflictError,
+} from './file-storage';
+
+export {
+  GitHubSessionCreationConflictError,
+  isGitHubSessionCreationConflictError,
+} from './github-storage';

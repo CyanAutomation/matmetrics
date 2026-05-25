@@ -42,6 +42,27 @@ export class DuplicateSessionIdError extends Error {
   }
 }
 
+export class SessionCreationConflictError extends Error {
+  readonly code = 'SESSION_CREATION_CONFLICT';
+  readonly sessionId: string;
+  readonly existingPath: string;
+
+  constructor(sessionId: string, existingPath: string) {
+    super(
+      `Session ID ${sessionId} already exists with different content at ${existingPath}`
+    );
+    this.name = 'SessionCreationConflictError';
+    this.sessionId = sessionId;
+    this.existingPath = existingPath;
+  }
+}
+
+export function isSessionCreationConflictError(
+  error: unknown
+): error is SessionCreationConflictError {
+  return error instanceof SessionCreationConflictError;
+}
+
 export function isDuplicateSessionIdError(
   error: unknown
 ): error is DuplicateSessionIdError {
@@ -946,9 +967,7 @@ export async function createSession(session: JudoSession): Promise<string> {
       await ensureExistingPathWithinDataDir(existingPath);
     const existingMarkdown = await fs.readFile(safeExistingPath, 'utf-8');
     if (existingMarkdown !== markdown) {
-      throw new Error(
-        `Session ID ${session.id} already exists with different content; refusing to overwrite existing data`
-      );
+      throw new SessionCreationConflictError(session.id, existingPath);
     }
     return safeExistingPath;
   };
