@@ -6,6 +6,13 @@ import test from 'node:test';
 import { evaluatePluginComponentCompositionFromSource } from '../scripts/validate-plugin-ui-contract';
 
 const repoRoot = process.cwd();
+const REQUIREMENT_SOURCES = {
+  compositionEntrypoint: 'docs/blueprint.md#plugin-page-composition',
+  parserDetachedBlocksGuard: 'bug:BUG-344',
+} as const;
+
+const req = (key: keyof typeof REQUIREMENT_SOURCES): string =>
+  `[req:${REQUIREMENT_SOURCES[key]}]`;
 
 type PluginCompositionFixture = {
   pluginId: string;
@@ -46,7 +53,7 @@ for (const fixture of pluginCompositionFixtures) {
         hasPrimaryContentSections: true,
         hasDestructiveFlowComposition: true,
       },
-      `[${fixture.pluginId}] expected composition contract in ${fixture.sourcePath}`
+      `${req('compositionEntrypoint')} [${fixture.pluginId}] expected composition contract in ${fixture.sourcePath}`
     );
   });
 }
@@ -68,9 +75,13 @@ test('synthetic parser edge case: composition fails when required blocks are out
     }
   `;
 
-  assert.deepEqual(evaluatePluginComponentCompositionFromSource(source), {
-    hasSingleTopLevelPageShell: false,
-    hasPrimaryContentSections: false,
-    hasDestructiveFlowComposition: false,
-  });
+  assert.deepEqual(
+    evaluatePluginComponentCompositionFromSource(source),
+    {
+      hasSingleTopLevelPageShell: false,
+      hasPrimaryContentSections: false,
+      hasDestructiveFlowComposition: false,
+    },
+    `${req('parserDetachedBlocksGuard')} detached blocks outside PluginPageShell must fail contract`
+  );
 });
