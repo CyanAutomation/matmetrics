@@ -139,7 +139,7 @@ export const LogDoctor = (): React.ReactElement => {
   const [auditStep, setAuditStep] = useState<AuditStep>('run-check');
 
   // Initialize audit results from persisted state
-  const [auditResults, setAuditResults] = useState<AuditSessionResult[]>(() => {
+  const [initialAuditResults, setInitialAuditResults] = useState<AuditSessionResult[]>(() => {
     const lastRun = getLastAuditRun();
     if (lastRun) {
       const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({

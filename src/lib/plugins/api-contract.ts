@@ -1,3 +1,4 @@
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { APP_VERSION } from '@/lib/app-version';
