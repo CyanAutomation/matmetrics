@@ -15,7 +15,6 @@ import type {
   AuditConfig,
   AuditMode,
   AuditRunResult,
-  GitHubConfig,
   GitHubSettings,
   SessionAudit,
   UserPreferences,
@@ -637,17 +636,6 @@ export async function saveGitHubSettingsPreference(
   );
 }
 
-async function saveGitHubConfigPreference(
-  uid: string,
-  config: GitHubConfig
-): Promise<void> {
-  await saveGitHubSettingsPreference(uid, {
-    ...currentPreferences.gitHub,
-    config,
-    enabled: true,
-  });
-}
-
 export async function saveVideoLibraryPreference(
   uid: string,
   videoLibrary: VideoLibraryPreferences
@@ -784,47 +772,6 @@ export async function saveSessionAudit(
     },
     { merge: true }
   );
-}
-
-async function deleteSessionAudit(
-  uid: string,
-  sessionId: string
-): Promise<void> {
-  const audits = { ...currentPreferences.sessionAudits };
-  delete audits[sessionId];
-
-  currentPreferences = {
-    ...currentPreferences,
-    sessionAudits: audits,
-  };
-  writeCachedPreferences(currentPreferences);
-  notifyPreferencesChanged();
-
-  // Update Firestore with the remaining audits or delete the field if empty
-  if (Object.keys(audits).length === 0) {
-    await updateDoc(getPreferencesDocRef(uid), {
-      sessionAudits: deleteField(),
-      updatedAt: serverTimestamp(),
-    }).catch(async () => {
-      await setDoc(
-        getPreferencesDocRef(uid),
-        {
-          sessionAudits: {},
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    });
-  } else {
-    await setDoc(
-      getPreferencesDocRef(uid),
-      {
-        sessionAudits: serializeSessionAudits(audits),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  }
 }
 
 export function getAuditConfig(): AuditConfig {

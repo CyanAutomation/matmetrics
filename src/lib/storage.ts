@@ -1378,9 +1378,7 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
  * Helper: Handle a successful sync operation
  */
 function handleOperationSuccess(
-  operation: SyncOperation,
-  index: number,
-  queue: SyncOperation[]
+  operation: SyncOperation
 ): void {
   const sessionId = getSessionIdFromOperation(operation);
   clearDirtyMutation(sessionId, operation.queuedAt);
@@ -1394,8 +1392,7 @@ async function handleOperationError(
   operation: SyncOperation,
   index: number,
   queue: SyncOperation[],
-  generation: number,
-  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
+  generation: number
 ): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
   if (!(error instanceof SyncRequestError)) {
     // Non-SyncRequestError: retryable
@@ -1465,7 +1462,7 @@ async function processSingleQueueOperation(
     }
 
     // Mark mutation as synced
-    handleOperationSuccess(operation, index, queue);
+    handleOperationSuccess(operation);
 
     return { success: true, shouldContinue: true };
   } catch (error) {
@@ -1476,8 +1473,7 @@ async function processSingleQueueOperation(
       operation,
       index,
       queue,
-      generation,
-      onAbort
+      generation
     );
 
     // Handle backoff for retryable errors with retry-after header

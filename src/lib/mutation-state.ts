@@ -179,17 +179,3 @@ export function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[
     .sort((left, right) => left.version - right.version)
     .reduce(applyOptimisticMutation, baseSessions);
 }
-
-/**
- * Check if there are any pending mutations
- */
-function hasPendingMutations(): boolean {
-  return dirtyMutations.size > 0;
-}
-
-/**
- * Get count of pending mutations
- */
-function getPendingMutationCount(): number {
-  return dirtyMutations.size;
-}

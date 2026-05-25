@@ -93,10 +93,6 @@ export type LeaseTakeoverDiagnosticPayload = {
 let activeSyncLease: ActiveSyncLease | null = null;
 let localLeaseEpochCounter = 0;
 
-function getActiveSyncLease(): ActiveSyncLease | null {
-  return activeSyncLease;
-}
-
 export function setActiveSyncLease(lease: ActiveSyncLease | null): void {
   activeSyncLease = lease;
 }
@@ -504,71 +500,6 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
   }
 
   return false;
-}
-
-/**
- * Renew an existing sync lease
- */
-function renewSyncLease(): boolean {
-  if (typeof window === 'undefined' || !getSyncLockStorageKeyFn) {
-    return false;
-  }
-
-  if (activeSyncLease?.mode === 'web-lock') {
-    return true;
-  }
-
-  if (activeSyncLease?.mode !== 'storage') {
-    return false;
-  }
-
-  const existingLease = readSyncLease();
-  if (
-    existingLease?.owner !== activeSyncLease.owner ||
-    existingLease.nonce !== activeSyncLease.nonce ||
-    existingLease.epoch !== activeSyncLease.epoch
-  ) {
-    return false;
-  }
-
-  const nextLease: SyncLease = {
-    owner: activeSyncLease.owner,
-    expiresAt: Date.now() + syncLockTtlMs,
-    nonce: activeSyncLease.nonce,
-    epoch: activeSyncLease.epoch,
-  };
-
-  localStorage.setItem(getSyncLockStorageKeyFn(), JSON.stringify(nextLease));
-
-  const confirmedLease = readSyncLease();
-  return (
-    confirmedLease?.owner === activeSyncLease.owner &&
-    confirmedLease?.expiresAt === nextLease.expiresAt &&
-    confirmedLease?.nonce === nextLease.nonce &&
-    confirmedLease?.epoch === activeSyncLease.epoch
-  );
-}
-
-/**
- * Check if we currently own an active sync lease
- */
-function hasActiveSyncLeaseOwnership(): boolean {
-  if (activeSyncLease?.mode === 'web-lock') {
-    return true;
-  }
-
-  if (activeSyncLease?.mode !== 'storage') {
-    return false;
-  }
-
-  const lease = readSyncLease();
-  return (
-    lease?.owner === activeSyncLease.owner &&
-    lease?.nonce === activeSyncLease.nonce &&
-    lease?.epoch === activeSyncLease.epoch &&
-    typeof lease.expiresAt === 'number' &&
-    lease.expiresAt > Date.now()
-  );
 }
 
 /**

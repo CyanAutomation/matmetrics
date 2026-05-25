@@ -413,34 +413,3 @@ function validateTitlePresence(content: string): void {
     );
   }
 }
-
-/**
- * Validate that a JudoSession can roundtrip through markdown
- * Returns true if session -> markdown -> session produces equivalent data
- */
-function validateRoundtrip(session: JudoSession): boolean {
-  try {
-    const markdown = sessionToMarkdown(session);
-    const recovered = markdownToSession(markdown);
-
-    // Deep equality check
-    return (
-      recovered.id === session.id &&
-      recovered.date === session.date &&
-      recovered.effort === session.effort &&
-      recovered.category === session.category &&
-      recovered.duration === session.duration &&
-      recovered.videoUrl === session.videoUrl &&
-      arraysEqual(recovered.techniques, session.techniques) &&
-      recovered.description === session.description &&
-      recovered.notes === session.notes
-    );
-  } catch {
-    return false;
-  }
-}
-
-function arraysEqual<T>(a: T[], b: T[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((val, idx) => val === b[idx]);
-}

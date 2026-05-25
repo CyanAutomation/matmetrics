@@ -1,4 +1,3 @@
-import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { APP_VERSION } from '@/lib/app-version';
@@ -161,62 +160,3 @@ export const createContractPayload = (
   assumptions: payload.assumptions ?? [],
   unresolvedInputs: payload.unresolvedInputs ?? [],
 });
-
-const mergePreserveUnknownKeys = (
-  base: unknown,
-  update: unknown
-): unknown => {
-  if (update === undefined) {
-    return base;
-  }
-
-  if (!isObjectRecord(base) || !isObjectRecord(update)) {
-    return update;
-  }
-
-  const merged: JsonRecord = { ...base };
-  for (const [key, value] of Object.entries(update)) {
-    merged[key] = mergePreserveUnknownKeys(base[key], value);
-  }
-
-  return merged;
-};
-
-const ensurePathUnderRoot = (
-  root: string,
-  targetPath: string
-): string => {
-  const resolvedRoot = path.resolve(root);
-  const resolvedTarget = path.resolve(targetPath);
-
-  // Ensure the target path is within the root directory
-  const rootWithSep = resolvedRoot.endsWith(path.sep)
-    ? resolvedRoot
-    : resolvedRoot + path.sep;
-
-  if (!resolvedTarget.startsWith(rootWithSep)) {
-    throw new Error(
-      'Attempted to write plugin manifest outside of plugins root'
-    );
-  }
-
-  return resolvedTarget;
-};
-
-const writePluginManifest = async (
-  absolutePath: string,
-  manifest: unknown
-): Promise<void> => {
-  const pluginsRoot = getPluginsRoot();
-  const safePath = ensurePathUnderRoot(pluginsRoot, absolutePath);
-  const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
-  await writeFile(safePath, serialized, 'utf8');
-};
-
-const toPluginDirectoryName = (pluginId: string): string =>
-  pluginId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '') || 'plugin';
