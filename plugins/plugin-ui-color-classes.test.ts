@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { globSync } from 'glob';
 import {
-  PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
+  derivePluginAllowedClassTokens,
   PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
 } from '../src/components/plugins/plugin-style-policy';
 import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
@@ -14,8 +14,7 @@ const repoRoot = process.cwd();
 const readFileList = (pattern: string): string[] => {
   const options = { cwd: repoRoot };
   try {
-    const files = globSync(pattern, options);
-    return files;
+    return globSync(pattern, options);
   } catch {
     return [];
   }
@@ -37,50 +36,104 @@ const fileAllowlist = new Set([
 ]);
 
 const forbiddenPluginColorClassPattern =
-  /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/g;
+  /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/;
 
-const tokenizedClassAllowlist = new Set<string>([
-  ...PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
-  ...Object.values(PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP).flat(),
-]);
+const classNameExpressionPattern = /className\s*=\s*({[^}]*}|"[^"]*"|'[^']*')/g;
+const stringLiteralPattern = /(["'`])((?:\\.|(?!\1).)*)\1/g;
 
-(['default', 'info', 'warning', 'success', 'error'] as const).forEach(
-  (tone) => {
-    const tokens = getPluginThemeTokens(tone);
-    Object.values(tokens).forEach((value) => {
-      if (typeof value !== 'string') {
-        return;
-      }
+function extractClassTokensFromSource(source: string): string[] {
+  const tokens: string[] = [];
 
+  const collectFromFragment = (fragment: string): void => {
+    const matches = fragment.matchAll(stringLiteralPattern);
+    for (const match of matches) {
+      const value = match[2];
       value
         .split(/\s+/)
         .map((entry) => entry.trim())
         .filter(Boolean)
-        .forEach((entry) => tokenizedClassAllowlist.add(entry));
+        .forEach((entry) => tokens.push(entry));
+    }
+  };
+
+  const classNameMatches = source.matchAll(classNameExpressionPattern);
+  for (const match of classNameMatches) {
+    collectFromFragment(match[1]);
+  }
+
+  return tokens;
+}
+
+function findForbiddenClassTokens(tokens: Iterable<string>): string[] {
+  return [...new Set([...tokens].filter((token) => forbiddenPluginColorClassPattern.test(token)))];
+}
+
+test('policy helper derives a normalized allowlist from variants and themes', () => {
+  const allowlist = derivePluginAllowedClassTokens();
+
+  assert.ok(allowlist.has('text-primary'));
+  assert.ok(allowlist.has('bg-destructive/10'));
+  assert.ok(allowlist.has('ui-tone-inline-warning'));
+  assert.ok(allowlist.has('text-[hsl(var(--color-on-success-container))]'));
+});
+
+test('plugin theme tone variants resolve only policy-backed class tokens', () => {
+  const allowlist = derivePluginAllowedClassTokens();
+  const tones = ['default', 'info', 'warning', 'success', 'error'] as const;
+
+  for (const tone of tones) {
+    const tokens = getPluginThemeTokens(tone);
+    Object.entries(tokens)
+      .filter(([slot, value]) => slot !== 'inlineMessageToneVariant' && typeof value === 'string')
+      .map(([, value]) => value as string)
+      .flatMap((value) => value.split(/\s+/).map((entry) => entry.trim()))
+      .filter(Boolean)
+      .forEach((entry) => {
+        assert.ok(
+          allowlist.has(entry),
+          `Expected theme token "${entry}" for tone "${tone}" to be present in policy allowlist`
+        );
+      });
+  }
+});
+
+test('plugin token variants only contain normalized class tokens', () => {
+  for (const [variant, classTokens] of Object.entries(
+    PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP
+  )) {
+    classTokens.forEach((token) => {
+      assert.equal(token.trim(), token, `Variant ${variant} contains untrimmed token: ${token}`);
+      assert.ok(!token.includes('\n'), `Variant ${variant} contains multiline token: ${token}`);
     });
   }
-);
+});
 
-test('plugin sources avoid hardcoded semantic color utility classes', () => {
+test('plugin surfaces block forbidden semantic utility classes with per-file diagnostics', () => {
+  const allowlist = derivePluginAllowedClassTokens();
+
   const violations = scannedFiles.flatMap((filePath) => {
     if (fileAllowlist.has(filePath)) {
       return [];
     }
 
     const source = readFileSync(path.join(repoRoot, filePath), 'utf8');
-    const matches = source.match(forbiddenPluginColorClassPattern) ?? [];
-    const disallowedMatches = matches.filter(
-      (className) => !tokenizedClassAllowlist.has(className)
+    const classTokens = extractClassTokensFromSource(source);
+    const forbiddenTokens = findForbiddenClassTokens(classTokens).filter(
+      (token) => !allowlist.has(token)
     );
 
-    return disallowedMatches.length > 0
-      ? [`${filePath} (${[...new Set(disallowedMatches)].join(', ')})`]
+    return forbiddenTokens.length > 0
+      ? [
+          `${filePath}: ${forbiddenTokens
+            .sort((left, right) => left.localeCompare(right))
+            .join(', ')}`,
+        ]
       : [];
   });
 
   assert.deepEqual(
     violations,
     [],
-    `Found forbidden hardcoded plugin color classes in: ${violations.join(', ')}`
+    `Found forbidden hardcoded plugin color classes:\n${violations.join('\n')}`
   );
 });
