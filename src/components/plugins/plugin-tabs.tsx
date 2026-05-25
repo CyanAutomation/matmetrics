@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { cn } from '@/lib/utils';
 
 type PluginTabItem = {
@@ -34,7 +35,7 @@ export function PluginTabs({
             'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
             activeTab === tab.id
               ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              : getPluginUiTokenClassNames('tab.inactive')
           )}
           onClick={() => onTabChange(tab.id)}
         >

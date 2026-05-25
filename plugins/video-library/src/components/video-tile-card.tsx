@@ -22,6 +22,7 @@ import type {
   VideoLibraryRow,
   VideoLibraryStatusFilter,
 } from '@/lib/video-library';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 
 interface VideoTileCardProps {
   row: VideoLibraryRow;
@@ -183,7 +184,7 @@ export function VideoTileCard({
                 {row.entry.url ? (
                   <DropdownMenuItem
                     onClick={() => onRemove(row)}
-                    className="text-destructive focus:text-destructive"
+                    className={getPluginUiTokenClassNames('action.destructive-menu-item')}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Remove
