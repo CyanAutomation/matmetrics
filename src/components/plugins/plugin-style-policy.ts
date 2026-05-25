@@ -38,6 +38,15 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
     'hover:bg-destructive/10',
   ],
   'action.subtle': ['text-muted-foreground', 'hover:text-foreground'],
+  'action.destructive-menu-item': [
+    'text-destructive',
+    'focus:text-destructive',
+  ],
+  'tab.inactive': [
+    'text-muted-foreground',
+    'hover:bg-muted',
+    'hover:text-foreground',
+  ],
   'text.subtle': ['text-muted-foreground'],
   'text.danger': ['text-destructive'],
   'text.success': ['text-[hsl(var(--color-on-success-container))]'],
