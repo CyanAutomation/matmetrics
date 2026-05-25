@@ -28,7 +28,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 ## Design System
 
-- **Primary Color**: MatMetrics Blue (#296BCD) - representing focus and strength
+- **Primary Color**: Ressa Red (#E85D04) in light mode, MatMetrics Blue (#296BCD) in dark mode
 - **Background**: Light desaturated blue (#ECF1F4) for a clean canvas
 - **Accent Color**: Progress Cyan (#3DCCE2) for interactive elements
 - **Typography**: Inter (sans-serif) for clarity and modern appearance
