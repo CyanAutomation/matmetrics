@@ -3,7 +3,10 @@ import { JudoSession, GitHubConfig } from '@/lib/types';
 import {
   createSessionForConfig,
   normalizeGitHubConfig,
+  SessionCreationConflictError,
+  isSessionCreationConflictError,
 } from '@/lib/session-storage';
+import { GitHubSessionCreationConflictError } from '@/lib/github-storage';
 import {
   buildGitHubSessionBody,
   proxyGoFunction,
@@ -77,10 +80,18 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error ?? '');
-    
-    if (errorMessage.includes('already exists')) {
+    // Handle session creation conflicts with typed errors
+    if (isSessionCreationConflictError(error)) {
+      return NextResponse.json(
+        {
+          error: CREATE_CONFLICT_ERROR,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Handle GitHub session creation conflicts
+    if (isGitHubSessionCreationConflictError(error)) {
       return NextResponse.json(
         {
           error: CREATE_CONFLICT_ERROR,
