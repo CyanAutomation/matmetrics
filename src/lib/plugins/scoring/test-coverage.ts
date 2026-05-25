@@ -31,8 +31,6 @@ export async function scoreTestCoverage(
     testEvidenceFiles,
     testEvidenceSource,
     missingExplicitTestFiles,
-    manifest,
-    pluginId,
   } = input;
 
   let score = 0;

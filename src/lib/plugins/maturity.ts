@@ -930,7 +930,14 @@ export const scorePluginMaturity = async ({
     allRelevantUxCriteriaExplicitlyVerified,
     hasGoldSupportDocs,
     isExplicitGoldReview,
-    validationIssues,
+    validationIssues: validationIssues
+      .filter(
+        (issue) => issue.severity === 'error' || issue.severity === 'warning'
+      )
+      .map((issue) => ({
+        severity: issue.severity as 'error' | 'warning',
+        message: issue.message,
+      })),
     blockingWarnings,
   });
 
@@ -940,34 +947,22 @@ export const scorePluginMaturity = async ({
   for (const item of tierResult.nextActions) {
     pushUnique(nextActions, item);
   }
-  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldRuntimeIntegration) {
+  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('runtime integration'))) {
     pushUnique(
       reasons,
       'Gold requires a higher runtime integration floor than Silver.'
     );
-    pushUnique(
-      nextActions,
-      'Raise runtime integration evidence so the plugin clears the Gold floor.'
-    );
   }
-  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldFeatureQuality) {
+  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('feature quality'))) {
     pushUnique(
       reasons,
       'Gold requires a higher feature quality floor than Silver.'
     );
-    pushUnique(
-      nextActions,
-      'Improve verified UX and behavioral safeguards so the plugin clears the Gold feature-quality floor.'
-    );
   }
-  if (totalScore >= 85 && isExplicitGoldReview && !hasGoldOperabilityDocs) {
+  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('operability'))) {
     pushUnique(
       reasons,
       'Gold requires stronger operability documentation than Silver.'
-    );
-    pushUnique(
-      nextActions,
-      'Expand the plugin README so it clears the Gold operability-docs floor.'
     );
   }
   if (totalScore >= 85 && isExplicitGoldReview && !hasGoldSupportDocs) {
