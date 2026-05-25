@@ -47,6 +47,36 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'code.inline': ['rounded', 'bg-background/70', 'px-2', 'py-1'],
 } as const;
 
+const PLUGIN_THEME_TONE_ALLOWLIST = [
+  'bg-muted',
+  'bg-muted/30',
+  'bg-primary',
+  'bg-primary/5',
+  'bg-destructive/15',
+  'bg-destructive/10',
+  'text-foreground',
+  'text-primary-foreground',
+  'text-primary',
+  'text-destructive',
+  'border-border',
+  'border-primary/25',
+  'border-destructive/30',
+  'border-input',
+  'focus:border-ring',
+  'focus:border-primary/45',
+  'focus:border-destructive/50',
+  'border-[hsl(var(--color-warning)/0.35)]',
+  'bg-[hsl(var(--color-warning-container))]',
+  'text-[hsl(var(--color-on-warning-container))]',
+  'focus:border-[hsl(var(--color-warning)/0.55)]',
+  'border-[hsl(var(--color-success)/0.35)]',
+  'bg-[hsl(var(--color-success-container))]',
+  'text-[hsl(var(--color-on-success-container))]',
+  'focus:border-[hsl(var(--color-success)/0.6)]',
+  'shadow-sm',
+  'shadow-md',
+] as const;
+
 export type PluginUiContractTokenVariant =
   keyof typeof PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP;
 
@@ -54,4 +84,12 @@ export function getPluginUiTokenClassNames(
   variant: PluginUiContractTokenVariant
 ): string {
   return PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP[variant].join(' ');
+}
+
+export function derivePluginAllowedClassTokens(): Set<string> {
+  return new Set([
+    ...PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
+    ...Object.values(PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP).flat(),
+    ...PLUGIN_THEME_TONE_ALLOWLIST,
+  ]);
 }
