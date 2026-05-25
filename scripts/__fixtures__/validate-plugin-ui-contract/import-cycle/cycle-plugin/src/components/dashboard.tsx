@@ -5,10 +5,10 @@ import { helperA } from './helper-a';
 
 export default function Dashboard() {
   return (
-    <PluginPageShell>
-      <PluginFormSection />
+    <PluginPageShell title="Test" description="Test Dashboard">
+      <PluginFormSection title="Form" />
       {helperA()}
-      <PluginLoadingState />
+      <PluginLoadingState description="Loading..." />
     </PluginPageShell>
   );
 }
