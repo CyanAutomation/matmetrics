@@ -10,6 +10,15 @@ import {
 import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
 
 const repoRoot = process.cwd();
+const REQUIREMENT_SOURCES = {
+  allowlistDerivation: 'docs/blueprint.md#plugin-token-policy',
+  themeTokenPolicy: 'issue:PLUG-224',
+  normalizedVariantTokens: 'bug:BUG-329',
+  forbiddenClassEnforcement: 'docs/blueprint.md#plugin-color-safety',
+} as const;
+
+const req = (key: keyof typeof REQUIREMENT_SOURCES): string =>
+  `[req:${REQUIREMENT_SOURCES[key]}]`;
 
 const readFileList = (pattern: string): string[] => {
   const options = { cwd: repoRoot };
@@ -71,10 +80,19 @@ function findForbiddenClassTokens(tokens: Iterable<string>): string[] {
 test('policy helper derives a normalized allowlist from variants and themes', () => {
   const allowlist = derivePluginAllowedClassTokens();
 
-  assert.ok(allowlist.has('text-primary'));
-  assert.ok(allowlist.has('bg-destructive/10'));
-  assert.ok(allowlist.has('ui-tone-inline-warning'));
-  assert.ok(allowlist.has('text-[hsl(var(--color-on-success-container))]'));
+  assert.ok(allowlist.has('text-primary'), `${req('allowlistDerivation')} missing text-primary`);
+  assert.ok(
+    allowlist.has('bg-destructive/10'),
+    `${req('allowlistDerivation')} missing bg-destructive/10`
+  );
+  assert.ok(
+    allowlist.has('ui-tone-inline-warning'),
+    `${req('allowlistDerivation')} missing warning tone token`
+  );
+  assert.ok(
+    allowlist.has('text-[hsl(var(--color-on-success-container))]'),
+    `${req('allowlistDerivation')} missing success container token`
+  );
 });
 
 test('plugin theme tone variants resolve only policy-backed class tokens', () => {
@@ -91,7 +109,7 @@ test('plugin theme tone variants resolve only policy-backed class tokens', () =>
       .forEach((entry) => {
         assert.ok(
           allowlist.has(entry),
-          `Expected theme token "${entry}" for tone "${tone}" to be present in policy allowlist`
+          `${req('themeTokenPolicy')} expected theme token "${entry}" for tone "${tone}" to be present in policy allowlist`
         );
       });
   }
@@ -102,8 +120,15 @@ test('plugin token variants only contain normalized class tokens', () => {
     PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP
   )) {
     classTokens.forEach((token) => {
-      assert.equal(token.trim(), token, `Variant ${variant} contains untrimmed token: ${token}`);
-      assert.ok(!token.includes('\n'), `Variant ${variant} contains multiline token: ${token}`);
+      assert.equal(
+        token.trim(),
+        token,
+        `${req('normalizedVariantTokens')} variant ${variant} contains untrimmed token: ${token}`
+      );
+      assert.ok(
+        !token.includes('\n'),
+        `${req('normalizedVariantTokens')} variant ${variant} contains multiline token: ${token}`
+      );
     });
   }
 });
@@ -134,6 +159,6 @@ test('plugin surfaces block forbidden semantic utility classes with per-file dia
   assert.deepEqual(
     violations,
     [],
-    `Found forbidden hardcoded plugin color classes:\n${violations.join('\n')}`
+    `${req('forbiddenClassEnforcement')} found forbidden hardcoded plugin color classes:\n${violations.join('\n')}`
   );
 });

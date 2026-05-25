@@ -11,6 +11,11 @@ import { initPlugin as initVideoLibraryPlugin } from './video-library/src';
 import { testPluginManifestContract } from './test-plugin-manifest-contract';
 import { testPluginRegistrationContract } from './test-plugin-registration-contract';
 
+const REQUIREMENT_SOURCES = {
+  pluginRegistrationContract: 'docs/plugin-contract.md#registration',
+  pluginManifestContract: 'docs/plugin-contract.md#manifest',
+} as const;
+
 type PluginContractFixture = {
   pluginId: string;
   dashboardExtensionId: string;
@@ -61,6 +66,12 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
 ] as const;
 
 for (const fixture of pluginContractFixtures) {
-  testPluginRegistrationContract(fixture);
-  testPluginManifestContract(fixture);
+  testPluginRegistrationContract({
+    ...fixture,
+    requirementSource: REQUIREMENT_SOURCES.pluginRegistrationContract,
+  });
+  testPluginManifestContract({
+    ...fixture,
+    requirementSource: REQUIREMENT_SOURCES.pluginManifestContract,
+  });
 }
