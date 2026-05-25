@@ -36,7 +36,7 @@ const fileAllowlist = new Set([
 ]);
 
 const forbiddenPluginColorClassPattern =
-  /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/g;
+  /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/;
 
 const classNameExpressionPattern = /className\s*=\s*({[^}]*}|"[^"]*"|'[^']*')/g;
 const stringLiteralPattern = /(["'`])((?:\\.|(?!\1).)*)\1/g;
