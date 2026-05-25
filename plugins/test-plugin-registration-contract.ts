@@ -94,34 +94,39 @@ export const testPluginRegistrationContract = (
       runRegistrationAssertions(params);
     });
 
-    await t.test('negative: missing register fails with clear contract message', () => {
-      assert.throws(
-        () => {
-          runRegistrationAssertions({
-            ...params,
-            initPlugin: ({ registerPluginComponent }) => {
-              registerPluginComponent?.(params.componentId, {});
-            },
-          });
-        },
-        /must call context\.register/
-      );
+    await t.test('negative: missing register fails with structured contract error', () => {
+      assert.throws(() => {
+        runRegistrationAssertions({
+          ...params,
+          initPlugin: ({ registerPluginComponent }) => {
+            registerPluginComponent?.(params.componentId, {});
+          },
+        });
+      }, (error: unknown) => {
+        assert.ok(error instanceof assert.AssertionError);
+        assert.equal(error.code, 'ERR_ASSERTION');
+        assert.match(String(error.message), /Contract violation: initPlugin must call context\.register/);
+        assert.ok(String(error.message).includes(`[${params.pluginId}]`));
+        return true;
+      });
     });
 
     await t.test(
-      'negative: missing registerPluginComponent fails with clear contract message',
+      'negative: missing registerPluginComponent fails with structured contract error',
       () => {
-        assert.throws(
-          () => {
-            runRegistrationAssertions({
-              ...params,
-              initPlugin: ({ register }) => {
-                register?.(params.dashboardExtensionId);
-              },
-            });
-          },
-          /must call context\.registerPluginComponent/
-        );
+        assert.throws(() => {
+          runRegistrationAssertions({
+            ...params,
+            initPlugin: ({ register }) => {
+              register?.(params.dashboardExtensionId);
+            },
+          });
+        }, (error: unknown) => {
+          assert.ok(error instanceof assert.AssertionError);
+          assert.equal(error.code, 'ERR_ASSERTION');
+          assert.match(String(error.message), /Contract violation: initPlugin must call context\.registerPluginComponent/);
+          return true;
+        });
       }
     );
 
