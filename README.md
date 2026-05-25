@@ -148,16 +148,67 @@ node -e "require.resolve('tsx')"
 
 This preflight fails fast with a clear error when test tooling dependencies are missing.
 
-## Test Authentication Contract
+## Authentication Setup
 
-When `MATMETRICS_AUTH_TEST_MODE=true`, both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same Authorization contract:
+MatMetrics uses Firebase Authentication for secure user authentication. The application supports both production Firebase authentication and a test mode for development and testing scenarios.
 
-- Header must be `Authorization: Bearer test-token`
-- `Bearer` is case-insensitive (`Bearer` and `bearer` are both accepted)
-- Missing/malformed Authorization headers return `401` with `Authentication required`
-- Any token other than `test-token` returns `401` with an invalid-token error
+### Production Authentication (Firebase)
 
-This keeps proxy and non-proxy test behavior identical.
+The primary authentication method uses Firebase with the following configuration:
+
+- **Client SDK**: `NEXT_PUBLIC_FIREBASE_*` environment variables (see table above)
+- **Admin SDK**: `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable
+- **Token Validation**: Firebase ID tokens are verified using Firebase's public certificates
+- **Header Format**: `Authorization: Bearer <firebase-id-token>`
+
+### Test Mode Authentication
+
+For development and testing, you can enable test mode using the `MATMETRICS_AUTH_TEST_MODE=true` environment variable. This is particularly useful for:
+
+- **Unit Testing**: Testing authentication logic without real Firebase tokens
+- **Development**: Working offline or when Firebase credentials aren't available
+- **CI/CD**: Running tests in environments where Firebase configuration isn't available
+
+#### Test Mode Behavior
+
+When test mode is enabled, both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same simplified contract:
+
+- **Header**: `Authorization: Bearer test-token`
+- **Case Sensitivity**: `Bearer` is case-insensitive (`Bearer` and `bearer` are both accepted)
+- **Missing/Malformed Headers**: Return `401` with `Authentication required`
+- **Invalid Tokens**: Any token other than `test-token` returns `401` with `Invalid test token`
+
+#### When to Use Test Mode
+
+1. **Development**: Set `MATMETRICS_AUTH_TEST_MODE=true` in your local development environment
+2. **Testing**: Enable in test environments (when `NODE_ENV=test`)
+3. **CI/CD**: Use for automated testing pipelines
+
+#### Integration with Firebase Authentication
+
+The authentication system automatically falls back to Firebase authentication when:
+- Test mode is disabled (`MATMETRICS_AUTH_TEST_MODE` is not `true`)
+- Firebase is properly configured (all required environment variables are set)
+
+This ensures that test mode doesn't interfere with production authentication while providing a simplified testing experience.
+
+### Authentication Flow Overview
+
+```
+Client Request
+    ↓
+Authorization Header
+    ↓
+┌─────────────────────────────────────────────┐
+│           Authentication Check               │
+│ ┌─────────────┐  ┌─────────────┐             │
+│ │ Test Mode?  │  │  Firebase   │             │
+│ │ (test-token)│  │  (ID Token) │             │
+│ └─────────────┘  └─────────────┘             │
+└─────────────────────────────────────────────┘
+    ↓
+Authorized Request → Business Logic
+```
 
 ## Deployment
 
