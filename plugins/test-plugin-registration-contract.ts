@@ -99,9 +99,6 @@ export const testPluginRegistrationContract = (
               // intentionally omit register to validate guardrail
             },
           });
-          assert.fail(
-            `[${params.pluginId}] Expected contract failure when context.register is unavailable.`
-          );
         },
         /register/
       );
