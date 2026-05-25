@@ -7,7 +7,6 @@ import type {
   PluginMaturityCategoryScore,
   PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
-  PluginMaturityTier,
   PluginMaturityUxCriterion,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
