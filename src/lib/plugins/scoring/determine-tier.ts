@@ -75,8 +75,7 @@ export function determineTier(
     hasExplicitTestEvidence,
     allRelevantUxCriteriaExplicitlyVerified,
     hasGoldSupportDocs,
-    validationIssues,
-    blockingWarnings: inputBlockingWarnings,
+    isExplicitGoldReview,
   } = input;
 
   const blockers: string[] = [];
@@ -112,88 +111,97 @@ export function determineTier(
     hasGoldRuntimeIntegration &&
     hasGoldFeatureQuality &&
     hasGoldOperabilityDocs &&
-    hasGoldSupportDocs
+    hasGoldSupportDocs &&
+    isExplicitGoldReview
   ) {
     tier = 'gold';
   }
 
-  // Build blockers list
+  // Build blockers and next actions list
   if (hasValidationErrors) {
     blockers.push('Manifest validation errors cap the plugin at Bronze.');
-    pushUnique(
-      nextActions,
-      'Fix manifest validation errors to advance tier.'
-    );
   }
 
   if (hasBlockingWarnings) {
     blockers.push(
       'Capability or version warnings cap the plugin at Bronze until resolved.'
     );
-    pushUnique(
-      nextActions,
-      'Resolve capability/version warnings to advance tier.'
-    );
   }
 
   if (!hasAnyTestEvidence) {
     blockers.push('Missing automated test evidence caps the plugin at Bronze.');
-    pushUnique(
-      nextActions,
-      'Add automated tests to enable Silver tier and above.'
+  }
+
+  if (!hasReadme && tier >= 'silver') {
+    blockers.push(
+      'Missing plugin documentation prevents promotion beyond Bronze/Silver.'
     );
   }
 
-  if (!hasReadme) {
-    if (tier === 'silver' || tier === 'gold') {
-      blockers.push('README is required to reach Silver tier.');
+  if (totalScore >= 85 && !isExplicitGoldReview) {
+    if (tier !== 'gold') {
       pushUnique(
         nextActions,
-        'Add plugin README with usage and verification sections.'
+        'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
       );
     }
   }
 
-  if (tier === 'silver' && !hasExplicitTestEvidence) {
-    pushUnique(
-      nextActions,
-      'Document test evidence explicitly in manifest `maturity.evidence.testFiles` to reach Gold.'
-    );
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !hasExplicitTestEvidence
+  ) {
+    if (tier !== 'gold') {
+      pushUnique(
+        nextActions,
+        'Gold requires explicit test evidence declared in manifest maturity metadata.'
+      );
+    }
   }
 
-  if (tier === 'silver' && !allRelevantUxCriteriaExplicitlyVerified) {
-    pushUnique(
-      nextActions,
-      'Verify all relevant UX criteria explicitly via manifest `maturity.evidence.uxCriteria` for Gold.'
-    );
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !allRelevantUxCriteriaExplicitlyVerified
+  ) {
+    if (tier !== 'gold') {
+      pushUnique(
+        nextActions,
+        'Gold requires explicit verification of all relevant UX criteria in manifest maturity metadata.'
+      );
+    }
   }
 
-  if (tier === 'silver' && !hasGoldRuntimeIntegration) {
-    pushUnique(
-      nextActions,
-      'Improve runtime integration scoring (target: 18/20) for Gold tier.'
-    );
-  }
+  // Additional context for Silver tier improvements
+  if (tier === 'silver') {
+    if (!hasGoldRuntimeIntegration) {
+      pushUnique(
+        nextActions,
+        'Improve runtime integration scoring (target: 18/20) for Gold tier.'
+      );
+    }
 
-  if (tier === 'silver' && !hasGoldFeatureQuality) {
-    pushUnique(
-      nextActions,
-      'Improve feature quality scoring (target: 20/25) for Gold tier.'
-    );
-  }
+    if (!hasGoldFeatureQuality) {
+      pushUnique(
+        nextActions,
+        'Improve feature quality scoring (target: 20/25) for Gold tier.'
+      );
+    }
 
-  if (tier === 'silver' && !hasGoldOperabilityDocs) {
-    pushUnique(
-      nextActions,
-      'Improve documentation (target: 12/15 ops docs) for Gold tier.'
-    );
-  }
+    if (!hasGoldOperabilityDocs) {
+      pushUnique(
+        nextActions,
+        'Improve documentation (target: 12/15 ops docs) for Gold tier.'
+      );
+    }
 
-  if (tier === 'silver' && !hasGoldSupportDocs) {
-    pushUnique(
-      nextActions,
-      'Add troubleshooting or known limitations section to README for Gold tier.'
-    );
+    if (!hasGoldSupportDocs) {
+      pushUnique(
+        nextActions,
+        'Add troubleshooting or known limitations section to README for Gold tier.'
+      );
+    }
   }
 
   return {
