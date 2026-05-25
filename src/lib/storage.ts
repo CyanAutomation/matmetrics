@@ -31,7 +31,6 @@ import {
 } from './user-preferences';
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
-import { createTagService } from './tags/service';
 import { initializeSyncLeaseModule } from './sync-lease';
 import {
   markDirtyMutation,
@@ -1379,7 +1378,9 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
  * Helper: Handle a successful sync operation
  */
 function handleOperationSuccess(
-  operation: SyncOperation
+  operation: SyncOperation,
+  index: number,
+  queue: SyncOperation[]
 ): void {
   const sessionId = getSessionIdFromOperation(operation);
   clearDirtyMutation(sessionId, operation.queuedAt);
@@ -1391,7 +1392,10 @@ function handleOperationSuccess(
 async function handleOperationError(
   error: unknown,
   operation: SyncOperation,
-  generation: number
+  index: number,
+  queue: SyncOperation[],
+  generation: number,
+  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
 ): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
   if (!(error instanceof SyncRequestError)) {
     // Non-SyncRequestError: retryable
