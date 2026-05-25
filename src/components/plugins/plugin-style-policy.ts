@@ -45,10 +45,8 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   ],
   'tab.inactive': [
     'text-muted-foreground',
-    'hover:bg-primary/5',
+    'hover:bg-muted',
     'hover:text-foreground',
-    'focus:bg-primary/5',
-    'focus:text-foreground',
   ],
   'text.subtle': ['text-muted-foreground'],
   'text.danger': ['text-destructive'],
