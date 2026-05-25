@@ -136,5 +136,46 @@ export const testPluginManifestContract = ({
       `${reqPrefix}[${pluginId}] [PM-UI-002] expected uiContract.requiredUxStates to be defined`
     );
     assertRequiredUxStates(pluginId, uiContract.requiredUxStates, reqPrefix);
+
+    const manifestWithoutRequiredUxStates = {
+      ...validation.manifest,
+      uiContract: {
+        ...validation.manifest.uiContract,
+        requiredUxStates: undefined,
+      },
+    };
+
+    const missingUxStatesValidation = validatePluginManifest(
+      manifestWithoutRequiredUxStates
+    );
+    assert.equal(missingUxStatesValidation.isValid, false);
+    assert.ok(
+      missingUxStatesValidation.issues.some(
+        (issue) =>
+          issue.path.includes('uiContract.requiredUxStates') &&
+          issue.severity === 'error'
+      ),
+      `${reqPrefix}[${pluginId}] expected structured issue for missing uiContract.requiredUxStates`
+    );
+
+    const firstExtension = validation.manifest.uiExtensions[0];
+    const manifestWithDuplicateExtensionIds = {
+      ...validation.manifest,
+      uiExtensions: [...validation.manifest.uiExtensions, { ...firstExtension }],
+    };
+
+    const duplicateExtensionValidation = validatePluginManifest(
+      manifestWithDuplicateExtensionIds
+    );
+    assert.equal(duplicateExtensionValidation.isValid, false);
+    assert.ok(
+      duplicateExtensionValidation.issues.some(
+        (issue) =>
+          issue.path.includes('.id') &&
+          issue.message.includes('Duplicate extension id') &&
+          issue.severity === 'error'
+      ),
+      `${reqPrefix}[${pluginId}] expected duplicate extension id structured error`
+    );
   });
 };
