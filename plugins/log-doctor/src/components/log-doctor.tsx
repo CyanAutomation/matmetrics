@@ -88,6 +88,65 @@ export const emitDestructiveActionEvent = (
   );
 };
 
+/**
+ * LogDoctor component: File validation + session audit for Judo training logs.
+ *
+ * ⚠️ COMPLEXITY NOTE (Phase 2 Refactoring Target, Priority 1):
+ * This component (1052 LOC, complexity ~71) mixes two distinct features:
+ * 1. File validation: scan judo log files, preview fixes, apply fixes
+ * 2. Session audit: run audit rules, review findings, mark as fixed
+ *
+ * CURRENT STRUCTURE (Problematic):
+ * - 13 useState hooks across 2 features (no logical grouping)
+ * - 15+ event handlers (lines ~150–300) with chains calling other handlers
+ * - Conditional render logic spread across 500 LOC (lines ~550–1050)
+ * - 6 useMemo hooks for derived state
+ * - Deep nesting (4–5 levels) in JSX
+ *
+ * STATE BREAKDOWN:
+ * FILE VALIDATION: owner, repo, branch, selectedPaths, fileSearch, scanResult,
+ *                  fixResult, isScanning, isPreviewing, isApplying, errorMessage,
+ *                  uiState, showApplyConfirmation
+ * AUDIT:           activeTab, auditConfig, auditMode, reviewSessionId, auditRanAt,
+ *                  auditStep, initialAuditResults, diagnosticsSnapshot,
+ *                  showResetConfirmation
+ * SHARED:          preferences, user, toast
+ *
+ * REFACTORING PLAN:
+ * 1. Extract useFileValidationHandlers() hook:
+ *    - Input: owner, repo, branch, setSelectedPaths, etc.
+ *    - Output: { onScanFiles, onPreviewChanges, onApplyChanges, ... }
+ *    - Moves lines ~200–250 and related handler logic
+ *    - New file: plugins/log-doctor/src/hooks/use-file-validation-handlers.ts
+ *
+ * 2. Extract useAuditHandlers() hook:
+ *    - Input: auditConfig, auditMode, etc.
+ *    - Output: { onRunAudit, onReviewResult, onMarkFixed, ... }
+ *    - Moves lines ~250–300 and related handler logic
+ *    - New file: plugins/log-doctor/src/hooks/use-audit-handlers.ts
+ *
+ * 3. Create <FileValidationTab /> subcomponent (~250 LOC):
+ *    - Input: fileValidationState, handlers
+ *    - Output: Render file validation UI (lines ~550–700)
+ *    - New file: plugins/log-doctor/src/components/file-validation-tab.tsx
+ *
+ * 4. Create <SessionAuditTab /> subcomponent (~200 LOC):
+ *    - Input: auditState, handlers
+ *    - Output: Render audit UI (lines ~700–950)
+ *    - New file: plugins/log-doctor/src/components/session-audit-tab.tsx
+ *
+ * 5. Extract createAuditSummaryAction() pure function:
+ *    - Moves complex computed action logic (lines ~430–460)
+ *    - No side effects; returns { actionLabel, onClick, disabled }
+ *    - Stays in component or move to lib utils
+ *
+ * BENEFITS:
+ * - Main component ~150 LOC orchestration only
+ * - useState reduced from 13 to 4 (owner, repo, branch, activeTab)
+ * - Each handler type testable in isolation
+ * - Subcomponents reusable and independently testable
+ * - Reduced JSX nesting (4–5 levels → 2–3 levels)
+ */
 export const LogDoctor = (): React.ReactElement => {
   const { preferences, user } = useAuth();
   const { toast } = useToast();
