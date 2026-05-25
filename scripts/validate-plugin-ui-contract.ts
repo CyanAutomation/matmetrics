@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -22,7 +22,7 @@ type PluginManifest = {
   };
 };
 
-type RequirementKey =
+export type RequirementKey =
   | 'loadingState'
   | 'errorState'
   | 'emptyState'
@@ -39,6 +39,13 @@ type Violation = {
 };
 
 type PrimitiveUsage = Record<RequirementKey, boolean>;
+export type RequirementViolation = {
+  pluginId: string;
+  componentId: string;
+  requirement: RequirementKey;
+  message: string;
+};
+
 
 type ImportedPrimitive = {
   requirement: RequirementKey;
@@ -161,7 +168,7 @@ const extractRendererRootComponent = (node: ts.Expression): string | null => {
   return visit(node);
 };
 
-const resolvePluginComponentEntrypoints = async (
+export const resolvePluginComponentEntrypoints = async (
   pluginIndexPath: string,
   componentIds: string[]
 ): Promise<Map<string, string>> => {
@@ -596,7 +603,7 @@ export const evaluatePluginComponentCompositionFromSource = (
   };
 };
 
-const computePrimitiveUsage = async (
+export const computePrimitiveUsage = async (
   componentEntryPath: string
 ): Promise<PrimitiveUsage> => {
   const usage: PrimitiveUsage = {
@@ -703,15 +710,55 @@ const compositionBlockToRequirement = (
   }
 };
 
-const validate = async (): Promise<Violation[]> => {
-  const violations: Violation[] = [];
-  const pluginDirs = (await readdir(pluginsRoot, { withFileTypes: true }))
+export const discoverPluginManifests = async (
+  root: string = pluginsRoot
+): Promise<string[]> => {
+  const pluginDirs = (await readdir(root, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
-  for (const pluginDir of pluginDirs) {
-    const manifestPath = path.join(pluginsRoot, pluginDir, 'plugin.json');
+  const manifests = await Promise.all(
+    pluginDirs.map(async (pluginDir) => {
+      const manifestPath = path.join(root, pluginDir, 'plugin.json');
+      try {
+        await access(manifestPath);
+        return manifestPath;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return manifests.filter((pathValue): pathValue is string => pathValue !== null);
+};
+
+export const verifyComponentRequirements = ({
+  pluginId,
+  componentId,
+  usage,
+  requiredChecks,
+}: {
+  pluginId: string;
+  componentId: string;
+  usage: PrimitiveUsage;
+  requiredChecks: RequirementKey[];
+}): RequirementViolation[] =>
+  requiredChecks
+    .filter((requirement) => !usage[requirement])
+    .map((requirement) => ({
+      pluginId,
+      componentId,
+      requirement,
+      message: requirementLabels[requirement],
+    }));
+
+const validate = async (): Promise<Violation[]> => {
+  const violations: Violation[] = [];
+  const manifestPaths = await discoverPluginManifests(pluginsRoot);
+
+  for (const manifestPath of manifestPaths) {
+    const pluginDir = path.basename(path.dirname(manifestPath));
     const pluginIndexPath = path.join(
       pluginsRoot,
       pluginDir,
@@ -778,15 +825,19 @@ const validate = async (): Promise<Violation[]> => {
       }
 
       const usage = await computePrimitiveUsage(entry);
-      for (const requirement of requiredChecks) {
-        if (!usage[requirement]) {
-          violations.push({
-            pluginId: manifest.id,
-            requirement,
-            sourcePath: relativePath(entry),
-            details: requirementLabels[requirement],
-          });
-        }
+      const requirementViolations = verifyComponentRequirements({
+        pluginId: manifest.id,
+        componentId,
+        usage,
+        requiredChecks: [...requiredChecks],
+      });
+      for (const requirementViolation of requirementViolations) {
+        violations.push({
+          pluginId: requirementViolation.pluginId,
+          requirement: requirementViolation.requirement,
+          sourcePath: relativePath(entry),
+          details: `${requirementViolation.componentId}: ${requirementViolation.message}`,
+        });
       }
     }
   }
