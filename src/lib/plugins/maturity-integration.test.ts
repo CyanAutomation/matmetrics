@@ -175,72 +175,97 @@ test('threshold boundary guards: score below cutoffs must not auto-promote tiers
 
 
 test('maturity primitive taxonomy classification matches documented groups', () => {
-  const classificationCases: Array<{
+  const primitiveCases: Array<{
     name: string;
     primitiveName: unknown;
     expectedSource: string | null;
     expectedIsUiState: boolean;
+    expectedSourcePrimitives?: string[] | null;
   }> = [
     {
       name: 'ui state: loading',
       primitiveName: 'PluginLoadingState',
       expectedSource: '@/components/plugins/plugin-state',
       expectedIsUiState: true,
+      expectedSourcePrimitives: [
+        'PluginLoadingState',
+        'PluginErrorState',
+        'PluginEmptyState',
+      ],
     },
     {
       name: 'ui state: error',
       primitiveName: 'PluginErrorState',
       expectedSource: '@/components/plugins/plugin-state',
       expectedIsUiState: true,
+      expectedSourcePrimitives: [
+        'PluginLoadingState',
+        'PluginErrorState',
+        'PluginEmptyState',
+      ],
     },
     {
       name: 'shell primitive',
       primitiveName: 'PluginPageShell',
       expectedSource: '@/components/plugins/plugin-page-shell',
       expectedIsUiState: false,
+      expectedSourcePrimitives: ['PluginPageShell'],
     },
     {
       name: 'section primitive',
       primitiveName: 'PluginSectionCard',
       expectedSource: '@/components/plugins/plugin-section-card',
       expectedIsUiState: false,
+      expectedSourcePrimitives: ['PluginSectionCard'],
     },
     {
       name: 'data surface primitive',
       primitiveName: 'PluginDataSurfaceSummaryStrip',
       expectedSource: '@/components/plugins/plugin-data-surface',
       expectedIsUiState: false,
+      expectedSourcePrimitives: [
+        'PluginDataSurfaceTable',
+        'PluginDataSurfaceFilterRow',
+        'PluginDataSurfaceSummaryStrip',
+        'PluginEmptyFilteredResults',
+      ],
     },
     {
       name: 'edge: wrong case primitive',
       primitiveName: 'pluginloadingstate',
       expectedSource: null,
       expectedIsUiState: false,
+      expectedSourcePrimitives: null,
     },
     {
       name: 'edge: whitespace padded primitive',
       primitiveName: ' PluginLoadingState ',
       expectedSource: null,
       expectedIsUiState: false,
+      expectedSourcePrimitives: null,
     },
     {
       name: 'invalid: empty string',
       primitiveName: '',
       expectedSource: null,
       expectedIsUiState: false,
+      expectedSourcePrimitives: null,
     },
     {
       name: 'invalid: numeric value',
       primitiveName: 404,
       expectedSource: null,
       expectedIsUiState: false,
+      expectedSourcePrimitives: null,
     },
   ];
 
-  for (const testCase of classificationCases) {
+  for (const testCase of primitiveCases) {
     const primitiveName = String(testCase.primitiveName);
+    const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(primitiveName);
+
     assert.equal(
-      MATURITY_PRIMITIVES.getSourceOfPrimitive(primitiveName),
+      source,
       testCase.expectedSource,
       testCase.name
     );
@@ -249,51 +274,33 @@ test('maturity primitive taxonomy classification matches documented groups', () 
       testCase.expectedIsUiState,
       testCase.name
     );
-  }
-});
 
-test('maturity primitive taxonomy source groups return exact documented primitives', () => {
-  const sourceCases: Array<{
-    name: string;
-    source: string;
-    expectedPrimitives: string[] | null;
-  }> = [
-    {
-      name: 'ui state group',
-      source: '@/components/plugins/plugin-state',
-      expectedPrimitives: [
-        'PluginLoadingState',
-        'PluginErrorState',
-        'PluginEmptyState',
-      ],
-    },
-    {
-      name: 'data surface group',
-      source: '@/components/plugins/plugin-data-surface',
-      expectedPrimitives: [
-        'PluginDataSurfaceTable',
-        'PluginDataSurfaceFilterRow',
-        'PluginDataSurfaceSummaryStrip',
-        'PluginEmptyFilteredResults',
-      ],
-    },
-    {
-      name: 'edge: unknown source path',
-      source: '@/components/plugins/unknown-source',
-      expectedPrimitives: null,
-    },
-    {
-      name: 'invalid: empty source path',
-      source: '',
-      expectedPrimitives: null,
-    },
-  ];
-
-  for (const testCase of sourceCases) {
-    assert.deepEqual(
-      MATURITY_PRIMITIVES.getPrimitivesBySource(testCase.source),
-      testCase.expectedPrimitives,
-      testCase.name
-    );
+    if ('expectedSourcePrimitives' in testCase) {
+      assert.deepEqual(
+        source === null ? null : MATURITY_PRIMITIVES.getPrimitivesBySource(source),
+        testCase.expectedSourcePrimitives,
+        `${testCase.name}: source primitive roundtrip`
+      );
+    }
   }
+  assert.equal(
+    MATURITY_PRIMITIVES.getSourceOfPrimitive('UnknownPrimitive'),
+    null,
+    'unknown primitive should not map to a source'
+  );
+  assert.equal(
+    MATURITY_PRIMITIVES.isUiState('UnknownPrimitive'),
+    false,
+    'unknown primitive should not be treated as ui state'
+  );
+  assert.deepEqual(
+    MATURITY_PRIMITIVES.getPrimitivesBySource('@/components/plugins/unknown-source'),
+    null,
+    'unknown source path should return null'
+  );
+  assert.deepEqual(
+    MATURITY_PRIMITIVES.getPrimitivesBySource(''),
+    null,
+    'empty source path should return null'
+  );
 });
