@@ -3,6 +3,8 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
+
+import { MATURITY_PRIMITIVES } from '@/lib/plugins/maturity-config';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
 import githubSyncManifest from '../../../plugins/github-sync/plugin.json';
@@ -168,4 +170,58 @@ test('threshold boundary guards: score below cutoffs must not auto-promote tiers
   assert.ok(silverWithoutGoldReview.score >= MATURITY_THRESHOLDS.goldMin - 1);
   assert.equal(silverWithoutGoldReview.tier, 'silver');
   assert.notEqual(silverWithoutGoldReview.tier, 'gold');
+});
+
+
+test('maturity primitive helpers resolve exact evidence entries for known primitives', () => {
+  const knownPrimitiveEvidence = [
+    {
+      primitive: 'PluginLoadingState',
+      expectedSource: '@/components/plugins/plugin-state',
+      expectedGroup: [
+        'PluginLoadingState',
+        'PluginErrorState',
+        'PluginEmptyState',
+      ],
+    },
+    {
+      primitive: 'PluginPageShell',
+      expectedSource: '@/components/plugins/plugin-page-shell',
+      expectedGroup: ['PluginPageShell'],
+    },
+    {
+      primitive: 'PluginDataSurfaceSummaryStrip',
+      expectedSource: '@/components/plugins/plugin-data-surface',
+      expectedGroup: [
+        'PluginDataSurfaceTable',
+        'PluginDataSurfaceFilterRow',
+        'PluginDataSurfaceSummaryStrip',
+        'PluginEmptyFilteredResults',
+      ],
+    },
+  ] as const;
+
+  for (const fixture of knownPrimitiveEvidence) {
+    const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(fixture.primitive);
+    assert.equal(source, fixture.expectedSource);
+
+    const evidenceEntries = MATURITY_PRIMITIVES.getPrimitivesBySource(
+      fixture.expectedSource
+    );
+    assert.deepEqual(evidenceEntries, fixture.expectedGroup);
+  }
+});
+
+test('maturity primitive helpers expose unknown/missing primitive reason path', () => {
+  const unknownPrimitive = 'PluginUnknownPrimitive';
+  const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(unknownPrimitive);
+  assert.equal(source, null);
+
+  const missingSource = '@/components/plugins/unknown-source';
+  const primitives = MATURITY_PRIMITIVES.getPrimitivesBySource(missingSource);
+  assert.equal(primitives, null);
+
+  // Verify that unknown primitives and sources return null to enable missing-evidence handling
+  assert.equal(source, null, 'Unknown primitive should resolve to null');
+  assert.equal(primitives, null, 'Unknown source should resolve to null');
 });
