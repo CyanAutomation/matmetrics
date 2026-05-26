@@ -173,55 +173,127 @@ test('threshold boundary guards: score below cutoffs must not auto-promote tiers
 });
 
 
-test('maturity primitive helpers resolve exact evidence entries for known primitives', () => {
-  const knownPrimitiveEvidence = [
+
+test('maturity primitive taxonomy classification matches documented groups', () => {
+  const classificationCases: Array<{
+    name: string;
+    primitiveName: unknown;
+    expectedSource: string | null;
+    expectedIsUiState: boolean;
+  }> = [
     {
-      primitive: 'PluginLoadingState',
+      name: 'ui state: loading',
+      primitiveName: 'PluginLoadingState',
       expectedSource: '@/components/plugins/plugin-state',
-      expectedGroup: [
+      expectedIsUiState: true,
+    },
+    {
+      name: 'ui state: error',
+      primitiveName: 'PluginErrorState',
+      expectedSource: '@/components/plugins/plugin-state',
+      expectedIsUiState: true,
+    },
+    {
+      name: 'shell primitive',
+      primitiveName: 'PluginPageShell',
+      expectedSource: '@/components/plugins/plugin-page-shell',
+      expectedIsUiState: false,
+    },
+    {
+      name: 'section primitive',
+      primitiveName: 'PluginSectionCard',
+      expectedSource: '@/components/plugins/plugin-section-card',
+      expectedIsUiState: false,
+    },
+    {
+      name: 'data surface primitive',
+      primitiveName: 'PluginDataSurfaceSummaryStrip',
+      expectedSource: '@/components/plugins/plugin-data-surface',
+      expectedIsUiState: false,
+    },
+    {
+      name: 'edge: wrong case primitive',
+      primitiveName: 'pluginloadingstate',
+      expectedSource: null,
+      expectedIsUiState: false,
+    },
+    {
+      name: 'edge: whitespace padded primitive',
+      primitiveName: ' PluginLoadingState ',
+      expectedSource: null,
+      expectedIsUiState: false,
+    },
+    {
+      name: 'invalid: empty string',
+      primitiveName: '',
+      expectedSource: null,
+      expectedIsUiState: false,
+    },
+    {
+      name: 'invalid: numeric value',
+      primitiveName: 404,
+      expectedSource: null,
+      expectedIsUiState: false,
+    },
+  ];
+
+  for (const testCase of classificationCases) {
+    const primitiveName = String(testCase.primitiveName);
+    assert.equal(
+      MATURITY_PRIMITIVES.getSourceOfPrimitive(primitiveName),
+      testCase.expectedSource,
+      testCase.name
+    );
+    assert.equal(
+      MATURITY_PRIMITIVES.isUiState(primitiveName),
+      testCase.expectedIsUiState,
+      testCase.name
+    );
+  }
+});
+
+test('maturity primitive taxonomy source groups return exact documented primitives', () => {
+  const sourceCases: Array<{
+    name: string;
+    source: string;
+    expectedPrimitives: string[] | null;
+  }> = [
+    {
+      name: 'ui state group',
+      source: '@/components/plugins/plugin-state',
+      expectedPrimitives: [
         'PluginLoadingState',
         'PluginErrorState',
         'PluginEmptyState',
       ],
     },
     {
-      primitive: 'PluginPageShell',
-      expectedSource: '@/components/plugins/plugin-page-shell',
-      expectedGroup: ['PluginPageShell'],
-    },
-    {
-      primitive: 'PluginDataSurfaceSummaryStrip',
-      expectedSource: '@/components/plugins/plugin-data-surface',
-      expectedGroup: [
+      name: 'data surface group',
+      source: '@/components/plugins/plugin-data-surface',
+      expectedPrimitives: [
         'PluginDataSurfaceTable',
         'PluginDataSurfaceFilterRow',
         'PluginDataSurfaceSummaryStrip',
         'PluginEmptyFilteredResults',
       ],
     },
-  ] as const;
+    {
+      name: 'edge: unknown source path',
+      source: '@/components/plugins/unknown-source',
+      expectedPrimitives: null,
+    },
+    {
+      name: 'invalid: empty source path',
+      source: '',
+      expectedPrimitives: null,
+    },
+  ];
 
-  for (const fixture of knownPrimitiveEvidence) {
-    const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(fixture.primitive);
-    assert.equal(source, fixture.expectedSource);
-
-    const evidenceEntries = MATURITY_PRIMITIVES.getPrimitivesBySource(
-      fixture.expectedSource
+  for (const testCase of sourceCases) {
+    assert.deepEqual(
+      MATURITY_PRIMITIVES.getPrimitivesBySource(testCase.source),
+      testCase.expectedPrimitives,
+      testCase.name
     );
-    assert.deepEqual(evidenceEntries, fixture.expectedGroup);
   }
-});
-
-test('maturity primitive helpers expose unknown/missing primitive reason path', () => {
-  const unknownPrimitive = 'PluginUnknownPrimitive';
-  const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(unknownPrimitive);
-  assert.equal(source, null);
-
-  const missingSource = '@/components/plugins/unknown-source';
-  const primitives = MATURITY_PRIMITIVES.getPrimitivesBySource(missingSource);
-  assert.equal(primitives, null);
-
-  // Verify that unknown primitives and sources return null to enable missing-evidence handling
-  assert.equal(source, null, 'Unknown primitive should resolve to null');
-  assert.equal(primitives, null, 'Unknown source should resolve to null');
 });
