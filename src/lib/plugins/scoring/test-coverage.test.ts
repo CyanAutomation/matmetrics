@@ -78,7 +78,7 @@ describe('scoreTestCoverage', () => {
     });
   });
 
-  it('keeps clamp target and overflow context coherent for high-signal inputs', async () => {
+  it('keeps scoring context coherent for high-signal explicit evidence with missing files', async () => {
     const result = await scoreTestCoverage({
       testEvidenceFiles: [
         'src/lib/plugins/foo.test.ts',
@@ -95,9 +95,8 @@ describe('scoreTestCoverage', () => {
       pluginId: 'test-plugin',
     });
 
-    // This fixture intentionally packs in multiple positive signals and missing-file
-    // penalties so the clamp path can be asserted without duplicating the full-score
-    // explicit-evidence fixture.
+    // This fixture intentionally combines strong explicit-evidence signals with
+    // missing-file penalties so we can verify the mixed-context result fields.
     assert.equal(result.score, 16);
     assert.deepEqual(result.evidence, [
       'Found automated test evidence in 4 file(s).',
@@ -106,6 +105,5 @@ describe('scoreTestCoverage', () => {
     assert.deepEqual(result.reasons, [
       'Some explicit maturity evidence test files declared in manifest could not be found.',
     ]);
-    assert.ok(result.score <= 20);
   });
 });
