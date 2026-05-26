@@ -31,6 +31,9 @@ describe('LogDoctor component', () => {
       fireEvent.change(view.getByLabelText('Repository'), { target: { value: 'matmetrics' } });
 
       fireEvent.click(view.getByRole('button', { name: 'Scan repository' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Preview fixes' }));
+      });
       fireEvent.click(view.getByRole('button', { name: 'Preview fixes' }));
 
       assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
