@@ -221,12 +221,7 @@ test('maturity primitive helpers expose unknown/missing primitive reason path', 
   const primitives = MATURITY_PRIMITIVES.getPrimitivesBySource(missingSource);
   assert.equal(primitives, null);
 
-  const reason =
-    source === null && primitives === null
-      ? 'Unknown primitive or source should resolve to null so scoring can follow missing-evidence reason paths.'
-      : 'Unexpected primitive lookup result.';
-  assert.equal(
-    reason,
-    'Unknown primitive or source should resolve to null so scoring can follow missing-evidence reason paths.'
-  );
+  // Verify that unknown primitives and sources return null to enable missing-evidence handling
+  assert.equal(source, null, 'Unknown primitive should resolve to null');
+  assert.equal(primitives, null, 'Unknown source should resolve to null');
 });
