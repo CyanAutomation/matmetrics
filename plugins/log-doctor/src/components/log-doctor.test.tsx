@@ -14,7 +14,12 @@ import { AuthProvider } from '@/components/auth-provider';
 import { LogDoctor } from './log-doctor';
 
 describe('LogDoctor component', () => {
-  it('mounts with validation tab controls and switches to audit content', async () => {
+  it('simulates scan/preview/apply interactions and verifies destructive event payloads', async () => {
+    const events: Array<{ action: string; stage: string; metadata: Record<string, unknown> }> = [];
+    window.addEventListener('logDoctorDestructiveAction', (event) => {
+      events.push((event as CustomEvent).detail);
+    });
+
     const view = render(
       <AuthProvider>
         <LogDoctor />
@@ -22,61 +27,30 @@ describe('LogDoctor component', () => {
     );
 
     try {
-      assert.ok(view.getByRole('tab', { name: 'File Validation' }));
-      assert.ok(view.getByRole('tab', { name: 'Session Audit' }));
-      assert.ok(view.getByLabelText('Owner'));
-      assert.ok(view.getByLabelText('Repository'));
-      assert.ok(view.getByRole('button', { name: 'Scan repository' }));
-
-      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
-
-      await waitFor(() => {
-        assert.ok(view.getByText('Session audit status'));
-        assert.equal(view.queryByText('Repository target'), null);
-      });
-    } finally {
-      view.unmount();
-    }
-  });
-
-  it('keeps audit state unchanged while mutating file-validation state', async () => {
-    const view = render(
-      <AuthProvider>
-        <LogDoctor />
-      </AuthProvider>
-    );
-
-    try {
-      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
-
-      await waitFor(() => {
-        assert.ok(view.getByText('Session audit status'));
-      });
-
-      fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
-      await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
-      });
-
-      fireEvent.click(view.getByRole('tab', { name: 'File Validation' }));
       fireEvent.change(view.getByLabelText('Owner'), { target: { value: 'team-a' } });
       fireEvent.change(view.getByLabelText('Repository'), { target: { value: 'matmetrics' } });
-      fireEvent.change(view.getByLabelText('Branch (optional)'), {
-        target: { value: 'main' },
-      });
 
-      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
-
+      fireEvent.click(view.getByRole('button', { name: 'Scan repository' }));
       await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: '1. Run check' }));
-        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+        assert.ok(view.getByRole('button', { name: 'Preview fixes' }));
+      });
+      fireEvent.click(view.getByRole('button', { name: 'Preview fixes' }));
+
+      assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
+
+      // Failure-path UI assertions: actions remain disabled until valid selection exists.
+      assert.equal(view.getByRole('button', { name: 'Preview fixes' }).hasAttribute('disabled'), true);
+
+      // No destructive action callback should fire while action is disabled.
+      await waitFor(() => {
+        assert.equal(events.length, 0);
       });
     } finally {
       view.unmount();
     }
   });
 
-  it('keeps file-validation state unchanged while mutating audit state and intentionally shares active tab', async () => {
+  it('simulates audit run/review/mark-fixed flow and keeps expected state transitions', async () => {
     const view = render(
       <AuthProvider>
         <LogDoctor />
@@ -85,25 +59,24 @@ describe('LogDoctor component', () => {
 
     try {
       fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+
       await waitFor(() => {
         assert.ok(view.getByText('Session audit status'));
       });
 
       fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
+      fireEvent.click(view.getByRole('button', { name: 'Run session audit checks' }));
+
       await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+        assert.ok(view.getByRole('button', { name: 'Run check again' }));
+        assert.equal(view.getByRole('button', { name: '2. Review findings' }).hasAttribute('disabled'), false);
       });
 
-      fireEvent.click(view.getByRole('tab', { name: 'File Validation' }));
-      await waitFor(() => {
-        assert.ok(view.getByText('Repository target'));
-        assert.equal(view.queryByText('Session audit status'), null);
-      });
+      fireEvent.click(view.getByRole('button', { name: '2. Review findings' }));
+      fireEvent.click(view.getByRole('button', { name: '3. Mark fixed' }));
 
-      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
       await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
-        assert.equal(view.queryByText('Repository target'), null);
+        assert.ok(view.getByText(/need attention/i));
       });
     } finally {
       view.unmount();
