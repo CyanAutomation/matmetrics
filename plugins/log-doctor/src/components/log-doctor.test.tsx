@@ -21,18 +21,22 @@ describe('LogDoctor component', () => {
       </AuthProvider>
     );
 
-    assert.ok(view.getByRole('tab', { name: 'File Validation' }));
-    assert.ok(view.getByRole('tab', { name: 'Session Audit' }));
-    assert.ok(view.getByLabelText('Owner'));
-    assert.ok(view.getByLabelText('Repository'));
-    assert.ok(view.getByRole('button', { name: 'Scan repository' }));
+    try {
+      assert.ok(view.getByRole('tab', { name: 'File Validation' }));
+      assert.ok(view.getByRole('tab', { name: 'Session Audit' }));
+      assert.ok(view.getByLabelText('Owner'));
+      assert.ok(view.getByLabelText('Repository'));
+      assert.ok(view.getByRole('button', { name: 'Scan repository' }));
 
-    fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
 
-    await waitFor(() => {
-      assert.ok(view.getByText('Session audit status'));
-      assert.equal(view.queryByText('Repository target'), null);
-    });
+      await waitFor(() => {
+        assert.ok(view.getByText('Session audit status'));
+        assert.equal(view.queryByText('Repository target'), null);
+      });
+    } finally {
+      view.unmount();
+    }
   });
 
   it('keeps destructive confirmation dialogs hidden until a destructive action is initiated', () => {
