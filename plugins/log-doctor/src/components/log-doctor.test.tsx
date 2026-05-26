@@ -46,7 +46,11 @@ describe('LogDoctor component', () => {
       </AuthProvider>
     );
 
-    assert.equal(view.queryByRole('dialog', { name: 'Apply normalization fixes?' }), null);
-    assert.equal(view.queryByRole('dialog', { name: 'Reset diagnostics state?' }), null);
+    try {
+      assert.equal(view.queryByRole('dialog', { name: 'Apply normalization fixes?' }), null);
+      assert.equal(view.queryByRole('dialog', { name: 'Reset diagnostics state?' }), null);
+    } finally {
+      view.unmount();
+    }
   });
 });
