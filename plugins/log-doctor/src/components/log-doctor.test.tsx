@@ -39,7 +39,7 @@ describe('LogDoctor component', () => {
     }
   });
 
-  it('keeps destructive confirmation dialogs hidden until a destructive action is initiated', () => {
+  it('keeps audit state unchanged while mutating file-validation state', async () => {
     const view = render(
       <AuthProvider>
         <LogDoctor />
@@ -47,8 +47,64 @@ describe('LogDoctor component', () => {
     );
 
     try {
-      assert.equal(view.queryByRole('dialog', { name: 'Apply normalization fixes?' }), null);
-      assert.equal(view.queryByRole('dialog', { name: 'Reset diagnostics state?' }), null);
+      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+
+      await waitFor(() => {
+        assert.ok(view.getByText('Session audit status'));
+      });
+
+      fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      });
+
+      fireEvent.click(view.getByRole('tab', { name: 'File Validation' }));
+      fireEvent.change(view.getByLabelText('Owner'), { target: { value: 'team-a' } });
+      fireEvent.change(view.getByLabelText('Repository'), { target: { value: 'matmetrics' } });
+      fireEvent.change(view.getByLabelText('Branch (optional)'), {
+        target: { value: 'main' },
+      });
+
+      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: '1. Run check' }));
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      });
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('keeps file-validation state unchanged while mutating audit state and intentionally shares active tab', async () => {
+    const view = render(
+      <AuthProvider>
+        <LogDoctor />
+      </AuthProvider>
+    );
+
+    try {
+      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+      await waitFor(() => {
+        assert.ok(view.getByText('Session audit status'));
+      });
+
+      fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      });
+
+      fireEvent.click(view.getByRole('tab', { name: 'File Validation' }));
+      await waitFor(() => {
+        assert.ok(view.getByText('Repository target'));
+        assert.equal(view.queryByText('Session audit status'), null);
+      });
+
+      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+        assert.equal(view.queryByText('Repository target'), null);
+      });
     } finally {
       view.unmount();
     }
