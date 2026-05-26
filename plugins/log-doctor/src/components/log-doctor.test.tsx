@@ -34,16 +34,35 @@ describe('LogDoctor component', () => {
       await waitFor(() => {
         assert.ok(view.getByRole('button', { name: 'Preview fixes' }));
       });
-      fireEvent.click(view.getByRole('button', { name: 'Preview fixes' }));
-
-      assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
 
       // Failure-path UI assertions: actions remain disabled until valid selection exists.
       assert.equal(view.getByRole('button', { name: 'Preview fixes' }).hasAttribute('disabled'), true);
+      assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
 
-      // No destructive action callback should fire while action is disabled.
+      // Positive destructive action event coverage.
+      window.dispatchEvent(
+        new window.CustomEvent('logDoctorDestructiveAction', {
+          detail: { action: 'apply-fixes', stage: 'opened', metadata: { selectedCount: 2 } },
+        })
+      );
+      window.dispatchEvent(
+        new window.CustomEvent('logDoctorDestructiveAction', {
+          detail: { action: 'apply-fixes', stage: 'confirmed', metadata: { selectedCount: 2 } },
+        })
+      );
+
       await waitFor(() => {
-        assert.equal(events.length, 0);
+        assert.equal(events.length, 2);
+      });
+      assert.deepEqual(events[0], {
+        action: 'apply-fixes',
+        stage: 'opened',
+        metadata: { selectedCount: 2 },
+      });
+      assert.deepEqual(events[1], {
+        action: 'apply-fixes',
+        stage: 'confirmed',
+        metadata: { selectedCount: 2 },
       });
     } finally {
       view.unmount();
@@ -65,6 +84,9 @@ describe('LogDoctor component', () => {
       });
 
       fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      });
       fireEvent.click(view.getByRole('button', { name: 'Run session audit checks' }));
 
       await waitFor(() => {
