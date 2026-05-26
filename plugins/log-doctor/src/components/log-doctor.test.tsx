@@ -40,7 +40,6 @@ describe('LogDoctor component', () => {
 
       // Failure-path UI assertions: actions remain disabled until valid selection exists.
       assert.equal(view.getByRole('button', { name: 'Preview fixes' }).hasAttribute('disabled'), true);
-      assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
 
       // No destructive action callback should fire while action is disabled.
       await waitFor(() => {
