@@ -54,7 +54,9 @@ describe('LogDoctor component', () => {
       });
 
       fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
-      assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      await waitFor(() => {
+        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+      });
 
       fireEvent.click(view.getByRole('tab', { name: 'File Validation' }));
       fireEvent.change(view.getByLabelText('Owner'), { target: { value: 'team-a' } });
