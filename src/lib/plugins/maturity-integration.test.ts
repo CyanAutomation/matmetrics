@@ -25,7 +25,12 @@ const scoreFixture = async ({
   assert.equal(validation.isValid, true);
 
   if (!validation.isValid) {
-    throw new Error(`Invalid manifest for fixture: ${pluginDirectoryName}`);
+    return scorePluginMaturity({
+      manifest: { id: '', name: '', version: '', description: '' } as any,
+      validationIssues: validation.issues,
+      pluginDirectoryName,
+      pluginsRoot,
+    });
   }
 
   return scorePluginMaturity({
