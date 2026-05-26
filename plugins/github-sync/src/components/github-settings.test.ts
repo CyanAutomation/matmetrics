@@ -48,6 +48,8 @@ test('[REQ-GHS-001][#431] auth gating disables GitHub actions when feature acces
         canRefreshHistory: false,
         canDisableSync: false,
         canOpenClearDialog: false,
+        hasRepoIdentity: true,
+        showConnectedState: true,
       },
     },
   ] as const;
@@ -63,6 +65,8 @@ test('[REQ-GHS-001][#431] auth gating disables GitHub actions when feature acces
     assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
     assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
     assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
+    assert.equal(result.hasRepoIdentity, testCase.expected.hasRepoIdentity, testCase.name);
+    assert.equal(result.showConnectedState, testCase.expected.showConnectedState, testCase.name);
 
     assert.equal(result.testConnectionLabel, 'Test Connection', `${testCase.name}: testConnectionLabel`);
     assert.equal(result.syncAllLabel, 'Sync All Sessions to GitHub', `${testCase.name}: syncAllLabel`);
@@ -78,6 +82,8 @@ test('[REQ-GHS-002][#431] in-flight labels are scoped to their matching action',
         canTestConnection: false,
         canRunSyncAll: true,
         canRefreshHistory: true,
+        canDisableSync: true,
+        canOpenClearDialog: true,
       },
       labels: {
         testConnectionLabel: 'Testing...',
@@ -91,6 +97,8 @@ test('[REQ-GHS-002][#431] in-flight labels are scoped to their matching action',
         canTestConnection: true,
         canRunSyncAll: false,
         canRefreshHistory: true,
+        canDisableSync: true,
+        canOpenClearDialog: true,
       },
       labels: {
         testConnectionLabel: 'Test Connection',
@@ -108,6 +116,8 @@ test('[REQ-GHS-002][#431] in-flight labels are scoped to their matching action',
     assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
     assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
     assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
+    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
+    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
 
     assert.equal(
       result.testConnectionLabel,
@@ -124,6 +134,9 @@ test('[REQ-GHS-003][#431] destructive-action gating locks clear/disable controls
       name: 'disabling in-flight gates destructive controls',
       input: { isDisabling: true, isClearDialogOpen: true },
       expected: {
+        canTestConnection: true,
+        canRunSyncAll: true,
+        canRefreshHistory: true,
         canDisableSync: false,
         canOpenClearDialog: false,
         canConfirmClear: true,
@@ -137,6 +150,9 @@ test('[REQ-GHS-003][#431] destructive-action gating locks clear/disable controls
       name: 'clearing in-flight blocks confirm clear and disable button',
       input: { isClearing: true, isClearDialogOpen: true },
       expected: {
+        canTestConnection: true,
+        canRunSyncAll: true,
+        canRefreshHistory: true,
         canDisableSync: false,
         canOpenClearDialog: false,
         canConfirmClear: false,
@@ -154,6 +170,9 @@ test('[REQ-GHS-003][#431] destructive-action gating locks clear/disable controls
       ...testCase.input,
     });
 
+    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
+    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
+    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
     assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
     assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
     assert.equal(result.canConfirmClear, testCase.expected.canConfirmClear, testCase.name);
