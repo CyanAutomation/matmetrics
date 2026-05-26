@@ -41,7 +41,10 @@ describe('LogDoctor component', () => {
 
       // Keep this test behavior-focused by validating the UI does not emit destructive
       // action events when destructive controls are disabled.
-      fireEvent.click(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }));
+      const applyDisabledButton = view.getByRole('button', {
+        name: /Apply normalization fixes to 0 selected files/i,
+      }) as HTMLButtonElement;
+      applyDisabledButton.click();
       assert.equal(events.length, 0);
 
     } finally {
