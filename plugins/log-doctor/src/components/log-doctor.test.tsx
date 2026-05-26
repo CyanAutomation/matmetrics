@@ -14,7 +14,7 @@ import { AuthProvider } from '@/components/auth-provider';
 import { LogDoctor } from './log-doctor';
 
 describe('LogDoctor component', () => {
-  it('simulates scan/preview/apply interactions and verifies destructive event payloads', async () => {
+  it('simulates scan/preview/apply interactions and preserves disabled destructive controls before selection', async () => {
     const events: Array<{ action: string; stage: string; metadata: Record<string, unknown> }> = [];
     window.addEventListener('logDoctorDestructiveAction', (event) => {
       events.push((event as CustomEvent).detail);
@@ -39,31 +39,11 @@ describe('LogDoctor component', () => {
       assert.equal(view.getByRole('button', { name: 'Preview fixes' }).hasAttribute('disabled'), true);
       assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
 
-      // Positive destructive action event coverage.
-      window.dispatchEvent(
-        new window.CustomEvent('logDoctorDestructiveAction', {
-          detail: { action: 'apply-fixes', stage: 'opened', metadata: { selectedCount: 2 } },
-        })
-      );
-      window.dispatchEvent(
-        new window.CustomEvent('logDoctorDestructiveAction', {
-          detail: { action: 'apply-fixes', stage: 'confirmed', metadata: { selectedCount: 2 } },
-        })
-      );
+      // Keep this test behavior-focused by validating the UI does not emit destructive
+      // action events when destructive controls are disabled.
+      fireEvent.click(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }));
+      assert.equal(events.length, 0);
 
-      await waitFor(() => {
-        assert.equal(events.length, 2);
-      });
-      assert.deepEqual(events[0], {
-        action: 'apply-fixes',
-        stage: 'opened',
-        metadata: { selectedCount: 2 },
-      });
-      assert.deepEqual(events[1], {
-        action: 'apply-fixes',
-        stage: 'confirmed',
-        metadata: { selectedCount: 2 },
-      });
     } finally {
       view.unmount();
     }
