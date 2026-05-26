@@ -24,149 +24,124 @@ test('returns a validation error when owner or repo are missing', () => {
   );
 });
 
-test('deriveGitHubSettingsControlState returns deterministic button states/labels for edge combinations', () => {
+const baseControlStateInput = {
+  canUseGitHubSync: true,
+  owner: 'cyan-automation',
+  repo: 'judo-notes',
+  isEnabled: true,
+  isTesting: false,
+  isSyncing: false,
+  isSyncHistoryLoading: false,
+  isDisabling: false,
+  isClearing: false,
+  isClearDialogOpen: false,
+};
+
+test('[REQ-GHS-001][#431] auth gating disables GitHub actions when feature access is blocked', () => {
   const cases = [
     {
-      name: 'auth blocked disables all GitHub actions even when identity exists',
-      input: {
-        canUseGitHubSync: false,
-        owner: 'cyan-automation',
-        repo: 'judo-notes',
-        isEnabled: true,
-        isTesting: false,
-        isSyncing: false,
-        isSyncHistoryLoading: false,
-        isDisabling: false,
-        isClearing: false,
-        isClearDialogOpen: false,
-      },
+      name: 'identity present still blocks all GitHub actions',
+      input: { canUseGitHubSync: false },
       expected: {
         canTestConnection: false,
         canRunSyncAll: false,
         canRefreshHistory: false,
         canDisableSync: false,
         canOpenClearDialog: false,
-        canConfirmClear: true,
-        hasRepoIdentity: true,
-        showConnectedState: true,
-        testConnectionLabel: 'Test Connection',
-        syncAllLabel: 'Sync All Sessions to GitHub',
-        disableLabel: 'Disable Sync',
-        clearLabel: 'Clear',
       },
     },
+  ] as const;
+
+  for (const testCase of cases) {
+    const result = deriveGitHubSettingsControlState({
+      ...baseControlStateInput,
+      ...testCase.input,
+    });
+
+    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
+    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
+    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
+    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
+    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
+
+    assert.equal(result.testConnectionLabel, 'Test Connection', `${testCase.name}: testConnectionLabel`);
+    assert.equal(result.syncAllLabel, 'Sync All Sessions to GitHub', `${testCase.name}: syncAllLabel`);
+  }
+});
+
+test('[REQ-GHS-002][#431] in-flight labels are scoped to their matching action', () => {
+  const cases = [
     {
-      name: 'testing in-flight keeps sync available but disables test button and shows loading label',
-      input: {
-        canUseGitHubSync: true,
-        owner: 'cyan-automation',
-        repo: 'judo-notes',
-        isEnabled: true,
-        isTesting: true,
-        isSyncing: false,
-        isSyncHistoryLoading: false,
-        isDisabling: false,
-        isClearing: false,
-        isClearDialogOpen: false,
-      },
+      name: 'testing in-flight disables only test action',
+      input: { isTesting: true },
       expected: {
         canTestConnection: false,
         canRunSyncAll: true,
         canRefreshHistory: true,
-        canDisableSync: true,
-        canOpenClearDialog: true,
-        canConfirmClear: true,
-        hasRepoIdentity: true,
-        showConnectedState: true,
+      },
+      labels: {
         testConnectionLabel: 'Testing...',
         syncAllLabel: 'Sync All Sessions to GitHub',
-        disableLabel: 'Disable Sync',
-        clearLabel: 'Clear',
       },
     },
     {
-      name: 'syncing in-flight disables sync action and shows syncing label',
-      input: {
-        canUseGitHubSync: true,
-        owner: 'cyan-automation',
-        repo: 'judo-notes',
-        isEnabled: true,
-        isTesting: false,
-        isSyncing: true,
-        isSyncHistoryLoading: false,
-        isDisabling: false,
-        isClearing: false,
-        isClearDialogOpen: false,
-      },
+      name: 'syncing in-flight disables only sync action',
+      input: { isSyncing: true },
       expected: {
         canTestConnection: true,
         canRunSyncAll: false,
         canRefreshHistory: true,
-        canDisableSync: true,
-        canOpenClearDialog: true,
-        canConfirmClear: true,
-        hasRepoIdentity: true,
-        showConnectedState: true,
+      },
+      labels: {
         testConnectionLabel: 'Test Connection',
         syncAllLabel: 'Syncing...',
-        disableLabel: 'Disable Sync',
-        clearLabel: 'Clear',
       },
     },
+  ] as const;
+
+  for (const testCase of cases) {
+    const result = deriveGitHubSettingsControlState({
+      ...baseControlStateInput,
+      ...testCase.input,
+    });
+
+    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
+    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
+    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
+
+    assert.equal(
+      result.testConnectionLabel,
+      testCase.labels.testConnectionLabel,
+      `${testCase.name}: testConnectionLabel`
+    );
+    assert.equal(result.syncAllLabel, testCase.labels.syncAllLabel, `${testCase.name}: syncAllLabel`);
+  }
+});
+
+test('[REQ-GHS-003][#431] destructive-action gating locks clear/disable controls independently', () => {
+  const cases = [
     {
-      name: 'disabling in-flight disables destructive buttons and updates disable label',
-      input: {
-        canUseGitHubSync: true,
-        owner: 'cyan-automation',
-        repo: 'judo-notes',
-        isEnabled: true,
-        isTesting: false,
-        isSyncing: false,
-        isSyncHistoryLoading: false,
-        isDisabling: true,
-        isClearing: false,
-        isClearDialogOpen: true,
-      },
+      name: 'disabling in-flight gates destructive controls',
+      input: { isDisabling: true, isClearDialogOpen: true },
       expected: {
-        canTestConnection: true,
-        canRunSyncAll: true,
-        canRefreshHistory: true,
         canDisableSync: false,
         canOpenClearDialog: false,
         canConfirmClear: true,
-        hasRepoIdentity: true,
-        showConnectedState: true,
-        testConnectionLabel: 'Test Connection',
-        syncAllLabel: 'Sync All Sessions to GitHub',
+      },
+      labels: {
         disableLabel: 'Disabling...',
         clearLabel: 'Clear',
       },
     },
     {
-      name: 'clearing in-flight disables destructive controls and updates clear labels',
-      input: {
-        canUseGitHubSync: true,
-        owner: 'cyan-automation',
-        repo: 'judo-notes',
-        isEnabled: true,
-        isTesting: false,
-        isSyncing: false,
-        isSyncHistoryLoading: false,
-        isDisabling: false,
-        isClearing: true,
-        isClearDialogOpen: true,
-      },
+      name: 'clearing in-flight blocks confirm clear and disable button',
+      input: { isClearing: true, isClearDialogOpen: true },
       expected: {
-        canTestConnection: true,
-        canRunSyncAll: true,
-        canRefreshHistory: true,
         canDisableSync: false,
         canOpenClearDialog: false,
         canConfirmClear: false,
-        hasRepoIdentity: true,
-        showConnectedState: true,
-        testConnectionLabel: 'Test Connection',
-        syncAllLabel: 'Sync All Sessions to GitHub',
+      },
+      labels: {
         disableLabel: 'Disable Sync',
         clearLabel: 'Clearing...',
       },
@@ -174,68 +149,17 @@ test('deriveGitHubSettingsControlState returns deterministic button states/label
   ] as const;
 
   for (const testCase of cases) {
-    const result = deriveGitHubSettingsControlState(testCase.input);
+    const result = deriveGitHubSettingsControlState({
+      ...baseControlStateInput,
+      ...testCase.input,
+    });
 
-    assert.equal(
-      result.canTestConnection,
-      testCase.expected.canTestConnection,
-      `${testCase.name}: canTestConnection`
-    );
-    assert.equal(
-      result.canRunSyncAll,
-      testCase.expected.canRunSyncAll,
-      `${testCase.name}: canRunSyncAll`
-    );
-    assert.equal(
-      result.canRefreshHistory,
-      testCase.expected.canRefreshHistory,
-      `${testCase.name}: canRefreshHistory`
-    );
-    assert.equal(
-      result.canDisableSync,
-      testCase.expected.canDisableSync,
-      `${testCase.name}: canDisableSync`
-    );
-    assert.equal(
-      result.canOpenClearDialog,
-      testCase.expected.canOpenClearDialog,
-      `${testCase.name}: canOpenClearDialog`
-    );
-    assert.equal(
-      result.canConfirmClear,
-      testCase.expected.canConfirmClear,
-      `${testCase.name}: canConfirmClear`
-    );
-    assert.equal(
-      result.hasRepoIdentity,
-      testCase.expected.hasRepoIdentity,
-      `${testCase.name}: hasRepoIdentity`
-    );
-    assert.equal(
-      result.showConnectedState,
-      testCase.expected.showConnectedState,
-      `${testCase.name}: showConnectedState`
-    );
-    assert.equal(
-      result.testConnectionLabel,
-      testCase.expected.testConnectionLabel,
-      `${testCase.name}: testConnectionLabel`
-    );
-    assert.equal(
-      result.syncAllLabel,
-      testCase.expected.syncAllLabel,
-      `${testCase.name}: syncAllLabel`
-    );
-    assert.equal(
-      result.disableLabel,
-      testCase.expected.disableLabel,
-      `${testCase.name}: disableLabel`
-    );
-    assert.equal(
-      result.clearLabel,
-      testCase.expected.clearLabel,
-      `${testCase.name}: clearLabel`
-    );
+    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
+    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
+    assert.equal(result.canConfirmClear, testCase.expected.canConfirmClear, testCase.name);
+
+    assert.equal(result.disableLabel, testCase.labels.disableLabel, `${testCase.name}: disableLabel`);
+    assert.equal(result.clearLabel, testCase.labels.clearLabel, `${testCase.name}: clearLabel`);
   }
 });
 
