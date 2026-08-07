@@ -266,3 +266,110 @@ export function initPlugin(context: { registerPluginComponent: (id: string, rend
     );
   });
 });
+
+test('runPluginContractGate validates evidence for every required UX state', async () => {
+  await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
+    const pluginRoot = path.join(pluginsRoot, directoryName);
+    const evidenceReference =
+      'plugins/tags/src/components/tag-manager.test.tsx';
+
+    await mkdir(path.join(pluginRoot, 'src', 'components'), {
+      recursive: true,
+    });
+    await writeFile(path.join(pluginRoot, 'src', 'index.ts'), '', 'utf8');
+    await writeFile(
+      path.join(pluginRoot, 'src', 'components', 'tag-manager.tsx'),
+      'export default function TagManager() { return null; }\n',
+      'utf8'
+    );
+    await writeFile(
+      path.join(pluginRoot, 'src', 'components', 'tag-manager.test.tsx'),
+      "import test from 'node:test';\ntest('fixture', () => undefined);\n",
+      'utf8'
+    );
+    await writeFile(
+      path.join(pluginRoot, 'README.md'),
+      '# Tags Plugin\n\n## UI Ownership\n\nOwned here.\n\n## Usage\n\nUse it.\n\n## Verification\n\nTest it.\n',
+      'utf8'
+    );
+
+    const manifest = {
+      ...createManifest(),
+      uiContract: {
+        layoutVariant: 'standard',
+        requiredUxStates: ['loading', 'error', 'empty', 'destructive'],
+      },
+      maturity: {
+        evidence: {
+          uxCriteria: {
+            loadingStatePresent: [evidenceReference],
+            errorStateWithRecovery: [evidenceReference],
+            emptyStateWithCta: [evidenceReference],
+            destructiveActionSafety: [evidenceReference],
+          },
+        },
+      },
+    } satisfies PluginManifest;
+
+    const result = await runPluginContractGate({
+      pluginsRoot,
+      directoryName,
+      manifest,
+    });
+
+    assert.equal(result.isValid, true);
+    assert.deepEqual(result.issues, []);
+  });
+});
+
+test('runPluginContractGate rejects missing, malformed, and nonexistent UX evidence fixtures', async () => {
+  await withTempPlugin(async ({ pluginsRoot, directoryName }) => {
+    const manifest = {
+      ...createManifest(),
+      uiContract: {
+        layoutVariant: 'standard',
+        requiredUxStates: ['loading', 'error', 'empty'],
+      },
+      maturity: {
+        evidence: {
+          uxCriteria: {
+            errorStateWithRecovery: ['plugins/tags/src/components/panel.tsx'],
+            emptyStateWithCta: ['plugins/tags/src/components/missing.test.tsx'],
+          },
+        },
+      },
+    } as PluginManifest;
+
+    const result = await runPluginContractGate({
+      pluginsRoot,
+      directoryName,
+      manifest,
+    });
+
+    assert.equal(result.isValid, false);
+    assert.equal(
+      result.issues.some(
+        (issue) =>
+          issue.path === 'maturity.evidence.uxCriteria.loadingStatePresent'
+      ),
+      true
+    );
+    assert.equal(
+      result.issues.some(
+        (issue) =>
+          issue.path ===
+            'maturity.evidence.uxCriteria.errorStateWithRecovery[0]' &&
+          issue.message.includes('test file path')
+      ),
+      true
+    );
+    assert.equal(
+      result.issues.some(
+        (issue) =>
+          issue.path === 'maturity.evidence.uxCriteria.emptyStateWithCta[0]' &&
+          issue.message.includes('does not exist')
+      ),
+      true
+    );
+  });
+});
