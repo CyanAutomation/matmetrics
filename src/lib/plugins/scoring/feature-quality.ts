@@ -8,29 +8,11 @@
  * - Component implementation quality (inferred from organization)
  */
 
-import { access } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { PluginManifest } from '@/lib/plugins/types';
 import type { CategoryScoringResult } from './types';
-
-const pushUnique = (values: string[], value: string): void => {
-  if (!values.includes(value)) {
-    values.push(value);
-  }
-};
-
-const fileExists = async (targetPath: string): Promise<boolean> => {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const componentIdToComponentBasename = (componentId: string): string =>
-  componentId.trim().toLowerCase().replace(/_/g, '-');
+import { pushUnique, fileExists, componentIdToComponentBasename } from './utils';
 
 const toComponentFileName = (componentId: string): string =>
   `${componentIdToComponentBasename(componentId)}.tsx`;

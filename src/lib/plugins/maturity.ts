@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import type {
@@ -17,6 +17,9 @@ import {
   scoreTestCoverage,
   scoreOperabilityDocs,
   determineTier,
+  pushUnique,
+  fileExists,
+  componentIdToComponentBasename,
 } from '@/lib/plugins/scoring';
 
 type ScorePluginMaturityOptions = {
@@ -47,9 +50,6 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
   operability_docs: 15,
 };
 
-const componentIdToComponentBasename = (componentId: string): string =>
-  componentId.trim().toLowerCase().replace(/_/g, '-');
-
 const pluginComponentRegistrationPattern =
   /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
 
@@ -68,23 +68,8 @@ const extractRegisteredPluginComponents = (entryContents: string): string[] => {
   return [...componentIds];
 };
 
-const fileExists = async (targetPath: string): Promise<boolean> => {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const clampScore = (score: number, max: number): number =>
   Math.max(0, Math.min(max, score));
-
-const pushUnique = (values: string[], value: string): void => {
-  if (!values.includes(value)) {
-    values.push(value);
-  }
-};
 
 const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
   path.relative(repoRoot, filePath).split(path.sep).join('/');
@@ -162,17 +147,23 @@ const uxCriterionLabels: Record<FeatureUxCriterion, string> = {
 const assertionAnchorPattern =
   /\b(expect\s*\(|assert\.[a-z]+|getBy[A-Z]\w*|findBy[A-Z]\w*|queryBy[A-Z]\w*)/;
 
-const fileAssertsUxState = (
+/**
+ * Generic helper to check if file content asserts patterns within a window context.
+ * Searches for patterns in 3-line windows around assertion anchors.
+ * Optionally includes broad window search for extended patterns.
+ */
+const fileAssertsPatternInWindow = (
   fileContents: string,
-  state: FeatureUxState
+  patterns: RegExp[],
+  includeBroadWindow: boolean = false
 ): boolean => {
   if (!assertionAnchorPattern.test(fileContents)) {
     return false;
   }
 
   const lines = fileContents.split('\n');
-  const patterns = uxStatePatterns[state];
 
+  // Line-by-line window search (3-line context)
   for (let index = 0; index < lines.length; index += 1) {
     const localWindow = [
       lines[index - 1] ?? '',
@@ -187,41 +178,31 @@ const fileAssertsUxState = (
     }
   }
 
-  const broadWindowPattern = /expect\s*\([\s\S]{0,180}\)/g;
-  for (const match of fileContents.matchAll(broadWindowPattern)) {
-    if (patterns.some((pattern) => pattern.test(match[0]))) {
-      return true;
+  // Broad window search (extended context within expect calls)
+  if (includeBroadWindow) {
+    const broadWindowPattern = /expect\s*\([\s\S]{0,180}\)/g;
+    for (const match of fileContents.matchAll(broadWindowPattern)) {
+      if (patterns.some((pattern) => pattern.test(match[0]))) {
+        return true;
+      }
     }
   }
 
   return false;
+};
+
+const fileAssertsUxState = (
+  fileContents: string,
+  state: FeatureUxState
+): boolean => {
+  const patterns = uxStatePatterns[state];
+  return fileAssertsPatternInWindow(fileContents, patterns, true);
 };
 
 const fileAssertsPatternWithAssertion = (
   fileContents: string,
   patterns: RegExp[]
-): boolean => {
-  if (!assertionAnchorPattern.test(fileContents)) {
-    return false;
-  }
-
-  const lines = fileContents.split('\n');
-  for (let index = 0; index < lines.length; index += 1) {
-    const localWindow = [
-      lines[index - 1] ?? '',
-      lines[index] ?? '',
-      lines[index + 1] ?? '',
-    ].join(' ');
-    if (
-      assertionAnchorPattern.test(localWindow) &&
-      patterns.some((pattern) => pattern.test(localWindow))
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-};
+): boolean => fileAssertsPatternInWindow(fileContents, patterns, false);
 
 const findFilesAssertingUxState = async (
   testFiles: string[],
