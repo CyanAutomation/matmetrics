@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "imports": {
+    "ignoredEntrypoints": [],
+    "ignoredExternal": []
+  },
+  "deadCode": {
+    "ignoredFiles": ["scripts/__fixtures__/**"],
+    "ignoredExports": [],
+    "ignoredTypes": [],
+    "ignoredClassMembers": []
+  },
+  "duplication": {
+    "minCloneLength": 6
+  },
+  "complexity": {
+    "cognitiveComplexityThreshold": 15,
+    "coreVitalsWeighting": 0.3
+  }
+}

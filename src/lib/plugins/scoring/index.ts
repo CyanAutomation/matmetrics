@@ -31,6 +31,9 @@ export { scoreTestCoverage } from './test-coverage-scoring';
 export { scoreOperabilityDocs } from './operability-docs';
 export { determineTier } from './determine-tier';
 
+// Shared utilities
+export { pushUnique, fileExists, componentIdToComponentBasename } from './utils';
+
 export type { CategoryScoringResult, TierEvaluationResult } from './types';
 export type { TestCoverageInput } from './test-coverage-scoring';
 export type { TierDeterminationInput } from './determine-tier';

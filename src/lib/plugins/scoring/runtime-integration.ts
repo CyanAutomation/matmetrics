@@ -9,26 +9,12 @@
  * - No capability/compatibility warnings
  */
 
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { PluginManifest, PluginValidationIssue } from '@/lib/plugins/types';
 import type { CategoryScoringResult } from './types';
-
-const pushUnique = (values: string[], value: string): void => {
-  if (!values.includes(value)) {
-    values.push(value);
-  }
-};
-
-const fileExists = async (targetPath: string): Promise<boolean> => {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import { pushUnique, fileExists } from './utils';
 
 const pluginComponentRegistrationPattern =
   /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
