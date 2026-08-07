@@ -15,7 +15,12 @@ export function PluginDataSurfaceFilterRow({
   className,
 }: PluginDataSurfaceFilterRowProps) {
   return (
-    <PluginFilterBar className={cn('items-end', className)}>
+    <PluginFilterBar
+      role="group"
+      aria-label="Filters"
+      data-slot="plugin-filter-row"
+      className={cn('items-end', className)}
+    >
       {children}
     </PluginFilterBar>
   );

@@ -14,19 +14,29 @@ import {
 const normalizeMarkup = (html: string): string =>
   html.replace(/\s+/g, ' ').trim();
 
-test('PluginDataSurfaceFilterRow preserves shared filter grid classes', () => {
+test('PluginDataSurfaceFilterRow exposes an accessible group and preserves associated filter controls', () => {
   const html = normalizeMarkup(
     renderToStaticMarkup(
       React.createElement(
         PluginDataSurfaceFilterRow,
         null,
-        React.createElement('div', null, 'filter field')
+        React.createElement('label', { htmlFor: 'status-filter' }, 'Status'),
+        React.createElement(
+          'select',
+          { id: 'status-filter', name: 'status' },
+          React.createElement('option', { value: 'active' }, 'Active')
+        )
       )
     )
   );
 
-  assert.match(html, /lg:grid-cols-5/);
-  assert.match(html, /filter field/);
+  assert.match(
+    html,
+    /<div[^>]*role="group"[^>]*aria-label="Filters"[^>]*data-slot="plugin-filter-row"[^>]*>/
+  );
+  assert.match(html, /<label for="status-filter">Status<\/label>/);
+  assert.match(html, /<select id="status-filter" name="status">/);
+  assert.match(html, /<option value="active">Active<\/option>/);
 });
 
 test('PluginDataSurfaceSummaryStrip shows counts and active filter chips', () => {
