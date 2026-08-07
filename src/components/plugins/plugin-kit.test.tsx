@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+// @ts-expect-error Next bundles this parser without publishing type declarations.
+import { parse } from 'next/dist/compiled/node-html-parser';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -85,21 +87,44 @@ test('PluginSectionCard renders header and content regions', () => {
   assert.match(html, /content block/);
 });
 
-test('PluginToolbar applies responsive toolbar layout classes', () => {
-  const html = normalizeMarkup(
+test('PluginToolbar renders named actions in their semantic regions', () => {
+  const document = parse(
     renderToStaticMarkup(
-      React.createElement(
-        PluginToolbar,
-        null,
-        React.createElement('span', null, 'left'),
-        React.createElement('span', null, 'right')
-      )
+      React.createElement(PluginToolbar, {
+        leadingActions: React.createElement('button', null, 'Filter results'),
+        trailingActions: React.createElement(
+          'button',
+          { disabled: true },
+          'Save changes'
+        ),
+      })
     )
   );
 
-  assert.match(html, /sm:flex-row/);
-  assert.match(html, /left/);
-  assert.match(html, /right/);
+  const leading = document.querySelector(
+    '[data-slot="plugin-toolbar-leading-actions"]'
+  );
+  const trailing = document.querySelector(
+    '[data-slot="plugin-toolbar-trailing-actions"]'
+  );
+
+  assert.equal(leading?.getAttribute('role'), 'group');
+  assert.equal(leading?.getAttribute('aria-label'), 'Leading toolbar actions');
+  assert.equal(leading?.querySelector('button')?.textContent, 'Filter results');
+  assert.equal(
+    leading?.querySelector('button')?.hasAttribute('disabled'),
+    false
+  );
+  assert.equal(trailing?.getAttribute('role'), 'group');
+  assert.equal(
+    trailing?.getAttribute('aria-label'),
+    'Trailing toolbar actions'
+  );
+  assert.equal(trailing?.querySelector('button')?.textContent, 'Save changes');
+  assert.equal(
+    trailing?.querySelector('button')?.hasAttribute('disabled'),
+    true
+  );
 });
 
 test('PluginDestructiveAction exposes safe defaults for confirmation copy', () => {
@@ -133,7 +158,7 @@ test('PluginFormSection renders footer actions within the shared toolbar', () =>
   );
 
   assert.match(html, /Shared form shell/);
-  assert.match(html, /sm:flex-row/);
+  assert.match(html, /plugin-toolbar-trailing-actions/);
   assert.match(html, /Save/);
 });
 
