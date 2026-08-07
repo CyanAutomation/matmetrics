@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getTransformerPrompt } from '@/lib/storage';
@@ -14,7 +14,10 @@ interface UseSessionFormAiState {
 }
 
 interface UseSessionFormAiActions {
-  transform: (description: string, onSuccess: (result: string) => void) => Promise<void>;
+  transform: (
+    description: string,
+    onSuccess: (result: string) => void
+  ) => Promise<void>;
   suggest: (
     description: string,
     existingTechniques: string[],
@@ -23,18 +26,36 @@ interface UseSessionFormAiActions {
   reset: () => void;
 }
 
+export interface UseSessionFormAiOptions {
+  canUseAi?: boolean;
+  authAvailable?: boolean;
+  fetch?: typeof fetch;
+  getAuthHeaders?: typeof getAuthHeaders;
+  getTransformerPrompt?: typeof getTransformerPrompt;
+}
+
 /**
  * Hook that consolidates AI-powered form enhancements
  * Handles description transformation and technique suggestions with proper AbortController support
  */
-export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActions {
+export function useSessionFormAi(
+  options: UseSessionFormAiOptions = {}
+): UseSessionFormAiState & UseSessionFormAiActions {
   const { toast } = useToast();
-  const { canUseAi, authAvailable } = useAuth();
+  const auth = useAuth();
+  const canUseAi = options.canUseAi ?? auth.canUseAi;
+  const authAvailable = options.authAvailable ?? auth.authAvailable;
+  const request = options.fetch ?? fetch;
+  const readAuthHeaders = options.getAuthHeaders ?? getAuthHeaders;
+  const readTransformerPrompt =
+    options.getTransformerPrompt ?? getTransformerPrompt;
 
   const [isLoadingTransform, setIsLoadingTransform] = useState(false);
   const [isLoadingSuggest, setIsLoadingSuggest] = useState(false);
   const [suggestedTechniques, setSuggestedTechniques] = useState<string[]>([]);
-  const [transformedDescription, setTransformedDescription] = useState<string | null>(null);
+  const [transformedDescription, setTransformedDescription] = useState<
+    string | null
+  >(null);
 
   // AbortControllers for handling in-flight requests
   const transformControllerRef = useRef<AbortController | null>(null);
@@ -72,11 +93,11 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
 
       setIsLoadingTransform(true);
       try {
-        const customPrompt = getTransformerPrompt();
-        const headers = await getAuthHeaders({
+        const customPrompt = readTransformerPrompt();
+        const headers = await readAuthHeaders({
           'Content-Type': 'application/json',
         });
-        const response = await fetch('/api/ai/transform-description', {
+        const response = await request('/api/ai/transform-description', {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -90,16 +111,21 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
           throw new Error('Failed to transform description');
         }
         const result = await response.json();
+        if (controller.signal.aborted) return;
         const transformed = result.transformedDescription;
         setTransformedDescription(transformed);
         onSuccess(transformed);
         toast({
           title: 'Description Refined',
-          description: 'AI has polished your training notes based on your prompt settings.',
+          description:
+            'AI has polished your training notes based on your prompt settings.',
         });
       } catch (error) {
         // Ignore abort errors (expected when cancelling)
-        if (error instanceof Error && error.name === 'AbortError') {
+        if (
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
           return;
         }
         toast({
@@ -108,10 +134,20 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
           description: 'There was an error refining your description.',
         });
       } finally {
-        setIsLoadingTransform(false);
+        if (transformControllerRef.current === controller) {
+          transformControllerRef.current = null;
+          setIsLoadingTransform(false);
+        }
       }
     },
-    [canUseAi, authAvailable, toast]
+    [
+      canUseAi,
+      authAvailable,
+      toast,
+      readTransformerPrompt,
+      readAuthHeaders,
+      request,
+    ]
   );
 
   const suggest = useCallback(
@@ -150,10 +186,10 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
 
       setIsLoadingSuggest(true);
       try {
-        const headers = await getAuthHeaders({
+        const headers = await readAuthHeaders({
           'Content-Type': 'application/json',
         });
-        const response = await fetch('/api/ai/suggest-techniques', {
+        const response = await request('/api/ai/suggest-techniques', {
           method: 'POST',
           headers,
           body: JSON.stringify({ description }),
@@ -164,6 +200,7 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
           throw new Error('Failed to suggest techniques');
         }
         const payload = await response.json();
+        if (controller.signal.aborted) return;
         const suggestions: string[] = Array.isArray(payload.suggestions)
           ? payload.suggestions.filter(
               (suggestion: unknown): suggestion is string =>
@@ -171,7 +208,9 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
             )
           : [];
 
-        const uniqueNew = suggestions.filter((s) => !existingTechniques.includes(s));
+        const uniqueNew = suggestions.filter(
+          (s) => !existingTechniques.includes(s)
+        );
 
         if (uniqueNew.length > 0) {
           setSuggestedTechniques(uniqueNew);
@@ -190,7 +229,10 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
         }
       } catch (error) {
         // Ignore abort errors (expected when cancelling)
-        if (error instanceof Error && error.name === 'AbortError') {
+        if (
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
           return;
         }
         toast({
@@ -199,24 +241,35 @@ export function useSessionFormAi(): UseSessionFormAiState & UseSessionFormAiActi
           description: 'There was an error connecting to the AI helper.',
         });
       } finally {
-        setIsLoadingSuggest(false);
+        if (suggestControllerRef.current === controller) {
+          suggestControllerRef.current = null;
+          setIsLoadingSuggest(false);
+        }
       }
     },
-    [canUseAi, authAvailable, toast]
+    [canUseAi, authAvailable, toast, readAuthHeaders, request]
   );
 
   const reset = useCallback(() => {
-    if (transformControllerRef.current) {
-      transformControllerRef.current.abort();
-    }
-    if (suggestControllerRef.current) {
-      suggestControllerRef.current.abort();
-    }
+    const transformController = transformControllerRef.current;
+    const suggestController = suggestControllerRef.current;
+    transformControllerRef.current = null;
+    suggestControllerRef.current = null;
+    transformController?.abort();
+    suggestController?.abort();
     setIsLoadingTransform(false);
     setIsLoadingSuggest(false);
     setSuggestedTechniques([]);
     setTransformedDescription(null);
   }, []);
+
+  useEffect(
+    () => () => {
+      transformControllerRef.current?.abort();
+      suggestControllerRef.current?.abort();
+    },
+    []
+  );
 
   return {
     isLoadingTransform,
