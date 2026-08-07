@@ -1,8 +1,8 @@
 import { PluginErrorState } from '@/components/plugins/plugin-state';
-import { helperA } from './helper-a';
+import { checkFunctionType } from './shared';
 
 export const helperB = () => {
-  if (typeof helperA === 'function') {
+  if (checkFunctionType(helperB)) {
     return PluginErrorState({ message: 'boom' });
   }
   return null;
