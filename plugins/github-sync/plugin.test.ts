@@ -41,7 +41,10 @@ test('github-sync is discovered and mapped to its dashboard settings tab', async
 
 test('github-sync invalid extension configuration fails generic validation', () => {
   const invalidManifest = structuredClone(githubSyncManifest);
-  invalidManifest.uiExtensions[0]!.config.component = '';
+  if (!invalidManifest.uiExtensions[0]) {
+    throw new Error('Test setup failed: uiExtensions[0] not found');
+  }
+  invalidManifest.uiExtensions[0].config.component = '';
 
   const validation = validatePluginManifest(invalidManifest);
 
