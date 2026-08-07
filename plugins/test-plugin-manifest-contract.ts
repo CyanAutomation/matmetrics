@@ -53,7 +53,9 @@ const getEvidenceContractDiagnostics = async (
   const referencedPaths = new Set(evidence?.testFiles ?? []);
 
   for (const state of manifest.uiContract?.requiredUxStates ?? []) {
+  for (const state of manifest.uiContract?.requiredUxStates ?? []) {
     const criterion = UX_STATE_EVIDENCE_CRITERIA[state];
+    if (!criterion) continue;
     const criterionPath = `maturity.evidence.uxCriteria.${criterion}`;
     const criterionEvidence = evidence?.uxCriteria?.[criterion];
 
