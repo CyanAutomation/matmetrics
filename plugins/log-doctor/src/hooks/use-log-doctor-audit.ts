@@ -58,8 +58,11 @@ interface UseLogDoctorAuditActions {
 export function useLogDoctorAudit(): UseLogDoctorAuditState &
   UseLogDoctorAuditActions {
   const { user } = useAuth();
-  const { feedbackState: auditFeedbackState, startLoading, showSuccess } =
-    useActionFeedback();
+  const {
+    feedbackState: auditFeedbackState,
+    startLoading,
+    showSuccess,
+  } = useActionFeedback();
   const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
     'validation'
   );
@@ -98,10 +101,7 @@ export function useLogDoctorAudit(): UseLogDoctorAuditState &
 
   const handleRunAudit = useCallback((): void => {
     startLoading();
-    const rawResults = runAuditRulesForAllSessions(
-      getSessions(),
-      auditConfig
-    );
+    const rawResults = runAuditRulesForAllSessions(getSessions(), auditConfig);
     const merged: AuditSessionResult[] = rawResults.map((result) => {
       const persisted = getSessionAudit(result.sessionId);
       return {
@@ -130,7 +130,7 @@ export function useLogDoctorAudit(): UseLogDoctorAuditState &
     setAuditRanAt(runResult.ranAt);
     setAuditStep('review-findings');
     showSuccess();
-  }, [auditConfig, setAuditResults, showSuccess, startLoading, user?.uid]);
+  }, [auditConfig, setAuditResults, showSuccess, startLoading, user]);
 
   const handleReviewSession = useCallback((sessionId: string): void => {
     setAuditStep('resolve-findings');
@@ -148,7 +148,7 @@ export function useLogDoctorAudit(): UseLogDoctorAuditState &
       setAuditMode(mode);
       setAuditConfig(newConfig);
     },
-    [user?.uid]
+    [user]
   );
 
   const auditNeedsAttentionCount = auditResults.filter(

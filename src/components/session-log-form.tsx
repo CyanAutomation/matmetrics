@@ -24,11 +24,7 @@ import {
   Wand2,
   PlusCircle,
 } from 'lucide-react';
-import {
-  EFFORT_LABELS,
-  EFFORT_COLORS,
-  JudoSession,
-} from '@/lib/types';
+import { EFFORT_LABELS, EFFORT_COLORS, JudoSession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -40,6 +36,11 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/components/auth-provider';
 import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
+import {
+  addTechnique,
+  mergeSuggestedTechniques,
+  removeTechnique,
+} from '@/lib/session-form-actions';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { useSessionFormAi } from '@/hooks/use-session-form-ai';
 import {
@@ -122,8 +123,12 @@ export function SessionLogForm({
   const handleAddTech = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
-      if (formState.newTech.trim() && !formState.techniques.includes(formState.newTech.trim())) {
-        formState.setTechniques([...formState.techniques, formState.newTech.trim()]);
+      const nextTechniques = addTechnique(
+        formState.techniques,
+        formState.newTech
+      );
+      if (nextTechniques !== formState.techniques) {
+        formState.setTechniques(nextTechniques);
         formState.setNewTech('');
       }
     },
@@ -137,13 +142,15 @@ export function SessionLogForm({
   }, [aiForm, formState]);
 
   const handleSuggest = useCallback(async () => {
-    await aiForm.suggest(formState.description, formState.techniques, (suggestions) => {
-      formState.setTechniques((previousTechniques) => {
-        const merged = new Set(previousTechniques);
-        suggestions.forEach((technique) => merged.add(technique));
-        return Array.from(merged);
-      });
-    });
+    await aiForm.suggest(
+      formState.description,
+      formState.techniques,
+      (suggestions) => {
+        formState.setTechniques((previousTechniques) =>
+          mergeSuggestedTechniques(previousTechniques, suggestions)
+        );
+      }
+    );
   }, [aiForm, formState]);
 
   const handleSubmit = useCallback(
@@ -156,7 +163,7 @@ export function SessionLogForm({
 
   const handleRemoveTech = useCallback(
     (tech: string) => {
-      formState.setTechniques((prev) => prev.filter((t) => t !== tech));
+      formState.setTechniques((prev) => removeTechnique(prev, tech));
     },
     [formState]
   );
@@ -341,11 +348,12 @@ export function SessionLogForm({
                 size="sm"
                 onClick={handleTransform}
                 interaction="subtle"
-                feedbackState={
-                  aiForm.isLoadingTransform ? 'loading' : 'idle'
-                }
+                feedbackState={aiForm.isLoadingTransform ? 'loading' : 'idle'}
                 disabled={
-                  !canUseAi || aiForm.isLoadingTransform || isSubmitting || !formState.description
+                  !canUseAi ||
+                  aiForm.isLoadingTransform ||
+                  isSubmitting ||
+                  !formState.description
                 }
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
               >
@@ -405,11 +413,12 @@ export function SessionLogForm({
                   variant="ghost"
                   size="sm"
                   onClick={handleSuggest}
-                  feedbackState={
-                    aiForm.isLoadingSuggest ? 'loading' : 'idle'
-                  }
+                  feedbackState={aiForm.isLoadingSuggest ? 'loading' : 'idle'}
                   disabled={
-                    !canUseAi || aiForm.isLoadingSuggest || isSubmitting || !formState.description
+                    !canUseAi ||
+                    aiForm.isLoadingSuggest ||
+                    isSubmitting ||
+                    !formState.description
                   }
                   className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
                 >

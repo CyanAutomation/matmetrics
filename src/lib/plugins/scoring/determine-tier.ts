@@ -12,14 +12,16 @@
  * All inputs must be pre-computed.
  */
 
-import type { PluginMaturityCategory, PluginMaturityTier } from '@/lib/plugins/types';
+import type {
+  PluginMaturityCategory,
+  PluginMaturityTier,
+} from '@/lib/plugins/types';
 import type { TierEvaluationResult } from './types';
-
-const pushUnique = (values: string[], value: string): void => {
-  if (!values.includes(value)) {
-    values.push(value);
-  }
-};
+import {
+  addUnique,
+  determineBaseTier,
+  meetsGoldCategoryThresholds,
+} from './tier-rules';
 
 export interface TierDeterminationInput {
   /** Total score across all categories */
@@ -86,7 +88,14 @@ export function determineTier(
   const hasGoldFeatureQuality = categoryScores.feature_quality >= 20;
 
   // Start with Bronze tier (always achievable if manifest parses)
-  let tier: PluginMaturityTier = 'bronze';
+  let tier: PluginMaturityTier = determineBaseTier(
+    totalScore,
+    hasAnyTestEvidence,
+    hasReadme
+  );
+  if (hasValidationErrors || hasBlockingWarnings) {
+    tier = 'bronze';
+  }
 
   // Determine Silver tier
   if (
@@ -111,6 +120,7 @@ export function determineTier(
     hasGoldRuntimeIntegration &&
     hasGoldFeatureQuality &&
     hasGoldOperabilityDocs &&
+    meetsGoldCategoryThresholds(categoryScores) &&
     hasGoldSupportDocs &&
     isExplicitGoldReview
   ) {
@@ -140,20 +150,16 @@ export function determineTier(
 
   if (totalScore >= 85 && !isExplicitGoldReview) {
     if (tier !== 'gold') {
-      pushUnique(
+      addUnique(
         nextActions,
         'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
       );
     }
   }
 
-  if (
-    totalScore >= 85 &&
-    isExplicitGoldReview &&
-    !hasExplicitTestEvidence
-  ) {
+  if (totalScore >= 85 && isExplicitGoldReview && !hasExplicitTestEvidence) {
     if (tier !== 'gold') {
-      pushUnique(
+      addUnique(
         nextActions,
         'Gold requires explicit test evidence declared in manifest maturity metadata.'
       );
@@ -166,7 +172,7 @@ export function determineTier(
     !allRelevantUxCriteriaExplicitlyVerified
   ) {
     if (tier !== 'gold') {
-      pushUnique(
+      addUnique(
         nextActions,
         'Gold requires explicit verification of all relevant UX criteria in manifest maturity metadata.'
       );
@@ -176,28 +182,28 @@ export function determineTier(
   // Additional context for Silver tier improvements
   if (tier === 'silver') {
     if (!hasGoldRuntimeIntegration) {
-      pushUnique(
+      addUnique(
         nextActions,
         'Improve runtime integration scoring (target: 18/20) for Gold tier.'
       );
     }
 
     if (!hasGoldFeatureQuality) {
-      pushUnique(
+      addUnique(
         nextActions,
         'Improve feature quality scoring (target: 20/25) for Gold tier.'
       );
     }
 
     if (!hasGoldOperabilityDocs) {
-      pushUnique(
+      addUnique(
         nextActions,
         'Improve documentation (target: 12/15 ops docs) for Gold tier.'
       );
     }
 
     if (!hasGoldSupportDocs) {
-      pushUnique(
+      addUnique(
         nextActions,
         'Add troubleshooting or known limitations section to README for Gold tier.'
       );
