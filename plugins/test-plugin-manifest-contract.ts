@@ -11,6 +11,7 @@ import { validatePluginManifest } from '@/lib/plugins/validate';
 import type {
   DashboardTabExtension,
   PluginManifest,
+  PluginUIContractState,
 } from '@/lib/plugins/types';
 
 type PluginManifestContractParams = {
@@ -31,7 +32,14 @@ type PluginManifestContractParams = {
  *   must follow the stable tab naming contract.
  */
 const REQUIRED_UX_STATES = ['loading', 'error', 'empty'] as const;
-const UX_STATE_EVIDENCE_CRITERIA = {
+const UX_STATE_EVIDENCE_CRITERIA: Record<
+  PluginUIContractState,
+  keyof NonNullable<
+    NonNullable<
+      NonNullable<PluginManifest['maturity']>['evidence']
+    >['uxCriteria']
+  >
+> = {
   loading: 'loadingStatePresent',
   error: 'errorStateWithRecovery',
   empty: 'emptyStateWithCta',
@@ -52,7 +60,6 @@ const getEvidenceContractDiagnostics = async (
   const evidence = manifest.maturity?.evidence;
   const referencedPaths = new Set(evidence?.testFiles ?? []);
 
-  for (const state of manifest.uiContract?.requiredUxStates ?? []) {
   for (const state of manifest.uiContract?.requiredUxStates ?? []) {
     const criterion = UX_STATE_EVIDENCE_CRITERIA[state];
     if (!criterion) continue;
@@ -284,6 +291,33 @@ export const testPluginManifestContract = ({
       [],
       `${reqPrefix}[${pluginId}] maturity evidence contract failed: ${diagnostics.join('; ')}`
     );
+
+    if (
+      validation.manifest.uiContract?.requiredUxStates.includes('destructive')
+    ) {
+      const missingDestructiveEvidence = structuredClone(validation.manifest);
+      missingDestructiveEvidence.maturity = {
+        ...missingDestructiveEvidence.maturity,
+        evidence: {
+          ...missingDestructiveEvidence.maturity?.evidence,
+          uxCriteria: {
+            ...missingDestructiveEvidence.maturity?.evidence?.uxCriteria,
+            destructiveActionSafety: [],
+          },
+        },
+      };
+
+      const destructiveDiagnostics = await getEvidenceContractDiagnostics(
+        missingDestructiveEvidence,
+        process.cwd()
+      );
+      assert.ok(
+        destructiveDiagnostics.includes(
+          'maturity.evidence.uxCriteria.destructiveActionSafety must contain evidence for required UX state "destructive"'
+        ),
+        `${reqPrefix}[${pluginId}] destructive UX states must require destructive-action safety evidence`
+      );
+    }
 
     const firstRequiredState =
       validation.manifest.uiContract?.requiredUxStates[0];
