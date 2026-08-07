@@ -232,6 +232,14 @@ export const runPluginContractGate = async ({
     const repoRoot = path.dirname(pluginsRoot);
     for (const requiredState of manifest.uiContract?.requiredUxStates ?? []) {
       const criterion = UX_STATE_EVIDENCE_CRITERIA[requiredState];
+      if (!criterion) {
+        issues.push({
+          severity: 'error',
+          path: 'uiContract.requiredUxStates',
+          message: `Unknown UX state "${requiredState}". Supported states: loading, error, empty, destructive.`,
+        });
+        continue;
+      }
       const evidencePath = `maturity.evidence.uxCriteria.${criterion}`;
       const evidence = manifest.maturity?.evidence?.uxCriteria?.[criterion];
 
