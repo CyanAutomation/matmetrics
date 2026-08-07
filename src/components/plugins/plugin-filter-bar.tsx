@@ -1,16 +1,18 @@
-import type { ReactNode } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { cn } from '@/lib/utils';
 
-type PluginFilterBarProps = {
-  children: ReactNode;
-  className?: string;
-};
+type PluginFilterBarProps = ComponentPropsWithoutRef<'div'>;
 
-export function PluginFilterBar({ children, className }: PluginFilterBarProps) {
+export function PluginFilterBar({
+  children,
+  className,
+  ...props
+}: PluginFilterBarProps) {
   return (
     <div
+      {...props}
       className={cn(
         getPluginUiTokenClassNames('layout.filter-bar'),
         'lg:grid-cols-5',
