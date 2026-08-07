@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { createRequire } from 'node:module';
+import test, { afterEach, mock } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -10,6 +11,25 @@ import {
   PluginDataSurfaceSummaryStrip,
   PluginEmptyFilteredResults,
 } from '@/components/plugins/plugin-data-surface';
+
+const require = createRequire(import.meta.url);
+const { JSDOM } = require('jsdom');
+
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost',
+});
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  HTMLElement: dom.window.HTMLElement,
+  IS_REACT_ACT_ENVIRONMENT: true,
+});
+
+const { cleanup, fireEvent, render, screen } =
+  require('@testing-library/react') as typeof import('@testing-library/react');
+
+afterEach(cleanup);
 
 const normalizeMarkup = (html: string): string =>
   html.replace(/\s+/g, ' ').trim();
@@ -71,20 +91,23 @@ test('PluginDataSurfaceSummaryStrip shows no-active-filters helper copy', () => 
 });
 
 test('PluginEmptyFilteredResults renders a clear-search CTA', () => {
-  const html = normalizeMarkup(
-    renderToStaticMarkup(
-      React.createElement(PluginEmptyFilteredResults, {
-        title: 'No filtered rows',
-        description: 'Try broadening filters.',
-        clearLabel: 'Clear filters',
-        onClear: () => {},
-      })
-    )
+  const onClear = mock.fn();
+
+  render(
+    React.createElement(PluginEmptyFilteredResults, {
+      title: 'No filtered rows',
+      description: 'Try broadening filters.',
+      clearLabel: 'Clear filters',
+      onClear,
+    })
   );
 
-  assert.match(html, /No filtered rows/);
-  assert.match(html, /Clear filters/);
-  assert.match(html, /border-dashed/);
+  assert.ok(screen.getByText('No filtered rows'));
+  assert.ok(screen.getByText('Try broadening filters.'));
+
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+  assert.equal(onClear.mock.callCount(), 1);
 });
 
 test('PluginDataSurfaceSplit renders list and detail columns', () => {
