@@ -8,6 +8,9 @@ import {
   deriveVideoLibraryEmptyState,
   getVideoLibraryReviewAlertDescription,
   sortVideoLibraryRows,
+  getEntryStatusLabel,
+  getStatusVariant,
+  getFilteredHostnameOptions,
   VIDEO_LIBRARY_EMPTY_ADVANCED_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ADD_CTA_LABEL,
   VIDEO_LIBRARY_EMPTY_ALL_CTA_LABEL,
@@ -334,4 +337,105 @@ test('lounge sorting supports newest, oldest, recently checked, and provider mod
     sortVideoLibraryRows(rows, 'provider').map((row) => row.entry.hostname),
     ['vimeo.com', 'youtube.com']
   );
+});
+
+test('entry status labels reflect all status filter types with readable descriptions', () => {
+  assert.equal(getEntryStatusLabel('all'), 'All statuses');
+  assert.equal(getEntryStatusLabel('missing'), 'No linked video');
+  assert.equal(getEntryStatusLabel('allowed_unchecked'), 'Allowed');
+  assert.equal(
+    getEntryStatusLabel('disallowed_domain'),
+    'Provider not yet trusted'
+  );
+  assert.equal(getEntryStatusLabel('invalid_url'), 'Invalid URL');
+  assert.equal(getEntryStatusLabel('reachable'), 'Reachable');
+  assert.equal(getEntryStatusLabel('broken'), 'Broken');
+  assert.equal(getEntryStatusLabel('check_failed'), "Couldn't verify link");
+});
+
+test('status variants map critical states to destructive styling', () => {
+  assert.equal(getStatusVariant('broken'), 'destructive');
+  assert.equal(getStatusVariant('invalid_url'), 'destructive');
+  assert.equal(getStatusVariant('disallowed_domain'), 'destructive');
+  assert.equal(getStatusVariant('reachable'), 'secondary');
+  assert.equal(getStatusVariant('allowed_unchecked'), 'outline');
+  assert.equal(getStatusVariant('check_failed'), 'outline');
+  assert.equal(getStatusVariant('all'), 'outline');
+});
+
+test('filtered hostname options deduplicate and sort hostnames from rows', () => {
+  const rows = [
+    makeRow({
+      entry: {
+        session: makeSession('a'),
+        status: 'allowed_unchecked',
+        url: 'https://youtube.com/watch?v=1',
+        hostname: 'youtube.com',
+      },
+    }),
+    makeRow({
+      entry: {
+        session: makeSession('b'),
+        status: 'allowed_unchecked',
+        url: 'https://vimeo.com/456',
+        hostname: 'vimeo.com',
+      },
+    }),
+    makeRow({
+      entry: {
+        session: makeSession('c'),
+        status: 'allowed_unchecked',
+        url: 'https://youtube.com/watch?v=2',
+        hostname: 'youtube.com',
+      },
+    }),
+    makeRow({
+      entry: {
+        session: makeSession('d'),
+        status: 'missing',
+      },
+    }),
+  ];
+
+  const hostnames = getFilteredHostnameOptions(rows);
+
+  assert.deepEqual(hostnames, ['vimeo.com', 'youtube.com']);
+});
+
+test('filtered hostname options handles entries with missing hostname gracefully', () => {
+  const rows = [
+    makeRow({
+      entry: {
+        session: makeSession('a'),
+        status: 'allowed_unchecked',
+        url: 'https://youtube.com/watch?v=1',
+        hostname: 'youtube.com',
+      },
+    }),
+    makeRow({
+      entry: {
+        session: makeSession('b'),
+        status: 'missing',
+        url: undefined,
+      },
+    }),
+    makeRow({
+      entry: {
+        session: makeSession('c'),
+        status: 'broken',
+        url: 'https://vimeo.com/invalid',
+        hostname: 'vimeo.com',
+      },
+      latestCheck: {
+        url: 'https://vimeo.com/invalid',
+        hostname: 'vimeo.com',
+        checkedAt: '2026-03-20T10:00:00.000Z',
+        status: 'broken',
+      },
+    }),
+  ];
+
+  const hostnames = getFilteredHostnameOptions(rows);
+
+  assert.deepEqual(hostnames, ['vimeo.com', 'youtube.com']);
 });
