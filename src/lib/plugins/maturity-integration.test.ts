@@ -32,15 +32,6 @@ const scoreFixture = async ({
   const validation = validatePluginManifest(manifest);
   assert.equal(validation.isValid, true);
 
-  if (!validation.isValid) {
-    return scorePluginMaturity({
-      manifest: { id: '', name: '', version: '', description: '' } as any,
-      validationIssues: validation.issues,
-      pluginDirectoryName,
-      pluginsRoot,
-    });
-  }
-
   return scorePluginMaturity({
     manifest: validation.manifest,
     validationIssues: [...validation.issues, ...extraValidationIssues],

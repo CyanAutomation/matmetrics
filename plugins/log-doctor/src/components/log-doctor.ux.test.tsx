@@ -50,7 +50,7 @@ test('audit summary action: audit ran with no issues → shows "Run check again"
   const onReviewFindings = () => {};
 
   const action = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 0,
     auditStep: 'review-findings',
     auditFeedbackState: 'idle',
@@ -71,7 +71,7 @@ test('audit summary action: audit found issues → shows "Review findings" actio
   const onReviewFindings = () => {};
 
   const action = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 3,
     auditStep: 'review-findings',
     auditFeedbackState: 'idle',
@@ -93,7 +93,7 @@ test('audit summary action: in resolve mode with first session needing attention
   const firstSession = { sessionId: 'session-123' };
 
   const action = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 5,
     auditStep: 'resolve-findings',
     auditFeedbackState: 'idle',
@@ -113,7 +113,7 @@ test('audit summary action: in resolve mode with first session needing attention
   };
 
   const actionWithCapture = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 5,
     auditStep: 'resolve-findings',
     auditFeedbackState: 'idle',
@@ -133,7 +133,7 @@ test('audit summary action: in resolve mode with issues but no first session →
   const onReviewFindings = () => {};
 
   const action = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 2,
     auditStep: 'resolve-findings',
     auditFeedbackState: 'idle',
@@ -154,7 +154,7 @@ test('audit summary action: loading state overrides other conditions → disable
   const onReviewFindings = () => {};
 
   const action = createAuditSummaryAction({
-    auditRanAt: Date.now(),
+    auditRanAt: new Date().toISOString(),
     auditNeedsAttentionCount: 0,
     auditStep: 'review-findings',
     auditFeedbackState: 'loading',

@@ -422,7 +422,7 @@ test('filtered hostname options handles entries with missing hostname gracefully
     makeRow({
       entry: {
         session: makeSession('c'),
-        status: 'broken',
+        status: 'disallowed_domain',
         url: 'https://vimeo.com/invalid',
         hostname: 'vimeo.com',
       },
