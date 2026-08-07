@@ -3,6 +3,9 @@ export const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
   'ui-tone-inline-success',
   'ui-tone-warning-soft',
   'ui-tone-success-soft',
+  'ui-pill-error',
+  'ui-pill-warning',
+  'ui-pill-info',
 ] as const;
 
 export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {

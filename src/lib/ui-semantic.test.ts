@@ -2,17 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  pluginSeverityToneClass,
   pluginTierToneClass,
   resolveDashboardCategoryBarClass,
+  resolvePluginSeverityToneClass,
 } from '@/lib/ui-semantic';
 
-test('plugin severity tones map to semantic utility classes', () => {
-  assert.deepEqual(pluginSeverityToneClass, {
-    error: 'ui-pill-error',
-    warning: 'ui-pill-warning',
-    info: 'ui-pill-info',
-  });
+test('plugin severity resolver covers every supported semantic tone', () => {
+  assert.equal(resolvePluginSeverityToneClass('error'), 'ui-pill-error');
+  assert.equal(resolvePluginSeverityToneClass('warning'), 'ui-pill-warning');
+  assert.equal(resolvePluginSeverityToneClass('info'), 'ui-pill-info');
+});
+
+test('plugin severity resolver rejects unknown severities', () => {
+  assert.throws(
+    () => resolvePluginSeverityToneClass('critical'),
+    /Unsupported plugin severity: critical/
+  );
+  assert.throws(() => resolvePluginSeverityToneClass('toString'));
 });
 
 test('plugin maturity tiers map to semantic trend classes', () => {

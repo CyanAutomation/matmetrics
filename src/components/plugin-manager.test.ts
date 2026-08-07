@@ -258,7 +258,10 @@ test('isActiveRefreshRequest only applies responses for the latest mounted refre
 
 test('isActiveRefreshRequest prevents out-of-order completion from regressing current UI state', () => {
   const latestRequestId = 2;
-  const uiState: { fetchState: 'loading' | 'success'; lastUpdatedAt: Date | null } = {
+  const uiState: {
+    fetchState: 'loading' | 'success';
+    lastUpdatedAt: Date | null;
+  } = {
     fetchState: 'loading',
     lastUpdatedAt: null,
   };
@@ -290,7 +293,7 @@ test('isActiveRefreshRequest prevents out-of-order completion from regressing cu
   );
 });
 
-test('installed table uses semantic tone utility classes for maturity and severity badges', () => {
+test('installed table exposes every validation severity on rendered badges', () => {
   const tableMarkup = renderInstalledContentMarkup({
     installedPluginsViewState: 'table',
     installedPlugins: [
@@ -309,9 +312,31 @@ test('installed table uses semantic tone utility classes for maturity and severi
           nextActions: [],
         } as any,
       }),
+      createInstalledPluginRow({
+        id: 'warning-plugin',
+        issues: [
+          {
+            severity: 'warning',
+            path: 'contractGate.documentation',
+            message: 'Documentation is incomplete',
+          },
+        ],
+      }),
+      createInstalledPluginRow({
+        id: 'info-plugin',
+        issues: [
+          {
+            severity: 'info',
+            path: 'contractGate.metadata',
+            message: 'Optional metadata is available',
+          },
+        ],
+      }),
     ],
   });
 
   assert.match(tableMarkup, /ui-pill-trend-positive/);
-  assert.match(tableMarkup, /ui-pill-warning/);
+  for (const severity of ['error', 'warning', 'info']) {
+    assert.match(tableMarkup, new RegExp(`data-severity="${severity}"`));
+  }
 });

@@ -10,6 +10,14 @@ export const pluginSeverityToneClass: Record<PluginValidationSeverity, string> =
     info: 'ui-pill-info',
   };
 
+export function resolvePluginSeverityToneClass(severity: string): string {
+  if (!Object.hasOwn(pluginSeverityToneClass, severity)) {
+    throw new RangeError(`Unsupported plugin severity: ${severity}`);
+  }
+
+  return pluginSeverityToneClass[severity as PluginValidationSeverity];
+}
+
 export const pluginTierToneClass: Record<PluginMaturityTier, string> = {
   bronze: 'ui-pill-warning',
   silver: 'ui-pill-trend-neutral',
