@@ -41,6 +41,7 @@ import { AuditResults } from './log-doctor-audit-results';
 import { AuditReviewDialog } from './log-doctor-review-dialog';
 import { AuditSettings } from './log-doctor-audit-settings';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
+import { LogDoctorRepositoryTarget } from './log-doctor-repository-target';
 export {
   createAuditSummaryAction,
   type AuditSummaryAction,
@@ -417,35 +418,14 @@ export const LogDoctor = (): React.ReactElement => {
           {/* File Validation Tab */}
           {activeTab === 'validation' ? (
             <>
-              <PluginSectionCard
-                title={<span className="text-base">Repository target</span>}
-                contentClassName="grid gap-3 md:grid-cols-3"
-              >
-                <div className="space-y-1">
-                  <Label htmlFor="log-doctor-owner">Owner</Label>
-                  <Input
-                    id="log-doctor-owner"
-                    value={owner}
-                    onChange={(event) => setOwner(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="log-doctor-repo">Repository</Label>
-                  <Input
-                    id="log-doctor-repo"
-                    value={repo}
-                    onChange={(event) => setRepo(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="log-doctor-branch">Branch (optional)</Label>
-                  <Input
-                    id="log-doctor-branch"
-                    value={branch}
-                    onChange={(event) => setBranch(event.target.value)}
-                  />
-                </div>
-              </PluginSectionCard>
+              <LogDoctorRepositoryTarget
+                owner={owner}
+                repo={repo}
+                branch={branch}
+                onOwnerChange={setOwner}
+                onRepoChange={setRepo}
+                onBranchChange={setBranch}
+              />
 
               <PluginActionRow>
                 <PluginBulkActions
