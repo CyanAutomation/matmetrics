@@ -491,12 +491,12 @@ export const scorePluginMaturity = async ({
     ? extractRegisteredPluginComponents(await readFile(pluginEntryPath, 'utf8'))
     : [];
 
-  // Call all 5 category scorers in parallel
+  // Call the independent filesystem/manifest scorers in parallel. Test
+  // coverage is intentionally evaluated below after evidence discovery.
   const [
     contractMetadataResult,
     runtimeIntegrationResult,
     featureQualityResult,
-    _, // testCoverageResult placeholder; computed below
     operabilityDocsResult,
   ] = await Promise.all([
     scoreContractMetadata(manifest),
@@ -513,8 +513,6 @@ export const scorePluginMaturity = async ({
       pluginsRoot,
       registeredPluginComponents
     ),
-    // Note: testCoverageResult is computed below after test evidence discovery
-    Promise.resolve({ score: 0, evidence: [], reasons: [], nextActions: [], blockers: [] }),
     scoreOperabilityDocs(manifest, pluginDirectoryName, pluginsRoot),
   ]);
 
@@ -935,19 +933,33 @@ export const scorePluginMaturity = async ({
     pushUnique(reasons, item);
   }
 
-  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('runtime integration'))) {
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !tierResult.nextActions.some((action) =>
+      action.includes('runtime integration')
+    )
+  ) {
     pushUnique(
       reasons,
       'Gold requires a higher runtime integration floor than Silver.'
     );
   }
-  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('feature quality'))) {
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !tierResult.nextActions.some((action) => action.includes('feature quality'))
+  ) {
     pushUnique(
       reasons,
       'Gold requires a higher feature quality floor than Silver.'
     );
   }
-  if (totalScore >= 85 && isExplicitGoldReview && !tierResult.nextActions.some(action => action.includes('operability'))) {
+  if (
+    totalScore >= 85 &&
+    isExplicitGoldReview &&
+    !tierResult.nextActions.some((action) => action.includes('operability'))
+  ) {
     pushUnique(
       reasons,
       'Gold requires stronger operability documentation than Silver.'
