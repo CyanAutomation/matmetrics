@@ -25,8 +25,7 @@
     },
     "evidence": {
       "testFiles": [
-        "plugins/test-plugin-registration-contract.ts",
-        "plugins/test-plugin-manifest-contract.ts",
+        "plugins/plugin-contract-matrix.test.ts",
         "src/lib/video-library.test.ts",
         "src/tests/api-video-library-check-links-route.test.ts",
         "plugins/video-library/src/components/video-library.ux.test.tsx",
