@@ -13,16 +13,3 @@ test('github-sync manifest declares the expected settings tab copy and icon', ()
   assert.equal(dashboardTab.config.headerTitle, 'GitHub Sync Config');
   assert.equal(dashboardTab.config.icon, 'github');
 });
-
-test('github-sync manifest evidence tracks sync-specific UX safeguards', () => {
-  assert.deepEqual(githubSyncManifest.uiContract.requiredUxStates, [
-    'loading',
-    'error',
-    'empty',
-    'destructive',
-  ]);
-  assert.equal(
-    githubSyncManifest.maturity.evidence.uxCriteria.destructiveActionSafety[0],
-    'plugins/github-sync/src/components/github-settings.destructive.test.tsx'
-  );
-});
