@@ -18,7 +18,6 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginNotice } from '@/components/plugins/plugin-notice';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import {
-  DEFAULT_TRANSFORMER_PROMPT,
   resetTransformerPromptPreference,
   saveTransformerPromptPreference,
 } from '@/lib/user-preferences';
@@ -41,196 +40,31 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
-type PromptSettingsUiState = {
-  isPromptMeaningful: boolean;
-  areControlsDisabled: boolean;
-  canSubmitPrompt: boolean;
-};
-
-type PromptSettingsViewState = PromptSettingsUiState & {
-  loading: boolean;
-  isLoadingSavedSettings: boolean;
-  hasLoadError: boolean;
-  isUsingDefaultProfile: boolean;
-  emptyStateCtaAction: 'edit-prompt-profile';
-  isEmptyStateCtaAvailable: boolean;
-  hasSaveError: boolean;
-  hasSaveSuccess: boolean;
-};
-
-export const PROMPT_SETTINGS_LOADING_TEXT = 'Loading saved prompt settings...';
-export const PROMPT_SETTINGS_ERROR_RETRY_LABEL = 'Retry';
-export const PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT =
-  'Add instructions or import a profile snippet, then save to create your first custom prompt profile.';
-export const PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION = 'edit-prompt-profile';
-export const PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL = 'Yes, reset prompt';
-export const PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL = 'Cancel';
-
-type PromptSettingsToast = {
-  variant?: 'destructive';
-  title?: string;
-  description: string;
-};
-
-type PromptSettingsFeedbackDeps = {
-  toast: (config: PromptSettingsToast) => void;
-  logError: (message: string, error: unknown) => void;
-};
-
-export async function runPromptSaveFlow({
-  uid,
-  prompt,
-  savePreference,
-  feedback,
-}: {
-  uid: string;
-  prompt: string;
-  savePreference: (uid: string, prompt: string) => Promise<void>;
-  feedback: PromptSettingsFeedbackDeps;
-}): Promise<boolean> {
-  try {
-    await savePreference(uid, prompt);
-    feedback.toast({
-      title: 'Prompt updated',
-      description:
-        'Your AI transformation instructions have been saved successfully.',
-    });
-
-    return true;
-  } catch (error) {
-    feedback.logError('Failed to save transformer prompt preference', error);
-    feedback.toast({
-      variant: 'destructive',
-      title: 'Could not save prompt',
-      description: 'Your prompt was not saved. Please try again in a moment.',
-    });
-
-    return false;
-  }
-}
-
-export async function runPromptResetFlow({
-  uid,
-  resetPreference,
-  feedback,
-}: {
-  uid: string;
-  resetPreference: (uid: string) => Promise<void>;
-  feedback: PromptSettingsFeedbackDeps;
-}): Promise<boolean> {
-  try {
-    await resetPreference(uid);
-    feedback.toast({
-      description: 'Prompt reset to default training terminology guidelines.',
-    });
-
-    return true;
-  } catch (error) {
-    feedback.logError('Failed to reset transformer prompt preference', error);
-    feedback.toast({
-      variant: 'destructive',
-      title: 'Could not reset prompt',
-      description:
-        'We could not reset your prompt right now. Please try again.',
-    });
-
-    return false;
-  }
-}
-
-export async function runPromptLoadRecoveryFlow({
-  retryLoad,
-}: {
-  retryLoad: () => Promise<void>;
-}): Promise<boolean> {
-  try {
-    await retryLoad();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function resolvePromptAfterDestructiveResetAction({
-  action,
-  currentPrompt,
-  defaultPrompt = DEFAULT_TRANSFORMER_PROMPT,
-}: {
-  action: 'confirm' | 'cancel';
-  currentPrompt: string;
-  defaultPrompt?: string;
-}): string {
-  if (action === 'confirm') {
-    return defaultPrompt;
-  }
-
-  return currentPrompt;
-}
-
-export function derivePromptSettingsUiState({
-  prompt,
-  canSavePreferences,
-  isSaving,
-  isResetting,
-}: {
-  prompt: string;
-  canSavePreferences: boolean;
-  isSaving: boolean;
-  isResetting: boolean;
-}): PromptSettingsUiState {
-  const isPromptMeaningful = prompt.trim().length > 0;
-  const areControlsDisabled = !canSavePreferences || isSaving || isResetting;
-
-  return {
-    isPromptMeaningful,
-    areControlsDisabled,
-    canSubmitPrompt: isPromptMeaningful && !areControlsDisabled,
-  };
-}
-
-export function derivePromptSettingsViewState({
-  canSavePreferences,
-  preferencesReady,
-  preferencesError,
-  prompt,
-  isSaving,
-  isResetting,
-  saveStatus,
-}: {
-  canSavePreferences: boolean;
-  preferencesReady: boolean;
-  preferencesError: Error | null;
-  prompt: string;
-  isSaving: boolean;
-  isResetting: boolean;
-  saveStatus: 'idle' | 'success' | 'error';
-}): PromptSettingsViewState {
-  const uiState = derivePromptSettingsUiState({
-    prompt,
-    canSavePreferences,
-    isSaving,
-    isResetting,
-  });
-
-  return {
-    ...uiState,
-    loading: canSavePreferences && !preferencesReady,
-    isLoadingSavedSettings: canSavePreferences && !preferencesReady,
-    hasLoadError: canSavePreferences && preferencesError !== null,
-    isUsingDefaultProfile:
-      canSavePreferences &&
-      preferencesReady &&
-      prompt.trim() === DEFAULT_TRANSFORMER_PROMPT.trim(),
-    emptyStateCtaAction: PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION,
-    isEmptyStateCtaAvailable:
-      canSavePreferences &&
-      preferencesReady &&
-      preferencesError === null &&
-      !uiState.areControlsDisabled,
-    hasSaveError: saveStatus === 'error',
-    hasSaveSuccess: saveStatus === 'success',
-  };
-}
+export {
+  derivePromptSettingsUiState,
+  derivePromptSettingsViewState,
+  PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
+  PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
+  PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
+  PROMPT_SETTINGS_ERROR_RETRY_LABEL,
+  PROMPT_SETTINGS_LOADING_TEXT,
+  resolvePromptAfterDestructiveResetAction,
+  runPromptLoadRecoveryFlow,
+  runPromptResetFlow,
+  runPromptSaveFlow,
+} from './prompt-settings-view-model';
+import {
+  derivePromptSettingsViewState,
+  PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
+  PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
+  PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
+  PROMPT_SETTINGS_ERROR_RETRY_LABEL,
+  PROMPT_SETTINGS_LOADING_TEXT,
+  resolvePromptAfterDestructiveResetAction,
+  runPromptLoadRecoveryFlow,
+  runPromptResetFlow,
+  runPromptSaveFlow,
+} from './prompt-settings-view-model';
 
 export function PromptSettings() {
   const { toast } = useToast();
