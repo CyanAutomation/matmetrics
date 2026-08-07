@@ -73,6 +73,8 @@ export function PluginStatusPanel({
         retryLabel={ctaLabel}
         onRetry={onCta}
         className={className}
+        data-severity="error"
+        role="alert"
       />
     );
   }
@@ -87,6 +89,8 @@ export function PluginStatusPanel({
       ctaLabel={ctaLabel}
       onCta={onCta}
       className={cn(toneClassName, className)}
+      data-severity={variant}
+      role={variant === 'warning' ? 'status' : undefined}
     />
   );
 }

@@ -162,25 +162,35 @@ test('PluginFormSection renders footer actions within the shared toolbar', () =>
   assert.match(html, /Save/);
 });
 
-test('PluginStatusPanel renders error variant with retry CTA wiring', () => {
-  const html = normalizeMarkup(
-    renderToStaticMarkup(
-      React.createElement(
-        PluginStatusPanel,
-        {
-          variant: 'error',
-          title: 'Sync failed',
-          description: 'Retry after checking credentials.',
-          ctaLabel: 'Retry now',
-          onCta: () => {},
-        },
-        null
-      )
-    )
-  );
+test('PluginStatusPanel exposes every severity and accessible state text', () => {
+  const scenarios = [
+    { variant: 'success', role: undefined, title: 'Sync complete' },
+    { variant: 'warning', role: 'status', title: 'Sync needs attention' },
+    { variant: 'error', role: 'alert', title: 'Sync failed' },
+  ] as const;
 
-  assert.match(html, /Sync failed/);
-  assert.match(html, /Retry now/);
+  for (const scenario of scenarios) {
+    const document = parse(
+      renderToStaticMarkup(
+        React.createElement(PluginStatusPanel, {
+          variant: scenario.variant,
+          title: scenario.title,
+          description: 'Credential status is available.',
+          ctaLabel: 'Review sync',
+          onCta: () => {},
+        })
+      )
+    );
+    const panel = document.querySelector(
+      `[data-severity="${scenario.variant}"]`
+    );
+
+    assert.ok(panel, `missing ${scenario.variant} severity marker`);
+    assert.equal(panel.getAttribute('role'), scenario.role);
+    assert.match(panel.textContent, new RegExp(scenario.title));
+    assert.match(panel.textContent, /Credential status is available/);
+    assert.match(panel.textContent, /Review sync/);
+  }
 });
 
 test('PluginTableSection renders empty fallback when rows are missing', () => {
