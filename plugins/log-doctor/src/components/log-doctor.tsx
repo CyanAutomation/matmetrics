@@ -54,11 +54,11 @@ export type AuditSummaryAction = {
 };
 
 export function createAuditSummaryAction(params: {
-  auditRanAt: number | null;
+  auditRanAt: string | null;
   auditNeedsAttentionCount: number;
-  auditStep: string;
-  auditFeedbackState: 'loading' | 'idle';
-  firstSessionNeedingAttention: { sessionId: string } | null;
+  auditStep: 'run-check' | 'review-findings' | 'resolve-findings';
+  auditFeedbackState: string;
+  firstSessionNeedingAttention: { sessionId: string } | undefined | null;
   onRunAudit: () => void;
   onReviewSession: (sessionId: string) => void;
   onReviewFindings: () => void;
