@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -29,6 +31,81 @@ type PluginManifestContractParams = {
  *   must follow the stable tab naming contract.
  */
 const REQUIRED_UX_STATES = ['loading', 'error', 'empty'] as const;
+const UX_STATE_EVIDENCE_CRITERIA = {
+  loading: 'loadingStatePresent',
+  error: 'errorStateWithRecovery',
+  empty: 'emptyStateWithCta',
+  destructive: 'destructiveActionSafety',
+} as const;
+const ACCEPTED_EVIDENCE_SUFFIXES = [
+  '.test.ts',
+  '.test.tsx',
+  '.spec.ts',
+  '.spec.tsx',
+] as const;
+
+const getEvidenceContractDiagnostics = async (
+  manifest: PluginManifest,
+  repoRoot: string
+): Promise<string[]> => {
+  const diagnostics: string[] = [];
+  const evidence = manifest.maturity?.evidence;
+  const referencedPaths = new Set(evidence?.testFiles ?? []);
+
+  for (const state of manifest.uiContract?.requiredUxStates ?? []) {
+    const criterion = UX_STATE_EVIDENCE_CRITERIA[state];
+    const criterionPath = `maturity.evidence.uxCriteria.${criterion}`;
+    const criterionEvidence = evidence?.uxCriteria?.[criterion];
+
+    if (!criterionEvidence?.length) {
+      diagnostics.push(
+        `${criterionPath} must contain evidence for required UX state "${state}"`
+      );
+      continue;
+    }
+
+    for (const evidencePath of criterionEvidence) {
+      if (!evidencePath.trim()) {
+        diagnostics.push(`${criterionPath} must not contain an empty path`);
+      } else {
+        referencedPaths.add(evidencePath);
+      }
+    }
+  }
+
+  for (const evidencePath of referencedPaths) {
+    const resolvedPath = path.resolve(repoRoot, evidencePath);
+    const isInsideRepository =
+      resolvedPath === repoRoot ||
+      resolvedPath.startsWith(`${repoRoot}${path.sep}`);
+
+    if (!isInsideRepository) {
+      diagnostics.push(
+        `evidence path "${evidencePath}" must remain inside the repository`
+      );
+      continue;
+    }
+
+    if (
+      !ACCEPTED_EVIDENCE_SUFFIXES.some((suffix) =>
+        evidencePath.endsWith(suffix)
+      )
+    ) {
+      diagnostics.push(
+        `evidence path "${evidencePath}" must use an accepted test suffix (${ACCEPTED_EVIDENCE_SUFFIXES.join(', ')})`
+      );
+      continue;
+    }
+
+    try {
+      await access(resolvedPath);
+    } catch {
+      diagnostics.push(`evidence file "${evidencePath}" does not exist`);
+    }
+  }
+
+  return diagnostics;
+};
 
 const getDashboardTabExtension = (
   manifest: PluginManifest,
@@ -87,7 +164,11 @@ export const testPluginManifestContract = ({
       );
     }
 
-    assert.equal(validation.manifest.id, pluginId, `${reqPrefix}manifest id must match plugin id`);
+    assert.equal(
+      validation.manifest.id,
+      pluginId,
+      `${reqPrefix}manifest id must match plugin id`
+    );
 
     const dashboardTab = getDashboardTabExtension(
       validation.manifest,
@@ -161,7 +242,10 @@ export const testPluginManifestContract = ({
     const firstExtension = validation.manifest.uiExtensions[0];
     const manifestWithDuplicateExtensionIds = {
       ...validation.manifest,
-      uiExtensions: [...validation.manifest.uiExtensions, { ...firstExtension }],
+      uiExtensions: [
+        ...validation.manifest.uiExtensions,
+        { ...firstExtension },
+      ],
     };
 
     const duplicateExtensionValidation = validatePluginManifest(
@@ -176,6 +260,77 @@ export const testPluginManifestContract = ({
           issue.severity === 'error'
       ),
       `${reqPrefix}[${pluginId}] expected duplicate extension id structured error`
+    );
+  });
+
+  test(`${pluginId} manifest evidence contract`, async () => {
+    const reqPrefix = requirementSource ? `[req:${requirementSource}] ` : '';
+    const validation = validatePluginManifest(manifest);
+    assert.equal(
+      validation.isValid,
+      true,
+      `${reqPrefix}[${pluginId}] manifest must be valid before checking evidence`
+    );
+    if (!validation.isValid) return;
+
+    const diagnostics = await getEvidenceContractDiagnostics(
+      validation.manifest,
+      process.cwd()
+    );
+    assert.deepEqual(
+      diagnostics,
+      [],
+      `${reqPrefix}[${pluginId}] maturity evidence contract failed: ${diagnostics.join('; ')}`
+    );
+
+    const firstRequiredState =
+      validation.manifest.uiContract?.requiredUxStates[0];
+    assert.ok(firstRequiredState);
+    const firstCriterion = UX_STATE_EVIDENCE_CRITERIA[firstRequiredState];
+    const invalidFixture = structuredClone(validation.manifest);
+    invalidFixture.maturity = {
+      ...invalidFixture.maturity,
+      evidence: {
+        ...invalidFixture.maturity?.evidence,
+        testFiles: [
+          '../outside-repository.test.ts',
+          'README.md',
+          'plugins/missing-evidence.test.ts',
+        ],
+        uxCriteria: {
+          ...invalidFixture.maturity?.evidence?.uxCriteria,
+          [firstCriterion]: [],
+        },
+      },
+    };
+
+    const invalidDiagnostics = await getEvidenceContractDiagnostics(
+      invalidFixture,
+      process.cwd()
+    );
+    assert.ok(
+      invalidDiagnostics.includes(
+        `maturity.evidence.uxCriteria.${firstCriterion} must contain evidence for required UX state "${firstRequiredState}"`
+      ),
+      `${reqPrefix}[${pluginId}] invalid fixture must receive a clear missing-evidence contract diagnostic`
+    );
+    assert.ok(
+      invalidDiagnostics.some((diagnostic) =>
+        diagnostic.includes('must remain inside the repository')
+      ),
+      `${reqPrefix}[${pluginId}] invalid fixture must receive a clear repository-boundary diagnostic`
+    );
+    assert.ok(
+      invalidDiagnostics.some((diagnostic) =>
+        diagnostic.includes('must use an accepted test suffix')
+      ),
+      `${reqPrefix}[${pluginId}] invalid fixture must receive a clear test-suffix diagnostic`
+    );
+    assert.ok(
+      invalidDiagnostics.includes(
+        'evidence file "plugins/missing-evidence.test.ts" does not exist'
+      ),
+      `${reqPrefix}[${pluginId}] invalid fixture must receive a clear missing-file diagnostic`
     );
   });
 };
