@@ -74,13 +74,22 @@ function extractClassTokensFromSource(source: string): string[] {
 }
 
 function findForbiddenClassTokens(tokens: Iterable<string>): string[] {
-  return [...new Set([...tokens].filter((token) => forbiddenPluginColorClassPattern.test(token)))];
+  return [
+    ...new Set(
+      [...tokens].filter((token) =>
+        forbiddenPluginColorClassPattern.test(token)
+      )
+    ),
+  ];
 }
 
 test('policy helper derives a normalized allowlist from variants and themes', () => {
   const allowlist = derivePluginAllowedClassTokens();
 
-  assert.ok(allowlist.has('text-primary'), `${req('allowlistDerivation')} missing text-primary`);
+  assert.ok(
+    allowlist.has('text-primary'),
+    `${req('allowlistDerivation')} missing text-primary`
+  );
   assert.ok(
     allowlist.has('bg-destructive/10'),
     `${req('allowlistDerivation')} missing bg-destructive/10`
@@ -93,6 +102,12 @@ test('policy helper derives a normalized allowlist from variants and themes', ()
     allowlist.has('text-[hsl(var(--color-on-success-container))]'),
     `${req('allowlistDerivation')} missing success container token`
   );
+  for (const severity of ['error', 'warning', 'info']) {
+    assert.ok(
+      allowlist.has(`ui-pill-${severity}`),
+      `${req('allowlistDerivation')} missing ${severity} severity pill token`
+    );
+  }
 });
 
 test('plugin theme tone variants resolve only policy-backed class tokens', () => {
@@ -102,7 +117,10 @@ test('plugin theme tone variants resolve only policy-backed class tokens', () =>
   for (const tone of tones) {
     const tokens = getPluginThemeTokens(tone);
     Object.entries(tokens)
-      .filter(([slot, value]) => slot !== 'inlineMessageToneVariant' && typeof value === 'string')
+      .filter(
+        ([slot, value]) =>
+          slot !== 'inlineMessageToneVariant' && typeof value === 'string'
+      )
       .map(([, value]) => value as string)
       .flatMap((value) => value.split(/\s+/).map((entry) => entry.trim()))
       .filter(Boolean)

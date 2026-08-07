@@ -35,7 +35,7 @@ import type {
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
 import {
-  pluginSeverityToneClass,
+  resolvePluginSeverityToneClass,
   pluginTierToneClass,
 } from '@/lib/ui-semantic';
 
@@ -258,8 +258,8 @@ export function PluginManagerInstalledContent(props: {
     >
       {installedPlugins.map((plugin) => {
         const scoredWithContractIssues =
-          Boolean(plugin.maturity) &&
-          hasBlockingContractIssues(plugin.issues);
+          Boolean(plugin.maturity) && hasBlockingContractIssues(plugin.issues);
+        const summarySeverity = resolveEntrySummarySeverity(plugin.issues);
         return (
           <div
             key={plugin.id}
@@ -315,7 +315,10 @@ export function PluginManagerInstalledContent(props: {
 
             {/* Validation issues indicator */}
             {plugin.issues.length > 0 && (
-              <div className="flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
+              <div
+                className="flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-xs text-destructive"
+                data-severity={summarySeverity}
+              >
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span>
                   {plugin.issues.length} validation{' '}
@@ -753,8 +756,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           </p>
         ) : installedPluginsViewState === 'error' ? (
           <p className="text-sm text-muted-foreground">
-            Plugin issue details are unavailable because plugin loading
-            failed. Retry loading installed plugins.
+            Plugin issue details are unavailable because plugin loading failed.
+            Retry loading installed plugins.
           </p>
         ) : installedPluginsViewState === 'empty' ? (
           <p className="text-sm text-muted-foreground">
@@ -791,7 +794,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                         </Badge>
                       ) : null}
                       <Badge
-                        className={pluginSeverityToneClass[summarySeverity]}
+                        className={resolvePluginSeverityToneClass(
+                          summarySeverity
+                        )}
+                        data-severity={summarySeverity}
                       >
                         {severityLabel(summarySeverity)}
                       </Badge>
@@ -893,9 +899,10 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                             {issue.message}{' '}
                             <Badge
                               variant="outline"
-                              className={
-                                pluginSeverityToneClass[issue.severity]
-                              }
+                              className={resolvePluginSeverityToneClass(
+                                issue.severity
+                              )}
+                              data-severity={issue.severity}
                             >
                               {severityLabel(issue.severity)}
                             </Badge>
