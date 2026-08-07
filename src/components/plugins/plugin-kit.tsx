@@ -39,9 +39,10 @@ export function PluginFormSection({
     >
       {children}
       {footerActions ? (
-        <PluginToolbar className={cn('pt-2', footerClassName)}>
-          {footerActions}
-        </PluginToolbar>
+        <PluginToolbar
+          trailingActions={footerActions}
+          className={cn('pt-2', footerClassName)}
+        />
       ) : null}
     </PluginSectionCard>
   );
