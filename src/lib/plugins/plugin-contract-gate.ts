@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -20,6 +20,15 @@ const exists = async (targetPath: string): Promise<boolean> => {
     return false;
   }
 };
+
+const UX_STATE_EVIDENCE_CRITERIA = {
+  loading: 'loadingStatePresent',
+  error: 'errorStateWithRecovery',
+  empty: 'emptyStateWithCta',
+  destructive: 'destructiveActionSafety',
+} as const;
+
+const TEST_FILE_PATTERN = /(?:^|\/)[^/]+\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 const COMPONENT_ALIAS_IMPORT_PATTERN =
   /^import\s+[\s\S]*?from\s+['"](@\/components\/[^'"]+)['"];?$/gm;
@@ -117,7 +126,7 @@ export const runPluginContractGate = async ({
 }: {
   pluginsRoot: string;
   directoryName: string;
-  manifest: Pick<PluginManifest, 'uiExtensions'>;
+  manifest: Pick<PluginManifest, 'uiExtensions' | 'uiContract' | 'maturity'>;
   explicitRuntimeRegistrations?: ReadonlySet<string>;
 }): Promise<PluginContractGateResult> => {
   const pluginRoot = path.join(pluginsRoot, directoryName);
@@ -217,6 +226,65 @@ export const runPluginContractGate = async ({
             declaredComponent.componentId
           )} and no explicit runtime registration was found in src/index.ts.`,
         });
+      }
+    }
+
+    const repoRoot = path.dirname(pluginsRoot);
+    for (const requiredState of manifest.uiContract?.requiredUxStates ?? []) {
+      const criterion = UX_STATE_EVIDENCE_CRITERIA[requiredState];
+      const evidencePath = `maturity.evidence.uxCriteria.${criterion}`;
+      const evidence = manifest.maturity?.evidence?.uxCriteria?.[criterion];
+
+      if (!Array.isArray(evidence) || evidence.length === 0) {
+        issues.push({
+          severity: 'error',
+          path: evidencePath,
+          message: `Required UX state "${requiredState}" must declare at least one evidence test file.`,
+        });
+        continue;
+      }
+
+      for (const [index, reference] of evidence.entries()) {
+        const referencePath = `${evidencePath}[${index}]`;
+        if (
+          typeof reference !== 'string' ||
+          reference.trim() !== reference ||
+          !TEST_FILE_PATTERN.test(reference)
+        ) {
+          issues.push({
+            severity: 'error',
+            path: referencePath,
+            message: `Evidence for required UX state "${requiredState}" must be a repository-relative test file path.`,
+          });
+          continue;
+        }
+
+        const resolvedReference = path.resolve(repoRoot, reference);
+        const relativeReference = path.relative(repoRoot, resolvedReference);
+        if (
+          relativeReference.startsWith('..') ||
+          path.isAbsolute(relativeReference)
+        ) {
+          issues.push({
+            severity: 'error',
+            path: referencePath,
+            message: `Evidence path "${reference}" must resolve within the repository.`,
+          });
+          continue;
+        }
+
+        try {
+          const evidenceStat = await stat(resolvedReference);
+          if (!evidenceStat.isFile()) {
+            throw new Error('not a file');
+          }
+        } catch {
+          issues.push({
+            severity: 'error',
+            path: referencePath,
+            message: `Evidence test file does not exist: ${reference}`,
+          });
+        }
       }
     }
   }
