@@ -159,11 +159,11 @@ const VIDEO_LIBRARY_STATUS_LABELS: Record<VideoLibraryStatusFilter, string> = {
   check_failed: "Couldn't verify link",
 };
 
-function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
+export function getEntryStatusLabel(status: VideoLibraryStatusFilter) {
   return VIDEO_LIBRARY_STATUS_LABELS[status];
 }
 
-function getStatusVariant(status: VideoLibraryStatusFilter) {
+export function getStatusVariant(status: VideoLibraryStatusFilter) {
   switch (status) {
     case 'broken':
     case 'invalid_url':
@@ -384,7 +384,7 @@ function getTabLabel(tab: VideoLibraryTab) {
   }
 }
 
-function getFilteredHostnameOptions(rows: VideoLibraryRow[]): string[] {
+export function getFilteredHostnameOptions(rows: VideoLibraryRow[]): string[] {
   return Array.from(
     new Set(
       rows

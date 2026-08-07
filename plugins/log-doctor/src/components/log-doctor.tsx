@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
@@ -32,26 +32,10 @@ import { Label } from '@/components/ui/label';
 import { Stethoscope } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
-import { useActionFeedback } from '@/hooks/use-action-feedback';
-import { useAuditStateManager } from '../hooks/use-audit-state-manager';
 import { useFileValidationController } from '../hooks/use-file-validation-controller';
+import { useLogDoctorAudit } from '../hooks/use-log-doctor-audit';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
-import {
-  getSessionAudit,
-  getAuditConfig,
-  getAuditMode,
-  getLastAuditRun,
-  saveLastAuditRun,
-  saveAuditConfig,
-} from '@/lib/user-preferences';
-import { runAuditRulesForAllSessions } from '../lib/audit-rules';
-import type {
-  AuditFlagCode,
-  AuditMode,
-  AuditRunResult,
-  JudoSession,
-} from '@/lib/types';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
 import { AuditReviewDialog } from './log-doctor-review-dialog';
@@ -60,14 +44,61 @@ import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 
 import {
   resolveResetDiagnosticsSnapshot,
-  type AuditSessionResult,
   type DiagnosticsSnapshot,
 } from './log-doctor-state';
 
+export type AuditSummaryAction = {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+};
+
+export function createAuditSummaryAction(params: {
+  auditRanAt: number | null;
+  auditNeedsAttentionCount: number;
+  auditStep: string;
+  auditFeedbackState: 'loading' | 'idle';
+  firstSessionNeedingAttention: { sessionId: string } | null;
+  onRunAudit: () => void;
+  onReviewSession: (sessionId: string) => void;
+  onReviewFindings: () => void;
+}): AuditSummaryAction {
+  if (!params.auditRanAt) {
+    return {
+      label: 'Run check',
+      onClick: params.onRunAudit,
+      disabled: params.auditFeedbackState === 'loading',
+    };
+  }
+
+  if (params.auditNeedsAttentionCount > 0) {
+    if (
+      params.auditStep === 'resolve-findings' &&
+      params.firstSessionNeedingAttention
+    ) {
+      return {
+        label: 'Mark fixed',
+        onClick: () =>
+          params.onReviewSession(params.firstSessionNeedingAttention!.sessionId),
+        disabled: false,
+      };
+    }
+    return {
+      label: 'Review findings',
+      onClick: params.onReviewFindings,
+      disabled: false,
+    };
+  }
+
+  return {
+    label: 'Run check again',
+    onClick: params.onRunAudit,
+    disabled: params.auditFeedbackState === 'loading',
+  };
+}
+
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
-type AuditStep = 'run-check' | 'review-findings' | 'resolve-findings';
-
 export const emitDestructiveActionEvent = (
   action: LogDoctorDestructiveAction,
   stage: LogDoctorDestructiveStage,
@@ -148,7 +179,7 @@ export const emitDestructiveActionEvent = (
  * - Reduced JSX nesting (4–5 levels → 2–3 levels)
  */
 export const LogDoctor = (): React.ReactElement => {
-  const { preferences, user } = useAuth();
+  const { preferences } = useAuth();
   const { toast } = useToast();
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
@@ -175,52 +206,29 @@ export const LogDoctor = (): React.ReactElement => {
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [fileSearch, setFileSearch] = useState('');
 
-  // Audit state management
-  const [activeTab, setActiveTab] = useState<'validation' | 'audit'>(
-    'validation'
-  );
-  const handleTabChange = React.useCallback((tabId: string) => {
-    if (tabId === 'validation' || tabId === 'audit') {
-      setActiveTab(tabId);
-    }
-  }, []);
-
   const {
-    feedbackState: auditFeedbackState,
-    startLoading: startAuditLoading,
-    showSuccess: showAuditSuccess,
-  } = useActionFeedback();
-
-  const [auditConfig, setAuditConfig] = useState(getAuditConfig());
-  const [auditMode, setAuditMode] = useState<AuditMode>(getAuditMode());
-  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
-  const [auditRanAt, setAuditRanAt] = useState<string | null>(null);
-  const [auditStep, setAuditStep] = useState<AuditStep>('run-check');
-
-  // Initialize audit results from persisted state
-  const [initialAuditResults] = useState<AuditSessionResult[]>(() => {
-    const lastRun = getLastAuditRun();
-    if (lastRun) {
-      const results: AuditSessionResult[] = lastRun.sessions.map((session) => ({
-        ...session,
-        reviewedAt: undefined,
-        ignoredRules: [],
-      }));
-      setAuditRanAt(lastRun.ranAt);
-      setAuditStep('review-findings');
-      return results;
-    }
-    return [];
-  });
-
-  const {
+    activeTab,
+    auditConfig,
+    auditMode,
     auditResults,
-    setAuditResults,
-    markResolved,
-    dismissForNow,
-    ignoreRule,
-    unignoreRule,
-  } = useAuditStateManager(user?.uid ?? null, initialAuditResults);
+    reviewSessionId,
+    auditRanAt,
+    auditStep,
+    auditFeedbackState,
+    auditNeedsAttentionCount,
+    firstSessionNeedingAttention,
+    handleTabChange,
+    handleRunAudit,
+    handleReviewSession,
+    handleCloseReview,
+    handleUpdateAuditConfig,
+    handleMarkResolved,
+    handleDismissForNow,
+    handleIgnoreRule,
+    handleUnignoreRule,
+    reviewSession,
+    setAuditStep,
+  } = useLogDoctorAudit();
 
   useEffect(() => {
     const config = preferences.gitHub.config;
@@ -270,144 +278,6 @@ export const LogDoctor = (): React.ReactElement => {
         ? current.filter((item) => item !== path)
         : [...current, path]
     );
-  };
-
-  const handleRunAudit = useCallback((): void => {
-    startAuditLoading();
-    try {
-      const sessions: JudoSession[] = getSessions();
-      const rawResults = runAuditRulesForAllSessions(sessions, auditConfig);
-
-      // Merge with persisted audit state (reviews, ignored rules)
-      const merged: AuditSessionResult[] = rawResults.map((result) => {
-        const persisted = getSessionAudit(result.sessionId);
-        return {
-          sessionId: result.sessionId,
-          sessionDate: result.sessionDate,
-          flags: result.flags,
-          reviewedAt: persisted?.reviewedAt,
-          ignoredRules: persisted?.ignoredRules ?? [],
-        };
-      });
-
-      const now = new Date().toISOString();
-      const runResult: AuditRunResult = {
-        sessions: merged.map((m) => ({
-          sessionId: m.sessionId,
-          sessionDate: m.sessionDate,
-          flags: m.flags,
-        })),
-        ranAt: now,
-      };
-
-      // Save to Firebase and localStorage
-      if (user?.uid) {
-        saveLastAuditRun(user.uid, runResult).catch((err) => {
-          console.error('Failed to save audit result:', err);
-        });
-      }
-
-      setAuditResults(merged);
-      setAuditRanAt(now);
-      setAuditStep('review-findings');
-      showAuditSuccess();
-    } finally {
-    }
-  }, [user?.uid, auditConfig, startAuditLoading, showAuditSuccess, setAuditResults, setAuditRanAt, setAuditStep]);
-
-  const handleReviewSession = (sessionId: string): void => {
-    setAuditStep('resolve-findings');
-    setReviewSessionId(sessionId);
-  };
-
-  const handleCloseReview = (): void => {
-    setReviewSessionId(null);
-  };
-
-  const handleUpdateAuditConfig = async (
-    newConfig: typeof auditConfig,
-    mode: AuditMode
-  ): Promise<void> => {
-    if (!user?.uid) return;
-    await saveAuditConfig(user.uid, newConfig, mode);
-    setAuditMode(mode);
-    setAuditConfig(newConfig);
-  };
-
-  const handleMarkResolved = async (sessionId: string): Promise<void> => {
-    try {
-      await markResolved(sessionId);
-      const existing = auditResults.find((r) => r.sessionId === sessionId);
-      if (existing) {
-        toast({
-          title: 'Marked fixed',
-          description: `Session from ${existing.sessionDate} is marked as fixed.`,
-        });
-      }
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to mark session as fixed.',
-      });
-    }
-  };
-
-  const handleDismissForNow = async (sessionId: string): Promise<void> => {
-    try {
-      await dismissForNow(sessionId);
-      const existing = auditResults.find((r) => r.sessionId === sessionId);
-      if (existing) {
-        toast({
-          title: 'Dismissed for now',
-          description: `All checks for ${existing.sessionDate} are dismissed for now.`,
-        });
-      }
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to dismiss checks for now.',
-      });
-    }
-  };
-
-  const handleIgnoreRule = async (
-    sessionId: string,
-    code: AuditFlagCode
-  ): Promise<void> => {
-    try {
-      await ignoreRule(sessionId, code);
-      toast({
-        title: 'Check dismissed',
-        description: 'This check will no longer flag this session.',
-      });
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to dismiss check.',
-      });
-    }
-  };
-
-  const handleUnignoreRule = async (
-    sessionId: string,
-    code: AuditFlagCode
-  ): Promise<void> => {
-    try {
-      await unignoreRule(sessionId, code);
-      toast({
-        title: 'Check undismissed',
-        description: 'This check will now flag this session again.',
-      });
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to undismiss check.',
-      });
-    }
   };
 
   const handleScan = async (): Promise<void> => {
@@ -529,50 +399,19 @@ export const LogDoctor = (): React.ReactElement => {
     });
   };
 
-  const reviewSession =
-    auditResults.find((r) => r.sessionId === reviewSessionId) ?? null;
-
-  const auditNeedsAttentionCount = auditResults.filter(
-    (r) =>
-      !r.reviewedAt && r.flags.some((f) => !r.ignoredRules.includes(f.code))
-  ).length;
-
   const isBusy = isScanning || isPreviewing || isApplying;
-  const firstSessionNeedingAttention = auditResults.find(
-    (r) =>
-      !r.reviewedAt && r.flags.some((f) => !r.ignoredRules.includes(f.code))
-  );
 
   const summaryAction = useMemo(() => {
-    if (!auditRanAt) {
-      return {
-        label: 'Run check',
-        onClick: handleRunAudit,
-        disabled: auditFeedbackState === 'loading',
-      };
-    }
-
-    if (auditNeedsAttentionCount > 0) {
-      if (auditStep === 'resolve-findings' && firstSessionNeedingAttention) {
-        return {
-          label: 'Mark fixed',
-          onClick: () =>
-            handleReviewSession(firstSessionNeedingAttention.sessionId),
-          disabled: false,
-        };
-      }
-      return {
-        label: 'Review findings',
-        onClick: () => setAuditStep('review-findings'),
-        disabled: false,
-      };
-    }
-
-    return {
-      label: 'Run check again',
-      onClick: handleRunAudit,
-      disabled: auditFeedbackState === 'loading',
-    };
+    return createAuditSummaryAction({
+      auditRanAt,
+      auditNeedsAttentionCount,
+      auditStep,
+      auditFeedbackState,
+      firstSessionNeedingAttention,
+      onRunAudit: handleRunAudit,
+      onReviewSession: handleReviewSession,
+      onReviewFindings: () => setAuditStep('review-findings'),
+    });
   }, [
     auditFeedbackState,
     auditNeedsAttentionCount,
@@ -580,6 +419,7 @@ export const LogDoctor = (): React.ReactElement => {
     auditStep,
     firstSessionNeedingAttention,
     handleRunAudit,
+    handleReviewSession,
   ]);
 
   return (
