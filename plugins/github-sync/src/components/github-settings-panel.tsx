@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,8 +18,6 @@ import {
   SyncResultsDetailPane,
   SyncResultsHistoryList,
   SyncResultsMainPanel,
-  type GitHubSyncHistoryData,
-  type GitHubSyncSurfaceState,
 } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
@@ -62,49 +59,40 @@ import {
   PluginStatusPanel,
   PluginTableSection,
 } from '@/components/plugins/plugin-kit';
+import { useGitHubSettingsState } from './use-github-settings-state';
 
 export function GitHubSettings() {
   const { toast } = useToast();
   const { user, preferences, canUseGitHubSync, authAvailable } = useAuth();
-  const [owner, setOwner] = useState('');
-  const [repo, setRepo] = useState('');
-  const [branch, setBranch] = useState('');
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isDisabling, setIsDisabling] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
-  const [migrationDone, setMigrationDone] = useState(false);
-  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
-  const [syncHistoryState, setSyncHistoryState] = useState<
-    GitHubSyncSurfaceState<GitHubSyncHistoryData>
-  >({ status: 'idle' });
-  const [selectedHistoryPath, setSelectedHistoryPath] = useState<string | null>(
-    null
-  );
+  const {
+    owner,
+    setOwner,
+    repo,
+    setRepo,
+    branch,
+    setBranch,
+    isEnabled,
+    setIsEnabled,
+    isTesting,
+    setIsTesting,
+    testResult,
+    setTestResult,
+    isSyncing,
+    setIsSyncing,
+    isDisabling,
+    setIsDisabling,
+    isClearing,
+    setIsClearing,
+    migrationDone,
+    setMigrationDone,
+    isClearDialogOpen,
+    setIsClearDialogOpen,
+    syncHistoryState,
+    setSyncHistoryState,
+    selectedHistoryPath,
+    setSelectedHistoryPath,
+  } = useGitHubSettingsState(preferences);
   const theme = getPluginThemeTokens('info');
-
-  useEffect(() => {
-    const config = preferences.gitHub.config;
-    const enabled = preferences.gitHub.enabled;
-    const migrationDoneValue = preferences.gitHub.migrationDone;
-
-    if (config) {
-      setOwner(config.owner);
-      setRepo(config.repo);
-      setBranch(config.branch ?? '');
-    } else {
-      setOwner('');
-      setRepo('');
-      setBranch('');
-    }
-    setIsEnabled(enabled);
-    setMigrationDone(migrationDoneValue);
-  }, [preferences.gitHub]);
 
   const handleSaveConfig = async () => {
     if (!user) return;

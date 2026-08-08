@@ -31,7 +31,15 @@ import {
 } from './user-preferences';
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
-import { initializeSyncLeaseModule } from './sync-lease';
+import {
+  initializeSyncLeaseModule,
+  setActiveSyncLease,
+  hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
+  releaseSyncLease as coreReleaseSyncLease,
+  renewSyncLease as coreRenewSyncLease,
+  tryAcquireSyncLease as coreTryAcquireSyncLease,
+} from './sync-lease';
+import type { LeaseTakeoverDiagnosticPayload } from './sync-lease';
 import {
   markDirtyMutation,
   clearDirtyMutation,
@@ -146,45 +154,9 @@ let readPreferences: PreferenceReader = () => getCurrentPreferences();
 let persistGitHubSettingsPreference: GitHubSettingsSaver =
   saveGitHubSettingsPreference;
 
-type SyncLease = {
-  owner: string;
-  expiresAt: number;
-  nonce: string;
-  epoch: number;
-};
-
-const SYNC_LOCK_ACQUIRE_ATTEMPTS = 7;
-const SYNC_LOCK_BACKOFF_MIN_MS = 6;
-const SYNC_LOCK_BACKOFF_MAX_MS = 28;
-const SYNC_LOCK_VERIFY_DELAY_MIN_MS = 1;
-const SYNC_LOCK_VERIFY_DELAY_MAX_MS = 6;
-const SYNC_LOCK_NAME = 'matmetrics-sync';
-
-type ActiveSyncLease =
-  | {
-      mode: 'web-lock';
-      release: () => void;
-    }
-  | {
-      mode: 'storage';
-      owner: string;
-      nonce: string;
-      epoch: number;
-    };
-
-let activeSyncLease: ActiveSyncLease | null = null;
-let localLeaseEpochCounter = 0;
-
-type LeaseTakeoverReason = 'expired' | 'race-revalidate';
-
-function emitLeaseTakeoverDiagnostic(payload: {
-  reason: LeaseTakeoverReason;
-  attempt: number;
-  previousOwner: string | null;
-  previousEpoch: number | null;
-  previousExpiresAt: number | null;
-  nextEpoch: number;
-}): void {
+function emitLeaseTakeoverDiagnostic(
+  payload: LeaseTakeoverDiagnosticPayload
+): void {
   console.info('sync_lease_takeover', {
     event: 'sync_lease_takeover',
     at: new Date().toISOString(),
@@ -298,319 +270,6 @@ function scheduleRefresh(options?: {
     clearScheduledRefresh();
     void refreshSessionsFromAPI({ force });
   }, delayMs);
-}
-
-function readSyncLease(): SyncLease | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const stored = localStorage.getItem(getSyncLockStorageKey());
-    if (!stored) {
-      return null;
-    }
-
-    const parsed = JSON.parse(stored) as Partial<SyncLease>;
-    if (
-      typeof parsed.owner !== 'string' ||
-      !Number.isFinite(parsed.expiresAt) ||
-      typeof parsed.nonce !== 'string' ||
-      !Number.isFinite(parsed.epoch)
-    ) {
-      localStorage.removeItem(getSyncLockStorageKey());
-      return null;
-    }
-
-    return {
-      owner: parsed.owner,
-      expiresAt: parsed.expiresAt as number,
-      nonce: parsed.nonce,
-      epoch: parsed.epoch as number,
-    };
-  } catch (error) {
-    console.error('Failed to parse sync lease', error);
-    localStorage.removeItem(getSyncLockStorageKey());
-    return null;
-  }
-}
-
-function createSyncLeaseNonce(): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `sync-lease-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function randomBackoffMs(): number {
-  return (
-    SYNC_LOCK_BACKOFF_MIN_MS +
-    Math.floor(
-      Math.random() * (SYNC_LOCK_BACKOFF_MAX_MS - SYNC_LOCK_BACKOFF_MIN_MS + 1)
-    )
-  );
-}
-
-function randomVerifyDelayMs(): number {
-  return (
-    SYNC_LOCK_VERIFY_DELAY_MIN_MS +
-    Math.floor(
-      Math.random() *
-        (SYNC_LOCK_VERIFY_DELAY_MAX_MS - SYNC_LOCK_VERIFY_DELAY_MIN_MS + 1)
-    )
-  );
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getNextSyncLeaseEpoch(existingEpoch: number): number {
-  const nowEpoch = Date.now();
-  const nextEpoch = Math.max(
-    existingEpoch + 1,
-    localLeaseEpochCounter + 1,
-    nowEpoch
-  );
-  localLeaseEpochCounter = nextEpoch;
-  return nextEpoch;
-}
-
-async function tryAcquireNavigatorLock(): Promise<boolean> {
-  if (
-    typeof navigator === 'undefined' ||
-    typeof navigator.locks?.request !== 'function'
-  ) {
-    return false;
-  }
-
-  let resolveAcquisition: ((acquired: boolean) => void) | null = null;
-  const acquisition = new Promise<boolean>((resolve) => {
-    resolveAcquisition = resolve;
-  });
-  let releaseLock: (() => void) | null = null;
-
-  void navigator.locks.request(
-    SYNC_LOCK_NAME,
-    { ifAvailable: true },
-    async (lock) => {
-      if (!lock) {
-        resolveAcquisition?.(false);
-        return;
-      }
-
-      const holdLock = new Promise<void>((resolve) => {
-        releaseLock = resolve;
-      });
-      resolveAcquisition?.(true);
-      await holdLock;
-    }
-  );
-
-  const acquired = await acquisition;
-  if (!acquired || !releaseLock) {
-    return false;
-  }
-
-  activeSyncLease = {
-    mode: 'web-lock',
-    release: releaseLock,
-  };
-  return true;
-}
-
-async function tryAcquireSyncLease(): Promise<boolean> {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  if (await tryAcquireNavigatorLock()) {
-    return true;
-  }
-
-  for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
-    const now = Date.now();
-    const observedLease = readSyncLease();
-    const leaseIsOwnedAndAlive =
-      observedLease &&
-      observedLease.owner !== syncOwnerId &&
-      observedLease.expiresAt >= now;
-    if (leaseIsOwnedAndAlive) {
-      if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
-        await sleep(randomBackoffMs());
-      }
-      continue;
-    }
-
-    const nextLease: SyncLease = {
-      owner: syncOwnerId,
-      expiresAt: now + syncLockTtlMs,
-      nonce: createSyncLeaseNonce(),
-      epoch: getNextSyncLeaseEpoch(observedLease?.epoch ?? 0),
-    };
-    if (observedLease && observedLease.owner !== syncOwnerId) {
-      emitLeaseTakeoverDiagnostic({
-        reason:
-          observedLease.expiresAt < now
-            ? 'expired'
-            : 'race-revalidate',
-        attempt,
-        previousOwner: observedLease.owner,
-        previousEpoch: observedLease.epoch,
-        previousExpiresAt: observedLease.expiresAt,
-        nextEpoch: nextLease.epoch,
-      });
-    }
-    const syncLockStorageKey = getSyncLockStorageKey();
-    let overwrittenByStorageEvent = false;
-    const onStorage = (event: StorageEvent) => {
-      if (!isStorageEventForKey(event, syncLockStorageKey)) {
-        return;
-      }
-
-      const nextValue = event.newValue;
-      if (!nextValue) {
-        overwrittenByStorageEvent = true;
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(nextValue) as Partial<SyncLease>;
-        if (
-          parsed.owner !== nextLease.owner ||
-          parsed.nonce !== nextLease.nonce ||
-          parsed.epoch !== nextLease.epoch
-        ) {
-          overwrittenByStorageEvent = true;
-        }
-      } catch {
-        overwrittenByStorageEvent = true;
-      }
-    };
-
-    window.addEventListener('storage', onStorage);
-    const lastObservedLease = readSyncLease();
-    if (
-      lastObservedLease &&
-      lastObservedLease.owner !== syncOwnerId &&
-      lastObservedLease.expiresAt >= Date.now() &&
-      lastObservedLease.epoch > (observedLease?.epoch ?? -Infinity)
-    ) {
-      window.removeEventListener('storage', onStorage);
-      if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
-        await sleep(randomBackoffMs());
-      }
-      continue;
-    }
-    localStorage.setItem(syncLockStorageKey, JSON.stringify(nextLease));
-    await sleep(randomVerifyDelayMs());
-
-    const confirmedLease = readSyncLease();
-    window.removeEventListener('storage', onStorage);
-    if (
-      !overwrittenByStorageEvent &&
-      confirmedLease?.owner === syncOwnerId &&
-      confirmedLease.expiresAt === nextLease.expiresAt &&
-      confirmedLease.nonce === nextLease.nonce &&
-      confirmedLease.epoch === nextLease.epoch
-    ) {
-      activeSyncLease = {
-        mode: 'storage',
-        owner: nextLease.owner,
-        nonce: nextLease.nonce,
-        epoch: nextLease.epoch,
-      };
-      return true;
-    }
-
-    if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
-      await sleep(randomBackoffMs());
-    }
-  }
-
-  return false;
-}
-
-function renewSyncLease(): boolean {
-  if (activeSyncLease?.mode === 'web-lock') {
-    return true;
-  }
-
-  if (typeof window === 'undefined' || activeSyncLease?.mode !== 'storage') {
-    return false;
-  }
-
-  const existingLease = readSyncLease();
-  if (
-    existingLease?.owner !== activeSyncLease.owner ||
-    existingLease.nonce !== activeSyncLease.nonce ||
-    existingLease.epoch !== activeSyncLease.epoch
-  ) {
-    return false;
-  }
-
-  const nextLease: SyncLease = {
-    owner: activeSyncLease.owner,
-    expiresAt: Date.now() + syncLockTtlMs,
-    nonce: activeSyncLease.nonce,
-    epoch: activeSyncLease.epoch,
-  };
-
-  localStorage.setItem(getSyncLockStorageKey(), JSON.stringify(nextLease));
-
-  const confirmedLease = readSyncLease();
-  return (
-    confirmedLease?.owner === activeSyncLease.owner &&
-    confirmedLease.expiresAt === nextLease.expiresAt &&
-    confirmedLease.nonce === nextLease.nonce &&
-    confirmedLease.epoch === nextLease.epoch
-  );
-}
-
-function hasActiveSyncLeaseOwnership(): boolean {
-  if (activeSyncLease?.mode === 'web-lock') {
-    return true;
-  }
-
-  if (activeSyncLease?.mode !== 'storage') {
-    return false;
-  }
-
-  const lease = readSyncLease();
-  return (
-    lease?.owner === activeSyncLease.owner &&
-    lease?.nonce === activeSyncLease.nonce &&
-    lease?.epoch === activeSyncLease.epoch &&
-    typeof lease.expiresAt === 'number' &&
-    lease.expiresAt > Date.now()
-  );
-}
-
-function releaseSyncLease(): void {
-  if (activeSyncLease?.mode === 'web-lock') {
-    activeSyncLease.release();
-    activeSyncLease = null;
-    return;
-  }
-
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const existingLease = readSyncLease();
-  if (
-    activeSyncLease?.mode === 'storage' &&
-    existingLease?.owner === activeSyncLease.owner &&
-    existingLease.nonce === activeSyncLease.nonce &&
-    existingLease.epoch === activeSyncLease.epoch
-  ) {
-    localStorage.removeItem(getSyncLockStorageKey());
-  }
-  activeSyncLease = null;
 }
 
 function dispatchStorageSync(sessions: JudoSession[]): void {
@@ -1277,7 +936,7 @@ async function prepareAndStartLease(): Promise<{
 }> {
   let leaseHeartbeat: ReturnType<typeof setInterval> | null = null;
 
-  const leaseAcquired = await tryAcquireSyncLease();
+  const leaseAcquired = await coreTryAcquireSyncLease();
   if (!leaseAcquired) {
     return { acquired: false, clearHeartbeat: () => {} };
   }
@@ -1288,7 +947,7 @@ async function prepareAndStartLease(): Promise<{
   );
 
   leaseHeartbeat = setInterval(() => {
-    if (!renewSyncLease()) {
+    if (!coreRenewSyncLease()) {
       if (leaseHeartbeat) {
         clearInterval(leaseHeartbeat);
         leaseHeartbeat = null;
@@ -1433,7 +1092,7 @@ async function processSingleQueueOperation(
   onAbort: (remainingOps: SyncOperation[]) => Promise<void>
 ): Promise<{ success: boolean; shouldContinue: boolean }> {
   // Check lease ownership before operation
-  if (!hasActiveSyncLeaseOwnership() || !renewSyncLease()) {
+  if (!coreHasActiveSyncLeaseOwnership() || !coreRenewSyncLease()) {
     await onAbort(queue.slice(index));
     return { success: false, shouldContinue: false };
   }
@@ -1456,7 +1115,7 @@ async function processSingleQueueOperation(
     });
 
     // Verify lease still owned after operation
-    if (!hasActiveSyncLeaseOwnership()) {
+    if (!coreHasActiveSyncLeaseOwnership()) {
       await onAbort(queue.slice(index));
       return { success: false, shouldContinue: false };
     }
@@ -1503,8 +1162,10 @@ async function syncPendingOperations(): Promise<void> {
   initializeSyncLeaseModule({
     syncOwnerId,
     syncLockTtlMs,
+    allowForcedReclaim: false,
     getSyncLockStorageKey,
     isStorageEventForKey,
+    emitLeaseTakeoverDiagnostic: emitLeaseTakeoverDiagnostic,
   });
 
   inFlightSync = (async () => {
@@ -1568,7 +1229,7 @@ async function syncPendingOperations(): Promise<void> {
     } finally {
       isSyncing = false;
       if (leaseAcquired) {
-        releaseSyncLease();
+        coreReleaseSyncLease();
       }
       inFlightSync = null;
     }
@@ -1595,8 +1256,7 @@ export function __resetStorageStateForTests(): void {
   storageGeneration = 0;
   resetMutationVersion();
   clearAllDirtyMutations();
-  activeSyncLease = null;
-  localLeaseEpochCounter = 0;
+  setActiveSyncLease(null);
   syncLockTtlMs = DEFAULT_SYNC_LOCK_TTL_MS;
   syncLockHeartbeatMs = Math.min(
     DEFAULT_SYNC_LOCK_HEARTBEAT_MS,
@@ -1607,6 +1267,7 @@ export function __resetStorageStateForTests(): void {
   initializeSyncLeaseModule({
     syncOwnerId,
     syncLockTtlMs,
+    allowForcedReclaim: false,
     getSyncLockStorageKey,
     isStorageEventForKey,
   });
@@ -1644,11 +1305,11 @@ export function __setStorageDependencyOverridesForTests(overrides: {
 }
 
 export async function __tryAcquireSyncLeaseForTests(): Promise<boolean> {
-  return tryAcquireSyncLease();
+  return coreTryAcquireSyncLease();
 }
 
 export function __renewSyncLeaseForTests(): boolean {
-  return renewSyncLease();
+  return coreRenewSyncLease();
 }
 
 export function __setSyncLeaseTimingForTests(overrides: {
@@ -1673,6 +1334,7 @@ export function __setSyncLeaseTimingForTests(overrides: {
   initializeSyncLeaseModule({
     syncOwnerId,
     syncLockTtlMs,
+    allowForcedReclaim: false,
     getSyncLockStorageKey,
     isStorageEventForKey,
   });

@@ -13,6 +13,11 @@ import {
   updateLeaseObservation,
   type LeaseObservationState,
 } from './sync-lease-attempt';
+import {
+  leaseClaimsMatch,
+  leaseIdentityMatches,
+  parseSyncLeaseValue,
+} from './sync-lease-storage';
 
 // ============================================================================
 // Types
@@ -60,6 +65,7 @@ const STALE_LEASE_RECLAIM_RETRY_THRESHOLD = 3;
 
 let syncOwnerId = '';
 let syncLockTtlMs = 45_000;
+let allowForcedReclaim = true;
 let getSyncLockStorageKeyFn: (() => string) | null = null;
 let isStorageEventForKeyFn:
   | ((event: StorageEvent, key: string) => boolean)
@@ -71,6 +77,7 @@ let emitDiagnosticFn:
 export function initializeSyncLeaseModule(options: {
   syncOwnerId: string;
   syncLockTtlMs: number;
+  allowForcedReclaim?: boolean;
   getSyncLockStorageKey: () => string;
   isStorageEventForKey: (event: StorageEvent, key: string) => boolean;
   emitLeaseTakeoverDiagnostic?: (
@@ -79,6 +86,7 @@ export function initializeSyncLeaseModule(options: {
 }): void {
   syncOwnerId = options.syncOwnerId;
   syncLockTtlMs = options.syncLockTtlMs;
+  allowForcedReclaim = options.allowForcedReclaim ?? true;
   getSyncLockStorageKeyFn = options.getSyncLockStorageKey;
   isStorageEventForKeyFn = options.isStorageEventForKey;
   emitDiagnosticFn = options.emitLeaseTakeoverDiagnostic ?? (() => {});
@@ -170,23 +178,12 @@ export function readSyncLease(): SyncLease | null {
       return null;
     }
 
-    const parsed = JSON.parse(stored) as Partial<SyncLease>;
-    if (
-      typeof parsed.owner !== 'string' ||
-      !Number.isFinite(parsed.expiresAt) ||
-      typeof parsed.nonce !== 'string' ||
-      !Number.isFinite(parsed.epoch)
-    ) {
+    const parsed = parseSyncLeaseValue(stored);
+    if (!parsed) {
       localStorage.removeItem(getSyncLockStorageKeyFn());
       return null;
     }
-
-    return {
-      owner: parsed.owner,
-      expiresAt: parsed.expiresAt as number,
-      nonce: parsed.nonce,
-      epoch: parsed.epoch as number,
-    };
+    return parsed;
   } catch (error) {
     console.error('Failed to parse sync lease', error);
     if (getSyncLockStorageKeyFn) {
@@ -206,6 +203,7 @@ function shouldForceReclaim(
   leaseIsAlive: boolean
 ): boolean {
   return (
+    allowForcedReclaim &&
     leaseIsAlive && stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
   );
 }
@@ -302,12 +300,8 @@ function monitorStorageForLeaseConflict(
     }
 
     try {
-      const parsed = JSON.parse(nextValue) as Partial<SyncLease>;
-      if (
-        parsed.owner !== nextLease.owner ||
-        parsed.nonce !== nextLease.nonce ||
-        parsed.epoch !== nextLease.epoch
-      ) {
+      const parsed = parseSyncLeaseValue(nextValue);
+      if (!parsed || !leaseIdentityMatches(parsed, nextLease)) {
         overwrittenByStorageEvent = true;
       }
     } catch {
@@ -587,11 +581,7 @@ export function renewSyncLease(): boolean {
   }
 
   const existingLease = readSyncLease();
-  if (
-    existingLease?.owner !== activeSyncLease.owner ||
-    existingLease.nonce !== activeSyncLease.nonce ||
-    existingLease.epoch !== activeSyncLease.epoch
-  ) {
+  if (!leaseIdentityMatches(existingLease, activeSyncLease)) {
     return false;
   }
 
@@ -603,12 +593,7 @@ export function renewSyncLease(): boolean {
   };
   localStorage.setItem(getSyncLockStorageKeyFn!(), JSON.stringify(nextLease));
   const confirmedLease = readSyncLease();
-  return (
-    confirmedLease?.owner === nextLease.owner &&
-    confirmedLease.expiresAt === nextLease.expiresAt &&
-    confirmedLease.nonce === nextLease.nonce &&
-    confirmedLease.epoch === nextLease.epoch
-  );
+  return leaseClaimsMatch(confirmedLease, nextLease);
 }
 
 export function hasActiveSyncLeaseOwnership(): boolean {
@@ -616,9 +601,7 @@ export function hasActiveSyncLeaseOwnership(): boolean {
   if (activeSyncLease?.mode !== 'storage') return false;
   const lease = readSyncLease();
   return (
-    lease?.owner === activeSyncLease.owner &&
-    lease.nonce === activeSyncLease.nonce &&
-    lease.epoch === activeSyncLease.epoch &&
-    lease.expiresAt > Date.now()
+    leaseIdentityMatches(lease, activeSyncLease) &&
+    (lease?.expiresAt ?? -Infinity) > Date.now()
   );
 }

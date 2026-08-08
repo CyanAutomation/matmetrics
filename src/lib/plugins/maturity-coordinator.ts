@@ -4,7 +4,6 @@ import path from 'node:path';
 import type {
   PluginManifest,
   PluginMaturityCategory,
-  PluginMaturityCategoryScore,
   PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
   PluginMaturityUxCriterion,
@@ -26,6 +25,10 @@ import {
   normalizeHeading,
 } from '@/lib/plugins/scoring';
 import { scoreOperabilityEvidence } from './maturity-operability';
+import {
+  normalizeMaturityCategoryScores,
+  totalMaturityScore,
+} from './maturity-scorecard';
 
 type ScorePluginMaturityOptions = {
   manifest: PluginManifest;
@@ -54,9 +57,6 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
   test_coverage: 20,
   operability_docs: 15,
 };
-
-const clampScore = (score: number, max: number): number =>
-  Math.max(0, Math.min(max, score));
 
 const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
   path.relative(repoRoot, filePath).split(path.sep).join('/');
@@ -770,28 +770,12 @@ export const scorePluginMaturity = async ({
   for (const item of operabilityResult.nextActions)
     pushUnique(nextActions, item);
 
-  const normalizedCategoryScores = Object.fromEntries(
-    (Object.keys(categoryMaximums) as PluginMaturityCategory[]).map(
-      (category) => [
-        category,
-        {
-          label: categoryLabels[category],
-          earned: clampScore(
-            categoryScores[category],
-            categoryMaximums[category]
-          ),
-          possible: categoryMaximums[category],
-        } satisfies PluginMaturityCategoryScore,
-      ]
-    )
-  ) as Record<PluginMaturityCategory, PluginMaturityCategoryScore>;
-
-  const totalScore = (
-    Object.keys(normalizedCategoryScores) as PluginMaturityCategory[]
-  ).reduce(
-    (sum, category) => sum + normalizedCategoryScores[category].earned,
-    0
+  const normalizedCategoryScores = normalizeMaturityCategoryScores(
+    categoryScores,
+    categoryLabels,
+    categoryMaximums
   );
+  const totalScore = totalMaturityScore(normalizedCategoryScores);
 
   const hasValidationErrors = validationIssues.some(
     (issue) => issue.severity === 'error'
