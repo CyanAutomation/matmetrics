@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,7 @@ export function PluginBulkActions({
   children,
   className,
 }: PluginBulkActionsProps) {
+  const disabledMessageId = useId();
   const resolvedDisabledMessage =
     disabledMessage ??
     (isDisabled
@@ -38,9 +39,18 @@ export function PluginBulkActions({
           {selectedCount === 1 ? '' : 's'} selected
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      <div
+        className="flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label="Bulk actions"
+        aria-describedby={
+          resolvedDisabledMessage ? disabledMessageId : undefined
+        }
+      >
+        {children}
+      </div>
       {resolvedDisabledMessage ? (
-        <p className="text-xs text-muted-foreground">
+        <p id={disabledMessageId} className="text-xs text-muted-foreground">
           {resolvedDisabledMessage}
         </p>
       ) : null}
