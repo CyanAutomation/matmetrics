@@ -4,6 +4,7 @@
  */
 
 import { access } from 'node:fs/promises';
+import type { PluginManifest } from '@/lib/plugins/types';
 
 /**
  * Adds a value to an array only if it's not already present.
@@ -34,6 +35,15 @@ export const fileExists = async (targetPath: string): Promise<boolean> => {
  */
 export const componentIdToComponentBasename = (componentId: string): string =>
   componentId.trim().toLowerCase().replace(/_/g, '-');
+
+export const getManifestComponentIds = (manifest: PluginManifest): string[] =>
+  manifest.uiExtensions.flatMap((extension) => {
+    const maybeComponent =
+      'component' in extension.config ? extension.config.component : undefined;
+    return typeof maybeComponent === 'string' && maybeComponent.trim()
+      ? [maybeComponent]
+      : [];
+  });
 
 export const normalizeHeading = (heading: string): string =>
   heading.trim().toLowerCase().replace(/\s+/g, ' ');

@@ -21,6 +21,7 @@ import {
   pushUnique,
   fileExists,
   extractRegisteredPluginComponents,
+  getManifestComponentIds,
 } from './utils';
 
 export async function scoreRuntimeIntegration(
@@ -40,13 +41,7 @@ export async function scoreRuntimeIntegration(
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
 
   // Get component IDs from manifest UI extensions
-  const componentIds = manifest.uiExtensions.flatMap((extension) => {
-    const maybeComponent =
-      'component' in extension.config ? extension.config.component : undefined;
-    return typeof maybeComponent === 'string' && maybeComponent.trim()
-      ? [maybeComponent]
-      : [];
-  });
+  const componentIds = getManifestComponentIds(manifest);
 
   // Get unresolved component warnings
   const unresolvedRuntimeComponentWarnings = validationIssues.filter(

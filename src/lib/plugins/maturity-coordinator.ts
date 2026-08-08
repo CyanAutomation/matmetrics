@@ -19,6 +19,7 @@ import {
   pushUnique,
   fileExists,
   componentIdToComponentBasename,
+  getManifestComponentIds,
   mergeCategoryScore,
   mergeCategoryScoringResults,
   extractRegisteredPluginComponents,
@@ -440,13 +441,7 @@ export const scorePluginMaturity = async ({
   const repoRoot = path.dirname(pluginsRoot);
   const pluginReadmePath = path.join(pluginDir, 'README.md');
   const pluginEntryPath = path.join(pluginDir, 'src', 'index.ts');
-  const componentIds = manifest.uiExtensions.flatMap((extension) => {
-    const maybeComponent =
-      'component' in extension.config ? extension.config.component : undefined;
-    return typeof maybeComponent === 'string' && maybeComponent.trim()
-      ? [maybeComponent]
-      : [];
-  });
+  const componentIds = getManifestComponentIds(manifest);
   const componentBasenames = componentIds.map(componentIdToComponentBasename);
   const unresolvedRuntimeComponentWarnings = validationIssues.filter(
     (issue) =>

@@ -8,11 +8,13 @@
  */
 
 import {
-  getLeaseSignature,
   isNewerLiveLease,
-  updateLeaseObservation,
   type LeaseObservationState,
 } from './sync-lease-attempt';
+import {
+  createLeaseClaim,
+  evaluateLeaseAcquisition,
+} from './sync-lease-acquisition';
 import {
   leaseClaimsMatch,
   leaseIdentityMatches,
@@ -196,18 +198,6 @@ export function readSyncLease(): SyncLease | null {
 /**
  * Create a signature for identifying stable contenders
  */
-function shouldForceReclaim(
-  leaseOwnedByAnother: boolean,
-  leaseExpired: boolean,
-  stableObservations: number,
-  leaseIsAlive: boolean
-): boolean {
-  return (
-    allowForcedReclaim &&
-    leaseIsAlive && stableObservations >= STALE_LEASE_RECLAIM_RETRY_THRESHOLD
-  );
-}
-
 /**
  * Validate that our lease claim was not overwritten by another process
  */
@@ -323,37 +313,6 @@ function monitorStorageForLeaseConflict(
  * Evaluate whether to attempt lease acquisition based on contender stability.
  * Returns true if we should proceed with acquisition (either no contender or forced reclaim).
  */
-function shouldAttemptLeaseAcquisition(
-  observationState: LeaseObservationState,
-  contenderSignature: string | null,
-  leaseOwnedByAnother: boolean,
-  leaseExpired: boolean,
-  leaseIsOwnedAndAlive: boolean
-): {
-  attempt: boolean;
-  updatedStableSignature: string | null;
-  updatedObservations: number;
-} {
-  // Track contender stability across observations
-  const updated = updateLeaseObservation(observationState, contenderSignature);
-
-  const forcedReclaimAttempt = shouldForceReclaim(
-    leaseOwnedByAnother,
-    leaseExpired,
-    updated.observations,
-    leaseIsOwnedAndAlive
-  );
-
-  // If another process owns the lease and we're not forcing reclaim, back off
-  const shouldBackOff = leaseIsOwnedAndAlive && !forcedReclaimAttempt;
-
-  return {
-    attempt: !shouldBackOff,
-    updatedStableSignature: updated.signature,
-    updatedObservations: updated.observations,
-  };
-}
-
 /**
  * Attempt to acquire a sync lease using localStorage with retry logic
  * Reduces cognitive complexity by extracting core loop and validation logic
@@ -432,28 +391,14 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
     const observedLease = readSyncLease();
-    const leaseOwnedByAnother =
-      observedLease !== null && observedLease.owner !== syncOwnerId;
-    const leaseExpired =
-      observedLease !== null && observedLease.expiresAt < now;
-    const leaseIsOwnedAndAlive = leaseOwnedByAnother && !leaseExpired;
-    const contenderSignature = getLeaseSignature(
-      leaseOwnedByAnother ? observedLease : null
-    );
-
-    // Evaluate if we should attempt acquisition
-    const leaseEval = shouldAttemptLeaseAcquisition(
+    const leaseEval = evaluateLeaseAcquisition({
       observationState,
-      contenderSignature,
-      leaseOwnedByAnother,
-      leaseExpired,
-      leaseIsOwnedAndAlive
-    );
-
-    observationState = {
-      signature: leaseEval.updatedStableSignature,
-      observations: leaseEval.updatedObservations,
-    };
+      observedLease,
+      owner: syncOwnerId,
+      allowForcedReclaim,
+      reclaimRetryThreshold: STALE_LEASE_RECLAIM_RETRY_THRESHOLD,
+    });
+    observationState = leaseEval.observationState;
 
     // Back off if another process owns an alive lease
     if (!leaseEval.attempt) {
@@ -464,27 +409,22 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     }
 
     // Prepare our lease claim
-    const nextLease: SyncLease = {
+    const nextLease = createLeaseClaim({
       owner: syncOwnerId,
-      expiresAt: now + syncLockTtlMs,
-      nonce: createSyncLeaseNonce(),
-      epoch: getNextSyncLeaseEpoch(observedLease?.epoch ?? 0),
-    };
+      ttlMs: syncLockTtlMs,
+      observedEpoch: observedLease?.epoch ?? 0,
+      createNonce: createSyncLeaseNonce,
+      nextEpoch: getNextSyncLeaseEpoch,
+      now,
+    });
 
     // Emit diagnostic if taking over another process's lease
     if (observedLease && observedLease.owner !== syncOwnerId) {
-      const forcedReclaimAttempt = shouldForceReclaim(
-        leaseOwnedByAnother,
-        leaseExpired,
-        observationState.observations,
-        leaseIsOwnedAndAlive
-      );
-
       emitDiagnosticFn({
         reason:
           observedLease.expiresAt < now
             ? 'expired'
-            : forcedReclaimAttempt
+            : leaseEval.forcedReclaim
               ? 'forced-reclaim'
               : 'race-revalidate',
         attempt,

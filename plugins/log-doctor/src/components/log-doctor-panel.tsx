@@ -24,7 +24,6 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
-import { PluginTabs } from '@/components/plugins/plugin-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +43,7 @@ import { AuditReviewDialog } from './log-doctor-review-dialog';
 import { AuditSettings } from './log-doctor-audit-settings';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 import { LogDoctorRepositoryTarget } from './log-doctor-repository-target';
+import { LogDoctorTabs } from './log-doctor-tabs';
 import {
   buildInvalidFileSelections,
   filterInvalidFiles,
@@ -288,21 +288,9 @@ export const LogDoctor = (): React.ReactElement => {
 
         <div className="w-full flex-1 space-y-4">
           {/* Tab switcher */}
-          <PluginTabs
-            tabs={[
-              { id: 'validation', label: 'File Validation' },
-              {
-                id: 'audit',
-                label: 'Session Audit',
-                badge:
-                  auditNeedsAttentionCount > 0 ? (
-                    <Badge variant="destructive" className="ml-1">
-                      {auditNeedsAttentionCount}
-                    </Badge>
-                  ) : undefined,
-              },
-            ]}
+          <LogDoctorTabs
             activeTab={activeTab}
+            attentionCount={auditNeedsAttentionCount}
             onTabChange={handleTabChange}
           />
 
