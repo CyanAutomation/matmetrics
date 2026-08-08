@@ -1,9 +1,10 @@
 ---
-name: frontend-skill
+name: front-end-design
 description: Use when the task asks for a visually strong landing page, website, app, prototype, demo, or game UI. This skill enforces restrained composition, image-led hierarchy, cohesive content structure, and tasteful motion while avoiding generic cards, weak branding, and UI clutter.
+license: MIT
 ---
 
-# Frontend skill
+# Front-End Design
 
 Use this skill when the quality of the work depends on art direction, hierarchy, restraint, imagery, and motion rather than component count.
 

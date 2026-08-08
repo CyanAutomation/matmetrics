@@ -59,6 +59,109 @@ npm install --save-dev fallow
 
 **Critical for agents**: `npx fallow` (without `-y`) prompts for installation confirmation and will block in non-interactive environments. Always use `npx -y fallow` or pre-install globally/locally.
 
+## MatMetrics Context
+
+MatMetrics uses fallow for:
+- **Pre-PR audit:** `npx -y fallow audit --changed-since main` to catch dead code, complexity hotspots, and duplication in PR changes
+- **Go code analysis:** Fallow skips `go/`, `internal/`, `api/go/` directories (Go-only). Run `go test ./internal/... ./api/go/...` for Go quality checks separately.
+- **CI integration:** See [run-lint.sh](../../run-lint.sh) and [test-runner.sh](../../test-runner.sh) for example CI gates using fallow
+- **Plugin cleanup:** Before releasing plugins, run `fallow` to ensure no unused exports in `plugins/*/src/`
+
+### MatMetrics `.fallowrc.json` Baseline
+
+```json
+{
+  "dead-code": {
+    "unused-exports": true,
+    "unused-files": true,
+    "unused-dependencies": true,
+    "unused-types": true
+  },
+  "dupes": {
+    "mode": "aggressive",
+    "threshold": 0.9,
+    "top": 5
+  },
+  "health": {
+    "max-cyclomatic": 10,
+    "max-cognitive": 15
+  },
+  "ignore": [
+    "node_modules",
+    ".next",
+    "dist",
+    "build"
+  ]
+}
+```
+
+### Go Integration
+
+Fallow does not analyze Go files. For Go code quality, use:
+
+```bash
+go test ./internal/... ./go/... ./api/go/...          # Run Go tests
+go vet ./internal/... ./go/... ./api/go/...           # Run vet (lint equivalent)
+go fmt ./internal/... ./go/... ./api/go/...           # Format Go code
+```
+
+See [go/README.md](../../go/README.md) for Go CLI and API patterns.
+
+### CI Integration Examples
+
+**Pre-PR Check (Local or CI):**
+
+```bash
+# Audit only changed files since main
+npx -y fallow audit --changed-since main --ci
+
+# Exit codes:
+# 0 = no issues found
+# 1 = issues found (fail CI if issues present)
+# 2 = error (invalid config, parse failure)
+```
+
+**Full Suite Check (CI before merge):**
+
+```bash
+# Run full analysis with regression detection
+npx -y fallow --format json --ci --fail-on-regression --regression-baseline main || true
+
+# This checks:
+# - dead code (exports, files, deps)
+# - duplication (clones, strings)
+# - complexity (cyclomatic, cognitive)
+# - against baseline from main branch
+```
+
+**Plugin-Specific Cleanup (Before Release):**
+
+```bash
+# Check for unused exports in specific plugin
+npx -y fallow dead-code \
+  --unused-exports \
+  --file "plugins/prompt-settings/src/**" \
+  --format json || true
+
+# Dry-run auto-fix
+npx -y fallow fix --unused-exports --file "plugins/prompt-settings/src/**" --dry-run
+
+# Apply fixes (with confirmation)
+npx -y fallow fix --unused-exports --file "plugins/prompt-settings/src/**" --yes
+```
+
+**Integration in `npm run verify`:**
+
+See [package.json](../../package.json) — the `verify` script chains:
+```bash
+npm test          # Jest unit tests
+npm run typecheck # TypeScript type check
+npm run build     # Next.js production build
+npm run lint      # ESLint + fallow dead-code check
+```
+
+This ensures code quality gates before CI/CD pipeline.
+
 ## Agent Rules
 
 1. **Always use `--format json --quiet 2>/dev/null`** for machine-readable output. The `2>/dev/null` discards stderr so progress messages and threshold warnings don't corrupt the JSON on stdout. Never use `2>&1`

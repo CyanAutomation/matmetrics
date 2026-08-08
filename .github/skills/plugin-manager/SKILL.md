@@ -1,6 +1,7 @@
 ---
 name: plugin-manager
 description: Manage plugin manifests and files. Use when users ask to create, update, list, or validate plugins and their metadata.
+license: MIT
 ---
 
 # Plugin Manager
@@ -401,6 +402,103 @@ export function initPlugin(context) {
 ```
 
 If TypeScript is chosen, keep the same exported `initPlugin` entrypoint and add types as needed.
+
+## Plugin Maturity Scoring
+
+MatMetrics gates plugin reviews and releases by maturity tier. Use this workflow to evaluate and communicate plugin readiness.
+
+### Maturity Tiers
+
+| Tier | Test Coverage | Documentation | UI/UX | Release Quality | Timeline |
+|------|---------------|----------------|-------|-----------------|----------|
+| **Bronze** | None | Minimal | Acceptable | Alpha; expect bugs | Internal/experiment |
+| **Silver** | 40%+ | Complete | Polish | Beta; production-ready | Ready to share externally |
+| **Gold** | 80%+ | Exemplary | Excellent | Production; supported | Recommended for all users |
+
+### Scoring Workflow
+
+**Before submitting a plugin PR, complete this checklist:**
+
+1. **Test Coverage** — Run `npm test -- plugins/<plugin-id>` and verify coverage % (target: Silver 40%, Gold 80%)
+   - Coverage report path: `coverage/plugins/<plugin-id>/`
+   - Coverage file: `plugins/<plugin-id>/src/**/*.test.ts`
+   - Example: [plugins/prompt-settings/src/components/prompt-settings.test.tsx](../../../plugins/prompt-settings/src/components/prompt-settings.test.tsx)
+
+2. **Documentation** — Verify README exists and covers:
+   - What the plugin does (1-2 sentence pitch)
+   - Feature list with examples
+   - How to use it (step-by-step for end-user)
+   - Configuration options (if any)
+   - Known limitations or roadmap
+   - Example: [plugins/prompt-settings/README.md](../../../plugins/prompt-settings/README.md)
+
+3. **UI/UX Polish** — Verify:
+   - No hardcoded text (use i18n)
+   - Error states handled gracefully
+   - Loading states visible
+   - Mobile-responsive (test at 320px, 768px, 1440px)
+   - Accessible colors (use design tokens from [docs/blueprint.md](../../../docs/blueprint.md))
+   - Example: [plugins/video-library/src/components/](../../../plugins/video-library/src/components/)
+
+4. **Code Quality** — Run checks:
+   ```bash
+   npm run lint -- plugins/<plugin-id>
+   npm run typecheck -- plugins/<plugin-id>
+   npm test -- plugins/<plugin-id>
+   ```
+
+5. **Manifest Validity** — Validate plugin.json schema:
+   ```bash
+   npx tsx scripts/validate-plugin-ui-contract.ts plugins/<plugin-id>
+   ```
+
+### Scorecard & Git History
+
+Plugin maturity scores are tracked in two files:
+
+- [docs/plugin-maturity-scorecards.json](../../../docs/plugin-maturity-scorecards.json) — Current tier and scores
+- [docs/plugin-maturity-score-changelog.md](../../../docs/plugin-maturity-score-changelog.md) — Historical tier transitions
+
+**Recording a tier upgrade:**
+
+1. Update `docs/plugin-maturity-scorecards.json`:
+   ```json
+   {
+     "pluginId": "prompt-settings",
+     "currentTier": "Silver",
+     "scores": {
+       "testCoverage": 52,
+       "documentation": 100,
+       "uiUx": 85,
+       "codeQuality": 90
+     },
+     "lastReviewedDate": "2026-03-18",
+     "lastUpgradedDate": "2026-03-10"
+   }
+   ```
+
+2. Add entry to `docs/plugin-maturity-score-changelog.md`:
+   ```markdown
+   ## 2026-03-10: prompt-settings upgraded to Silver
+
+   - Test coverage: 40% → 52%
+   - UI polish: improved error messages, loading states
+   - Documentation: added configuration guide
+   ```
+
+### Real Examples
+
+Study these plugins to understand maturity tiers:
+
+**Silver Tier (Production-Ready):**
+- [plugins/prompt-settings/](../../../plugins/prompt-settings/) — Settings panel with custom instructions
+- [plugins/github-sync/](../../../plugins/github-sync/) — GitHub session sync dashboard
+
+**Bronze Tier (Experimental):**
+- [plugins/tag-manager/](../../../plugins/tag-manager/) — Session tagging (early stage)
+- [plugins/log-doctor/](../../../plugins/log-doctor/) — Log analysis (in development)
+
+Compare their README, test coverage, and code polish to understand the tier differences.
 
 ## Update Existing Plugin
 
