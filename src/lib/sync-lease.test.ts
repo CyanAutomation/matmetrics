@@ -176,6 +176,14 @@ test('sync-lease module', async (t) => {
       }
     });
 
+    await t.test('ignores malformed persisted lease values', () => {
+      if (typeof global.localStorage === 'undefined') {
+        throw new Error('localStorage unavailable in test environment');
+      }
+      global.localStorage.setItem('matmetrics_sync_lock_test', '{not-json}');
+      assert.equal(readSyncLease(), null);
+    });
+
     afterEach();
   });
 

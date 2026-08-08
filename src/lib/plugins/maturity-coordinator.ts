@@ -25,7 +25,7 @@ import {
   extractRegisteredPluginComponents,
   normalizeHeading,
 } from '@/lib/plugins/scoring';
-import { scoreOperabilityEvidence } from './maturity-operability';
+import { parseReadmeSections } from './maturity-readme';
 import {
   normalizeMaturityCategoryScores,
   totalMaturityScore,
@@ -784,17 +784,15 @@ export const scorePluginMaturity = async ({
     categoryScores.test_coverage += 4;
   }
 
-  const operabilityResult = await scoreOperabilityEvidence(
-    pluginReadmePath,
-    await fileExists(pluginReadmePath),
-    Boolean(manifest.maturity?.notes && manifest.maturity.lastReviewedAt)
-  );
-  categoryScores.operability_docs += operabilityResult.score;
-  const detectedReadmeSections = operabilityResult.sections;
-  for (const item of operabilityResult.evidence) pushUnique(evidence, item);
-  for (const item of operabilityResult.reasons) pushUnique(reasons, item);
-  for (const item of operabilityResult.nextActions)
-    pushUnique(nextActions, item);
+  // Documentation scoring is already performed by scoreOperabilityDocs above.
+  // Reusing its result avoids scoring the same README twice and keeps the
+  // coordinator responsible only for assembling the final scorecard.
+  const detectedReadmeSections = pluginReadmePath
+    ? await (async () => {
+        if (!(await fileExists(pluginReadmePath))) return [];
+        return parseReadmeSections(await readFile(pluginReadmePath, 'utf8'));
+      })()
+    : [];
 
   const normalizedCategoryScores = normalizeMaturityCategoryScores(
     categoryScores,
