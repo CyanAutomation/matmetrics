@@ -138,25 +138,55 @@ test('PluginDataSurfaceSplit avoids two-column layout when detail is omitted', (
   assert.match(html, /left pane/);
 });
 
-test('PluginBulkActions renders selection count and disabled messaging', () => {
-  const html = normalizeMarkup(
-    renderToStaticMarkup(
+test('PluginBulkActions exposes disabled and enabled selection states', () => {
+  const onRunAction = mock.fn();
+  const renderBulkActions = (selectedCount: number) =>
+    React.createElement(
+      PluginBulkActions,
+      {
+        selectedCount,
+        itemLabel: 'file',
+        isDisabled: selectedCount === 0,
+        disabledMessage:
+          selectedCount === 0 ? 'Select at least one file.' : undefined,
+      },
       React.createElement(
-        PluginBulkActions,
+        'button',
         {
-          selectedCount: 0,
-          itemLabel: 'file',
-          disabledMessage: 'Select at least one file.',
+          type: 'button',
+          disabled: selectedCount === 0,
+          onClick: onRunAction,
         },
-        React.createElement('button', { type: 'button' }, 'Run action')
+        'Run action'
       )
-    )
-  );
+    );
 
-  assert.match(html, /0 files selected/);
-  assert.match(html, /Select at least one file/);
-  assert.match(html, /Run action/);
-  assert.match(html, /rounded-md border/);
+  const { rerender } = render(renderBulkActions(0));
+  const selectionAnnouncement = screen.getByText('0 files selected');
+  const disabledExplanation = screen.getByText('Select at least one file.');
+  const actionRegion = screen.getByRole('group', { name: 'Bulk actions' });
+  const action = screen.getByRole('button', { name: 'Run action' });
+
+  assert.equal(selectionAnnouncement.getAttribute('aria-live'), 'polite');
+  assert.equal(
+    actionRegion.getAttribute('aria-describedby'),
+    disabledExplanation.id
+  );
+  assert.equal(action.hasAttribute('disabled'), true);
+
+  fireEvent.click(action);
+  assert.equal(onRunAction.mock.callCount(), 0);
+
+  // PluginBulkActions describes availability; callers own the action control's
+  // disabled state and update it when their selection becomes actionable.
+  rerender(renderBulkActions(1));
+
+  assert.ok(screen.getByText('1 file selected'));
+  const enabledAction = screen.getByRole('button', { name: 'Run action' });
+  assert.equal(enabledAction.hasAttribute('disabled'), false);
+
+  fireEvent.click(enabledAction);
+  assert.equal(onRunAction.mock.callCount(), 1);
 });
 
 test('PluginBulkActions provides default disabled-state messaging when needed', () => {
