@@ -11,10 +11,10 @@ import {
   extractDeclaredComponentIds,
   extractDisallowedEntrypointComponentImports,
   extractRuntimeRegisteredComponentIds,
-  exists,
   hasRequiredReadmeSections,
   toComponentFileName,
 } from './plugin-contract-gate-utils';
+import { exists } from './plugin-contract-gate-utils.server';
 
 export type ContractGateContext = {
   pluginsRoot: string;
