@@ -415,401 +415,415 @@ function LogDoctorView({
           />
 
           {/* File Validation Tab */}
-          {activeTab === 'validation' ? (
-            <>
-              <LogDoctorRepositoryTarget
-                owner={owner}
-                repo={repo}
-                branch={branch}
-                onOwnerChange={setOwner}
-                onRepoChange={setRepo}
-                onBranchChange={setBranch}
-              />
+          {(() => {
+            if (activeTab !== 'validation') return null;
+            return (
+              <>
+                <LogDoctorRepositoryTarget
+                  owner={owner}
+                  repo={repo}
+                  branch={branch}
+                  onOwnerChange={setOwner}
+                  onRepoChange={setRepo}
+                  onBranchChange={setBranch}
+                />
 
-              <PluginActionRow>
-                <PluginBulkActions
-                  selectedCount={selectedCount}
-                  itemLabel="file"
-                  isDisabled={selectedCount === 0}
-                  disabledMessage={
-                    selectedCount === 0
-                      ? 'Select at least one invalid file to preview or apply fixes.'
-                      : undefined
-                  }
-                >
-                  <PluginActionPrimary>
-                    <Button
-                      onClick={handleScan}
-                      disabled={isScanning || !owner || !repo}
-                    >
-                      {isScanning ? 'Scanning…' : 'Scan repository'}
-                    </Button>
-                  </PluginActionPrimary>
-                  <PluginActionSecondary>
-                    <Button
-                      variant="secondary"
-                      onClick={handlePreviewFixes}
-                      disabled={isPreviewing || selectedCount === 0}
-                    >
-                      {isPreviewing ? 'Previewing…' : 'Preview fixes'}
-                    </Button>
-                  </PluginActionSecondary>
-                  <PluginActionDestructive>
-                    <Button
-                      variant="destructive"
-                      onClick={handleApplyFixes}
-                      disabled={isApplying || selectedCount === 0}
-                      aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
-                    >
-                      {isApplying ? 'Applying…' : 'Apply fixes'}
-                    </Button>
-                  </PluginActionDestructive>
-                  {isBusy ? (
+                <PluginActionRow>
+                  <PluginBulkActions
+                    selectedCount={selectedCount}
+                    itemLabel="file"
+                    isDisabled={selectedCount === 0}
+                    disabledMessage={
+                      selectedCount === 0
+                        ? 'Select at least one invalid file to preview or apply fixes.'
+                        : undefined
+                    }
+                  >
+                    <PluginActionPrimary>
+                      <Button
+                        onClick={handleScan}
+                        disabled={isScanning || !owner || !repo}
+                      >
+                        {isScanning ? 'Scanning…' : 'Scan repository'}
+                      </Button>
+                    </PluginActionPrimary>
                     <PluginActionSecondary>
                       <Button
-                        variant="outline"
-                        onClick={handleCancelActiveOperation}
+                        variant="secondary"
+                        onClick={handlePreviewFixes}
+                        disabled={isPreviewing || selectedCount === 0}
                       >
-                        Cancel current check
+                        {isPreviewing ? 'Previewing…' : 'Preview fixes'}
                       </Button>
                     </PluginActionSecondary>
-                  ) : null}
-                </PluginBulkActions>
-              </PluginActionRow>
-
-              <LogDoctorStatusAlerts
-                uiState={uiState}
-                errorMessage={errorMessage}
-                onRetry={handleScan}
-              />
-
-              {scanResult ? (
-                <PluginTableSection
-                  title="Scan results"
-                  hasRows
-                  emptyTitle="No scan results"
-                  emptyDescription="Run a scan to inspect repository diagnostics."
-                >
-                  <div className="flex flex-wrap gap-2 text-sm">
-                    <Badge variant="outline">
-                      Total: {scanResult.summary.totalFiles}
-                    </Badge>
-                    <Badge variant="outline">
-                      Valid: {scanResult.summary.validFiles}
-                    </Badge>
-                    <Badge variant="destructive">
-                      Invalid: {scanResult.summary.invalidFiles}
-                    </Badge>
-                    <Badge variant="secondary">Selected: {selectedCount}</Badge>
-                  </div>
-                  <PluginDataSurfaceFilterRow className="lg:grid-cols-1">
-                    <div className="space-y-2">
-                      <Label htmlFor="log-doctor-file-search">
-                        Search invalid file paths
-                      </Label>
-                      <Input
-                        id="log-doctor-file-search"
-                        value={fileSearch}
-                        onChange={(event) => setFileSearch(event.target.value)}
-                        placeholder="Filter by file path"
-                      />
-                    </div>
-                  </PluginDataSurfaceFilterRow>
-                  <PluginDataSurfaceSummaryStrip
-                    filteredCount={filteredInvalidFiles.length}
-                    totalCount={invalidFiles.length}
-                    itemLabel="invalid files"
-                    activeFilters={
-                      fileSearch.trim()
-                        ? [{ label: 'Search', value: fileSearch.trim() }]
-                        : []
-                    }
-                  />
-
-                  {invalidFiles.length === 0 ? (
-                    <div className="space-y-2">
-                      <p
-                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                    <PluginActionDestructive>
+                      <Button
+                        variant="destructive"
+                        onClick={handleApplyFixes}
+                        disabled={isApplying || selectedCount === 0}
+                        aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
                       >
-                        No invalid files found.
-                      </p>
-                      <div className="flex gap-2">
+                        {isApplying ? 'Applying…' : 'Apply fixes'}
+                      </Button>
+                    </PluginActionDestructive>
+                    {isBusy ? (
+                      <PluginActionSecondary>
                         <Button
-                          size="sm"
                           variant="outline"
-                          onClick={handleScan}
+                          onClick={handleCancelActiveOperation}
                         >
-                          Refresh logs
+                          Cancel current check
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          aria-label="Reset diagnostics state and select a different source"
-                          onClick={resetDiagnostics.open}
-                        >
-                          Select source
-                        </Button>
-                      </div>
-                    </div>
-                  ) : filteredInvalidFiles.length === 0 ? (
-                    <PluginEmptyFilteredResults
-                      title="No invalid files match this search"
-                      description="Adjust or clear the search to see available invalid files."
-                      clearLabel="Clear search"
-                      onClear={() => setFileSearch('')}
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      {filteredInvalidFiles.map((file: any) => {
-                        const selectId = selectIdByPath.get(file.path);
-                        if (!selectId) return null;
+                      </PluginActionSecondary>
+                    ) : null}
+                  </PluginBulkActions>
+                </PluginActionRow>
 
-                        return (
-                          <div
-                            key={file.path}
-                            className="rounded-md border p-3 text-sm space-y-2"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  id={selectId}
-                                  checked={selectedPaths.includes(file.path)}
-                                  onChange={() => togglePath(file.path)}
-                                />
-                                <Label
-                                  className="cursor-pointer break-all"
-                                  htmlFor={selectId}
-                                >
-                                  {file.path}
-                                </Label>
-                              </div>
-                              <Badge variant="destructive">invalid</Badge>
-                            </div>
-                            {(file.errors ?? []).length > 0 ? (
-                              <ul
-                                className={`list-disc pl-5 ${getPluginUiTokenClassNames('text.danger')}`}
-                              >
-                                {file.errors?.map((entry: any) => (
-                                  <li key={`${file.path}-${entry}`}>{entry}</li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </PluginTableSection>
-              ) : null}
+                <LogDoctorStatusAlerts
+                  uiState={uiState}
+                  errorMessage={errorMessage}
+                  onRetry={handleScan}
+                />
 
-              {fixResult ? (
-                <PluginTableSection
-                  title={`Fix result (${fixResult.mode})`}
-                  hasRows
-                  emptyTitle="No fix result"
-                  emptyDescription="Preview or apply fixes to view result details."
-                >
-                  <p
-                    className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                {scanResult ? (
+                  <PluginTableSection
+                    title="Scan results"
+                    hasRows
+                    emptyTitle="No scan results"
+                    emptyDescription="Run a scan to inspect repository diagnostics."
                   >
-                    {fixResult.message}
-                  </p>
-                  {fixResult.files.map((file: any) => (
-                    <div
-                      key={`fix-${file.path}`}
-                      className="rounded-md border p-3"
-                    >
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium break-all">
-                          {file.path}
-                        </span>
-                        <Badge
-                          variant={
-                            file.status === 'error' ? 'destructive' : 'outline'
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <Badge variant="outline">
+                        Total: {scanResult.summary.totalFiles}
+                      </Badge>
+                      <Badge variant="outline">
+                        Valid: {scanResult.summary.validFiles}
+                      </Badge>
+                      <Badge variant="destructive">
+                        Invalid: {scanResult.summary.invalidFiles}
+                      </Badge>
+                      <Badge variant="secondary">
+                        Selected: {selectedCount}
+                      </Badge>
+                    </div>
+                    <PluginDataSurfaceFilterRow className="lg:grid-cols-1">
+                      <div className="space-y-2">
+                        <Label htmlFor="log-doctor-file-search">
+                          Search invalid file paths
+                        </Label>
+                        <Input
+                          id="log-doctor-file-search"
+                          value={fileSearch}
+                          onChange={(event) =>
+                            setFileSearch(event.target.value)
                           }
-                        >
-                          {file.status}
-                        </Badge>
+                          placeholder="Filter by file path"
+                        />
                       </div>
-                      {file.message ? (
+                    </PluginDataSurfaceFilterRow>
+                    <PluginDataSurfaceSummaryStrip
+                      filteredCount={filteredInvalidFiles.length}
+                      totalCount={invalidFiles.length}
+                      itemLabel="invalid files"
+                      activeFilters={
+                        fileSearch.trim()
+                          ? [{ label: 'Search', value: fileSearch.trim() }]
+                          : []
+                      }
+                    />
+
+                    {invalidFiles.length === 0 ? (
+                      <div className="space-y-2">
                         <p
+                          className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                        >
+                          No invalid files found.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleScan}
+                          >
+                            Refresh logs
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            aria-label="Reset diagnostics state and select a different source"
+                            onClick={resetDiagnostics.open}
+                          >
+                            Select source
+                          </Button>
+                        </div>
+                      </div>
+                    ) : filteredInvalidFiles.length === 0 ? (
+                      <PluginEmptyFilteredResults
+                        title="No invalid files match this search"
+                        description="Adjust or clear the search to see available invalid files."
+                        clearLabel="Clear search"
+                        onClear={() => setFileSearch('')}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredInvalidFiles.map((file: any) => {
+                          const selectId = selectIdByPath.get(file.path);
+                          if (!selectId) return null;
+
+                          return (
+                            <div
+                              key={file.path}
+                              className="rounded-md border p-3 text-sm space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    id={selectId}
+                                    checked={selectedPaths.includes(file.path)}
+                                    onChange={() => togglePath(file.path)}
+                                  />
+                                  <Label
+                                    className="cursor-pointer break-all"
+                                    htmlFor={selectId}
+                                  >
+                                    {file.path}
+                                  </Label>
+                                </div>
+                                <Badge variant="destructive">invalid</Badge>
+                              </div>
+                              {(file.errors ?? []).length > 0 ? (
+                                <ul
+                                  className={`list-disc pl-5 ${getPluginUiTokenClassNames('text.danger')}`}
+                                >
+                                  {file.errors?.map((entry: any) => (
+                                    <li key={`${file.path}-${entry}`}>
+                                      {entry}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </PluginTableSection>
+                ) : null}
+
+                {fixResult ? (
+                  <PluginTableSection
+                    title={`Fix result (${fixResult.mode})`}
+                    hasRows
+                    emptyTitle="No fix result"
+                    emptyDescription="Preview or apply fixes to view result details."
+                  >
+                    <p
+                      className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
+                      {fixResult.message}
+                    </p>
+                    {fixResult.files.map((file: any) => (
+                      <div
+                        key={`fix-${file.path}`}
+                        className="rounded-md border p-3"
+                      >
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium break-all">
+                            {file.path}
+                          </span>
+                          <Badge
+                            variant={
+                              file.status === 'error'
+                                ? 'destructive'
+                                : 'outline'
+                            }
+                          >
+                            {file.status}
+                          </Badge>
+                        </div>
+                        {file.message ? (
+                          <p
+                            className={`mb-2 text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                          >
+                            {file.message}
+                          </p>
+                        ) : null}
+                        {file.validationState.errors?.length ? (
+                          <ul
+                            className={`mb-2 list-disc pl-5 text-xs ${getPluginUiTokenClassNames('text.danger')}`}
+                          >
+                            {file.validationState.errors.map((entry: any) => (
+                              <li key={`${file.path}-err-${entry}`}>{entry}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <div
                           className={`mb-2 text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
                         >
-                          {file.message}
-                        </p>
-                      ) : null}
-                      {file.validationState.errors?.length ? (
-                        <ul
-                          className={`mb-2 list-disc pl-5 text-xs ${getPluginUiTokenClassNames('text.danger')}`}
+                          Validation: {file.validationState.before} →{' '}
+                          {file.validationState.after}
+                          {file.commitSha ? ` · commit ${file.commitSha}` : ''}
+                        </div>
+                        <div
+                          className={`max-h-56 overflow-auto rounded p-2 font-mono text-xs ${getPluginUiTokenClassNames('surface.diff-preview')}`}
                         >
-                          {file.validationState.errors.map((entry: any) => (
-                            <li key={`${file.path}-err-${entry}`}>{entry}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      <div
-                        className={`mb-2 text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                      >
-                        Validation: {file.validationState.before} →{' '}
-                        {file.validationState.after}
-                        {file.commitSha ? ` · commit ${file.commitSha}` : ''}
+                          <pre className="whitespace-pre-wrap break-words">
+                            {file.preview.diff}
+                          </pre>
+                        </div>
                       </div>
-                      <div
-                        className={`max-h-56 overflow-auto rounded p-2 font-mono text-xs ${getPluginUiTokenClassNames('surface.diff-preview')}`}
-                      >
-                        <pre className="whitespace-pre-wrap break-words">
-                          {file.preview.diff}
-                        </pre>
-                      </div>
-                    </div>
-                  ))}
-                </PluginTableSection>
-              ) : null}
-            </> /* end File Validation tab */
-          ) : null}
+                    ))}
+                  </PluginTableSection>
+                ) : null}
+              </> /* end File Validation tab */
+            );
+          })()}
 
           {/* Session Audit Tab */}
-          {activeTab === 'audit' ? (
-            <div className="space-y-4">
-              <PluginSectionCard
-                title="Session audit status"
-                contentClassName="flex flex-wrap items-center justify-between gap-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {auditNeedsAttentionCount} session
-                    {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
-                  </p>
-                  <p
-                    className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                  >
-                    {!auditRanAt
-                      ? 'Run an audit check to detect quality issues.'
-                      : 'Primary path: Run check → Review findings → Mark fixed.'}
-                  </p>
-                </div>
-                <Button
-                  onClick={summaryAction.onClick}
-                  disabled={summaryAction.disabled}
+          {(() => {
+            if (activeTab !== 'audit') return null;
+            return (
+              <div className="space-y-4">
+                <PluginSectionCard
+                  title="Session audit status"
+                  contentClassName="flex flex-wrap items-center justify-between gap-3"
                 >
-                  {summaryAction.label}
-                </Button>
-              </PluginSectionCard>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant={auditStep === 'run-check' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAuditStep('run-check')}
-                >
-                  1. Run check
-                </Button>
-                <Button
-                  variant={
-                    auditStep === 'review-findings' ? 'default' : 'outline'
-                  }
-                  size="sm"
-                  onClick={() => setAuditStep('review-findings')}
-                  disabled={!auditRanAt}
-                >
-                  2. Review findings
-                </Button>
-                <Button
-                  variant={
-                    auditStep === 'resolve-findings' ? 'default' : 'outline'
-                  }
-                  size="sm"
-                  onClick={() => setAuditStep('resolve-findings')}
-                  disabled={!auditRanAt || auditResults.length === 0}
-                >
-                  3. Mark fixed
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {auditStep === 'run-check' ? (
-                  <Button
-                    onClick={handleRunAudit}
-                    disabled={auditFeedbackState === 'loading'}
-                    aria-label="Run session audit checks"
-                  >
-                    {auditFeedbackState === 'loading'
-                      ? 'Running audit…'
-                      : auditFeedbackState === 'success'
-                        ? 'Audit complete ✓'
-                        : 'Run check'}
-                  </Button>
-                ) : null}
-                {auditStep === 'run-check' ? (
-                  <span
-                    className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                  >
-                    Recommended and safe: run with default settings first.
-                  </span>
-                ) : null}
-                {auditRanAt ? (
-                  <span
-                    className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                  >
-                    Last run: {new Date(auditRanAt).toLocaleTimeString()}
-                  </span>
-                ) : (
-                  <span
-                    className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                  >
-                    Click &quot;Run check&quot; to check your sessions for data
-                    quality issues.
-                  </span>
-                )}
-              </div>
-
-              {auditStep === 'run-check' ? (
-                <details className="rounded-md border p-3">
-                  <summary className="cursor-pointer text-sm font-medium">
-                    Advanced
-                  </summary>
-                  <div className="mt-3">
-                    <AuditSettings
-                      mode={auditMode}
-                      config={auditConfig}
-                      sessionCount={
-                        getSessions().filter(
-                          (s: any) =>
-                            typeof s.duration === 'number' && s.duration > 0
-                        ).length
-                      }
-                      onConfigChange={handleUpdateAuditConfig}
-                    />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {auditNeedsAttentionCount} session
+                      {auditNeedsAttentionCount !== 1 ? 's' : ''} need attention
+                    </p>
+                    <p
+                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
+                      {!auditRanAt
+                        ? 'Run an audit check to detect quality issues.'
+                        : 'Primary path: Run check → Review findings → Mark fixed.'}
+                    </p>
                   </div>
-                </details>
-              ) : null}
+                  <Button
+                    onClick={summaryAction.onClick}
+                    disabled={summaryAction.disabled}
+                  >
+                    {summaryAction.label}
+                  </Button>
+                </PluginSectionCard>
 
-              {auditStep === 'review-findings' ||
-              auditStep === 'resolve-findings' ? (
-                auditResults.length > 0 ? (
-                  <AuditResults
-                    results={auditResults}
-                    onReview={handleReviewSession}
-                  />
-                ) : auditRanAt ? (
-                  <PluginStatusPanel
-                    variant="success"
-                    title="All sessions passed quality checks!"
-                    description="No issues detected."
-                    className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
-                  />
-                ) : (
-                  <PluginStatusPanel
-                    variant="warning"
-                    title="Haven't run an audit yet"
-                    description='Click "Run check" above to get started.'
-                    className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
-                  />
-                )
-              ) : null}
-            </div>
-          ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={auditStep === 'run-check' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAuditStep('run-check')}
+                  >
+                    1. Run check
+                  </Button>
+                  <Button
+                    variant={
+                      auditStep === 'review-findings' ? 'default' : 'outline'
+                    }
+                    size="sm"
+                    onClick={() => setAuditStep('review-findings')}
+                    disabled={!auditRanAt}
+                  >
+                    2. Review findings
+                  </Button>
+                  <Button
+                    variant={
+                      auditStep === 'resolve-findings' ? 'default' : 'outline'
+                    }
+                    size="sm"
+                    onClick={() => setAuditStep('resolve-findings')}
+                    disabled={!auditRanAt || auditResults.length === 0}
+                  >
+                    3. Mark fixed
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {auditStep === 'run-check' ? (
+                    <Button
+                      onClick={handleRunAudit}
+                      disabled={auditFeedbackState === 'loading'}
+                      aria-label="Run session audit checks"
+                    >
+                      {auditFeedbackState === 'loading'
+                        ? 'Running audit…'
+                        : auditFeedbackState === 'success'
+                          ? 'Audit complete ✓'
+                          : 'Run check'}
+                    </Button>
+                  ) : null}
+                  {auditStep === 'run-check' ? (
+                    <span
+                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
+                      Recommended and safe: run with default settings first.
+                    </span>
+                  ) : null}
+                  {auditRanAt ? (
+                    <span
+                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
+                      Last run: {new Date(auditRanAt).toLocaleTimeString()}
+                    </span>
+                  ) : (
+                    <span
+                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
+                    >
+                      Click &quot;Run check&quot; to check your sessions for
+                      data quality issues.
+                    </span>
+                  )}
+                </div>
+
+                {auditStep === 'run-check' ? (
+                  <details className="rounded-md border p-3">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Advanced
+                    </summary>
+                    <div className="mt-3">
+                      <AuditSettings
+                        mode={auditMode}
+                        config={auditConfig}
+                        sessionCount={
+                          getSessions().filter(
+                            (s: any) =>
+                              typeof s.duration === 'number' && s.duration > 0
+                          ).length
+                        }
+                        onConfigChange={handleUpdateAuditConfig}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+
+                {auditStep === 'review-findings' ||
+                auditStep === 'resolve-findings' ? (
+                  auditResults.length > 0 ? (
+                    <AuditResults
+                      results={auditResults}
+                      onReview={handleReviewSession}
+                    />
+                  ) : auditRanAt ? (
+                    <PluginStatusPanel
+                      variant="success"
+                      title="All sessions passed quality checks!"
+                      description="No issues detected."
+                      className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
+                    />
+                  ) : (
+                    <PluginStatusPanel
+                      variant="warning"
+                      title="Haven't run an audit yet"
+                      description='Click "Run check" above to get started.'
+                      className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
+                    />
+                  )
+                ) : null}
+              </div>
+            );
+          })()}
 
           {auditStep === 'resolve-findings' ? (
             <AuditReviewDialog
