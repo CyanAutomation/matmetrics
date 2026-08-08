@@ -574,14 +574,15 @@ export const computePrimitiveUsage = async (
       primitiveLocals.set(imported.localName, imported.requirement);
     }
 
-    if (current === componentEntryPath) {
-      const composition =
-        evaluatePluginComponentCompositionFromSource(sourceText);
-      usage.singleTopLevelPageShell = composition.hasSingleTopLevelPageShell;
-      usage.primaryContentSections = composition.hasPrimaryContentSections;
-      if (composition.hasDestructiveFlowComposition) {
-        usage.destructiveConfirmation = true;
-      }
+    const composition = evaluatePluginComponentCompositionFromSource(sourceText);
+    if (composition.hasSingleTopLevelPageShell) {
+      usage.singleTopLevelPageShell = true;
+    }
+    if (composition.hasPrimaryContentSections) {
+      usage.primaryContentSections = true;
+    }
+    if (composition.hasDestructiveFlowComposition) {
+      usage.destructiveConfirmation = true;
     }
 
     const visit = (node: ts.Node) => {

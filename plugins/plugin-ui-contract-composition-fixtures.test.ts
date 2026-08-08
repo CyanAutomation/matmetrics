@@ -22,7 +22,7 @@ type PluginCompositionFixture = {
 const pluginCompositionFixtures: PluginCompositionFixture[] = [
   {
     pluginId: 'github-sync',
-    sourcePath: 'plugins/github-sync/src/components/github-settings.tsx',
+    sourcePath: 'plugins/github-sync/src/components/github-settings-panel.tsx',
   },
   {
     pluginId: 'prompt-settings',
@@ -30,15 +30,15 @@ const pluginCompositionFixtures: PluginCompositionFixture[] = [
   },
   {
     pluginId: 'tag-manager',
-    sourcePath: 'plugins/tag-manager/src/components/tag-manager.tsx',
+    sourcePath: 'plugins/tag-manager/src/components/tag-manager-panel.tsx',
   },
   {
     pluginId: 'video-library',
-    sourcePath: 'plugins/video-library/src/components/video-library.tsx',
+    sourcePath: 'plugins/video-library/src/components/video-library-panel.tsx',
   },
   {
     pluginId: 'log-doctor',
-    sourcePath: 'plugins/log-doctor/src/components/log-doctor.tsx',
+    sourcePath: 'plugins/log-doctor/src/components/log-doctor-panel.tsx',
   },
 ];
 
