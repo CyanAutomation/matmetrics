@@ -30,11 +30,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Stethoscope } from 'lucide-react';
-import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useFileValidationController } from '../hooks/use-file-validation-controller';
 import { useLogDoctorAudit } from '../hooks/use-log-doctor-audit';
 import { useLogDoctorValidationActions } from '../hooks/use-log-doctor-validation-actions';
+import { useLogDoctorReset } from '../hooks/use-log-doctor-reset';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import { createDomSafePathId } from './dom-safe-id';
@@ -54,11 +54,6 @@ export {
   type AuditSummaryAction,
 } from './log-doctor-view-model';
 import { createAuditSummaryAction } from './log-doctor-view-model';
-
-import {
-  resolveResetDiagnosticsSnapshot,
-  type DiagnosticsSnapshot,
-} from './log-doctor-state';
 
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
@@ -166,7 +161,6 @@ export const LogDoctor = (): React.ReactElement => {
 
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [showApplyConfirmation, setShowApplyConfirmation] = useState(false);
-  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [fileSearch, setFileSearch] = useState('');
 
   const {
@@ -245,57 +239,21 @@ export const LogDoctor = (): React.ReactElement => {
       emitDestructiveActionEvent('apply-fixes', stage, metadata),
   });
 
-  const handleResetDiagnosticsState = (): void => {
-    setShowResetConfirmation(true);
-    emitDestructiveActionEvent('reset-diagnostics-state', 'opened');
-  };
-
-  const handleCancelResetConfirmation = (): void => {
-    setShowResetConfirmation(false);
-    emitDestructiveActionEvent('reset-diagnostics-state', 'canceled');
-  };
-
-  const handleConfirmResetDiagnosticsState = (): void => {
-    const currentSnapshot: DiagnosticsSnapshot = {
+  const resetDiagnostics = useLogDoctorReset({
+    fileValidation,
+    snapshot: {
       scanResult,
       fixResult,
       selectedPaths,
       uiState,
       errorMessage,
       auditResult: null,
-    };
-    const resolved = resolveResetDiagnosticsSnapshot(currentSnapshot, true);
-    setShowResetConfirmation(false);
-
-    // Reset via the controller
-    fileValidation.reset();
-
-    // Update selected paths
-    setSelectedPaths(resolved.next.selectedPaths);
-
-    emitDestructiveActionEvent('reset-diagnostics-state', 'confirmed');
-
-    if (!resolved.previous) {
-      return;
-    }
-
-    toast({
-      title: 'Diagnostics state reset',
-      description: 'Cleared current scan and fix results. Undo is available.',
-      action: (
-        <ToastAction
-          altText="Undo reset diagnostics state"
-          onClick={() => {
-            // Undo is not fully supported with the hook, but we can at least restore selected paths
-            setSelectedPaths(resolved.previous?.selectedPaths ?? []);
-            emitDestructiveActionEvent('reset-diagnostics-state', 'undone');
-          }}
-        >
-          Undo
-        </ToastAction>
-      ),
-    });
-  };
+    },
+    setSelectedPaths,
+    toast,
+    emitAction: (stage) =>
+      emitDestructiveActionEvent('reset-diagnostics-state', stage),
+  });
 
   const isBusy = isScanning || isPreviewing || isApplying;
 
@@ -488,7 +446,7 @@ export const LogDoctor = (): React.ReactElement => {
                           size="sm"
                           variant="destructive"
                           aria-label="Reset diagnostics state and select a different source"
-                          onClick={handleResetDiagnosticsState}
+                          onClick={resetDiagnostics.open}
                         >
                           Select source
                         </Button>
@@ -805,18 +763,17 @@ export const LogDoctor = (): React.ReactElement => {
           />
 
           <PluginDestructiveAction
-            open={showResetConfirmation}
+            open={resetDiagnostics.isOpen}
             onOpenChange={(open) => {
-              if (!open) {
-                handleCancelResetConfirmation();
-              }
+              if (open) resetDiagnostics.open();
+              else resetDiagnostics.cancel();
             }}
             title="Reset diagnostics state?"
             description="This clears current scan findings, fix previews, and selected files from the Log Doctor panel. You can undo this reset from the toast after confirming."
             confirmLabel="Reset diagnostics state"
             cancelLabel="Cancel"
-            onCancel={handleCancelResetConfirmation}
-            onConfirm={handleConfirmResetDiagnosticsState}
+            onCancel={resetDiagnostics.cancel}
+            onConfirm={resetDiagnostics.confirm}
           />
         </div>
       </div>

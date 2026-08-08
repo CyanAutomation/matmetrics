@@ -4,6 +4,8 @@ export {
   readSyncLease,
   tryAcquireSyncLease,
   releaseSyncLease,
+  renewSyncLease,
+  hasActiveSyncLeaseOwnership,
   randomBackoffMs,
   randomVerifyDelayMs,
   createSyncLeaseNonce,

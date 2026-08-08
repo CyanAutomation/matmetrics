@@ -27,13 +27,9 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/components/auth-provider';
 import { CARD_INTERACTION_CLASS } from '@/lib/interaction';
-import {
-  addTechnique,
-  mergeSuggestedTechniques,
-  removeTechnique,
-} from '@/lib/session-form-actions';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { useSessionFormAi } from '@/hooks/use-session-form-ai';
+import { useSessionLogFormActions } from '@/hooks/use-session-log-form-actions';
 import {
   useSessionFormState,
   useVideoUrlValidation,
@@ -112,38 +108,8 @@ export function SessionLogForm({
     }
   );
 
-  const handleAddTech = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-      const nextTechniques = addTechnique(
-        formState.techniques,
-        formState.newTech
-      );
-      if (nextTechniques !== formState.techniques) {
-        formState.setTechniques(nextTechniques);
-        formState.setNewTech('');
-      }
-    },
-    [formState]
-  );
-
-  const handleTransform = useCallback(async () => {
-    await aiForm.transform(formState.description, (transformedDescription) => {
-      formState.setDescription(transformedDescription);
-    });
-  }, [aiForm, formState]);
-
-  const handleSuggest = useCallback(async () => {
-    await aiForm.suggest(
-      formState.description,
-      formState.techniques,
-      (suggestions) => {
-        formState.setTechniques((previousTechniques) =>
-          mergeSuggestedTechniques(previousTechniques, suggestions)
-        );
-      }
-    );
-  }, [aiForm, formState]);
+  const { handleAddTech, handleTransform, handleSuggest, handleRemoveTech } =
+    useSessionLogFormActions(formState, aiForm);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -151,13 +117,6 @@ export function SessionLogForm({
       await submitForm();
     },
     [submitForm]
-  );
-
-  const handleRemoveTech = useCallback(
-    (tech: string) => {
-      formState.setTechniques((prev) => removeTechnique(prev, tech));
-    },
-    [formState]
   );
 
   return (
