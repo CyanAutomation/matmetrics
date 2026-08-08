@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -673,6 +674,127 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     }
   };
 
+  return React.createElement(VideoLibraryView, {
+    props: {
+      summaryCounts: summaryCounts,
+      filters: filters,
+      setFilters: setFilters,
+      getTabLabel: getTabLabel,
+      tabCounts: tabCounts,
+      getEntryStatusLabel: getEntryStatusLabel,
+      getStatusVariant: getStatusVariant,
+      controlVisibility: controlVisibility,
+      showAdvanced: showAdvanced,
+      presentationMode: presentationMode,
+      setPresentationMode: setPresentationMode,
+      sortOrder: sortOrder,
+      setSortOrder: setSortOrder,
+      playNextEnabled: playNextEnabled,
+      setPlayNextEnabled: setPlayNextEnabled,
+      bulkActionState: bulkActionState,
+      handleCheckFiltered: handleCheckFiltered,
+      isCheckingLinks: isCheckingLinks,
+      sortedFilteredRows: sortedFilteredRows,
+      rows: rows,
+      loungeRows: loungeRows,
+      browseState: browseState,
+      handleEmptyStateAction: handleEmptyStateAction,
+      editingSession: editingSession,
+      setEditingSession: setEditingSession,
+      handleEditSuccess: handleEditSuccess,
+      isSettingsOpen: isSettingsOpen,
+      setIsSettingsOpen: setIsSettingsOpen,
+      expectedVideoCategories: expectedVideoCategories,
+      canSavePreferences: canSavePreferences,
+      isSavingCategoryExpectations: isSavingCategoryExpectations,
+      handleExpectedCategoryToggle: handleExpectedCategoryToggle,
+      starterDomains: starterDomains,
+      customAllowedDomains: customAllowedDomains,
+      newDomain: newDomain,
+      setNewDomain: setNewDomain,
+      isSavingDomains: isSavingDomains,
+      handleAddDomain: handleAddDomain,
+      handlePromptRemoveDomain: handlePromptRemoveDomain,
+      isRemovingDomain: isRemovingDomain,
+      domainPendingRemoval: domainPendingRemoval,
+      buildVideoDomainRemovalConfirmationDescription:
+        buildVideoDomainRemovalConfirmationDescription,
+      handleConfirmRemoveDomain: handleConfirmRemoveDomain,
+      sessionPendingClear: sessionPendingClear,
+      isClearingVideo: isClearingVideo,
+      handleClearVideo: handleClearVideo,
+      setShowAdvanced: setShowAdvanced,
+      hasAdvancedFiltersApplied: hasAdvancedFiltersApplied,
+      hostnameOptions: hostnameOptions,
+      filteredRows: filteredRows,
+      handleCheckLinks: handleCheckLinks,
+      setSessionPendingClear: setSessionPendingClear,
+      setDomainPendingRemoval: setDomainPendingRemoval,
+    },
+  });
+}
+
+function VideoLibraryView({
+  props,
+}: {
+  props: Record<string, any>;
+}): React.ReactElement {
+  const {
+    summaryCounts,
+    filters,
+    setFilters,
+    getTabLabel,
+    tabCounts,
+    getEntryStatusLabel,
+    getStatusVariant,
+    controlVisibility,
+    showAdvanced,
+    presentationMode,
+    setPresentationMode,
+    sortOrder,
+    setSortOrder,
+    playNextEnabled,
+    setPlayNextEnabled,
+    bulkActionState,
+    handleCheckFiltered,
+    isCheckingLinks,
+    sortedFilteredRows,
+    rows,
+    loungeRows,
+    browseState,
+    handleEmptyStateAction,
+    editingSession,
+    setEditingSession,
+    handleEditSuccess,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    expectedVideoCategories,
+    canSavePreferences,
+    isSavingCategoryExpectations,
+    handleExpectedCategoryToggle,
+    starterDomains,
+    customAllowedDomains,
+    newDomain,
+    setNewDomain,
+    isSavingDomains,
+    handleAddDomain,
+    handlePromptRemoveDomain,
+    isRemovingDomain,
+    domainPendingRemoval,
+    buildVideoDomainRemovalConfirmationDescription,
+    handleConfirmRemoveDomain,
+    sessionPendingClear,
+    isClearingVideo,
+    handleClearVideo,
+    setShowAdvanced,
+    hasAdvancedFiltersApplied,
+    hostnameOptions,
+    filteredRows,
+    handleCheckLinks,
+    setSessionPendingClear,
+    setDomainPendingRemoval,
+  } = props;
+
   return (
     <PluginPageShell
       title="Video Library"
@@ -717,7 +839,9 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   key={tab}
                   type="button"
                   variant={filters.tab === tab ? 'default' : 'outline'}
-                  onClick={() => setFilters((current) => ({ ...current, tab }))}
+                  onClick={() =>
+                    setFilters((current: any) => ({ ...current, tab }))
+                  }
                 >
                   {getTabLabel(tab)}
                   <Badge
@@ -743,7 +867,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 id="video-library-search"
                 value={filters.search}
                 onChange={(event) =>
-                  setFilters((current) => ({
+                  setFilters((current: any) => ({
                     ...current,
                     search: event.target.value,
                   }))
@@ -779,7 +903,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setShowAdvanced((current) => !current)}
+            onClick={() => setShowAdvanced((current: any) => !current)}
             aria-expanded={showAdvanced}
             aria-controls="video-library-advanced-filters"
           >
@@ -808,7 +932,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 <Select
                   value={filters.status}
                   onValueChange={(value) =>
-                    setFilters((current) => ({
+                    setFilters((current: any) => ({
                       ...current,
                       status: value as VideoLibraryStatusFilter,
                     }))
@@ -843,7 +967,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 <Select
                   value={filters.category}
                   onValueChange={(value) =>
-                    setFilters((current) => ({
+                    setFilters((current: any) => ({
                       ...current,
                       category: value as SessionCategory | 'all',
                     }))
@@ -866,7 +990,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 <Select
                   value={filters.checked}
                   onValueChange={(value) =>
-                    setFilters((current) => ({
+                    setFilters((current: any) => ({
                       ...current,
                       checked: value as VideoLibraryCheckedFilter,
                     }))
@@ -888,7 +1012,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                 <Select
                   value={filters.hostname || 'all'}
                   onValueChange={(value) =>
-                    setFilters((current) => ({
+                    setFilters((current: any) => ({
                       ...current,
                       hostname: value === 'all' ? '' : value,
                     }))
@@ -899,7 +1023,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All hosts</SelectItem>
-                    {hostnameOptions.map((hostname) => (
+                    {hostnameOptions.map((hostname: any) => (
                       <SelectItem key={hostname} value={hostname}>
                         {hostname}
                       </SelectItem>
@@ -981,7 +1105,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               <div className="flex items-end lg:col-span-2">
                 <PluginBulkActions
                   selectedCount={
-                    filteredRows.filter((row) => row.isCheckable).length
+                    filteredRows.filter((row: any) => row.isCheckable).length
                   }
                   itemLabel="checkable link"
                   isDisabled={!bulkActionState.canRefreshLinkHealth}
@@ -1069,7 +1193,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedFilteredRows.map((row) => (
+              {sortedFilteredRows.map((row: any) => (
                 <TableRow key={row.session.id}>
                   <TableCell className="font-medium">
                     <div>{row.session.date}</div>
@@ -1170,7 +1294,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
           onEmptyCta={handleEmptyStateAction}
           emptyIcon={<AlertCircle className="h-4 w-4" />}
         >
-          {loungeRows.map((row, index) => {
+          {loungeRows.map((row: any, index: number) => {
             const nextRow =
               presentationMode === 'lounge' && playNextEnabled
                 ? loungeRows[index + 1]
@@ -1247,7 +1371,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
               description="Providers included in the default allowlist."
               contentClassName="flex flex-wrap gap-2"
             >
-              {starterDomains.map((domain) => (
+              {starterDomains.map((domain: any) => (
                 <Badge key={domain} variant="outline">
                   {domain}
                 </Badge>
@@ -1298,7 +1422,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
                     No custom domains saved yet.
                   </p>
                 ) : (
-                  customAllowedDomains.map((domain) => (
+                  customAllowedDomains.map((domain: any) => (
                     <Badge key={domain} variant="outline" className="gap-2">
                       {domain}
                       <button

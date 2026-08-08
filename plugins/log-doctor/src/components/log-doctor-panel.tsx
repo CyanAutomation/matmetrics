@@ -270,6 +270,126 @@ export const LogDoctor = (): React.ReactElement => {
     setAuditStep,
   ]);
 
+  return React.createElement(LogDoctorView, {
+    props: {
+      activeTab: activeTab,
+      auditNeedsAttentionCount: auditNeedsAttentionCount,
+      handleTabChange: handleTabChange,
+      owner: owner,
+      repo: repo,
+      branch: branch,
+      setOwner: setOwner,
+      setRepo: setRepo,
+      setBranch: setBranch,
+      selectedCount: selectedCount,
+      isScanning: isScanning,
+      handleScan: handleScan,
+      isPreviewing: isPreviewing,
+      handlePreviewFixes: handlePreviewFixes,
+      isApplying: isApplying,
+      handleApplyFixes: handleApplyFixes,
+      handleCancelActiveOperation: handleCancelActiveOperation,
+      uiState: uiState,
+      errorMessage: errorMessage,
+      resetDiagnostics: resetDiagnostics,
+      scanResult: scanResult,
+      invalidFiles: invalidFiles,
+      fileSearch: fileSearch,
+      setFileSearch: setFileSearch,
+      filteredInvalidFiles: filteredInvalidFiles,
+      selectIdByPath: selectIdByPath,
+      selectedPaths: selectedPaths,
+      togglePath: togglePath,
+      fixResult: fixResult,
+      auditStep: auditStep,
+      auditRanAt: auditRanAt,
+      summaryAction: summaryAction,
+      setAuditStep: setAuditStep,
+      auditFeedbackState: auditFeedbackState,
+      auditResults: auditResults,
+      handleRunAudit: handleRunAudit,
+      handleReviewSession: handleReviewSession,
+      getSessions: getSessions,
+      auditMode: auditMode,
+      auditConfig: auditConfig,
+      handleUpdateAuditConfig: handleUpdateAuditConfig,
+      reviewSession: reviewSession,
+      reviewSessionId: reviewSessionId,
+      handleCloseReview: handleCloseReview,
+      handleMarkResolved: handleMarkResolved,
+      handleDismissForNow: handleDismissForNow,
+      handleIgnoreRule: handleIgnoreRule,
+      handleUnignoreRule: handleUnignoreRule,
+      isBusy: isBusy,
+      showApplyConfirmation: showApplyConfirmation,
+      handleCancelApplyConfirmation: handleCancelApplyConfirmation,
+      handleConfirmApplyFixes: handleConfirmApplyFixes,
+    },
+  });
+};
+
+type LogDoctorViewProps = Record<string, any>;
+
+function LogDoctorView({
+  props,
+}: {
+  props: LogDoctorViewProps;
+}): React.ReactElement {
+  const {
+    activeTab,
+    auditNeedsAttentionCount,
+    handleTabChange,
+    owner,
+    repo,
+    branch,
+    setOwner,
+    setRepo,
+    setBranch,
+    selectedCount,
+    isScanning,
+    handleScan,
+    isPreviewing,
+    handlePreviewFixes,
+    isApplying,
+    handleApplyFixes,
+    handleCancelActiveOperation,
+    uiState,
+    errorMessage,
+    resetDiagnostics,
+    scanResult,
+    invalidFiles,
+    fileSearch,
+    setFileSearch,
+    filteredInvalidFiles,
+    selectIdByPath,
+    selectedPaths,
+    togglePath,
+    fixResult,
+    auditStep,
+    auditRanAt,
+    summaryAction,
+    setAuditStep,
+    auditFeedbackState,
+    auditResults,
+    handleRunAudit,
+    handleReviewSession,
+    getSessions,
+    auditMode,
+    auditConfig,
+    handleUpdateAuditConfig,
+    reviewSession,
+    reviewSessionId,
+    handleCloseReview,
+    handleMarkResolved,
+    handleDismissForNow,
+    handleIgnoreRule,
+    handleUnignoreRule,
+    isBusy,
+    showApplyConfirmation,
+    handleCancelApplyConfirmation,
+    handleConfirmApplyFixes,
+  } = props;
+
   return (
     <PluginPageShell
       title="Log Doctor"
@@ -440,7 +560,7 @@ export const LogDoctor = (): React.ReactElement => {
                     />
                   ) : (
                     <div className="space-y-2">
-                      {filteredInvalidFiles.map((file) => {
+                      {filteredInvalidFiles.map((file: any) => {
                         const selectId = selectIdByPath.get(file.path);
                         if (!selectId) return null;
 
@@ -470,7 +590,7 @@ export const LogDoctor = (): React.ReactElement => {
                               <ul
                                 className={`list-disc pl-5 ${getPluginUiTokenClassNames('text.danger')}`}
                               >
-                                {file.errors?.map((entry) => (
+                                {file.errors?.map((entry: any) => (
                                   <li key={`${file.path}-${entry}`}>{entry}</li>
                                 ))}
                               </ul>
@@ -495,7 +615,7 @@ export const LogDoctor = (): React.ReactElement => {
                   >
                     {fixResult.message}
                   </p>
-                  {fixResult.files.map((file) => (
+                  {fixResult.files.map((file: any) => (
                     <div
                       key={`fix-${file.path}`}
                       className="rounded-md border p-3"
@@ -523,7 +643,7 @@ export const LogDoctor = (): React.ReactElement => {
                         <ul
                           className={`mb-2 list-disc pl-5 text-xs ${getPluginUiTokenClassNames('text.danger')}`}
                         >
-                          {file.validationState.errors.map((entry) => (
+                          {file.validationState.errors.map((entry: any) => (
                             <li key={`${file.path}-err-${entry}`}>{entry}</li>
                           ))}
                         </ul>
@@ -655,7 +775,7 @@ export const LogDoctor = (): React.ReactElement => {
                       config={auditConfig}
                       sessionCount={
                         getSessions().filter(
-                          (s) =>
+                          (s: any) =>
                             typeof s.duration === 'number' && s.duration > 0
                         ).length
                       }
@@ -758,4 +878,4 @@ export const LogDoctor = (): React.ReactElement => {
       </div>
     </PluginPageShell>
   );
-};
+}

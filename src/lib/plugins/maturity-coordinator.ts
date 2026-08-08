@@ -373,6 +373,63 @@ const findTestEvidenceFiles = async (
   return matches;
 };
 
+type MaturityTestEvidence = {
+  testEvidenceFiles: string[];
+  testEvidenceSource: PluginMaturityEvidenceSource;
+  missingExplicitTestFiles: string[];
+};
+
+const discoverMaturityTestEvidence = async ({
+  repoRoot,
+  manifest,
+  componentBasenames,
+  componentIds,
+}: {
+  repoRoot: string;
+  manifest: PluginManifest;
+  componentBasenames: string[];
+  componentIds: string[];
+}): Promise<MaturityTestEvidence> => {
+  const declaredEvidence = manifest.maturity?.evidence;
+  const declaredExplicitTestFiles = declaredEvidence?.testFiles ?? [];
+  const explicitTestEvidenceFiles = await resolveExplicitEvidenceFiles(
+    repoRoot,
+    declaredExplicitTestFiles
+  );
+  const missingExplicitTestFiles = declaredExplicitTestFiles.filter(
+    (relativePath) =>
+      !explicitTestEvidenceFiles.some(
+        (absolutePath) =>
+          toRepoRelativePath(repoRoot, absolutePath) === relativePath
+      )
+  );
+  const heuristicTestEvidenceFiles =
+    explicitTestEvidenceFiles.length === 0
+      ? await findTestEvidenceFiles(
+          repoRoot,
+          manifest.id,
+          componentBasenames,
+          componentIds,
+          manifest.capabilities ?? []
+        )
+      : [];
+  const testEvidenceFiles =
+    explicitTestEvidenceFiles.length > 0
+      ? explicitTestEvidenceFiles
+      : heuristicTestEvidenceFiles;
+  const testEvidenceSource: PluginMaturityEvidenceSource =
+    explicitTestEvidenceFiles.length > 0
+      ? 'explicit'
+      : heuristicTestEvidenceFiles.length > 0
+        ? 'heuristic'
+        : 'none';
+
+  return {
+    testEvidenceFiles,
+    testEvidenceSource,
+    missingExplicitTestFiles,
+  };
+};
 /**
  * Scores a plugin's maturity across 5 categories: contract, runtime, features, tests, docs.
  *
@@ -509,40 +566,14 @@ export const scorePluginMaturity = async ({
     nextActions
   );
 
-  // Continue with test evidence discovery and UX criteria verification
+  const { testEvidenceFiles, testEvidenceSource, missingExplicitTestFiles } =
+    await discoverMaturityTestEvidence({
+      repoRoot,
+      manifest,
+      componentBasenames,
+      componentIds,
+    });
   const declaredEvidence = manifest.maturity?.evidence;
-  const declaredExplicitTestFiles = declaredEvidence?.testFiles ?? [];
-  const explicitTestEvidenceFiles = await resolveExplicitEvidenceFiles(
-    repoRoot,
-    declaredExplicitTestFiles
-  );
-  const missingExplicitTestFiles = declaredExplicitTestFiles.filter(
-    (relativePath) =>
-      !explicitTestEvidenceFiles.some(
-        (absolutePath) =>
-          toRepoRelativePath(repoRoot, absolutePath) === relativePath
-      )
-  );
-  const heuristicTestEvidenceFiles =
-    explicitTestEvidenceFiles.length === 0
-      ? await findTestEvidenceFiles(
-          repoRoot,
-          manifest.id,
-          componentBasenames,
-          componentIds,
-          manifest.capabilities ?? []
-        )
-      : [];
-  const testEvidenceFiles =
-    explicitTestEvidenceFiles.length > 0
-      ? explicitTestEvidenceFiles
-      : heuristicTestEvidenceFiles;
-  const testEvidenceSource: PluginMaturityEvidenceSource =
-    explicitTestEvidenceFiles.length > 0
-      ? 'explicit'
-      : heuristicTestEvidenceFiles.length > 0
-        ? 'heuristic'
-        : 'none';
 
   // Score test coverage using the new scorer
   const testCoverageResultFinal = await scoreTestCoverage({

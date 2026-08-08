@@ -41,6 +41,19 @@ test('parseSyncLeaseValue returns the validated lease shape', () => {
   );
 });
 
+test('parseSyncLeaseValue rejects non-finite numeric claims and non-object JSON', () => {
+  assert.equal(
+    parseSyncLeaseValue(JSON.stringify({ ...lease, expiresAt: Infinity })),
+    null
+  );
+  assert.equal(
+    parseSyncLeaseValue(JSON.stringify({ ...lease, epoch: NaN })),
+    null
+  );
+  assert.equal(parseSyncLeaseValue('[]'), null);
+  assert.equal(parseSyncLeaseValue('null'), null);
+});
+
 test('leaseClaimsMatch requires every claim field to match', () => {
   assert.equal(leaseClaimsMatch(lease, lease), true);
   for (const field of ['owner', 'expiresAt', 'nonce', 'epoch'] as const) {
@@ -77,4 +90,12 @@ test('leaseIdentityMatches ignores expiration but requires ownership identity', 
     false
   );
   assert.equal(leaseIdentityMatches(null, lease), false);
+});
+
+test('lease matchers reject candidates with any missing claim', () => {
+  const partial = { ...lease } as Partial<SyncLease>;
+  delete partial.nonce;
+
+  assert.equal(leaseClaimsMatch(partial as SyncLease, lease), false);
+  assert.equal(leaseIdentityMatches(partial as SyncLease, lease), false);
 });
