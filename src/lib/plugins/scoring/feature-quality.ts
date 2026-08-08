@@ -12,7 +12,12 @@ import path from 'node:path';
 
 import type { PluginManifest } from '@/lib/plugins/types';
 import type { CategoryScoringResult } from './types';
-import { pushUnique, fileExists, componentIdToComponentBasename } from './utils';
+import {
+  pushUnique,
+  fileExists,
+  componentIdToComponentBasename,
+  getManifestComponentIds,
+} from './utils';
 
 const toComponentFileName = (componentId: string): string =>
   `${componentIdToComponentBasename(componentId)}.tsx`;
@@ -34,13 +39,7 @@ export async function scoreFeatureQuality(
   const pluginComponentsRoot = path.join(pluginDir, 'src', 'components');
 
   // Get component IDs from manifest
-  const componentIds = manifest.uiExtensions.flatMap((extension) => {
-    const maybeComponent =
-      'component' in extension.config ? extension.config.component : undefined;
-    return typeof maybeComponent === 'string' && maybeComponent.trim()
-      ? [maybeComponent]
-      : [];
-  });
+  const componentIds = getManifestComponentIds(manifest);
 
   // Score: Components declared in manifest (5 points)
   if (componentIds.length > 0) {

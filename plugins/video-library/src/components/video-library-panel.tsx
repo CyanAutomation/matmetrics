@@ -29,12 +29,9 @@ import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import { PluginGallerySection } from '@/components/plugins/plugin-gallery-section';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { VideoTileCard } from './video-tile-card';
+import { VideoLibrarySummary } from './video-library-summary';
 import { useVideoLibraryViewState } from './use-video-library-view-state';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
-import {
-  PluginStatCard,
-  PluginStatsGrid,
-} from '@/components/plugins/plugin-stats-grid';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 import {
   PluginActionPrimary,
@@ -683,18 +680,7 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       tone="info"
       icon={<Film className="h-6 w-6" />}
     >
-      <PluginStatsGrid>
-        <PluginStatCard
-          label="Videos attached"
-          value={summaryCounts.attached}
-        />
-        <PluginStatCard
-          label="Sessions without video (optional)"
-          value={summaryCounts.missing}
-        />
-        <PluginStatCard label="Needs review" value={summaryCounts.review} />
-        <PluginStatCard label="Checked links" value={summaryCounts.checked} />
-      </PluginStatsGrid>
+      <VideoLibrarySummary {...summaryCounts} />
 
       {controlVisibility.showSettingsEntryPoint ? (
         <div className="flex justify-end">

@@ -42,6 +42,7 @@ export {
   componentIdToComponentBasename,
   normalizeHeading,
   extractRegisteredPluginComponents,
+  getManifestComponentIds,
 } from './utils';
 
 export type { CategoryScoringResult, TierEvaluationResult } from './types';
