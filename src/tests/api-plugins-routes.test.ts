@@ -325,11 +325,11 @@ test('GET /api/plugins/list returns current maturity scores for bundled plugins'
   );
 
   const expectedScores = new Map([
-    ['tag-manager', { score: 96, tier: 'silver' }],
-    ['github-sync', { score: 94, tier: 'silver' }],
-    ['log-doctor', { score: 94, tier: 'silver' }],
-    ['prompt-settings', { score: 94, tier: 'silver' }],
-    ['video-library', { score: 96, tier: 'silver' }],
+    ['tag-manager', { score: 93, tier: 'silver' }],
+    ['github-sync', { score: 91, tier: 'silver' }],
+    ['log-doctor', { score: 89, tier: 'silver' }],
+    ['prompt-settings', { score: 91, tier: 'silver' }],
+    ['video-library', { score: 91, tier: 'silver' }],
   ]);
   const bundledPluginDirectoryEntries = await readdir(
     path.join(process.cwd(), 'plugins'),
