@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -17,10 +17,7 @@ import { useAuth } from '@/components/auth-provider';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginNotice } from '@/components/plugins/plugin-notice';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
-import {
-  resetTransformerPromptPreference,
-  saveTransformerPromptPreference,
-} from '@/lib/user-preferences';
+import { usePromptSettingsActions } from './use-prompt-settings-actions';
 import {
   PluginEmptyState,
   PluginErrorState,
@@ -62,9 +59,6 @@ import {
   PROMPT_SETTINGS_ERROR_RETRY_LABEL,
   PROMPT_SETTINGS_LOADING_TEXT,
   resolvePromptAfterDestructiveResetAction,
-  runPromptLoadRecoveryFlow,
-  runPromptResetFlow,
-  runPromptSaveFlow,
 } from './prompt-settings-view-model';
 
 export function PromptSettings() {
@@ -80,17 +74,26 @@ export function PromptSettings() {
   } = useAuth();
   const [prompt, setPrompt] = useState('');
   const theme = getPluginThemeTokens('info');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>(
-    'idle'
-  );
-  const [saveError, setSaveError] = useState<Error | null>(null);
-  const [isRetryingLoad, setIsRetryingLoad] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const {
+    saveStatus,
+    saveError,
+    setSaveStatus,
+    setSaveError,
+    isRetryingLoad,
+    isSaving,
+    isResetting,
+    isResetDialogOpen,
+    setIsResetDialogOpen,
+    handleSave,
+    handleReset,
+    handleRetryLoad,
+  } = usePromptSettingsActions({
+    user,
+    prompt,
+    setPrompt,
+    toast,
+    retryPreferencesLoad,
+  });
   const {
     isPromptMeaningful,
     areControlsDisabled,
@@ -113,95 +116,6 @@ export function PromptSettings() {
   useEffect(() => {
     setPrompt(preferences.transformerPrompt);
   }, [preferences.transformerPrompt]);
-
-  useEffect(() => {
-    return () => {
-      if (savedIndicatorTimeoutRef.current !== null) {
-        clearTimeout(savedIndicatorTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleSave = async () => {
-    if (!user || !isPromptMeaningful || isSaving || isResetting) return;
-
-    setIsSaving(true);
-    setSaveStatus('idle');
-    setSaveError(null);
-    try {
-      const didSave = await runPromptSaveFlow({
-        uid: user.uid,
-        prompt,
-        savePreference: saveTransformerPromptPreference,
-        feedback: {
-          toast,
-          logError: (message, error) => {
-            console.error(message, error);
-          },
-        },
-      });
-
-      if (!didSave) {
-        setSaveStatus('error');
-        setSaveError(new Error('Save request failed.'));
-        return;
-      }
-
-      setSaveStatus('success');
-      if (savedIndicatorTimeoutRef.current !== null) {
-        clearTimeout(savedIndicatorTimeoutRef.current);
-      }
-      savedIndicatorTimeoutRef.current = setTimeout(() => {
-        savedIndicatorTimeoutRef.current = null;
-        setSaveStatus('idle');
-      }, 3000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleReset = async () => {
-    if (!user || isSaving || isResetting) return;
-
-    setIsResetting(true);
-    try {
-      const didReset = await runPromptResetFlow({
-        uid: user.uid,
-        resetPreference: resetTransformerPromptPreference,
-        feedback: {
-          toast,
-          logError: (message, error) => {
-            console.error(message, error);
-          },
-        },
-      });
-
-      if (didReset) {
-        setPrompt((currentPrompt) =>
-          resolvePromptAfterDestructiveResetAction({
-            action: 'confirm',
-            currentPrompt,
-          })
-        );
-        setSaveStatus('idle');
-        setSaveError(null);
-      }
-    } finally {
-      setIsResetDialogOpen(false);
-      setIsResetting(false);
-    }
-  };
-
-  const handleRetryLoad = async () => {
-    setIsRetryingLoad(true);
-    try {
-      await runPromptLoadRecoveryFlow({
-        retryLoad: retryPreferencesLoad,
-      });
-    } finally {
-      setIsRetryingLoad(false);
-    }
-  };
 
   return (
     <PluginPageShell

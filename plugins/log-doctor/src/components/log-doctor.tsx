@@ -34,6 +34,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { useFileValidationController } from '../hooks/use-file-validation-controller';
 import { useLogDoctorAudit } from '../hooks/use-log-doctor-audit';
+import { useLogDoctorValidationActions } from '../hooks/use-log-doctor-validation-actions';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import { createDomSafePathId } from './dom-safe-id';
@@ -236,72 +237,23 @@ export const LogDoctor = (): React.ReactElement => {
     );
   };
 
-  const handleScan = async (): Promise<void> => {
-    try {
-      await fileValidation.scanFiles();
-    } catch (error) {
-      console.error('Failed to scan files:', error);
-    }
-  };
-
-  const handlePreviewFixes = async (): Promise<void> => {
-    if (selectedPaths.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Select at least one file before previewing fixes.',
-      });
-      return;
-    }
-
-    try {
-      await fileValidation.previewFixes(selectedPaths);
-    } catch (error) {
-      console.error('Failed to preview fixes:', error);
-    }
-  };
-
-  const handleApplyFixes = (): void => {
-    setShowApplyConfirmation(true);
-    emitDestructiveActionEvent('apply-fixes', 'opened', {
-      selectedCount,
-      branch: branch.trim() || 'default branch',
-    });
-  };
-
-  const handleCancelApplyConfirmation = (): void => {
-    setShowApplyConfirmation(false);
-    emitDestructiveActionEvent('apply-fixes', 'canceled', {
-      selectedCount,
-    });
-  };
-
-  const handleConfirmApplyFixes = async (): Promise<void> => {
-    if (selectedPaths.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Select at least one file before applying fixes.',
-      });
-      return;
-    }
-
-    emitDestructiveActionEvent('apply-fixes', 'confirmed', {
-      selectedCount,
-      branch: branch.trim() || 'default branch',
-    });
-    setShowApplyConfirmation(false);
-
-    try {
-      await fileValidation.applyFixes(selectedPaths);
-    } catch (error) {
-      console.error('Failed to apply fixes:', error);
-    }
-  };
-
-  const handleCancelActiveOperation = (): void => {
-    fileValidation.cancelOperation();
-  };
+  const {
+    handleScan,
+    handlePreviewFixes,
+    handleApplyFixes,
+    handleCancelApplyConfirmation,
+    handleConfirmApplyFixes,
+    handleCancelActiveOperation,
+  } = useLogDoctorValidationActions({
+    controller: fileValidation,
+    selectedPaths,
+    selectedCount,
+    branch,
+    toast,
+    setShowApplyConfirmation,
+    emitAction: (stage, metadata) =>
+      emitDestructiveActionEvent('apply-fixes', stage, metadata),
+  });
 
   const handleResetDiagnosticsState = (): void => {
     setShowResetConfirmation(true);

@@ -30,9 +30,17 @@ export { scoreFeatureQuality } from './feature-quality';
 export { scoreTestCoverage } from './test-coverage-scoring';
 export { scoreOperabilityDocs } from './operability-docs';
 export { determineTier } from './determine-tier';
+export {
+  mergeCategoryScore,
+  mergeCategoryScoringResults,
+} from './result-utils';
 
 // Shared utilities
-export { pushUnique, fileExists, componentIdToComponentBasename } from './utils';
+export {
+  pushUnique,
+  fileExists,
+  componentIdToComponentBasename,
+} from './utils';
 
 export type { CategoryScoringResult, TierEvaluationResult } from './types';
 export type { TestCoverageInput } from './test-coverage-scoring';

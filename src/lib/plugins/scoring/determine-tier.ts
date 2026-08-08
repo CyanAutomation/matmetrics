@@ -67,7 +67,7 @@ export interface TierDeterminationInput {
 /**
  * Checks if Silver tier criteria are met.
  */
-export function shouldBeSilver(
+function shouldBeSilver(
   totalScore: number,
   hasValidationErrors: boolean,
   hasBlockingWarnings: boolean,
@@ -86,7 +86,7 @@ export function shouldBeSilver(
 /**
  * Checks if Gold tier criteria are met.
  */
-export function shouldBeGold(
+function shouldBeGold(
   totalScore: number,
   hasValidationErrors: boolean,
   hasBlockingWarnings: boolean,
@@ -121,7 +121,7 @@ export function shouldBeGold(
 /**
  * Collects blocker messages based on tier determination input.
  */
-export function collectBlockers(
+function collectBlockers(
   hasValidationErrors: boolean,
   hasBlockingWarnings: boolean,
   hasAnyTestEvidence: boolean,
@@ -156,7 +156,7 @@ export function collectBlockers(
 /**
  * Collects next action messages based on tier determination results.
  */
-export function collectNextActions(
+function collectNextActions(
   tier: PluginMaturityTier,
   totalScore: number,
   isExplicitGoldReview: boolean,
@@ -231,47 +231,6 @@ export function collectNextActions(
   }
 
   return nextActions;
-}
-
-export interface TierDeterminationInput {
-  /** Total score across all categories */
-  totalScore: number;
-
-  /** Category scores: Record<category, earned points> */
-  categoryScores: Record<PluginMaturityCategory, number>;
-
-  /** Whether plugin has manifest validation errors */
-  hasValidationErrors: boolean;
-
-  /** Whether plugin has capability/version blocking warnings */
-  hasBlockingWarnings: boolean;
-
-  /** Whether plugin has any automated test evidence */
-  hasAnyTestEvidence: boolean;
-
-  /** Whether plugin has README */
-  hasReadme: boolean;
-
-  /** Whether test evidence is explicit (not heuristic) */
-  hasExplicitTestEvidence: boolean;
-
-  /** Whether all relevant UX criteria are explicitly verified */
-  allRelevantUxCriteriaExplicitlyVerified: boolean;
-
-  /** Whether readme has advanced support docs (troubleshooting, known limitations) */
-  hasGoldSupportDocs: boolean;
-
-  /** Whether manifest explicitly marks tier as gold */
-  isExplicitGoldReview: boolean;
-
-  /** Validation issues for blocker extraction */
-  validationIssues: Array<{
-    severity: 'error' | 'warning';
-    message: string;
-  }>;
-
-  /** Blocking warnings list */
-  blockingWarnings: string[];
 }
 
 export function determineTier(

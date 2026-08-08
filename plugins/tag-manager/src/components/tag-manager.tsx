@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
+import { useTagManagerData } from './use-tag-manager-data';
 export {
   buildDeleteConfirmationCopy,
   buildErrorRecoveryDescription,
@@ -69,8 +70,8 @@ interface TagManagerProps {
 
 export function TagManager({ onRefresh }: TagManagerProps) {
   const { toast } = useToast();
-  const [tags, setTags] = useState<string[]>([]);
   const [search, setSearch] = useState('');
+  const { tags, refreshTags } = useTagManagerData(onRefresh);
 
   // States for actions
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -93,15 +94,6 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const [isApplyingMerge, setIsApplyingMerge] = useState(false);
   const [isAnalyzingDelete, setIsAnalyzingDelete] = useState(false);
   const [isApplyingDelete, setIsApplyingDelete] = useState(false);
-
-  const refreshTags = useCallback(() => {
-    setTags(tagService.listTags());
-    onRefresh();
-  }, [onRefresh]);
-
-  useEffect(() => {
-    refreshTags();
-  }, [refreshTags]);
 
   const resetRenameDialog = () => {
     if (isAnalyzingRename || isApplyingRename) return;
