@@ -46,11 +46,7 @@ export type RequirementViolation = {
   message: string;
 };
 
-
-type ImportedPrimitive = {
-  requirement: RequirementKey;
-  localName: string;
-};
+import { getImportedPrimitives } from './plugin-ui-primitive-imports';
 
 type CompositionConformance = {
   hasSingleTopLevelPageShell: boolean;
@@ -251,75 +247,6 @@ export const resolvePluginComponentEntrypoints = async (
   }
 
   return resolved;
-};
-
-const getImportedPrimitives = (
-  sourceFile: ts.SourceFile
-): ImportedPrimitive[] => {
-  const imported: ImportedPrimitive[] = [];
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement)) {
-      continue;
-    }
-
-    const moduleSpecifier = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(moduleSpecifier)) {
-      continue;
-    }
-
-    const source = moduleSpecifier.text;
-    const importClause = statement.importClause;
-    if (
-      !importClause?.namedBindings ||
-      !ts.isNamedImports(importClause.namedBindings)
-    ) {
-      continue;
-    }
-
-    for (const element of importClause.namedBindings.elements) {
-      const importedName = (element.propertyName ?? element.name).text;
-      const localName = element.name.text;
-
-      if (source === '@/components/plugins/plugin-state') {
-        if (importedName === 'PluginLoadingState') {
-          imported.push({ requirement: 'loadingState', localName });
-        }
-        if (importedName === 'PluginErrorState') {
-          imported.push({ requirement: 'errorState', localName });
-        }
-        if (importedName === 'PluginEmptyState') {
-          imported.push({ requirement: 'emptyState', localName });
-        }
-        if (importedName === 'PluginSuccessState') {
-          imported.push({ requirement: 'successState', localName });
-        }
-      }
-
-      if (
-        source === '@/components/plugins/plugin-confirmation' &&
-        importedName === 'PluginConfirmationDialog'
-      ) {
-        imported.push({ requirement: 'destructiveConfirmation', localName });
-      }
-
-      if (
-        source === '@/components/plugins/plugin-destructive-action' &&
-        importedName === 'PluginDestructiveAction'
-      ) {
-        imported.push({ requirement: 'destructiveConfirmation', localName });
-      }
-
-      if (
-        source === '@/hooks/use-plugin-confirmation' &&
-        importedName === 'usePluginConfirmation'
-      ) {
-        imported.push({ requirement: 'destructiveConfirmation', localName });
-      }
-    }
-  }
-
-  return imported;
 };
 
 const collectLocalImports = async (
@@ -730,7 +657,9 @@ export const discoverPluginManifests = async (
     })
   );
 
-  return manifests.filter((pathValue): pathValue is string => pathValue !== null);
+  return manifests.filter(
+    (pathValue): pathValue is string => pathValue !== null
+  );
 };
 
 export const verifyComponentRequirements = ({

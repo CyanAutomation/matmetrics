@@ -50,6 +50,7 @@ import {
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from './github-settings-view-model';
+import { parseGitHubApiResponse } from './github-settings-api';
 import {
   PluginLoadingState,
   PluginEmptyState,
@@ -104,47 +105,6 @@ export function GitHubSettings() {
     setIsEnabled(enabled);
     setMigrationDone(migrationDoneValue);
   }, [preferences.gitHub]);
-
-  const parseApiResponse = async (
-    response: Response,
-    fallbackMessage: string
-  ): Promise<{ success: boolean; message: string }> => {
-    let payload: unknown = null;
-
-    try {
-      payload = await response.json();
-    } catch {
-      if (!response.ok) {
-        return {
-          success: false,
-          message: `Server error (${response.status}). ${fallbackMessage}`,
-        };
-      }
-      return {
-        success: true,
-        message: fallbackMessage,
-      };
-    }
-
-    const message =
-      payload &&
-      typeof payload === 'object' &&
-      'message' in payload &&
-      typeof payload.message === 'string' &&
-      payload.message.trim()
-        ? payload.message
-        : fallbackMessage;
-
-    const success =
-      payload &&
-      typeof payload === 'object' &&
-      'success' in payload &&
-      typeof payload.success === 'boolean'
-        ? payload.success
-        : response.ok;
-
-    return { success, message };
-  };
 
   const handleSaveConfig = async () => {
     if (!user) return;
@@ -204,7 +164,7 @@ export function GitHubSettings() {
         }),
       });
 
-      const result = await parseApiResponse(
+      const result = await parseGitHubApiResponse(
         response,
         'Unable to validate this repository right now. Please try again.'
       );
@@ -268,7 +228,7 @@ export function GitHubSettings() {
         }),
       });
 
-      const result = await parseApiResponse(
+      const result = await parseGitHubApiResponse(
         response,
         'Sync failed due to an unexpected server response. Please try again.'
       );

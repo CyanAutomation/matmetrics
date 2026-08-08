@@ -20,6 +20,8 @@ import {
   pushUnique,
   fileExists,
   componentIdToComponentBasename,
+  mergeCategoryScore,
+  mergeCategoryScoringResults,
 } from '@/lib/plugins/scoring';
 
 type ScorePluginMaturityOptions = {
@@ -516,33 +518,31 @@ export const scorePluginMaturity = async ({
     scoreOperabilityDocs(manifest, pluginDirectoryName, pluginsRoot),
   ]);
 
-  // Merge category results into accumulators
-  // These are used for evidence, reasons, and nextActions only
-  // (scores are now in categoryScores via the result objects)
-  categoryScores.contract_metadata = contractMetadataResult.score;
-  categoryScores.runtime_integration = runtimeIntegrationResult.score;
-  categoryScores.feature_quality = featureQualityResult.score;
-  categoryScores.operability_docs = operabilityDocsResult.score;
-
-  // Merge evidence, reasons, and nextActions
   const categoryResults = [
     contractMetadataResult,
     runtimeIntegrationResult,
     featureQualityResult,
     operabilityDocsResult,
   ];
-
-  for (const result of categoryResults) {
-    for (const item of result.evidence) {
-      pushUnique(evidence, item);
-    }
-    for (const item of result.reasons) {
-      pushUnique(reasons, item);
-    }
-    for (const item of result.nextActions) {
-      pushUnique(nextActions, item);
-    }
-  }
+  mergeCategoryScore(
+    categoryScores,
+    'contract_metadata',
+    contractMetadataResult
+  );
+  mergeCategoryScore(
+    categoryScores,
+    'runtime_integration',
+    runtimeIntegrationResult
+  );
+  mergeCategoryScore(categoryScores, 'feature_quality', featureQualityResult);
+  mergeCategoryScore(categoryScores, 'operability_docs', operabilityDocsResult);
+  mergeCategoryScoringResults(
+    categoryResults,
+    categoryScores,
+    evidence,
+    reasons,
+    nextActions
+  );
 
   // Continue with test evidence discovery and UX criteria verification
   const declaredEvidence = manifest.maturity?.evidence;
