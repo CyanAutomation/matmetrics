@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { useAuth } from '@/components/auth-provider';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
@@ -35,6 +35,7 @@ import { useFileValidationController } from '../hooks/use-file-validation-contro
 import { useLogDoctorAudit } from '../hooks/use-log-doctor-audit';
 import { useLogDoctorValidationActions } from '../hooks/use-log-doctor-validation-actions';
 import { useLogDoctorReset } from '../hooks/use-log-doctor-reset';
+import { useLogDoctorRepositoryTarget } from '../hooks/use-log-doctor-repository-target';
 import { DrLogImage } from './drlog-image';
 import { getSessions } from '@/lib/storage';
 import { createDomSafePathId } from './dom-safe-id';
@@ -139,9 +140,8 @@ export const emitDestructiveActionEvent = (
 export const LogDoctor = (): React.ReactElement => {
   const { preferences } = useAuth();
   const { toast } = useToast();
-  const [owner, setOwner] = useState('');
-  const [repo, setRepo] = useState('');
-  const [branch, setBranch] = useState('');
+  const { owner, repo, branch, setOwner, setRepo, setBranch } =
+    useLogDoctorRepositoryTarget(preferences);
 
   // File validation state and controllers
   const fileValidation = useFileValidationController({
@@ -186,15 +186,6 @@ export const LogDoctor = (): React.ReactElement => {
     reviewSession,
     setAuditStep,
   } = useLogDoctorAudit();
-
-  useEffect(() => {
-    const config = preferences.gitHub.config;
-    if (!config) return;
-
-    setOwner(config.owner);
-    setRepo(config.repo);
-    setBranch(config.branch ?? '');
-  }, [preferences.gitHub.config]);
 
   const invalidFiles = useMemo(() => getInvalidFiles(scanResult), [scanResult]);
   const invalidFileSelectIds = useMemo(

@@ -29,6 +29,7 @@ import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import { PluginGallerySection } from '@/components/plugins/plugin-gallery-section';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { VideoTileCard } from './video-tile-card';
+import { useVideoLibraryViewState } from './use-video-library-view-state';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   PluginStatCard,
@@ -79,7 +80,6 @@ import type {
 import { saveVideoLibraryPreference } from '@/lib/user-preferences';
 import type {
   VideoLibraryCheckedFilter,
-  VideoLibraryFilters,
   VideoLibraryStatusFilter,
   VideoLibraryTab,
 } from '@/lib/video-library';
@@ -154,27 +154,28 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     useState<DomainRemovalDialogState | null>(null);
   const [isClearingVideo, setIsClearingVideo] = useState(false);
   const [isRemovingDomain, setIsRemovingDomain] = useState(false);
-  const [newDomain, setNewDomain] = useState('');
+  const {
+    newDomain,
+    setNewDomain,
+    presentationMode,
+    setPresentationMode,
+    sortOrder,
+    setSortOrder,
+    showAdvanced,
+    setShowAdvanced,
+    playNextEnabled,
+    setPlayNextEnabled,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    filters,
+    setFilters,
+  } = useVideoLibraryViewState();
   const [isSavingDomains, setIsSavingDomains] = useState(false);
   const [isSavingCategoryExpectations, setIsSavingCategoryExpectations] =
     useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
-  const [presentationMode, setPresentationMode] =
-    useState<VideoLibraryPresentationMode>('lounge');
-  const [sortOrder, setSortOrder] = useState<VideoLibrarySortOption>('newest');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [playNextEnabled, setPlayNextEnabled] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [autoCheckedRowIds, setAutoCheckedRowIds] = useState<string[]>([]);
   const autoCheckSignatureRef = useRef<string>('');
-  const [filters, setFilters] = useState<VideoLibraryFilters>({
-    tab: 'watchable',
-    search: '',
-    status: 'all',
-    category: 'all',
-    hostname: '',
-    checked: 'all',
-  });
 
   const videoLibraryPreferences = useMemo(
     () =>

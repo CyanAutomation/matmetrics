@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { tagService } from '@/lib/tags';
-import type { TagOperationSummary } from '@/lib/tags';
 import {
   Tags,
   Edit2,
@@ -45,6 +44,7 @@ import {
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { useTagManagerData } from './use-tag-manager-data';
+import { useTagManagerDialogState } from './use-tag-manager-dialog-state';
 export {
   buildDeleteConfirmationCopy,
   buildErrorRecoveryDescription,
@@ -74,26 +74,42 @@ export function TagManager({ onRefresh }: TagManagerProps) {
   const { tags, refreshTags } = useTagManagerData(onRefresh);
 
   // States for actions
-  const [editingTag, setEditingTag] = useState<string | null>(null);
-  const [newTagName, setNewTagName] = useState('');
-  const [mergingTag, setMergingTag] = useState<string | null>(null);
-  const [targetMergeTag, setTargetMergeTag] = useState<string>('');
-  const [deletingTag, setDeletingTag] = useState<string | null>(null);
-  const [renameAnalysis, setRenameAnalysis] =
-    useState<TagOperationSummary | null>(null);
-  const [mergeAnalysis, setMergeAnalysis] =
-    useState<TagOperationSummary | null>(null);
-  const [deleteAnalysis, setDeleteAnalysis] =
-    useState<TagOperationSummary | null>(null);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [mergeError, setMergeError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isAnalyzingRename, setIsAnalyzingRename] = useState(false);
-  const [isApplyingRename, setIsApplyingRename] = useState(false);
-  const [isAnalyzingMerge, setIsAnalyzingMerge] = useState(false);
-  const [isApplyingMerge, setIsApplyingMerge] = useState(false);
-  const [isAnalyzingDelete, setIsAnalyzingDelete] = useState(false);
-  const [isApplyingDelete, setIsApplyingDelete] = useState(false);
+  const {
+    editingTag,
+    setEditingTag,
+    newTagName,
+    setNewTagName,
+    mergingTag,
+    setMergingTag,
+    targetMergeTag,
+    setTargetMergeTag,
+    deletingTag,
+    setDeletingTag,
+    renameAnalysis,
+    setRenameAnalysis,
+    mergeAnalysis,
+    setMergeAnalysis,
+    deleteAnalysis,
+    setDeleteAnalysis,
+    renameError,
+    setRenameError,
+    mergeError,
+    setMergeError,
+    deleteError,
+    setDeleteError,
+    isAnalyzingRename,
+    setIsAnalyzingRename,
+    isApplyingRename,
+    setIsApplyingRename,
+    isAnalyzingMerge,
+    setIsAnalyzingMerge,
+    isApplyingMerge,
+    setIsApplyingMerge,
+    isAnalyzingDelete,
+    setIsAnalyzingDelete,
+    isApplyingDelete,
+    setIsApplyingDelete,
+  } = useTagManagerDialogState();
 
   const resetRenameDialog = () => {
     if (isAnalyzingRename || isApplyingRename) return;
