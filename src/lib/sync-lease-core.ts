@@ -579,3 +579,46 @@ export function releaseSyncLease(): void {
 
   activeSyncLease = null;
 }
+
+export function renewSyncLease(): boolean {
+  if (activeSyncLease?.mode === 'web-lock') return true;
+  if (typeof window === 'undefined' || activeSyncLease?.mode !== 'storage') {
+    return false;
+  }
+
+  const existingLease = readSyncLease();
+  if (
+    existingLease?.owner !== activeSyncLease.owner ||
+    existingLease.nonce !== activeSyncLease.nonce ||
+    existingLease.epoch !== activeSyncLease.epoch
+  ) {
+    return false;
+  }
+
+  const nextLease: SyncLease = {
+    owner: activeSyncLease.owner,
+    expiresAt: Date.now() + syncLockTtlMs,
+    nonce: activeSyncLease.nonce,
+    epoch: activeSyncLease.epoch,
+  };
+  localStorage.setItem(getSyncLockStorageKeyFn!(), JSON.stringify(nextLease));
+  const confirmedLease = readSyncLease();
+  return (
+    confirmedLease?.owner === nextLease.owner &&
+    confirmedLease.expiresAt === nextLease.expiresAt &&
+    confirmedLease.nonce === nextLease.nonce &&
+    confirmedLease.epoch === nextLease.epoch
+  );
+}
+
+export function hasActiveSyncLeaseOwnership(): boolean {
+  if (activeSyncLease?.mode === 'web-lock') return true;
+  if (activeSyncLease?.mode !== 'storage') return false;
+  const lease = readSyncLease();
+  return (
+    lease?.owner === activeSyncLease.owner &&
+    lease.nonce === activeSyncLease.nonce &&
+    lease.epoch === activeSyncLease.epoch &&
+    lease.expiresAt > Date.now()
+  );
+}

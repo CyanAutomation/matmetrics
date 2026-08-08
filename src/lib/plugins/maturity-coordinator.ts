@@ -25,6 +25,7 @@ import {
   extractRegisteredPluginComponents,
   normalizeHeading,
 } from '@/lib/plugins/scoring';
+import { scoreOperabilityEvidence } from './maturity-operability';
 
 type ScorePluginMaturityOptions = {
   manifest: PluginManifest;
@@ -62,18 +63,6 @@ const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
 
 const fromRepoRelativePath = (repoRoot: string, relativePath: string): string =>
   path.join(repoRoot, ...relativePath.split('/'));
-
-const parseReadmeSections = (contents: string): string[] => {
-  const headings = new Set<string>();
-  for (const match of contents.matchAll(/^##\s+(.+)$/gm)) {
-    const heading = match[1]?.trim();
-    if (heading) {
-      headings.add(heading);
-    }
-  }
-
-  return [...headings];
-};
 
 const capabilityCandidateRoots: Record<string, string[]> = {
   tag_mutation: [path.join('src', 'lib', 'tags')],
@@ -769,55 +758,17 @@ export const scorePluginMaturity = async ({
     categoryScores.test_coverage += 4;
   }
 
-  let detectedReadmeSections: string[] = [];
-  if (await fileExists(pluginReadmePath)) {
-    const readmeContents = await readFile(pluginReadmePath, 'utf8');
-    detectedReadmeSections = parseReadmeSections(readmeContents);
-    const normalizedReadmeSections =
-      detectedReadmeSections.map(normalizeHeading);
-    categoryScores.operability_docs += 4;
-    pushUnique(evidence, 'Plugin README is present.');
-    if (normalizedReadmeSections.includes('usage')) {
-      categoryScores.operability_docs += 2;
-      pushUnique(evidence, 'Plugin README documents usage guidance.');
-    } else {
-      pushUnique(reasons, 'Plugin README is missing a Usage section.');
-      pushUnique(
-        nextActions,
-        'Add a `## Usage` section to each plugin README with operator steps.'
-      );
-    }
-    if (normalizedReadmeSections.includes('verification')) {
-      categoryScores.operability_docs += 2;
-      pushUnique(evidence, 'Plugin README documents verification steps.');
-    } else {
-      pushUnique(reasons, 'Plugin README is missing a Verification section.');
-      pushUnique(
-        nextActions,
-        'Add a `## Verification` section to each plugin README with exact test commands.'
-      );
-    }
-    if (
-      normalizedReadmeSections.includes('troubleshooting') ||
-      normalizedReadmeSections.includes('known limitations and dependencies')
-    ) {
-      categoryScores.operability_docs += 2;
-      pushUnique(
-        evidence,
-        'Plugin README includes operational support sections beyond baseline usage/verification.'
-      );
-    }
-  } else {
-    pushUnique(reasons, 'Plugin README is missing.');
-    pushUnique(
-      nextActions,
-      'Add a README for each plugin with usage and verification steps.'
-    );
-  }
-
-  if (manifest.maturity?.notes && manifest.maturity.lastReviewedAt) {
-    categoryScores.operability_docs += 2;
-  }
+  const operabilityResult = await scoreOperabilityEvidence(
+    pluginReadmePath,
+    await fileExists(pluginReadmePath),
+    Boolean(manifest.maturity?.notes && manifest.maturity.lastReviewedAt)
+  );
+  categoryScores.operability_docs += operabilityResult.score;
+  const detectedReadmeSections = operabilityResult.sections;
+  for (const item of operabilityResult.evidence) pushUnique(evidence, item);
+  for (const item of operabilityResult.reasons) pushUnique(reasons, item);
+  for (const item of operabilityResult.nextActions)
+    pushUnique(nextActions, item);
 
   const normalizedCategoryScores = Object.fromEntries(
     (Object.keys(categoryMaximums) as PluginMaturityCategory[]).map(
