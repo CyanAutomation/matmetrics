@@ -1,5 +1,3 @@
-import { access } from 'node:fs/promises';
-
 import type { PluginManifest } from '@/lib/plugins/types';
 
 export const COMPONENT_REGISTRATION_PATTERN =
@@ -16,15 +14,6 @@ export const TEST_FILE_PATTERN = /(?:^|\/)[^/]+\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 export const toComponentFileName = (componentId: string): string =>
   `${componentId.trim().toLowerCase().replace(/_/g, '-')}.tsx`;
-
-export const exists = async (targetPath: string): Promise<boolean> => {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 export const extractRuntimeRegisteredComponentIds = (
   source: string
