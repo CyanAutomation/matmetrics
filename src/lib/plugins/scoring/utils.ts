@@ -34,3 +34,19 @@ export const fileExists = async (targetPath: string): Promise<boolean> => {
  */
 export const componentIdToComponentBasename = (componentId: string): string =>
   componentId.trim().toLowerCase().replace(/_/g, '-');
+
+export const normalizeHeading = (heading: string): string =>
+  heading.trim().toLowerCase().replace(/\s+/g, ' ');
+
+export const extractRegisteredPluginComponents = (
+  entryContents: string
+): string[] => {
+  const componentIds = new Set<string>();
+  const pattern =
+    /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
+  for (const match of entryContents.matchAll(pattern)) {
+    const componentId = match[1]?.trim();
+    if (componentId) componentIds.add(componentId);
+  }
+  return [...componentIds];
+};

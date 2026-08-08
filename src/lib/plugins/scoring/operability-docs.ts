@@ -14,10 +14,7 @@ import path from 'node:path';
 
 import type { PluginManifest } from '@/lib/plugins/types';
 import type { CategoryScoringResult } from './types';
-import { pushUnique, fileExists } from './utils';
-
-const normalizeHeading = (heading: string): string =>
-  heading.trim().toLowerCase().replace(/\s+/g, ' ');
+import { pushUnique, fileExists, normalizeHeading } from './utils';
 
 const parseReadmeSections = (contents: string): string[] => {
   const headings = new Set<string>();
@@ -51,9 +48,8 @@ export async function scoreOperabilityDocs(
 
     const readmeContents = await readFile(pluginReadmePath, 'utf8');
     const detectedReadmeSections = parseReadmeSections(readmeContents);
-    const normalizedReadmeSections = detectedReadmeSections.map(
-      normalizeHeading
-    );
+    const normalizedReadmeSections =
+      detectedReadmeSections.map(normalizeHeading);
 
     // Check for Usage section (2 points)
     if (normalizedReadmeSections.includes('usage')) {

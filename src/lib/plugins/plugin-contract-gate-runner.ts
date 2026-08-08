@@ -1,114 +1,20 @@
-import { access, readFile, stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
   type PluginManifest,
   type PluginValidationIssue,
 } from '@/lib/plugins/types';
-
-const COMPONENT_REGISTRATION_PATTERN =
-  /registerPluginComponent(?:\?\.|\.)?\(\s*['\"]([^'\"]+)['\"]/g;
-
-const toComponentFileName = (componentId: string): string =>
-  `${componentId.trim().toLowerCase().replace(/_/g, '-')}.tsx`;
-
-const exists = async (targetPath: string): Promise<boolean> => {
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const UX_STATE_EVIDENCE_CRITERIA = {
-  loading: 'loadingStatePresent',
-  error: 'errorStateWithRecovery',
-  empty: 'emptyStateWithCta',
-  destructive: 'destructiveActionSafety',
-} as const;
-
-const TEST_FILE_PATTERN = /(?:^|\/)[^/]+\.(?:test|spec)\.[cm]?[jt]sx?$/;
-
-const COMPONENT_ALIAS_IMPORT_PATTERN =
-  /^import\s+[\s\S]*?from\s+['"](@\/components\/[^'"]+)['"];?$/gm;
-
-const isDisallowedEntrypointComponentImport = (source: string): boolean => {
-  if (!source.startsWith('@/components/')) {
-    return false;
-  }
-
-  return (
-    !source.startsWith('@/components/plugins/') &&
-    !source.startsWith('@/components/ui/')
-  );
-};
-
-const extractDisallowedEntrypointComponentImports = (
-  source: string
-): string[] => {
-  const imports = new Set<string>();
-
-  for (const match of source.matchAll(COMPONENT_ALIAS_IMPORT_PATTERN)) {
-    const importSource = match[1]?.trim();
-    if (!importSource) {
-      continue;
-    }
-
-    if (isDisallowedEntrypointComponentImport(importSource)) {
-      imports.add(importSource);
-    }
-  }
-
-  return [...imports].sort((a, b) => a.localeCompare(b));
-};
-
-const extractRuntimeRegisteredComponentIds = (source: string): Set<string> => {
-  const ids = new Set<string>();
-
-  for (const match of source.matchAll(COMPONENT_REGISTRATION_PATTERN)) {
-    const componentId = match[1]?.trim();
-    if (componentId) {
-      ids.add(componentId);
-    }
-  }
-
-  return ids;
-};
-
-const extractDeclaredComponentIds = (
-  manifest: Pick<PluginManifest, 'uiExtensions'>
-) =>
-  manifest.uiExtensions.flatMap((extension, index) => {
-    const maybeComponent =
-      'component' in extension.config ? extension.config.component : undefined;
-
-    if (
-      typeof maybeComponent !== 'string' ||
-      maybeComponent.trim().length === 0
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        extensionId: extension.id,
-        componentId: maybeComponent,
-        path: `uiExtensions[${index}].config.component`,
-      },
-    ];
-  });
-
-const hasRequiredReadmeSections = (content: string): boolean => {
-  const ownershipHeading = /^#{1,6}\s*ui ownership\b/im;
-  const usageHeading = /^#{1,6}\s*usage\b/im;
-  const verificationHeading = /^#{1,6}\s*verification\b/im;
-  return (
-    ownershipHeading.test(content) &&
-    usageHeading.test(content) &&
-    verificationHeading.test(content)
-  );
-};
+import {
+  UX_STATE_EVIDENCE_CRITERIA,
+  TEST_FILE_PATTERN,
+  extractDeclaredComponentIds,
+  extractDisallowedEntrypointComponentImports,
+  extractRuntimeRegisteredComponentIds,
+  exists,
+  hasRequiredReadmeSections,
+  toComponentFileName,
+} from './plugin-contract-gate-utils';
 
 export type PluginContractGateResult = {
   isValid: boolean;

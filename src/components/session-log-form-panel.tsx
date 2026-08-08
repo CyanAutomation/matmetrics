@@ -14,16 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RessaImage } from '@/components/ressa-image';
-import {
-  Brain,
-  X,
-  Sparkles,
-  Loader2,
-  Save,
-  Undo2,
-  Wand2,
-  PlusCircle,
-} from 'lucide-react';
+import { Brain, X, Sparkles, Loader2, Wand2, PlusCircle } from 'lucide-react';
 import { EFFORT_LABELS, EFFORT_COLORS, JudoSession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -48,6 +39,7 @@ import {
   useVideoUrlValidation,
   useFormSubmit,
 } from '@/hooks/use-session-form';
+import { SessionLogFormFooter } from './session-log-form-footer';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -499,44 +491,14 @@ export function SessionLogForm({
             />
           </div>
         </CardContent>
-        <CardFooter
-          className={cn(
-            'flex justify-end gap-3',
-            !shouldHideHeader ? 'bg-secondary/45 p-8' : 'bg-secondary/45 p-8'
-          )}
-        >
-          {onCancel && (
-            <Button
-              type="button"
-              variant="ghost"
-              interaction="subtle"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="gap-2 h-11 px-6"
-            >
-              <Undo2 className="h-4 w-4" />
-              Cancel
-            </Button>
-          )}
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            interaction="primary-action"
-            feedbackState={
-              isSubmitting ? 'loading' : submitFeedback.feedbackState
-            }
-            className={cn(
-              'gap-2 font-bold shadow-lg',
-              !shouldHideHeader ? 'px-10 py-6 text-lg h-14' : 'px-8 py-5 h-12'
-            )}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Save className="h-5 w-5" />
-            )}
-            {formState.isEditing ? 'Update Session' : 'Log Training Session'}
-          </Button>
+        <CardFooter className="p-0">
+          <SessionLogFormFooter
+            isSubmitting={isSubmitting}
+            isEditing={formState.isEditing}
+            shouldHideHeader={shouldHideHeader}
+            feedbackState={submitFeedback.feedbackState}
+            onCancel={onCancel}
+          />
         </CardFooter>
       </form>
     </Card>

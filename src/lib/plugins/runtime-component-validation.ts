@@ -4,12 +4,7 @@ import type {
   PluginManifest,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
-
-type DeclaredManifestComponent = {
-  componentId: string;
-  extensionId: string;
-  path: string;
-};
+import { extractDeclaredComponentIds } from '@/lib/plugins/plugin-contract-gate-utils';
 
 /**
  * Severity policy:
@@ -20,34 +15,12 @@ type DeclaredManifestComponent = {
  */
 const RUNTIME_RENDERER_UNRESOLVED_SEVERITY = 'warning';
 
-const extractDeclaredManifestComponents = (
-  manifest: PluginManifest
-): DeclaredManifestComponent[] =>
-  manifest.uiExtensions.flatMap((extension, index) => {
-    const maybeComponent =
-      'component' in extension.config ? extension.config.component : undefined;
-    if (
-      typeof maybeComponent !== 'string' ||
-      maybeComponent.trim().length === 0
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        componentId: maybeComponent,
-        extensionId: extension.id,
-        path: `uiExtensions[${index}].config.component`,
-      },
-    ];
-  });
-
 export const validateManifestComponentRenderers = async (
   manifest: PluginManifest
 ): Promise<PluginValidationIssue[]> => {
   await initializePluginComponentRegistry();
 
-  return extractDeclaredManifestComponents(manifest).flatMap(
+  return extractDeclaredComponentIds(manifest).flatMap(
     ({ componentId, extensionId, path }) =>
       getDashboardTabRenderer(componentId)
         ? []

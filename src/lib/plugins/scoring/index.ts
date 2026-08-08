@@ -40,6 +40,8 @@ export {
   pushUnique,
   fileExists,
   componentIdToComponentBasename,
+  normalizeHeading,
+  extractRegisteredPluginComponents,
 } from './utils';
 
 export type { CategoryScoringResult, TierEvaluationResult } from './types';

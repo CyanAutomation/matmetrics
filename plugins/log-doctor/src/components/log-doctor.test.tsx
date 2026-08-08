@@ -1,9 +1,14 @@
 // @ts-expect-error jsdom types not available
 import { JSDOM } from 'jsdom';
-const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost',
+});
 (globalThis as any).window = dom.window;
 (globalThis as any).document = dom.window.document;
-(globalThis as any).navigator = dom.window.navigator;
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator,
+});
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -15,7 +20,11 @@ import { LogDoctor } from './log-doctor';
 
 describe('LogDoctor component', () => {
   it('simulates scan/preview/apply interactions and preserves disabled destructive controls before selection', async () => {
-    const events: Array<{ action: string; stage: string; metadata: Record<string, unknown> }> = [];
+    const events: Array<{
+      action: string;
+      stage: string;
+      metadata: Record<string, unknown>;
+    }> = [];
     window.addEventListener('logDoctorDestructiveAction', (event) => {
       events.push((event as CustomEvent).detail);
     });
@@ -27,8 +36,12 @@ describe('LogDoctor component', () => {
     );
 
     try {
-      fireEvent.change(view.getByLabelText('Owner'), { target: { value: 'team-a' } });
-      fireEvent.change(view.getByLabelText('Repository'), { target: { value: 'matmetrics' } });
+      fireEvent.change(view.getByLabelText('Owner'), {
+        target: { value: 'team-a' },
+      });
+      fireEvent.change(view.getByLabelText('Repository'), {
+        target: { value: 'matmetrics' },
+      });
 
       fireEvent.click(view.getByRole('button', { name: 'Scan repository' }));
       await waitFor(() => {
@@ -36,8 +49,20 @@ describe('LogDoctor component', () => {
       });
 
       // Failure-path UI assertions: actions remain disabled until valid selection exists.
-      assert.equal(view.getByRole('button', { name: 'Preview fixes' }).hasAttribute('disabled'), true);
-      assert.equal(view.getByRole('button', { name: /Apply normalization fixes to 0 selected files/i }).hasAttribute('disabled'), true);
+      assert.equal(
+        view
+          .getByRole('button', { name: 'Preview fixes' })
+          .hasAttribute('disabled'),
+        true
+      );
+      assert.equal(
+        view
+          .getByRole('button', {
+            name: /Apply normalization fixes to 0 selected files/i,
+          })
+          .hasAttribute('disabled'),
+        true
+      );
 
       // Keep this test behavior-focused by validating the UI does not emit destructive
       // action events when destructive controls are disabled.
@@ -46,7 +71,6 @@ describe('LogDoctor component', () => {
       }) as HTMLButtonElement;
       applyDisabledButton.click();
       assert.equal(events.length, 0);
-
     } finally {
       view.unmount();
     }
@@ -68,13 +92,22 @@ describe('LogDoctor component', () => {
 
       fireEvent.click(view.getByRole('button', { name: '1. Run check' }));
       await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: 'Run session audit checks' }));
+        assert.ok(
+          view.getByRole('button', { name: 'Run session audit checks' })
+        );
       });
-      fireEvent.click(view.getByRole('button', { name: 'Run session audit checks' }));
+      fireEvent.click(
+        view.getByRole('button', { name: 'Run session audit checks' })
+      );
 
       await waitFor(() => {
         assert.ok(view.getByRole('button', { name: 'Run check again' }));
-        assert.equal(view.getByRole('button', { name: '2. Review findings' }).hasAttribute('disabled'), false);
+        assert.equal(
+          view
+            .getByRole('button', { name: '2. Review findings' })
+            .hasAttribute('disabled'),
+          false
+        );
       });
 
       fireEvent.click(view.getByRole('button', { name: '2. Review findings' }));
