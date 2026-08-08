@@ -12,27 +12,16 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { PluginManifest, PluginValidationIssue } from '@/lib/plugins/types';
+import type {
+  PluginManifest,
+  PluginValidationIssue,
+} from '@/lib/plugins/types';
 import type { CategoryScoringResult } from './types';
-import { pushUnique, fileExists } from './utils';
-
-const pluginComponentRegistrationPattern =
-  /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
-
-const extractRegisteredPluginComponents = (entryContents: string): string[] => {
-  const componentIds = new Set<string>();
-
-  for (const match of entryContents.matchAll(
-    pluginComponentRegistrationPattern
-  )) {
-    const maybeComponentId = match[1]?.trim();
-    if (maybeComponentId) {
-      componentIds.add(maybeComponentId);
-    }
-  }
-
-  return [...componentIds];
-};
+import {
+  pushUnique,
+  fileExists,
+  extractRegisteredPluginComponents,
+} from './utils';
 
 export async function scoreRuntimeIntegration(
   manifest: PluginManifest,

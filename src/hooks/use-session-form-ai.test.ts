@@ -11,11 +11,14 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
 Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
-  navigator: dom.window.navigator,
   HTMLElement: dom.window.HTMLElement,
   localStorage: dom.window.localStorage,
   sessionStorage: dom.window.sessionStorage,
   IS_REACT_ACT_ENVIRONMENT: true,
+});
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator,
 });
 
 const React = require('react') as typeof import('react');

@@ -43,6 +43,12 @@ import { AuditReviewDialog } from './log-doctor-review-dialog';
 import { AuditSettings } from './log-doctor-audit-settings';
 import { LogDoctorStatusAlerts } from './log-doctor-status-alerts';
 import { LogDoctorRepositoryTarget } from './log-doctor-repository-target';
+import {
+  buildInvalidFileSelections,
+  filterInvalidFiles,
+  getInvalidFiles,
+  toggleSelectedPath,
+} from './log-doctor-file-selection';
 export {
   createAuditSummaryAction,
   type AuditSummaryAction,
@@ -196,16 +202,9 @@ export const LogDoctor = (): React.ReactElement => {
     setBranch(config.branch ?? '');
   }, [preferences.gitHub.config]);
 
-  const invalidFiles = useMemo(
-    () => scanResult?.files.filter((file) => file.status === 'invalid') ?? [],
-    [scanResult]
-  );
+  const invalidFiles = useMemo(() => getInvalidFiles(scanResult), [scanResult]);
   const invalidFileSelectIds = useMemo(
-    () =>
-      invalidFiles.map((file, rowIndex) => ({
-        path: file.path,
-        selectId: createDomSafePathId(file.path, rowIndex),
-      })),
+    () => buildInvalidFileSelections(invalidFiles, createDomSafePathId),
     [invalidFiles]
   );
   const selectIdByPath = useMemo(
@@ -219,22 +218,13 @@ export const LogDoctor = (): React.ReactElement => {
   );
 
   const selectedCount = selectedPaths.length;
-  const filteredInvalidFiles = useMemo(() => {
-    const normalizedSearch = fileSearch.trim().toLowerCase();
-    if (!normalizedSearch) {
-      return invalidFiles;
-    }
-    return invalidFiles.filter((file) =>
-      file.path.toLowerCase().includes(normalizedSearch)
-    );
-  }, [fileSearch, invalidFiles]);
+  const filteredInvalidFiles = useMemo(
+    () => filterInvalidFiles(invalidFiles, fileSearch),
+    [fileSearch, invalidFiles]
+  );
 
   const togglePath = (path: string): void => {
-    setSelectedPaths((current) =>
-      current.includes(path)
-        ? current.filter((item) => item !== path)
-        : [...current, path]
-    );
+    setSelectedPaths((current) => toggleSelectedPath(current, path));
   };
 
   const {

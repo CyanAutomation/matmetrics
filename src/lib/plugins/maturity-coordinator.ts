@@ -22,6 +22,8 @@ import {
   componentIdToComponentBasename,
   mergeCategoryScore,
   mergeCategoryScoringResults,
+  extractRegisteredPluginComponents,
+  normalizeHeading,
 } from '@/lib/plugins/scoring';
 
 type ScorePluginMaturityOptions = {
@@ -52,24 +54,6 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
   operability_docs: 15,
 };
 
-const pluginComponentRegistrationPattern =
-  /\.?registerPluginComponent(?:\?\.)?\s*\(\s*['"]([^'"]+)['"]\s*,/g;
-
-const extractRegisteredPluginComponents = (entryContents: string): string[] => {
-  const componentIds = new Set<string>();
-
-  for (const match of entryContents.matchAll(
-    pluginComponentRegistrationPattern
-  )) {
-    const maybeComponentId = match[1]?.trim();
-    if (maybeComponentId) {
-      componentIds.add(maybeComponentId);
-    }
-  }
-
-  return [...componentIds];
-};
-
 const clampScore = (score: number, max: number): number =>
   Math.max(0, Math.min(max, score));
 
@@ -78,9 +62,6 @@ const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
 
 const fromRepoRelativePath = (repoRoot: string, relativePath: string): string =>
   path.join(repoRoot, ...relativePath.split('/'));
-
-const normalizeHeading = (heading: string): string =>
-  heading.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const parseReadmeSections = (contents: string): string[] => {
   const headings = new Set<string>();

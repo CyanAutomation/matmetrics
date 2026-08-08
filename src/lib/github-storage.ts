@@ -1,11 +1,5 @@
-import { JudoSession } from './types';
+import type { GitHubConfig, JudoSession } from './types';
 import { sessionToMarkdown } from './markdown-serializer';
-
-export interface GitHubConfig {
-  owner: string;
-  repo: string;
-  branch?: string;
-}
 
 export interface GitHubSyncResult {
   success: boolean;
@@ -758,7 +752,12 @@ async function resolveSessionFileMetadata(
   let discoveredPath: string | null = null;
 
   if (manifestEntry) {
-    sha = await getFileSha(config.owner, config.repo, manifestEntry.path, branch);
+    sha = await getFileSha(
+      config.owner,
+      config.repo,
+      manifestEntry.path,
+      branch
+    );
     if (sha) {
       discoveredPath = manifestEntry.path;
     }
@@ -869,7 +868,12 @@ async function updateWithRetry(
 
     if (isShaConflict && retries < maxRetries) {
       retries += 1;
-      const newSha = await getFileSha(config.owner, config.repo, expectedPath, branch);
+      const newSha = await getFileSha(
+        config.owner,
+        config.repo,
+        expectedPath,
+        branch
+      );
       if (!newSha) {
         return {
           success: false,
@@ -1149,9 +1153,10 @@ export async function bulkPushSessions(
       success: !hasErrors,
       message: `Pushed ${successCount}/${sessions.length} sessions to GitHub${
         hasErrors
-          ? `. ${errors.length} error(s): ${errors.slice(0, 3).map((e) => `${e.sessionId}: ${e.message}`).join('; ')}${
-              errors.length > 3 ? '...' : ''
-            }`
+          ? `. ${errors.length} error(s): ${errors
+              .slice(0, 3)
+              .map((e) => `${e.sessionId}: ${e.message}`)
+              .join('; ')}${errors.length > 3 ? '...' : ''}`
           : ''
       }`,
       successCount,

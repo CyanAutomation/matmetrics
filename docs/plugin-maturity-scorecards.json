@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-25T20:09:15.673Z",
+  "generatedAt": "2026-08-08T16:09:48.790Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
   "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "4bd29895b2db8aed47a18f1c25545309cbed4acd88c4dd49d57bbb2a7102a7b7",
+  "cacheKey": "ef06dd4f116e63d5dae8db286ff9ec312ce1451165b8672d5bfbd6adee7a2e48",
   "plugins": [
     {
       "id": "github-sync",
@@ -42,7 +42,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "3e778a6655dc1ea2ea7e12b6ff4f698cc2bdf601bc7ee89df0cb790f2fc4a27b"
+      "manifestEvidenceHash": "f5d6520ffa8db80b768d388466bd2638f8ef1d44bf1acfd535545ecfd180ebfb"
     }
   ]
 }

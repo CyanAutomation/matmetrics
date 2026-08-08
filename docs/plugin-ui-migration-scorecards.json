@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-30T12:14:58.524Z",
+  "generatedAt": "2026-08-08T16:09:49.217Z",
   "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
   "sourceEntrypoint": "plugins/*/src/index.ts",
-  "cacheKey": "c70fb9eda650f84f4ff93e36aba7bdc22fc7d81cd43cc5e4c0bf69975ccdeeaa",
+  "cacheKey": "00a447b20be0417191aae066ea35c05c3d31f6b355baacf22ed78e05dfd70322",
   "plugins": [
     {
       "id": "github-sync",
@@ -12,13 +12,17 @@
         "plugins/github-sync/src/components/github-settings.tsx"
       ],
       "checks": {
-        "sharedShell": true,
-        "sharedState": true,
+        "sharedShell": false,
+        "sharedState": false,
         "sharedDestructiveConfirmation": false
       },
-      "score": 2,
+      "score": 0,
       "maxScore": 3,
-      "missing": ["sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ]
     },
     {
       "id": "log-doctor",
@@ -28,13 +32,17 @@
         "plugins/log-doctor/src/components/log-doctor.tsx"
       ],
       "checks": {
-        "sharedShell": true,
+        "sharedShell": false,
         "sharedState": false,
-        "sharedDestructiveConfirmation": true
+        "sharedDestructiveConfirmation": false
       },
-      "score": 2,
+      "score": 0,
       "maxScore": 3,
-      "missing": ["sharedState"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ]
     },
     {
       "id": "prompt-settings",
@@ -60,13 +68,17 @@
         "plugins/tag-manager/src/components/tag-manager.tsx"
       ],
       "checks": {
-        "sharedShell": true,
-        "sharedState": true,
-        "sharedDestructiveConfirmation": true
+        "sharedShell": false,
+        "sharedState": false,
+        "sharedDestructiveConfirmation": false
       },
-      "score": 3,
+      "score": 0,
       "maxScore": 3,
-      "missing": []
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ]
     },
     {
       "id": "video-library",
@@ -76,13 +88,17 @@
         "plugins/video-library/src/components/video-library.tsx"
       ],
       "checks": {
-        "sharedShell": true,
-        "sharedState": true,
+        "sharedShell": false,
+        "sharedState": false,
         "sharedDestructiveConfirmation": false
       },
-      "score": 2,
+      "score": 0,
       "maxScore": 3,
-      "missing": ["sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ]
     }
   ]
 }

@@ -7,6 +7,13 @@
  * Cognitive complexity reduced by extracting core algorithms from storage.ts
  */
 
+import {
+  getLeaseSignature,
+  isNewerLiveLease,
+  updateLeaseObservation,
+  type LeaseObservationState,
+} from './sync-lease-attempt';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -192,11 +199,6 @@ export function readSyncLease(): SyncLease | null {
 /**
  * Create a signature for identifying stable contenders
  */
-function getContenderSignature(lease: SyncLease | null): string | null {
-  if (!lease) return null;
-  return `${lease.owner}:${lease.nonce}:${lease.epoch}:${lease.expiresAt}`;
-}
-
 function shouldForceReclaim(
   leaseOwnedByAnother: boolean,
   leaseExpired: boolean,
@@ -328,31 +330,23 @@ function monitorStorageForLeaseConflict(
  * Returns true if we should proceed with acquisition (either no contender or forced reclaim).
  */
 function shouldAttemptLeaseAcquisition(
+  observationState: LeaseObservationState,
   contenderSignature: string | null,
-  stableContenderSignature: string | null,
-  stableContenderObservations: number,
   leaseOwnedByAnother: boolean,
   leaseExpired: boolean,
   leaseIsOwnedAndAlive: boolean
-): { attempt: boolean; updatedStableSignature: string | null; updatedObservations: number } {
+): {
+  attempt: boolean;
+  updatedStableSignature: string | null;
+  updatedObservations: number;
+} {
   // Track contender stability across observations
-  let updatedSignature = stableContenderSignature;
-  let updatedObservations = stableContenderObservations;
-
-  if (contenderSignature && contenderSignature === stableContenderSignature) {
-    updatedObservations += 1;
-  } else if (contenderSignature) {
-    updatedSignature = contenderSignature;
-    updatedObservations = 1;
-  } else {
-    updatedSignature = null;
-    updatedObservations = 0;
-  }
+  const updated = updateLeaseObservation(observationState, contenderSignature);
 
   const forcedReclaimAttempt = shouldForceReclaim(
     leaseOwnedByAnother,
     leaseExpired,
-    updatedObservations,
+    updated.observations,
     leaseIsOwnedAndAlive
   );
 
@@ -361,8 +355,8 @@ function shouldAttemptLeaseAcquisition(
 
   return {
     attempt: !shouldBackOff,
-    updatedStableSignature: updatedSignature,
-    updatedObservations: updatedObservations,
+    updatedStableSignature: updated.signature,
+    updatedObservations: updated.observations,
   };
 }
 
@@ -428,16 +422,18 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
   // ─────────────────────────────────────────────────────────────────────────────
   // stableContenderSignature: identity of contender from previous iteration
   // stableContenderObservations: count of consecutive identical contenders
-  // 
+  //
   // State transitions:
   // 1. If contender same as previous: increment observations
   // 2. If contender different: reset to new contender + reset observations to 1
   // 3. If no contender: clear signature + reset observations to 0
   // 4. If observations >= 3: attempt forced reclaim in next iteration
-  // 
+  //
   // See shouldAttemptLeaseAcquisition() for decision logic.
-  let stableContenderSignature: string | null = null;
-  let stableContenderObservations = 0;
+  let observationState: LeaseObservationState = {
+    signature: null,
+    observations: 0,
+  };
 
   for (let attempt = 0; attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS; attempt += 1) {
     const now = Date.now();
@@ -447,22 +443,23 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     const leaseExpired =
       observedLease !== null && observedLease.expiresAt < now;
     const leaseIsOwnedAndAlive = leaseOwnedByAnother && !leaseExpired;
-    const contenderSignature = getContenderSignature(
+    const contenderSignature = getLeaseSignature(
       leaseOwnedByAnother ? observedLease : null
     );
 
     // Evaluate if we should attempt acquisition
     const leaseEval = shouldAttemptLeaseAcquisition(
+      observationState,
       contenderSignature,
-      stableContenderSignature,
-      stableContenderObservations,
       leaseOwnedByAnother,
       leaseExpired,
       leaseIsOwnedAndAlive
     );
 
-    stableContenderSignature = leaseEval.updatedStableSignature;
-    stableContenderObservations = leaseEval.updatedObservations;
+    observationState = {
+      signature: leaseEval.updatedStableSignature,
+      observations: leaseEval.updatedObservations,
+    };
 
     // Back off if another process owns an alive lease
     if (!leaseEval.attempt) {
@@ -485,7 +482,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
       const forcedReclaimAttempt = shouldForceReclaim(
         leaseOwnedByAnother,
         leaseExpired,
-        stableContenderObservations,
+        observationState.observations,
         leaseIsOwnedAndAlive
       );
 
@@ -513,12 +510,7 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
 
     // Check if a newer lease appeared after we started this iteration
     const lastObservedLease = readSyncLease();
-    if (
-      lastObservedLease &&
-      lastObservedLease.owner !== syncOwnerId &&
-      lastObservedLease.expiresAt >= Date.now() &&
-      lastObservedLease.epoch > (observedLease?.epoch ?? -Infinity)
-    ) {
+    if (isNewerLiveLease(lastObservedLease, observedLease, Date.now())) {
       storageMonitor.cleanup();
       if (attempt < SYNC_LOCK_ACQUIRE_ATTEMPTS - 1) {
         await sleep(randomBackoffMs());
@@ -535,7 +527,11 @@ export async function tryAcquireSyncLease(): Promise<boolean> {
     storageMonitor.cleanup();
 
     if (
-      validateLeaseClaim(confirmedLease, nextLease, storageMonitor.isConflicted())
+      validateLeaseClaim(
+        confirmedLease,
+        nextLease,
+        storageMonitor.isConflicted()
+      )
     ) {
       activeSyncLease = {
         mode: 'storage',
