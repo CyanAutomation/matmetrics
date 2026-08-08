@@ -54,6 +54,25 @@ test('parseSyncLeaseValue rejects non-finite numeric claims and non-object JSON'
   assert.equal(parseSyncLeaseValue('null'), null);
 });
 
+test('parseSyncLeaseValue rejects every invalid claim type', () => {
+  for (const [field, value] of [
+    ['owner', null],
+    ['owner', 123],
+    ['nonce', null],
+    ['nonce', false],
+    ['expiresAt', '123'],
+    ['expiresAt', false],
+    ['epoch', '42'],
+    ['epoch', null],
+  ] as const) {
+    assert.equal(
+      parseSyncLeaseValue(JSON.stringify({ ...lease, [field]: value })),
+      null,
+      `expected ${field}=${String(value)} to be rejected`
+    );
+  }
+});
+
 test('leaseClaimsMatch requires every claim field to match', () => {
   assert.equal(leaseClaimsMatch(lease, lease), true);
   for (const field of ['owner', 'expiresAt', 'nonce', 'epoch'] as const) {
@@ -70,6 +89,14 @@ test('leaseClaimsMatch requires every claim field to match', () => {
     );
   }
   assert.equal(leaseClaimsMatch(null, lease), false);
+});
+
+test('leaseClaimsMatch rejects candidates that are structurally incomplete', () => {
+  for (const field of ['owner', 'expiresAt', 'nonce', 'epoch'] as const) {
+    const candidate = { ...lease } as Partial<SyncLease>;
+    delete candidate[field];
+    assert.equal(leaseClaimsMatch(candidate as SyncLease, lease), false);
+  }
 });
 
 test('leaseIdentityMatches ignores expiration but requires ownership identity', () => {
@@ -90,6 +117,20 @@ test('leaseIdentityMatches ignores expiration but requires ownership identity', 
     false
   );
   assert.equal(leaseIdentityMatches(null, lease), false);
+});
+
+test('leaseIdentityMatches ignores only expiration', () => {
+  assert.equal(
+    leaseIdentityMatches(
+      { ...lease, expiresAt: Number.MAX_SAFE_INTEGER },
+      lease
+    ),
+    true
+  );
+  assert.equal(
+    leaseIdentityMatches({ ...lease, owner: '', nonce: '', epoch: 0 }, lease),
+    false
+  );
 });
 
 test('lease matchers reject candidates with any missing claim', () => {

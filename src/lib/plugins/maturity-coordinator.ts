@@ -6,7 +6,6 @@ import type {
   PluginMaturityCategory,
   PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
-  PluginMaturityUxCriterion,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
 import {
@@ -26,6 +25,7 @@ import {
   normalizeHeading,
 } from '@/lib/plugins/scoring';
 import { parseReadmeSections } from './maturity-readme';
+import { verifyMaturityUxCriteria } from './maturity-ux-verification';
 import {
   normalizeMaturityCategoryScores,
   totalMaturityScore,
@@ -40,8 +40,6 @@ type ScorePluginMaturityOptions = {
 };
 
 type CategoryAccumulator = Record<PluginMaturityCategory, number>;
-type FeatureUxState = 'loading' | 'error' | 'empty' | 'destructiveAction';
-type FeatureUxCriterion = PluginMaturityUxCriterion;
 
 const categoryLabels: Record<PluginMaturityCategory, string> = {
   contract_metadata: 'Contract & Metadata',
@@ -67,177 +65,6 @@ const fromRepoRelativePath = (repoRoot: string, relativePath: string): string =>
 
 const capabilityCandidateRoots: Record<string, string[]> = {
   tag_mutation: [path.join('src', 'lib', 'tags')],
-};
-
-const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
-  loading: [
-    /\bloading\b/i,
-    /\bisLoading\b/i,
-    /\bpending\b/i,
-    /\bspinner\b/i,
-    /\bskeleton\b/i,
-  ],
-  error: [/\berror\b/i, /\bfails?\b/i, /\bfailure\b/i, /\balert\b/i],
-  empty: [/\bempty\b/i, /\bno data\b/i, /\bno results\b/i, /\bzero state\b/i],
-  destructiveAction: [
-    /\bdestructive\b/i,
-    /\bconfirm(?:ation)?\b/i,
-    /\bdelete(?:d|ion)?\b/i,
-    /\breset(?:ting)?\b/i,
-    /\bremove\b/i,
-    /\bdanger\b/i,
-  ],
-};
-
-const uxRecoveryPatterns = [
-  /\bretry\b/i,
-  /\brecover(?:y)?\b/i,
-  /\brefresh\b/i,
-  /\btry again\b/i,
-];
-
-const uxCtaPatterns = [
-  /\bcta\b/i,
-  /\baction\b/i,
-  /\badd\b/i,
-  /\bcreate\b/i,
-  /\bconfigure\b/i,
-  /\bretry\b/i,
-  /\bsync\b/i,
-];
-
-const uxCancelPatterns = [/\bcancel(?:ed|lation)?\b/i, /\bundo\b/i];
-const uxConfirmationPatterns = [/\bconfirm(?:ation)?\b/i];
-
-const uxCriterionLabels: Record<FeatureUxCriterion, string> = {
-  loadingStatePresent: 'loading state present',
-  errorStateWithRecovery: 'error state present with recovery',
-  emptyStateWithCta: 'empty state present with CTA',
-  destructiveActionSafety:
-    'destructive action confirmation + cancellation path',
-};
-
-const assertionAnchorPattern =
-  /\b(expect\s*\(|assert\.[a-z]+|getBy[A-Z]\w*|findBy[A-Z]\w*|queryBy[A-Z]\w*)/;
-
-/**
- * Generic helper to check if file content asserts patterns within a window context.
- * Searches for patterns in 3-line windows around assertion anchors.
- * Optionally includes broad window search for extended patterns.
- */
-const fileAssertsPatternInWindow = (
-  fileContents: string,
-  patterns: RegExp[],
-  includeBroadWindow: boolean = false
-): boolean => {
-  if (!assertionAnchorPattern.test(fileContents)) {
-    return false;
-  }
-
-  const lines = fileContents.split('\n');
-
-  // Line-by-line window search (3-line context)
-  for (let index = 0; index < lines.length; index += 1) {
-    const localWindow = [
-      lines[index - 1] ?? '',
-      lines[index] ?? '',
-      lines[index + 1] ?? '',
-    ].join(' ');
-    if (
-      assertionAnchorPattern.test(localWindow) &&
-      patterns.some((pattern) => pattern.test(localWindow))
-    ) {
-      return true;
-    }
-  }
-
-  // Broad window search (extended context within expect calls)
-  if (includeBroadWindow) {
-    const broadWindowPattern = /expect\s*\([\s\S]{0,180}\)/g;
-    for (const match of fileContents.matchAll(broadWindowPattern)) {
-      if (patterns.some((pattern) => pattern.test(match[0]))) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-};
-
-const fileAssertsUxState = (
-  fileContents: string,
-  state: FeatureUxState
-): boolean => {
-  const patterns = uxStatePatterns[state];
-  return fileAssertsPatternInWindow(fileContents, patterns, true);
-};
-
-const fileAssertsPatternWithAssertion = (
-  fileContents: string,
-  patterns: RegExp[]
-): boolean => fileAssertsPatternInWindow(fileContents, patterns, false);
-
-const findFilesAssertingUxState = async (
-  testFiles: string[],
-  state: FeatureUxState
-): Promise<string[]> => {
-  const matches: string[] = [];
-
-  for (const testFile of testFiles) {
-    const testFileContents = await readFile(testFile, 'utf8');
-    if (fileAssertsUxState(testFileContents, state)) {
-      matches.push(testFile);
-    }
-  }
-
-  return matches;
-};
-
-const findFilesAssertingCriterionHeuristically = async (
-  testFiles: string[],
-  criterion: FeatureUxCriterion
-): Promise<string[]> => {
-  const matches: string[] = [];
-
-  for (const testFile of testFiles) {
-    const testFileContents = await readFile(testFile, 'utf8');
-    const doesMatch =
-      criterion === 'loadingStatePresent'
-        ? fileAssertsUxState(testFileContents, 'loading')
-        : criterion === 'errorStateWithRecovery'
-          ? fileAssertsPatternWithAssertion(
-              testFileContents,
-              uxStatePatterns.error
-            ) &&
-            fileAssertsPatternWithAssertion(
-              testFileContents,
-              uxRecoveryPatterns
-            )
-          : criterion === 'emptyStateWithCta'
-            ? fileAssertsPatternWithAssertion(
-                testFileContents,
-                uxStatePatterns.empty
-              ) &&
-              fileAssertsPatternWithAssertion(testFileContents, uxCtaPatterns)
-            : fileAssertsPatternWithAssertion(
-                testFileContents,
-                uxStatePatterns.destructiveAction
-              ) &&
-              fileAssertsPatternWithAssertion(
-                testFileContents,
-                uxConfirmationPatterns
-              ) &&
-              fileAssertsPatternWithAssertion(
-                testFileContents,
-                uxCancelPatterns
-              );
-
-    if (doesMatch) {
-      matches.push(testFile);
-    }
-  }
-
-  return matches;
 };
 
 const collectTestFiles = async (root: string): Promise<string[]> => {
@@ -573,8 +400,6 @@ export const scorePluginMaturity = async ({
       componentBasenames,
       componentIds,
     });
-  const declaredEvidence = manifest.maturity?.evidence;
-
   // Score test coverage using the new scorer
   const testCoverageResultFinal = await scoreTestCoverage({
     testEvidenceFiles,
@@ -595,173 +420,21 @@ export const scorePluginMaturity = async ({
     pushUnique(nextActions, item);
   }
 
-  const runtimeAssertionsSatisfied =
-    componentIds.length > 0 &&
-    componentBasenames.length > 0 &&
-    testEvidenceFiles.length > 0 &&
-    unresolvedRuntimeComponentWarnings.length === 0;
-  const manifestUxStates = manifest.maturity?.uxStates;
-  const manifestUxCriteria = manifest.maturity?.uxCriteria;
-  const declaredUxStates = {
-    loading: manifestUxStates?.loading === true,
-    error: manifestUxStates?.error === true,
-    empty: manifestUxStates?.empty === true,
-    destructiveAction: manifestUxStates?.destructiveAction === true,
-  };
-
-  const assertedUxStateFiles = {
-    loading: await findFilesAssertingUxState(testEvidenceFiles, 'loading'),
-    error: await findFilesAssertingUxState(testEvidenceFiles, 'error'),
-    empty: await findFilesAssertingUxState(testEvidenceFiles, 'empty'),
-    destructiveAction: await findFilesAssertingUxState(
-      testEvidenceFiles,
-      'destructiveAction'
-    ),
-  };
-
-  const declaredUxCriteria = {
-    loadingStatePresent: manifestUxCriteria?.loadingStatePresent === true,
-    errorStateWithRecovery: manifestUxCriteria?.errorStateWithRecovery === true,
-    emptyStateWithCta: manifestUxCriteria?.emptyStateWithCta === true,
-    destructiveActionSafety:
-      manifestUxCriteria?.destructiveActionSafety?.confirmation === true &&
-      manifestUxCriteria?.destructiveActionSafety?.cancellation === true,
-  };
-  const destructiveActionRelevant =
-    manifestUxCriteria?.destructiveActionSafety?.relevant ??
-    declaredUxStates.destructiveAction ??
-    assertedUxStateFiles.destructiveAction.length > 0;
-  const loadingStateUniversallyRequired = false;
-  const loadingStateRelevant =
-    loadingStateUniversallyRequired ||
-    declaredUxCriteria.loadingStatePresent ||
-    declaredUxStates.loading;
-  const errorStateRelevant =
-    declaredUxCriteria.errorStateWithRecovery || declaredUxStates.error;
-  const emptyStateRelevant =
-    declaredUxCriteria.emptyStateWithCta || declaredUxStates.empty;
-  const uxCriterionRelevance: Record<FeatureUxCriterion, boolean> = {
-    loadingStatePresent: loadingStateRelevant,
-    errorStateWithRecovery: errorStateRelevant,
-    emptyStateWithCta: emptyStateRelevant,
-    destructiveActionSafety: destructiveActionRelevant,
-  };
-
-  const allCriteria = [
-    'loadingStatePresent',
-    'errorStateWithRecovery',
-    'emptyStateWithCta',
-    'destructiveActionSafety',
-  ] as const;
-  const criteriaToEvaluate = allCriteria.filter(
-    (criterion): criterion is FeatureUxCriterion =>
-      uxCriterionRelevance[criterion]
-  );
-
-  let metCriteriaCount = 0;
-  let explicitCriteriaCount = 0;
-  const missingUxCriteria: FeatureUxCriterion[] = [];
-  const criteriaDetails = Object.fromEntries(
-    (
-      [
-        'loadingStatePresent',
-        'errorStateWithRecovery',
-        'emptyStateWithCta',
-        'destructiveActionSafety',
-      ] as const
-    ).map((criterion) => [
-      criterion,
-      {
-        label: uxCriterionLabels[criterion],
-        relevant: uxCriterionRelevance[criterion],
-        declared: declaredUxCriteria[criterion],
-        verified: false,
-        source: 'none' as PluginMaturityEvidenceSource,
-        files: [] as string[],
-      },
-    ])
-  ) as PluginMaturityScorecard['verificationDetails']['uxCriteria'];
-
-  for (const criterion of criteriaToEvaluate) {
-    const isDeclared = declaredUxCriteria[criterion];
-    const explicitCriterionFiles = await resolveExplicitEvidenceFiles(
-      repoRoot,
-      declaredEvidence?.uxCriteria?.[criterion] ?? []
-    );
-    const heuristicCriterionFiles =
-      explicitCriterionFiles.length === 0
-        ? await findFilesAssertingCriterionHeuristically(
-            testEvidenceFiles,
-            criterion
-          )
-        : [];
-    const verifiedCriterionFiles =
-      explicitCriterionFiles.length > 0
-        ? explicitCriterionFiles
-        : heuristicCriterionFiles;
-    const verificationSource: PluginMaturityEvidenceSource =
-      explicitCriterionFiles.length > 0
-        ? 'explicit'
-        : heuristicCriterionFiles.length > 0
-          ? 'heuristic'
-          : 'none';
-    criteriaDetails[criterion] = {
-      label: uxCriterionLabels[criterion],
-      relevant: true,
-      declared: isDeclared,
-      verified: verifiedCriterionFiles.length > 0,
-      source: verificationSource,
-      files: verifiedCriterionFiles.map((filePath) =>
-        toRepoRelativePath(repoRoot, filePath)
-      ),
-    };
-
-    if (
-      isDeclared &&
-      verifiedCriterionFiles.length > 0 &&
-      runtimeAssertionsSatisfied
-    ) {
-      metCriteriaCount += 1;
-      if (verificationSource === 'explicit') {
-        explicitCriteriaCount += 1;
-      } else {
-        pushUnique(
-          nextActions,
-          `Promote heuristic UX verification for ${uxCriterionLabels[criterion]} to explicit \`maturity.evidence.uxCriteria\` file mappings.`
-        );
-      }
-      continue;
-    }
-
-    missingUxCriteria.push(criterion);
-    pushUnique(
-      reasons,
-      `Missing machine-checkable UX criterion: ${uxCriterionLabels[criterion]}.`
-    );
-    pushUnique(
-      nextActions,
-      `Record and test: ${uxCriterionLabels[criterion]}.`
-    );
-  }
-
-  if (metCriteriaCount > 0) {
-    categoryScores.feature_quality += metCriteriaCount * 2;
-    pushUnique(
-      evidence,
-      'Manifest UX criteria and automated tests jointly validate key UX safeguards.'
-    );
-  }
-  if (explicitCriteriaCount > 0) {
-    categoryScores.feature_quality += Math.min(2, explicitCriteriaCount);
-    pushUnique(
-      evidence,
-      'Explicit UX evidence links criteria to concrete test files instead of relying only on heuristic detection.'
-    );
-  }
-
-  if (missingUxCriteria.length > 0) {
-    categoryScores.feature_quality -= missingUxCriteria.length * 4;
-  }
+  const uxVerification = await verifyMaturityUxCriteria({
+    repoRoot,
+    manifest,
+    testEvidenceFiles,
+    runtimeAssertionsSatisfied:
+      componentIds.length > 0 &&
+      componentBasenames.length > 0 &&
+      testEvidenceFiles.length > 0 &&
+      unresolvedRuntimeComponentWarnings.length === 0,
+  });
+  categoryScores.feature_quality += uxVerification.categoryScoreDelta;
+  for (const item of uxVerification.evidence) pushUnique(evidence, item);
+  for (const item of uxVerification.reasons) pushUnique(reasons, item);
+  for (const item of uxVerification.nextActions) pushUnique(nextActions, item);
+  const criteriaDetails = uxVerification.criteriaDetails;
 
   if (
     testEvidenceFiles.some((filePath) =>
@@ -824,11 +497,11 @@ export const scorePluginMaturity = async ({
   const hasAnyTestEvidence = testEvidenceFiles.length > 0;
   const hasReadme = await fileExists(pluginReadmePath);
   const isExplicitGoldReview = manifest.maturity?.tier === 'gold';
-  const allRelevantUxCriteriaExplicitlyVerified = criteriaToEvaluate.every(
-    (criterion) =>
-      criteriaDetails[criterion].verified &&
-      criteriaDetails[criterion].source === 'explicit'
-  );
+  const allRelevantUxCriteriaExplicitlyVerified = Object.values(criteriaDetails)
+    .filter((criterion) => criterion.relevant)
+    .every(
+      (criterion) => criterion.verified && criterion.source === 'explicit'
+    );
   const hasExplicitTestEvidence = testEvidenceSource === 'explicit';
   const normalizedReadmeSections = detectedReadmeSections.map(normalizeHeading);
   const hasGoldSupportDocs =

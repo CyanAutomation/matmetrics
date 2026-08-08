@@ -1,23 +1,35 @@
 import type { SyncLease } from './sync-lease-core';
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const toSyncLease = (value: unknown): SyncLease | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const parsed = value as Partial<SyncLease>;
+  if (
+    typeof parsed.owner !== 'string' ||
+    !isFiniteNumber(parsed.expiresAt) ||
+    typeof parsed.nonce !== 'string' ||
+    !isFiniteNumber(parsed.epoch)
+  ) {
+    return null;
+  }
+
+  return {
+    owner: parsed.owner,
+    expiresAt: parsed.expiresAt,
+    nonce: parsed.nonce,
+    epoch: parsed.epoch,
+  };
+};
+
 export function parseSyncLeaseValue(value: string | null): SyncLease | null {
   if (!value) return null;
   try {
-    const parsed = JSON.parse(value) as Partial<SyncLease>;
-    if (
-      typeof parsed.owner !== 'string' ||
-      !Number.isFinite(parsed.expiresAt) ||
-      typeof parsed.nonce !== 'string' ||
-      !Number.isFinite(parsed.epoch)
-    ) {
-      return null;
-    }
-    return {
-      owner: parsed.owner,
-      expiresAt: parsed.expiresAt as number,
-      nonce: parsed.nonce,
-      epoch: parsed.epoch as number,
-    };
+    return toSyncLease(JSON.parse(value));
   } catch {
     return null;
   }
@@ -28,10 +40,9 @@ export function leaseClaimsMatch(
   expected: SyncLease
 ): boolean {
   return (
-    candidate?.owner === expected.owner &&
-    candidate.expiresAt === expected.expiresAt &&
-    candidate.nonce === expected.nonce &&
-    candidate.epoch === expected.epoch
+    candidate !== null &&
+    leaseIdentityMatches(candidate, expected) &&
+    candidate.expiresAt === expected.expiresAt
   );
 }
 

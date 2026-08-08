@@ -3,22 +3,17 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle,
   Cog,
-  ExternalLink,
   Film,
   Loader2,
-  Pencil,
   Plus,
   RefreshCcw,
   Search,
   ShieldAlert,
-  Trash2,
 } from 'lucide-react';
 
 import { SessionLogForm } from '@/components/session-log-form';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
-import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
 import {
@@ -27,9 +22,7 @@ import {
 } from '@/components/plugins/plugin-data-surface';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import { PluginGallerySection } from '@/components/plugins/plugin-gallery-section';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
-import { VideoTileCard } from './video-tile-card';
 import { VideoLibrarySummary } from './video-library-summary';
 import { useVideoLibraryViewState } from './use-video-library-view-state';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
@@ -57,14 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useAuth } from '@/components/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
@@ -83,11 +68,7 @@ import type {
 } from '@/lib/video-library';
 import {
   areVideoLinkCheckMapsEqual,
-  deriveVideoLibraryRows,
-  filterVideoLibraryRows,
-  getAllowedVideoDomains,
   getVideoDomainRemovalImpact,
-  getVideoLibraryTabCounts,
   mergeVideoLinkCheckResults,
   normalizeVideoDomainInput,
   reconcileVideoLinkChecks,
@@ -100,13 +81,7 @@ import {
   getVideoLibraryReviewAlertDescription,
   getEntryStatusLabel,
   getStatusVariant,
-  sortVideoLibraryRows,
-  deriveVideoLibraryBrowseState,
-  deriveVideoLibraryEmptyState,
-  deriveVideoLibraryBulkActionState,
   buildVideoDomainRemovalConfirmationDescription,
-  getFilteredHostnameOptions,
-  deriveVideoLibraryControlVisibility,
   getPresentationLabel,
   getSortLabel,
   getTabLabel,
@@ -116,6 +91,8 @@ import {
   type VideoLibraryPresentationMode,
   type VideoLibrarySortOption,
 } from './video-library-view-model';
+import { useVideoLibraryController } from './use-video-library-controller';
+import { VideoLibraryResults } from './video-library-results';
 
 type VideoLinkCheckRunOptions = {
   authAvailable: boolean;
@@ -498,81 +475,30 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
     expectedVideoCategories,
   ]);
 
-  const rows = useMemo(
-    () =>
-      deriveVideoLibraryRows({
-        sessions,
-        customAllowedDomains,
-        linkChecksBySessionId: reconciledLinkChecks,
-        expectedVideoCategories,
-      }),
-    [
-      sessions,
-      customAllowedDomains,
-      reconciledLinkChecks,
-      expectedVideoCategories,
-    ]
-  );
-
-  const filteredRows = useMemo(
-    () => filterVideoLibraryRows(rows, filters),
-    [rows, filters]
-  );
-  const sortedFilteredRows = useMemo(
-    () => sortVideoLibraryRows(filteredRows, sortOrder),
-    [filteredRows, sortOrder]
-  );
-  const loungeRows = useMemo(
-    () => sortedFilteredRows.filter((row) => !!row.entry.url),
-    [sortedFilteredRows]
-  );
-
-  const tabCounts = useMemo(() => getVideoLibraryTabCounts(rows), [rows]);
-  const allowedDomains = useMemo(
-    () => getAllowedVideoDomains(customAllowedDomains),
-    [customAllowedDomains]
-  );
-  const starterDomains = allowedDomains.filter(
-    (domain) => !customAllowedDomains.includes(domain)
-  );
-  const hostnameOptions = useMemo(
-    () => getFilteredHostnameOptions(rows),
-    [rows]
-  );
-
-  const summaryCounts = useMemo(
-    () => ({
-      attached: rows.filter((row) => !!row.entry.url).length,
-      missing: tabCounts.no_video,
-      review: tabCounts.attention,
-      checked: rows.filter((row) => row.isChecked).length,
-    }),
-    [rows, tabCounts.no_video, tabCounts.attention]
-  );
-
-  const bulkActionState = deriveVideoLibraryBulkActionState({
+  const {
+    rows,
     filteredRows,
-    isCheckingLinks,
-  });
-  const controlVisibility = deriveVideoLibraryControlVisibility(showAdvanced);
-  const hasAdvancedFiltersApplied =
-    filters.status !== 'all' ||
-    filters.category !== 'all' ||
-    filters.hostname.length > 0 ||
-    filters.checked !== 'all' ||
-    presentationMode !== 'lounge' ||
-    sortOrder === 'recently_checked' ||
-    sortOrder === 'provider';
-  const emptyState = deriveVideoLibraryEmptyState({
-    tab: filters.tab,
-    search: filters.search,
+    sortedFilteredRows,
+    loungeRows,
+    tabCounts,
+    allowedDomains,
+    starterDomains,
+    hostnameOptions,
+    summaryCounts,
+    bulkActionState,
+    controlVisibility,
     hasAdvancedFiltersApplied,
-  });
-  const browseState = deriveVideoLibraryBrowseState({
-    mode: presentationMode,
-    filteredRowCount: sortedFilteredRows.length,
-    loungeRowCount: loungeRows.length,
-    emptyState,
+    browseState,
+  } = useVideoLibraryController({
+    sessions,
+    customAllowedDomains,
+    reconciledLinkChecks,
+    expectedVideoCategories,
+    filters,
+    sortOrder,
+    presentationMode,
+    showAdvanced,
+    isCheckingLinks,
   });
 
   const handleEditSuccess = () => {
@@ -1301,151 +1227,21 @@ function VideoLibraryView({
         />
       ) : null}
 
-      {presentationMode === 'table' ? (
-        <PluginTableSection
-          title="Saved Videos"
-          description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
-          hasRows={browseState.hasRows}
-          emptyTitle={browseState.title}
-          emptyDescription={browseState.description}
-          emptyCtaLabel={browseState.ctaLabel}
-          onEmptyCta={handleEmptyStateAction}
-          emptyIcon={<AlertCircle className="h-4 w-4" />}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Host</TableHead>
-                <TableHead>Check age</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedFilteredRows.map((row: any) => (
-                <TableRow key={row.session.id}>
-                  <TableCell className="font-medium">
-                    <div>{row.session.date}</div>
-                    <div
-                      className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
-                    >
-                      {row.session.category}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(row.displayStatus)}>
-                      {getEntryStatusLabel(row.displayStatus)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[220px] truncate">
-                    {row.entry.hostname ?? row.latestCheck?.hostname ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    {row.latestCheck ? (
-                      <span
-                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
-                      >
-                        {new Date(row.latestCheck.checkedAt).toLocaleString()}
-                      </span>
-                    ) : (
-                      <span
-                        className={`text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
-                      >
-                        Not checked
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      {row.entry.url ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          asChild
-                        >
-                          <a
-                            href={row.entry.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : null}
-                      {showAdvanced && row.isCheckable ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            void handleCheckLinks([row.session.id])
-                          }
-                          disabled={isCheckingLinks}
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditingSession(row.session)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {row.entry.url ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          interaction="destructive"
-                          onClick={() => setSessionPendingClear(row.session)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </PluginTableSection>
-      ) : (
-        <PluginGallerySection
-          title="Saved Videos"
-          description="Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations."
-          hasTiles={loungeRows.length > 0}
-          emptyTitle={browseState.title}
-          emptyDescription={browseState.description}
-          emptyCtaLabel={browseState.ctaLabel}
-          onEmptyCta={handleEmptyStateAction}
-          emptyIcon={<AlertCircle className="h-4 w-4" />}
-        >
-          {loungeRows.map((row: any, index: number) => {
-            const nextRow =
-              presentationMode === 'lounge' && playNextEnabled
-                ? loungeRows[index + 1]
-                : undefined;
-            return (
-              <VideoTileCard
-                key={row.session.id}
-                row={row}
-                nextRow={nextRow}
-                showAdvanced={showAdvanced}
-                isCheckingLinks={isCheckingLinks}
-                getStatusVariant={getStatusVariant}
-                getEntryStatusLabel={getEntryStatusLabel}
-                onEdit={(item) => setEditingSession(item.session)}
-                onRemove={(item) => setSessionPendingClear(item.session)}
-                onCheck={(item) => void handleCheckLinks([item.session.id])}
-              />
-            );
-          })}
-        </PluginGallerySection>
-      )}
+      <VideoLibraryResults
+        presentationMode={presentationMode}
+        playNextEnabled={playNextEnabled}
+        showAdvanced={showAdvanced}
+        isCheckingLinks={isCheckingLinks}
+        sortedFilteredRows={sortedFilteredRows}
+        loungeRows={loungeRows}
+        browseState={browseState}
+        getStatusVariant={getStatusVariant}
+        getEntryStatusLabel={getEntryStatusLabel}
+        onEmptyCta={handleEmptyStateAction}
+        onCheckLinks={(ids) => void handleCheckLinks(ids)}
+        onEdit={(row) => setEditingSession(row.session)}
+        onRemove={(row) => setSessionPendingClear(row.session)}
+      />
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
