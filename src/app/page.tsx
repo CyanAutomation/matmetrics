@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { Info, Loader2, LockKeyhole, Plus } from 'lucide-react';
+import { Info, Loader2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -197,15 +197,6 @@ export default function Home() {
               })}
             </div>
           </main>
-          <div className="fixed bottom-6 right-6 md:hidden z-50">
-            <Button
-              size="icon"
-              className="h-14 w-14 rounded-full hover:scale-105 transition-transform"
-              onClick={() => setIsLogModalOpen(true)}
-            >
-              <Plus className="h-6 w-6" />
-            </Button>
-          </div>
         </SidebarInset>
       </div>
 

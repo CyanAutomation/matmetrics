@@ -35,6 +35,7 @@ type FetchInstalledPluginsOptions = {
   fetchImpl?: typeof fetch;
   getHeaders?: AuthHeadersLoader;
   endpoint?: string;
+  timeoutMs?: number;
 };
 
 export type PluginMaturityDebugMetadata = {
@@ -138,13 +139,30 @@ export const fetchInstalledPlugins = async ({
   fetchImpl = fetch,
   getHeaders = defaultAuthHeadersLoader,
   endpoint = '/api/plugins/list',
+  timeoutMs = 12_000,
 }: FetchInstalledPluginsOptions = {}): Promise<FetchInstalledPluginsResult> => {
   const headers = await getHeaders();
-  const response = await fetchImpl(endpoint, {
-    method: 'GET',
-    headers,
-    cache: 'no-store',
-  });
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+
+  try {
+    response = await fetchImpl(endpoint, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        'Plugin loading timed out. Check your connection and try again.'
+      );
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(await parsePluginApiError(response));

@@ -60,6 +60,8 @@ export function SessionLogForm({
   const shouldHideHeader = !!sessionToEdit || hideHeader;
   const aiForm = useSessionFormAi();
   const submitFeedback = useActionFeedback();
+  const resetAiForm = aiForm.reset;
+  const resetSubmitFeedback = submitFeedback.reset;
 
   // Use custom hooks for form state management
   const formState = useSessionFormState(sessionToEdit);
@@ -67,9 +69,9 @@ export function SessionLogForm({
 
   // Reset AI form and feedback when sessionToEdit changes
   useEffect(() => {
-    aiForm.reset();
-    submitFeedback.reset();
-  }, [sessionToEdit, aiForm, submitFeedback]);
+    resetAiForm();
+    resetSubmitFeedback();
+  }, [sessionToEdit, resetAiForm, resetSubmitFeedback]);
 
   // Form submit hook
   const { isSubmitting, submit: submitForm } = useFormSubmit(
