@@ -113,7 +113,7 @@ describe('useAuditStateManager', () => {
     const cache = localStorageMock.getItem('matmetrics_user_preferences:guest');
     assert.ok(cache, 'expected the preferences cache to be persisted');
     const parsed = JSON.parse(cache);
-    return parsed.sessionAudits?.[mockSessionId];
+    return parsed?.sessionAudits?.[mockSessionId];
   };
 
   const expectPersistedResultSurvivesRemount = (
