@@ -73,13 +73,17 @@ export function DashboardHeader({
           className="h-9 w-9 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
           onClick={onLogSession}
           title="Log a session"
+          aria-label="Log a session"
         >
           <Plus className="h-4 w-4" />
         </Button>
         <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <button
+              aria-label="Open account menu"
+              className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
               {initials}
             </button>
           </DropdownMenuTrigger>

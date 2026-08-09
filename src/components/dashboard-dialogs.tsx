@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, LockKeyhole } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { SessionLogForm } from '@/components/session-log-form';
 import { SignInScreen } from '@/components/sign-in-screen';
 import { RessaImage } from '@/components/ressa-image';
@@ -48,6 +48,9 @@ export function DashboardDialogs({
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Log practice session</DialogTitle>
+          <DialogDescription className="sr-only">
+            Add the details of a judo training session.
+          </DialogDescription>
           {isLogModalOpen && (
             <SessionLogForm
               key="quick-log-instance"
@@ -63,7 +66,13 @@ export function DashboardDialogs({
       <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <DialogTitle className="sr-only">Sign in to MatMetrics</DialogTitle>
-          <SignInScreen onContinueAsGuest={() => setIsAuthDialogOpen(false)} />
+          <DialogDescription className="sr-only">
+            Sign in to sync your training sessions and unlock account features.
+          </DialogDescription>
+          <SignInScreen
+            onContinueAsGuest={() => setIsAuthDialogOpen(false)}
+            onAuthenticated={() => setIsAuthDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
 
