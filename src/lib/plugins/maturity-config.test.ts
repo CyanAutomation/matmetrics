@@ -12,12 +12,14 @@ describe('maturity-config', () => {
       );
       assert.ok(Array.isArray(MATURITY_PRIMITIVES.uiStates.names));
       assert.ok(
-        MATURITY_PRIMITIVES.uiStates.names.includes(
-          'PluginLoadingState'
-        )
+        MATURITY_PRIMITIVES.uiStates.names.includes('PluginLoadingState')
       );
-      assert.ok(MATURITY_PRIMITIVES.uiStates.names.includes('PluginErrorState'));
-      assert.ok(MATURITY_PRIMITIVES.uiStates.names.includes('PluginEmptyState'));
+      assert.ok(
+        MATURITY_PRIMITIVES.uiStates.names.includes('PluginErrorState')
+      );
+      assert.ok(
+        MATURITY_PRIMITIVES.uiStates.names.includes('PluginEmptyState')
+      );
     });
 
     it('should define PluginPageShell primitive', () => {
@@ -38,9 +40,20 @@ describe('maturity-config', () => {
       assert.ok(Array.isArray(MATURITY_PRIMITIVES.sections.names));
     });
 
-    it('should define destructive action primitives', () => {
+    it('should define destructive action primitives required by docs/plugin-ui-contract.md#destructive-flow-requirements', () => {
       assert.ok(MATURITY_PRIMITIVES.destructiveActions);
-      assert.ok(Array.isArray(MATURITY_PRIMITIVES.destructiveActions.names));
+      const { source, names } = MATURITY_PRIMITIVES.destructiveActions;
+
+      assert.equal(source, '@/components/plugins/plugin-destructive-action');
+      assert.deepEqual(names, ['PluginDestructiveAction']);
+      assert.deepEqual(
+        MATURITY_PRIMITIVES.getPrimitivesBySource(source),
+        names
+      );
+      assert.equal(
+        MATURITY_PRIMITIVES.getSourceOfPrimitive('PluginDestructiveAction'),
+        source
+      );
     });
 
     it('should define data surface primitives', () => {
@@ -58,7 +71,8 @@ describe('maturity-config', () => {
 
     it('should provide helper method to find source of primitive name', () => {
       assert.ok(MATURITY_PRIMITIVES.getSourceOfPrimitive);
-      const source = MATURITY_PRIMITIVES.getSourceOfPrimitive('PluginPageShell');
+      const source =
+        MATURITY_PRIMITIVES.getSourceOfPrimitive('PluginPageShell');
       assert.equal(source, '@/components/plugins/plugin-page-shell');
     });
 
@@ -69,14 +83,14 @@ describe('maturity-config', () => {
     });
 
     it('should return null for unknown source in getPrimitivesBySource', () => {
-      const result = MATURITY_PRIMITIVES.getPrimitivesBySource(
-        '@/unknown/source'
-      );
+      const result =
+        MATURITY_PRIMITIVES.getPrimitivesBySource('@/unknown/source');
       assert.equal(result, null);
     });
 
     it('should return null for unknown primitive in getSourceOfPrimitive', () => {
-      const source = MATURITY_PRIMITIVES.getSourceOfPrimitive('UnknownPrimitive');
+      const source =
+        MATURITY_PRIMITIVES.getSourceOfPrimitive('UnknownPrimitive');
       assert.equal(source, null);
     });
   });
