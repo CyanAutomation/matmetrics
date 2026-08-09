@@ -142,7 +142,7 @@ export function SessionLogForm({
       )}
       <form onSubmit={handleSubmit} autoComplete="off">
         <CardContent
-          className={cn('space-y-8', !shouldHideHeader ? 'p-8' : 'p-4 sm:p-6')}
+          className={cn('space-y-6', !shouldHideHeader ? 'p-8' : 'p-4 sm:p-6')}
         >
           {!canUseAi && (
             <div className="ui-tone-warning-soft rounded-lg border px-4 py-3 text-sm">
@@ -155,11 +155,11 @@ export function SessionLogForm({
           {/* Header Section: Avatar + Session Controls */}
           <div
             className={cn(
-              'bg-secondary/25 rounded-lg p-6 lg:-mx-0 lg:rounded-lg lg:p-6 lg:bg-secondary/25',
+              'bg-secondary/25 rounded-lg p-4 lg:-mx-0 lg:rounded-lg lg:p-5 lg:bg-secondary/25',
               !shouldHideHeader && '-mx-6 -mt-6'
             )}
           >
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
               {/* Avatar - Hidden on mobile, visible on lg and above */}
               {showAvatar && (
                 <div className="hidden md:flex shrink-0">
@@ -173,7 +173,7 @@ export function SessionLogForm({
               )}
 
               {/* Session Control Fields */}
-              <div className="flex-1 w-full space-y-4 lg:space-y-5">
+              <div className="flex-1 w-full space-y-4">
                 {/* Row 1: Date, Duration, Type */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
                   {/* Session Date */}
@@ -324,7 +324,7 @@ export function SessionLogForm({
               placeholder="Quick notes about drills, throws, or focus..."
               value={formState.description}
               onChange={(e) => formState.setDescription(e.target.value)}
-              className="min-h-[140px] bg-background text-base"
+              className="min-h-[112px] bg-background text-base"
             />
 
             <div className="space-y-4 pt-2">

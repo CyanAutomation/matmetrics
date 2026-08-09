@@ -423,11 +423,13 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                   {tag}
                 </Badge>
               </div>
-              <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  aria-label={`Rename ${tag}`}
+                  title={`Rename ${tag}`}
                   onClick={() => {
                     setEditingTag(tag);
                     setNewTagName(tag);
@@ -439,6 +441,8 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  aria-label={`Merge ${tag}`}
+                  title={`Merge ${tag}`}
                   onClick={() => setMergingTag(tag)}
                 >
                   <Combine className="h-4 w-4" />
@@ -447,6 +451,8 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  aria-label={`Delete ${tag}`}
+                  title={`Delete ${tag}`}
                   onClick={() => setDeletingTag(tag)}
                 >
                   <Trash2 className="h-4 w-4" />

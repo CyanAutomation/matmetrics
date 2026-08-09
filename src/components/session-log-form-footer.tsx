@@ -23,7 +23,7 @@ export function SessionLogFormFooter({
   return (
     <div
       className={cn(
-        'flex justify-end gap-3 bg-secondary/45 p-8',
+        'sticky bottom-0 z-10 flex justify-end gap-3 border-t bg-secondary/95 p-4 backdrop-blur sm:p-6',
         !shouldHideHeader && 'bg-secondary/45'
       )}
     >
