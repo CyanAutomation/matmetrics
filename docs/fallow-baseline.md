@@ -33,3 +33,13 @@ cycle should be excluded from production health scoring if Fallow reports it.
 The current report that prompted this document identified LogDoctor validation,
 LogDoctor rendering, plugin maturity scoring, and several large plugin UI
 components as the first production targets.
+
+## Dynamic test discovery
+
+The JavaScript test command discovers `*.test.ts`, `*.test.tsx`, `*.spec.ts`,
+and `*.spec.tsx` files dynamically. Fallow's static entrypoint analysis may
+therefore report covered test files as unused files. These findings require
+test-runner verification before deletion; they are not production dead-code
+targets. In particular, `src/lib/github-storage.test.ts` is covered by the
+project test command and must be preserved while it is split into focused
+behavior suites.
