@@ -2,7 +2,11 @@ import { useCallback, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
 import { createUiState } from '../components/log-doctor-state';
-import type { ScanResult, FixResult, LogDoctorUiState } from '../components/log-doctor-state';
+import type {
+  ScanResult,
+  FixResult,
+  LogDoctorUiState,
+} from '../components/log-doctor-state';
 
 interface FileValidationConfig {
   owner: string;
@@ -10,19 +14,37 @@ interface FileValidationConfig {
   branch: string;
 }
 
+interface FileValidationDependencies {
+  getAuthHeaders: typeof getAuthHeaders;
+  fetch: typeof fetch;
+}
+
+const defaultDependencies: FileValidationDependencies = {
+  getAuthHeaders,
+  fetch: (...args) => fetch(...args),
+};
+
 /**
  * Manages the file validation workflow (scan -> preview -> apply).
  * Handles async operations, loading states, error messages, and state persistence.
  */
-export const useFileValidationController = (config: FileValidationConfig) => {
+export const useFileValidationController = (
+  config: FileValidationConfig,
+  dependencies: FileValidationDependencies = defaultDependencies
+) => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [uiState, setUiState] = useState<LogDoctorUiState>({ phase: 'idle', operation: null, message: '' });
-  const [activeController, setActiveController] = useState<AbortController | null>(null);
+  const [uiState, setUiState] = useState<LogDoctorUiState>({
+    phase: 'idle',
+    operation: null,
+    message: '',
+  });
+  const [activeController, setActiveController] =
+    useState<AbortController | null>(null);
 
   const performValidationAction = useCallback(
     async (
@@ -30,8 +52,13 @@ export const useFileValidationController = (config: FileValidationConfig) => {
       selectedPaths: string[] = []
     ): Promise<void> => {
       // Validate preconditions for preview/apply
-      if ((action === 'preview' || action === 'apply') && selectedPaths.length === 0) {
-        setErrorMessage(`Select at least one file before ${action === 'preview' ? 'previewing' : 'applying'} fixes.`);
+      if (
+        (action === 'preview' || action === 'apply') &&
+        selectedPaths.length === 0
+      ) {
+        setErrorMessage(
+          `Select at least one file before ${action === 'preview' ? 'previewing' : 'applying'} fixes.`
+        );
         return;
       }
 
@@ -50,12 +77,20 @@ export const useFileValidationController = (config: FileValidationConfig) => {
       setActiveController(controller);
 
       try {
-        const headers = await getAuthHeaders({
+        const headers = await dependencies.getAuthHeaders({
           'Content-Type': 'application/json',
         });
 
-        const endpoint = action === 'scan' ? '/api/github/log-doctor' : '/api/github/log-doctor/fix';
-        const mode = action === 'scan' ? undefined : action === 'preview' ? 'dry-run' : 'apply';
+        const endpoint =
+          action === 'scan'
+            ? '/api/github/log-doctor'
+            : '/api/github/log-doctor/fix';
+        const mode =
+          action === 'scan'
+            ? undefined
+            : action === 'preview'
+              ? 'dry-run'
+              : 'apply';
 
         const body =
           action === 'scan'
@@ -78,7 +113,7 @@ export const useFileValidationController = (config: FileValidationConfig) => {
                 },
               };
 
-        const response = await fetch(endpoint, {
+        const response = await dependencies.fetch(endpoint, {
           method: 'POST',
           headers,
           signal: controller.signal,
@@ -118,7 +153,7 @@ export const useFileValidationController = (config: FileValidationConfig) => {
         }
       }
     },
-    [config]
+    [config, dependencies]
   );
 
   const scanFiles = useCallback((): Promise<void> => {
