@@ -45,42 +45,46 @@ const fileAssertsUxState = (contents: string, state: FeatureUxState) =>
 const fileAssertsWithAssertion = (contents: string, patterns: RegExp[]) =>
   fileAssertsPatternInWindow(contents, patterns);
 
+const findMatchingFiles = async (
+  testFiles: string[],
+  predicate: (contents: string) => boolean
+): Promise<string[]> => {
+  const matches: string[] = [];
+  for (const file of testFiles) {
+    if (predicate(await readFile(file, 'utf8'))) matches.push(file);
+  }
+  return matches;
+};
+
+const criterionMatchers: Record<
+  PluginMaturityUxCriterion,
+  (contents: string) => boolean
+> = {
+  loadingStatePresent: (contents) => fileAssertsUxState(contents, 'loading'),
+  errorStateWithRecovery: (contents) =>
+    fileAssertsWithAssertion(contents, uxStatePatterns.error) &&
+    fileAssertsWithAssertion(contents, uxRecoveryPatterns),
+  emptyStateWithCta: (contents) =>
+    fileAssertsWithAssertion(contents, uxStatePatterns.empty) &&
+    fileAssertsWithAssertion(contents, uxCtaPatterns),
+  destructiveActionSafety: (contents) =>
+    fileAssertsWithAssertion(contents, uxStatePatterns.destructiveAction) &&
+    fileAssertsWithAssertion(contents, uxConfirmationPatterns) &&
+    fileAssertsWithAssertion(contents, uxCancelPatterns),
+};
+
 export const findFilesAssertingState = async (
   testFiles: string[],
   state: FeatureUxState
 ): Promise<string[]> => {
-  const matches: string[] = [];
-  for (const file of testFiles) {
-    if (fileAssertsUxState(await readFile(file, 'utf8'), state)) {
-      matches.push(file);
-    }
-  }
-  return matches;
+  return findMatchingFiles(testFiles, (contents) =>
+    fileAssertsUxState(contents, state)
+  );
 };
 
 export const findFilesAssertingCriterion = async (
   testFiles: string[],
   criterion: PluginMaturityUxCriterion
 ): Promise<string[]> => {
-  const matches: string[] = [];
-  for (const file of testFiles) {
-    const contents = await readFile(file, 'utf8');
-    const matched =
-      criterion === 'loadingStatePresent'
-        ? fileAssertsUxState(contents, 'loading')
-        : criterion === 'errorStateWithRecovery'
-          ? fileAssertsWithAssertion(contents, uxStatePatterns.error) &&
-            fileAssertsWithAssertion(contents, uxRecoveryPatterns)
-          : criterion === 'emptyStateWithCta'
-            ? fileAssertsWithAssertion(contents, uxStatePatterns.empty) &&
-              fileAssertsWithAssertion(contents, uxCtaPatterns)
-            : fileAssertsWithAssertion(
-                contents,
-                uxStatePatterns.destructiveAction
-              ) &&
-              fileAssertsWithAssertion(contents, uxConfirmationPatterns) &&
-              fileAssertsWithAssertion(contents, uxCancelPatterns);
-    if (matched) matches.push(file);
-  }
-  return matches;
+  return findMatchingFiles(testFiles, criterionMatchers[criterion]);
 };
