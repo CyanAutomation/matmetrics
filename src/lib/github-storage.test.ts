@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// This suite is discovered dynamically by the Node test command.
 import assert from 'node:assert/strict';
 import { beforeEach } from 'node:test';
 import test from 'node:test';
@@ -182,10 +184,9 @@ test('findSessionPathOnGitHubById does not reuse manifest entries across branche
       }
 
       if (path === '/repos/o/r/git/commits/commit-feature') {
-        return new Response(
-          JSON.stringify({ tree: { sha: 'tree-feature' } }),
-          { status: 200 }
-        );
+        return new Response(JSON.stringify({ tree: { sha: 'tree-feature' } }), {
+          status: 200,
+        });
       }
 
       if (path === '/repos/o/r/git/trees/tree-main') {
@@ -277,9 +278,12 @@ test('findSessionPathOnGitHubById evicts stale manifest entry and falls back to 
         });
       }
 
-      return new Response(JSON.stringify({ message: `Unexpected path: ${path}` }), {
-        status: 500,
-      });
+      return new Response(
+        JSON.stringify({ message: `Unexpected path: ${path}` }),
+        {
+          status: 500,
+        }
+      );
     }) as typeof fetch,
     async () => {
       const config = { owner: 'o', repo: 'r', branch: 'main' };
@@ -387,7 +391,9 @@ test('default branch refresh invalidates prior-branch manifest scope', async () 
           '/repos/o/r/contents/data/2025/03/20250314-matmetrics-trigger.md' &&
         (init?.method ?? 'GET') === 'PUT'
       ) {
-        const body = JSON.parse(String(init?.body ?? '{}')) as { branch: string };
+        const body = JSON.parse(String(init?.body ?? '{}')) as {
+          branch: string;
+        };
         if (body.branch === 'main') {
           return new Response(
             JSON.stringify({
@@ -397,13 +403,18 @@ test('default branch refresh invalidates prior-branch manifest scope', async () 
           );
         }
 
-        return new Response(JSON.stringify({ content: { sha: 'sha-trigger' } }), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({ content: { sha: 'sha-trigger' } }),
+          {
+            status: 200,
+          }
+        );
       }
 
       return new Response(
-        JSON.stringify({ message: `Unexpected request: ${init?.method ?? 'GET'} ${path}` }),
+        JSON.stringify({
+          message: `Unexpected request: ${init?.method ?? 'GET'} ${path}`,
+        }),
         { status: 500 }
       );
     }) as typeof fetch,

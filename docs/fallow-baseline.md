@@ -43,3 +43,8 @@ test-runner verification before deletion; they are not production dead-code
 targets. In particular, `src/lib/github-storage.test.ts` is covered by the
 project test command and must be preserved while it is split into focused
 behavior suites.
+
+The file also carries a file-scoped `unused-file` suppression because Fallow's
+static entrypoint graph cannot see the test runner's dynamic `find` expansion.
+The suppression is intentionally limited to this known suite and should be
+removed if test entrypoints become statically discoverable.

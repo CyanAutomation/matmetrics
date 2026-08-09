@@ -1,10 +1,9 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type {
   PluginManifest,
   PluginMaturityCategory,
-  PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
   PluginValidationIssue,
 } from '@/lib/plugins/types';
@@ -26,6 +25,10 @@ import {
 } from '@/lib/plugins/scoring';
 import { parseReadmeSections } from './maturity-readme';
 import { verifyMaturityUxCriteria } from './maturity-ux-verification';
+import {
+  discoverMaturityTestEvidence,
+  type MaturityTestEvidence,
+} from './maturity-test-evidence';
 import {
   normalizeMaturityCategoryScores,
   totalMaturityScore,
@@ -60,203 +63,6 @@ const categoryMaximums: Record<PluginMaturityCategory, number> = {
 const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
   path.relative(repoRoot, filePath).split(path.sep).join('/');
 
-const fromRepoRelativePath = (repoRoot: string, relativePath: string): string =>
-  path.join(repoRoot, ...relativePath.split('/'));
-
-const capabilityCandidateRoots: Record<string, string[]> = {
-  tag_mutation: [path.join('src', 'lib', 'tags')],
-};
-
-const collectTestFiles = async (root: string): Promise<string[]> => {
-  const results: string[] = [];
-  const entries = await readdir(root, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const entryPath = path.join(root, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...(await collectTestFiles(entryPath)));
-      continue;
-    }
-
-    if (!entry.isFile()) {
-      continue;
-    }
-
-    const lowerName = entry.name.toLowerCase();
-    const isTestFile =
-      lowerName.endsWith('.test.ts') ||
-      lowerName.endsWith('.test.tsx') ||
-      lowerName.endsWith('.spec.ts') ||
-      lowerName.endsWith('.spec.tsx');
-
-    if (isTestFile) {
-      results.push(entryPath);
-    }
-  }
-
-  return results;
-};
-
-const resolveExplicitEvidenceFiles = async (
-  repoRoot: string,
-  relativePaths: string[]
-): Promise<string[]> => {
-  const resolved: string[] = [];
-
-  for (const relativePath of relativePaths) {
-    const normalizedRelativePath = relativePath.trim();
-    if (!normalizedRelativePath) {
-      continue;
-    }
-
-    const absolutePath = fromRepoRelativePath(repoRoot, normalizedRelativePath);
-    if (await fileExists(absolutePath)) {
-      resolved.push(absolutePath);
-    }
-  }
-
-  return resolved;
-};
-
-const findTestEvidenceFiles = async (
-  repoRoot: string,
-  pluginId: string,
-  componentBasenames: string[],
-  componentIds: string[],
-  capabilities: string[]
-): Promise<string[]> => {
-  const candidateRoots = [
-    path.join(repoRoot, 'plugins', pluginId),
-    path.join(repoRoot, 'src', 'components'),
-    path.join(repoRoot, 'src', 'lib', 'plugins'),
-    path.join(repoRoot, 'src', 'tests'),
-  ];
-  for (const capability of capabilities) {
-    const capabilityRoots = capabilityCandidateRoots[capability] ?? [];
-    for (const relativeRoot of capabilityRoots) {
-      candidateRoots.push(path.join(repoRoot, relativeRoot));
-    }
-  }
-
-  const searchTerms = [
-    pluginId,
-    ...componentBasenames,
-    ...componentIds,
-    ...capabilities,
-  ].map((term) => term.toLowerCase());
-  const roots = [...new Set(candidateRoots)];
-  const matches: string[] = [];
-
-  for (const root of roots) {
-    if (!(await fileExists(root))) {
-      continue;
-    }
-
-    const testFiles = await collectTestFiles(root);
-    for (const testFile of testFiles) {
-      const lowerName = path.basename(testFile).toLowerCase();
-      const mentionsPlugin =
-        lowerName.includes(pluginId.toLowerCase()) ||
-        componentBasenames.some((basename) => lowerName.includes(basename));
-
-      if (mentionsPlugin) {
-        pushUnique(matches, testFile);
-        continue;
-      }
-
-      const contents = (await readFile(testFile, 'utf8')).toLowerCase();
-      const mentionsPluginInContent = searchTerms.some((term) =>
-        contents.includes(term)
-      );
-      if (mentionsPluginInContent) {
-        pushUnique(matches, testFile);
-      }
-    }
-  }
-
-  const fallbackFiles = [
-    path.join(
-      repoRoot,
-      'src',
-      'tests',
-      'api-plugins-discovered-dashboard-tabs-route.test.ts'
-    ),
-    path.join(repoRoot, 'src', 'tests', 'api-plugins-routes.test.ts'),
-  ];
-
-  for (const fallbackFile of fallbackFiles) {
-    if (!(await fileExists(fallbackFile))) {
-      continue;
-    }
-    const contents = (await readFile(fallbackFile, 'utf8')).toLowerCase();
-    const hasFallbackMatch = searchTerms.some((term) =>
-      contents.includes(term)
-    );
-    if (hasFallbackMatch) {
-      pushUnique(matches, fallbackFile);
-    }
-  }
-
-  return matches;
-};
-
-type MaturityTestEvidence = {
-  testEvidenceFiles: string[];
-  testEvidenceSource: PluginMaturityEvidenceSource;
-  missingExplicitTestFiles: string[];
-};
-
-const discoverMaturityTestEvidence = async ({
-  repoRoot,
-  manifest,
-  componentBasenames,
-  componentIds,
-}: {
-  repoRoot: string;
-  manifest: PluginManifest;
-  componentBasenames: string[];
-  componentIds: string[];
-}): Promise<MaturityTestEvidence> => {
-  const declaredEvidence = manifest.maturity?.evidence;
-  const declaredExplicitTestFiles = declaredEvidence?.testFiles ?? [];
-  const explicitTestEvidenceFiles = await resolveExplicitEvidenceFiles(
-    repoRoot,
-    declaredExplicitTestFiles
-  );
-  const missingExplicitTestFiles = declaredExplicitTestFiles.filter(
-    (relativePath) =>
-      !explicitTestEvidenceFiles.some(
-        (absolutePath) =>
-          toRepoRelativePath(repoRoot, absolutePath) === relativePath
-      )
-  );
-  const heuristicTestEvidenceFiles =
-    explicitTestEvidenceFiles.length === 0
-      ? await findTestEvidenceFiles(
-          repoRoot,
-          manifest.id,
-          componentBasenames,
-          componentIds,
-          manifest.capabilities ?? []
-        )
-      : [];
-  const testEvidenceFiles =
-    explicitTestEvidenceFiles.length > 0
-      ? explicitTestEvidenceFiles
-      : heuristicTestEvidenceFiles;
-  const testEvidenceSource: PluginMaturityEvidenceSource =
-    explicitTestEvidenceFiles.length > 0
-      ? 'explicit'
-      : heuristicTestEvidenceFiles.length > 0
-        ? 'heuristic'
-        : 'none';
-
-  return {
-    testEvidenceFiles,
-    testEvidenceSource,
-    missingExplicitTestFiles,
-  };
-};
 /**
  * Scores a plugin's maturity across 5 categories: contract, runtime, features, tests, docs.
  *
