@@ -15,9 +15,13 @@ type AuthMode = 'sign-in' | 'sign-up' | 'reset';
 
 type SignInScreenProps = {
   onContinueAsGuest?: () => void;
+  onAuthenticated?: () => void;
 };
 
-export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
+export function SignInScreen({
+  onContinueAsGuest,
+  onAuthenticated,
+}: SignInScreenProps) {
   const { toast } = useToast();
   const {
     isConfigured,
@@ -51,11 +55,13 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
     try {
       if (mode === 'sign-in') {
         await signInWithEmail(email, password);
+        onAuthenticated?.();
         return;
       }
 
       if (mode === 'sign-up') {
         await signUpWithEmail(name, email, password);
+        onAuthenticated?.();
         return;
       }
 
@@ -85,6 +91,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
     googleFeedback.startLoading();
     try {
       await signInWithGoogle();
+      onAuthenticated?.();
     } catch (error) {
       googleFeedback.showError();
       const message =
@@ -104,6 +111,7 @@ export function SignInScreen({ onContinueAsGuest }: SignInScreenProps) {
     githubFeedback.startLoading();
     try {
       await signInWithGitHub();
+      onAuthenticated?.();
     } catch (error) {
       githubFeedback.showError();
       const message =
