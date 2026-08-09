@@ -7,197 +7,23 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-export type GitHubSyncSurfaceState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T; warnings: string[] }
-  | { status: 'empty'; message: string }
-  | { status: 'error'; message: string };
-
-export type GitHubSyncHistoryFile = {
-  path: string;
-  status: string;
-  errors: string[];
-  id?: string;
-  date?: string;
-};
-
-export type GitHubSyncHistoryData = {
-  message: string;
-  branch?: string;
-  totalFiles: number;
-  invalidFiles: number;
-  files: GitHubSyncHistoryFile[];
-};
-
-export type LoadGitHubSyncHistoryOptions = {
-  owner: string;
-  repo: string;
-  branch?: string;
-  getHeaders: (headers?: HeadersInit) => Promise<HeadersInit>;
-  fetchImpl?: typeof fetch;
-  onStateChange: (state: GitHubSyncSurfaceState<GitHubSyncHistoryData>) => void;
-};
+import { runLoadGitHubSyncHistory } from './github-sync-results-api';
+export type {
+  GitHubSyncHistoryData,
+  GitHubSyncHistoryFile,
+  GitHubSyncSurfaceState,
+  LoadGitHubSyncHistoryOptions,
+} from './github-sync-results-types';
+import type {
+  GitHubSyncHistoryData,
+  GitHubSyncSurfaceState,
+} from './github-sync-results-types';
 
 export const GITHUB_SYNC_RESULTS_LOADING_TEXT = 'Loading sync results…';
 export const GITHUB_SYNC_RESULTS_ERROR_RETRY_LABEL = 'Retry';
 export const GITHUB_SYNC_RESULTS_EMPTY_CTA_LABEL = 'Run sync';
 
-const parseErrorMessage = async (
-  response: Response,
-  fallback: string
-): Promise<string> => {
-  try {
-    const payload = (await response.json()) as unknown;
-    if (
-      payload &&
-      typeof payload === 'object' &&
-      'message' in payload &&
-      typeof payload.message === 'string' &&
-      payload.message.trim()
-    ) {
-      return payload.message;
-    }
-  } catch {
-    // Ignore parse errors and use fallback.
-  }
-  return fallback;
-};
-
-export async function runLoadGitHubSyncHistory(
-  options: LoadGitHubSyncHistoryOptions
-): Promise<void> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  options.onStateChange({ status: 'loading' });
-
-  try {
-    const headers = await options.getHeaders({
-      'Content-Type': 'application/json',
-    });
-    const response = await fetchImpl('/api/github/log-doctor', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        owner: options.owner,
-        repo: options.repo,
-        branch: options.branch,
-      }),
-    });
-
-    if (!response.ok) {
-      const message = await parseErrorMessage(
-        response,
-        `Failed to load sync history (HTTP ${response.status}).`
-      );
-      options.onStateChange({ status: 'error', message });
-      return;
-    }
-
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      options.onStateChange({
-        status: 'error',
-        message:
-          'Sync history response could not be parsed. Please retry the request.',
-      });
-      return;
-    }
-
-    if (!payload || typeof payload !== 'object') {
-      options.onStateChange({
-        status: 'error',
-        message: 'Sync history response was malformed. Please retry.',
-      });
-      return;
-    }
-
-    const summary =
-      'summary' in payload &&
-      payload.summary &&
-      typeof payload.summary === 'object'
-        ? payload.summary
-        : null;
-    const files =
-      'files' in payload && Array.isArray(payload.files) ? payload.files : [];
-    const totalFiles =
-      summary &&
-      'totalFiles' in summary &&
-      typeof summary.totalFiles === 'number'
-        ? summary.totalFiles
-        : files.length;
-    const invalidFiles =
-      summary &&
-      'invalidFiles' in summary &&
-      typeof summary.invalidFiles === 'number'
-        ? summary.invalidFiles
-        : 0;
-
-    if (files.length === 0) {
-      options.onStateChange({
-        status: 'empty',
-        message:
-          'No sync history is available yet. Run sync to generate repository diagnostics.',
-      });
-      return;
-    }
-
-    const normalizedFiles: GitHubSyncHistoryFile[] = files.map((file) => {
-      const normalized = file as Record<string, unknown>;
-      return {
-        path: typeof normalized.path === 'string' ? normalized.path : 'unknown',
-        status:
-          typeof normalized.status === 'string' ? normalized.status : 'unknown',
-        errors: Array.isArray(normalized.errors)
-          ? normalized.errors.filter(
-              (entry): entry is string => typeof entry === 'string'
-            )
-          : [],
-        id: typeof normalized.id === 'string' ? normalized.id : undefined,
-        date: typeof normalized.date === 'string' ? normalized.date : undefined,
-      };
-    });
-
-    const warnings = [
-      ...(invalidFiles > 0
-        ? [
-            `${invalidFiles} file${invalidFiles === 1 ? '' : 's'} have validation issues and need attention.`,
-          ]
-        : []),
-      ...normalizedFiles.flatMap((file) =>
-        file.errors.map((error) => `${file.path}: ${error}`)
-      ),
-    ];
-
-    options.onStateChange({
-      status: 'success',
-      warnings,
-      data: {
-        message:
-          'message' in payload && typeof payload.message === 'string'
-            ? payload.message
-            : 'Sync history loaded.',
-        branch:
-          'branch' in payload && typeof payload.branch === 'string'
-            ? payload.branch
-            : undefined,
-        totalFiles,
-        invalidFiles,
-        files: normalizedFiles,
-      },
-    });
-  } catch (error) {
-    options.onStateChange({
-      status: 'error',
-      message:
-        error instanceof Error
-          ? `Unable to load sync history: ${error.message}`
-          : 'Unable to load sync history due to a network error.',
-    });
-  }
-}
+export { runLoadGitHubSyncHistory } from './github-sync-results-api';
 
 export function SyncResultsMainPanel({
   state,
