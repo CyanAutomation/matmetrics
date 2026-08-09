@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   JudoSession,
   EFFORT_LABELS,
@@ -25,6 +25,7 @@ import { RessaImage } from '@/components/ressa-image';
 import { parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -68,15 +69,16 @@ function SessionRow({
   onEdit,
   deletingSessionId,
 }: SessionRowProps) {
+  const sessionDateLabel = format(
+    parseDateOnly(session.date),
+    'EEEE, MMMM do, yyyy'
+  );
   let safeVideoUrl: string | null = null;
 
   if (session.videoUrl) {
     try {
       const parsedUrl = new URL(session.videoUrl);
-      if (
-        parsedUrl.protocol === 'http:' ||
-        parsedUrl.protocol === 'https:'
-      ) {
+      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
         safeVideoUrl = parsedUrl.toString();
       }
     } catch {
@@ -132,7 +134,8 @@ function SessionRow({
               size="icon"
               className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/5"
               onClick={() => onEdit(session)}
-              aria-label="Edit session"
+              aria-label={`Edit session from ${sessionDateLabel}`}
+              title={`Edit session from ${sessionDateLabel}`}
             >
               <Edit2 className="h-4 w-4" />
             </Button>
@@ -142,7 +145,8 @@ function SessionRow({
               className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
               disabled={deletingSessionId === session.id}
               onClick={() => onDelete(session.id)}
-              aria-label="Delete session"
+              aria-label={`Delete session from ${sessionDateLabel}`}
+              title={`Delete session from ${sessionDateLabel}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -151,52 +155,67 @@ function SessionRow({
       </div>
 
       {(session.description || session.notes || safeVideoUrl) && (
-        <div className="mt-4 space-y-3 pl-7">
-          {safeVideoUrl && (() => {
-            let videoHostname = '';
-            try {
-              videoHostname = new URL(safeVideoUrl).hostname.replace(
-                /^www\./,
-                ''
-              );
-            } catch {
-              videoHostname = '';
-            }
+        <details className="group mt-4 pl-7">
+          <summary className="cursor-pointer select-none text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm">
+            <span className="group-open:hidden">
+              View session notes and media
+            </span>
+            <span className="hidden group-open:inline">
+              Hide session notes and media
+            </span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            {safeVideoUrl &&
+              (() => {
+                let videoHostname = '';
+                try {
+                  videoHostname = new URL(safeVideoUrl).hostname.replace(
+                    /^www\./,
+                    ''
+                  );
+                } catch {
+                  videoHostname = '';
+                }
 
-            return (
-              <a
-                href={safeVideoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
-              >
-                <ExternalLink className="h-4 w-4 shrink-0" />
-                <span className="truncate">Watch relevant video</span>
-                {videoHostname && (
-                  <span className="truncate text-xs font-normal text-muted-foreground">
-                    ({videoHostname})
-                  </span>
-                )}
-              </a>
-            );
-          })()}
-          {session.description && (
-            <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-              {session.description}
-            </p>
-          )}
-          {session.notes && (
-            <p className="text-sm text-muted-foreground italic">
-              "{session.notes}"
-            </p>
-          )}
-        </div>
+                return (
+                  <a
+                    href={safeVideoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
+                  >
+                    <ExternalLink className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Watch relevant video</span>
+                    {videoHostname && (
+                      <span className="truncate text-xs font-normal text-muted-foreground">
+                        ({videoHostname})
+                      </span>
+                    )}
+                  </a>
+                );
+              })()}
+            {session.description && (
+              <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+                {session.description}
+              </p>
+            )}
+            {session.notes && (
+              <p className="text-sm text-muted-foreground italic">
+                "{session.notes}"
+              </p>
+            )}
+          </div>
+        </details>
       )}
     </div>
   );
 }
 
-export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHistoryProps) {
+export function SessionHistory({
+  sessions,
+  onRefresh,
+  onLogSession,
+}: SessionHistoryProps) {
   const { toast } = useToast();
   const [editingSession, setEditingSession] = useState<JudoSession | null>(
     null
@@ -204,6 +223,11 @@ export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHis
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [effortFilter, setEffortFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const handleDelete = async (id: string) => {
     if (deletingSessionId) {
@@ -225,13 +249,46 @@ export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHis
       toast({
         variant: 'destructive',
         title: 'Delete failed',
-        description:
-          'The session could not be deleted.',
+        description: 'The session could not be deleted.',
       });
     } finally {
       setDeletingSessionId(null);
     }
   };
+
+  const filteredSessions = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+
+    return sessions.filter((session) => {
+      if (categoryFilter !== 'all' && session.category !== categoryFilter) {
+        return false;
+      }
+      if (effortFilter !== 'all' && session.effort !== Number(effortFilter)) {
+        return false;
+      }
+      if (fromDate && session.date < fromDate) {
+        return false;
+      }
+      if (toDate && session.date > toDate) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        ...session.techniques,
+        session.category,
+        session.description,
+        session.notes,
+        session.date,
+      ]
+        .filter((value): value is string => typeof value === 'string')
+        .some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+    });
+  }, [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]);
+
+  const grouped = groupSessionsByMonth(filteredSessions);
 
   if (sessions.length === 0) {
     return (
@@ -252,10 +309,81 @@ export function SessionHistory({ sessions, onRefresh, onLogSession }: SessionHis
     );
   }
 
-  const grouped = groupSessionsByMonth(sessions);
-
   return (
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
+      <section
+        aria-label="Filter training history"
+        className="mb-6 grid gap-3 rounded-xl border border-border bg-card/60 p-4 sm:grid-cols-2 lg:grid-cols-5"
+      >
+        <Input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search techniques or notes"
+          aria-label="Search training history"
+          className="lg:col-span-2"
+        />
+        <select
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          aria-label="Filter by session type"
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All session types</option>
+          <option value="Technical">Technical</option>
+          <option value="Randori">Randori</option>
+          <option value="Shiai">Shiai</option>
+        </select>
+        <select
+          value={effortFilter}
+          onChange={(event) => setEffortFilter(event.target.value)}
+          aria-label="Filter by effort level"
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All effort levels</option>
+          {[1, 2, 3, 4, 5].map((effort) => (
+            <option key={effort} value={effort}>
+              {EFFORT_LABELS[effort as keyof typeof EFFORT_LABELS]}
+            </option>
+          ))}
+        </select>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            setSearchQuery('');
+            setCategoryFilter('all');
+            setEffortFilter('all');
+            setFromDate('');
+            setToDate('');
+          }}
+        >
+          Clear filters
+        </Button>
+        <Input
+          type="date"
+          value={fromDate}
+          onChange={(event) => setFromDate(event.target.value)}
+          aria-label="Sessions from date"
+        />
+        <Input
+          type="date"
+          value={toDate}
+          onChange={(event) => setToDate(event.target.value)}
+          aria-label="Sessions to date"
+        />
+        <p className="self-center text-sm text-muted-foreground lg:col-span-3">
+          Showing {filteredSessions.length} of {sessions.length} sessions
+        </p>
+      </section>
+
+      {filteredSessions.length === 0 ? (
+        <div className="rounded-xl bg-muted/45 p-8 text-center">
+          <p className="font-semibold">No sessions match these filters.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try a different technique, date range, or effort level.
+          </p>
+        </div>
+      ) : null}
       {grouped.map(({ monthLabel, sessions: monthSessions }) => (
         <div key={monthLabel} className="mb-8 last:mb-0">
           <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
