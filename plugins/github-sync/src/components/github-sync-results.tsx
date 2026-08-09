@@ -121,13 +121,14 @@ export function SyncResultsHistoryList({
   selectedPath,
   onSelect,
   onRetry,
-  onRunSync,
+  onRunSync: _onRunSync,
 }: {
   state: GitHubSyncSurfaceState<GitHubSyncHistoryData>;
   selectedPath: string | null;
   onSelect: (path: string) => void;
   onRetry: () => void;
-  onRunSync: () => void;
+  /** Retained for callers while the single primary CTA lives in the summary. */
+  onRunSync?: () => void;
 }) {
   if (state.status === 'loading') {
     return (
@@ -154,13 +155,10 @@ export function SyncResultsHistoryList({
 
   if (state.status === 'empty' || state.status === 'idle') {
     return (
-      <div className="space-y-2">
+      <div>
         <p className="text-sm text-muted-foreground">
-          No history entries yet. Start with a sync run.
+          No history entries yet. Run sync from the summary above to create one.
         </p>
-        <Button size="sm" onClick={onRunSync}>
-          Run sync
-        </Button>
       </div>
     );
   }

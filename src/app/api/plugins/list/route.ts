@@ -8,7 +8,7 @@ import {
   toValidationTable,
   type StoredPluginManifest,
 } from '@/lib/plugins/api-contract';
-import { scorePluginMaturity } from '@/lib/plugins/maturity';
+import { getPublishedPluginMaturity } from '@/lib/plugins/published-maturity-scorecards';
 import * as pluginContractGate from '@/lib/plugins/plugin-contract-gate';
 import {
   applyPluginEnabledOverrides,
@@ -128,13 +128,12 @@ export async function GET(request: NextRequest) {
             );
           }
 
+          // The complete maturity evaluator recursively scans test/source files.
+          // Running it here made this user-facing endpoint slow enough to time
+          // out on serverless cold starts. CI regenerates the published artifact;
+          // the app only needs its stable review summary.
           const maturity = hasScorableManifestShape(processedManifest)
-            ? await scorePluginMaturity({
-                manifest: processedManifest as PluginManifest,
-                validationIssues: validation.rows,
-                pluginDirectoryName: entry.directoryName,
-                autoDisabledWithWarnings,
-              })
+            ? getPublishedPluginMaturity(processedManifest as PluginManifest)
             : undefined;
 
           return {
