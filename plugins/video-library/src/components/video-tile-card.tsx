@@ -98,7 +98,7 @@ export function VideoTileCard({
               aria-hidden="true"
             />
           </div>
-          <p className="line-clamp-2 text-sm font-medium">{title}</p>
+          <p className="text-sm font-medium">Ready to watch</p>
         </>
       }
       metadata={
@@ -184,7 +184,9 @@ export function VideoTileCard({
                 {row.entry.url ? (
                   <DropdownMenuItem
                     onClick={() => onRemove(row)}
-                    className={getPluginUiTokenClassNames('action.destructive-menu-item')}
+                    className={getPluginUiTokenClassNames(
+                      'action.destructive-menu-item'
+                    )}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Remove

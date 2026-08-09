@@ -495,30 +495,35 @@ export function GitHubSettings() {
         }
       >
         {/* Configuration Information */}
-        <PluginInlineMessage
-          tone="warning"
-          title="Setup Requirements"
-          description={
-            <ul className="list-inside list-disc space-y-1 text-sm">
-              <li>
-                Add{' '}
-                <code className={getPluginUiTokenClassNames('code.inline')}>
-                  GITHUB_TOKEN
-                </code>{' '}
-                to your Vercel environment variables
-              </li>
-              <li>
-                Token must have{' '}
-                <code className={getPluginUiTokenClassNames('code.inline')}>
-                  repo
-                </code>{' '}
-                permissions
-              </li>
-              <li>Repository will be created or used if it already exists</li>
-            </ul>
-          }
-          className="shadow-sm"
-        />
+        <details className="rounded-lg border bg-muted/20 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Connection requirements
+          </summary>
+          <PluginInlineMessage
+            tone="warning"
+            title="Setup Requirements"
+            description={
+              <ul className="list-inside list-disc space-y-1 text-sm">
+                <li>
+                  Add{' '}
+                  <code className={getPluginUiTokenClassNames('code.inline')}>
+                    GITHUB_TOKEN
+                  </code>{' '}
+                  to your Vercel environment variables
+                </li>
+                <li>
+                  Token must have{' '}
+                  <code className={getPluginUiTokenClassNames('code.inline')}>
+                    repo
+                  </code>{' '}
+                  permissions
+                </li>
+                <li>Repository will be created or used if it already exists</li>
+              </ul>
+            }
+            className="mt-3 shadow-sm"
+          />
+        </details>
 
         {/* Form */}
         <div className="space-y-4">
@@ -703,7 +708,6 @@ export function GitHubSettings() {
                     selectedPath={selectedHistoryPath}
                     onSelect={setSelectedHistoryPath}
                     onRetry={() => void handleLoadSyncHistory()}
-                    onRunSync={() => void handleBulkSync()}
                   />
                 </div>
                 <div>

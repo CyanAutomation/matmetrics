@@ -106,7 +106,7 @@ function SessionRow({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {session.techniques.map((tech, idx) => (
+            {session.techniques.slice(0, 3).map((tech, idx) => (
               <Badge
                 key={idx}
                 variant="outline"
@@ -115,6 +115,14 @@ function SessionRow({
                 {tech}
               </Badge>
             ))}
+            {session.techniques.length > 3 ? (
+              <Badge
+                variant="outline"
+                className="bg-background/60 border-primary/30"
+              >
+                +{session.techniques.length - 3} more
+              </Badge>
+            ) : null}
           </div>
         </div>
 
@@ -313,7 +321,7 @@ export function SessionHistory({
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       <section
         aria-label="Filter training history"
-        className="mb-6 grid gap-3 rounded-xl border border-border bg-card/60 p-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="sticky top-3 z-[1] mb-6 grid gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur sm:grid-cols-2 lg:grid-cols-5"
       >
         <Input
           value={searchQuery}
