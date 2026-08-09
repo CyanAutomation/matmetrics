@@ -8,145 +8,59 @@ type PluginInitializer = (context: {
   registerPluginComponent: typeof registerPluginComponent;
 }) => void | Promise<void>;
 
-/**
- * Plugins are registered by importing and initializing them here.
- * Each plugin should have a src/index.ts file that exports an initPlugin function.
- *
- * To add a new plugin:
- * 1. Create a plugins/my-plugin/src/index.ts file
- * 2. Export an initPlugin function that accepts the registration context
- * 3. Add an import here and call initializePluginComponent with the plugin ID
- */
+type StaticPlugin = {
+  id: string;
+  load: () => { initPlugin?: PluginInitializer };
+};
+
+// Keep loading synchronous for test/runtime compatibility, while centralizing
+// error isolation so one broken optional plugin cannot block the registry.
+const staticPlugins: StaticPlugin[] = [
+  {
+    id: 'tag-manager',
+    load: () => require('../../../plugins/tag-manager/src/index'),
+  },
+  {
+    id: 'github-sync',
+    load: () => require('../../../plugins/github-sync/src/index'),
+  },
+  {
+    id: 'prompt-settings',
+    load: () => require('../../../plugins/prompt-settings/src/index'),
+  },
+  {
+    id: 'log-doctor',
+    load: () => require('../../../plugins/log-doctor/src/index'),
+  },
+  {
+    id: 'video-library',
+    load: () => require('../../../plugins/video-library/src/index'),
+  },
+];
+
+const initializePlugin = async (plugin: StaticPlugin): Promise<void> => {
+  try {
+    const initPlugin = plugin.load().initPlugin;
+    if (typeof initPlugin !== 'function') return;
+
+    const result = initPlugin({
+      register: () => undefined,
+      registerPluginComponent,
+    });
+    if (result instanceof Promise) await result;
+  } catch (error) {
+    console.warn(`Failed to initialize ${plugin.id} plugin:`, error);
+  }
+};
+
 const initializePluginsStatically = async (): Promise<void> => {
-  // Initialize tag-manager plugin
-  try {
-    // Use synchronous require for test/runtime compatibility
-    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
-    const tagManagerModule = require('../../../plugins/tag-manager/src/index');
-    const initPlugin = tagManagerModule.initPlugin as
-      | PluginInitializer
-      | undefined;
-
-    if (initPlugin && typeof initPlugin === 'function') {
-      const initializationResult = initPlugin({
-        register: () => undefined,
-        registerPluginComponent,
-      });
-      if (initializationResult instanceof Promise) {
-        await initializationResult;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to initialize tag-manager plugin:', error);
+  for (const plugin of staticPlugins) {
+    await initializePlugin(plugin);
   }
-
-  try {
-    // Use synchronous require for test/runtime compatibility
-    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
-    const githubSyncModule = require('../../../plugins/github-sync/src/index');
-    const initPlugin = githubSyncModule.initPlugin as
-      | PluginInitializer
-      | undefined;
-
-    if (initPlugin && typeof initPlugin === 'function') {
-      const initializationResult = initPlugin({
-        register: () => undefined,
-        registerPluginComponent,
-      });
-      if (initializationResult instanceof Promise) {
-        await initializationResult;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to initialize github-sync plugin:', error);
-  }
-
-  try {
-    // Use synchronous require for test/runtime compatibility
-    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
-    const promptSettingsModule = require('../../../plugins/prompt-settings/src/index');
-    const initPlugin = promptSettingsModule.initPlugin as
-      | PluginInitializer
-      | undefined;
-
-    if (initPlugin && typeof initPlugin === 'function') {
-      const initializationResult = initPlugin({
-        register: () => undefined,
-        registerPluginComponent,
-      });
-      if (initializationResult instanceof Promise) {
-        await initializationResult;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to initialize prompt-settings plugin:', error);
-  }
-
-  try {
-    // Use synchronous require for test/runtime compatibility
-    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
-    const logDoctorModule = require('../../../plugins/log-doctor/src/index');
-    const initPlugin = logDoctorModule.initPlugin as
-      | PluginInitializer
-      | undefined;
-
-    if (initPlugin && typeof initPlugin === 'function') {
-      const initializationResult = initPlugin({
-        register: () => undefined,
-        registerPluginComponent,
-      });
-      if (initializationResult instanceof Promise) {
-        await initializationResult;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to initialize log-doctor plugin:', error);
-  }
-
-  try {
-    // Use synchronous require for test/runtime compatibility
-    // biome-ignore lint/security/noCommonJs: Plugin initialization requires synchronous loading
-    const videoLibraryModule = require('../../../plugins/video-library/src/index');
-    const initPlugin = videoLibraryModule.initPlugin as
-      | PluginInitializer
-      | undefined;
-
-    if (initPlugin && typeof initPlugin === 'function') {
-      const initializationResult = initPlugin({
-        register: () => undefined,
-        registerPluginComponent,
-      });
-      if (initializationResult instanceof Promise) {
-        await initializationResult;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to initialize video-library plugin:', error);
-  }
-
-  // To add more plugins:
-  // 1. Create plugins/my-plugin/src/index.ts with initPlugin export
-  // 2. Add another try-catch block here to initialize it:
-  //
-  // try {
-  //   const myPluginModule = require('../../../plugins/my-plugin/src/index');
-  //   const initPlugin = myPluginModule.initPlugin as PluginInitializer | undefined;
-  //   if (initPlugin && typeof initPlugin === 'function') {
-  //     initPlugin({
-  //       register: () => undefined,
-  //       registerPluginComponent,
-  //     });
-  //   }
-  // } catch (error) {
-  //   console.warn('Failed to initialize my-plugin:', error);
-  // }
 };
 
 export const initializePluginComponentRegistry = async (): Promise<void> => {
-  if (pluginComponentRegistryInitialized) {
-    return;
-  }
-
+  if (pluginComponentRegistryInitialized) return;
   if (pluginComponentRegistryInitializationInFlight) {
     return pluginComponentRegistryInitializationInFlight;
   }
