@@ -107,6 +107,13 @@ The system uses **Inter** as the primary typographic engine, leveraging mathemat
 - **Labels**: Uppercase with increased letter spacing (+0.05em) for metadata
 - **Body**: `body-lg` for coaching tips to give text more "weight" and authority
 
+### Plugin Heading Hierarchy
+
+Plugin dashboard content follows the shared plugin UI contract: the application
+owns the page-level `h1`, `PluginPageShell` renders the plugin title as `h2`, and
+each titled `PluginSectionCard` renders its section title as `h3`. Plugins must
+not skip these levels or use heading elements for descriptive copy or actions.
+
 ## Component Patterns
 
 ### Buttons
