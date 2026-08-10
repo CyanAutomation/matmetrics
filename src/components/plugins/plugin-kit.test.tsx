@@ -90,22 +90,51 @@ test('PluginStatsGrid and PluginStatCard render stat labels and values', () => {
 });
 
 test('PluginSectionCard renders header and content regions', () => {
-  const html = normalizeMarkup(
+  const document = parse(
     renderToStaticMarkup(
       React.createElement(
         PluginSectionCard,
         {
           title: 'Inventory',
           description: 'Audit rows',
+          headerActions: React.createElement('button', null, 'Add row'),
         },
-        React.createElement('p', null, 'content block')
+        React.createElement(
+          'p',
+          { 'data-slot': 'supplied-child' },
+          'content block'
+        )
       )
     )
   );
 
-  assert.match(html, /Inventory/);
-  assert.match(html, /Audit rows/);
-  assert.match(html, /content block/);
+  const card = document.querySelector('[data-slot="plugin-section-card"]');
+  const header = card?.querySelector(
+    '[data-slot="plugin-section-card-header"]'
+  );
+  const title = header?.querySelector(
+    '[data-slot="plugin-section-card-title"]'
+  );
+  const description = header?.querySelector(
+    '[data-slot="plugin-section-card-description"]'
+  );
+  const headerActions = header?.querySelector(
+    '[data-slot="plugin-section-card-header-actions"]'
+  );
+  const content = card?.querySelector(
+    '[data-slot="plugin-section-card-content"]'
+  );
+
+  assert.ok(card, 'missing section-card root');
+  assert.ok(header, 'missing section-card header');
+  assert.equal(title?.tagName, 'H3');
+  assert.equal(title?.textContent, 'Inventory');
+  assert.equal(description?.textContent, 'Audit rows');
+  assert.equal(headerActions?.querySelector('button')?.textContent, 'Add row');
+  assert.equal(
+    content?.querySelector('[data-slot="supplied-child"]')?.textContent,
+    'content block'
+  );
 });
 
 test('PluginToolbar renders named actions in their semantic regions', () => {
@@ -131,7 +160,9 @@ test('PluginToolbar renders named actions in their semantic regions', () => {
   const toolbar = document.querySelector('[data-slot="plugin-toolbar"]');
 
   assert.deepEqual(
-    toolbar?.querySelectorAll('button').map((action) => action.textContent),
+    toolbar
+      ?.querySelectorAll('button')
+      .map((action: ParsedNode) => action.textContent),
     ['Filter results', 'Save changes']
   );
   assert.equal(leading?.getAttribute('role'), 'group');
