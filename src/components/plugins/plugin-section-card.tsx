@@ -5,7 +5,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -29,9 +28,10 @@ export function PluginSectionCard({
   contentClassName,
 }: PluginSectionCardProps) {
   return (
-    <Card className={className}>
+    <Card data-slot="plugin-section-card" className={className}>
       {title || description || headerActions ? (
         <CardHeader
+          data-slot="plugin-section-card-header"
           className={cn(
             headerActions
               ? 'flex flex-row items-start justify-between gap-4'
@@ -41,18 +41,37 @@ export function PluginSectionCard({
         >
           {title || description ? (
             <div className="space-y-1">
-              {title ? <CardTitle>{title}</CardTitle> : null}
+              {title ? (
+                <h3
+                  data-slot="plugin-section-card-title"
+                  className="text-2xl font-semibold leading-none tracking-tight"
+                >
+                  {title}
+                </h3>
+              ) : null}
               {description ? (
-                <CardDescription>{description}</CardDescription>
+                <CardDescription data-slot="plugin-section-card-description">
+                  {description}
+                </CardDescription>
               ) : null}
             </div>
           ) : null}
           {headerActions ? (
-            <div className="shrink-0">{headerActions}</div>
+            <div
+              data-slot="plugin-section-card-header-actions"
+              className="shrink-0"
+            >
+              {headerActions}
+            </div>
           ) : null}
         </CardHeader>
       ) : null}
-      <CardContent className={contentClassName}>{children}</CardContent>
+      <CardContent
+        data-slot="plugin-section-card-content"
+        className={contentClassName}
+      >
+        {children}
+      </CardContent>
     </Card>
   );
 }
