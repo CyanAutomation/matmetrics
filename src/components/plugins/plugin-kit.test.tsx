@@ -107,7 +107,12 @@ test('PluginToolbar renders named actions in their semantic regions', () => {
   const trailing = document.querySelector(
     '[data-slot="plugin-toolbar-trailing-actions"]'
   );
+  const toolbar = document.querySelector('[data-slot="plugin-toolbar"]');
 
+  assert.deepEqual(
+    toolbar?.querySelectorAll('button').map((action) => action.textContent),
+    ['Filter results', 'Save changes']
+  );
   assert.equal(leading?.getAttribute('role'), 'group');
   assert.equal(leading?.getAttribute('aria-label'), 'Leading toolbar actions');
   assert.equal(leading?.querySelector('button')?.textContent, 'Filter results');
