@@ -31,15 +31,22 @@ test('canonical design token keys match DESIGN.md section 2 source of truth', ()
 });
 
 test('canonical design token keys remain kebab-case and do not introduce underscores', () => {
-  const underscoreKeys = CANONICAL_DESIGN_TOKEN_KEYS.filter((token) =>
-    token.includes('_')
-  );
+  const tokenNameCases = [
+    { token: 'primary', expected: true },
+    { token: 'primary-container', expected: true },
+    { token: 'surface-container-lowest', expected: true },
+    { token: 'on-trend-positive-container', expected: true },
+    { token: 'Primary-container', expected: false },
+    { token: 'primary_container', expected: false },
+    { token: 'primary container', expected: false },
+    { token: '-primary-container', expected: false },
+    { token: 'primary-container-', expected: false },
+    { token: 'primary--container', expected: false },
+  ];
 
-  assert.deepEqual(underscoreKeys, []);
+  for (const { token, expected } of tokenNameCases) {
+    assert.equal(isKebabCaseDesignTokenKey(token), expected, token);
+  }
 
-  const nonKebabCaseKeys = CANONICAL_DESIGN_TOKEN_KEYS.filter(
-    (token) => !isKebabCaseDesignTokenKey(token)
-  );
-
-  assert.deepEqual(nonKebabCaseKeys, []);
+  assert.ok(CANONICAL_DESIGN_TOKEN_KEYS.every(isKebabCaseDesignTokenKey));
 });
