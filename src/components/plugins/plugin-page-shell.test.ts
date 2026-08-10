@@ -11,10 +11,8 @@ import {
   PluginPageShell,
 } from '@/components/plugins/plugin-page-shell';
 
-const normalizeMarkup = (html: string): string =>
-  html.replace(/\s+/g, ' ').trim();
-
 const compositionContract = 'docs/blueprint.md#plugin-page-composition';
+const feedbackContract = 'docs/blueprint.md#feedback-states';
 
 test(`PluginPageShell renders the semantic page composition (${compositionContract})`, () => {
   const document = parse(
@@ -108,18 +106,61 @@ test(`PluginPageShell omits the optional icon without changing heading compositi
   );
 });
 
-test('PluginNotice renders notice title and description content', () => {
-  const html = normalizeMarkup(
-    renderToStaticMarkup(
-      React.createElement(PluginNotice, {
-        tone: 'warning',
-        title: 'Warning title',
-        description: 'Warning description',
-        icon: React.createElement('span', null, '!'),
-      })
-    )
-  );
+test(`PluginNotice exposes semantic feedback structure and tone (${feedbackContract})`, () => {
+  const scenarios = [
+    {
+      tone: 'warning',
+      toneMarker: 'bg-[hsl(var(--color-warning-container))]',
+    },
+    { tone: 'info', toneMarker: 'bg-primary/5' },
+  ] as const;
 
-  assert.match(html, /Warning title/);
-  assert.match(html, /Warning description/);
+  for (const { tone, toneMarker } of scenarios) {
+    const document = parse(
+      renderToStaticMarkup(
+        React.createElement(PluginNotice, {
+          tone,
+          title: `${tone} notice`,
+          description: `${tone} details`,
+          icon: React.createElement('svg', {
+            'aria-hidden': 'true',
+            'data-testid': `${tone}-icon`,
+          }),
+        })
+      )
+    );
+    const notice = document.querySelector('[role="alert"]');
+    const title = notice?.querySelector('h5');
+    const description = notice?.querySelector('h5 + div');
+    const icon = notice?.querySelector(`[data-testid="${tone}-icon"]`);
+
+    assert.ok(
+      notice,
+      `${feedbackContract}: ${tone} notices must be announced as alerts`
+    );
+    assert.ok(
+      notice.getAttribute('class')?.split(' ').includes(toneMarker),
+      `${feedbackContract}: ${tone} notices must expose their semantic tone token`
+    );
+    assert.equal(
+      title?.nextElementSibling,
+      description,
+      `${feedbackContract}: notice descriptions must immediately follow their heading`
+    );
+    assert.equal(
+      title?.parentNode,
+      notice,
+      `${feedbackContract}: notice headings must belong directly to the alert`
+    );
+    assert.equal(
+      icon?.parentNode,
+      notice,
+      `${feedbackContract}: the reinforcing icon must render inside the alert`
+    );
+    assert.equal(
+      notice.firstChild,
+      icon,
+      `${feedbackContract}: the reinforcing icon must precede the feedback copy`
+    );
+  }
 });
