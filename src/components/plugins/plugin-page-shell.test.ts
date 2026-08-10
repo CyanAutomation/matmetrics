@@ -58,8 +58,8 @@ test(`PluginPageShell renders the semantic page composition (${compositionContra
     `${compositionContract}: the icon frame must be placed directly in the header`
   );
   assert.equal(
-    Array.from(header?.childNodes ?? []).indexOf(iconFrame),
-    0,
+    header?.firstChild,
+    iconFrame,
     `${compositionContract}: the icon must precede the title and description group`
   );
   assert.match(
