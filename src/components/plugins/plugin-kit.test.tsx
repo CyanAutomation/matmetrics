@@ -27,6 +27,12 @@ import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
 const normalizeMarkup = (html: string): string =>
   html.replace(/\s+/g, ' ').trim();
 
+type ParsedNode = {
+  nodeType: number;
+  textContent: string;
+  childNodes: ParsedNode[];
+};
+
 test('PluginAuthGateNotice switches copy based on auth availability', () => {
   const signedOut = normalizeMarkup(
     renderToStaticMarkup(
@@ -51,7 +57,7 @@ test('PluginAuthGateNotice switches copy based on auth availability', () => {
 });
 
 test('PluginStatsGrid and PluginStatCard render stat labels and values', () => {
-  const html = normalizeMarkup(
+  const document = parse(
     renderToStaticMarkup(
       React.createElement(
         PluginStatsGrid,
@@ -59,13 +65,28 @@ test('PluginStatsGrid and PluginStatCard render stat labels and values', () => {
         React.createElement(PluginStatCard, {
           label: 'Checked links',
           value: 8,
+        }),
+        React.createElement(PluginStatCard, {
+          label: 'Broken links',
+          value: 2,
         })
       )
     )
   );
+  const grid = document.querySelector('.grid') as ParsedNode | null;
+  const cards = grid?.childNodes.filter((node) => node.nodeType === 1);
 
-  assert.match(html, /Checked links/);
-  assert.match(html, />8</);
+  assert.ok(grid, 'missing stats grid container');
+  assert.equal(cards?.length, 2);
+  assert.deepEqual(
+    cards?.map((card) =>
+      card.childNodes[0]?.childNodes.map((node) => node.textContent)
+    ),
+    [
+      ['Checked links', '8'],
+      ['Broken links', '2'],
+    ]
+  );
 });
 
 test('PluginSectionCard renders header and content regions', () => {
