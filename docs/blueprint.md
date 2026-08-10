@@ -278,6 +278,13 @@ Uses asymmetrical layout with `headline-lg` titles and `DataStrip` components fo
 - Screen reader-friendly semantic HTML
 - High-contrast mode with proper outline fallbacks
 
+### Feedback States
+
+- Notices use an alert live region, with a heading followed by descriptive copy.
+- Reinforce semantic tones with an icon and the corresponding semantic color
+  token; warning notices use `warning`, while informational notices use `info`.
+- Do not rely on passed-in copy or color alone to communicate a notice's state.
+
 ### Version Control
 
 - **MAJOR**: Breaking changes (token renames, component API changes)
