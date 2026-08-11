@@ -2,13 +2,67 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
 import { Github } from 'lucide-react';
+import React from 'react';
 
 import githubSyncManifest from './plugin.json';
+import { GitHubSettings } from './src/components/github-settings';
+import { initPlugin } from './src/index';
 import { resolveDashboardExtensionsToTabs } from '@/lib/navigation/tab-definitions';
+import type { DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 import { discoverEnabledDashboardTabExtensions } from '@/lib/plugins/discovery.server';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 
 test('github-sync is discovered and mapped to its dashboard settings tab', async () => {
+  let registeredComponentId: string | undefined;
+  let registeredRenderer: DashboardTabRenderer | undefined;
+
+  initPlugin({
+    registerPluginComponent: (componentId, renderer) => {
+      registeredComponentId = componentId;
+      registeredRenderer = renderer;
+    },
+  });
+
+  assert.equal(registeredComponentId, 'github_settings');
+  assert.ok(registeredRenderer, 'expected the settings renderer to register');
+
+  const renderedSettings = registeredRenderer({
+    sessions: [
+      {
+        id: 'distinctive-github-settings-session',
+        date: '2026-08-11',
+        techniques: ['Uchi mata'],
+        effort: 4,
+        category: 'Technical',
+        description:
+          'Context that the standalone settings surface does not use',
+        notes: 'GitHub renderer contract test',
+        duration: 73,
+      },
+    ],
+    refreshSessions: () => {
+      throw new Error(
+        'the settings surface must not refresh sessions on render'
+      );
+    },
+    refreshPluginExtensions: () => {
+      throw new Error(
+        'the settings surface must not refresh plugins on render'
+      );
+    },
+  });
+
+  assert.ok(
+    React.isValidElement(renderedSettings),
+    'expected the renderer to produce a React settings surface'
+  );
+  assert.equal(renderedSettings.type, GitHubSettings);
+  assert.deepEqual(
+    renderedSettings.props,
+    {},
+    'GitHubSettings is a standalone surface with no dashboard-context props'
+  );
+
   const discoveredExtensions = await discoverEnabledDashboardTabExtensions({
     pluginsRoot: path.resolve(process.cwd(), 'plugins'),
     enabledOverrides: {},
@@ -23,6 +77,10 @@ test('github-sync is discovered and mapped to its dashboard settings tab', async
     'github-sync-dashboard-tab'
   );
   assert.equal(githubSyncExtensions[0]?.extension.config.tabId, 'github-sync');
+  assert.equal(
+    githubSyncExtensions[0]?.extension.config.component,
+    registeredComponentId
+  );
 
   const { tabs, warnings } =
     await resolveDashboardExtensionsToTabs(githubSyncExtensions);
