@@ -460,7 +460,7 @@ func (c *Client) listSessionsUncached(config model.GitHubConfig, branch string) 
 
 	sessions := make([]model.Session, 0, len(paths))
 	for _, path := range paths {
-		_, content, err := c.getFile(config, path, branch)
+		sha, content, err := c.getFile(config, path, branch)
 		if err != nil {
 			return nil, err
 		}
@@ -468,6 +468,7 @@ func (c *Client) listSessionsUncached(config model.GitHubConfig, branch string) 
 		if err != nil {
 			return nil, err
 		}
+		session.RevisionSHA = sha
 		sessions = append(sessions, session)
 	}
 
@@ -494,7 +495,7 @@ func (c *Client) ReadSessionByID(config model.GitHubConfig, id string) (*model.S
 		return nil, nil
 	}
 
-	_, content, err := c.getFile(config, path, branch)
+	sha, content, err := c.getFile(config, path, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -504,6 +505,7 @@ func (c *Client) ReadSessionByID(config model.GitHubConfig, id string) (*model.S
 		return nil, err
 	}
 
+	session.RevisionSHA = sha
 	return &session, nil
 }
 
@@ -538,6 +540,11 @@ func (c *Client) UpdateSession(config model.GitHubConfig, session model.Session)
 
 	return &session, nil
 }
+
+// RevisionConflictError indicates that an update was based on a stale read.
+type RevisionConflictError struct{}
+
+func (RevisionConflictError) Error() string { return "session has a newer remote revision" }
 
 func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) error {
 	branch, err := c.resolveBranch(config)
@@ -780,6 +787,9 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 
 	if existingSHA != "" && existingContent == rendered && existingPath == filePath {
 		return "skipped", nil
+	}
+	if session.RevisionSHA != "" && existingSHA != session.RevisionSHA {
+		return "", RevisionConflictError{}
 	}
 
 	body := map[string]any{
