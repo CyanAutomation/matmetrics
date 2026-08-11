@@ -3,16 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { tagService } from '@/lib/tags';
-import {
-  Tags,
-  Edit2,
-  Trash2,
-  Combine,
-  Search,
-  AlertCircle,
-} from 'lucide-react';
+import { Tags, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -33,18 +25,11 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import {
-  PluginDataSurfaceFilterRow,
-  PluginDataSurfaceSummaryStrip,
-} from '@/components/plugins/plugin-data-surface';
-import {
-  PluginActionRow,
-  PluginActionPrimary,
-} from '@/components/plugins/plugin-action-row';
+import { PluginActionRow, PluginActionPrimary } from '@/components/plugins/plugin-action-row';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
-import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { useTagManagerData } from './use-tag-manager-data';
 import { useTagManagerDialogState } from './use-tag-manager-dialog-state';
+import { TagManagerInventory } from './tag-manager-inventory';
 export {
   buildDeleteConfirmationCopy,
   buildErrorRecoveryDescription,
@@ -379,88 +364,23 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         emptyDescription={emptyState.message}
         emptyCtaLabel={emptyState.ctaLabel}
         onEmptyCta={() => {
-          if (emptyState.action === 'clearSearch') {
-            setSearch('');
-            return;
-          }
-
-          refreshTags();
+          if (emptyState.action === 'clearSearch') setSearch('');
+          else refreshTags();
         }}
         emptyIcon={<Search className="h-4 w-4" />}
       >
-        <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
-          <div className="relative lg:col-span-2">
-            <Search
-              className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
-            />
-            <Input
-              placeholder="Search techniques..."
-              className="pl-10"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </PluginDataSurfaceFilterRow>
-
-        <PluginDataSurfaceSummaryStrip
-          filteredCount={filteredTags.length}
-          totalCount={tags.length}
-          itemLabel="tags"
-          activeFilters={
-            search.trim() ? [{ label: 'Search', value: search.trim() }] : []
-          }
-          className="mb-4"
+        <TagManagerInventory
+          tags={tags}
+          filteredTags={filteredTags}
+          search={search}
+          onSearchChange={setSearch}
+          onRename={(tag) => {
+            setEditingTag(tag);
+            setNewTagName(tag);
+          }}
+          onMerge={setMergingTag}
+          onDelete={setDeletingTag}
         />
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {filteredTags.map((tag) => (
-            <div
-              key={tag}
-              className="group flex items-center justify-between rounded-lg bg-background/80 p-3 transition-colors hover:bg-background"
-            >
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-sm font-semibold">
-                  {tag}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`Rename ${tag}`}
-                  title={`Rename ${tag}`}
-                  onClick={() => {
-                    setEditingTag(tag);
-                    setNewTagName(tag);
-                  }}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`Merge ${tag}`}
-                  title={`Merge ${tag}`}
-                  onClick={() => setMergingTag(tag)}
-                >
-                  <Combine className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`Delete ${tag}`}
-                  title={`Delete ${tag}`}
-                  onClick={() => setDeletingTag(tag)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
       </PluginTableSection>
 
       {/* Rename Dialog */}

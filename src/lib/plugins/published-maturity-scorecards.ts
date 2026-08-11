@@ -5,6 +5,7 @@ import type {
   PluginMaturityScorecard,
   PluginMaturityTier,
 } from '@/lib/plugins/types';
+import { MATURITY_CATEGORY_LABELS } from './maturity-scorecard-config';
 
 type PublishedScorecard = {
   id: string;
@@ -12,14 +13,6 @@ type PublishedScorecard = {
   tier: string;
   declaredTier?: string;
 };
-
-const categoryLabels = {
-  contract_metadata: 'Contract & Metadata',
-  runtime_integration: 'Runtime Integration',
-  feature_quality: 'Feature Quality',
-  test_coverage: 'Test Coverage',
-  operability_docs: 'Operability & Docs',
-} as const;
 
 const toTier = (value: string): PluginMaturityTier =>
   value === 'gold' || value === 'silver' || value === 'bronze'
@@ -51,7 +44,7 @@ export const getPublishedPluginMaturity = (
     tier,
     declaredTier,
     categoryScores: Object.fromEntries(
-      Object.entries(categoryLabels).map(([key, label]) => [
+      Object.entries(MATURITY_CATEGORY_LABELS).map(([key, label]) => [
         key,
         { label, earned: 0, possible: 0 },
       ])
