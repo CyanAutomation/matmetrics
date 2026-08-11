@@ -64,7 +64,7 @@ import {
   runDeleteConfirmation,
 } from './tag-manager-view-model';
 
-interface TagManagerProps {
+export interface TagManagerProps {
   onRefresh: () => void;
 }
 
