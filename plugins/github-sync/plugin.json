@@ -24,7 +24,6 @@
     "evidence": {
       "testFiles": [
         "plugins/github-sync/plugin.test.ts",
-        "plugins/github-sync/src/index.behavior.test.ts",
         "plugins/github-sync/src/components/github-settings.ux.test.tsx",
         "plugins/github-sync/src/components/github-settings.destructive.test.tsx"
       ],
