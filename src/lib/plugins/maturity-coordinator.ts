@@ -23,6 +23,10 @@ import {
   extractRegisteredPluginComponents,
   normalizeHeading,
 } from '@/lib/plugins/scoring';
+import {
+  MATURITY_CATEGORY_LABELS,
+  MATURITY_CATEGORY_MAXIMUMS,
+} from './maturity-scorecard-config';
 import { parseReadmeSections } from './maturity-readme';
 import { verifyMaturityUxCriteria } from './maturity-ux-verification';
 import { discoverMaturityTestEvidence } from './maturity-test-evidence';
@@ -40,22 +44,6 @@ type ScorePluginMaturityOptions = {
 };
 
 type CategoryAccumulator = Record<PluginMaturityCategory, number>;
-
-const categoryLabels: Record<PluginMaturityCategory, string> = {
-  contract_metadata: 'Contract & Metadata',
-  runtime_integration: 'Runtime Integration',
-  feature_quality: 'Feature Quality',
-  test_coverage: 'Test Coverage',
-  operability_docs: 'Operability & Docs',
-};
-
-const categoryMaximums: Record<PluginMaturityCategory, number> = {
-  contract_metadata: 20,
-  runtime_integration: 20,
-  feature_quality: 25,
-  test_coverage: 20,
-  operability_docs: 15,
-};
 
 const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
   path.relative(repoRoot, filePath).split(path.sep).join('/');
@@ -226,8 +214,8 @@ export const scorePluginMaturity = async ({
 
   const normalizedCategoryScores = normalizeMaturityCategoryScores(
     categoryScores,
-    categoryLabels,
-    categoryMaximums
+    MATURITY_CATEGORY_LABELS,
+    MATURITY_CATEGORY_MAXIMUMS
   );
   const totalScore = totalMaturityScore(normalizedCategoryScores);
 
