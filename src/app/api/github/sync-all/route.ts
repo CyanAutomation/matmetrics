@@ -3,6 +3,7 @@ import { isGitHubConfigured } from '@/lib/github-storage';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { GitHubConfig } from '@/lib/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { parseJsonObjectBody } from '@/lib/request-body';
 
 /**
  * POST /api/github/sync-all
@@ -25,7 +26,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const parsedBody = await parseJsonObjectBody(request);
+    if (!parsedBody.ok) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+    const body = parsedBody.value;
     const config: GitHubConfig = {
       owner: typeof body.owner === 'string' ? body.owner.trim() : '',
       repo: typeof body.repo === 'string' ? body.repo.trim() : '',

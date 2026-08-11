@@ -8,6 +8,7 @@ import {
 import { persistPluginEnabledOverride } from '@/lib/plugins/state.server';
 import { MAX_PLUGIN_ID_LENGTH } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { parseJsonObjectBody } from '@/lib/request-body';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,14 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const body = await request.json();
+    const parsedBody = await parseJsonObjectBody(request);
+    if (!parsedBody.ok) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+    const body = parsedBody.value;
     const pluginId = typeof body?.id === 'string' ? body.id.trim() : '';
     const enabled = body?.enabled;
     const confirm = body?.confirm === true;
