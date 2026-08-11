@@ -65,7 +65,15 @@ const pluginFixtures: Record<PluginId, unknown> = {
 
 const expectedRows = (
   maturityScorecards as { plugins: PublishedScorecardRow[] }
-).plugins.sort((a, b) => a.id.localeCompare(b.id));
+).plugins;
+
+const artifactFields = [
+  'score',
+  'tier',
+  'declaredTier',
+  'manifestLastReviewedAt',
+  'manifestEvidenceHash',
+] as const satisfies readonly (keyof PublishedScorecardRow)[];
 
 test('published maturity scorecard artifact matches current manifest evidence', async () => {
   const actualRows = (
@@ -101,5 +109,39 @@ test('published maturity scorecard artifact matches current manifest evidence', 
     )
   ).sort((a, b) => a.id.localeCompare(b.id));
 
-  assert.deepEqual(actualRows, expectedRows);
+  const actualById = new Map(actualRows.map((row) => [row.id, row]));
+  const expectedById = new Map(expectedRows.map((row) => [row.id, row]));
+  const diagnostics: string[] = [];
+
+  for (const id of new Set([...expectedById.keys(), ...actualById.keys()])) {
+    const expected = expectedById.get(id);
+    const actual = actualById.get(id);
+
+    if (!expected) {
+      diagnostics.push(`${id}: unexpected plugin row`);
+      continue;
+    }
+    if (!actual) {
+      diagnostics.push(`${id}: missing plugin row`);
+      continue;
+    }
+
+    for (const field of artifactFields) {
+      if (actual[field] !== expected[field]) {
+        diagnostics.push(
+          `${id}.${field}: expected ${JSON.stringify(expected[field])}, received ${JSON.stringify(actual[field])}`
+        );
+      }
+    }
+  }
+
+  assert.equal(
+    diagnostics.length,
+    0,
+    `Published maturity scorecard drifted from current manifest evidence:\n${diagnostics
+      .map((diagnostic) => `- ${diagnostic}`)
+      .join(
+        '\n'
+      )}\n\nInvestigate whether the manifest or scoring behavior changed. If the drift is intentional, regenerate the artifact with: npm run plugin:maturity:regenerate`
+  );
 });
