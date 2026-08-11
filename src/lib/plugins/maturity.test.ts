@@ -65,6 +65,81 @@ const baseManifest: PluginManifest = {
   ],
 };
 
+test('scorePluginMaturity scores manifest inputs independently', async () => {
+  const cases: Array<{
+    name: string;
+    manifest: PluginManifest;
+    expectedContractScore: number;
+  }> = [
+    {
+      name: 'required schema and enabled flag',
+      manifest: baseManifest,
+      expectedContractScore: 10,
+    },
+    {
+      name: 'declared capability',
+      manifest: { ...baseManifest, capabilities: ['session_read'] },
+      expectedContractScore: 12,
+    },
+    {
+      name: 'complete maturity review',
+      manifest: {
+        ...baseManifest,
+        maturity: {
+          tier: 'bronze',
+          notes: 'Synthetic review fixture.',
+          lastReviewedAt: '2026-08-11',
+        },
+      },
+      expectedContractScore: 12,
+    },
+    {
+      name: 'explicit evidence mapping',
+      manifest: {
+        ...baseManifest,
+        maturity: {
+          evidence: { testFiles: [] },
+        },
+      },
+      expectedContractScore: 12,
+    },
+    {
+      name: 'all contract inputs',
+      manifest: {
+        ...baseManifest,
+        capabilities: ['session_read'],
+        maturity: {
+          tier: 'bronze',
+          notes: 'Synthetic review fixture.',
+          lastReviewedAt: '2026-08-11',
+          evidence: { testFiles: [] },
+        },
+      },
+      expectedContractScore: 16,
+    },
+  ];
+
+  await withPluginFixture(
+    async () => {},
+    async (pluginsRoot) => {
+      for (const scenario of cases) {
+        const scorecard = await scorePluginMaturity({
+          manifest: scenario.manifest,
+          validationIssues: [],
+          pluginDirectoryName: 'example-plugin',
+          pluginsRoot,
+        });
+
+        assert.equal(
+          scorecard.categoryScores.contract_metadata.earned,
+          scenario.expectedContractScore,
+          scenario.name
+        );
+      }
+    }
+  );
+});
+
 async function withPluginFixture(
   setup: (pluginsRoot: string, repoRoot: string) => Promise<void>,
   run: (pluginsRoot: string) => Promise<void>
