@@ -199,8 +199,8 @@ test('PluginDestructiveAction exposes safe defaults for confirmation copy', () =
   assert.equal(element.props.confirmLabel, PLUGIN_DESTRUCTIVE_CONFIRM_LABEL);
 });
 
-test('PluginFormSection renders footer actions within the shared toolbar', () => {
-  const html = normalizeMarkup(
+test('PluginFormSection follows the docs/blueprint.md shared form composition', () => {
+  const document = parse(
     renderToStaticMarkup(
       React.createElement(
         PluginFormSection,
@@ -209,14 +209,31 @@ test('PluginFormSection renders footer actions within the shared toolbar', () =>
           description: 'Shared form shell',
           footerActions: React.createElement('button', null, 'Save'),
         },
-        React.createElement('div', null, 'Fields')
+        React.createElement('div', { 'data-slot': 'form-fields' }, 'Fields')
       )
     )
   );
+  const body = document.querySelector(
+    '[data-slot="plugin-section-card-content"]'
+  );
+  const trailingToolbar = document.querySelector(
+    '[data-slot="plugin-toolbar-trailing-actions"][role="group"]' +
+      '[aria-label="Trailing toolbar actions"]'
+  );
+  const saveButton = trailingToolbar?.querySelector('button');
+  const fields = body?.querySelector('[data-slot="form-fields"]');
 
-  assert.match(html, /Shared form shell/);
-  assert.match(html, /plugin-toolbar-trailing-actions/);
-  assert.match(html, /Save/);
+  assert.ok(
+    trailingToolbar,
+    'docs/blueprint.md shared form composition requires footer actions in the trailing toolbar region'
+  );
+  assert.equal(saveButton?.textContent, 'Save');
+  assert.equal(fields?.textContent, 'Fields');
+  assert.equal(
+    trailingToolbar.querySelector('[data-slot="form-fields"]'),
+    null,
+    'docs/blueprint.md shared form composition keeps fields in the form-section body'
+  );
 });
 
 test('PluginStatusPanel exposes every severity and accessible state text', () => {
