@@ -339,6 +339,35 @@ test('POST returns 400 when request JSON is not an object', async (t) => {
   }
 });
 
+test('POST rejects truncated and array JSON before storage or proxy mutation', async (t) => {
+  for (const body of ['{"id":', '[]']) {
+    await t.test(body, async () => {
+      await withTempDataDir(async (dataDir) => {
+        let proxyCalls = 0;
+        const originalFetch = global.fetch;
+        global.fetch = async () => {
+          proxyCalls += 1;
+          throw new Error('proxy must not be called');
+        };
+        try {
+          const response = await POST(
+            new NextRequest('http://localhost/api/sessions/create', {
+              method: 'POST',
+              headers: { authorization: 'Bearer test-token' },
+              body,
+            })
+          );
+          assert.equal(response.status, 400);
+          assert.equal(proxyCalls, 0);
+          await assert.rejects(readFile(path.join(dataDir, '2025')));
+        } finally {
+          global.fetch = originalFetch;
+        }
+      });
+    });
+  }
+});
+
 test('POST returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
@@ -577,7 +606,6 @@ test('POST returns 400 for invalid session payload fields', async (t) => {
     });
   }
 });
-
 
 test('POST treats empty string videoUrl as undefined', async () => {
   await withStoredGitHubConfig('null', async () => {

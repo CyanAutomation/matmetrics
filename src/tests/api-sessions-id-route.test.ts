@@ -698,6 +698,29 @@ test('PUT returns 400 when request body is not a JSON object', async (t) => {
   }
 });
 
+test('PUT rejects truncated JSON before storage or proxy mutation', async () => {
+  let proxyCalls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    proxyCalls += 1;
+    throw new Error('proxy must not be called');
+  };
+  try {
+    const response = await PUT(
+      new NextRequest('http://localhost/api/sessions/truncated', {
+        method: 'PUT',
+        headers: { authorization: 'Bearer test-token' },
+        body: '{"id":',
+      }),
+      { params: Promise.resolve({ id: 'truncated' }) }
+    );
+    assert.equal(response.status, 400);
+    assert.equal(proxyCalls, 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('PUT returns 400 for invalid session payload fields', async (t) => {
   const cases = [
     {
@@ -917,7 +940,6 @@ test('PUT returns 400 for invalid session payload fields', async (t) => {
     });
   }
 });
-
 
 test('PUT treats empty string videoUrl as undefined', async () => {
   await withStoredGitHubConfig('null', async () => {

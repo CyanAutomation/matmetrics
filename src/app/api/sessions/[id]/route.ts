@@ -18,6 +18,7 @@ import { isDuplicateSessionIdError } from '@/lib/file-storage';
 import { validateSessionPayload } from '@/lib/session-validation';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
+import { parseJsonObjectBody } from '@/lib/request-body';
 
 // TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
 // between this TypeScript route handler and the Go backend
@@ -98,19 +99,15 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const payload = await request.json();
-    if (
-      payload === null ||
-      typeof payload !== 'object' ||
-      Array.isArray(payload)
-    ) {
+    const payload = await parseJsonObjectBody(request);
+    if (!payload.ok) {
       return NextResponse.json(
         { error: 'Invalid request body' },
         { status: 400 }
       );
     }
 
-    const body = payload;
+    const body = payload.value;
 
     // Ensure ID matches when explicitly provided in request body.
     if (body.id !== undefined && body.id !== id) {
