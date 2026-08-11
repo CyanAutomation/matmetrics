@@ -11,6 +11,8 @@ export interface JudoSession {
   notes?: string;
   duration?: number; // in minutes
   videoUrl?: string; // optional absolute http:// or https:// URL to session video
+  /** Opaque GitHub revision observed when this session was read. */
+  revisionSha?: string;
 }
 
 export interface MutationResult {

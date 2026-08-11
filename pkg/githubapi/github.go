@@ -15,6 +15,7 @@ type LogDoctorFixValidationState = internalgithubapi.LogDoctorFixValidationState
 type LogDoctorFixPreview = internalgithubapi.LogDoctorFixPreview
 type LogDoctorFixFileResult = internalgithubapi.LogDoctorFixFileResult
 type LogDoctorFixResult = internalgithubapi.LogDoctorFixResult
+type RevisionConflictError = internalgithubapi.RevisionConflictError
 
 const (
 	LogDoctorFixModeDryRun = internalgithubapi.LogDoctorFixModeDryRun

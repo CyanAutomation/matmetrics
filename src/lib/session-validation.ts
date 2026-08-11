@@ -26,6 +26,9 @@ export function validateSessionPayload(
     session: {
       id: idResult.value,
       ...fieldsResult.values,
+      ...(typeof payload.revisionSha === 'string' && payload.revisionSha
+        ? { revisionSha: payload.revisionSha }
+        : {}),
     },
   };
 }
