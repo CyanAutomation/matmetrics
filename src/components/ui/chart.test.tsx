@@ -102,3 +102,74 @@ test('tooltip detailFormatter receives series label, value+unit, date/timestamp,
   assert.match(text, /2026-03-12/);
   assert.match(text, /\+1/);
 });
+
+test('tooltip renders configured labels, values, units, and indicators by default', () => {
+  const { root } = renderElement(
+    <ChartContext.Provider
+      value={{
+        config: {
+          effort: { label: 'Effort', color: 'hsl(var(--primary))' },
+        } satisfies ChartConfig,
+      }}
+    >
+      <ChartTooltipContent
+        active
+        label="effort"
+        payload={[
+          {
+            dataKey: 'effort',
+            name: 'effort',
+            value: 4,
+            color: 'hsl(var(--primary))',
+            payload: { fill: 'hsl(var(--secondary))' },
+          },
+        ]}
+      />
+    </ChartContext.Provider>
+  );
+
+  assert.match(root.textContent, /Effort/);
+  assert.match(root.textContent, /4/);
+  assert.match(
+    root.querySelector('[style*="--color-bg"]')?.getAttribute('style') || '',
+    /hsl\(var\(--secondary\)\)/
+  );
+});
+
+test('tooltip detail formatter takes precedence over the standard formatter', () => {
+  const { root } = renderElement(
+    <ChartContext.Provider value={{ config: {} }}>
+      <ChartTooltipContent
+        active
+        formatter={(value, name) => (
+          <span data-testid="formatted-value">
+            {name}:{value}
+          </span>
+        )}
+        detailFormatter={() => <span>detail</span>}
+        payload={[{ dataKey: 'effort', name: 'effort', value: 4 }]}
+      />
+    </ChartContext.Provider>
+  );
+
+  assert.equal(root.querySelector('[data-testid="formatted-value"]'), null);
+  assert.match(root.textContent, /detail/);
+});
+
+test('tooltip hides its indicator and supports label formatting', () => {
+  const { root } = renderElement(
+    <ChartContext.Provider value={{ config: {} }}>
+      <ChartTooltipContent
+        active
+        hideIndicator
+        indicator="dashed"
+        label="Training"
+        labelFormatter={(value) => <span>Label: {value}</span>}
+        payload={[{ dataKey: 'effort', name: 'effort', value: '4' }]}
+      />
+    </ChartContext.Provider>
+  );
+
+  assert.match(root.textContent, /Label: Training/);
+  assert.equal(root.querySelector('[style*="--color-bg"]'), null);
+});
