@@ -20,6 +20,7 @@ type Session struct {
 	Notes       string          `json:"notes,omitempty"`
 	Duration    *int            `json:"duration,omitempty"`
 	VideoURL    string          `json:"videoUrl,omitempty"`
+	RevisionSHA string          `json:"revisionSha,omitempty"`
 }
 
 type GitHubConfig struct {

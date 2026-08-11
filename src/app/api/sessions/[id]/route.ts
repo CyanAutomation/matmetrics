@@ -6,6 +6,7 @@ import {
   normalizeGitHubConfig,
   readSessionByIdForConfig,
   updateSessionForConfig,
+  GitHubRevisionConflictError,
 } from '@/lib/session-storage';
 import {
   buildGitHubDeleteBody,
@@ -150,6 +151,12 @@ export async function PUT(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    if (error instanceof GitHubRevisionConflictError) {
+      return NextResponse.json(
+        { error: error.message, type: 'revision_conflict' },
+        { status: 409 }
+      );
+    }
     if (isSessionNotFoundStorageError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }

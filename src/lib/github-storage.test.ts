@@ -71,6 +71,51 @@ test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs
   });
 });
 
+test('two writers from the same revision cannot silently overwrite each other', async () => {
+  const base = makeSession('concurrent');
+  const first = { ...base, notes: 'first writer', revisionSha: 'sha-base' };
+  const second = { ...base, notes: 'second writer', revisionSha: 'sha-base' };
+  let remoteSha = 'sha-base';
+  let remoteMarkdown = sessionToMarkdown(base);
+
+  await withMockedGitHub(
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            sha: remoteSha,
+            content: Buffer.from(remoteMarkdown).toString('base64'),
+          }),
+          { status: 200 }
+        );
+      }
+
+      const body = JSON.parse(String(init?.body));
+      if (body.sha !== remoteSha) {
+        return new Response(JSON.stringify({ message: 'sha does not match' }), {
+          status: 409,
+        });
+      }
+      remoteSha = 'sha-first';
+      remoteMarkdown = Buffer.from(body.content, 'base64').toString('utf8');
+      return new Response(JSON.stringify({ content: { sha: remoteSha } }), {
+        status: 200,
+      });
+    }) as typeof fetch,
+    async () => {
+      const config = { owner: 'o', repo: 'r', branch: 'main' };
+      const firstResult = await updateSessionOnGitHub(first, config);
+      const secondResult = await updateSessionOnGitHub(second, config);
+
+      assert.equal(firstResult.success, true);
+      assert.equal(secondResult.success, false);
+      assert.equal(secondResult.errorType, 'conflict');
+      assert.equal(remoteMarkdown, sessionToMarkdown(first));
+    }
+  );
+});
+
 test('findSessionPathOnGitHubById traverses directory listings when the tree is truncated', async () => {
   const dirListing: Record<
     string,

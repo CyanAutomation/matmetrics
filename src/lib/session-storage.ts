@@ -13,6 +13,7 @@ import {
   deleteSessionOnGitHubById,
   findSessionPathOnGitHubById,
   GitHubSyncResult,
+  GitHubRevisionConflictError,
   isGitHubConfigured,
   updateSessionOnGitHub,
 } from './github-storage';
@@ -24,6 +25,8 @@ import type {
   SessionFileIssueCode,
 } from './types';
 import { compareDateOnlyDesc } from './utils';
+
+export { GitHubRevisionConflictError } from './github-storage';
 
 const GITHUB_SESSION_ROOT = 'data';
 const GITHUB_SESSION_PATH_REGEX = new RegExp(
@@ -139,10 +142,10 @@ export function isSessionOperationalStorageError(error: unknown): boolean {
   return isLocalSessionLookupOperationalError(error);
 }
 
-async function readGitHubFileContent(
+async function readGitHubFile(
   config: GitHubConfig,
   filePath: string
-): Promise<string> {
+): Promise<{ content: string; sha: string }> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     throw new Error('GITHUB_TOKEN environment variable not set');
@@ -185,7 +188,14 @@ async function readGitHubFileContent(
   }
 
   const content = payload.content.replace(/\n/g, '');
-  return Buffer.from(content, 'base64').toString('utf8');
+  return {
+    content: Buffer.from(content, 'base64').toString('utf8'),
+    sha: payload.sha,
+  };
+}
+
+async function readGitHubFileContent(config: GitHubConfig, filePath: string) {
+  return (await readGitHubFile(config, filePath)).content;
 }
 
 type GitHubContentsEntry = {
@@ -322,12 +332,12 @@ async function readGitHubFileContentWithRetry(
   filePath: string,
   maxRetries = DEFAULT_GITHUB_READ_RETRY_ATTEMPTS,
   baseDelayMs = DEFAULT_GITHUB_READ_RETRY_BASE_DELAY_MS
-): Promise<string> {
+): Promise<{ content: string; sha: string }> {
   let attempt = 0;
 
   while (true) {
     try {
-      return await readGitHubFileContent(config, filePath);
+      return await readGitHubFile(config, filePath);
     } catch (error) {
       if (!isRetryableGitHubReadError(error) || attempt >= maxRetries) {
         throw error;
@@ -379,7 +389,7 @@ export async function scanSessionsFromGitHub(
       const filePath = markdownPaths[currentIndex];
 
       try {
-        const markdown = await readGitHubFileContentWithRetry(
+        const revision = await readGitHubFileContentWithRetry(
           config,
           filePath,
           readRetryAttempts,
@@ -387,7 +397,10 @@ export async function scanSessionsFromGitHub(
         );
         try {
           sessionResults[currentIndex] = {
-            session: markdownToSession(markdown),
+            session: {
+              ...markdownToSession(revision.content),
+              revisionSha: revision.sha,
+            },
             issue: null,
           };
         } catch (error) {
@@ -464,7 +477,8 @@ async function readSessionByIdFromGitHub(
     return null;
   }
 
-  return markdownToSession(await readGitHubFileContent(config, filePath));
+  const revision = await readGitHubFile(config, filePath);
+  return { ...markdownToSession(revision.content), revisionSha: revision.sha };
 }
 
 export async function readSessionByIdForConfig(
@@ -506,6 +520,9 @@ export async function updateSessionForConfig(
   if (shouldUseGitHubStorage(config)) {
     const result = await updateSessionOnGitHub(session, config);
     if (!result.success) {
+      if (result.errorType === 'conflict') {
+        throw new GitHubRevisionConflictError(result.message);
+      }
       throw new Error(result.message);
     }
     return result;

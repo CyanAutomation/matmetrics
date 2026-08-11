@@ -7,6 +7,14 @@ export interface GitHubSyncResult {
   filePath?: string;
   sha?: string;
   branch?: string;
+  errorType?: 'conflict';
+}
+
+export class GitHubRevisionConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GitHubRevisionConflictError';
+  }
 }
 
 interface DefaultBranchCacheEntry {
@@ -291,6 +299,32 @@ async function getFileContent(
       return null;
     }
 
+    throw error;
+  }
+}
+
+async function getFileRevision(
+  owner: string,
+  repo: string,
+  path: string,
+  branch: string
+): Promise<{ sha: string; content: string } | null> {
+  try {
+    const data = await githubApiRequest(
+      'GET',
+      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`
+    );
+    if (typeof data?.sha !== 'string' || typeof data?.content !== 'string') {
+      throw new Error(`GitHub contents response for ${path} was incomplete`);
+    }
+    return {
+      sha: data.sha,
+      content: Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString(
+        'utf8'
+      ),
+    };
+  } catch (error) {
+    if (isGitHubApiError(error) && error.status === 404) return null;
     throw error;
   }
 }
@@ -845,9 +879,7 @@ async function updateWithRetry(
 ): Promise<GitHubSyncResult> {
   const message = `Update session: ${session.date}`;
   let sha = initialSha;
-
-  let retries = 0;
-  const maxRetries = 2;
+  let equivalentRevisionRetries = 0;
 
   while (true) {
     const result = await putFile(config, expectedPath, markdown, message, sha);
@@ -866,22 +898,44 @@ async function updateWithRetry(
       result.message.toLowerCase().includes('conflict') ||
       result.message.toLowerCase().includes('sha');
 
-    if (isShaConflict && retries < maxRetries) {
-      retries += 1;
-      const newSha = await getFileSha(
+    if (isShaConflict) {
+      const current = await getFileRevision(
         config.owner,
         config.repo,
         expectedPath,
         branch
       );
-      if (!newSha) {
+      if (!current) {
         return {
           success: false,
-          message: `GitHub session update for ${sessionId} failed: file disappeared after ${retries} retry attempt(s)`,
+          message: `GitHub session update for ${sessionId} failed: file disappeared after a revision conflict`,
+          errorType: 'conflict',
         };
       }
-      sha = newSha;
-      continue;
+      if (current.content === markdown) {
+        return {
+          success: true,
+          message: 'Session already contains the requested update on GitHub',
+          filePath: expectedPath,
+          sha: current.sha,
+          branch,
+        };
+      }
+      // A retry is safe only if GitHub still serves the exact revision the
+      // caller attempted to replace (for example, a transient 409).
+      if (current.sha === initialSha && equivalentRevisionRetries < 2) {
+        equivalentRevisionRetries += 1;
+        sha = current.sha;
+        continue;
+      }
+      return {
+        success: false,
+        message: `GitHub session update for ${sessionId} conflicted with a newer remote revision`,
+        filePath: expectedPath,
+        sha: current.sha,
+        branch,
+        errorType: 'conflict',
+      };
     }
 
     return result;
@@ -901,14 +955,15 @@ export async function updateSessionOnGitHub(
     const markdown = sessionToMarkdown(session);
 
     // Resolve file metadata: SHA and actual path
-    const { sha, discoveredPath } = await resolveSessionFileMetadata(
-      session.id,
-      expectedPath,
-      config,
-      branch
-    );
+    const { sha: resolvedSha, discoveredPath } =
+      await resolveSessionFileMetadata(
+        session.id,
+        expectedPath,
+        config,
+        branch
+      );
 
-    if (!sha) {
+    if (!resolvedSha) {
       // File doesn't exist yet; create the session file instead.
       const result = await createSessionOnGitHub(session, config);
       if (!result.success) {
@@ -929,7 +984,7 @@ export async function updateSessionOnGitHub(
         markdown,
         config,
         session,
-        sha
+        resolvedSha
       );
     }
 
@@ -939,7 +994,7 @@ export async function updateSessionOnGitHub(
       expectedPath,
       session.id,
       markdown,
-      sha,
+      session.revisionSha ?? resolvedSha,
       session,
       branch
     );
