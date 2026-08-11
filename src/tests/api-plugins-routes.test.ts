@@ -247,6 +247,30 @@ test('POST /api/plugins/toggle persists enabled override without mutating plugin
   });
 });
 
+test('POST /api/plugins/toggle rejects malformed and non-object JSON without mutation', async (t) => {
+  await withTempRepo(async (repoRoot) => {
+    const pluginPath = path.join(repoRoot, 'plugins', 'tags', 'plugin.json');
+    const original = await readFile(pluginPath, 'utf8');
+
+    for (const body of ['{"id":', '[]']) {
+      await t.test(body, async () => {
+        const response = await TOGGLE(
+          new NextRequest('http://localhost/api/plugins/toggle', {
+            method: 'POST',
+            headers: routeAuthHeaders,
+            body,
+          })
+        );
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+          error: 'Invalid request body',
+        });
+        assert.equal(await readFile(pluginPath, 'utf8'), original);
+      });
+    }
+  });
+});
+
 test('plugin create/update routes are deprecated and return disabled responses', async () => {
   const requests = [
     {
@@ -489,13 +513,15 @@ test('GET /api/plugins/list continues when one plugin contract gate throws', asy
     const payload = await response.json();
     assert.equal(payload.plugins.length, 2);
     const rowsById = new Map(
-      (payload.plugins as Array<{
-        manifest: { id: string };
-        validation: {
-          isValid: boolean;
-          rows: Array<{ path: string; message: string }>;
-        };
-      }>).map((row) => [row.manifest.id, row])
+      (
+        payload.plugins as Array<{
+          manifest: { id: string };
+          validation: {
+            isValid: boolean;
+            rows: Array<{ path: string; message: string }>;
+          };
+        }>
+      ).map((row) => [row.manifest.id, row])
     );
     assert.equal(rowsById.has('healthy-plugin'), true);
     assert.equal(rowsById.get('tags-plugin')?.validation.isValid, false);
@@ -592,13 +618,15 @@ test('POST /api/plugins/validate continues when one plugin contract gate throws'
     const payload = await response.json();
     assert.equal(payload.plugins.length, 2);
     const rowsByDirectory = new Map(
-      (payload.plugins as Array<{
-        directoryName: string;
-        validation: {
-          isValid: boolean;
-          rows: Array<{ path: string; message: string }>;
-        };
-      }>).map((row) => [row.directoryName, row])
+      (
+        payload.plugins as Array<{
+          directoryName: string;
+          validation: {
+            isValid: boolean;
+            rows: Array<{ path: string; message: string }>;
+          };
+        }>
+      ).map((row) => [row.directoryName, row])
     );
     assert.equal(rowsByDirectory.has('healthy'), true);
     assert.equal(rowsByDirectory.get('tags')?.validation.isValid, false);

@@ -12,6 +12,7 @@ import {
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { validateSessionPayload } from '@/lib/session-validation';
+import { parseJsonObjectBody } from '@/lib/request-body';
 
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
@@ -31,19 +32,15 @@ export async function POST(request: NextRequest) {
       return user;
     }
 
-    const payload = await request.json();
-    if (
-      payload === null ||
-      typeof payload !== 'object' ||
-      Array.isArray(payload)
-    ) {
+    const payload = await parseJsonObjectBody(request);
+    if (!payload.ok) {
       return NextResponse.json(
         { error: 'Invalid request body' },
         { status: 400 }
       );
     }
 
-    const body = payload;
+    const body = payload.value;
 
     const validation = validateSessionPayload(body as Record<string, unknown>, {
       generateIdWhenMissing: true,
@@ -79,7 +76,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error ?? '');
-    
+
     if (errorMessage.includes('already exists')) {
       return NextResponse.json(
         {
