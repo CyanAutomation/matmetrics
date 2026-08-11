@@ -18,11 +18,11 @@ test('parseJsonObjectBody reports syntax and shape failures', async () => {
 
 test('parseJsonObjectBody lets unexpected request failures escape', async () => {
   const failure = new Error('stream failed');
-  const request = {
-    json: async () => {
+  const request = new (class extends Request {
+    override async json(): Promise<never> {
       throw failure;
-    },
-  } as Request;
+    }
+  })('http://test');
 
   await assert.rejects(parseJsonObjectBody(request), failure);
 });
