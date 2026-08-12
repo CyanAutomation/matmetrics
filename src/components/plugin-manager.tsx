@@ -30,13 +30,12 @@ import {
 import type {
   PluginManifest,
   PluginMaturityScorecard,
-  PluginMaturityTier,
   PluginValidationIssue,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
 import {
   resolvePluginSeverityToneClass,
-  pluginTierToneClass,
+  resolvePluginTierPresentation,
 } from '@/lib/ui-semantic';
 
 type PluginToggleStatus = 'idle' | 'pending' | 'success' | 'failure';
@@ -83,9 +82,6 @@ const severityLabel = (severity: PluginValidationSeverity): string => {
       return 'Info';
   }
 };
-
-const formatTierLabel = (tier: PluginMaturityTier): string =>
-  tier.charAt(0).toUpperCase() + tier.slice(1);
 
 const resolveEntrySummarySeverity = (
   issues: PluginValidationIssue[]
@@ -274,9 +270,15 @@ export function PluginManagerInstalledContent(props: {
                     <>
                       <Badge
                         variant="outline"
-                        className={pluginTierToneClass[plugin.maturity.tier]}
+                        className={
+                          resolvePluginTierPresentation(plugin.maturity.tier)
+                            .toneClass
+                        }
                       >
-                        {formatTierLabel(plugin.maturity.tier)}{' '}
+                        {
+                          resolvePluginTierPresentation(plugin.maturity.tier)
+                            .label
+                        }{' '}
                         {plugin.maturity.score}/100
                       </Badge>
                       {scoredWithContractIssues ? (
@@ -787,9 +789,15 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                       {plugin.maturity ? (
                         <Badge
                           variant="outline"
-                          className={pluginTierToneClass[plugin.maturity.tier]}
+                          className={
+                            resolvePluginTierPresentation(plugin.maturity.tier)
+                              .toneClass
+                          }
                         >
-                          {formatTierLabel(plugin.maturity.tier)}{' '}
+                          {
+                            resolvePluginTierPresentation(plugin.maturity.tier)
+                              .label
+                          }{' '}
                           {plugin.maturity.score}/100
                         </Badge>
                       ) : null}
