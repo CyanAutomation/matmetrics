@@ -18,11 +18,21 @@ export function resolvePluginSeverityToneClass(severity: string): string {
   return pluginSeverityToneClass[severity as PluginValidationSeverity];
 }
 
-export const pluginTierToneClass: Record<PluginMaturityTier, string> = {
+const pluginTierToneClass: Record<PluginMaturityTier, string> = {
   bronze: 'ui-pill-warning',
   silver: 'ui-pill-trend-neutral',
   gold: 'ui-pill-trend-positive',
 };
+
+export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
+  label: string;
+  toneClass: string;
+} {
+  return {
+    label: tier.charAt(0).toUpperCase() + tier.slice(1),
+    toneClass: pluginTierToneClass[tier],
+  };
+}
 
 const dashboardCategoryBarClass: Record<string, string> = {
   Technical: 'bg-[hsl(var(--chart-1))]',
