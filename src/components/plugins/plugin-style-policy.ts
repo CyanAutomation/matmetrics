@@ -6,6 +6,8 @@ export const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
   'ui-pill-error',
   'ui-pill-warning',
   'ui-pill-info',
+  'ui-pill-trend-neutral',
+  'ui-pill-trend-positive',
 ] as const;
 
 export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
