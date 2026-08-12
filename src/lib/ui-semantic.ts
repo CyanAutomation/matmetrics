@@ -37,10 +37,10 @@ export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
 
 export type DashboardChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4';
 
-const dashboardCategoryChartToken: Record<
+const dashboardCategoryChartToken: Partial<Record<
   SessionCategory,
   DashboardChartToken
-> = {
+>> = {
   Technical: 'chart-1',
   Randori: 'chart-2',
   Shiai: 'chart-3',
