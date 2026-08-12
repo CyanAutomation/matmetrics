@@ -53,28 +53,18 @@ describe('EvidenceAccumulator', () => {
     );
   });
 
-  it('should add reasons by category', () => {
+  it('getFinal reports the latest isolated reason for each category', () => {
     const acc = new EvidenceAccumulator();
 
-    acc.addReason('contract_metadata', 'plugin.json has all required fields');
+    acc.addReason('contract_metadata', 'Required fields need verification');
     acc.addReason('feature_quality', 'All UX states explicitly verified');
+    acc.addReason('contract_metadata', 'plugin.json has all required fields');
 
-    const reasons = acc.getReasons();
-    assert.equal(
-      reasons.contract_metadata,
-      'plugin.json has all required fields'
-    );
-    assert.equal(reasons.feature_quality, 'All UX states explicitly verified');
-  });
-
-  it('should override previous reason when adding new reason for same category', () => {
-    const acc = new EvidenceAccumulator();
-
-    acc.addReason('test_coverage', 'Tests found but not verified');
-    acc.addReason('test_coverage', 'All required test files present');
-
-    const reasons = acc.getReasons();
-    assert.equal(reasons.test_coverage, 'All required test files present');
+    const summary = acc.getFinal();
+    assert.deepEqual(summary.reasons, {
+      contract_metadata: 'plugin.json has all required fields',
+      feature_quality: 'All UX states explicitly verified',
+    });
   });
 
   it('should add next actions', () => {
