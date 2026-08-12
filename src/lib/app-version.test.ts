@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
 
 import { APP_VERSION } from '@/lib/app-version';
@@ -9,28 +8,32 @@ import {
   parseChangelog,
 } from '@/lib/releases';
 
-test('APP_VERSION matches package.json version', async () => {
-  const packageJsonPath = path.join(process.cwd(), 'package.json');
-  const raw = await readFile(packageJsonPath, 'utf8');
-  const packageJson = JSON.parse(raw) as { version?: unknown };
-
-  assert.equal(packageJson.version, APP_VERSION);
-});
-
-test('APP_VERSION matches the latest CHANGELOG.md entry', async () => {
-  const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');
-  const raw = await readFile(changelogPath, 'utf8');
-  const releases = parseChangelog(raw);
+test('all published version sources agree', async () => {
+  const [packageJsonSource, changelogSource] = await Promise.all([
+    readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+    readFile(new URL('../../CHANGELOG.md', import.meta.url), 'utf8'),
+  ]);
+  const packageJson = JSON.parse(packageJsonSource) as { version?: unknown };
+  const releases = parseChangelog(changelogSource);
   const latestRelease = releases[0];
 
   assert.ok(
     latestRelease,
     'Expected CHANGELOG.md to include at least one release.'
   );
-  assert.equal(
-    latestRelease.version,
-    APP_VERSION,
-    `Expected latest parsed CHANGELOG.md version (${latestRelease.version}) to match APP_VERSION (${APP_VERSION}).`
+
+  const publishedVersionSources = [
+    { source: 'APP_VERSION', version: APP_VERSION },
+    { source: 'package.json', version: packageJson.version },
+    { source: 'latest CHANGELOG.md release', version: latestRelease.version },
+  ];
+
+  assert.deepEqual(
+    publishedVersionSources.map(({ version }) => version),
+    publishedVersionSources.map(() => APP_VERSION),
+    `Expected all published version sources to agree:\n${publishedVersionSources
+      .map(({ source, version }) => `${source}: ${String(version)}`)
+      .join('\n')}`
   );
 
   assert.doesNotThrow(() => assertReleaseVersionConsistency(releases));
