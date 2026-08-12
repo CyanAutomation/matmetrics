@@ -811,7 +811,7 @@ function moveFailureHandler(session: JudoSession, state: MoveFailureState) {
       );
     }
     if (method === 'DELETE' && path === source) {
-      if (body.sha !== state.sourceSha || state.failSourceDeletes-- > 0) {
+      if (body?.sha !== state.sourceSha || state.failSourceDeletes-- > 0) {
         return new Response(JSON.stringify({ message: 'sha conflict' }), {
           status: 409,
         });
