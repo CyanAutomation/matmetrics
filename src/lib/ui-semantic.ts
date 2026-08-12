@@ -2,6 +2,7 @@ import type {
   PluginMaturityTier,
   PluginValidationSeverity,
 } from '@/lib/plugins/types';
+import type { SessionCategory } from '@/lib/types';
 
 export const pluginSeverityToneClass: Record<PluginValidationSeverity, string> =
   {
@@ -34,12 +35,37 @@ export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
   };
 }
 
-const dashboardCategoryBarClass: Record<string, string> = {
-  Technical: 'bg-[hsl(var(--chart-1))]',
-  Randori: 'bg-[hsl(var(--chart-2))]',
-  Shiai: 'bg-[hsl(var(--chart-3))]',
+export type DashboardChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4';
+
+const dashboardCategoryChartToken: Record<
+  SessionCategory,
+  DashboardChartToken
+> = {
+  Technical: 'chart-1',
+  Randori: 'chart-2',
+  Shiai: 'chart-3',
 };
 
+const dashboardCategoryFallbackChartToken: DashboardChartToken = 'chart-4';
+
+const dashboardChartTokenBarClass: Record<DashboardChartToken, string> = {
+  'chart-1': 'bg-[hsl(var(--chart-1))]',
+  'chart-2': 'bg-[hsl(var(--chart-2))]',
+  'chart-3': 'bg-[hsl(var(--chart-3))]',
+  'chart-4': 'bg-[hsl(var(--chart-4))]',
+};
+
+export function resolveDashboardCategoryChartToken(
+  categoryName: string
+): DashboardChartToken {
+  return (
+    dashboardCategoryChartToken[categoryName as SessionCategory] ??
+    dashboardCategoryFallbackChartToken
+  );
+}
+
 export function resolveDashboardCategoryBarClass(categoryName: string): string {
-  return dashboardCategoryBarClass[categoryName] ?? 'bg-[hsl(var(--chart-4))]';
+  return dashboardChartTokenBarClass[
+    resolveDashboardCategoryChartToken(categoryName)
+  ];
 }
