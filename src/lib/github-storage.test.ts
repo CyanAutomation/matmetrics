@@ -754,6 +754,187 @@ test('updateSessionOnGitHub moves the file when the session date changes', async
   );
 });
 
+type MoveFailureState = {
+  sourceSha: string | null;
+  destinationSha: string | null;
+  failSourceDeletes: number;
+  failRollback: boolean;
+};
+
+function moveFailureHandler(session: JudoSession, state: MoveFailureState) {
+  const source = 'data/2025/01/20250110-matmetrics-session-1.md';
+  const destination = getGitHubSessionPath(session);
+  const markdown = sessionToMarkdown(session);
+
+  return (async (url: string | URL | Request, init?: RequestInit) => {
+    const parsed = new URL(String(url));
+    const marker = '/contents/';
+    const path = parsed.pathname.includes(marker)
+      ? decodeURIComponent(parsed.pathname.split(marker)[1])
+      : parsed.pathname;
+    const method = init?.method ?? 'GET';
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+
+    if (parsed.pathname.includes('/git/ref/heads/')) {
+      return new Response(JSON.stringify({ object: { sha: 'commit' } }));
+    }
+    if (parsed.pathname.includes('/git/commits/')) {
+      return new Response(JSON.stringify({ tree: { sha: 'tree' } }));
+    }
+    if (parsed.pathname.includes('/git/trees/')) {
+      const tree = [
+        ...(state.sourceSha ? [{ path: source, type: 'blob' }] : []),
+        ...(state.destinationSha ? [{ path: destination, type: 'blob' }] : []),
+      ];
+      return new Response(JSON.stringify({ truncated: false, tree }));
+    }
+    if (method === 'GET' && path === source && state.sourceSha) {
+      return new Response(JSON.stringify({ sha: state.sourceSha }));
+    }
+    if (method === 'GET' && path === destination && state.destinationSha) {
+      return new Response(
+        JSON.stringify({
+          sha: state.destinationSha,
+          content: Buffer.from(markdown).toString('base64'),
+        })
+      );
+    }
+    if (method === 'GET') {
+      return new Response(JSON.stringify({ message: 'Not Found' }), {
+        status: 404,
+      });
+    }
+    if (method === 'PUT' && path === destination) {
+      state.destinationSha = 'destination-sha';
+      return new Response(
+        JSON.stringify({ content: { sha: 'destination-sha' } })
+      );
+    }
+    if (method === 'DELETE' && path === source) {
+      if (body.sha !== state.sourceSha || state.failSourceDeletes-- > 0) {
+        return new Response(JSON.stringify({ message: 'sha conflict' }), {
+          status: 409,
+        });
+      }
+      state.sourceSha = null;
+      return new Response(JSON.stringify({ commit: { sha: 'delete' } }));
+    }
+    if (method === 'DELETE' && path === destination) {
+      if (state.failRollback) {
+        return new Response(JSON.stringify({ message: 'rollback conflict' }), {
+          status: 409,
+        });
+      }
+      assert.equal(body.sha, 'destination-sha');
+      state.destinationSha = null;
+      return new Response(JSON.stringify({ commit: { sha: 'rollback' } }));
+    }
+    return new Response(JSON.stringify({ message: 'Unexpected request' }), {
+      status: 500,
+    });
+  }) as typeof fetch;
+}
+
+const movedSession = {
+  ...makeSession('session-1'),
+  date: '2025-02-12',
+};
+
+test('a destination is rolled back when source deletion fails', async () => {
+  const state: MoveFailureState = {
+    sourceSha: 'old-sha',
+    destinationSha: null,
+    failSourceDeletes: 1,
+    failRollback: false,
+  };
+  await withMockedGitHub(moveFailureHandler(movedSession, state), async () => {
+    const result = await updateSessionOnGitHub(movedSession, {
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.errorType, undefined);
+    assert.equal(state.destinationSha, null);
+    assert.equal(state.sourceSha, 'old-sha');
+  });
+});
+
+test('a concurrent source modification causes a guarded rollback', async () => {
+  const state: MoveFailureState = {
+    sourceSha: 'newer-source-sha',
+    destinationSha: null,
+    failSourceDeletes: 0,
+    failRollback: false,
+  };
+  const handler = moveFailureHandler(movedSession, state);
+  let sourceReads = 0;
+  await withMockedGitHub(
+    (async (url, init) => {
+      const response = await handler(url, init);
+      if (
+        (init?.method ?? 'GET') === 'GET' &&
+        String(url).includes('20250110')
+      ) {
+        sourceReads += 1;
+        if (sourceReads === 1) state.sourceSha = 'concurrent-sha';
+      }
+      return response;
+    }) as typeof fetch,
+    async () => {
+      const result = await updateSessionOnGitHub(movedSession, {
+        owner: 'o',
+        repo: 'r',
+        branch: 'main',
+      });
+      assert.equal(result.success, false);
+      assert.equal(state.destinationSha, null);
+    }
+  );
+});
+
+test('rollback failure returns a typed resumable partial move', async () => {
+  const state: MoveFailureState = {
+    sourceSha: 'old-sha',
+    destinationSha: null,
+    failSourceDeletes: 1,
+    failRollback: true,
+  };
+  await withMockedGitHub(moveFailureHandler(movedSession, state), async () => {
+    const result = await updateSessionOnGitHub(movedSession, {
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+    });
+    assert.equal(result.errorType, 'partial_move');
+    assert.equal(result.resumable, true);
+    assert.equal(
+      result.sourcePath,
+      'data/2025/01/20250110-matmetrics-session-1.md'
+    );
+    assert.equal(result.destinationPath, getGitHubSessionPath(movedSession));
+  });
+});
+
+test('retry completes a partial move with a matching destination', async () => {
+  const state: MoveFailureState = {
+    sourceSha: 'old-sha',
+    destinationSha: 'destination-sha',
+    failSourceDeletes: 0,
+    failRollback: false,
+  };
+  await withMockedGitHub(moveFailureHandler(movedSession, state), async () => {
+    const result = await updateSessionOnGitHub(movedSession, {
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+    });
+    assert.equal(result.success, true);
+    assert.equal(state.sourceSha, null);
+    assert.equal(state.destinationSha, 'destination-sha');
+  });
+});
+
 test('resolveBranch cache is isolated by token fingerprint', async () => {
   let repoLookupCount = 0;
 
