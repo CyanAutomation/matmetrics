@@ -6,12 +6,6 @@ import {
   normalizeExpectedVideoCategories,
 } from '@/lib/user-preferences';
 
-test('video library defaults include technical expected category', () => {
-  assert.deepEqual(DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories, [
-    'Technical',
-  ]);
-});
-
 test('normalizeExpectedVideoCategories keeps valid categories in canonical order', () => {
   assert.deepEqual(
     normalizeExpectedVideoCategories(['Shiai', 'Technical', 'Shiai']),
@@ -20,9 +14,31 @@ test('normalizeExpectedVideoCategories keeps valid categories in canonical order
 });
 
 test('normalizeExpectedVideoCategories falls back to default when invalid or empty', () => {
-  assert.deepEqual(normalizeExpectedVideoCategories([]), ['Technical']);
-  assert.deepEqual(normalizeExpectedVideoCategories(['not-a-category']), [
-    'Technical',
-  ]);
-  assert.deepEqual(normalizeExpectedVideoCategories(undefined), ['Technical']);
+  // Product requirement: Technical sessions are expected to include video by default.
+  assert.deepEqual(
+    normalizeExpectedVideoCategories([]),
+    DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories
+  );
+  assert.deepEqual(
+    normalizeExpectedVideoCategories(['not-a-category']),
+    DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories
+  );
+  assert.deepEqual(
+    normalizeExpectedVideoCategories(undefined),
+    DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories
+  );
+
+  const defaultBeforeMutation = [
+    ...DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories,
+  ];
+  const normalized = normalizeExpectedVideoCategories(undefined);
+  assert.notStrictEqual(
+    normalized,
+    DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories
+  );
+  normalized.push('Randori');
+  assert.deepEqual(
+    DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories,
+    defaultBeforeMutation
+  );
 });
