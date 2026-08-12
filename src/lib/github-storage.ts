@@ -7,7 +7,10 @@ export interface GitHubSyncResult {
   filePath?: string;
   sha?: string;
   branch?: string;
-  errorType?: 'conflict';
+  errorType?: 'conflict' | 'partial_move';
+  sourcePath?: string;
+  destinationPath?: string;
+  resumable?: boolean;
 }
 
 export class GitHubRevisionConflictError extends Error {
@@ -777,6 +780,7 @@ export async function createSessionOnGitHub(
 async function resolveSessionFileMetadata(
   sessionId: string,
   expectedPath: string,
+  markdown: string,
   config: GitHubConfig,
   branch: string
 ): Promise<{ sha: string | null; discoveredPath: string | null }> {
@@ -804,6 +808,45 @@ async function resolveSessionFileMetadata(
     }
   }
 
+  // A prior move may have created the destination but failed to remove the
+  // source. When the destination is exactly the requested content, locate the
+  // duplicate source so a retry can complete the move instead of updating the
+  // destination and silently leaving both files behind.
+  if (sha && discoveredPath === expectedPath) {
+    const destination = await getFileRevision(
+      config.owner,
+      config.repo,
+      expectedPath,
+      branch
+    );
+    if (destination?.content === markdown) {
+      const suffix = `-matmetrics-${encodeSessionId(sessionId)}.md`;
+      const entries = await getTreeEntriesForPath(
+        config.owner,
+        config.repo,
+        branch,
+        GITHUB_SESSION_ROOT
+      );
+      const duplicate = entries.find(
+        (entry) =>
+          entry.type === 'blob' &&
+          entry.path !== expectedPath &&
+          entry.path.endsWith(suffix)
+      );
+      if (duplicate) {
+        const duplicateSha = await getFileSha(
+          config.owner,
+          config.repo,
+          duplicate.path,
+          branch
+        );
+        if (duplicateSha) {
+          return { sha: duplicateSha, discoveredPath: duplicate.path };
+        }
+      }
+    }
+  }
+
   if (!sha) {
     discoveredPath = await findSessionPathOnGitHubById(sessionId, config);
     if (discoveredPath) {
@@ -827,27 +870,102 @@ async function handleSessionPathMove(
   session: JudoSession,
   oldSha: string
 ): Promise<GitHubSyncResult> {
-  const createResult = await putFile(
-    config,
+  const branch = await resolveBranch(config);
+  const existingDestination = await getFileRevision(
+    config.owner,
+    config.repo,
     expectedPath,
-    markdown,
-    `Move session: ${session.date}`
+    branch
   );
 
+  if (existingDestination && existingDestination.content !== markdown) {
+    removeManifestEntry(sessionId, config);
+    return {
+      success: false,
+      message: `GitHub session move for ${sessionId} conflicted with an existing destination`,
+      filePath: expectedPath,
+      sha: existingDestination.sha,
+      branch,
+      errorType: 'conflict',
+    };
+  }
+
+  const createResult = existingDestination
+    ? {
+        success: true,
+        message: 'Move destination already exists on GitHub',
+        filePath: expectedPath,
+        sha: existingDestination.sha,
+        branch,
+      }
+    : await putFile(
+        config,
+        expectedPath,
+        markdown,
+        `Move session: ${session.date}`
+      );
+
   if (!createResult.success) {
+    removeManifestEntry(sessionId, config);
     return createResult;
   }
 
-  const branch = await resolveBranch(config);
-  const deleteResult = await githubDeleteWithBranchRetry(
-    config,
-    discoveredPath,
-    {
+  let deleteResult;
+  try {
+    deleteResult = await githubDeleteWithBranchRetry(config, discoveredPath, {
       message: `Move session: ${session.date}`,
       branch,
       sha: oldSha,
+    });
+  } catch (deleteError) {
+    // A failed move must never leave a cache entry claiming either path is
+    // authoritative. A destination created by this invocation can be safely
+    // rolled back only with the SHA returned by that create.
+    removeManifestEntry(sessionId, config);
+    if (!existingDestination && createResult.sha) {
+      try {
+        await githubDeleteWithBranchRetry(config, expectedPath, {
+          message: `Roll back session move: ${session.date}`,
+          branch,
+          sha: createResult.sha,
+        });
+        return {
+          success: false,
+          message: `${getActionableGitHubErrorMessage('GitHub session move source deletion', deleteError)}; the destination was rolled back`,
+          sourcePath: discoveredPath,
+          destinationPath: expectedPath,
+          branch,
+        };
+      } catch (rollbackError) {
+        return {
+          success: false,
+          message: `${getActionableGitHubErrorMessage('GitHub session move source deletion', deleteError)}; ${getActionableGitHubErrorMessage('destination rollback', rollbackError)}`,
+          filePath: expectedPath,
+          sha: createResult.sha,
+          branch,
+          errorType: 'partial_move',
+          sourcePath: discoveredPath,
+          destinationPath: expectedPath,
+          resumable: true,
+        };
+      }
     }
-  );
+
+    return {
+      success: false,
+      message: getActionableGitHubErrorMessage(
+        'GitHub session move source deletion',
+        deleteError
+      ),
+      filePath: expectedPath,
+      sha: createResult.sha,
+      branch,
+      errorType: 'partial_move',
+      sourcePath: discoveredPath,
+      destinationPath: expectedPath,
+      resumable: true,
+    };
+  }
 
   // P3: Update manifest - old path removed, new path added
   removeManifestEntry(sessionId, config);
@@ -959,6 +1077,7 @@ export async function updateSessionOnGitHub(
       await resolveSessionFileMetadata(
         session.id,
         expectedPath,
+        markdown,
         config,
         branch
       );
