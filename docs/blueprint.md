@@ -76,6 +76,24 @@ All design tokens use **kebab-case** naming and are exported from `src/lib/desig
 | `error` | `#c62828` | Error states, critical regressions |
 | `info` | `#00639b` | Informational notices |
 
+#### Dashboard Session Category Chart Palette
+
+Dashboard category bars use the chart palette in session-contract order. Each
+supported category receives a unique token so the series remain visually
+distinct. Category data outside the frozen session contract is displayed with
+the reserved fallback token rather than being assigned a supported category's
+color.
+
+| Session category | Chart token | Behavior |
+| --- | --- | --- |
+| `Technical` | `chart-1` | Supported category |
+| `Randori` | `chart-2` | Supported category |
+| `Shiai` | `chart-3` | Supported category |
+| Unknown category | `chart-4` | Reserved fallback |
+
+Category bar implementations must resolve these semantic chart token names and
+must not rely on raw Tailwind color strings or palette values as their contract.
+
 ### Token Migration Guide
 
 Legacy snake_case tokens are mapped to canonical kebab-case:
