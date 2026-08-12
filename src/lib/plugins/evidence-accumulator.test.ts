@@ -19,15 +19,55 @@ describe('EvidenceAccumulator', () => {
     assert.deepEqual(acc.getNextActions(), []);
   });
 
-  it('should add category scores', () => {
+  it('should add category scores and reasons independently', () => {
     const acc = new EvidenceAccumulator();
+    const categoryCases: Record<
+      PluginMaturityCategory,
+      { score: number; reason: string }
+    > = {
+      contract_metadata: { score: 18, reason: 'Valid contract metadata' },
+      runtime_integration: { score: 20, reason: 'Runtime exports verified' },
+      feature_quality: { score: 17, reason: 'Required UX states verified' },
+      test_coverage: { score: 15, reason: 'Required tests present' },
+      operability_docs: { score: 12, reason: 'Operational docs present' },
+    };
+    const categories = Object.keys(categoryCases) as PluginMaturityCategory[];
 
-    acc.addCategoryScore('contract_metadata', 18, 'explicit');
-    acc.addCategoryScore('runtime_integration', 20, 'heuristic');
+    for (const category of categories) {
+      const scoresBefore = acc.getCategoryScores();
+      const reasonsBefore = acc.getReasons();
+      const { score, reason } = categoryCases[category];
 
-    const scores = acc.getCategoryScores();
-    assert.equal(scores.contract_metadata, 18);
-    assert.equal(scores.runtime_integration, 20);
+      acc.addCategoryScore(category, score, 'explicit');
+      acc.addReason(category, reason);
+
+      const scoresAfter = acc.getCategoryScores();
+      const reasonsAfter = acc.getReasons();
+      assert.equal(scoresAfter[category], score);
+      assert.equal(reasonsAfter[category], reason);
+
+      for (const otherCategory of categories.filter(
+        (item) => item !== category
+      )) {
+        assert.equal(scoresAfter[otherCategory], scoresBefore[otherCategory]);
+        assert.equal(reasonsAfter[otherCategory], reasonsBefore[otherCategory]);
+      }
+    }
+
+    assert.deepEqual(acc.getCategoryScores(), {
+      contract_metadata: 18,
+      runtime_integration: 20,
+      feature_quality: 17,
+      test_coverage: 15,
+      operability_docs: 12,
+    });
+    assert.deepEqual(acc.getReasons(), {
+      contract_metadata: 'Valid contract metadata',
+      runtime_integration: 'Runtime exports verified',
+      feature_quality: 'Required UX states verified',
+      test_coverage: 'Required tests present',
+      operability_docs: 'Operational docs present',
+    });
   });
 
   it('should calculate total score from category scores', () => {
@@ -133,30 +173,6 @@ describe('EvidenceAccumulator', () => {
     assert.deepEqual(summary.evidence, acc.getEvidence());
     assert.deepEqual(summary.reasons, acc.getReasons());
     assert.deepEqual(summary.nextActions, acc.getNextActions());
-  });
-
-  it('should handle all category types', () => {
-    const acc = new EvidenceAccumulator();
-    const categories: PluginMaturityCategory[] = [
-      'contract_metadata',
-      'runtime_integration',
-      'feature_quality',
-      'test_coverage',
-      'operability_docs',
-    ];
-
-    categories.forEach((cat, index) => {
-      acc.addCategoryScore(cat, 10 * (index + 1), 'explicit');
-      acc.addReason(cat, `Reason for ${cat}`);
-    });
-
-    const scores = acc.getCategoryScores();
-    const reasons = acc.getReasons();
-
-    categories.forEach((cat) => {
-      assert.ok(scores[cat] !== undefined);
-      assert.ok(reasons[cat] !== undefined);
-    });
   });
 
   it('should provide safe immutability on reads', () => {
