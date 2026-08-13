@@ -67,29 +67,17 @@ describe('EvidenceAccumulator', () => {
     });
   });
 
-  it('should add next actions', () => {
-    const acc = new EvidenceAccumulator();
-
-    acc.addNextAction('Add UX state assertions to tests');
-    acc.addNextAction('Document plugin API surface');
-
-    const actions = acc.getNextActions();
-    assert.ok(actions.includes('Add UX state assertions to tests'));
-    assert.ok(actions.includes('Document plugin API surface'));
-    assert.equal(actions.length, 2);
-  });
-
-  it('should not duplicate next actions', () => {
+  it('getNextActions preserves insertion order while removing duplicates', () => {
     const acc = new EvidenceAccumulator();
 
     acc.addNextAction('Add unit tests');
     acc.addNextAction('Add unit tests');
     acc.addNextAction('Add integration tests');
 
-    const actions = acc.getNextActions();
-    assert.equal(actions.length, 2);
-    assert.ok(actions.includes('Add unit tests'));
-    assert.ok(actions.includes('Add integration tests'));
+    assert.deepEqual(acc.getNextActions(), [
+      'Add unit tests',
+      'Add integration tests',
+    ]);
   });
 
   it('getFinal reports per-category scores and their total', () => {
