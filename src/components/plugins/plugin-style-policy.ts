@@ -63,6 +63,7 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
 
 const PLUGIN_THEME_TONE_ALLOWLIST = [
   'bg-muted',
+  'bg-muted/20',
   'bg-muted/30',
   'bg-primary',
   'bg-primary/5',

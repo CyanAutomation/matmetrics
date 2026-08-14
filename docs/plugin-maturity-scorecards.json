@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-08T21:57:49.310Z",
+  "generatedAt": "2026-08-14T16:49:49.321Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
   "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "9c255ba15cfbc87c386836672cbdb6e9ee6444051e9dadd8696b10ac99b5520c",
+  "cacheKey": "19be661aaa776a661d083dcfdf12af034c6739fcea6013b06aed2c02859783f9",
   "plugins": [
     {
       "id": "github-sync",
@@ -10,7 +10,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "6b0a07fe3284ed17352ffcd042e9dee12725b4ce3ddcb3ab4f9539017f586d44"
+      "manifestEvidenceHash": "05c3133b69f14563b812f907934b7329ef7ed145225139c6cfe3ce6c65fc9036"
     },
     {
       "id": "log-doctor",
@@ -34,7 +34,7 @@
       "tier": "silver",
       "declaredTier": "silver",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "299ecac8217e7c1c30275eed91514b1647dbd53c8027d07d87dccbabf80e5f70"
+      "manifestEvidenceHash": "06865eca30062924f7f22243253be578427c89296cce99a2fde4258501a6f908"
     },
     {
       "id": "video-library",
