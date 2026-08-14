@@ -152,13 +152,15 @@ export function SessionLogForm({
             </div>
           )}
 
-          {/* Header Section: Avatar + Session Controls */}
-          <div
+          <fieldset
             className={cn(
               'bg-secondary/25 rounded-lg p-4 lg:-mx-0 lg:rounded-lg lg:p-5 lg:bg-secondary/25',
               !shouldHideHeader && '-mx-6 -mt-6'
             )}
           >
+            <legend className="px-1 text-sm font-semibold text-foreground">
+              Session essentials
+            </legend>
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
               {/* Avatar - Hidden on mobile, visible on lg and above */}
               {showAvatar && (
@@ -285,9 +287,12 @@ export function SessionLogForm({
                 </div>
               </div>
             </div>
-          </div>
+          </fieldset>
 
-          <div className="space-y-4">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold text-foreground">
+              Practice notes
+            </legend>
             <div className="flex items-center justify-between">
               <Label
                 htmlFor={fid('description')}
@@ -309,6 +314,11 @@ export function SessionLogForm({
                   !formState.description
                 }
                 className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
+                title={
+                  !formState.description
+                    ? 'Add practice notes to use AI Transform.'
+                    : undefined
+                }
               >
                 {aiForm.isLoadingTransform ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -326,8 +336,15 @@ export function SessionLogForm({
               onChange={(e) => formState.setDescription(e.target.value)}
               className="min-h-[112px] bg-background text-base"
             />
+            <p className="text-xs text-muted-foreground">
+              Add a few details first, then use AI Transform to polish the entry
+              or suggest technique tags.
+            </p>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-2 border-t border-border/70 pt-5">
+              <p className="text-sm font-semibold text-foreground">
+                Optional enrichment
+              </p>
               <div className="space-y-2">
                 <Label
                   htmlFor={fid('video-url')}
@@ -374,6 +391,11 @@ export function SessionLogForm({
                     !formState.description
                   }
                   className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
+                  title={
+                    !formState.description
+                      ? 'Add practice notes to suggest tags.'
+                      : undefined
+                  }
                 >
                   {aiForm.isLoadingSuggest ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -433,14 +455,20 @@ export function SessionLogForm({
                 </Button>
               </div>
             </div>
-          </div>
+          </fieldset>
 
-          <div className="space-y-2">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold text-foreground">
+              Reflection{' '}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </legend>
             <Label
               htmlFor={fid('notes')}
               className="text-sm font-semibold text-muted-foreground"
             >
-              Personal Notes (Optional)
+              Personal Notes
             </Label>
             <Textarea
               id={fid('notes')}
@@ -450,7 +478,7 @@ export function SessionLogForm({
               onChange={(e) => formState.setNotes(e.target.value)}
               className="bg-background"
             />
-          </div>
+          </fieldset>
         </CardContent>
         <CardFooter className="p-0">
           <SessionLogFormFooter
