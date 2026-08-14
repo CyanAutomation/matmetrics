@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
-import { createSuggestTechniquesPost } from './suggest-techniques/route';
-import { createTransformDescriptionPost } from './transform-description/route';
+import { createSuggestTechniquesPost } from './suggest-techniques/handler';
+import { createTransformDescriptionPost } from './transform-description/handler';
 import {
   AI_CUSTOM_PROMPT_MAX_BYTES,
   AI_DESCRIPTION_MAX_BYTES,
