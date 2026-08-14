@@ -194,10 +194,6 @@ async function readGitHubFile(
   };
 }
 
-async function readGitHubFileContent(config: GitHubConfig, filePath: string) {
-  return (await readGitHubFile(config, filePath)).content;
-}
-
 type GitHubContentsEntry = {
   path: string;
   type: 'file' | 'dir';

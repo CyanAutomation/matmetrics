@@ -36,10 +36,17 @@ class LocalStorageMock implements Storage {
 
 const localStorageMock = new LocalStorageMock();
 
+process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
+process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test.firebaseapp.com';
+process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
+process.env.NEXT_PUBLIC_FIREBASE_APP_ID = 'test-app-id';
+
 // Setup jsdom for DOM-dependent tests
 const dom = new JSDOM();
 global.document = dom.window.document as any;
 global.window = dom.window as any;
+global.Event = dom.window.Event;
+global.CustomEvent = dom.window.CustomEvent;
 
 // Mock localStorage globally
 Object.defineProperty(globalThis, 'localStorage', {
@@ -79,6 +86,32 @@ before(async () => {
       serverTimestamp: () => undefined,
       setDoc: async () => undefined,
       updateDoc: async () => undefined,
+    },
+  });
+  mock.module('@/lib/firebase-client', {
+    namedExports: {
+      getFirebaseDb: () => ({}),
+    },
+  });
+  mock.module('@/lib/user-preferences', {
+    namedExports: {
+      clearUserPreferencesState: () => {
+        localStorageMock.removeItem('matmetrics_user_preferences:guest');
+      },
+      saveSessionAudit: async (
+        _userId: string,
+        sessionId: string,
+        audit: AuditSessionResult
+      ) => {
+        const key = 'matmetrics_user_preferences:guest';
+        const existing = localStorageMock.getItem(key);
+        const preferences = existing ? JSON.parse(existing) : {};
+        preferences.sessionAudits = {
+          ...(preferences.sessionAudits ?? {}),
+          [sessionId]: audit,
+        };
+        localStorageMock.setItem(key, JSON.stringify(preferences));
+      },
     },
   });
 

@@ -11,7 +11,7 @@
  */
 
 import { readdirSync, readFileSync } from 'fs';
-import { join, basename } from 'path';
+import { join } from 'path';
 
 interface SkillMetadata {
   name?: string;

@@ -7,7 +7,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { runLoadGitHubSyncHistory } from './github-sync-results-api';
 export type {
   GitHubSyncHistoryData,
   GitHubSyncHistoryFile,
