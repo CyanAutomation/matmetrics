@@ -18,7 +18,7 @@ export async function parseJsonObjectBody(
       if (
         declaredLength !== null &&
         Number.isFinite(Number(declaredLength)) &&
-        Number(declaredLength) > options.maxBytes
+        Number(declaredLength) >= options.maxBytes
       ) {
         return { ok: false, reason: 'body-too-large' };
       }
