@@ -209,7 +209,7 @@ export function PluginManagerInstalledContent(props: {
     return (
       <PluginLoadingState
         title="Loading installed plugins"
-        description="Loading installed plugins…"
+        description="Checking installed plugins. This usually takes a moment."
         className="bg-secondary/20"
         data-testid="plugins-loading-state"
       />

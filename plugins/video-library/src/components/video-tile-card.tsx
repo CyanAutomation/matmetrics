@@ -4,7 +4,6 @@ import {
   MoreHorizontal,
   Pencil,
   RefreshCcw,
-  Star,
   Trash2,
 } from 'lucide-react';
 
@@ -142,17 +141,6 @@ export function VideoTileCard({
                   </a>
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground"
-                disabled
-                aria-label={`Saved toggle placeholder for ${title}`}
-                title="Saved toggle coming soon"
-              >
-                <Star className="h-4 w-4" />
-              </Button>
             </>
           }
           menuAction={
