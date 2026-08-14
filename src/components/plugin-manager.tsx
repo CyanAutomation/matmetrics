@@ -522,28 +522,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     });
   }, [canManagePlugins, refreshInstalledPlugins, toast]);
 
-  const refreshInstalledPluginsRef = React.useRef(refreshInstalledPlugins);
-
-  React.useEffect(() => {
-    refreshInstalledPluginsRef.current = refreshInstalledPlugins;
-  }, [refreshInstalledPlugins]);
-
-  React.useEffect(() => {
-    if (!canManagePlugins) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      void refreshInstalledPluginsRef.current().catch((error) => {
-        console.error('Background plugin refresh failed', error);
-      });
-    }, 60_000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [canManagePlugins]);
-
   const handleManualRefresh = React.useCallback(() => {
     void refreshInstalledPlugins().catch((error) => {
       const message =

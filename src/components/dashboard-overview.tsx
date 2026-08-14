@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { formatDistanceToNowStrict } from 'date-fns';
 import { JudoSession } from '@/lib/types';
 import { Award, Calendar, Zap, Target } from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
@@ -20,7 +21,10 @@ interface DashboardOverviewProps {
   onLogSession?: () => void;
 }
 
-export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewProps) {
+export function DashboardOverview({
+  sessions,
+  onLogSession,
+}: DashboardOverviewProps) {
   const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
     null
   );
@@ -70,6 +74,11 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
     const topCategory = Object.entries(categoryCount).sort(
       (a, b) => b[1] - a[1]
     )[0][0];
+    const sessionDates = sessions
+      .map((session) => parseDateOnly(session.date))
+      .sort((a, b) => a.getTime() - b.getTime());
+    const firstSessionDate = sessionDates[0];
+    const latestSessionDate = sessionDates[sessionDates.length - 1];
 
     return {
       totalSessions: sessions.length,
@@ -78,6 +87,18 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
       categoryStats,
       topCategory,
       recentEfforts,
+      periodLabel: `${firstSessionDate.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })} – ${latestSessionDate.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`,
+      latestSessionLabel: formatDistanceToNowStrict(latestSessionDate, {
+        addSuffix: true,
+      }),
     };
   }, [sessions]);
 
@@ -94,9 +115,7 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
           Log your first training session to start seeing your progress here.
         </p>
         {onLogSession && (
-          <Button onClick={onLogSession}>
-            Log your first session
-          </Button>
+          <Button onClick={onLogSession}>Log your first session</Button>
         )}
       </div>
     );
@@ -104,12 +123,23 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
 
   return (
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
+      <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-headline-md">Training snapshot</h2>
+          <p className="text-sm text-muted-foreground">
+            Based on all logged sessions from {stats.periodLabel}.
+          </p>
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">
+          Latest session {stats.latestSessionLabel}
+        </p>
+      </div>
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
-            <span className="text-label-md">Total Sessions</span>
+            <span className="text-label-md">Logged Sessions</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
             {stats.totalSessions}
@@ -140,7 +170,10 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
             {stats.avgEffort}
-            <span className="text-base font-normal text-muted-foreground"> / 5</span>
+            <span className="text-base font-normal text-muted-foreground">
+              {' '}
+              / 5
+            </span>
           </div>
         </DataSurface>
       </div>
@@ -350,9 +383,7 @@ export function DashboardOverview({ sessions, onLogSession }: DashboardOverviewP
                       />
                     </div>
                   </div>
-                  <div className="ml-4 text-sm font-medium">
-                    {tech.count}x
-                  </div>
+                  <div className="ml-4 text-sm font-medium">{tech.count}x</div>
                 </div>
               ))}
             </div>

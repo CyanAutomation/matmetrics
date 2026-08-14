@@ -86,12 +86,13 @@ export function useVideoLibraryController({
   );
   const summaryCounts = useMemo(
     () => ({
+      total: rows.length,
       attached: rows.filter((row) => !!row.entry.url).length,
-      missing: tabCounts.no_video,
+      missing: rows.filter((row) => !row.entry.url).length,
       review: tabCounts.attention,
       checked: rows.filter((row) => row.isChecked).length,
     }),
-    [rows, tabCounts.no_video, tabCounts.attention]
+    [rows, tabCounts.attention]
   );
   const bulkActionState = deriveVideoLibraryBulkActionState({
     filteredRows,
