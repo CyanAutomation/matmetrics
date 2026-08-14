@@ -24,7 +24,7 @@ export async function parseJsonObjectBody(
       }
 
       const bytes = await request.arrayBuffer();
-      if (bytes.byteLength > options.maxBytes) {
+      if (bytes.byteLength >= options.maxBytes) {
         return { ok: false, reason: 'body-too-large' };
       }
       value = JSON.parse(
