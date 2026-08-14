@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { JudoSession } from '@/lib/types';
-import { Award, Calendar, Zap, Target } from 'lucide-react';
+import { Award, Calendar, PlusCircle, Zap, Target } from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
@@ -79,6 +79,12 @@ export function DashboardOverview({
       .sort((a, b) => a.getTime() - b.getTime());
     const firstSessionDate = sessionDates[0];
     const latestSessionDate = sessionDates[sessionDates.length - 1];
+    const daysSinceLatestSession = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - latestSessionDate.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    );
 
     return {
       totalSessions: sessions.length,
@@ -99,6 +105,7 @@ export function DashboardOverview({
       latestSessionLabel: formatDistanceToNowStrict(latestSessionDate, {
         addSuffix: true,
       }),
+      needsTrainingNudge: daysSinceLatestSession >= 14,
     };
   }, [sessions]);
 
@@ -130,9 +137,17 @@ export function DashboardOverview({
             Based on all logged sessions from {stats.periodLabel}.
           </p>
         </div>
-        <p className="text-sm font-medium text-muted-foreground">
-          Latest session {stats.latestSessionLabel}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm font-medium text-muted-foreground">
+            Latest session {stats.latestSessionLabel}
+          </p>
+          {onLogSession && stats.needsTrainingNudge ? (
+            <Button size="sm" onClick={onLogSession}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Log a session
+            </Button>
+          ) : null}
+        </div>
       </div>
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

@@ -1,6 +1,7 @@
 'use client';
 
-import { Combine, Edit2, Search, Trash2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlertCircle, Combine, Edit2, Search, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import {
   PluginDataSurfaceSummaryStrip,
 } from '@/components/plugins/plugin-data-surface';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
+import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
 
 export function TagManagerInventory({
   tags,
@@ -28,6 +30,16 @@ export function TagManagerInventory({
   onMerge: (tag: string) => void;
   onDelete: (tag: string) => void;
 }) {
+  const possibleDuplicateGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const tag of tags) {
+      const normalized = tag.toLocaleLowerCase().replace(/[\s-]+/g, '');
+      if (!normalized) continue;
+      groups.set(normalized, [...(groups.get(normalized) ?? []), tag]);
+    }
+    return [...groups.values()].filter((group) => group.length > 1);
+  }, [tags]);
+
   return (
     <>
       <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
@@ -52,6 +64,17 @@ export function TagManagerInventory({
         }
         className="mb-4"
       />
+      {possibleDuplicateGroups.length > 0 ? (
+        <PluginInlineMessage
+          tone="warning"
+          className="mb-4"
+          icon={<AlertCircle className="h-4 w-4" />}
+          title="Potential duplicate techniques"
+          description={`Review and merge equivalent spellings: ${possibleDuplicateGroups
+            .map((group) => group.join(' / '))
+            .join('; ')}.`}
+        />
+      ) : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {filteredTags.map((tag) => (
           <div
