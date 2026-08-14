@@ -139,7 +139,7 @@ export const fetchInstalledPlugins = async ({
   fetchImpl = fetch,
   getHeaders = defaultAuthHeadersLoader,
   endpoint = '/api/plugins/list',
-  timeoutMs = 12_000,
+  timeoutMs = 8_000,
 }: FetchInstalledPluginsOptions = {}): Promise<FetchInstalledPluginsResult> => {
   const headers = await getHeaders();
   const controller = new AbortController();

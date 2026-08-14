@@ -231,6 +231,8 @@ export function SessionHistory({
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null
   );
+  const [sessionPendingDeletion, setSessionPendingDeletion] =
+    useState<JudoSession | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [effortFilter, setEffortFilter] = useState('all');
@@ -262,6 +264,10 @@ export function SessionHistory({
     } finally {
       setDeletingSessionId(null);
     }
+  };
+
+  const requestDelete = (session: JudoSession) => {
+    if (!deletingSessionId) setSessionPendingDeletion(session);
   };
 
   const filteredSessions = useMemo(() => {
@@ -403,7 +409,12 @@ export function SessionHistory({
                 )}
                 <SessionRow
                   session={session}
-                  onDelete={handleDelete}
+                  onDelete={(id) => {
+                    const sessionToDelete = sessions.find(
+                      (candidate) => candidate.id === id
+                    );
+                    if (sessionToDelete) requestDelete(sessionToDelete);
+                  }}
                   onEdit={setEditingSession}
                   deletingSessionId={deletingSessionId}
                 />
@@ -439,6 +450,50 @@ export function SessionHistory({
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!sessionPendingDeletion}
+        onOpenChange={(open) => {
+          if (!open && !deletingSessionId) setSessionPendingDeletion(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this session?</DialogTitle>
+            <DialogDescription>
+              {sessionPendingDeletion
+                ? `This permanently removes the ${format(
+                    parseDateOnly(sessionPendingDeletion.date),
+                    'MMMM d, yyyy'
+                  )} training session from your history.`
+                : 'This permanently removes the training session from your history.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!!deletingSessionId}
+              onClick={() => setSessionPendingDeletion(null)}
+            >
+              Keep session
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!!deletingSessionId}
+              onClick={() => {
+                if (!sessionPendingDeletion) return;
+                void handleDelete(sessionPendingDeletion.id).then(() =>
+                  setSessionPendingDeletion(null)
+                );
+              }}
+            >
+              {deletingSessionId ? 'Deleting…' : 'Delete session'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
