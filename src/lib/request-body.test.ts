@@ -26,3 +26,24 @@ test('parseJsonObjectBody lets unexpected request failures escape', async () => 
 
   await assert.rejects(parseJsonObjectBody(request), failure);
 });
+
+test('parseJsonObjectBody enforces a UTF-8 body limit', async () => {
+  const exact = new Request('http://test', {
+    method: 'POST',
+    body: '{"é":1}',
+  });
+  assert.equal(new TextEncoder().encode('{"é":1}').byteLength, 8);
+  assert.deepEqual(await parseJsonObjectBody(exact, { maxBytes: 8 }), {
+    ok: true,
+    value: { é: 1 },
+  });
+
+  const oversized = new Request('http://test', {
+    method: 'POST',
+    body: '{"é":1}',
+  });
+  assert.deepEqual(await parseJsonObjectBody(oversized, { maxBytes: 7 }), {
+    ok: false,
+    reason: 'body-too-large',
+  });
+});
