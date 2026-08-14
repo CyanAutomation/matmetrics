@@ -629,7 +629,11 @@ export function GitHubSettings() {
         <PluginStatusPanel
           variant="success"
           title="GitHub Sync Active"
-          description="All existing sessions have been synced. New sessions will sync automatically."
+          description={
+            syncHistoryState.status === 'success'
+              ? 'Your latest sync completed successfully. New sessions will sync automatically.'
+              : 'Automatic sync is enabled. Run sync once to confirm the current repository status.'
+          }
           className={getPluginUiTokenClassNames('tone.inline.info')}
         />
       )}
