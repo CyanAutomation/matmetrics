@@ -109,7 +109,7 @@ export function DashboardNav({
         </SidebarGroup>
         {workspaceTabs.length > 0 && (
           <SidebarGroup className="mt-4 p-0">
-            <SidebarGroupLabel>Workspace tools</SidebarGroupLabel>
+            <SidebarGroupLabel>Settings &amp; tools</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 {renderTabs(workspaceTabs, 'secondary')}
