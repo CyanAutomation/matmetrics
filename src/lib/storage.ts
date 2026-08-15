@@ -868,6 +868,10 @@ async function refreshSessionsFromAPI(options?: {
     return;
   }
 
+  // The dashboard may be showing a local cache while the authoritative list is
+  // loading. Publish that state so it never silently reads as final data.
+  isSyncing = true;
+  dispatchStorageSync(sessionCache ?? getLocalStorageCache());
   inFlightRefreshForce = force;
   inFlightRefresh = (async () => {
     const generation = storageGeneration;
@@ -908,6 +912,8 @@ async function refreshSessionsFromAPI(options?: {
       console.error('Error refreshing sessions from API', error);
     } finally {
       inFlightRefresh = null;
+      isSyncing = false;
+      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
       const shouldRunQueuedForce = queuedForcedRefresh;
       queuedForcedRefresh = false;
       inFlightRefreshForce = false;
@@ -1009,7 +1015,9 @@ function getOperationUrl(operation: SyncOperation): string {
 /**
  * Helper: Get the HTTP method for a sync operation
  */
-function getOperationMethod(operation: SyncOperation): 'POST' | 'PUT' | 'DELETE' {
+function getOperationMethod(
+  operation: SyncOperation
+): 'POST' | 'PUT' | 'DELETE' {
   switch (operation.type) {
     case 'CREATE':
       return 'POST';
@@ -1036,9 +1044,7 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
 /**
  * Helper: Handle a successful sync operation
  */
-function handleOperationSuccess(
-  operation: SyncOperation
-): void {
+function handleOperationSuccess(operation: SyncOperation): void {
   const sessionId = getSessionIdFromOperation(operation);
   clearDirtyMutation(sessionId, operation.queuedAt);
 }
@@ -1099,7 +1105,11 @@ async function processSingleQueueOperation(
 
   try {
     // Build request
-    const body = buildOperationRequestBody(operation, gitHubConfig, gitHubEnabled);
+    const body = buildOperationRequestBody(
+      operation,
+      gitHubConfig,
+      gitHubEnabled
+    );
     const url = getOperationUrl(operation);
     const method = getOperationMethod(operation);
 
