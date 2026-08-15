@@ -211,7 +211,7 @@ export function SessionLogForm({
                       htmlFor={fid('duration')}
                       className="text-sm font-semibold block h-5"
                     >
-                      Duration (min)
+                      Duration (minutes)
                     </Label>
                     <Input
                       id={fid('duration')}
@@ -226,6 +226,9 @@ export function SessionLogForm({
                       onChange={(e) => formState.setDuration(e.target.value)}
                       className="bg-background h-11"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      An estimate is fine.
+                    </p>
                   </div>
 
                   {/* Session Type */}
@@ -301,13 +304,7 @@ export function SessionLogForm({
             <legend className="text-sm font-semibold text-foreground">
               What did you practise?
             </legend>
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor={fid('description')}
-                className="text-sm font-semibold"
-              >
-                What did you practice?
-              </Label>
+            <div className="flex items-center justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -339,14 +336,15 @@ export function SessionLogForm({
             <Textarea
               id={fid('description')}
               name="practiceDescription"
-              placeholder="Quick notes about drills, throws, or focus..."
+              aria-label="What did you practise?"
+              placeholder="A few notes about drills, throws, or focus..."
               value={formState.description}
               onChange={(e) => formState.setDescription(e.target.value)}
               className="min-h-[112px] bg-background text-base"
             />
             <p className="text-xs text-muted-foreground">
-              Add a few details first, then use AI Transform to polish the entry
-              or suggest technique tags.
+              A sentence or two is enough. AI can polish the entry or suggest
+              technique tags once you have added some detail.
             </p>
 
             <div className="space-y-4 pt-2 border-t border-border/70 pt-5">
@@ -438,34 +436,34 @@ export function SessionLogForm({
                 <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
               </summary>
               <div className="space-y-4 border-t border-border/70 p-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor={fid('video-url')}
-                  className="text-sm font-semibold text-muted-foreground"
-                >
-                  Relevant Video URL (Optional)
-                </Label>
-                <Input
-                  id={fid('video-url')}
-                  name="sessionVideoUrl"
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
-                  value={formState.videoUrl}
-                  onChange={(e) => formState.setVideoUrl(e.target.value)}
-                  aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
-                  className="bg-background"
-                />
-                {videoUrlValidationMessage ? (
-                  <p className="text-sm text-destructive">
-                    {videoUrlValidationMessage}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Paste a public YouTube or other http(s) video link related
-                    to this session.
-                  </p>
-                )}
-              </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor={fid('video-url')}
+                    className="text-sm font-semibold text-muted-foreground"
+                  >
+                    Relevant Video URL (Optional)
+                  </Label>
+                  <Input
+                    id={fid('video-url')}
+                    name="sessionVideoUrl"
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+                    value={formState.videoUrl}
+                    onChange={(e) => formState.setVideoUrl(e.target.value)}
+                    aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
+                    className="bg-background"
+                  />
+                  {videoUrlValidationMessage ? (
+                    <p className="text-sm text-destructive">
+                      {videoUrlValidationMessage}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Paste a public YouTube or other http(s) video link related
+                      to this session.
+                    </p>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <Label

@@ -186,11 +186,9 @@ function SessionRow({
       {(session.description || session.notes || safeVideoUrl) && (
         <details className="group mt-4 pl-7">
           <summary className="cursor-pointer select-none text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm">
-            <span className="group-open:hidden">
-              View session notes and media
-            </span>
+            <span className="group-open:hidden">View session details</span>
             <span className="hidden group-open:inline">
-              Hide session notes and media
+              Hide session details
             </span>
           </summary>
           <div className="mt-3 space-y-3">
@@ -342,6 +340,20 @@ export function SessionHistory({
     setSearchQuery(technique);
     setFiltersOpen(false);
   };
+  const applyQuickFilter = (kind: 'week' | 'month' | 'high-effort') => {
+    if (kind === 'high-effort') {
+      setEffortFilter('4');
+      setFromDate('');
+      setToDate('');
+      return;
+    }
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - (kind === 'week' ? 6 : 29));
+    setFromDate(start.toISOString().slice(0, 10));
+    setToDate(today.toISOString().slice(0, 10));
+    setEffortFilter('all');
+  };
 
   if (sessions.length === 0) {
     return (
@@ -385,6 +397,32 @@ export function SessionHistory({
           >
             <Filter className="h-4 w-4" />
             Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick filters">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => applyQuickFilter('week')}
+          >
+            This week
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => applyQuickFilter('month')}
+          >
+            Last 30 days
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => applyQuickFilter('high-effort')}
+          >
+            High effort
           </Button>
         </div>
         <div

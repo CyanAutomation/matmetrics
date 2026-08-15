@@ -14,7 +14,7 @@ import {
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   getGuestBadgeLabel,
@@ -41,6 +41,7 @@ export function DashboardNav({
   isGuest,
   guestWorkspaceSource,
 }: DashboardNavProps) {
+  const [toolsOpen, setToolsOpen] = React.useState(false);
   const guestBadgeLabel = getGuestBadgeLabel(guestWorkspaceSource);
   const guestWorkspaceDesc = getGuestWorkspaceDescription(guestWorkspaceSource);
   const trainingTabs = visibleTabs.filter(
@@ -49,6 +50,11 @@ export function DashboardNav({
   const workspaceTabs = visibleTabs.filter(
     (tab) => tab.id !== 'dashboard' && tab.id !== 'history'
   );
+  const hasActiveTool = workspaceTabs.some((tab) => tab.id === activeTab);
+
+  React.useEffect(() => {
+    if (hasActiveTool) setToolsOpen(true);
+  }, [hasActiveTool]);
 
   const renderTabs = (
     tabs: DashboardTab[],
@@ -112,7 +118,18 @@ export function DashboardNav({
             <SidebarGroupLabel>Settings &amp; tools</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
-                {renderTabs(workspaceTabs, 'secondary')}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={hasActiveTool}
+                    onClick={() => setToolsOpen((open) => !open)}
+                    aria-expanded={toolsOpen}
+                    className="min-h-11 rounded-xl"
+                  >
+                    <Wrench className="h-5 w-5" />
+                    <span className="text-sm font-medium">Tools</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {toolsOpen ? renderTabs(workspaceTabs, 'secondary') : null}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
