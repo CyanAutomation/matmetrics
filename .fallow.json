@@ -6,8 +6,7 @@
   },
   "deadCode": {
     "ignoredFiles": [
-      "scripts/__fixtures__/**",
-      "src/lib/github-storage.test.ts"
+      "scripts/__fixtures__/**"
     ],
     "ignoredExports": [],
     "ignoredTypes": [],
