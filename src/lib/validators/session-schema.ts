@@ -37,7 +37,7 @@ const techniquesSchema = z.unknown().superRefine((val, ctx) => {
  * Video URL with type checking before validation
  */
 const videoUrlSchema = z
-  .union([z.string(), z.undefined()])
+  .unknown()
   .optional()
   .superRefine((val, ctx) => {
     // Type check - reject non-string, non-undefined values
@@ -56,16 +56,17 @@ const videoUrlSchema = z
         message: result.error,
       });
     }
-  });
+  })
+  .transform((val) => (typeof val === 'string' ? val : undefined));
 
 /**
  * Description with type checking
  */
 const descriptionSchema = z
-  .union([z.string(), z.null(), z.undefined()])
+  .unknown()
   .optional()
   .superRefine((val, ctx) => {
-    if (val !== undefined && val !== null && typeof val !== 'string') {
+    if (val !== undefined && typeof val !== 'string') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Invalid description: expected a string',
@@ -78,10 +79,10 @@ const descriptionSchema = z
  * Notes with type checking
  */
 const notesSchema = z
-  .union([z.string(), z.null(), z.undefined()])
+  .unknown()
   .optional()
   .superRefine((val, ctx) => {
-    if (val !== undefined && val !== null && typeof val !== 'string') {
+    if (val !== undefined && typeof val !== 'string') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Invalid notes: expected a string',

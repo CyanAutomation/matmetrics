@@ -25,9 +25,9 @@ export function makeTestSession(
 }
 
 /**
- * GitHub tree entry for a session file
+ * GitHub tree entry for a session file (internal to this module)
  */
-export interface GitHubTreeEntry {
+interface GitHubTreeEntry {
   path: string;
   type: 'blob' | 'tree' | 'commit';
   sha?: string;
@@ -35,9 +35,9 @@ export interface GitHubTreeEntry {
 }
 
 /**
- * GitHub directory listing entry (from /contents API)
+ * GitHub directory listing entry (from /contents API, internal to this module)
  */
-export interface GitHubContentsEntry {
+interface GitHubContentsEntry {
   name: string;
   path: string;
   type: 'file' | 'dir';
