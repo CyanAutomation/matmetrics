@@ -69,6 +69,9 @@ export function DashboardOverview({
       ([name, count]) => ({ name, count })
     );
 
+    const maxCategoryCount = Math.max(...categoryStats.map(cat => cat.count), 1);
+    const maxTechniqueCount = Math.max(...topTechniques.map(tech => tech.count), 1);
+
     const recentEfforts = sessions
       .slice(0, 7)
       .reverse()
@@ -148,6 +151,8 @@ export function DashboardOverview({
       avgEffort: avgEffort.toFixed(1),
       topTechniques,
       categoryStats,
+      maxCategoryCount,
+      maxTechniqueCount,
       topCategory,
       recentEfforts,
       periodLabel: `${firstSessionDate.toLocaleDateString(undefined, {
@@ -464,7 +469,7 @@ export function DashboardOverview({
                           resolveDashboardCategoryBarClass(cat.name)
                         )}
                         style={{
-                          width: `${(cat.count / stats.totalSessions) * 100}%`,
+                          width: `${(cat.count / stats.maxCategoryCount) * 100}%`,
                         }}
                       />
                     </div>
@@ -487,7 +492,7 @@ export function DashboardOverview({
                       <div
                         className="h-full rounded-full bg-primary/60"
                         style={{
-                          width: `${(tech.count / stats.totalSessions) * 100}%`,
+                          width: `${(tech.count / stats.maxTechniqueCount) * 100}%`,
                         }}
                       />
                     </div>
