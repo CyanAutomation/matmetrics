@@ -12,7 +12,6 @@ import {
   PlusCircle,
   Sparkles,
   Target,
-  Zap,
 } from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
 import { Button } from '@/components/ui/button';
@@ -98,6 +97,14 @@ export function DashboardOverview({
       )
     );
 
+    const weekStart = new Date();
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - 6);
+    const sessionsThisWeek = sessions.filter(
+      (session) => parseDateOnly(session.date).getTime() >= weekStart.getTime()
+    ).length;
+    const weeklyTarget = 3;
+
     const dateKeys = new Set(sessions.map((session) => session.date));
     let trainingStreak = 0;
     const cursor = new Date();
@@ -158,6 +165,8 @@ export function DashboardOverview({
       }),
       needsTrainingNudge: daysSinceLatestSession >= 14,
       trainingStreak,
+      sessionsThisWeek,
+      weeklyTarget,
       recentAverage,
       earlierAverage,
       nextAction,
@@ -187,40 +196,40 @@ export function DashboardOverview({
     <div className="reveal-fade-up max-w-5xl mx-auto w-full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-label-md text-primary">Progress</p>
-          <h2 className="text-display-sm mt-1">Your training, at a glance</h2>
+          <p className="text-label-md text-primary">Today&apos;s training</p>
+          <h2 className="text-display-sm mt-1">Train with a clear purpose.</h2>
           <p className="text-sm text-muted-foreground">
-            Based on all logged sessions from {stats.periodLabel}.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <p
-            className="text-sm font-medium text-muted-foreground"
-            aria-live="polite"
-          >
             {isRefreshing
-              ? 'Updating training data…'
-              : `Latest session ${stats.latestSessionLabel}`}
+              ? 'Updating your training data…'
+              : `Last session ${stats.latestSessionLabel} · ${stats.sessionsThisWeek} of ${stats.weeklyTarget} sessions this week`}
           </p>
-          {onLogSession ? (
-            <Button onClick={onLogSession} className="min-h-11">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Log a session
-            </Button>
-          ) : null}
         </div>
+        {onLogSession ? (
+          <Button onClick={onLogSession} className="min-h-11">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Start or log a session
+          </Button>
+        ) : null}
       </div>
       <DataSurface className="mb-6 overflow-hidden border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.7),hsl(var(--card))_62%)] p-0">
         <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
           <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
               <Sparkles className="h-4 w-4" />
-              {stats.nextAction.eyebrow}
+              Your plan
             </div>
             <h3 className="text-headline-md">{stats.nextAction.title}</h3>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {stats.nextAction.description}
             </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              <span className="rounded-full bg-background/70 px-3 py-1.5 font-medium text-foreground">
+                Weekly rhythm: {stats.sessionsThisWeek}/{stats.weeklyTarget}
+              </span>
+              <span className="text-muted-foreground">
+                Focus: {stats.topCategory}
+              </span>
+            </div>
           </div>
           {onLogSession && (
             <Button
@@ -228,14 +237,17 @@ export function DashboardOverview({
               onClick={onLogSession}
               className="min-h-11 justify-between sm:justify-center"
             >
-              {stats.nextAction.action}
+              Start this session
               <ChevronRight className="h-4 w-4" />
             </Button>
           )}
         </div>
       </DataSurface>
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-headline-sm">Your training snapshot</h3>
+        <p className="text-xs text-muted-foreground">{stats.periodLabel}</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
@@ -248,13 +260,12 @@ export function DashboardOverview({
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Flame className="h-4 w-4" />
-            <span className="text-label-md">Current streak</span>
+            <span className="text-label-md">This week</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.trainingStreak}
+            {stats.sessionsThisWeek}
             <span className="text-base font-normal text-muted-foreground">
-              {' '}
-              days
+              {' '}/ {stats.weeklyTarget}
             </span>
           </div>
         </DataSurface>
@@ -274,19 +285,6 @@ export function DashboardOverview({
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
             {stats.topTechniques[0]?.name || '—'}
-          </div>
-        </DataSurface>
-        <DataSurface className="flex flex-col gap-2 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Zap className="h-4 w-4" />
-            <span className="text-label-md">Avg Effort</span>
-          </div>
-          <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.avgEffort}
-            <span className="text-base font-normal text-muted-foreground">
-              {' '}
-              / 5
-            </span>
           </div>
         </DataSurface>
       </div>

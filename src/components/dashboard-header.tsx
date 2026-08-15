@@ -68,14 +68,13 @@ export function DashboardHeader({
           </span>
         )}
         <Button
-          variant="outline"
-          className="min-h-11 min-w-11 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
+          className="min-h-11 min-w-11 shadow-sm"
           onClick={onLogSession}
           title="Log a session"
           aria-label="Log a session"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Log session</span>
+          <span className="hidden sm:inline">Log training</span>
         </Button>
         <ModeToggle />
         <DropdownMenu>

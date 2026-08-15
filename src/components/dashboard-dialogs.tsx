@@ -47,10 +47,12 @@ export function DashboardDialogs({
     <>
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogTitle className="sr-only">Log practice session</DialogTitle>
-          <DialogDescription className="sr-only">
-            Add the details of a judo training session.
-          </DialogDescription>
+          <DialogHeader className="sticky top-0 z-20 border-b bg-card/95 px-5 py-4 backdrop-blur sm:px-6">
+            <DialogTitle>Log training</DialogTitle>
+            <DialogDescription>
+              Capture the essentials now; add reflection and media only when useful.
+            </DialogDescription>
+          </DialogHeader>
           {isLogModalOpen && (
             <SessionLogForm
               key="quick-log-instance"
