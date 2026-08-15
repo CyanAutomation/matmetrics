@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Dumbbell,
   Flame,
-  PlusCircle,
   Sparkles,
   Target,
 } from 'lucide-react';
@@ -141,7 +140,7 @@ export function DashboardOverview({
             eyebrow: 'Your next best session',
             title: `Balance your week with ${leastPracticedCategory?.toLowerCase() ?? 'technical'} work.`,
             description: `Your focus is currently ${topCategory.toLowerCase()}; a deliberate change of pace will round out your practice.`,
-            action: 'Plan your next session',
+            action: `Log a ${leastPracticedCategory?.toLowerCase() ?? 'technical'} session`,
           };
 
     return {
@@ -194,7 +193,7 @@ export function DashboardOverview({
 
   return (
     <div className="reveal-fade-up max-w-5xl mx-auto w-full">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6">
         <div>
           <p className="text-label-md text-primary">Today&apos;s training</p>
           <h2 className="text-display-sm mt-1">Train with a clear purpose.</h2>
@@ -204,12 +203,6 @@ export function DashboardOverview({
               : `Last session ${stats.latestSessionLabel} · ${stats.sessionsThisWeek} of ${stats.weeklyTarget} sessions this week`}
           </p>
         </div>
-        {onLogSession ? (
-          <Button onClick={onLogSession} className="min-h-11">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Start or log a session
-          </Button>
-        ) : null}
       </div>
       <DataSurface className="mb-6 overflow-hidden border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.7),hsl(var(--card))_62%)] p-0">
         <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
@@ -237,51 +230,53 @@ export function DashboardOverview({
               onClick={onLogSession}
               className="min-h-11 justify-between sm:justify-center"
             >
-              Start this session
+              {stats.nextAction.action}
               <ChevronRight className="h-4 w-4" />
             </Button>
           )}
         </div>
       </DataSurface>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-headline-sm">Your training snapshot</h3>
+        <h3 className="text-headline-sm">This week at a glance</h3>
         <p className="text-xs text-muted-foreground">{stats.periodLabel}</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <DataSurface className="flex flex-col gap-2 p-5">
+        <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
-            <span className="text-label-md">Logged Sessions</span>
-          </div>
-          <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.totalSessions}
-          </div>
-        </DataSurface>
-        <DataSurface className="flex flex-col gap-2 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Flame className="h-4 w-4" />
-            <span className="text-label-md">This week</span>
+            <span className="text-label-md">Weekly rhythm</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
             {stats.sessionsThisWeek}
             <span className="text-base font-normal text-muted-foreground">
-              {' '}/ {stats.weeklyTarget}
+              {' '}
+              / {stats.weeklyTarget}
             </span>
           </div>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
+            <Flame className="h-4 w-4" />
+            <span className="text-label-md">Training streak</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground tabular-nums">
+            {stats.trainingStreak || '—'}
+          </div>
+        </DataSurface>
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Target className="h-4 w-4" />
-            <span className="text-label-md">Focus Area</span>
+            <span className="text-label-md">Needs attention</span>
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.topCategory}
+            {stats.nextAction.title.match(/with (.+) work\./)?.[1] ??
+              'Consistency'}
           </div>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Award className="h-4 w-4" />
-            <span className="text-label-md">Top Technique</span>
+            <span className="text-label-md">Top technique</span>
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
             {stats.topTechniques[0]?.name || '—'}
@@ -432,13 +427,8 @@ export function DashboardOverview({
                         }
                         stroke="hsl(var(--background))"
                         strokeWidth={1.5}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`Effort ${entry.effort} on ${entry.date}`}
                         onMouseEnter={() => setActiveEffortIndex(index)}
                         onMouseLeave={() => setActiveEffortIndex(null)}
-                        onFocus={() => setActiveEffortIndex(index)}
-                        onBlur={() => setActiveEffortIndex(null)}
                       />
                     );
                   })}

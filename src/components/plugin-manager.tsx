@@ -297,17 +297,22 @@ export function PluginManagerInstalledContent(props: {
                   {plugin.id} · v{plugin.version}
                 </p>
               </div>
-              <Switch
-                id={`plugin-enabled-${plugin.id}`}
-                checked={plugin.enabled}
-                disabled={
-                  plugin.status === 'pending' || fetchState === 'loading'
-                }
-                onCheckedChange={(checked) =>
-                  onTogglePluginEnabled(plugin.id, checked)
-                }
-                aria-label={`${plugin.enabled ? 'Disable' : 'Enable'} ${plugin.name}`}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {plugin.enabled ? 'Enabled' : 'Disabled'}
+                </span>
+                <Switch
+                  id={`plugin-enabled-${plugin.id}`}
+                  checked={plugin.enabled}
+                  disabled={
+                    plugin.status === 'pending' || fetchState === 'loading'
+                  }
+                  onCheckedChange={(checked) =>
+                    onTogglePluginEnabled(plugin.id, checked)
+                  }
+                  aria-label={`${plugin.name} is ${plugin.enabled ? 'enabled' : 'disabled'}; toggle to ${plugin.enabled ? 'disable' : 'enable'}`}
+                />
+              </div>
             </div>
 
             {/* Description */}
@@ -723,7 +728,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       />
 
       <div className="mt-8">
-        <h3 className="text-headline-sm mb-4">Issue details</h3>
+        <h3 className="text-headline-sm mb-2">Needs attention</h3>
         {installedPluginsViewState === 'access-blocked' ? (
           <p className="text-sm text-muted-foreground">
             {accessState === 'auth-unavailable'
@@ -744,161 +749,182 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
             No installed plugins were found, so there are no issue details to
             display.
           </p>
+        ) : installedPlugins.filter(
+            (plugin) =>
+              plugin.issues.length > 0 ||
+              (plugin.maturity?.reasons.length ?? 0) > 0 ||
+              (plugin.maturity?.nextActions.length ?? 0) > 0
+          ).length === 0 ? (
+          <p className="rounded-lg border border-[hsl(var(--color-success)/0.22)] bg-[hsl(var(--color-success-container)/0.45)] px-4 py-3 text-sm text-[hsl(var(--color-on-success-container))]">
+            All installed plugins are healthy. There are no outstanding issues
+            or maturity actions.
+          </p>
         ) : (
           <div className="space-y-4">
-            {installedPlugins.map((plugin) => {
-              const summarySeverity = resolveEntrySummarySeverity(
-                plugin.issues
-              );
-              const blockingIssues = getBlockingContractGateIssues(
-                plugin.issues
-              );
-              const scoredWithContractIssues =
-                Boolean(plugin.maturity) && blockingIssues.length > 0;
+            {installedPlugins
+              .filter(
+                (plugin) =>
+                  plugin.issues.length > 0 ||
+                  (plugin.maturity?.reasons.length ?? 0) > 0 ||
+                  (plugin.maturity?.nextActions.length ?? 0) > 0
+              )
+              .map((plugin) => {
+                const summarySeverity = resolveEntrySummarySeverity(
+                  plugin.issues
+                );
+                const blockingIssues = getBlockingContractGateIssues(
+                  plugin.issues
+                );
+                const scoredWithContractIssues =
+                  Boolean(plugin.maturity) && blockingIssues.length > 0;
 
-              return (
-                <div
-                  key={`validate-${plugin.id}`}
-                  className="py-4 first:pt-0 border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)] first:border-0"
-                >
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="font-semibold">{plugin.id}</div>
-                    <div className="flex items-center gap-2">
-                      {plugin.maturity ? (
+                return (
+                  <div
+                    key={`validate-${plugin.id}`}
+                    className="py-4 first:pt-0 border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)] first:border-0"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="font-semibold">{plugin.id}</div>
+                      <div className="flex items-center gap-2">
+                        {plugin.maturity ? (
+                          <Badge
+                            variant="outline"
+                            className={
+                              resolvePluginTierPresentation(
+                                plugin.maturity.tier
+                              ).toneClass
+                            }
+                          >
+                            {
+                              resolvePluginTierPresentation(
+                                plugin.maturity.tier
+                              ).label
+                            }{' '}
+                            {plugin.maturity.score}/100
+                          </Badge>
+                        ) : null}
                         <Badge
-                          variant="outline"
-                          className={
-                            resolvePluginTierPresentation(plugin.maturity.tier)
-                              .toneClass
-                          }
+                          className={resolvePluginSeverityToneClass(
+                            summarySeverity
+                          )}
+                          data-severity={summarySeverity}
                         >
-                          {
-                            resolvePluginTierPresentation(plugin.maturity.tier)
-                              .label
-                          }{' '}
-                          {plugin.maturity.score}/100
+                          {severityLabel(summarySeverity)}
                         </Badge>
-                      ) : null}
-                      <Badge
-                        className={resolvePluginSeverityToneClass(
-                          summarySeverity
-                        )}
-                        data-severity={summarySeverity}
-                      >
-                        {severityLabel(summarySeverity)}
-                      </Badge>
-                      {scoredWithContractIssues ? (
-                        <Badge variant="outline" className="ui-pill-warning">
-                          Scored with contract issues
-                        </Badge>
-                      ) : null}
+                        {scoredWithContractIssues ? (
+                          <Badge variant="outline" className="ui-pill-warning">
+                            Scored with contract issues
+                          </Badge>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
 
-                  {blockingIssues.length > 0 ? (
-                    <Alert className="border-destructive/30 bg-destructive/5 mb-3">
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                      <AlertTitle>Blocking contract issues</AlertTitle>
-                      <AlertDescription>
-                        Fix errors in the plugin folder (entrypoint, component
-                        mapping, README) before activation.
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
+                    {blockingIssues.length > 0 ? (
+                      <Alert className="border-destructive/30 bg-destructive/5 mb-3">
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                        <AlertTitle>Blocking contract issues</AlertTitle>
+                        <AlertDescription>
+                          Fix errors in the plugin folder (entrypoint, component
+                          mapping, README) before activation.
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
 
-                  {plugin.maturity ? (
-                    <div className="space-y-2 text-sm">
-                      <p className="font-medium text-foreground">
-                        Maturity guidance
-                      </p>
-                      {plugin.maturity.reasons.length === 0 ? (
-                        <p className="text-muted-foreground">
-                          No maturity gaps are currently recorded.
+                    {plugin.maturity ? (
+                      <div className="space-y-2 text-sm">
+                        <p className="font-medium text-foreground">
+                          Maturity guidance
                         </p>
-                      ) : (
-                        <>
-                          <ul className="space-y-1 text-muted-foreground list-disc pl-5">
-                            {(expandedMaturityReasons[plugin.id]
-                              ? plugin.maturity.reasons
-                              : plugin.maturity.reasons.slice(
-                                  0,
-                                  MATURITY_REASONS_PREVIEW_COUNT
-                                )
-                            ).map((reason, index) => (
-                              <li key={`${plugin.id}-maturity-reason-${index}`}>
-                                {reason}
-                              </li>
+                        {plugin.maturity.reasons.length === 0 ? (
+                          <p className="text-muted-foreground">
+                            No maturity gaps are currently recorded.
+                          </p>
+                        ) : (
+                          <>
+                            <ul className="space-y-1 text-muted-foreground list-disc pl-5">
+                              {(expandedMaturityReasons[plugin.id]
+                                ? plugin.maturity.reasons
+                                : plugin.maturity.reasons.slice(
+                                    0,
+                                    MATURITY_REASONS_PREVIEW_COUNT
+                                  )
+                              ).map((reason, index) => (
+                                <li
+                                  key={`${plugin.id}-maturity-reason-${index}`}
+                                >
+                                  {reason}
+                                </li>
+                              ))}
+                            </ul>
+                            {plugin.maturity.reasons.length >
+                            MATURITY_REASONS_PREVIEW_COUNT ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-auto px-0 text-sm"
+                                onClick={() =>
+                                  setExpandedMaturityReasons((current) => ({
+                                    ...current,
+                                    [plugin.id]: !current[plugin.id],
+                                  }))
+                                }
+                              >
+                                {expandedMaturityReasons[plugin.id]
+                                  ? 'Show fewer'
+                                  : `Show ${
+                                      plugin.maturity.reasons.length -
+                                      MATURITY_REASONS_PREVIEW_COUNT
+                                    } more`}
+                              </Button>
+                            ) : null}
+                          </>
+                        )}
+                        {plugin.maturity.nextActions.length > 0 ? (
+                          <ul className="space-y-1 text-muted-foreground">
+                            {plugin.maturity.nextActions.map((action) => (
+                              <li key={`${plugin.id}-${action}`}>{action}</li>
                             ))}
                           </ul>
-                          {plugin.maturity.reasons.length >
-                          MATURITY_REASONS_PREVIEW_COUNT ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-auto px-0 text-sm"
-                              onClick={() =>
-                                setExpandedMaturityReasons((current) => ({
-                                  ...current,
-                                  [plugin.id]: !current[plugin.id],
-                                }))
-                              }
-                            >
-                              {expandedMaturityReasons[plugin.id]
-                                ? 'Show fewer'
-                                : `Show ${
-                                    plugin.maturity.reasons.length -
-                                    MATURITY_REASONS_PREVIEW_COUNT
-                                  } more`}
-                            </Button>
-                          ) : null}
-                        </>
-                      )}
-                      {plugin.maturity.nextActions.length > 0 ? (
-                        <ul className="space-y-1 text-muted-foreground">
-                          {plugin.maturity.nextActions.map((action) => (
-                            <li key={`${plugin.id}-${action}`}>{action}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                  ) : null}
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                  {plugin.issues.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No issues found.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {plugin.issues
-                        .slice()
-                        .sort(
-                          (a, b) =>
-                            severityOrder[b.severity] -
-                            severityOrder[a.severity]
-                        )
-                        .map((issue, issueIndex) => (
-                          <li
-                            key={`${plugin.id}-${issue.path}-${issueIndex}`}
-                            className="text-sm"
-                          >
-                            <span className="font-medium">{issue.path}:</span>{' '}
-                            {issue.message}{' '}
-                            <Badge
-                              variant="outline"
-                              className={resolvePluginSeverityToneClass(
-                                issue.severity
-                              )}
-                              data-severity={issue.severity}
+                    {plugin.issues.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No issues found.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {plugin.issues
+                          .slice()
+                          .sort(
+                            (a, b) =>
+                              severityOrder[b.severity] -
+                              severityOrder[a.severity]
+                          )
+                          .map((issue, issueIndex) => (
+                            <li
+                              key={`${plugin.id}-${issue.path}-${issueIndex}`}
+                              className="text-sm"
                             >
-                              {severityLabel(issue.severity)}
-                            </Badge>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
+                              <span className="font-medium">{issue.path}:</span>{' '}
+                              {issue.message}{' '}
+                              <Badge
+                                variant="outline"
+                                className={resolvePluginSeverityToneClass(
+                                  issue.severity
+                                )}
+                                data-severity={issue.severity}
+                              >
+                                {severityLabel(issue.severity)}
+                              </Badge>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         )}
       </div>
