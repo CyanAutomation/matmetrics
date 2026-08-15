@@ -46,11 +46,14 @@ export function DashboardNav({
   const trainingTabs = visibleTabs.filter(
     (tab) => tab.id === 'dashboard' || tab.id === 'history'
   );
-  const toolTabs = visibleTabs.filter(
+  const workspaceTabs = visibleTabs.filter(
     (tab) => tab.id !== 'dashboard' && tab.id !== 'history'
   );
 
-  const renderTabs = (tabs: DashboardTab[]) =>
+  const renderTabs = (
+    tabs: DashboardTab[],
+    emphasis: 'primary' | 'secondary'
+  ) =>
     tabs.map((tab) => {
       const Icon = tab.icon;
       const isActive = activeTab === tab.id;
@@ -60,10 +63,18 @@ export function DashboardNav({
             isActive={isActive}
             aria-current={isActive ? 'page' : undefined}
             onClick={() => onTabChange(tab.id)}
-            className="py-6 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
+            className="min-h-11 rounded-xl data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
           >
             <Icon className="h-5 w-5" />
-            <span className="text-base font-semibold">{tab.title}</span>
+            <span
+              className={
+                emphasis === 'primary'
+                  ? 'text-base font-semibold'
+                  : 'text-sm font-medium'
+              }
+            >
+              {tab.title}
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       );
@@ -92,16 +103,16 @@ export function DashboardNav({
           <SidebarGroupLabel>Training</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
-              {renderTabs(trainingTabs)}
+              {renderTabs(trainingTabs, 'primary')}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {toolTabs.length > 0 && (
+        {workspaceTabs.length > 0 && (
           <SidebarGroup className="mt-4 p-0">
-            <SidebarGroupLabel>Tools &amp; settings</SidebarGroupLabel>
+            <SidebarGroupLabel>Workspace tools</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
-                {renderTabs(toolTabs)}
+                {renderTabs(workspaceTabs, 'secondary')}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

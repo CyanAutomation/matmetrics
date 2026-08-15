@@ -194,6 +194,7 @@ export default function Home() {
                 refreshSessions,
                 refreshPluginExtensions,
                 onLogSession: () => setIsLogModalOpen(true),
+                isRefreshing: syncStatus.isSyncing,
               })}
             </div>
           </main>

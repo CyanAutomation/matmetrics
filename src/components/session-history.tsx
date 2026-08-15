@@ -9,7 +9,15 @@ import {
 } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Calendar, Edit2, ExternalLink } from 'lucide-react';
+import {
+  Trash2,
+  Calendar,
+  Edit2,
+  ExternalLink,
+  Filter,
+  MoreHorizontal,
+  X,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { deleteSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -22,10 +30,16 @@ import {
 } from '@/components/ui/dialog';
 import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
-import { parseDateOnly } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -136,29 +150,32 @@ function SessionRow({
             </Badge>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/5"
-              onClick={() => onEdit(session)}
-              aria-label={`Edit session from ${sessionDateLabel}`}
-              title={`Edit session from ${sessionDateLabel}`}
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-              disabled={deletingSessionId === session.id}
-              onClick={() => onDelete(session.id)}
-              aria-label={`Delete session from ${sessionDateLabel}`}
-              title={`Delete session from ${sessionDateLabel}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                aria-label={`Actions for session from ${sessionDateLabel}`}
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(session)}>
+                <Edit2 className="mr-2 h-4 w-4" />
+                Edit session
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={deletingSessionId === session.id}
+                onClick={() => onDelete(session.id)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete session
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -238,6 +255,7 @@ export function SessionHistory({
   const [effortFilter, setEffortFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (deletingSessionId) {
@@ -303,6 +321,19 @@ export function SessionHistory({
   }, [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]);
 
   const grouped = groupSessionsByMonth(filteredSessions);
+  const activeFilterCount = [
+    categoryFilter !== 'all',
+    effortFilter !== 'all',
+    !!fromDate,
+    !!toDate,
+  ].filter(Boolean).length;
+  const clearFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setEffortFilter('all');
+    setFromDate('');
+    setToDate('');
+  };
 
   if (sessions.length === 0) {
     return (
@@ -327,65 +358,81 @@ export function SessionHistory({
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       <section
         aria-label="Filter training history"
-        className="sticky top-3 z-[1] mb-6 grid gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur sm:grid-cols-2 lg:grid-cols-5"
+        className="sticky top-3 z-[1] mb-6 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur sm:p-4"
       >
-        <Input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search techniques or notes"
-          aria-label="Search training history"
-          className="lg:col-span-2"
-        />
-        <select
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          aria-label="Filter by session type"
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        <div className="flex gap-2">
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search techniques or notes"
+            aria-label="Search training history"
+            className="h-11 flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 shrink-0 sm:hidden"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+          >
+            <Filter className="h-4 w-4" />
+            Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
+          </Button>
+        </div>
+        <div
+          className={cn(
+            'mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5',
+            filtersOpen ? 'grid' : 'hidden sm:grid'
+          )}
         >
-          <option value="all">All session types</option>
-          <option value="Technical">Technical</option>
-          <option value="Randori">Randori</option>
-          <option value="Shiai">Shiai</option>
-        </select>
-        <select
-          value={effortFilter}
-          onChange={(event) => setEffortFilter(event.target.value)}
-          aria-label="Filter by effort level"
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="all">All effort levels</option>
-          {[1, 2, 3, 4, 5].map((effort) => (
-            <option key={effort} value={effort}>
-              {EFFORT_LABELS[effort as keyof typeof EFFORT_LABELS]}
-            </option>
-          ))}
-        </select>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            setSearchQuery('');
-            setCategoryFilter('all');
-            setEffortFilter('all');
-            setFromDate('');
-            setToDate('');
-          }}
-        >
-          Clear filters
-        </Button>
-        <Input
-          type="date"
-          value={fromDate}
-          onChange={(event) => setFromDate(event.target.value)}
-          aria-label="Sessions from date"
-        />
-        <Input
-          type="date"
-          value={toDate}
-          onChange={(event) => setToDate(event.target.value)}
-          aria-label="Sessions to date"
-        />
-        <p className="self-center text-sm text-muted-foreground lg:col-span-3">
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label="Filter by session type"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">All session types</option>
+            <option value="Technical">Technical</option>
+            <option value="Randori">Randori</option>
+            <option value="Shiai">Shiai</option>
+          </select>
+          <select
+            value={effortFilter}
+            onChange={(event) => setEffortFilter(event.target.value)}
+            aria-label="Filter by effort level"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">All effort levels</option>
+            {[1, 2, 3, 4, 5].map((effort) => (
+              <option key={effort} value={effort}>
+                {EFFORT_LABELS[effort as keyof typeof EFFORT_LABELS]}
+              </option>
+            ))}
+          </select>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(event) => setFromDate(event.target.value)}
+            aria-label="Sessions from date"
+            className="h-11"
+          />
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(event) => setToDate(event.target.value)}
+            aria-label="Sessions to date"
+            className="h-11"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-11"
+            onClick={clearFilters}
+          >
+            <X className="h-4 w-4" /> Clear filters
+          </Button>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
           Showing {filteredSessions.length} of {sessions.length} sessions
         </p>
       </section>
