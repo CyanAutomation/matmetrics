@@ -61,26 +61,34 @@ const videoUrlSchema = z
 /**
  * Description with type checking
  */
-const descriptionSchema = z.unknown().optional().superRefine((val, ctx) => {
-  if (val !== undefined && typeof val !== 'string') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Invalid description: expected a string',
-    });
-  }
-});
+const descriptionSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .superRefine((val, ctx) => {
+    if (val !== undefined && val !== null && typeof val !== 'string') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid description: expected a string',
+      });
+    }
+  })
+  .transform((val) => (typeof val === 'string' ? val : undefined));
 
 /**
  * Notes with type checking
  */
-const notesSchema = z.unknown().optional().superRefine((val, ctx) => {
-  if (val !== undefined && typeof val !== 'string') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Invalid notes: expected a string',
-    });
-  }
-});
+const notesSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .superRefine((val, ctx) => {
+    if (val !== undefined && val !== null && typeof val !== 'string') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid notes: expected a string',
+      });
+    }
+  })
+  .transform((val) => (typeof val === 'string' ? val : undefined));
 
 /**
  * Effort level validation with exact error message match
@@ -90,7 +98,8 @@ const effortSchema = z
   .int({ message: 'Invalid effort level (must be an integer 1-5)' })
   .refine((val) => val >= 1 && val <= 5, {
     message: 'Invalid effort level (must be an integer 1-5)',
-  });
+  })
+  .transform((val) => val as 1 | 2 | 3 | 4 | 5);
 
 /**
  * Duration validation with exact error message match
