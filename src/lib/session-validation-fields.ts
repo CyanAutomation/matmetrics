@@ -1,79 +1,64 @@
 import type { JudoSession } from '@/lib/types';
-import { validateDate } from '@/lib/validators/date';
+import { sessionFieldsSchema } from '@/lib/validators/session-schema';
 import { validateTechniques } from '@/lib/validators/techniques';
 import { validateVideoUrl } from '@/lib/validators/video-url';
+import { ZodError } from 'zod';
 
 type FieldResult =
   | { ok: true; values: Omit<JudoSession, 'id'> }
   | { ok: false; error: string };
 
+/**
+ * Validates session fields using Zod schema.
+ * Returns normalized values with techniques deduplicated and optional fields filtered.
+ */
 export function validateSessionFields(
   payload: Record<string, unknown>
 ): FieldResult {
-  if (
-    payload.date === undefined ||
-    payload.date === null ||
-    payload.date === ''
-  ) {
-    return { ok: false, error: 'Missing required field: date' };
-  }
-  const dateResult = validateDate(payload.date);
-  if (!dateResult.ok) return dateResult;
+  try {
+    const validated = sessionFieldsSchema.parse(payload);
 
-  if (
-    !Number.isInteger(payload.effort) ||
-    (payload.effort as number) < 1 ||
-    (payload.effort as number) > 5
-  ) {
-    return {
-      ok: false,
-      error: 'Invalid effort level (must be an integer 1-5)',
-    };
-  }
-
-  if (!['Technical', 'Randori', 'Shiai'].includes(String(payload.category))) {
-    return { ok: false, error: 'Invalid category' };
-  }
-
-  const techniquesResult = validateTechniques(payload.techniques);
-  if (!techniquesResult.ok) return techniquesResult;
-
-  for (const field of ['description', 'notes'] as const) {
-    if (payload[field] !== undefined && typeof payload[field] !== 'string') {
-      return { ok: false, error: `Invalid ${field}: expected a string` };
+    // Get normalized techniques (deduplicated)
+    const techniquesResult = validateTechniques(validated.techniques);
+    if (!techniquesResult.ok) {
+      return techniquesResult;
     }
-  }
 
-  const videoUrlResult = validateVideoUrl(payload.videoUrl);
-  if (!videoUrlResult.ok) return videoUrlResult;
+    // Get normalized video URL (undefined for empty strings)
+    const videoUrlResult = validateVideoUrl(validated.videoUrl);
+    if (!videoUrlResult.ok) {
+      return videoUrlResult;
+    }
 
-  if (
-    payload.duration !== undefined &&
-    (!Number.isInteger(payload.duration) || (payload.duration as number) < 0)
-  ) {
     return {
-      ok: false,
-      error: 'Invalid duration: expected a non-negative integer',
+      ok: true,
+      values: {
+        date: validated.date,
+        effort: validated.effort,
+        category: validated.category,
+        techniques: techniquesResult.value,
+        ...(validated.description !== undefined && {
+          description: validated.description,
+        }),
+        ...(validated.notes !== undefined && { notes: validated.notes }),
+        ...(videoUrlResult.value !== undefined && {
+          videoUrl: videoUrlResult.value,
+        }),
+        ...(validated.duration !== undefined && {
+          duration: validated.duration,
+        }),
+      },
     };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstError = error.errors[0];
+      // Return just the message without field prefix since custom validators
+      // already include the field name in their error messages
+      return {
+        ok: false,
+        error: firstError.message,
+      };
+    }
+    return { ok: false, error: 'Invalid session data' };
   }
-
-  return {
-    ok: true,
-    values: {
-      date: dateResult.value,
-      effort: payload.effort as JudoSession['effort'],
-      category: payload.category as JudoSession['category'],
-      techniques: techniquesResult.value,
-      ...(payload.description !== undefined && {
-        description: payload.description as string,
-      }),
-      ...(payload.notes !== undefined && { notes: payload.notes as string }),
-      ...(videoUrlResult.value !== undefined && {
-        videoUrl: videoUrlResult.value,
-      }),
-      ...(payload.duration !== undefined && {
-        duration: payload.duration as number,
-      }),
-    },
-  };
 }

@@ -14,38 +14,15 @@ import {
 } from './github-storage';
 import { sessionToMarkdown } from './markdown-serializer';
 import type { JudoSession } from './types';
+import {
+  GitHubMockBuilder,
+  makeTestSession,
+  withMockedGitHub,
+} from './test-helpers/github-mock-builder';
 
+// Deprecated - use makeTestSession from test-helpers instead
 function makeSession(id: string): JudoSession {
-  return {
-    id,
-    date: '2025-03-14',
-    duration: 60,
-    effort: 3,
-    category: 'Technical',
-    notes: 'test',
-    techniques: [],
-  };
-}
-
-async function withMockedGitHub(
-  handler: typeof fetch,
-  run: () => Promise<void>
-) {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = handler;
-
-  try {
-    await run();
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
+  return makeTestSession(id);
 }
 
 beforeEach(() => {
@@ -117,88 +94,38 @@ test('two writers from the same revision cannot silently overwrite each other', 
 });
 
 test('findSessionPathOnGitHubById traverses directory listings when the tree is truncated', async () => {
-  const dirListing: Record<
-    string,
-    Array<{ name: string; path: string; type: 'dir' | 'file' }>
-  > = {
-    data: [{ name: '2025', path: 'data/2025', type: 'dir' }],
-    'data/2025': [{ name: '03', path: 'data/2025/03', type: 'dir' }],
-    'data/2025/03': [
+  const mock = new GitHubMockBuilder()
+    .addBranch('main', 'commit-sha', 'tree-sha')
+    .addTree('tree-sha', [], true) // truncated tree
+    .addContentsListing('data', [
+      { name: '2025', path: 'data/2025', type: 'dir' },
+    ])
+    .addContentsListing('data/2025', [
+      { name: '03', path: 'data/2025/03', type: 'dir' },
+    ])
+    .addContentsListing('data/2025/03', [
       {
         name: '20250314-matmetrics-a%2Fb.md',
         path: 'data/2025/03/20250314-matmetrics-a%2Fb.md',
         type: 'file',
       },
-    ],
-  };
+    ]);
 
-  await withMockedGitHub(
-    (async (url: string | URL | Request) => {
-      const parsed = new URL(String(url));
-      const path = parsed.pathname;
-
-      if (path.includes('/git/ref/heads/')) {
-        return new Response(
-          JSON.stringify({ object: { sha: 'commit-sha', type: 'commit' } }),
-          { status: 200 }
-        );
-      }
-
-      if (path.includes('/git/commits/')) {
-        return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }), {
-          status: 200,
-        });
-      }
-
-      if (path.includes('/git/trees/')) {
-        return new Response(JSON.stringify({ truncated: true, tree: [] }), {
-          status: 200,
-        });
-      }
-
-      if (path.includes('/contents/')) {
-        const marker = '/contents/';
-        const contentPath = decodeURIComponent(
-          path.slice(path.indexOf(marker) + marker.length)
-        );
-        const listing = dirListing[contentPath] ?? [];
-        return new Response(JSON.stringify(listing), { status: 200 });
-      }
-
-      return new Response(JSON.stringify({ message: 'Not found' }), {
-        status: 404,
-      });
-    }) as typeof fetch,
-    async () => {
-      const config = { owner: 'o', repo: 'r', branch: 'main' };
-      const found = await findSessionPathOnGitHubById('a/b', config);
-      assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
-    }
-  );
+  await withMockedGitHub(mock.build(), async () => {
+    const config = { owner: 'o', repo: 'r', branch: 'main' };
+    const found = await findSessionPathOnGitHubById('a/b', config);
+    assert.equal(found, 'data/2025/03/20250314-matmetrics-a%2Fb.md');
+  });
 });
 
 test('findSessionPathOnGitHubById returns null when the branch ref is missing', async () => {
-  await withMockedGitHub(
-    (async (url: string | URL | Request) => {
-      const parsed = new URL(String(url));
-      const path = parsed.pathname;
+  const mock = new GitHubMockBuilder(); // No branches added = 404 on ref lookup
 
-      if (path.includes('/git/ref/heads/')) {
-        return new Response(JSON.stringify({ message: 'Not Found' }), {
-          status: 404,
-        });
-      }
-
-      return new Response(JSON.stringify({ message: 'Unexpected path' }), {
-        status: 500,
-      });
-    }) as typeof fetch,
-    async () => {
-      const config = { owner: 'o', repo: 'r', branch: 'missing' };
-      const found = await findSessionPathOnGitHubById('a/b', config);
-      assert.equal(found, null);
-    }
-  );
+  await withMockedGitHub(mock.build(), async () => {
+    const config = { owner: 'o', repo: 'r', branch: 'missing' };
+    const found = await findSessionPathOnGitHubById('a/b', config);
+    assert.equal(found, null);
+  });
 });
 
 test('findSessionPathOnGitHubById does not reuse manifest entries across branches', async () => {
