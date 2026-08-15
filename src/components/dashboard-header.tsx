@@ -49,9 +49,9 @@ export function DashboardHeader({
   onOpenAuth,
 }: DashboardHeaderProps) {
   return (
-    <header className="glass-surface h-14 flex items-center px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
+    <header className="glass-surface min-h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="md:hidden" />
+        <SidebarTrigger className="h-11 w-11 md:hidden" />
         <h2 className="font-semibold tracking-tight text-foreground">
           {title}
         </h2>
@@ -69,20 +69,20 @@ export function DashboardHeader({
         )}
         <Button
           variant="outline"
-          size="icon"
-          className="h-9 w-9 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
+          className="min-h-11 min-w-11 border-[hsl(var(--color-outline-variant)/0.15)] text-primary hover:bg-[hsl(var(--color-primary-fixed))]"
           onClick={onLogSession}
           title="Log a session"
           aria-label="Log a session"
         >
           <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Log session</span>
         </Button>
         <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="Open account menu"
-              className="w-9 h-9 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="w-11 h-11 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {initials}
             </button>

@@ -46,6 +46,7 @@ export type TabRenderContext = {
   refreshSessions: () => void;
   refreshPluginExtensions: () => void | Promise<void>;
   onLogSession?: () => void;
+  isRefreshing?: boolean;
 };
 
 export type TabVisibilityContext = {
@@ -85,8 +86,12 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
     headerTitle: 'Training Overview',
     icon: LayoutDashboard,
     section: 'core',
-    render: ({ sessions, onLogSession }) =>
-      React.createElement(DashboardOverview, { sessions, onLogSession }),
+    render: ({ sessions, onLogSession, isRefreshing }) =>
+      React.createElement(DashboardOverview, {
+        sessions,
+        onLogSession,
+        isRefreshing,
+      }),
   },
   {
     id: TAB_IDS.history,
