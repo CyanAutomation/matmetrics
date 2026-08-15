@@ -8,6 +8,7 @@ import { sessionToMarkdown } from '../markdown-serializer';
 /**
  * Creates a minimal test session fixture
  */
+// fallow-ignore-next-line unused-export
 export function makeTestSession(
   id: string,
   overrides: Partial<JudoSession> = {}
@@ -47,6 +48,7 @@ interface GitHubContentsEntry {
 /**
  * Builder for composable GitHub API mocks
  */
+// fallow-ignore-next-line unused-export
 export class GitHubMockBuilder {
   private branches = new Map<string, { commitSha: string; treeSha: string }>();
   private trees = new Map<string, { truncated: boolean; entries: GitHubTreeEntry[] }>();
@@ -255,6 +257,7 @@ export class GitHubMockBuilder {
 /**
  * Helper to mock GitHub API with the given handler
  */
+// fallow-ignore-next-line unused-export
 export async function withMockedGitHub(
   handler: typeof fetch,
   run: () => Promise<void>
