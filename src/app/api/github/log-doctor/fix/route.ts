@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isGitHubConfigured } from '@/lib/github-storage';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
-import { GitHubConfig } from '@/lib/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { buildLogDoctorFixErrorResponse } from './error-response';
-
-const MAX_APPLY_FILES = 25;
-
-function isSafeLogPath(path: string): boolean {
-  const normalized = path.replace(/\\/g, '/').trim();
-  if (!normalized) return false;
-  if (normalized.startsWith('/') || normalized.includes('\0')) return false;
-  if (normalized.endsWith('/')) return false;
-  if (!normalized.startsWith('data/')) return false;
-  if (!normalized.endsWith('.md')) return false;
-
-  const segments = normalized.split('/');
-  return segments.every(
-    (segment) => segment !== '' && segment !== '.' && segment !== '..'
-  );
-}
+import {
+  logDoctorFixRequestSchema,
+  applyModeConstraints,
+} from '@/lib/validators/log-doctor-schema';
+import { ZodError } from 'zod';
 
 /**
  * POST /api/github/log-doctor/fix
@@ -27,11 +15,13 @@ function isSafeLogPath(path: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - fail fast
     const authResult = await requireAuthenticatedUser(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
+    // GitHub configuration check
     if (!isGitHubConfigured()) {
       return NextResponse.json(
         {
@@ -42,51 +32,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Parse and validate request body with Zod schema
     const body = await request.json();
+    let validated;
 
-    const config: GitHubConfig = {
-      owner: typeof body.owner === 'string' ? body.owner.trim() : '',
-      repo: typeof body.repo === 'string' ? body.repo.trim() : '',
-      branch: typeof body.branch === 'string' ? body.branch.trim() : undefined,
-    };
-
-    const mode = body.mode === 'apply' ? 'apply' : 'dry-run';
-    const selectedPaths = Array.isArray(body.paths)
-      ? body.paths.filter(
-          (path: unknown): path is string =>
-            typeof path === 'string' && isSafeLogPath(path)
-        )
-      : [];
-    const options = {
-      normalizeFrontmatter: body.options?.normalizeFrontmatter !== false,
-      enforceSectionOrder: body.options?.enforceSectionOrder !== false,
-      preserveUserContent: body.options?.preserveUserContent !== false,
-    };
-    const confirmApply = body.confirmApply === true;
-
-    if (!config.owner || !config.repo) {
-      return NextResponse.json(
-        { success: false, message: 'Missing owner or repo' },
-        { status: 400 }
-      );
+    try {
+      validated = logDoctorFixRequestSchema.parse(body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const firstError = error.errors[0];
+        // Return just the message without field prefix for consistency
+        return NextResponse.json(
+          { success: false, message: firstError.message },
+          { status: 400 }
+        );
+      }
+      throw error;
     }
 
-    if (body.branch !== undefined && !config.branch) {
-      return NextResponse.json(
-        { success: false, message: 'Branch cannot be empty when provided' },
-        { status: 400 }
-      );
-    }
-
-    if (selectedPaths.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'At least one file path must be selected' },
-        { status: 400 }
-      );
-    }
-
-    if (mode === 'apply') {
-      if (!confirmApply) {
+    // Apply-mode specific validation
+    if (validated.mode === 'apply') {
+      if (!validated.confirmApply) {
         return NextResponse.json(
           {
             success: false,
@@ -96,26 +62,33 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (selectedPaths.length > MAX_APPLY_FILES) {
+      if (validated.paths.length > applyModeConstraints.maxFiles) {
         return NextResponse.json(
           {
             success: false,
-            message: `Apply mode is limited to ${MAX_APPLY_FILES} files per request`,
+            message: `Apply mode is limited to ${applyModeConstraints.maxFiles} files per request`,
           },
           { status: 400 }
         );
       }
     }
 
+    // Proxy to Go backend with validated data
     return proxyGoFunction(request, {
       path: '/api/go/github/log-doctor/fix',
       method: 'POST',
       body: {
-        ...config,
-        mode,
-        paths: selectedPaths,
-        options,
-        confirmApply,
+        owner: validated.owner,
+        repo: validated.repo,
+        branch: validated.branch,
+        mode: validated.mode,
+        paths: validated.paths,
+        options: {
+          normalizeFrontmatter: validated.options?.normalizeFrontmatter ?? true,
+          enforceSectionOrder: validated.options?.enforceSectionOrder ?? true,
+          preserveUserContent: validated.options?.preserveUserContent ?? true,
+        },
+        confirmApply: validated.confirmApply,
       },
     });
   } catch (error) {
