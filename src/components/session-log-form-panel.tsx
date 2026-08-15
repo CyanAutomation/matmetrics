@@ -14,7 +14,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RessaImage } from '@/components/ressa-image';
-import { Brain, X, Sparkles, Loader2, Wand2, PlusCircle } from 'lucide-react';
+import {
+  Brain,
+  X,
+  Sparkles,
+  Loader2,
+  Wand2,
+  PlusCircle,
+  ChevronDown,
+} from 'lucide-react';
 import { EFFORT_LABELS, EFFORT_COLORS, JudoSession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -291,7 +299,7 @@ export function SessionLogForm({
 
           <fieldset className="space-y-4">
             <legend className="text-sm font-semibold text-foreground">
-              Practice notes
+              What did you practise?
             </legend>
             <div className="flex items-center justify-between">
               <Label
@@ -342,41 +350,9 @@ export function SessionLogForm({
             </p>
 
             <div className="space-y-4 pt-2 border-t border-border/70 pt-5">
-              <p className="text-sm font-semibold text-foreground">
-                Optional enrichment
-              </p>
-              <div className="space-y-2">
-                <Label
-                  htmlFor={fid('video-url')}
-                  className="text-sm font-semibold text-muted-foreground"
-                >
-                  Relevant Video URL (Optional)
-                </Label>
-                <Input
-                  id={fid('video-url')}
-                  name="sessionVideoUrl"
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
-                  value={formState.videoUrl}
-                  onChange={(e) => formState.setVideoUrl(e.target.value)}
-                  aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
-                  className="bg-background"
-                />
-                {videoUrlValidationMessage ? (
-                  <p className="text-sm text-destructive">
-                    {videoUrlValidationMessage}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Paste a public YouTube or other http(s) video link related
-                    to this session.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <Label className="text-label-md text-muted-foreground">
-                  Technique Tags
+                  Technique tags
                 </Label>
                 <Button
                   type="button"
@@ -432,7 +408,7 @@ export function SessionLogForm({
                 <Input
                   id={fid('manual-tag')}
                   name="manualTagEntry"
-                  placeholder="Manual tag (e.g. O-soto-gari)"
+                  placeholder="Add a technique (e.g. O-soto-gari)"
                   value={formState.newTech}
                   onChange={(e) => formState.setNewTech(e.target.value)}
                   onKeyDown={(e) => {
@@ -451,33 +427,64 @@ export function SessionLogForm({
                   disabled={isSubmitting}
                   className="h-10 px-6"
                 >
-                  Add Tag
+                  Add
                 </Button>
               </div>
             </div>
-          </fieldset>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-foreground">
-              Reflection{' '}
-              <span className="font-normal text-muted-foreground">
-                (optional)
-              </span>
-            </legend>
-            <Label
-              htmlFor={fid('notes')}
-              className="text-sm font-semibold text-muted-foreground"
-            >
-              Personal Notes
-            </Label>
-            <Textarea
-              id={fid('notes')}
-              name="personalNotes"
-              placeholder="How did you feel?"
-              value={formState.notes}
-              onChange={(e) => formState.setNotes(e.target.value)}
-              className="bg-background"
-            />
+            <details className="group rounded-lg border border-border/70 bg-muted/20">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-muted-foreground marker:content-none">
+                Add reflection, video, or AI enrichment
+                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="space-y-4 border-t border-border/70 p-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor={fid('video-url')}
+                  className="text-sm font-semibold text-muted-foreground"
+                >
+                  Relevant Video URL (Optional)
+                </Label>
+                <Input
+                  id={fid('video-url')}
+                  name="sessionVideoUrl"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+                  value={formState.videoUrl}
+                  onChange={(e) => formState.setVideoUrl(e.target.value)}
+                  aria-invalid={videoUrlValidationMessage ? 'true' : 'false'}
+                  className="bg-background"
+                />
+                {videoUrlValidationMessage ? (
+                  <p className="text-sm text-destructive">
+                    {videoUrlValidationMessage}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Paste a public YouTube or other http(s) video link related
+                    to this session.
+                  </p>
+                )}
+              </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor={fid('notes')}
+                    className="text-sm font-semibold text-muted-foreground"
+                  >
+                    Reflection
+                  </Label>
+                  <Textarea
+                    id={fid('notes')}
+                    name="personalNotes"
+                    placeholder="How did you feel? What should you repeat next time?"
+                    value={formState.notes}
+                    onChange={(e) => formState.setNotes(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+              </div>
+            </details>
           </fieldset>
         </CardContent>
         <CardFooter className="p-0">

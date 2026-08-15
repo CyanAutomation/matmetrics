@@ -74,6 +74,7 @@ interface SessionRowProps {
   session: JudoSession;
   onDelete: (id: string) => void;
   onEdit: (session: JudoSession) => void;
+  onFilterTechnique: (technique: string) => void;
   deletingSessionId: string | null;
 }
 
@@ -81,6 +82,7 @@ function SessionRow({
   session,
   onDelete,
   onEdit,
+  onFilterTechnique,
   deletingSessionId,
 }: SessionRowProps) {
   const sessionDateLabel = format(
@@ -101,7 +103,7 @@ function SessionRow({
   }
 
   return (
-    <div className="py-6 reveal-fade">
+    <div className="rounded-xl px-3 py-6 reveal-fade transition-colors hover:bg-muted/25 sm:px-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -121,13 +123,15 @@ function SessionRow({
 
           <div className="flex flex-wrap gap-1.5">
             {session.techniques.slice(0, 3).map((tech, idx) => (
-              <Badge
+              <button
                 key={idx}
-                variant="outline"
-                className="bg-background/60 border-primary/30"
+                type="button"
+                onClick={() => onFilterTechnique(tech)}
+                className="rounded-full border border-primary/30 bg-background/60 px-2.5 py-0.5 text-xs font-medium transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                title={`Show sessions tagged ${tech}`}
               >
                 {tech}
-              </Badge>
+              </button>
             ))}
             {session.techniques.length > 3 ? (
               <Badge
@@ -141,7 +145,7 @@ function SessionRow({
         </div>
 
         <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
-          <div className="flex flex-col items-end mr-4 md:mr-6">
+          <div className="flex flex-col items-end mr-1 md:mr-3">
             <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
               Effort
             </span>
@@ -334,6 +338,10 @@ export function SessionHistory({
     setFromDate('');
     setToDate('');
   };
+  const filterByTechnique = (technique: string) => {
+    setSearchQuery(technique);
+    setFiltersOpen(false);
+  };
 
   if (sessions.length === 0) {
     return (
@@ -463,6 +471,7 @@ export function SessionHistory({
                     if (sessionToDelete) requestDelete(sessionToDelete);
                   }}
                   onEdit={setEditingSession}
+                  onFilterTechnique={filterByTechnique}
                   deletingSessionId={deletingSessionId}
                 />
               </div>
