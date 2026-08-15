@@ -1,4 +1,3 @@
-// fallow-ignore-file unused-file
 // This suite is discovered dynamically by the Node test command.
 import assert from 'node:assert/strict';
 import { beforeEach } from 'node:test';
