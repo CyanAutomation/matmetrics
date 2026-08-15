@@ -49,10 +49,10 @@ const dashboardCategoryChartToken: Partial<Record<
 const dashboardCategoryFallbackChartToken: DashboardChartToken = 'chart-4';
 
 const dashboardChartTokenBarClass: Record<DashboardChartToken, string> = {
-  'chart-1': 'bg-[hsl(var(--chart-1))]',
-  'chart-2': 'bg-[hsl(var(--chart-2))]',
-  'chart-3': 'bg-[hsl(var(--chart-3))]',
-  'chart-4': 'bg-[hsl(var(--chart-4))]',
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
 };
 
 export function resolveDashboardCategoryChartToken(
