@@ -7,6 +7,13 @@ export default {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    'bg-chart-1',
+    'bg-chart-2',
+    'bg-chart-3',
+    'bg-chart-4',
+    'bg-chart-5',
+  ],
   theme: {
     extend: {
       fontFamily: {
