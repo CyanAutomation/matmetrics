@@ -3,7 +3,17 @@
 import { useMemo, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { JudoSession } from '@/lib/types';
-import { Award, Calendar, PlusCircle, Zap, Target } from 'lucide-react';
+import {
+  Award,
+  Calendar,
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  PlusCircle,
+  Sparkles,
+  Target,
+  Zap,
+} from 'lucide-react';
 import { RessaImage } from '@/components/ressa-image';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
@@ -19,11 +29,13 @@ import { DataSurface } from '@/components/ui/data-display';
 interface DashboardOverviewProps {
   sessions: JudoSession[];
   onLogSession?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function DashboardOverview({
   sessions,
   onLogSession,
+  isRefreshing = false,
 }: DashboardOverviewProps) {
   const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
     null
@@ -86,6 +98,45 @@ export function DashboardOverview({
       )
     );
 
+    const dateKeys = new Set(sessions.map((session) => session.date));
+    let trainingStreak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (dateKeys.has(cursor.toISOString().slice(0, 10))) {
+      trainingStreak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    const recentAverage =
+      recentEfforts
+        .slice(-3)
+        .reduce((total, session) => total + session.effort, 0) /
+      Math.min(recentEfforts.length, 3);
+    const earlierEfforts = recentEfforts.slice(-6, -3);
+    const earlierAverage = earlierEfforts.length
+      ? earlierEfforts.reduce((total, session) => total + session.effort, 0) /
+        earlierEfforts.length
+      : null;
+    const leastPracticedCategory = Object.entries(categoryCount).sort(
+      ([, left], [, right]) => left - right
+    )[0]?.[0];
+
+    const nextAction =
+      daysSinceLatestSession >= 7
+        ? {
+            eyebrow: 'Get back on the mat',
+            title: `It has been ${daysSinceLatestSession} days since your last session.`,
+            description:
+              'A short technical session is enough to rebuild momentum.',
+            action: 'Log a technical session',
+          }
+        : {
+            eyebrow: 'Your next best session',
+            title: `Balance your week with ${leastPracticedCategory?.toLowerCase() ?? 'technical'} work.`,
+            description: `Your focus is currently ${topCategory.toLowerCase()}; a deliberate change of pace will round out your practice.`,
+            action: 'Plan your next session',
+          };
+
     return {
       totalSessions: sessions.length,
       avgEffort: avgEffort.toFixed(1),
@@ -106,6 +157,10 @@ export function DashboardOverview({
         addSuffix: true,
       }),
       needsTrainingNudge: daysSinceLatestSession >= 14,
+      trainingStreak,
+      recentAverage,
+      earlierAverage,
+      nextAction,
     };
   }, [sessions]);
 
@@ -129,28 +184,58 @@ export function DashboardOverview({
   }
 
   return (
-    <div className="reveal-fade-up max-w-4xl mx-auto w-full">
-      <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div className="reveal-fade-up max-w-5xl mx-auto w-full">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-headline-md">Training snapshot</h2>
+          <p className="text-label-md text-primary">Progress</p>
+          <h2 className="text-display-sm mt-1">Your training, at a glance</h2>
           <p className="text-sm text-muted-foreground">
             Based on all logged sessions from {stats.periodLabel}.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm font-medium text-muted-foreground">
-            Latest session {stats.latestSessionLabel}
+          <p
+            className="text-sm font-medium text-muted-foreground"
+            aria-live="polite"
+          >
+            {isRefreshing
+              ? 'Updating training data…'
+              : `Latest session ${stats.latestSessionLabel}`}
           </p>
-          {onLogSession && stats.needsTrainingNudge ? (
-            <Button size="sm" onClick={onLogSession}>
+          {onLogSession ? (
+            <Button onClick={onLogSession} className="min-h-11">
               <PlusCircle className="mr-2 h-4 w-4" />
               Log a session
             </Button>
           ) : null}
         </div>
       </div>
+      <DataSurface className="mb-6 overflow-hidden border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.7),hsl(var(--card))_62%)] p-0">
+        <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+              <Sparkles className="h-4 w-4" />
+              {stats.nextAction.eyebrow}
+            </div>
+            <h3 className="text-headline-md">{stats.nextAction.title}</h3>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              {stats.nextAction.description}
+            </p>
+          </div>
+          {onLogSession && (
+            <Button
+              variant="outline"
+              onClick={onLogSession}
+              className="min-h-11 justify-between sm:justify-center"
+            >
+              {stats.nextAction.action}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </DataSurface>
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
@@ -158,6 +243,19 @@ export function DashboardOverview({
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
             {stats.totalSessions}
+          </div>
+        </DataSurface>
+        <DataSurface className="flex flex-col gap-2 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Flame className="h-4 w-4" />
+            <span className="text-label-md">Current streak</span>
+          </div>
+          <div className="text-display-sm font-bold text-foreground tabular-nums">
+            {stats.trainingStreak}
+            <span className="text-base font-normal text-muted-foreground">
+              {' '}
+              days
+            </span>
           </div>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
@@ -196,7 +294,15 @@ export function DashboardOverview({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Effort — surface, not card */}
         <DataSurface>
-          <h3 className="text-headline-sm mb-6">Recent Effort Levels</h3>
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h3 className="text-headline-sm">Recent Effort</h3>
+            <Dumbbell className="h-5 w-5 text-primary" />
+          </div>
+          <p className="mb-5 text-sm text-muted-foreground">
+            {stats.earlierAverage === null
+              ? `Your latest three sessions average ${stats.recentAverage.toFixed(1)} / 5.`
+              : `Last three average ${stats.recentAverage.toFixed(1)} / 5, ${stats.recentAverage >= stats.earlierAverage ? 'up' : 'down'} from ${stats.earlierAverage.toFixed(1)}.`}
+          </p>
           <div className="h-[300px]">
             <ChartContainer
               config={{
