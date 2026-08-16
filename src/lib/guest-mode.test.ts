@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEMO_SESSIONS } from './demo-sessions';
+import { AUDIT_DEMO_SESSIONS, DEMO_SESSIONS } from './demo-sessions';
 import { setActiveUserId } from './client-identity';
 import {
   clearGuestWorkspaceAfterImport,
@@ -57,7 +57,7 @@ test('guest workspace seeds demo data the first time guest mode initializes', ()
 
   ensureGuestWorkspaceSeeded();
 
-  assert.equal(DEMO_SESSIONS.length, 12);
+  assert.equal(DEMO_SESSIONS.length, 27);
   assertSessionsSortedNewestFirst();
   assert.deepEqual(getGuestSessionsForImport(), DEMO_SESSIONS);
   assert.deepEqual(getGuestWorkspaceSummary(), {
@@ -88,6 +88,27 @@ test('demo sessions fixture enforces stable product invariants', () => {
     DEMO_SESSIONS.length
   );
   assertSessionsSortedNewestFirst();
+
+  assert.equal(DEMO_SESSIONS.filter((session) => session.videoUrl).length, 3);
+  assert.deepEqual(
+    new Set(DEMO_SESSIONS.map((session) => session.category)),
+    new Set(['Technical', 'Randori', 'Shiai'])
+  );
+  assert.deepEqual(
+    new Set(DEMO_SESSIONS.map((session) => session.effort)),
+    new Set([1, 2, 3, 4, 5])
+  );
+});
+
+test('audit demo sessions remain separate from the polished guest preview', () => {
+  assert.equal(
+    DEMO_SESSIONS.some((session) => session.techniques.length === 0),
+    false
+  );
+  assert.equal(
+    AUDIT_DEMO_SESSIONS.some((session) => session.techniques.length === 0),
+    true
+  );
 });
 
 test('guest workspace becomes importable after local edits and can be dismissed', async () => {
