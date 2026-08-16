@@ -6,6 +6,7 @@ import {
   type TransformPracticeInput,
 } from './practice-description-transformer';
 import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
+import { InvalidAiResponseError } from '@/lib/ai-api-error';
 
 test('fallback prompt uses shared default constant with mixed-discipline preservation guidance', async () => {
   let receivedPromptInput: TransformPracticeInput | undefined;
@@ -68,4 +69,20 @@ test('prompt payload keeps custom prompt override and raw mixed-language input u
 
   assert.equal(receivedPromptInput?.description, rawDescription);
   assert.equal(receivedPromptInput?.customPrompt, customPrompt);
+});
+
+test('missing or blank model output is rejected as an invalid AI response', async () => {
+  for (const output of [
+    null,
+    { transformedDescription: '' },
+    { transformedDescription: '   ' },
+  ]) {
+    await assert.rejects(
+      runTransformPracticeDescription(
+        { description: 'practice' },
+        async () => ({ output })
+      ),
+      InvalidAiResponseError
+    );
+  }
 });

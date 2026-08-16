@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
+import { InvalidAiResponseError } from '@/lib/ai-api-error';
 import { z } from 'genkit';
 
 const TransformPracticeInputSchema = z.object({
@@ -57,8 +58,8 @@ export async function runTransformPracticeDescription(
     ...input,
     customPrompt: instructions,
   });
-  if (!output) {
-    throw new Error('Prompt runner returned undefined output');
+  if (!output || !output.transformedDescription?.trim()) {
+    throw new InvalidAiResponseError();
   }
   return output;
 }
