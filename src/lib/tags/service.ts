@@ -379,7 +379,7 @@ export function createTagService({
       });
     }
 
-    if (source && target && normalizedSource === normalizedTarget) {
+    if (source && target && source === target) {
       conflicts.push({
         code: 'merge_same_tag',
         message: 'Cannot merge a tag into itself.',
@@ -423,7 +423,9 @@ export function createTagService({
         new Set(
           session.techniques.map((tag) => {
             if (normalizeTag(tag) === normalizedSource) {
-              sessionChangedCount += 1;
+              if (tag !== target) {
+                sessionChangedCount += 1;
+              }
               return target;
             }
             return tag;
