@@ -1,12 +1,20 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatDistanceToNowStrict } from 'date-fns';
+import {
+  endOfWeek,
+  format,
+  formatDistanceToNowStrict,
+  startOfWeek,
+  subDays,
+} from 'date-fns';
 import { JudoSession } from '@/lib/types';
 import {
   Award,
   Calendar,
+  CheckCircle2,
   ChevronRight,
+  Circle,
   Dumbbell,
   Flame,
   Sparkles,
@@ -41,6 +49,11 @@ export function DashboardOverview({
   const stats = useMemo(() => {
     if (sessions.length === 0) return null;
 
+    const sortedSessions = [...sessions].sort(
+      (left, right) =>
+        parseDateOnly(right.date).getTime() - parseDateOnly(left.date).getTime()
+    );
+
     const avgEffort =
       sessions.reduce((acc, s) => acc + s.effort, 0) / sessions.length;
 
@@ -51,7 +64,7 @@ export function DashboardOverview({
       Shiai: 0,
     };
 
-    sessions.forEach((s) => {
+    sortedSessions.forEach((s) => {
       s.techniques.forEach((t) => {
         techniqueCount[t] = (techniqueCount[t] || 0) + 1;
       });
@@ -69,10 +82,16 @@ export function DashboardOverview({
       ([name, count]) => ({ name, count })
     );
 
-    const maxCategoryCount = Math.max(...categoryStats.map(cat => cat.count), 1);
-    const maxTechniqueCount = Math.max(...topTechniques.map(tech => tech.count), 1);
+    const maxCategoryCount = Math.max(
+      ...categoryStats.map((category) => category.count),
+      1
+    );
+    const maxTechniqueCount = Math.max(
+      ...topTechniques.map((technique) => technique.count),
+      1
+    );
 
-    const recentEfforts = sessions
+    const recentEfforts = sortedSessions
       .slice(0, 7)
       .reverse()
       .map((s) => ({
@@ -87,7 +106,7 @@ export function DashboardOverview({
     const topCategory = Object.entries(categoryCount).sort(
       (a, b) => b[1] - a[1]
     )[0][0];
-    const sessionDates = sessions
+    const sessionDates = sortedSessions
       .map((session) => parseDateOnly(session.date))
       .sort((a, b) => a.getTime() - b.getTime());
     const firstSessionDate = sessionDates[0];
@@ -99,22 +118,48 @@ export function DashboardOverview({
       )
     );
 
-    const weekStart = new Date();
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const sessionsThisWeek = sessions.filter(
-      (session) => parseDateOnly(session.date).getTime() >= weekStart.getTime()
-    ).length;
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const sessionsThisWeek = sortedSessions.filter((session) => {
+      const sessionDate = parseDateOnly(session.date);
+      return sessionDate >= weekStart && sessionDate <= weekEnd;
+    }).length;
     const weeklyTarget = 3;
+    const weeklyCategoryCount: Record<string, number> = {
+      Technical: 0,
+      Randori: 0,
+      Shiai: 0,
+    };
+    sortedSessions.forEach((session) => {
+      const sessionDate = parseDateOnly(session.date);
+      if (
+        sessionDate >= weekStart &&
+        sessionDate <= weekEnd &&
+        session.category
+      ) {
+        weeklyCategoryCount[session.category] += 1;
+      }
+    });
+    const lastFortnight = subDays(now, 13);
+    const sessionsInLastFortnight = sortedSessions.filter(
+      (session) => parseDateOnly(session.date) >= lastFortnight
+    ).length;
 
-    const dateKeys = new Set(sessions.map((session) => session.date));
-    let trainingStreak = 0;
-    const cursor = new Date();
-    cursor.setHours(0, 0, 0, 0);
-    while (dateKeys.has(cursor.toISOString().slice(0, 10))) {
-      trainingStreak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
+    const recentCategoryCount: Record<string, number> = {
+      Technical: 0,
+      Randori: 0,
+      Shiai: 0,
+    };
+    const categoryWindowStart = subDays(now, 27);
+    sortedSessions.forEach((session) => {
+      if (
+        parseDateOnly(session.date) >= categoryWindowStart &&
+        session.category
+      ) {
+        recentCategoryCount[session.category] += 1;
+      }
+    });
 
     const recentAverage =
       recentEfforts
@@ -126,9 +171,11 @@ export function DashboardOverview({
       ? earlierEfforts.reduce((total, session) => total + session.effort, 0) /
         earlierEfforts.length
       : null;
-    const leastPracticedCategory = Object.entries(categoryCount).sort(
+    const leastPracticedCategory = Object.entries(recentCategoryCount).sort(
       ([, left], [, right]) => left - right
     )[0]?.[0];
+    const leastPracticedCount =
+      recentCategoryCount[leastPracticedCategory ?? 'Technical'] ?? 0;
 
     const nextAction =
       daysSinceLatestSession >= 7
@@ -141,8 +188,8 @@ export function DashboardOverview({
           }
         : {
             eyebrow: 'Your next best session',
-            title: `Balance your week with ${leastPracticedCategory?.toLowerCase() ?? 'technical'} work.`,
-            description: `Your focus is currently ${topCategory.toLowerCase()}; a deliberate change of pace will round out your practice.`,
+            title: `Make room for ${leastPracticedCategory?.toLowerCase() ?? 'technical'} work.`,
+            description: `You have logged ${leastPracticedCount} ${leastPracticedCategory?.toLowerCase() ?? 'technical'} session${leastPracticedCount === 1 ? '' : 's'} in the last 28 days. A deliberate change of pace will keep your training balanced.`,
             action: `Log a ${leastPracticedCategory?.toLowerCase() ?? 'technical'} session`,
           };
 
@@ -155,7 +202,8 @@ export function DashboardOverview({
       maxTechniqueCount,
       topCategory,
       recentEfforts,
-      periodLabel: `${firstSessionDate.toLocaleDateString(undefined, {
+      weekLabel: `${format(weekStart, 'd MMM')} – ${format(weekEnd, 'd MMM')}`,
+      trainingDataRange: `${firstSessionDate.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -168,9 +216,21 @@ export function DashboardOverview({
         addSuffix: true,
       }),
       needsTrainingNudge: daysSinceLatestSession >= 14,
-      trainingStreak,
+      sessionsInLastFortnight,
       sessionsThisWeek,
       weeklyTarget,
+      weeklyPlan: (
+        Object.keys(weeklyCategoryCount) as Array<
+          keyof typeof weeklyCategoryCount
+        >
+      ).map((category) => ({
+        category,
+        completed: weeklyCategoryCount[category] > 0,
+        detail:
+          weeklyCategoryCount[category] > 0
+            ? `${weeklyCategoryCount[category]} session${weeklyCategoryCount[category] === 1 ? '' : 's'} logged`
+            : `Add a ${category.toLowerCase()} session`,
+      })),
       recentAverage,
       earlierAverage,
       nextAction,
@@ -243,7 +303,7 @@ export function DashboardOverview({
       </DataSurface>
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-headline-sm">This week at a glance</h3>
-        <p className="text-xs text-muted-foreground">{stats.periodLabel}</p>
+        <p className="text-xs text-muted-foreground">{stats.weekLabel}</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
@@ -262,19 +322,19 @@ export function DashboardOverview({
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Flame className="h-4 w-4" />
-            <span className="text-label-md">Training streak</span>
+            <span className="text-label-md">14-day cadence</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.trainingStreak || '—'}
+            {stats.sessionsInLastFortnight}
           </div>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Target className="h-4 w-4" />
-            <span className="text-label-md">Needs attention</span>
+            <span className="text-label-md">Next focus</span>
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.nextAction.title.match(/with (.+) work\./)?.[1] ??
+            {stats.nextAction.title.match(/for (.+) work\./)?.[1] ??
               'Consistency'}
           </div>
         </DataSurface>
@@ -288,6 +348,43 @@ export function DashboardOverview({
           </div>
         </DataSurface>
       </div>
+
+      <DataSurface className="mb-8">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-label-md text-primary">Weekly plan</p>
+            <h3 className="text-headline-sm">
+              Build a balanced week on the mat.
+            </h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            A simple mix of technical work, randori, and shiai practice.
+          </p>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {stats.weeklyPlan.map((item) => (
+            <button
+              key={item.category}
+              type="button"
+              onClick={onLogSession}
+              disabled={!onLogSession}
+              className="flex min-h-20 items-center gap-3 rounded-xl bg-secondary/30 p-4 text-left transition-colors hover:bg-secondary/50 disabled:cursor-default disabled:hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {item.completed ? (
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+              ) : (
+                <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
+              )}
+              <span>
+                <span className="block font-semibold">{item.category}</span>
+                <span className="block text-sm text-muted-foreground">
+                  {item.detail}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </DataSurface>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Effort — surface, not card */}
@@ -445,7 +542,12 @@ export function DashboardOverview({
 
         {/* Training Distribution — surface, not card */}
         <DataSurface>
-          <h3 className="text-headline-sm mb-6">Training Distribution</h3>
+          <div className="mb-6 flex items-baseline justify-between gap-3">
+            <h3 className="text-headline-sm">Training Distribution</h3>
+            <span className="text-xs text-muted-foreground">
+              {stats.trainingDataRange}
+            </span>
+          </div>
           <div className="space-y-8">
             <div className="space-y-4">
               <p className="text-label-md text-muted-foreground">
