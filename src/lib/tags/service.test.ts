@@ -79,6 +79,44 @@ test('merge into same tag returns conflict and performs no updates', async () =>
   assert.equal(updates.length, 0);
 });
 
+test('merge canonicalizes source-case variants without updating canonical-only sessions', async () => {
+  const sessions = [
+    makeSession('source-only', ['o-uchi-gari']),
+    makeSession('target-only', ['O-uchi-gari']),
+    makeSession('both', ['o-uchi-gari', 'O-uchi-gari']),
+  ];
+  const updates: JudoSession[] = [];
+  const service = createTagService({
+    getSessions: () => sessions,
+    updateSession: async (session) => {
+      updates.push(session);
+      return { status: 'synced' };
+    },
+  });
+
+  const analysis = await service.analyzeMerge('o-uchi-gari', 'O-uchi-gari');
+
+  assert.equal(analysis.affectedSessionCount, 2);
+  assert.equal(analysis.changedTagCount, 2);
+  assert.deepEqual(analysis.affectedSessionIds, ['source-only', 'both']);
+  assert.equal(analysis.conflicts.length, 0);
+  assert.equal(updates.length, 0);
+
+  const result = await service.mergeTags('o-uchi-gari', 'O-uchi-gari');
+
+  assert.equal(result.affectedSessionCount, 2);
+  assert.equal(result.changedTagCount, 2);
+  assert.deepEqual(result.affectedSessionIds, ['source-only', 'both']);
+  assert.equal(result.conflicts.length, 0);
+  assert.deepEqual(
+    updates.map((session) => [session.id, session.techniques]),
+    [
+      ['source-only', ['O-uchi-gari']],
+      ['both', ['O-uchi-gari']],
+    ]
+  );
+});
+
 test('delete nonexistent tag returns conflict and supports dry-run', async () => {
   const sessions = [makeSession('s1', ['tomoe-nage'])];
   const updates: JudoSession[] = [];
