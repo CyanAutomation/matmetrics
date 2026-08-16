@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { RessaImage } from '@/components/ressa-image';
-import { EFFORT_LABELS, EFFORT_COLORS } from '@/lib/types';
+import { EFFORT_LABELS } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface SessionEssentialsSectionProps {
@@ -164,19 +164,16 @@ export function SessionEssentialsSection({
                     type="button"
                     onClick={() => setEffort(effortVal)}
                     className={cn(
-                      'min-h-10 flex-1 px-1 font-semibold transition-all duration-200 text-sm',
+                      'min-h-10 flex-1 px-1 text-[11px] font-semibold leading-none transition-all duration-200 sm:px-2 sm:text-sm',
                       isSelected
-                        ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
-                        : 'border border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'border border-primary bg-primary text-primary-foreground shadow-sm'
+                        : 'border border-input bg-background text-foreground hover:bg-muted'
                     )}
                     title={EFFORT_LABELS[effortVal]}
                     aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
                     aria-pressed={isSelected}
                   >
-                    <span className="sm:hidden">{val}</span>
-                    <span className="hidden sm:inline">
-                      {EFFORT_LABELS[effortVal]}
-                    </span>
+                    {EFFORT_LABELS[effortVal]}
                   </Button>
                 );
               })}
