@@ -14,45 +14,37 @@ test('normalizeExpectedVideoCategories keeps valid categories in canonical order
   );
 });
 
-test('normalizeTrainingPlanPreferences preserves per-type targets and monthly availability', () => {
+test('normalizeTrainingPlanPreferences keeps personal targets and migrates legacy monthly targets', () => {
   assert.deepEqual(
     normalizeTrainingPlanPreferences({
       categories: {
         Technical: {
           targetSessionsPerMonth: 3.6,
-          expectedOpportunitiesPerMonth: 5,
         },
         Randori: {
-          targetSessionsPerMonth: 2,
-          expectedOpportunitiesPerMonth: 4,
+          targetSessions: 2,
+          cadence: 'month',
         },
         Shiai: {
-          targetSessionsPerMonth: 1,
-          expectedOpportunitiesPerMonth: 1,
+          targetSessions: 1,
+          cadence: 'week',
         },
-      },
-      availableOpportunitiesByMonth: {
-        '2026-08': { Randori: 1 },
-        invalid: { Technical: 2 },
       },
     }),
     {
       categories: {
         Technical: {
-          targetSessionsPerMonth: 4,
-          expectedOpportunitiesPerMonth: 5,
+          targetSessions: 4,
+          cadence: 'month',
         },
         Randori: {
-          targetSessionsPerMonth: 2,
-          expectedOpportunitiesPerMonth: 4,
+          targetSessions: 2,
+          cadence: 'month',
         },
         Shiai: {
-          targetSessionsPerMonth: 1,
-          expectedOpportunitiesPerMonth: 1,
+          targetSessions: 1,
+          cadence: 'week',
         },
-      },
-      availableOpportunitiesByMonth: {
-        '2026-08': { Randori: 1 },
       },
     }
   );

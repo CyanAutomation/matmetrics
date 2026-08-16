@@ -104,7 +104,6 @@ function cloneDefaults(): UserPreferences {
         Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
         Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
       },
-      availableOpportunitiesByMonth: {},
     },
   };
 }
@@ -127,7 +126,6 @@ export function normalizeTrainingPlanPreferences(
         Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
         Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
       },
-      availableOpportunitiesByMonth: {},
     };
   }
 
@@ -136,40 +134,29 @@ export function normalizeTrainingPlanPreferences(
     (result, category) => {
       const savedCategory = input.categories?.[category];
       const defaults = DEFAULT_TRAINING_PLAN.categories[category];
+      const legacyCategory = savedCategory as
+        | (typeof savedCategory & {
+            targetSessionsPerMonth?: unknown;
+          })
+        | undefined;
       result[category] = {
-        targetSessionsPerMonth: normalizePlanCount(
-          savedCategory?.targetSessionsPerMonth,
-          defaults.targetSessionsPerMonth
+        targetSessions: normalizePlanCount(
+          savedCategory?.targetSessions ??
+            legacyCategory?.targetSessionsPerMonth,
+          defaults.targetSessions
         ),
-        expectedOpportunitiesPerMonth: normalizePlanCount(
-          savedCategory?.expectedOpportunitiesPerMonth,
-          defaults.expectedOpportunitiesPerMonth
-        ),
+        cadence:
+          savedCategory?.cadence === 'week' ||
+          savedCategory?.cadence === 'month'
+            ? savedCategory.cadence
+            : 'month',
       };
       return result;
     },
     {} as TrainingPlanPreferences['categories']
   );
 
-  const availableOpportunitiesByMonth = Object.fromEntries(
-    Object.entries(input.availableOpportunitiesByMonth || {})
-      .filter(([month]) => /^\d{4}-\d{2}$/.test(month))
-      .map(([month, availability]) => [
-        month,
-        Object.fromEntries(
-          Object.entries(availability || {})
-            .filter(([category]) =>
-              (['Technical', 'Randori', 'Shiai'] as string[]).includes(category)
-            )
-            .map(([category, count]) => [
-              category,
-              normalizePlanCount(count, 0),
-            ])
-        ),
-      ])
-  ) as TrainingPlanPreferences['availableOpportunitiesByMonth'];
-
-  return { categories, availableOpportunitiesByMonth };
+  return { categories };
 }
 
 function normalizeGitHubSettings(value: unknown): GitHubSettings {
