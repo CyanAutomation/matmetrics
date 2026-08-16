@@ -21,7 +21,6 @@ import {
   Dumbbell,
   Flame,
   Sparkles,
-  Target,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { RessaImage } from '@/components/ressa-image';
@@ -301,7 +300,6 @@ export function DashboardOverview({
       monthlyPlan,
       completedMonthlyTarget,
       effectiveMonthlyTarget,
-      nextFocus: nextPlanItem?.category ?? 'Consistency',
       recentAverage,
       earlierAverage,
       nextAction,
@@ -340,7 +338,7 @@ export function DashboardOverview({
           </p>
         </div>
       </div>
-      <DataSurface className="mb-6 overflow-hidden border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.7),hsl(var(--card))_62%)] p-0">
+      <DataSurface className="mb-6 overflow-hidden border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.82),hsl(var(--card))_62%)] p-0 shadow-[0_18px_34px_-28px_hsl(var(--primary)/0.42)]">
         <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
           <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
@@ -352,7 +350,7 @@ export function DashboardOverview({
               {stats.nextAction.description}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-              <span className="rounded-full bg-background/70 px-3 py-1.5 font-medium text-foreground">
+              <span className="rounded-full border border-[hsl(var(--color-outline-variant)/0.38)] bg-card px-3 py-1.5 font-medium text-foreground">
                 Monthly plan: {stats.completedMonthlyTarget}/
                 {stats.effectiveMonthlyTarget}
               </span>
@@ -374,13 +372,13 @@ export function DashboardOverview({
         </div>
       </DataSurface>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-headline-sm">This month at a glance</h3>
+        <h3 className="text-headline-sm">Your rhythm this month</h3>
         <p className="text-xs text-muted-foreground">
           {stats.currentMonthLabel}
         </p>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-8">
+        <DataSurface className="flex flex-col gap-2 border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary-fixed)/0.42)] p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span className="text-label-md">Plan progress</span>
@@ -392,6 +390,9 @@ export function DashboardOverview({
               / {stats.effectiveMonthlyTarget}
             </span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Sessions completed against your realistic plan.
+          </p>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -399,17 +400,12 @@ export function DashboardOverview({
             <span className="text-label-md">14-day cadence</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.sessionsInLastFortnight}
+            {stats.sessionsInLastFortnight} session
+            {stats.sessionsInLastFortnight === 1 ? '' : 's'}
           </div>
-        </DataSurface>
-        <DataSurface className="flex flex-col gap-2 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Target className="h-4 w-4" />
-            <span className="text-label-md">Next best session</span>
-          </div>
-          <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.nextFocus}
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Logged in the last 14 days.
+          </p>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -419,6 +415,9 @@ export function DashboardOverview({
           <div className="text-display-sm font-bold text-foreground truncate">
             {stats.topTechniques[0]?.name || '—'}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Your most practised technique.
+          </p>
         </DataSurface>
       </div>
 
@@ -557,10 +556,14 @@ export function DashboardOverview({
             <h3 className="text-headline-sm">Recent Effort</h3>
             <Dumbbell className="h-5 w-5 text-primary" />
           </div>
-          <p className="mb-5 text-sm text-muted-foreground">
+          <p className="mb-2 text-sm text-muted-foreground">
             {stats.earlierAverage === null
               ? `Your latest three sessions average ${stats.recentAverage.toFixed(1)} / 5.`
               : `Last three average ${stats.recentAverage.toFixed(1)} / 5, ${stats.recentAverage >= stats.earlierAverage ? 'up' : 'down'} from ${stats.earlierAverage.toFixed(1)}.`}
+          </p>
+          <p className="mb-5 text-xs font-medium text-muted-foreground">
+            Each bar is one of your last seven logged sessions; height shows
+            perceived effort.
           </p>
           <div className="h-[300px]">
             <ChartContainer
@@ -605,7 +608,7 @@ export function DashboardOverview({
               >
                 <CartesianGrid
                   strokeDasharray="3 6"
-                  stroke="hsl(var(--foreground) / 0.16)"
+                  stroke="hsl(var(--foreground) / 0.22)"
                   vertical={false}
                 />
                 <XAxis
@@ -615,7 +618,7 @@ export function DashboardOverview({
                   tickMargin={10}
                   minTickGap={24}
                   tick={{
-                    fill: 'hsl(var(--foreground) / 0.78)',
+                    fill: 'hsl(var(--foreground) / 0.82)',
                     fontSize: 12,
                     fontWeight: 500,
                   }}
@@ -628,7 +631,7 @@ export function DashboardOverview({
                   tickMargin={8}
                   width={28}
                   tick={{
-                    fill: 'hsl(var(--foreground) / 0.72)',
+                    fill: 'hsl(var(--foreground) / 0.78)',
                     fontSize: 12,
                     fontWeight: 500,
                   }}
@@ -637,7 +640,7 @@ export function DashboardOverview({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 0,
-                    fill: 'hsl(var(--foreground) / 0.72)',
+                    fill: 'hsl(var(--foreground) / 0.78)',
                     fontSize: 12,
                     fontWeight: 600,
                   }}
@@ -725,7 +728,8 @@ export function DashboardOverview({
                         {cat.name}
                       </p>
                       <span className="text-body-sm font-semibold text-muted-foreground">
-                        {cat.count}
+                        {cat.count} session{cat.count === 1 ? '' : 's'} ·{' '}
+                        {Math.round((cat.count / stats.totalSessions) * 100)}%
                       </span>
                     </div>
                     <div className="flex h-2 w-full rounded-full bg-secondary">
@@ -763,7 +767,9 @@ export function DashboardOverview({
                       />
                     </div>
                   </div>
-                  <div className="ml-4 text-sm font-medium">{tech.count}x</div>
+                  <div className="ml-4 text-sm font-medium">
+                    {tech.count} sessions
+                  </div>
                 </div>
               ))}
             </div>

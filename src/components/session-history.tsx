@@ -378,7 +378,7 @@ export function SessionHistory({
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       <section
         aria-label="Filter training history"
-        className="sticky top-3 z-[1] mb-6 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur sm:p-4"
+        className="sticky top-3 z-[1] mb-6 rounded-xl border border-[hsl(var(--color-outline-variant)/0.42)] bg-card/95 p-3 shadow-[0_14px_28px_-24px_hsl(var(--foreground)/0.22)] backdrop-blur sm:p-4"
       >
         <div className="flex gap-2">
           <Input
@@ -391,7 +391,7 @@ export function SessionHistory({
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 shrink-0 sm:hidden"
+            className="min-h-11 shrink-0"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
           >
@@ -428,7 +428,7 @@ export function SessionHistory({
         <div
           className={cn(
             'mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5',
-            filtersOpen ? 'grid' : 'hidden sm:grid'
+            filtersOpen ? 'grid' : 'hidden'
           )}
         >
           <select
