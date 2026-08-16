@@ -17,12 +17,14 @@ import type {
   AuditRunResult,
   GitHubSettings,
   SessionAudit,
+  TrainingPlanPreferences,
   UserPreferences,
   VideoLibraryPreferences,
   VideoLinkCheckSnapshot,
 } from './types';
 import {
   DEFAULT_AUDIT_CONFIG,
+  DEFAULT_TRAINING_PLAN,
   DEFAULT_EXPECTED_VIDEO_CATEGORIES,
 } from './types';
 import {
@@ -58,6 +60,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   auditMode: 'standard',
   auditConfig: DEFAULT_AUDIT_CONFIG,
   lastAuditRun: undefined,
+  trainingPlan: DEFAULT_TRAINING_PLAN,
 };
 
 type PreferencesListener = (preferences: UserPreferences) => void;
@@ -95,7 +98,78 @@ function cloneDefaults(): UserPreferences {
       rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) => ({ ...rule })),
     },
     lastAuditRun: undefined,
+    trainingPlan: {
+      categories: {
+        Technical: { ...DEFAULT_TRAINING_PLAN.categories.Technical },
+        Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
+        Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
+      },
+      availableOpportunitiesByMonth: {},
+    },
   };
+}
+
+function normalizePlanCount(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(31, Math.round(value)));
+}
+
+export function normalizeTrainingPlanPreferences(
+  value: unknown
+): TrainingPlanPreferences {
+  if (!value || typeof value !== 'object') {
+    return {
+      categories: {
+        Technical: { ...DEFAULT_TRAINING_PLAN.categories.Technical },
+        Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
+        Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
+      },
+      availableOpportunitiesByMonth: {},
+    };
+  }
+
+  const input = value as Partial<TrainingPlanPreferences>;
+  const categories = (['Technical', 'Randori', 'Shiai'] as const).reduce(
+    (result, category) => {
+      const savedCategory = input.categories?.[category];
+      const defaults = DEFAULT_TRAINING_PLAN.categories[category];
+      result[category] = {
+        targetSessionsPerMonth: normalizePlanCount(
+          savedCategory?.targetSessionsPerMonth,
+          defaults.targetSessionsPerMonth
+        ),
+        expectedOpportunitiesPerMonth: normalizePlanCount(
+          savedCategory?.expectedOpportunitiesPerMonth,
+          defaults.expectedOpportunitiesPerMonth
+        ),
+      };
+      return result;
+    },
+    {} as TrainingPlanPreferences['categories']
+  );
+
+  const availableOpportunitiesByMonth = Object.fromEntries(
+    Object.entries(input.availableOpportunitiesByMonth || {})
+      .filter(([month]) => /^\d{4}-\d{2}$/.test(month))
+      .map(([month, availability]) => [
+        month,
+        Object.fromEntries(
+          Object.entries(availability || {})
+            .filter(([category]) =>
+              (['Technical', 'Randori', 'Shiai'] as string[]).includes(category)
+            )
+            .map(([category, count]) => [
+              category,
+              normalizePlanCount(count, 0),
+            ])
+        ),
+      ])
+  ) as TrainingPlanPreferences['availableOpportunitiesByMonth'];
+
+  return { categories, availableOpportunitiesByMonth };
 }
 
 function normalizeGitHubSettings(value: unknown): GitHubSettings {
@@ -379,7 +453,14 @@ function normalizePreferences(value: unknown): UserPreferences {
     ),
     auditConfig: normalizedAuditConfig,
     lastAuditRun: normalizeLastAuditRun(input.lastAuditRun),
+    trainingPlan: normalizeTrainingPlanPreferences(input.trainingPlan),
   };
+}
+
+function serializeTrainingPlan(
+  trainingPlan: TrainingPlanPreferences
+): TrainingPlanPreferences {
+  return normalizeTrainingPlanPreferences(trainingPlan);
 }
 
 function serializeGitHubSettings(
@@ -574,6 +655,7 @@ export async function initializeUserPreferences(
             lastAuditRun: serializeLastAuditRun(mergedPreferences.lastAuditRun),
           }
         : {}),
+      trainingPlan: serializeTrainingPlan(mergedPreferences.trainingPlan),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -653,6 +735,28 @@ export async function saveVideoLibraryPreference(
       videoLibrary: serializeVideoLibraryPreferences(
         currentPreferences.videoLibrary
       ),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function saveTrainingPlanPreference(
+  uid: string,
+  trainingPlan: TrainingPlanPreferences
+): Promise<void> {
+  const normalizedPlan = normalizeTrainingPlanPreferences(trainingPlan);
+  currentPreferences = {
+    ...currentPreferences,
+    trainingPlan: normalizedPlan,
+  };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    {
+      trainingPlan: serializeTrainingPlan(normalizedPlan),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
