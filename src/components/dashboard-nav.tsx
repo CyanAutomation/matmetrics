@@ -14,7 +14,7 @@ import {
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { Sparkles, Wrench } from 'lucide-react';
+import { Settings2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   getGuestBadgeLabel,
@@ -115,7 +115,7 @@ export function DashboardNav({
         </SidebarGroup>
         {workspaceTabs.length > 0 && (
           <SidebarGroup className="mt-4 p-0">
-            <SidebarGroupLabel>Settings &amp; tools</SidebarGroupLabel>
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
@@ -125,8 +125,10 @@ export function DashboardNav({
                     aria-expanded={toolsOpen}
                     className="min-h-11 rounded-xl"
                   >
-                    <Wrench className="h-5 w-5" />
-                    <span className="text-sm font-medium">Tools</span>
+                    <Settings2 className="h-5 w-5" />
+                    <span className="text-sm font-medium">
+                      Settings &amp; data
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {toolsOpen ? renderTabs(workspaceTabs, 'secondary') : null}

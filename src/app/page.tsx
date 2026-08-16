@@ -111,7 +111,7 @@ export default function Home() {
 
         <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
           <DashboardHeader
-            title="MatMetrics"
+            title={selectedTab?.headerTitle ?? 'MatMetrics'}
             isOnline={syncStatus.isOnline}
             isSyncing={syncStatus.isSyncing}
             pendingCount={syncStatus.pendingCount}
