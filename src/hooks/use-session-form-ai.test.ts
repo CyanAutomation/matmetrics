@@ -48,8 +48,11 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-function response(payload: unknown): Response {
-  return { ok: true, json: async () => payload } as Response;
+function response(
+  payload: unknown,
+  { ok = true, status = 200 }: { ok?: boolean; status?: number } = {}
+): Response {
+  return { ok, status, json: async () => payload } as Response;
 }
 
 type RequestCall = { signal: AbortSignal; result: Deferred<Response> };
@@ -92,7 +95,12 @@ function setup() {
       React.createElement(
         'output',
         { 'data-testid': 'toast' },
-        String(toasts[0]?.title ?? toasts[0]?.description ?? '')
+        String(toasts[0]?.title ?? '')
+      ),
+      React.createElement(
+        'output',
+        { 'data-testid': 'toast-description' },
+        String(toasts[0]?.description ?? '')
       )
     );
   }
@@ -110,6 +118,122 @@ function setup() {
     state,
     view,
   };
+}
+
+const transformFailures = [
+  [400, 'Check the description and custom prompt, then try again.'],
+  [401, 'Your session expired. Sign in and try again.'],
+  [403, 'Your session expired. Sign in and try again.'],
+  [413, 'The description or request is too large. Shorten it and try again.'],
+  [429, 'The AI request limit has been reached. Please retry later.'],
+  [500, 'The AI service is temporarily unavailable. Please try again later.'],
+  [502, 'The AI service is temporarily unavailable. Please try again later.'],
+  [503, 'The AI service is temporarily unavailable. Please try again later.'],
+  [504, 'The AI service is temporarily unavailable. Please try again later.'],
+] as const;
+
+for (const [status, expectedDescription] of transformFailures) {
+  test(`transform shows a safe message for a ${status} response`, async () => {
+    const harness = setup();
+    let completed!: Promise<void>;
+    await act(async () => {
+      completed = harness.hook.transform('draft', () => undefined);
+    });
+    await act(async () => {
+      harness.calls[0].result.resolve(
+        response(
+          {
+            error: {
+              code: status === 429 ? 'RATE_LIMITED' : 'PROVIDER_SECRET_ERROR',
+              message: 'raw provider details and token',
+            },
+          },
+          { ok: false, status }
+        )
+      );
+      await completed;
+    });
+
+    assert.equal(
+      harness.view.getByTestId('toast-description').textContent,
+      expectedDescription
+    );
+  });
+}
+
+test('transform handles a non-JSON error response using its status', async () => {
+  const harness = setup();
+  let completed!: Promise<void>;
+  await act(async () => {
+    completed = harness.hook.transform('draft', () => undefined);
+  });
+  await act(async () => {
+    harness.calls[0].result.resolve({
+      ok: false,
+      status: 503,
+      json: async () => {
+        throw new SyntaxError('invalid JSON');
+      },
+    } as unknown as Response);
+    await completed;
+  });
+  assert.equal(
+    harness.view.getByTestId('toast-description').textContent,
+    'The AI service is temporarily unavailable. Please try again later.'
+  );
+});
+
+test('transform reports network failures without exposing the rejection', async () => {
+  const harness = setup();
+  let completed!: Promise<void>;
+  await act(async () => {
+    completed = harness.hook.transform('draft', () => undefined);
+  });
+  await act(async () => {
+    harness.calls[0].result.reject(
+      new Error('socket failed with secret token')
+    );
+    await completed;
+  });
+  assert.equal(
+    harness.view.getByTestId('toast-description').textContent,
+    'Check your connection and try again.'
+  );
+});
+
+for (const [name, resolvedResponse] of [
+  [
+    'malformed JSON',
+    {
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('invalid JSON');
+      },
+    } as unknown as Response,
+  ],
+  ['missing transformed description', response({})],
+  ['empty transformed description', response({ transformedDescription: '  ' })],
+] as const) {
+  test(`transform rejects ${name}`, async () => {
+    const harness = setup();
+    let completed!: Promise<void>;
+    await act(async () => {
+      completed = harness.hook.transform('draft', (value) =>
+        harness.successes.push(value)
+      );
+    });
+    await act(async () => {
+      harness.calls[0].result.resolve(resolvedResponse);
+      await completed;
+    });
+    assert.equal(harness.state().description, null);
+    assert.deepEqual(harness.successes, []);
+    assert.equal(
+      harness.view.getByTestId('toast-description').textContent,
+      'The AI returned an unusable result. Please try again.'
+    );
+  });
 }
 
 test('transform and suggest expose loading state while requests are pending', async () => {
