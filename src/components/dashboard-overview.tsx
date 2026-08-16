@@ -1,14 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { format, formatDistanceToNowStrict, subDays } from 'date-fns';
 import {
-  endOfWeek,
-  format,
-  formatDistanceToNowStrict,
-  startOfWeek,
-  subDays,
-} from 'date-fns';
-import { JudoSession } from '@/lib/types';
+  JudoSession,
+  SessionCategory,
+  TrainingPlanPreferences,
+} from '@/lib/types';
 import {
   Award,
   Calendar,
@@ -20,8 +18,19 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
+import { useAuth } from '@/components/auth-provider';
 import { RessaImage } from '@/components/ressa-image';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
 import {
   ChartContainer,
@@ -30,6 +39,7 @@ import {
 } from '@/components/ui/chart';
 import { resolveDashboardCategoryBarClass } from '@/lib/ui-semantic';
 import { cn, parseDateOnly } from '@/lib/utils';
+import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
 
 interface DashboardOverviewProps {
@@ -43,9 +53,79 @@ export function DashboardOverview({
   onLogSession,
   isRefreshing = false,
 }: DashboardOverviewProps) {
+  const { canSavePreferences, preferences, user } = useAuth();
   const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
     null
   );
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planDraft, setPlanDraft] = useState<TrainingPlanPreferences>(
+    preferences.trainingPlan
+  );
+
+  useEffect(() => {
+    setPlanDraft(preferences.trainingPlan);
+  }, [preferences.trainingPlan]);
+
+  const updatePlanDraft = (
+    category: SessionCategory,
+    field: 'targetSessionsPerMonth' | 'expectedOpportunitiesPerMonth',
+    value: number
+  ) => {
+    setPlanDraft((current) => ({
+      ...current,
+      categories: {
+        ...current.categories,
+        [category]: {
+          ...current.categories[category],
+          [field]: Math.max(
+            0,
+            Math.min(31, Number.isFinite(value) ? value : 0)
+          ),
+        },
+      },
+    }));
+  };
+
+  const updateCurrentMonthAvailability = (
+    category: SessionCategory,
+    value: number
+  ) => {
+    const monthKey = format(new Date(), 'yyyy-MM');
+    setPlanDraft((current) => ({
+      ...current,
+      availableOpportunitiesByMonth: {
+        ...current.availableOpportunitiesByMonth,
+        [monthKey]: {
+          ...current.availableOpportunitiesByMonth[monthKey],
+          [category]: Math.max(
+            0,
+            Math.min(31, Number.isFinite(value) ? value : 0)
+          ),
+        },
+      },
+    }));
+  };
+
+  const savePlan = async () => {
+    if (!user || !canSavePreferences) {
+      setPlanError('Sign in to save a personal training plan.');
+      return;
+    }
+
+    setIsSavingPlan(true);
+    setPlanError(null);
+    try {
+      await saveTrainingPlanPreference(user.uid, planDraft);
+      setIsPlanDialogOpen(false);
+    } catch {
+      setPlanError('Your plan could not be saved. Please try again.');
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
   const stats = useMemo(() => {
     if (sessions.length === 0) return null;
 
@@ -103,9 +183,9 @@ export function DashboardOverview({
         effort: s.effort,
       }));
 
-    const topCategory = Object.entries(categoryCount).sort(
-      (a, b) => b[1] - a[1]
-    )[0]?.[0] ?? 'Technical';
+    const topCategory =
+      Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+      'Technical';
     const sessionDates = sortedSessions
       .map((session) => parseDateOnly(session.date))
       .sort((a, b) => a.getTime() - b.getTime());
@@ -119,47 +199,21 @@ export function DashboardOverview({
     );
 
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    const sessionsThisWeek = sortedSessions.filter((session) => {
-      const sessionDate = parseDateOnly(session.date);
-      return sessionDate >= weekStart && sessionDate <= weekEnd;
-    }).length;
-    const weeklyTarget = 3;
-    const weeklyCategoryCount: Record<string, number> = {
+    const currentMonthKey = format(now, 'yyyy-MM');
+    const sessionsThisMonthByCategory: Record<SessionCategory, number> = {
       Technical: 0,
       Randori: 0,
       Shiai: 0,
     };
     sortedSessions.forEach((session) => {
-      const sessionDate = parseDateOnly(session.date);
-      if (
-        sessionDate >= weekStart &&
-        sessionDate <= weekEnd &&
-        session.category
-      ) {
-        weeklyCategoryCount[session.category] += 1;
+      if (session.date.startsWith(currentMonthKey)) {
+        sessionsThisMonthByCategory[session.category] += 1;
       }
     });
     const lastFortnight = subDays(now, 13);
     const sessionsInLastFortnight = sortedSessions.filter(
       (session) => parseDateOnly(session.date) >= lastFortnight
     ).length;
-
-    const recentCategoryCount: Record<string, number> = {
-      Technical: 0,
-      Randori: 0,
-      Shiai: 0,
-    };
-    const categoryWindowStart = subDays(now, 27);
-    sortedSessions.forEach((session) => {
-      if (
-        parseDateOnly(session.date) >= categoryWindowStart &&
-        session.category
-      ) {
-        recentCategoryCount[session.category] += 1;
-      }
-    });
 
     const recentAverage =
       recentEfforts
@@ -171,11 +225,45 @@ export function DashboardOverview({
       ? earlierEfforts.reduce((total, session) => total + session.effort, 0) /
         earlierEfforts.length
       : null;
-    const leastPracticedCategory = Object.entries(recentCategoryCount).sort(
-      ([, left], [, right]) => left - right
-    )[0]?.[0];
-    const leastPracticedCount =
-      recentCategoryCount[leastPracticedCategory ?? 'Technical'] ?? 0;
+    const monthlyPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
+      (category) => {
+        const plan = preferences.trainingPlan.categories[category];
+        const availableThisMonth =
+          preferences.trainingPlan.availableOpportunitiesByMonth[
+            currentMonthKey
+          ]?.[category] ?? plan.expectedOpportunitiesPerMonth;
+        const effectiveTarget = Math.min(
+          plan.targetSessionsPerMonth,
+          availableThisMonth
+        );
+        const completed = sessionsThisMonthByCategory[category];
+        const remaining = Math.max(0, effectiveTarget - completed);
+        return {
+          category,
+          completed,
+          target: plan.targetSessionsPerMonth,
+          effectiveTarget,
+          availableThisMonth,
+          cancelledOrUnavailable: Math.max(
+            0,
+            plan.expectedOpportunitiesPerMonth - availableThisMonth
+          ),
+          remaining,
+          isComplete: completed >= effectiveTarget,
+        };
+      }
+    );
+    const nextPlanItem = [...monthlyPlan]
+      .filter((item) => item.remaining > 0 && item.availableThisMonth > 0)
+      .sort((left, right) => right.remaining - left.remaining)[0];
+    const completedMonthlyTarget = monthlyPlan.reduce(
+      (total, item) => total + Math.min(item.completed, item.effectiveTarget),
+      0
+    );
+    const effectiveMonthlyTarget = monthlyPlan.reduce(
+      (total, item) => total + item.effectiveTarget,
+      0
+    );
 
     const nextAction =
       daysSinceLatestSession >= 7
@@ -188,9 +276,15 @@ export function DashboardOverview({
           }
         : {
             eyebrow: 'Your next best session',
-            title: `Make room for ${leastPracticedCategory?.toLowerCase() ?? 'technical'} work.`,
-            description: `You have logged ${leastPracticedCount} ${leastPracticedCategory?.toLowerCase() ?? 'technical'} session${leastPracticedCount === 1 ? '' : 's'} in the last 28 days. A deliberate change of pace will keep your training balanced.`,
-            action: `Log a ${leastPracticedCategory?.toLowerCase() ?? 'technical'} session`,
+            title: nextPlanItem
+              ? `Make room for ${nextPlanItem.category.toLowerCase()} work.`
+              : 'Your plan is complete for this month.',
+            description: nextPlanItem
+              ? `${nextPlanItem.remaining} ${nextPlanItem.category.toLowerCase()} session${nextPlanItem.remaining === 1 ? '' : 's'} remain in your realistic monthly plan.`
+              : 'Keep logging what you do—any extra sessions are a bonus, not a requirement.',
+            action: nextPlanItem
+              ? `Log ${nextPlanItem.category.toLowerCase()} training`
+              : 'Log training',
           };
 
     return {
@@ -202,7 +296,7 @@ export function DashboardOverview({
       maxTechniqueCount,
       topCategory,
       recentEfforts,
-      weekLabel: `${format(weekStart, 'd MMM')} – ${format(weekEnd, 'd MMM')}`,
+      currentMonthLabel: format(now, 'MMMM yyyy'),
       trainingDataRange: `${firstSessionDate.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
@@ -217,25 +311,15 @@ export function DashboardOverview({
       }),
       needsTrainingNudge: daysSinceLatestSession >= 14,
       sessionsInLastFortnight,
-      sessionsThisWeek,
-      weeklyTarget,
-      weeklyPlan: (
-        Object.keys(weeklyCategoryCount) as Array<
-          keyof typeof weeklyCategoryCount
-        >
-      ).map((category) => ({
-        category,
-        completed: weeklyCategoryCount[category] > 0,
-        detail:
-          weeklyCategoryCount[category] > 0
-            ? `${weeklyCategoryCount[category]} session${weeklyCategoryCount[category] === 1 ? '' : 's'} logged`
-            : `Add a ${category.toLowerCase()} session`,
-      })),
+      monthlyPlan,
+      completedMonthlyTarget,
+      effectiveMonthlyTarget,
+      nextFocus: nextPlanItem?.category ?? 'Consistency',
       recentAverage,
       earlierAverage,
       nextAction,
     };
-  }, [sessions]);
+  }, [preferences.trainingPlan, sessions]);
 
   if (!stats) {
     return (
@@ -265,7 +349,7 @@ export function DashboardOverview({
           <p className="text-sm text-muted-foreground">
             {isRefreshing
               ? 'Updating your training data…'
-              : `Last session ${stats.latestSessionLabel} · ${stats.sessionsThisWeek} of ${stats.weeklyTarget} sessions this week`}
+              : `Last session ${stats.latestSessionLabel} · ${stats.completedMonthlyTarget} of ${stats.effectiveMonthlyTarget} planned sessions this month`}
           </p>
         </div>
       </div>
@@ -282,10 +366,11 @@ export function DashboardOverview({
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
               <span className="rounded-full bg-background/70 px-3 py-1.5 font-medium text-foreground">
-                Weekly rhythm: {stats.sessionsThisWeek}/{stats.weeklyTarget}
+                Monthly plan: {stats.completedMonthlyTarget}/
+                {stats.effectiveMonthlyTarget}
               </span>
               <span className="text-muted-foreground">
-                Focus: {stats.topCategory}
+                {stats.currentMonthLabel}
               </span>
             </div>
           </div>
@@ -302,20 +387,22 @@ export function DashboardOverview({
         </div>
       </DataSurface>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-headline-sm">This week at a glance</h3>
-        <p className="text-xs text-muted-foreground">{stats.weekLabel}</p>
+        <h3 className="text-headline-sm">This month at a glance</h3>
+        <p className="text-xs text-muted-foreground">
+          {stats.currentMonthLabel}
+        </p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
-            <span className="text-label-md">Weekly rhythm</span>
+            <span className="text-label-md">Plan progress</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.sessionsThisWeek}
+            {stats.completedMonthlyTarget}
             <span className="text-base font-normal text-muted-foreground">
               {' '}
-              / {stats.weeklyTarget}
+              / {stats.effectiveMonthlyTarget}
             </span>
           </div>
         </DataSurface>
@@ -331,11 +418,10 @@ export function DashboardOverview({
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Target className="h-4 w-4" />
-            <span className="text-label-md">Next focus</span>
+            <span className="text-label-md">Next best session</span>
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.nextAction.title.match(/for (.+) work\./)?.[1] ??
-              'Consistency'}
+            {stats.nextFocus}
           </div>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
@@ -352,17 +438,25 @@ export function DashboardOverview({
       <DataSurface className="mb-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-label-md text-primary">Weekly plan</p>
+            <p className="text-label-md text-primary">Your realistic plan</p>
             <h3 className="text-headline-sm">
-              Build a balanced week on the mat.
+              Train to your availability, not an ideal week.
             </h3>
           </div>
-          <p className="text-sm text-muted-foreground">
-            A simple mix of technical work, randori, and shiai practice.
-          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setPlanError(null);
+              setPlanDraft(preferences.trainingPlan);
+              setIsPlanDialogOpen(true);
+            }}
+          >
+            Edit plan
+          </Button>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {stats.weeklyPlan.map((item) => (
+          {stats.monthlyPlan.map((item) => (
             <button
               key={item.category}
               type="button"
@@ -370,7 +464,7 @@ export function DashboardOverview({
               disabled={!onLogSession}
               className="flex min-h-20 items-center gap-3 rounded-xl bg-secondary/30 p-4 text-left transition-colors hover:bg-secondary/50 disabled:cursor-default disabled:hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              {item.completed ? (
+              {item.isComplete ? (
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
               ) : (
                 <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -378,13 +472,131 @@ export function DashboardOverview({
               <span>
                 <span className="block font-semibold">{item.category}</span>
                 <span className="block text-sm text-muted-foreground">
-                  {item.detail}
+                  {item.completed}/{item.effectiveTarget} planned this month
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {item.cancelledOrUnavailable > 0
+                    ? `${item.cancelledOrUnavailable} ${item.cancelledOrUnavailable === 1 ? 'opportunity' : 'opportunities'} unavailable`
+                    : `${item.availableThisMonth} ${item.availableThisMonth === 1 ? 'opportunity' : 'opportunities'} available`}
                 </span>
               </span>
             </button>
           ))}
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Targets are monthly by session type. When a session is cancelled,
+          lower the available opportunities—your plan adjusts without counting
+          it as a miss.
+        </p>
       </DataSurface>
+
+      <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Set a realistic training plan</DialogTitle>
+            <DialogDescription>
+              Separate the sessions you intend to attend from the sessions your
+              club is likely to offer. Update this month&apos;s availability
+              when a class is cancelled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            {(['Technical', 'Randori', 'Shiai'] as const).map((category) => {
+              const expected =
+                planDraft.categories[category].expectedOpportunitiesPerMonth;
+              const available =
+                planDraft.availableOpportunitiesByMonth[
+                  format(new Date(), 'yyyy-MM')
+                ]?.[category] ?? expected;
+              return (
+                <div
+                  key={category}
+                  className="rounded-xl border border-border bg-secondary/20 p-4"
+                >
+                  <h4 className="font-semibold">{category}</h4>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor={`${category}-target`}>
+                        I intend to attend
+                      </Label>
+                      <Input
+                        id={`${category}-target`}
+                        min="0"
+                        max="31"
+                        type="number"
+                        value={
+                          planDraft.categories[category].targetSessionsPerMonth
+                        }
+                        onChange={(event) =>
+                          updatePlanDraft(
+                            category,
+                            'targetSessionsPerMonth',
+                            Number(event.target.value)
+                          )
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">per month</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${category}-expected`}>
+                        Usually offered
+                      </Label>
+                      <Input
+                        id={`${category}-expected`}
+                        min="0"
+                        max="31"
+                        type="number"
+                        value={expected}
+                        onChange={(event) =>
+                          updatePlanDraft(
+                            category,
+                            'expectedOpportunitiesPerMonth',
+                            Number(event.target.value)
+                          )
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">per month</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${category}-available`}>
+                        Available this month
+                      </Label>
+                      <Input
+                        id={`${category}-available`}
+                        min="0"
+                        max="31"
+                        type="number"
+                        value={available}
+                        onChange={(event) =>
+                          updateCurrentMonthAvailability(
+                            category,
+                            Number(event.target.value)
+                          )
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        lower this after cancellations
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {planError && <p className="text-sm text-destructive">{planError}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPlanDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={savePlan} disabled={isSavingPlan}>
+              {isSavingPlan ? 'Saving…' : 'Save plan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Effort — surface, not card */}
