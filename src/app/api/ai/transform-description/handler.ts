@@ -6,6 +6,7 @@ import {
   AI_REQUEST_BODY_MAX_BYTES,
   exceedsUtf8Limit,
 } from '@/lib/ai-request-limits';
+import { aiApiError, classifyAiError } from '@/lib/ai-api-error';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
@@ -23,10 +24,12 @@ export function createTransformDescriptionPost(
         maxBytes: AI_REQUEST_BODY_MAX_BYTES,
       });
       if (!parsed.ok) {
-        return NextResponse.json(
-          { error: 'Invalid request body' },
-          { status: parsed.reason === 'body-too-large' ? 413 : 400 }
+        const response = aiApiError(
+          parsed.reason === 'body-too-large'
+            ? 'INPUT_TOO_LARGE'
+            : 'INVALID_REQUEST'
         );
+        return NextResponse.json(response.body, { status: response.status });
       }
       const body = parsed.value;
 
@@ -34,18 +37,14 @@ export function createTransformDescriptionPost(
         typeof body?.description !== 'string' ||
         body.description.trim() === ''
       ) {
-        return NextResponse.json(
-          { error: 'Description is required' },
-          { status: 400 }
-        );
+        const response = aiApiError('INVALID_REQUEST');
+        return NextResponse.json(response.body, { status: response.status });
       }
 
       const description = body.description.trim();
       if (exceedsUtf8Limit(description, AI_DESCRIPTION_MAX_BYTES)) {
-        return NextResponse.json(
-          { error: 'Description exceeds the maximum length' },
-          { status: 400 }
-        );
+        const response = aiApiError('INPUT_TOO_LARGE');
+        return NextResponse.json(response.body, { status: response.status });
       }
 
       const customPrompt =
@@ -56,10 +55,8 @@ export function createTransformDescriptionPost(
         customPrompt !== undefined &&
         exceedsUtf8Limit(customPrompt, AI_CUSTOM_PROMPT_MAX_BYTES)
       ) {
-        return NextResponse.json(
-          { error: 'Custom prompt exceeds the maximum length' },
-          { status: 400 }
-        );
+        const response = aiApiError('INPUT_TOO_LARGE');
+        return NextResponse.json(response.body, { status: response.status });
       }
 
       const result = await transform({
@@ -70,10 +67,8 @@ export function createTransformDescriptionPost(
       return NextResponse.json(result);
     } catch (error) {
       console.error('Error transforming description', error);
-      return NextResponse.json(
-        { error: 'Failed to transform description' },
-        { status: 500 }
-      );
+      const response = aiApiError(classifyAiError(error));
+      return NextResponse.json(response.body, { status: response.status });
     }
   };
 }
