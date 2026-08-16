@@ -768,7 +768,7 @@ export function DashboardOverview({
                     </div>
                   </div>
                   <div className="ml-4 text-sm font-medium">
-                    {tech.count} sessions
+                    {tech.count}x
                   </div>
                 </div>
               ))}
