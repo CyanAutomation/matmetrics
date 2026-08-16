@@ -125,9 +125,7 @@ export function SessionEssentialsSection({
               <Select
                 name="sessionCategory"
                 value={category}
-                onValueChange={(val) =>
-                  setCategory(val as typeof category)
-                }
+                onValueChange={(val) => setCategory(val as typeof category)}
               >
                 <SelectTrigger
                   id={fid('category')}
@@ -147,14 +145,16 @@ export function SessionEssentialsSection({
           {/* Row 2: Effort Level (Full Width) */}
           <div className="space-y-2.5">
             <div className="h-5 flex items-center justify-between">
-              <Label className="text-sm font-semibold">
-                Effort Level
-              </Label>
+              <Label className="text-sm font-semibold">Effort Level</Label>
               <span className="text-xs text-muted-foreground">
                 {EFFORT_LABELS[effort]}
               </span>
             </div>
-            <div className="flex gap-2 h-11 bg-background/90 rounded-md p-1.5">
+            <div
+              className="flex gap-2 rounded-md bg-background/90 p-1.5"
+              role="group"
+              aria-label="Perceived session effort, from easy to intense"
+            >
               {[1, 2, 3, 4, 5].map((val) => {
                 const effortVal = val as typeof effort;
                 const isSelected = effort === effortVal;
@@ -164,16 +164,19 @@ export function SessionEssentialsSection({
                     type="button"
                     onClick={() => setEffort(effortVal)}
                     className={cn(
-                      'flex-1 px-0 font-semibold transition-all duration-200 text-sm',
+                      'min-h-10 flex-1 px-1 font-semibold transition-all duration-200 text-sm',
                       isSelected
                         ? `${EFFORT_COLORS[effortVal]} border border-current shadow-sm`
-                        : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                        : 'border border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                     title={EFFORT_LABELS[effortVal]}
                     aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
                     aria-pressed={isSelected}
                   >
-                    {val}
+                    <span className="sm:hidden">{val}</span>
+                    <span className="hidden sm:inline">
+                      {EFFORT_LABELS[effortVal]}
+                    </span>
                   </Button>
                 );
               })}
