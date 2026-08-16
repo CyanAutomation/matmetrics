@@ -105,7 +105,7 @@ export function DashboardOverview({
 
     const topCategory = Object.entries(categoryCount).sort(
       (a, b) => b[1] - a[1]
-    )[0][0];
+    )[0]?.[0] ?? 'Technical';
     const sessionDates = sortedSessions
       .map((session) => parseDateOnly(session.date))
       .sort((a, b) => a.getTime() - b.getTime());
