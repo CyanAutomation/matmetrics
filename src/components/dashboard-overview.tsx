@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { format, formatDistanceToNowStrict, subDays } from 'date-fns';
+import {
+  format,
+  formatDistanceToNowStrict,
+  getDaysInMonth,
+  subDays,
+} from 'date-fns';
 import {
   JudoSession,
   SessionCategory,
@@ -68,18 +73,14 @@ export function DashboardOverview({
     setPlanDraft(preferences.trainingPlan);
   }, [preferences.trainingPlan]);
 
-  const updatePlanDraft = (
-    category: SessionCategory,
-    field: 'targetSessionsPerMonth' | 'expectedOpportunitiesPerMonth',
-    value: number
-  ) => {
+  const updatePlanDraft = (category: SessionCategory, value: number) => {
     setPlanDraft((current) => ({
       ...current,
       categories: {
         ...current.categories,
         [category]: {
           ...current.categories[category],
-          [field]: Math.max(
+          targetSessions: Math.max(
             0,
             Math.min(31, Number.isFinite(value) ? value : 0)
           ),
@@ -88,21 +89,17 @@ export function DashboardOverview({
     }));
   };
 
-  const updateCurrentMonthAvailability = (
+  const updatePlanCadence = (
     category: SessionCategory,
-    value: number
+    cadence: 'week' | 'month'
   ) => {
-    const monthKey = format(new Date(), 'yyyy-MM');
     setPlanDraft((current) => ({
       ...current,
-      availableOpportunitiesByMonth: {
-        ...current.availableOpportunitiesByMonth,
-        [monthKey]: {
-          ...current.availableOpportunitiesByMonth[monthKey],
-          [category]: Math.max(
-            0,
-            Math.min(31, Number.isFinite(value) ? value : 0)
-          ),
+      categories: {
+        ...current.categories,
+        [category]: {
+          ...current.categories[category],
+          cadence,
         },
       },
     }));
@@ -199,14 +196,13 @@ export function DashboardOverview({
     );
 
     const now = new Date();
-    const currentMonthKey = format(now, 'yyyy-MM');
     const sessionsThisMonthByCategory: Record<SessionCategory, number> = {
       Technical: 0,
       Randori: 0,
       Shiai: 0,
     };
     sortedSessions.forEach((session) => {
-      if (session.date.startsWith(currentMonthKey)) {
+      if (session.date.startsWith(format(now, 'yyyy-MM'))) {
         sessionsThisMonthByCategory[session.category] += 1;
       }
     });
@@ -228,33 +224,24 @@ export function DashboardOverview({
     const monthlyPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
       (category) => {
         const plan = preferences.trainingPlan.categories[category];
-        const availableThisMonth =
-          preferences.trainingPlan.availableOpportunitiesByMonth[
-            currentMonthKey
-          ]?.[category] ?? plan.expectedOpportunitiesPerMonth;
-        const effectiveTarget = Math.min(
-          plan.targetSessionsPerMonth,
-          availableThisMonth
-        );
+        const effectiveTarget =
+          plan.cadence === 'week'
+            ? plan.targetSessions * Math.ceil(getDaysInMonth(now) / 7)
+            : plan.targetSessions;
         const completed = sessionsThisMonthByCategory[category];
         const remaining = Math.max(0, effectiveTarget - completed);
         return {
           category,
           completed,
-          target: plan.targetSessionsPerMonth,
+          cadence: plan.cadence,
           effectiveTarget,
-          availableThisMonth,
-          cancelledOrUnavailable: Math.max(
-            0,
-            plan.expectedOpportunitiesPerMonth - availableThisMonth
-          ),
           remaining,
           isComplete: completed >= effectiveTarget,
         };
       }
     );
     const nextPlanItem = [...monthlyPlan]
-      .filter((item) => item.remaining > 0 && item.availableThisMonth > 0)
+      .filter((item) => item.remaining > 0)
       .sort((left, right) => right.remaining - left.remaining)[0];
     const completedMonthlyTarget = monthlyPlan.reduce(
       (total, item) => total + Math.min(item.completed, item.effectiveTarget),
@@ -475,18 +462,16 @@ export function DashboardOverview({
                   {item.completed}/{item.effectiveTarget} planned this month
                 </span>
                 <span className="mt-1 block text-xs text-muted-foreground">
-                  {item.cancelledOrUnavailable > 0
-                    ? `${item.cancelledOrUnavailable} ${item.cancelledOrUnavailable === 1 ? 'opportunity' : 'opportunities'} unavailable`
-                    : `${item.availableThisMonth} ${item.availableThisMonth === 1 ? 'opportunity' : 'opportunities'} available`}
+                  Target: {item.cadence === 'week' ? 'per week' : 'per month'}
                 </span>
               </span>
             </button>
           ))}
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
-          Targets are monthly by session type. When a session is cancelled,
-          lower the available opportunities—your plan adjusts without counting
-          it as a miss.
+          Set the rhythm you want for each session type. Weekly targets are
+          shown as an estimated monthly total so every type can be viewed
+          together.
         </p>
       </DataSurface>
 
@@ -495,26 +480,20 @@ export function DashboardOverview({
           <DialogHeader>
             <DialogTitle>Set a realistic training plan</DialogTitle>
             <DialogDescription>
-              Separate the sessions you intend to attend from the sessions your
-              club is likely to offer. Update this month&apos;s availability
-              when a class is cancelled.
+              Choose the sessions you intend to attend, at the cadence that
+              makes sense for your training.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
             {(['Technical', 'Randori', 'Shiai'] as const).map((category) => {
-              const expected =
-                planDraft.categories[category].expectedOpportunitiesPerMonth;
-              const available =
-                planDraft.availableOpportunitiesByMonth[
-                  format(new Date(), 'yyyy-MM')
-                ]?.[category] ?? expected;
+              const plan = planDraft.categories[category];
               return (
                 <div
                   key={category}
                   className="rounded-xl border border-border bg-secondary/20 p-4"
                 >
                   <h4 className="font-semibold">{category}</h4>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                     <div className="space-y-2">
                       <Label htmlFor={`${category}-target`}>
                         I intend to attend
@@ -524,59 +503,32 @@ export function DashboardOverview({
                         min="0"
                         max="31"
                         type="number"
-                        value={
-                          planDraft.categories[category].targetSessionsPerMonth
-                        }
+                        value={plan.targetSessions}
                         onChange={(event) =>
-                          updatePlanDraft(
-                            category,
-                            'targetSessionsPerMonth',
-                            Number(event.target.value)
-                          )
+                          updatePlanDraft(category, Number(event.target.value))
                         }
                       />
-                      <p className="text-xs text-muted-foreground">per month</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`${category}-expected`}>
-                        Usually offered
-                      </Label>
-                      <Input
-                        id={`${category}-expected`}
-                        min="0"
-                        max="31"
-                        type="number"
-                        value={expected}
-                        onChange={(event) =>
-                          updatePlanDraft(
-                            category,
-                            'expectedOpportunitiesPerMonth',
-                            Number(event.target.value)
-                          )
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">per month</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`${category}-available`}>
-                        Available this month
-                      </Label>
-                      <Input
-                        id={`${category}-available`}
-                        min="0"
-                        max="31"
-                        type="number"
-                        value={available}
-                        onChange={(event) =>
-                          updateCurrentMonthAvailability(
-                            category,
-                            Number(event.target.value)
-                          )
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        lower this after cancellations
-                      </p>
+                      <Label>Cadence</Label>
+                      <div className="flex rounded-md border border-input p-1">
+                        {(['week', 'month'] as const).map((cadence) => (
+                          <button
+                            key={cadence}
+                            type="button"
+                            aria-pressed={plan.cadence === cadence}
+                            onClick={() => updatePlanCadence(category, cadence)}
+                            className={cn(
+                              'rounded px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                              plan.cadence === cadence
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-secondary'
+                            )}
+                          >
+                            Per {cadence}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>

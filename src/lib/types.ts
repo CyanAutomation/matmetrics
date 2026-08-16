@@ -1,35 +1,26 @@
 export type EffortLevel = 1 | 2 | 3 | 4 | 5;
 export type SessionCategory = 'Technical' | 'Randori' | 'Shiai';
+export type TrainingPlanCadence = 'week' | 'month';
 
 /**
- * A personal training commitment for one kind of session. Targets and
- * availability deliberately live separately: a club can offer four randori
- * sessions while an athlete reasonably plans to attend two.
+ * A personal training commitment for one kind of session. This intentionally
+ * captures only the athlete's target—not uncertain club availability.
  */
 export interface TrainingPlanCategory {
-  targetSessionsPerMonth: number;
-  expectedOpportunitiesPerMonth: number;
+  targetSessions: number;
+  cadence: TrainingPlanCadence;
 }
 
 export interface TrainingPlanPreferences {
   categories: Record<SessionCategory, TrainingPlanCategory>;
-  /**
-   * The opportunities that actually remain for a calendar month. This lets a
-   * cancelled club session reduce the denominator without changing the plan.
-   */
-  availableOpportunitiesByMonth: Record<
-    string,
-    Partial<Record<SessionCategory, number>>
-  >;
 }
 
 export const DEFAULT_TRAINING_PLAN: TrainingPlanPreferences = {
   categories: {
-    Technical: { targetSessionsPerMonth: 4, expectedOpportunitiesPerMonth: 4 },
-    Randori: { targetSessionsPerMonth: 2, expectedOpportunitiesPerMonth: 4 },
-    Shiai: { targetSessionsPerMonth: 1, expectedOpportunitiesPerMonth: 1 },
+    Technical: { targetSessions: 1, cadence: 'week' },
+    Randori: { targetSessions: 2, cadence: 'month' },
+    Shiai: { targetSessions: 1, cadence: 'month' },
   },
-  availableOpportunitiesByMonth: {},
 };
 
 export interface JudoSession {
