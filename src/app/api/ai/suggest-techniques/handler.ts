@@ -31,18 +31,31 @@ Rules:
 
   const response = await callCloudflareAi({
     messages: [systemMessage, userMessage],
-    maxTokens: 512,
+    maxTokens: 2048, // Increased to allow room for reasoning models
   });
 
   try {
+    // Try to parse the entire response as JSON first
     const parsed = JSON.parse(response);
     if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
       return parsed;
     }
-    return [];
   } catch {
-    return [];
+    // If direct parsing fails, try to extract JSON array from the text
+    const jsonMatch = response.match(/\[[\s\S]*?\]/);
+    if (jsonMatch) {
+      try {
+        const extracted = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(extracted) && extracted.every((item) => typeof item === 'string')) {
+          return extracted;
+        }
+      } catch {
+        // Fall through to empty array
+      }
+    }
   }
+  
+  return [];
 }
 
 export function createSuggestTechniquesPost(

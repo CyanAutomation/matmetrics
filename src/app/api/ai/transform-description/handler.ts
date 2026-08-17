@@ -34,7 +34,7 @@ async function transformDescriptionWithCloudflare(input: {
 
   const transformedDescription = await callCloudflareAi({
     messages: [systemMessage, userMessage],
-    maxTokens: 1024,
+    maxTokens: 2048, // Increased to allow room for reasoning models
   });
 
   return { transformedDescription };
