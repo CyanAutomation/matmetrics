@@ -12,6 +12,7 @@ import {
   clearAllData,
   getSessionFileIssues,
   getGitHubSyncStatus,
+  getSyncStatus,
   getSessions,
   initializeStorage,
   retryCloudSync,
@@ -1381,6 +1382,16 @@ serialTest('sync loop exits when lease renewal fails mid-flight', async () => {
   );
 
   let requestCount = 0;
+  let firstRequestReached: (() => void) | undefined;
+  const firstRequestWasReached = new Promise<void>((resolve) => {
+    firstRequestReached = resolve;
+  });
+  const foreignLease = {
+    owner: 'other-tab',
+    expiresAt: Date.now() + 60_000,
+    nonce: 'other-nonce',
+    epoch: 2,
+  };
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
@@ -1395,32 +1406,31 @@ serialTest('sync loop exits when lease renewal fails mid-flight', async () => {
 
     requestCount += 1;
     if (requestCount === 1) {
-      localStorage.setItem(
-        syncLockStorageKey,
-        JSON.stringify({
-          owner: 'other-tab',
-          expiresAt: Date.now() + 60_000,
-          nonce: 'other-nonce',
-          epoch: 2,
-        })
-      );
+      localStorage.setItem(syncLockStorageKey, JSON.stringify(foreignLease));
+      firstRequestReached?.();
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }) as typeof fetch;
 
   try {
-    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     retryCloudSync();
-    await flushSyncLoopWork();
+    await firstRequestWasReached;
+    while (getSyncStatus().isSyncing) {
+      await delay(0);
+    }
 
-    assert.ok(requestCount >= 1);
-    assert.equal(getQueue().length, 2);
+    assert.equal(requestCount, 1);
     const queue = getQueue();
+    assert.equal(queue.length, 2);
     assertCreateOperation(queue[0]);
     assert.equal(queue[0].session.id, firstSession.id);
     assertCreateOperation(queue[1]);
     assert.equal(queue[1].session.id, secondSession.id);
+    assert.deepEqual(
+      JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}'),
+      foreignLease
+    );
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
