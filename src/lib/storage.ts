@@ -911,6 +911,10 @@ async function refreshSessionsFromAPI(options?: {
     } catch (error) {
       console.error('Error refreshing sessions from API', error);
     } finally {
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
+
       inFlightRefresh = null;
       isSyncing = false;
       dispatchStorageSync(sessionCache ?? getLocalStorageCache());
@@ -936,7 +940,7 @@ async function refreshSessionsFromAPI(options?: {
  * Prepare and start lease acquisition with heartbeat renewal.
  * Returns cleanup function to call when lease is no longer needed.
  */
-async function prepareAndStartLease(): Promise<{
+async function prepareAndStartLease(generation: number): Promise<{
   acquired: boolean;
   clearHeartbeat: () => void;
 }> {
@@ -953,7 +957,7 @@ async function prepareAndStartLease(): Promise<{
   );
 
   leaseHeartbeat = setInterval(() => {
-    if (!coreRenewSyncLease()) {
+    if (!isStorageGenerationCurrent(generation) || !coreRenewSyncLease()) {
       if (leaseHeartbeat) {
         clearInterval(leaseHeartbeat);
         leaseHeartbeat = null;
@@ -1066,12 +1070,14 @@ async function handleOperationError(
 
   // Handle permanent failures (mark as synced to avoid retry loop)
   if (!error.retryable) {
-    const sessionId = getSessionIdFromOperation(operation);
-    clearDirtyMutation(sessionId, operation.queuedAt);
-
     const remainingOperations = queue.filter((_, i) => i !== index);
     if (isStorageGenerationCurrent(generation)) {
+      const sessionId = getSessionIdFromOperation(operation);
+      clearDirtyMutation(sessionId, operation.queuedAt);
       await setQueue(remainingOperations, queue);
+      if (!isStorageGenerationCurrent(generation)) {
+        return { retryable: false, retryAfterMs: null };
+      }
       await reconcilePermanentFailure();
     }
     return { retryable: false, retryAfterMs: null };
@@ -1098,7 +1104,11 @@ async function processSingleQueueOperation(
   onAbort: (remainingOps: SyncOperation[]) => Promise<void>
 ): Promise<{ success: boolean; shouldContinue: boolean }> {
   // Check lease ownership before operation
-  if (!coreHasActiveSyncLeaseOwnership() || !coreRenewSyncLease()) {
+  if (
+    !isStorageGenerationCurrent(generation) ||
+    !coreHasActiveSyncLeaseOwnership() ||
+    !coreRenewSyncLease()
+  ) {
     await onAbort(queue.slice(index));
     return { success: false, shouldContinue: false };
   }
@@ -1117,6 +1127,10 @@ async function processSingleQueueOperation(
       'Content-Type': 'application/json',
     });
 
+    if (!isStorageGenerationCurrent(generation)) {
+      return { success: false, shouldContinue: false };
+    }
+
     // Send request
     await syncRequest(url, {
       method,
@@ -1125,7 +1139,10 @@ async function processSingleQueueOperation(
     });
 
     // Verify lease still owned after operation
-    if (!coreHasActiveSyncLeaseOwnership()) {
+    if (
+      !isStorageGenerationCurrent(generation) ||
+      !coreHasActiveSyncLeaseOwnership()
+    ) {
       await onAbort(queue.slice(index));
       return { success: false, shouldContinue: false };
     }
@@ -1144,6 +1161,10 @@ async function processSingleQueueOperation(
       queue,
       generation
     );
+
+    if (!isStorageGenerationCurrent(generation)) {
+      return { success: false, shouldContinue: false };
+    }
 
     // Handle backoff for retryable errors with retry-after header
     if (retryable && retryAfterMs !== null && retryAfterMs > 0) {
@@ -1182,13 +1203,15 @@ async function syncPendingOperations(): Promise<void> {
     const generation = storageGeneration;
     isSyncing = true;
     let leaseAcquired = false;
+    let clearLeaseHeartbeat = () => {};
 
     try {
       // Acquire lease and setup heartbeat
-      const lease = await prepareAndStartLease();
+      const lease = await prepareAndStartLease(generation);
       leaseAcquired = lease.acquired;
+      clearLeaseHeartbeat = lease.clearHeartbeat;
 
-      if (!leaseAcquired) {
+      if (!leaseAcquired || !isStorageGenerationCurrent(generation)) {
         return;
       }
 
@@ -1237,11 +1260,14 @@ async function syncPendingOperations(): Promise<void> {
         await refreshSessionsFromAPI();
       }
     } finally {
-      isSyncing = false;
-      if (leaseAcquired) {
+      clearLeaseHeartbeat();
+      if (leaseAcquired && isStorageGenerationCurrent(generation)) {
         coreReleaseSyncLease();
       }
-      inFlightSync = null;
+      if (isStorageGenerationCurrent(generation)) {
+        isSyncing = false;
+        inFlightSync = null;
+      }
     }
   })();
 
@@ -1263,7 +1289,6 @@ export function __resetStorageStateForTests(): void {
   listenersInitialized = false;
   refreshSeq = 0;
   latestAppliedSeq = 0;
-  storageGeneration = 0;
   resetMutationVersion();
   clearAllDirtyMutations();
   setActiveSyncLease(null);
