@@ -17,8 +17,10 @@ interface CloudflareContentPart {
 interface CloudflareAiResponse {
   choices?: Array<{
     message?: {
-      content?: string | CloudflareContentPart[];
+      content?: string | CloudflareContentPart[] | null;
+      reasoning?: string;
     };
+    finish_reason?: string;
   }>;
   error?: {
     message?: string;
@@ -101,13 +103,26 @@ export async function callCloudflareAi(
     throw new Error(`Cloudflare AI error: ${data.error.message}`);
   }
 
-  const rawContent = data.choices?.[0]?.message?.content;
+  const choice = data.choices?.[0];
+  const message = choice?.message;
+  let rawContent = message?.content;
+
+  // Handle reasoning models that may put content in the reasoning field
+  // when they run out of tokens during reasoning (finish_reason: "length")
+  if ((rawContent === null || rawContent === undefined) && message?.reasoning) {
+    console.warn('Content is null, attempting to extract from reasoning field');
+    rawContent = message.reasoning;
+  }
+
   const content = parseGatewayContent(rawContent);
 
   if (!content || content.trim() === '') {
     console.error('Empty or invalid Cloudflare response:', {
       hasChoices: !!data.choices,
-      hasMessage: !!data.choices?.[0]?.message,
+      hasMessage: !!message,
+      finishReason: choice?.finish_reason,
+      contentIsNull: rawContent === null,
+      hasReasoning: !!message?.reasoning,
       rawContent,
       parsedContent: content,
     });
