@@ -71,16 +71,25 @@ test('getRecentReleasesFromSource returns the latest three releases', () => {
   );
 });
 
-test('parseChangelog rejects unsupported section labels', () => {
-  assert.throws(
-    () =>
-      parseChangelog(`## [1.2.0] - 2026-03-30
+test('parseChangelog supports release-please headings and section labels', () => {
+  const releases = parseChangelog(`## [1.2.1](https://github.com/CyanAutomation/matmetrics/compare/v1.2.0...v1.2.1) (2026-08-16)
 
-### Breaking Changes
-- Removed legacy route
-`),
-    /unsupported section/
-  );
+### Bug Fixes
+- Corrected a session sync failure
+`);
+
+  assert.deepEqual(releases, [
+    {
+      version: '1.2.1',
+      date: '2026-08-16',
+      sections: [
+        {
+          label: 'Bug Fixes',
+          items: ['Corrected a session sync failure'],
+        },
+      ],
+    },
+  ]);
 });
 
 test('parseChangelog rejects invalid release dates', () => {
