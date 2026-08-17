@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { transformPracticeDescription } from '@/ai/flows/practice-description-transformer';
 import {
   AI_CUSTOM_PROMPT_MAX_BYTES,
   AI_DESCRIPTION_MAX_BYTES,
@@ -9,9 +8,40 @@ import {
 import { aiApiError, classifyAiError } from '@/lib/ai-api-error';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { callCloudflareAi } from '@/lib/cloudflare-ai-client';
+import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
+
+type TransformFunction = (input: {
+  description: string;
+  customPrompt?: string;
+}) => Promise<{ transformedDescription: string }>;
+
+async function transformDescriptionWithCloudflare(input: {
+  description: string;
+  customPrompt?: string;
+}): Promise<{ transformedDescription: string }> {
+  const systemPrompt = input.customPrompt ?? DEFAULT_TRANSFORMER_PROMPT;
+
+  const systemMessage = {
+    role: 'system' as const,
+    content: systemPrompt,
+  };
+
+  const userMessage = {
+    role: 'user' as const,
+    content: input.description,
+  };
+
+  const transformedDescription = await callCloudflareAi({
+    messages: [systemMessage, userMessage],
+    maxTokens: 1024,
+  });
+
+  return { transformedDescription };
+}
 
 export function createTransformDescriptionPost(
-  transform: typeof transformPracticeDescription = transformPracticeDescription
+  transform: TransformFunction = transformDescriptionWithCloudflare
 ) {
   return async function POST(request: NextRequest) {
     try {
