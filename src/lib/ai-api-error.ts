@@ -103,6 +103,20 @@ export function classifyAiError(error: unknown): AiApiErrorCode {
     .map((value) => String(value ?? '').toUpperCase())
     .filter(Boolean);
 
+  // Cloudflare-specific error messages
+  if (
+    /cloudflare ai authentication failed/i.test(message) ||
+    /CLOUDFLARE_API_TOKEN.*not set/i.test(message)
+  ) {
+    return 'AUTH_REQUIRED';
+  }
+  if (/cloudflare ai rate limit/i.test(message)) {
+    return 'RATE_LIMITED';
+  }
+  if (/cloudflare ai service unavailable/i.test(message)) {
+    return 'SERVICE_UNAVAILABLE';
+  }
+
   if (
     identifiers.some((value) => ['429', 'RESOURCE_EXHAUSTED'].includes(value))
   )

@@ -130,6 +130,23 @@ test('transform route returns stable errors for recognized AI failures', async (
     },
     { code: 'INVALID_AI_RESPONSE', error: new InvalidAiResponseError() },
     { code: 'UNKNOWN_ERROR', error: new Error('unrecognized provider fault') },
+    // Cloudflare-specific errors
+    {
+      code: 'AUTH_REQUIRED',
+      error: new Error('Cloudflare AI authentication failed'),
+    },
+    {
+      code: 'AUTH_REQUIRED',
+      error: new Error('CLOUDFLARE_API_TOKEN environment variable is not set'),
+    },
+    {
+      code: 'RATE_LIMITED',
+      error: new Error('Cloudflare AI rate limit exceeded'),
+    },
+    {
+      code: 'SERVICE_UNAVAILABLE',
+      error: new Error('Cloudflare AI service unavailable'),
+    },
   ];
   const originalConsoleError = console.error;
   console.error = () => {};
