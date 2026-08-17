@@ -71,11 +71,16 @@ test('getRecentReleasesFromSource returns the latest three releases', () => {
   );
 });
 
-test('parseChangelog supports release-please headings and section labels', () => {
+test('parseChangelog supports release-please and manual headings together', () => {
   const releases = parseChangelog(`## [1.2.1](https://github.com/CyanAutomation/matmetrics/compare/v1.2.0...v1.2.1) (2026-08-16)
 
 ### Bug Fixes
 - Corrected a session sync failure
+
+## [1.2.0] - 2026-03-30
+
+### Features
+- Added version history
 `);
 
   assert.deepEqual(releases, [
@@ -86,6 +91,16 @@ test('parseChangelog supports release-please headings and section labels', () =>
         {
           label: 'Bug Fixes',
           items: ['Corrected a session sync failure'],
+        },
+      ],
+    },
+    {
+      version: '1.2.0',
+      date: '2026-03-30',
+      sections: [
+        {
+          label: 'Features',
+          items: ['Added version history'],
         },
       ],
     },
