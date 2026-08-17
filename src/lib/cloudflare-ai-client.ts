@@ -10,10 +10,14 @@ interface CloudflareAiRequest {
   maxTokens?: number;
 }
 
+interface CloudflareContentPart {
+  text?: string;
+}
+
 interface CloudflareAiResponse {
   choices?: Array<{
     message?: {
-      content?: string;
+      content?: string | CloudflareContentPart[];
     };
   }>;
   error?: {
@@ -24,6 +28,21 @@ interface CloudflareAiResponse {
 // Cloudflare AI Gateway endpoint (OpenAI-compatible)
 const CLOUDFLARE_GATEWAY_URL =
   'https://gateway.ai.cloudflare.com/v1/c40f3cb30efbf8c6d081cf9e50a61931/default/compat/chat/completions';
+
+/**
+ * Parse Cloudflare Gateway content which can be either:
+ * - A plain string
+ * - An array of objects with text properties
+ */
+function parseGatewayContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => part?.text ?? String(part)).join('');
+  }
+  return '';
+}
 
 /**
  * Calls the Cloudflare AI Gateway with the specified messages.
@@ -54,6 +73,13 @@ export async function callCloudflareAi(
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Cloudflare AI request failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText,
+    });
+
     if (response.status === 401) {
       throw new Error('Cloudflare AI authentication failed');
     }
@@ -71,11 +97,20 @@ export async function callCloudflareAi(
   const data: CloudflareAiResponse = await response.json();
 
   if (data.error?.message) {
+    console.error('Cloudflare AI error in response:', data.error);
     throw new Error(`Cloudflare AI error: ${data.error.message}`);
   }
 
-  const content = data.choices?.[0]?.message?.content;
+  const rawContent = data.choices?.[0]?.message?.content;
+  const content = parseGatewayContent(rawContent);
+
   if (!content || content.trim() === '') {
+    console.error('Empty or invalid Cloudflare response:', {
+      hasChoices: !!data.choices,
+      hasMessage: !!data.choices?.[0]?.message,
+      rawContent,
+      parsedContent: content,
+    });
     throw new InvalidAiResponseError();
   }
 
