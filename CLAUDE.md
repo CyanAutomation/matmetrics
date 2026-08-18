@@ -9,7 +9,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm install              # Install dependencies
 npm run dev              # Dev server on port 9002 (Turbopack)
-npm run genkit:dev       # Start Genkit AI flow dev server
 npm run build            # Production build
 npm run lint             # ESLint
 npm run typecheck        # TypeScript type check
@@ -41,7 +40,7 @@ MatMetrics is a Judo training session tracker with a **dual-language full-stack*
 | API | Next.js route handlers in `src/app/api/` |
 | CLI + Go API | Go in `go/cmd/` and `internal/` |
 | Storage | GitHub markdown (primary), local `data/` markdown (fallback), Firebase Firestore (user prefs) |
-| AI | Google Genkit + Google GenAI in `src/ai/flows/` |
+| AI | Cloudflare AI Gateway with `dynamic/matmetrics` model routing |
 | Auth | Firebase Auth (client) + Firebase Admin SDK (server) |
 
 ### Storage Layers
@@ -68,14 +67,14 @@ Plugins live in `plugins/*/` and register via `plugin.json` manifests. They can 
 
 Maturity tiers (Silver/Gold) gate the plugin review bar. Plugins must use `PluginPageShell` and provide required state components (empty, loading, error).
 
-### AI Flows (Genkit)
+### AI (Cloudflare Gateway)
 
-Flows in `src/ai/flows/` provide:
+AI features are provided via Cloudflare AI Gateway at `src/app/api/ai/` route handlers:
 
-- **Technique Suggester** — suggests Judo techniques as the user types
-- **Practice Description Transformer** — normalizes session descriptions
+- **Technique Suggester** (`/api/ai/suggest-techniques`) — suggests Judo techniques as the user types
+- **Practice Description Transformer** (`/api/ai/transform-description`) — normalizes session descriptions
 
-Flows use schema-driven typed inputs/outputs and are exposed via `src/app/api/ai/` route handlers.
+Implementation uses direct Cloudflare API calls via `src/lib/cloudflare-ai-client.ts` with the `dynamic/matmetrics` model routing configuration. Error handling via `src/lib/ai-api-error.ts` classifies Cloudflare-specific errors (auth, rate limit, service unavailable) into structured API error codes.
 
 ### Authentication
 
@@ -89,7 +88,7 @@ Copy `.env.example` to `.env.local`. Required variables:
 
 ```bash
 GITHUB_TOKEN                          # GitHub API access for sync/storage
-GOOGLE_GENAI_API_KEY                  # Google GenAI for AI flows
+CLOUDFLARE_API_TOKEN                  # Cloudflare AI Gateway for AI features
 NEXT_PUBLIC_FIREBASE_API_KEY          # Firebase client config (6 variables)
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID

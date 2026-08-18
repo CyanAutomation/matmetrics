@@ -34,6 +34,86 @@ export interface UseSessionFormAiOptions {
   getTransformerPrompt?: typeof getTransformerPrompt;
 }
 
+type TransformFailure =
+  | 'invalid-input'
+  | 'authentication'
+  | 'too-large'
+  | 'rate-limit'
+  | 'unavailable'
+  | 'network'
+  | 'unusable-result';
+
+class TransformFailureError extends Error {
+  constructor(readonly failure: TransformFailure) {
+    super(failure);
+  }
+}
+
+async function readTransformError(
+  response: Response
+): Promise<TransformFailure> {
+  let code: string | undefined;
+  try {
+    const body: unknown = await response.json();
+    if (body && typeof body === 'object') {
+      const error = (body as { error?: unknown }).error;
+      code =
+        typeof (body as { code?: unknown }).code === 'string'
+          ? (body as { code: string }).code
+          : error &&
+              typeof error === 'object' &&
+              typeof (error as { code?: unknown }).code === 'string'
+            ? (error as { code: string }).code
+            : undefined;
+    }
+  } catch {
+    // Status-based messages still work when an error response is not JSON.
+  }
+
+  const normalizedCode = code?.toUpperCase();
+  if (
+    normalizedCode &&
+    ['UNAUTHORIZED', 'FORBIDDEN', 'AUTH_REQUIRED', 'SESSION_EXPIRED'].includes(
+      normalizedCode
+    )
+  ) {
+    return 'authentication';
+  }
+  if (
+    normalizedCode === 'PAYLOAD_TOO_LARGE' ||
+    normalizedCode === 'TOO_LARGE'
+  ) {
+    return 'too-large';
+  }
+  if (
+    normalizedCode === 'RATE_LIMITED' ||
+    normalizedCode === 'RATE_LIMIT_EXCEEDED'
+  ) {
+    return 'rate-limit';
+  }
+  if (normalizedCode === 'SERVICE_UNAVAILABLE') return 'unavailable';
+
+  if (response.status === 400) return 'invalid-input';
+  if (response.status === 401 || response.status === 403)
+    return 'authentication';
+  if (response.status === 413) return 'too-large';
+  if (response.status === 429) return 'rate-limit';
+  if ([500, 502, 503, 504].includes(response.status)) return 'unavailable';
+  return 'unavailable';
+}
+
+const transformFailureDescriptions: Record<TransformFailure, string> = {
+  'invalid-input': 'Check the description and custom prompt, then try again.',
+  authentication: 'Your session expired. Sign in and try again.',
+  'too-large':
+    'The description or request is too large. Shorten it and try again.',
+  'rate-limit': 'The AI request limit has been reached. Please retry later.',
+  unavailable:
+    'The AI service is temporarily unavailable. Please try again later.',
+  network: 'Check your connection and try again.',
+  'unusable-result': 'The AI returned an unusable result. Please try again.',
+};
+
 /**
  * Hook that consolidates AI-powered form enhancements
  * Handles description transformation and technique suggestions with proper AbortController support
@@ -108,11 +188,23 @@ export function useSessionFormAi(
         });
 
         if (!response.ok) {
-          throw new Error('Failed to transform description');
+          throw new TransformFailureError(await readTransformError(response));
         }
-        const result = await response.json();
+        let result: unknown;
+        try {
+          result = await response.json();
+        } catch {
+          throw new TransformFailureError('unusable-result');
+        }
         if (controller.signal.aborted) return;
-        const transformed = result.transformedDescription;
+        const transformed =
+          result && typeof result === 'object'
+            ? (result as { transformedDescription?: unknown })
+                .transformedDescription
+            : undefined;
+        if (typeof transformed !== 'string' || transformed.trim() === '') {
+          throw new TransformFailureError('unusable-result');
+        }
         setTransformedDescription(transformed);
         onSuccess(transformed);
         toast({
@@ -128,10 +220,12 @@ export function useSessionFormAi(
         ) {
           return;
         }
+        const failure =
+          error instanceof TransformFailureError ? error.failure : 'network';
         toast({
           variant: 'destructive',
           title: 'Transformation Failed',
-          description: 'There was an error refining your description.',
+          description: transformFailureDescriptions[failure],
         });
       } finally {
         if (transformControllerRef.current === controller) {

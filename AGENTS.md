@@ -50,7 +50,6 @@ See [docs/go-contract.md](./docs/go-contract.md) for the complete contract and e
 ```bash
 npm install        # Install dependencies
 npm run dev        # Start dev server on port 9002 with Turbopack
-npm run genkit:dev # Start Genkit AI flow dev server
 npm run build      # Production build
 npm run start      # Start production server
 npm test           # Run TypeScript unit tests (tsx test runner)
@@ -115,11 +114,11 @@ Exact rules in [docs/go-contract.md](./docs/go-contract.md). The CLI validates t
 
 ### Environment Variables
 
-See [README.md](./README.md) for required variables (GITHUB_TOKEN, GOOGLE_GENAI_API_KEY, Firebase keys). Locally, copy `.env.example` to `.env.local`.
+See [README.md](./README.md) for required variables (GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, Firebase keys). Locally, copy `.env.example` to `.env.local`.
 
-### AI & Genkit Flows
+### AI & Cloudflare Gateway
 
-Genkit flows in `src/ai/flows/` integrate Google GenAI for technique suggestions and session analysis. Flows are tested via `npm run genkit:dev`. Schema-driven inputs/outputs for type safety.
+AI-powered technique suggestions and practice description transformation are provided via Cloudflare AI Gateway. API routes in `src/app/api/ai/` call the Cloudflare gateway using the `dynamic/matmetrics` model routing configuration. The client implementation is in `src/lib/cloudflare-ai-client.ts` with error handling and type safety via Zod schemas.
 
 ### Markdown Documentation
 

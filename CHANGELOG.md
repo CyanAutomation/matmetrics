@@ -2,60 +2,50 @@
 
 All notable changes to MatMetrics are documented in this file.
 
+> **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
+
+## [Unreleased]
+
+### Features
+
+- Added availability-aware training plans and personal training targets.
+- Expanded the dashboard with clearer training-plan, category, and technique insights.
+- Refreshed the built-in demo training data.
+
+### Improvements
+
+- Improved the athlete training workflow and dashboard clarity.
+- Strengthened plugin maturity, discoverability, and UI-contract coverage.
+
+### Fixes
+
+- Prevented case-only tag merges and canonicalized target casing.
+- Fixed Plugin Manager refresh loops, guarded concurrent guest-session imports, and tightened AI request validation.
+
 ## [1.2.0] - 2026-03-30
 
 ### Features
 
-- Version history modal for displaying recent changelog entries
-- Enhanced session filtering and search capabilities
-- Improved dashboard overview with real-time updates
-
-### Fixes
-
-- Fixed modal dialog responsiveness on mobile devices
-- Corrected sidebar footer alignment issues
-- Improved error handling for session storage
-
-### Documentation
-
-- Added comprehensive API documentation for session management
-- Updated plugin development guide with new examples
-
-## [1.1.0] - 2026-01-15
-
-### Features
-
-- Plugin system with dashboard tab extensions
-- Guest mode for demo data and local sessions
-- Session audit/log-doctor feature for data validation
-- Dark mode support with system theme detection
+- Added the in-app version history modal and recent-releases API.
+- Added validation that the application version and latest changelog entry stay aligned.
 
 ### Improvements
 
-- Optimized session loading performance
-- Enhanced Tailwind CSS configuration for better responsive design
-- Improved accessibility for dialog and form components
+- Added plugin UI contract validation and plugin maturity score generation to the development workflow.
 
-### Fixes
-
-- Fixed session date picker behavior
-- Corrected sidebar menu navigation state management
-- Resolved GitHub sync token validation issues
-
-## [1.0.0] - 2025-10-01
+## [1.1.0] - 2026-03-01
 
 ### Features
 
-- Core session logging with date, techniques, effort rating (1-5), and category
-- Session history view with filtering by date range
-- Dashboard overview showing recent sessions and metrics
-- Session export to GitHub markdown files
-- Authentication system with Firebase
-- Light and dark theme support
-- Responsive design for mobile and desktop
+- Added session categories, editable historical sessions, tag management, and light/dark themes.
 
-### Fixes
+### Improvements
 
-- Fixed initial data loading on cold start
-- Corrected browser storage persistence for sessions
-- Resolved CSS class conflicts in Tailwind configuration
+- Improved dashboard layout and session-log experience.
+
+## [1.0.0] - 2026-02-10
+
+### Features
+
+- Established the initial MatMetrics workspace and session-tracking foundation.
+- Added dashboard and session-log experiences, including AI technique suggestions.
