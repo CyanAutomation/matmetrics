@@ -33,10 +33,19 @@ All notable changes to MatMetrics are documented in this file.
 
 - Added plugin UI contract validation and plugin maturity score generation to the development workflow.
 
-## [0.1.0] - 2026-02-10
+## [1.1.0] - 2026-03-01
+
+### Features
+
+- Added session categories, editable historical sessions, tag management, and light/dark themes.
+
+### Improvements
+
+- Improved dashboard layout and session-log experience.
+
+## [1.0.0] - 2026-02-10
 
 ### Features
 
 - Established the initial MatMetrics workspace and session-tracking foundation.
 - Added dashboard and session-log experiences, including AI technique suggestions.
-- Added session categories, editable historical sessions, tag management, and light/dark themes during the pre-1.2.0 baseline.
