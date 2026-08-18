@@ -9,7 +9,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 ## Core Features
 
 - **Session Logging**: Quickly log training sessions with date, techniques practiced, and effort level
-- **AI Technique Helper**: Intelligently suggests Judo techniques as you type, powered by Google Genkit AI
+- **AI Technique Helper**: Intelligently suggests Judo techniques as you type, powered by Cloudflare AI Gateway
 - **Effort Rating**: Track perceived training intensity on a 1-5 scale (1 = easy, 3 = normal, 5 = intense)
 - **Session History**: Browse and review all logged training sessions
 - **Dashboard Overview**: Visual metrics including average effort levels and frequently practiced techniques
@@ -21,7 +21,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
 - **Data Storage**: GitHub-backed markdown files with local markdown fallback
-- **AI Integration**: [Google Genkit](https://github.com/firebase/genkit) with Google Gen AI
+- **AI Integration**: Cloudflare AI Gateway with `dynamic/matmetrics` model routing
 - **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
 - **Date Management**: [date-fns](https://date-fns.org/)
@@ -43,7 +43,7 @@ See [DESIGN.md](DESIGN.md) for full design specifications.
 
 - Node.js 24.x
 - npm 11.x
-- Google Gen AI API key (for AI-powered features)
+- Cloudflare API token (for AI-powered features)
 - GitHub personal access token for GitHub-backed storage
 
 ### Installation
@@ -75,8 +75,8 @@ Then edit `.env.local` and add:
 # GitHub token used by server-side GitHub sync/storage
 GITHUB_TOKEN=your_github_token
 
-# Google Gen AI API - Get from https://ai.google.dev/
-GOOGLE_GENAI_API_KEY=your_genai_api_key
+# Cloudflare AI Gateway API - Get with: wrangler auth token
+CLOUDFLARE_API_TOKEN=your_cloudflare_token
 
 # Firebase client SDK - Firebase console → Project Settings → Your web app
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
@@ -109,7 +109,7 @@ Firebase values come from:
 - Firebase authentication and Firestore-backed preferences require all `NEXT_PUBLIC_FIREBASE_*` variables plus `FIREBASE_SERVICE_ACCOUNT_KEY`.
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
-- `GOOGLE_GENAI_API_KEY` is required for AI-assisted technique suggestions and description transforms.
+- `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
@@ -117,8 +117,6 @@ Firebase values come from:
 ## Available Scripts
 
 - **`npm run dev`**: Start the development server on port 9002 (with Turbopack)
-- **`npm run genkit:dev`**: Start Genkit AI flows in development mode
-- **`npm run genkit:watch`**: Start Genkit AI with file watching
 - **`npm run build`**: Build for production
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run ESLint
@@ -129,7 +127,6 @@ Firebase values come from:
 - **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
 
 `npm run build` and `npm run typecheck` both read and write `.next` artifacts. Run them sequentially, or prefer `npm run verify`, instead of launching them in parallel.
-
 
 ### CI dependency requirement for validation and tests
 
@@ -187,6 +184,7 @@ When test mode is enabled, both authentication paths (Next.js route handlers and
 #### Integration with Firebase Authentication
 
 The authentication system automatically falls back to Firebase authentication when:
+
 - Test mode is disabled (`MATMETRICS_AUTH_TEST_MODE` is not `true`)
 - Firebase is properly configured (all required environment variables are set)
 
@@ -229,7 +227,7 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 3. **Configure Environment Variables**:
    - In the "Environment Variables" section, add:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
-     - `GOOGLE_GENAI_API_KEY`: Your Google Gen AI API key from [ai.google.dev](https://ai.google.dev/)
+     - `CLOUDFLARE_API_TOKEN`: Your Cloudflare API token (get with: `wrangler auth token`)
 
 4. **Deploy**:
    - Click "Deploy"
@@ -241,25 +239,26 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 
 ```text
 src/
-├── ai/                 # AI flows and integrations
-│   ├── flows/         # Genkit AI flow definitions
-│   └── genkit.ts      # AI initialization
 ├── app/               # Next.js app directory
+│   └── api/          # API routes including AI endpoints
 ├── components/        # Reusable React components
 │   └── ui/           # Base UI components from Radix UI
 ├── hooks/            # Custom React hooks
 └── lib/              # Utilities, types, and helpers
+    ├── cloudflare-ai-client.ts  # Cloudflare AI Gateway client
+    ├── ai-api-error.ts          # AI error handling
+    └── ai-prompts.ts            # AI prompt templates
 ```
 
-## AI Flows
+## AI Features
 
 ### Technique Suggester
 
-Analyzes user input and suggests relevant Judo techniques for quick tagging during session logging.
+Analyzes user input and suggests relevant Judo techniques for quick tagging during session logging. Powered by Cloudflare AI Gateway with the `dynamic/matmetrics` model routing.
 
 ### Practice Description Transformer
 
-Processes and categorizes technique descriptions to normalize and standardize input data.
+Processes and categorizes technique descriptions to normalize and standardize input data. Uses customizable prompts to maintain consistent formatting and terminology.
 
 ## Browser Support
 

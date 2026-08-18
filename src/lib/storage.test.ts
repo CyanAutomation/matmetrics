@@ -12,6 +12,7 @@ import {
   clearAllData,
   getSessionFileIssues,
   getGitHubSyncStatus,
+  getSyncStatus,
   getSessions,
   initializeStorage,
   retryCloudSync,
@@ -21,7 +22,11 @@ import {
   deleteSession,
   teardownStorageListeners,
 } from './storage';
-import { getQueue, getSyncQueueStorageKey, __testInternals as syncQueueTestInternals } from './sync-queue';
+import {
+  getQueue,
+  getSyncQueueStorageKey,
+  __testInternals as syncQueueTestInternals,
+} from './sync-queue';
 import type { SyncOperation } from './sync-queue';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
@@ -1074,38 +1079,108 @@ serialTest(
   }
 );
 serialTest(
-  'alive foreign lease is not reclaimed before expiry',
+  'reset rejects a delayed sync completion in a fresh storage environment',
   async () => {
-    const { localStorage } = installBrowserEnv();
+    const oldEnvironment = installBrowserEnv();
     setActiveUserId('user-1');
     __resetStorageStateForTests();
-    Object.defineProperty(globalThis, 'navigator', {
-      configurable: true,
-      value: { onLine: true },
-    });
 
-    const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
-    localStorage.setItem(
-      syncLockStorageKey,
-      JSON.stringify({
-        owner: 'crashed-tab',
-        expiresAt: Date.now() + 800,
-        nonce: 'crashed-nonce',
-        epoch: 100,
-      })
+    const oldSession = makeSession('session-from-stale-generation');
+    oldEnvironment.localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([{ type: 'CREATE', session: oldSession, queuedAt: 1 }])
     );
 
+    let releaseCreate: (() => void) | undefined;
+    const delayedCreate = new Promise<Response>((resolve) => {
+      releaseCreate = () =>
+        resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    });
+    let createStarted: (() => void) | undefined;
+    const createWasStarted = new Promise<void>((resolve) => {
+      createStarted = resolve;
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        createStarted?.();
+        return delayedCreate;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
     try {
-      assert.equal(await __tryAcquireSyncLeaseForTests(), false);
-      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
-      assert.equal(lease.owner, 'crashed-tab');
-      assert.equal(lease.nonce, 'crashed-nonce');
-    } finally {
-      teardownStorageListeners();
+      retryCloudSync();
+      await createWasStarted;
+
       __resetStorageStateForTests();
+      const freshEnvironment = installBrowserEnv();
+      setActiveUserId('user-1');
+      const freshSession = makeSession('session-from-fresh-generation');
+      freshEnvironment.localStorage.setItem(
+        getSyncQueueStorageKey(),
+        JSON.stringify([{ type: 'CREATE', session: freshSession, queuedAt: 2 }])
+      );
+
+      assert.equal(await __tryAcquireSyncLeaseForTests(), true);
+      const freshLeaseBeforeRelease = freshEnvironment.localStorage.getItem(
+        getScopedStorageKey('matmetrics_sync_lock')
+      );
+      assert.ok(freshLeaseBeforeRelease);
+
+      releaseCreate?.();
+      await flushAsyncWork();
+
+      const queue = getQueue();
+      assert.equal(queue.length, 1);
+      assertCreateOperation(queue[0]);
+      assert.equal(queue[0].session.id, freshSession.id);
+      assert.equal(
+        freshEnvironment.localStorage.getItem(
+          getScopedStorageKey('matmetrics_sync_lock')
+        ),
+        freshLeaseBeforeRelease
+      );
+    } finally {
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
     }
   }
 );
+
+serialTest('alive foreign lease is not reclaimed before expiry', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: true },
+  });
+
+  const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+  localStorage.setItem(
+    syncLockStorageKey,
+    JSON.stringify({
+      owner: 'crashed-tab',
+      expiresAt: Date.now() + 800,
+      nonce: 'crashed-nonce',
+      epoch: 100,
+    })
+  );
+
+  try {
+    assert.equal(await __tryAcquireSyncLeaseForTests(), false);
+    const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+    assert.equal(lease.owner, 'crashed-tab');
+    assert.equal(lease.nonce, 'crashed-nonce');
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
 
 serialTest(
   'two contenders cannot steal a live lease before expiry',
@@ -1307,6 +1382,16 @@ serialTest('sync loop exits when lease renewal fails mid-flight', async () => {
   );
 
   let requestCount = 0;
+  let firstRequestReached: (() => void) | undefined;
+  const firstRequestWasReached = new Promise<void>((resolve) => {
+    firstRequestReached = resolve;
+  });
+  const foreignLease = {
+    owner: 'other-tab',
+    expiresAt: Date.now() + 60_000,
+    nonce: 'other-nonce',
+    epoch: 2,
+  };
   const originalSetInterval = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const originalFetch = global.fetch;
@@ -1321,32 +1406,31 @@ serialTest('sync loop exits when lease renewal fails mid-flight', async () => {
 
     requestCount += 1;
     if (requestCount === 1) {
-      localStorage.setItem(
-        syncLockStorageKey,
-        JSON.stringify({
-          owner: 'other-tab',
-          expiresAt: Date.now() + 60_000,
-          nonce: 'other-nonce',
-          epoch: 2,
-        })
-      );
+      localStorage.setItem(syncLockStorageKey, JSON.stringify(foreignLease));
+      firstRequestReached?.();
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }) as typeof fetch;
 
   try {
-    assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     retryCloudSync();
-    await flushSyncLoopWork();
+    await firstRequestWasReached;
+    while (getSyncStatus().isSyncing) {
+      await delay(0);
+    }
 
-    assert.ok(requestCount >= 1);
-    assert.equal(getQueue().length, 2);
+    assert.equal(requestCount, 1);
     const queue = getQueue();
+    assert.equal(queue.length, 2);
     assertCreateOperation(queue[0]);
     assert.equal(queue[0].session.id, firstSession.id);
     assertCreateOperation(queue[1]);
     assert.equal(queue[1].session.id, secondSession.id);
+    assert.deepEqual(
+      JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}'),
+      foreignLease
+    );
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
@@ -1670,7 +1754,9 @@ serialTest(
 
     try {
       assert.equal(await __tryAcquireSyncLeaseForTests(), false);
-      const lease = JSON.parse(localStorage.getItem(syncLockStorageKey) ?? '{}');
+      const lease = JSON.parse(
+        localStorage.getItem(syncLockStorageKey) ?? '{}'
+      );
       assert.equal(lease.owner, 'clock-ahead-tab');
     } finally {
       Date.now = originalNow;
