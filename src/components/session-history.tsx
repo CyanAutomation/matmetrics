@@ -118,6 +118,11 @@ function SessionRow({
               >
                 {session.category || 'Technical'}
               </Badge>
+              {session.duration ? (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {session.duration} min
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -323,6 +328,14 @@ export function SessionHistory({
   }, [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]);
 
   const grouped = groupSessionsByMonth(filteredSessions);
+  const filteredDuration = filteredSessions.reduce(
+    (total, session) => total + (session.duration ?? 0),
+    0
+  );
+  const filteredAverageEffort = filteredSessions.length
+    ? filteredSessions.reduce((total, session) => total + session.effort, 0) /
+      filteredSessions.length
+    : 0;
   const activeFilterCount = [
     categoryFilter !== 'all',
     effortFilter !== 'all',
@@ -479,7 +492,9 @@ export function SessionHistory({
           </Button>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Showing {filteredSessions.length} of {sessions.length} sessions
+          Showing {filteredSessions.length} of {sessions.length} sessions ·
+          average effort {filteredAverageEffort.toFixed(1)}/5
+          {filteredDuration ? ` · ${filteredDuration} minutes` : ''}
         </p>
       </section>
 
