@@ -28,7 +28,7 @@ export function OptionalFieldsSection({
   return (
     <details className="group rounded-lg border border-border/70 bg-muted/20">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-muted-foreground marker:content-none">
-        Add reflection, video, or AI enrichment
+        Add session reflection, or relevant video link
         <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
       </summary>
       <div className="space-y-4 border-t border-border/70 p-4">
