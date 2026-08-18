@@ -1,26 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  format,
-  formatDistanceToNowStrict,
-  getDaysInMonth,
-  subDays,
-} from 'date-fns';
+import { format, formatDistanceToNowStrict, subDays } from 'date-fns';
 import {
   JudoSession,
   SessionCategory,
   TrainingPlanPreferences,
 } from '@/lib/types';
 import {
-  Award,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Circle,
   Dumbbell,
   Flame,
-  Sparkles,
+  Target,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { RessaImage } from '@/components/ressa-image';
@@ -35,12 +28,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
 import { resolveDashboardCategoryBarClass } from '@/lib/ui-semantic';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
@@ -58,8 +45,11 @@ export function DashboardOverview({
   isRefreshing = false,
 }: DashboardOverviewProps) {
   const { canSavePreferences, preferences, user } = useAuth();
-  const [activeEffortIndex, setActiveEffortIndex] = useState<number | null>(
+  const [selectedEffortIndex, setSelectedEffortIndex] = useState<number | null>(
     null
+  );
+  const [distributionWindow, setDistributionWindow] = useState<30 | 90 | 'all'>(
+    30
   );
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
@@ -133,6 +123,16 @@ export function DashboardOverview({
     const avgEffort =
       sessions.reduce((acc, s) => acc + s.effort, 0) / sessions.length;
 
+    const now = new Date();
+    const distributionStart =
+      distributionWindow === 'all'
+        ? null
+        : subDays(now, distributionWindow - 1);
+    const distributionSessions = distributionStart
+      ? sortedSessions.filter(
+          (session) => parseDateOnly(session.date) >= distributionStart
+        )
+      : sortedSessions;
     const techniqueCount: Record<string, number> = {};
     const categoryCount: Record<string, number> = {
       Technical: 0,
@@ -140,7 +140,7 @@ export function DashboardOverview({
       Shiai: 0,
     };
 
-    sortedSessions.forEach((s) => {
+    distributionSessions.forEach((s) => {
       s.techniques.forEach((t) => {
         techniqueCount[t] = (techniqueCount[t] || 0) + 1;
       });
@@ -194,15 +194,15 @@ export function DashboardOverview({
       )
     );
 
-    const now = new Date();
-    const sessionsThisMonthByCategory: Record<SessionCategory, number> = {
+    const rollingStart = subDays(now, 29);
+    const sessionsInRollingWindowByCategory: Record<SessionCategory, number> = {
       Technical: 0,
       Randori: 0,
       Shiai: 0,
     };
     sortedSessions.forEach((session) => {
-      if (session.date.startsWith(format(now, 'yyyy-MM'))) {
-        sessionsThisMonthByCategory[session.category] += 1;
+      if (parseDateOnly(session.date) >= rollingStart) {
+        sessionsInRollingWindowByCategory[session.category] += 1;
       }
     });
     const lastFortnight = subDays(now, 13);
@@ -220,14 +220,14 @@ export function DashboardOverview({
       ? earlierEfforts.reduce((total, session) => total + session.effort, 0) /
         earlierEfforts.length
       : null;
-    const monthlyPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
+    const rollingPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
       (category) => {
         const plan = preferences.trainingPlan.categories[category];
         const effectiveTarget =
           plan.cadence === 'week'
-            ? plan.targetSessions * Math.ceil(getDaysInMonth(now) / 7)
+            ? Math.round(plan.targetSessions * (30 / 7))
             : plan.targetSessions;
-        const completed = sessionsThisMonthByCategory[category];
+        const completed = sessionsInRollingWindowByCategory[category];
         const remaining = Math.max(0, effectiveTarget - completed);
         return {
           category,
@@ -239,39 +239,17 @@ export function DashboardOverview({
         };
       }
     );
-    const nextPlanItem = [...monthlyPlan]
+    const nextPlanItem = [...rollingPlan]
       .filter((item) => item.remaining > 0)
       .sort((left, right) => right.remaining - left.remaining)[0];
-    const completedMonthlyTarget = monthlyPlan.reduce(
+    const completedRollingTarget = rollingPlan.reduce(
       (total, item) => total + Math.min(item.completed, item.effectiveTarget),
       0
     );
-    const effectiveMonthlyTarget = monthlyPlan.reduce(
+    const effectiveRollingTarget = rollingPlan.reduce(
       (total, item) => total + item.effectiveTarget,
       0
     );
-
-    const nextAction =
-      daysSinceLatestSession >= 7
-        ? {
-            eyebrow: 'Get back on the mat',
-            title: `It has been ${daysSinceLatestSession} days since your last session.`,
-            description:
-              'A short technical session is enough to rebuild momentum.',
-            action: 'Log a technical session',
-          }
-        : {
-            eyebrow: 'Your next best session',
-            title: nextPlanItem
-              ? `Make room for ${nextPlanItem.category.toLowerCase()} work.`
-              : 'Your plan is complete for this month.',
-            description: nextPlanItem
-              ? `${nextPlanItem.remaining} ${nextPlanItem.category.toLowerCase()} session${nextPlanItem.remaining === 1 ? '' : 's'} remain in your realistic monthly plan.`
-              : 'Keep logging what you do—any extra sessions are a bonus, not a requirement.',
-            action: nextPlanItem
-              ? `Log ${nextPlanItem.category.toLowerCase()} training`
-              : 'Log training',
-          };
 
     return {
       totalSessions: sessions.length,
@@ -282,29 +260,24 @@ export function DashboardOverview({
       maxTechniqueCount,
       topCategory,
       recentEfforts,
-      currentMonthLabel: format(now, 'MMMM yyyy'),
-      trainingDataRange: `${firstSessionDate.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })} – ${latestSessionDate.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })}`,
+      rollingRangeLabel: `${format(rollingStart, 'd MMM')} – ${format(now, 'd MMM')}`,
+      trainingDataRange:
+        distributionWindow === 'all'
+          ? `${firstSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${latestSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+          : `Last ${distributionWindow} days`,
       latestSessionLabel: formatDistanceToNowStrict(latestSessionDate, {
         addSuffix: true,
       }),
       needsTrainingNudge: daysSinceLatestSession >= 14,
       sessionsInLastFortnight,
-      monthlyPlan,
-      completedMonthlyTarget,
-      effectiveMonthlyTarget,
+      rollingPlan,
+      completedRollingTarget,
+      effectiveRollingTarget,
+      nextFocus: nextPlanItem?.category ?? 'Consistency',
       recentAverage,
       earlierAverage,
-      nextAction,
     };
-  }, [preferences.trainingPlan, sessions]);
+  }, [distributionWindow, preferences.trainingPlan, sessions]);
 
   if (!stats) {
     return (
@@ -329,70 +302,35 @@ export function DashboardOverview({
     <div className="reveal-fade-up max-w-5xl mx-auto w-full">
       <div className="mb-6">
         <div>
-          <p className="text-label-md text-primary">Today&apos;s training</p>
-          <h2 className="text-display-sm mt-1">Train with a clear purpose.</h2>
+          <p className="text-label-md text-primary">Your training</p>
+          <h2 className="text-display-sm mt-1">Build a sustainable rhythm.</h2>
           <p className="text-sm text-muted-foreground">
             {isRefreshing
               ? 'Updating your training data…'
-              : `Last session ${stats.latestSessionLabel} · ${stats.completedMonthlyTarget} of ${stats.effectiveMonthlyTarget} planned sessions this month`}
+              : `Last session ${stats.latestSessionLabel} · ${stats.completedRollingTarget} of ${stats.effectiveRollingTarget} planned sessions in the last 30 days`}
           </p>
         </div>
       </div>
-      <DataSurface className="mb-6 overflow-hidden border-[hsl(var(--primary)/0.28)] bg-[linear-gradient(135deg,hsl(var(--primary-fixed)/0.82),hsl(var(--card))_62%)] p-0 shadow-[0_18px_34px_-28px_hsl(var(--primary)/0.42)]">
-        <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
-              <Sparkles className="h-4 w-4" />
-              Your plan
-            </div>
-            <h3 className="text-headline-md">{stats.nextAction.title}</h3>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              {stats.nextAction.description}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-              <span className="rounded-full border border-[hsl(var(--color-outline-variant)/0.38)] bg-card px-3 py-1.5 font-medium text-foreground">
-                Monthly plan: {stats.completedMonthlyTarget}/
-                {stats.effectiveMonthlyTarget}
-              </span>
-              <span className="text-muted-foreground">
-                {stats.currentMonthLabel}
-              </span>
-            </div>
-          </div>
-          {onLogSession && (
-            <Button
-              variant="outline"
-              onClick={onLogSession}
-              className="min-h-11 justify-between sm:justify-center"
-            >
-              {stats.nextAction.action}
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </DataSurface>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-headline-sm">Your rhythm this month</h3>
+        <h3 className="text-headline-sm">Your rhythm</h3>
         <p className="text-xs text-muted-foreground">
-          {stats.currentMonthLabel}
+          Last 30 days · {stats.rollingRangeLabel}
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-8">
-        <DataSurface className="flex flex-col gap-2 border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary-fixed)/0.42)] p-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span className="text-label-md">Plan progress</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.completedMonthlyTarget}
+            {stats.completedRollingTarget}
             <span className="text-base font-normal text-muted-foreground">
               {' '}
-              / {stats.effectiveMonthlyTarget}
+              / {stats.effectiveRollingTarget}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Sessions completed against your realistic plan.
-          </p>
+          <p className="text-sm text-muted-foreground">Last 30 days</p>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -400,24 +338,17 @@ export function DashboardOverview({
             <span className="text-label-md">14-day cadence</span>
           </div>
           <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.sessionsInLastFortnight} session
-            {stats.sessionsInLastFortnight === 1 ? '' : 's'}
+            {stats.sessionsInLastFortnight}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Logged in the last 14 days.
-          </p>
         </DataSurface>
         <DataSurface className="flex flex-col gap-2 p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Award className="h-4 w-4" />
-            <span className="text-label-md">Top technique</span>
+            <Target className="h-4 w-4" />
+            <span className="text-label-md">Next focus</span>
           </div>
           <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.topTechniques[0]?.name || '—'}
+            {stats.nextFocus}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Your most practised technique.
-          </p>
         </DataSurface>
       </div>
 
@@ -442,7 +373,7 @@ export function DashboardOverview({
           </Button>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {stats.monthlyPlan.map((item) => (
+          {stats.rollingPlan.map((item) => (
             <button
               key={item.category}
               type="button"
@@ -458,7 +389,7 @@ export function DashboardOverview({
               <span>
                 <span className="block font-semibold">{item.category}</span>
                 <span className="block text-sm text-muted-foreground">
-                  {item.completed}/{item.effectiveTarget} planned this month
+                  {item.completed}/{item.effectiveTarget} in the last 30 days
                 </span>
                 <span className="mt-1 block text-xs text-muted-foreground">
                   Target: {item.cadence === 'week' ? 'per week' : 'per month'}
@@ -468,9 +399,8 @@ export function DashboardOverview({
           ))}
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
-          Set the rhythm you want for each session type. Weekly targets are
-          shown as an estimated monthly total so every type can be viewed
-          together.
+          Your weekly targets are converted to a rolling 30-day target, so every
+          session type is measured on the same timeframe.
         </p>
       </DataSurface>
 
@@ -556,164 +486,88 @@ export function DashboardOverview({
             <h3 className="text-headline-sm">Recent Effort</h3>
             <Dumbbell className="h-5 w-5 text-primary" />
           </div>
-          <p className="mb-2 text-sm text-muted-foreground">
+          <p className="mb-5 text-sm text-muted-foreground">
             {stats.earlierAverage === null
               ? `Your latest three sessions average ${stats.recentAverage.toFixed(1)} / 5.`
               : `Last three average ${stats.recentAverage.toFixed(1)} / 5, ${stats.recentAverage >= stats.earlierAverage ? 'up' : 'down'} from ${stats.earlierAverage.toFixed(1)}.`}
           </p>
-          <p className="mb-5 text-xs font-medium text-muted-foreground">
-            Each bar is one of your last seven logged sessions; height shows
-            perceived effort.
-          </p>
-          <div className="h-[300px]">
-            <ChartContainer
-              config={{
-                primary: {
-                  label: 'Effort — Level 5',
-                  color: 'hsl(var(--primary))',
-                  markerShape: 'circle',
-                  strokeStyle: 'solid',
-                },
-                secondary: {
-                  label: 'Effort — Level 4',
-                  color: 'hsl(var(--secondary))',
-                  markerShape: 'square',
-                  strokeStyle: 'solid',
-                },
-                tertiary: {
-                  label: 'Effort — Level 3',
-                  color: 'hsl(var(--tertiary))',
-                  markerShape: 'diamond',
-                  strokeStyle: 'dashed',
-                },
-                'primary-container': {
-                  label: 'Effort — Level 2',
-                  color: 'hsl(var(--primary-container))',
-                  markerShape: 'triangle',
-                  strokeStyle: 'dotted',
-                },
-                'secondary-container': {
-                  label: 'Effort — Level 1',
-                  color: 'hsl(var(--secondary))',
-                  markerShape: 'triangle',
-                  strokeStyle: 'dotted',
-                },
-              }}
-              className="h-full w-full"
-            >
-              <BarChart
-                data={stats.recentEfforts}
-                barCategoryGap="28%"
-                margin={{ top: 12, right: 12, left: 4, bottom: 4 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 6"
-                  stroke="hsl(var(--foreground) / 0.22)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={10}
-                  minTickGap={24}
-                  tick={{
-                    fill: 'hsl(var(--foreground) / 0.82)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                  }}
-                />
-                <YAxis
-                  ticks={[0, 1, 2, 3, 4, 5]}
-                  domain={[0, 5]}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  width={28}
-                  tick={{
-                    fill: 'hsl(var(--foreground) / 0.78)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                  }}
-                  label={{
-                    value: 'Effort',
-                    angle: -90,
-                    position: 'insideLeft',
-                    offset: 0,
-                    fill: 'hsl(var(--foreground) / 0.78)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      valueUnit="/5"
-                      detailFormatter={(item) => (
-                        <div className="grid gap-1">
-                          <span className="font-medium">
-                            {item.seriesLabel}
-                          </span>
-                          <span className="font-mono tabular-nums">
-                            {item.valueWithUnit}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {item.date || item.timestamp}
-                          </span>
-                          {item.delta !== undefined && (
-                            <span className="text-muted-foreground">
-                              Δ {item.delta}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    />
+          <div
+            className="grid grid-cols-7 gap-2"
+            aria-label="Effort across your last seven sessions"
+          >
+            {stats.recentEfforts.map((entry, index) => {
+              const isSelected = selectedEffortIndex === index;
+              return (
+                <button
+                  key={`${entry.timestamp}-${index}`}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() =>
+                    setSelectedEffortIndex(isSelected ? null : index)
                   }
-                />
-                <Bar dataKey="effort" radius={[6, 6, 0, 0]} maxBarSize={44}>
-                  {stats.recentEfforts.map((entry, index) => {
-                    const seriesTokenByEffort = {
-                      1: 'secondary-container',
-                      2: 'primary-container',
-                      3: 'tertiary',
-                      4: 'secondary',
-                      5: 'primary',
-                    } as const;
-                    const token =
-                      seriesTokenByEffort[
-                        entry.effort as keyof typeof seriesTokenByEffort
-                      ] ?? 'primary';
-
-                    return (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={`var(--color-${token})`}
-                        fillOpacity={
-                          activeEffortIndex === null ||
-                          activeEffortIndex === index
-                            ? 0.96
-                            : 0.42
-                        }
-                        stroke="hsl(var(--background))"
-                        strokeWidth={1.5}
-                        onMouseEnter={() => setActiveEffortIndex(index)}
-                        onMouseLeave={() => setActiveEffortIndex(null)}
-                      />
-                    );
-                  })}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+                  className={cn(
+                    'group flex min-h-36 flex-col justify-end rounded-lg border bg-secondary/20 p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    isSelected
+                      ? 'border-primary bg-primary/10'
+                      : 'border-transparent hover:border-primary/40'
+                  )}
+                >
+                  <span className="mb-2 text-xs font-medium text-muted-foreground">
+                    {entry.date}
+                  </span>
+                  <span className="flex h-20 items-end rounded bg-muted/70 p-1">
+                    <span
+                      className="w-full rounded-sm bg-primary transition-[height] duration-300"
+                      style={{ height: `${entry.effort * 20}%` }}
+                    />
+                  </span>
+                  <span className="mt-2 text-sm font-semibold tabular-nums">
+                    {entry.effort}/5
+                  </span>
+                  {isSelected && (
+                    <span className="text-xs text-muted-foreground">
+                      Selected
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Select a session to keep its value in view. No hover is required.
+          </p>
         </DataSurface>
 
         {/* Training Distribution — surface, not card */}
         <DataSurface>
-          <div className="mb-6 flex items-baseline justify-between gap-3">
-            <h3 className="text-headline-sm">Training Distribution</h3>
-            <span className="text-xs text-muted-foreground">
-              {stats.trainingDataRange}
-            </span>
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-headline-sm">Training Distribution</h3>
+              <span className="text-xs text-muted-foreground">
+                {stats.trainingDataRange}
+              </span>
+            </div>
+            <div
+              className="flex rounded-lg border border-border bg-secondary/20 p-1"
+              aria-label="Training distribution timeframe"
+            >
+              {([30, 90, 'all'] as const).map((window) => (
+                <button
+                  key={window}
+                  type="button"
+                  aria-pressed={distributionWindow === window}
+                  onClick={() => setDistributionWindow(window)}
+                  className={cn(
+                    'rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    distributionWindow === window
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {window === 'all' ? 'All time' : `${window} days`}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="space-y-8">
             <div className="space-y-4">
@@ -728,8 +582,7 @@ export function DashboardOverview({
                         {cat.name}
                       </p>
                       <span className="text-body-sm font-semibold text-muted-foreground">
-                        {cat.count} session{cat.count === 1 ? '' : 's'} ·{' '}
-                        {Math.round((cat.count / stats.totalSessions) * 100)}%
+                        {cat.count}
                       </span>
                     </div>
                     <div className="flex h-2 w-full rounded-full bg-secondary">
@@ -760,16 +613,23 @@ export function DashboardOverview({
                     </p>
                     <div className="flex h-2 w-full rounded-full bg-secondary">
                       <div
-                        className="h-full rounded-full bg-primary/60"
+                        className={cn(
+                          'h-full rounded-full',
+                          [
+                            'bg-primary',
+                            'bg-sky-500',
+                            'bg-violet-500',
+                            'bg-amber-500',
+                            'bg-emerald-500',
+                          ][idx]
+                        )}
                         style={{
                           width: `${(tech.count / stats.maxTechniqueCount) * 100}%`,
                         }}
                       />
                     </div>
                   </div>
-                  <div className="ml-4 text-sm font-medium">
-                    {tech.count}x
-                  </div>
+                  <div className="ml-4 text-sm font-medium">{tech.count}x</div>
                 </div>
               ))}
             </div>

@@ -1,6 +1,14 @@
 'use client';
 
-import { History, Loader2, LogIn, LogOut, Plus, WifiOff } from 'lucide-react';
+import {
+  History,
+  Loader2,
+  LogIn,
+  LogOut,
+  Plus,
+  WifiOff,
+  type LucideIcon,
+} from 'lucide-react';
 import { ModeToggle } from '@/components/mode-toggle';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -15,6 +23,7 @@ import {
 
 type DashboardHeaderProps = {
   title: string;
+  pageIcon: LucideIcon;
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
@@ -33,6 +42,7 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({
   title,
+  pageIcon: PageIcon,
   isOnline,
   isSyncing,
   pendingCount,
@@ -52,9 +62,13 @@ export function DashboardHeader({
     <header className="glass-surface min-h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="h-11 w-11 md:hidden" />
-        <h2 className="font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
+        <span
+          aria-label={title}
+          title={title}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+        >
+          <PageIcon className="h-5 w-5" aria-hidden="true" />
+        </span>
       </div>
       <div className="flex items-center gap-2">
         {!isOnline && (
