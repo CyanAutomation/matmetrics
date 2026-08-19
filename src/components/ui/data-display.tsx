@@ -9,7 +9,7 @@ export function DataSurface({ children, className }: DataSurfaceProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-[hsl(var(--color-outline-variant)/0.34)] bg-card p-6 shadow-[0_14px_28px_-26px_hsl(var(--foreground)/0.24)]',
+        'rounded-2xl bg-card p-6 shadow-[0_18px_32px_-30px_hsl(var(--foreground)/0.32)]',
         className
       )}
     >

@@ -103,7 +103,7 @@ function SessionRow({
   }
 
   return (
-    <div className="rounded-xl px-3 py-6 reveal-fade transition-colors hover:bg-muted/25 sm:px-4">
+    <div className="rounded-xl px-3 py-5 reveal-fade transition-colors hover:bg-muted/35 sm:px-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -391,7 +391,7 @@ export function SessionHistory({
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
       <section
         aria-label="Filter training history"
-        className="sticky top-3 z-[1] mb-6 rounded-xl border border-[hsl(var(--color-outline-variant)/0.42)] bg-card/95 p-3 shadow-[0_14px_28px_-24px_hsl(var(--foreground)/0.22)] backdrop-blur sm:p-4"
+        className="sticky top-3 z-[1] mb-6 rounded-2xl bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
       >
         <div className="flex gap-2">
           <Input
