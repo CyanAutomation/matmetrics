@@ -11,6 +11,8 @@ type PluginMediaTileProps = {
   supportingText?: ReactNode;
   actions?: ReactNode;
   className?: string;
+  previewClassName?: string;
+  contentClassName?: string;
 };
 
 export function PluginMediaTile({
@@ -21,6 +23,8 @@ export function PluginMediaTile({
   supportingText,
   actions,
   className,
+  previewClassName,
+  contentClassName,
 }: PluginMediaTileProps) {
   return (
     <article
@@ -29,7 +33,12 @@ export function PluginMediaTile({
         className
       )}
     >
-      <div className="aspect-video rounded-b-none rounded-t-xl bg-muted p-3">
+      <div
+        className={cn(
+          'aspect-video rounded-b-none rounded-t-xl bg-muted p-3',
+          previewClassName
+        )}
+      >
         <div
           className="flex h-full flex-col justify-between rounded-lg border border-dashed border-border/70 bg-cover bg-center p-3"
           style={previewBackgroundStyle}
@@ -38,7 +47,7 @@ export function PluginMediaTile({
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className={cn('space-y-3 p-4', contentClassName)}>
         <div className="space-y-1">
           <p className="line-clamp-2 font-semibold">{title}</p>
           {metadata ? (
