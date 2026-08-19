@@ -13,6 +13,7 @@ import {
   Circle,
   Dumbbell,
   Flame,
+  ArrowRight,
   Target,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
@@ -45,9 +46,6 @@ export function DashboardOverview({
   isRefreshing = false,
 }: DashboardOverviewProps) {
   const { canSavePreferences, preferences, user } = useAuth();
-  const [selectedEffortIndex, setSelectedEffortIndex] = useState<number | null>(
-    null
-  );
   const [distributionWindow, setDistributionWindow] = useState<30 | 90 | 'all'>(
     30
   );
@@ -250,6 +248,76 @@ export function DashboardOverview({
       (total, item) => total + item.effectiveTarget,
       0
     );
+    const remainingPlanSessions = Math.max(
+      0,
+      effectiveRollingTarget - completedRollingTarget
+    );
+    const expectedFortnightSessions = effectiveRollingTarget / 2;
+    const effortSessionsInLastFortnight = sortedSessions.filter(
+      (session) => parseDateOnly(session.date) >= lastFortnight
+    );
+    const recentEffortAverage = effortSessionsInLastFortnight.length
+      ? effortSessionsInLastFortnight.reduce(
+          (total, session) => total + session.effort,
+          0
+        ) / effortSessionsInLastFortnight.length
+      : null;
+    const priorFortnight = subDays(now, 27);
+    const earlierEffortSessions = sortedSessions.filter((session) => {
+      const date = parseDateOnly(session.date);
+      return date >= priorFortnight && date < lastFortnight;
+    });
+    const earlierEffortAverage = earlierEffortSessions.length
+      ? earlierEffortSessions.reduce(
+          (total, session) => total + session.effort,
+          0
+        ) / earlierEffortSessions.length
+      : null;
+    const effortInsight = (() => {
+      if (effortSessionsInLastFortnight.length < 2) {
+        return {
+          title: 'Build the rhythm first',
+          detail:
+            'There are not enough recent sessions to judge your training load yet. Focus on the next planned session.',
+        };
+      }
+      if (
+        earlierEffortAverage !== null &&
+        recentEffortAverage !== null &&
+        recentEffortAverage >= earlierEffortAverage + 0.8
+      ) {
+        return {
+          title: 'Recent effort is higher than usual',
+          detail:
+            'Your reported effort is noticeably above the previous two weeks. A lighter technical session may help keep the plan sustainable.',
+        };
+      }
+      if (sessionsInLastFortnight < expectedFortnightSessions * 0.7) {
+        return {
+          title: 'Training is below your planned rhythm',
+          detail:
+            'Your recent session count is lower than your plan suggests. Add a focused session before increasing intensity.',
+        };
+      }
+      return {
+        title: 'Your recent effort looks sustainable',
+        detail:
+          'Your reported effort and session rhythm are broadly in line with your recent training pattern.',
+      };
+    })();
+    const coachingInsight =
+      remainingPlanSessions === 0
+        ? {
+            eyebrow: 'Plan complete',
+            title: 'Your 30-day plan is on track.',
+            detail:
+              'Keep the rhythm steady, or adjust the plan if your availability has changed.',
+          }
+        : {
+            eyebrow: 'Next best step',
+            title: `${nextPlanItem?.category ?? 'A training'} session is the clearest next move.`,
+            detail: `${remainingPlanSessions} planned ${remainingPlanSessions === 1 ? 'session remains' : 'sessions remain'} in this 30-day window. ${nextPlanItem?.remaining ?? 0} ${nextPlanItem?.category ?? ''} ${nextPlanItem?.remaining === 1 ? 'session is' : 'sessions are'} still to go.`,
+          };
 
     return {
       totalSessions: sessions.length,
@@ -276,6 +344,10 @@ export function DashboardOverview({
       nextFocus: nextPlanItem?.category ?? 'Consistency',
       recentAverage,
       earlierAverage,
+      remainingPlanSessions,
+      coachingInsight,
+      effortInsight,
+      recentEffortAverage,
     };
   }, [distributionWindow, preferences.trainingPlan, sessions]);
 
@@ -311,48 +383,60 @@ export function DashboardOverview({
           </p>
         </div>
       </div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-headline-sm">Your rhythm</h3>
-        <p className="text-xs text-muted-foreground">
-          Last 30 days · {stats.rollingRangeLabel}
-        </p>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-        <DataSurface className="flex flex-col gap-2 border-primary/20 bg-primary-fixed/35 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span className="text-label-md">Plan progress</span>
+      <DataSurface className="mb-8 overflow-hidden bg-[hsl(var(--color-surface-container-low))] p-0 shadow-none">
+        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <p className="text-label-md text-primary">
+              {stats.coachingInsight.eyebrow}
+            </p>
+            <h3 className="mt-1 text-headline-lg">
+              {stats.coachingInsight.title}
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              {stats.coachingInsight.detail}
+            </p>
           </div>
-          <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.completedRollingTarget}
-            <span className="text-base font-normal text-muted-foreground">
-              {' '}
-              / {stats.effectiveRollingTarget}
-            </span>
+          {onLogSession && (
+            <Button className="min-h-11" onClick={onLogSession}>
+              Log training <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <div className="grid border-t border-[hsl(var(--color-outline-variant)/0.12)] sm:grid-cols-3">
+          <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
+            <Calendar className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-label-md text-muted-foreground">
+                Plan progress
+              </p>
+              <p className="mt-1 font-semibold tabular-nums">
+                {stats.completedRollingTarget} / {stats.effectiveRollingTarget}{' '}
+                sessions
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">Last 30 days</p>
-        </DataSurface>
-        <DataSurface className="flex flex-col gap-2 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Flame className="h-4 w-4" />
-            <span className="text-label-md">14-day cadence</span>
+          <div className="flex items-center gap-3 border-t border-[hsl(var(--color-outline-variant)/0.12)] px-5 py-4 sm:border-l sm:border-t-0 sm:px-6">
+            <Flame className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-label-md text-muted-foreground">
+                Recent rhythm
+              </p>
+              <p className="mt-1 font-semibold tabular-nums">
+                {stats.sessionsInLastFortnight} sessions in 14 days
+              </p>
+            </div>
           </div>
-          <div className="text-display-sm font-bold text-foreground tabular-nums">
-            {stats.sessionsInLastFortnight}
+          <div className="flex items-center gap-3 border-t border-[hsl(var(--color-outline-variant)/0.12)] px-5 py-4 sm:border-l sm:border-t-0 sm:px-6">
+            <Target className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-label-md text-muted-foreground">Next focus</p>
+              <p className="mt-1 font-semibold">{stats.nextFocus}</p>
+            </div>
           </div>
-        </DataSurface>
-        <DataSurface className="flex flex-col gap-2 p-5">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Target className="h-4 w-4" />
-            <span className="text-label-md">Next focus</span>
-          </div>
-          <div className="text-display-sm font-bold text-foreground truncate">
-            {stats.nextFocus}
-          </div>
-        </DataSurface>
-      </div>
+        </div>
+      </DataSurface>
 
-      <DataSurface className="mb-8">
+      <DataSurface className="mb-8 bg-[hsl(var(--color-surface-container-low))]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-label-md text-primary">Your realistic plan</p>
@@ -372,27 +456,40 @@ export function DashboardOverview({
             Edit plan
           </Button>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 space-y-3">
           {stats.rollingPlan.map((item) => (
             <button
               key={item.category}
               type="button"
               onClick={onLogSession}
               disabled={!onLogSession}
-              className="flex min-h-20 items-center gap-3 rounded-xl bg-secondary/30 p-4 text-left transition-colors hover:bg-secondary/50 disabled:cursor-default disabled:hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="group flex w-full items-center gap-4 rounded-xl bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card disabled:cursor-default disabled:hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {item.isComplete ? (
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
               ) : (
                 <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
               )}
-              <span>
-                <span className="block font-semibold">{item.category}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {item.completed}/{item.effectiveTarget} in the last 30 days
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="font-semibold">{item.category}</span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {item.completed} / {item.effectiveTarget}
+                  </span>
                 </span>
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Target: {item.cadence === 'week' ? 'per week' : 'per month'}
+                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{
+                      width: `${Math.min(100, (item.completed / Math.max(item.effectiveTarget, 1)) * 100)}%`,
+                    }}
+                  />
+                </span>
+                <span className="mt-2 block text-xs text-muted-foreground">
+                  {item.isComplete
+                    ? 'Complete for this 30-day window'
+                    : `${item.remaining} ${item.remaining === 1 ? 'session' : 'sessions'} remaining`}{' '}
+                  · Target: per {item.cadence}
                 </span>
               </span>
             </button>
@@ -479,67 +576,53 @@ export function DashboardOverview({
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Effort — surface, not card */}
-        <DataSurface>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
           <div className="mb-1 flex items-center justify-between gap-3">
-            <h3 className="text-headline-sm">Recent Effort</h3>
+            <h3 className="text-headline-sm">Training load</h3>
             <Dumbbell className="h-5 w-5 text-primary" />
           </div>
-          <p className="mb-5 text-sm text-muted-foreground">
-            {stats.earlierAverage === null
-              ? `Your latest three sessions average ${stats.recentAverage.toFixed(1)} / 5.`
-              : `Last three average ${stats.recentAverage.toFixed(1)} / 5, ${stats.recentAverage >= stats.earlierAverage ? 'up' : 'down'} from ${stats.earlierAverage.toFixed(1)}.`}
+          <p className="text-sm font-semibold">{stats.effortInsight.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {stats.effortInsight.detail}
           </p>
-          <div
-            className="grid grid-cols-7 gap-2"
-            aria-label="Effort across your last seven sessions"
-          >
-            {stats.recentEfforts.map((entry, index) => {
-              const isSelected = selectedEffortIndex === index;
-              return (
-                <button
-                  key={`${entry.timestamp}-${index}`}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() =>
-                    setSelectedEffortIndex(isSelected ? null : index)
-                  }
-                  className={cn(
-                    'group flex min-h-36 flex-col justify-end rounded-lg border bg-secondary/20 p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    isSelected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-transparent hover:border-primary/40'
-                  )}
-                >
-                  <span className="mb-2 text-xs font-medium text-muted-foreground">
-                    {entry.date}
-                  </span>
-                  <span className="flex h-20 items-end rounded bg-muted/70 p-1">
-                    <span
-                      className="w-full rounded-sm bg-primary transition-[height] duration-300"
-                      style={{ height: `${entry.effort * 20}%` }}
-                    />
-                  </span>
-                  <span className="mt-2 text-sm font-semibold tabular-nums">
-                    {entry.effort}/5
-                  </span>
-                  {isSelected && (
-                    <span className="text-xs text-muted-foreground">
-                      Selected
+          <div className="mt-6" aria-label="Recent sessions by date and effort">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{stats.recentEfforts[0]?.date}</span>
+              <span>{stats.recentEfforts.at(-1)?.date}</span>
+            </div>
+            <ol className="relative mt-3 flex h-16 items-center before:absolute before:left-0 before:right-0 before:h-px before:bg-[hsl(var(--color-outline-variant)/0.35)]">
+              {stats.recentEfforts.map((entry, index, entries) => {
+                const first = new Date(entries[0].timestamp).getTime();
+                const last = new Date(entries.at(-1)!.timestamp).getTime();
+                const current = new Date(entry.timestamp).getTime();
+                const position =
+                  last === first
+                    ? 50
+                    : ((current - first) / (last - first)) * 100;
+                return (
+                  <li
+                    key={`${entry.timestamp}-${index}`}
+                    className="absolute -translate-x-1/2"
+                    style={{ left: `${position}%` }}
+                    title={`${entry.date}: reported effort ${entry.effort} of 5`}
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
+                      {entry.effort}
                     </span>
-                  )}
-                </button>
-              );
-            })}
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Each marker is positioned by its actual session date. Number =
+              reported effort out of 5.
+            </p>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Select a session to keep its value in view. No hover is required.
-          </p>
         </DataSurface>
 
         {/* Training Distribution — surface, not card */}
-        <DataSurface>
+        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-headline-sm">Training Distribution</h3>
