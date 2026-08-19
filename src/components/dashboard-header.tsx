@@ -62,12 +62,11 @@ export function DashboardHeader({
     <header className="glass-surface min-h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="h-11 w-11 md:hidden" />
-        <span
-          aria-label={title}
-          title={title}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
-        >
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--color-surface-container-low))] text-primary">
           <PageIcon className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="hidden text-sm font-semibold tracking-tight text-foreground md:inline">
+          {title}
         </span>
       </div>
       <div className="flex items-center gap-2">

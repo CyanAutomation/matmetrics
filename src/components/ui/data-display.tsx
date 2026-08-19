@@ -1,19 +1,16 @@
 import { cn } from '@/lib/utils';
+import { Surface, type SurfaceProps } from '@/components/ui/surface';
 
-interface DataSurfaceProps {
-  children: React.ReactNode;
-  className?: string;
-}
+type DataSurfaceProps = SurfaceProps;
 
-export function DataSurface({ children, className }: DataSurfaceProps) {
+export function DataSurface({
+  children,
+  className,
+  ...props
+}: DataSurfaceProps) {
   return (
-    <div
-      className={cn(
-        'rounded-2xl bg-card p-6 shadow-[0_18px_32px_-30px_hsl(var(--foreground)/0.32)]',
-        className
-      )}
-    >
+    <Surface className={cn(className)} {...props}>
       {children}
-    </div>
+    </Surface>
   );
 }
