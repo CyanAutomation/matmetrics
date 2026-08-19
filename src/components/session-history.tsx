@@ -1,12 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  JudoSession,
-  EFFORT_LABELS,
-  EFFORT_COLORS,
-  CATEGORY_COLORS,
-} from '@/lib/types';
+import { JudoSession, EFFORT_LABELS } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,7 +27,6 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
@@ -51,6 +45,20 @@ type GroupedSessions = {
   monthLabel: string;
   sessions: JudoSession[];
 };
+
+const categoryBadgeVariants = {
+  Technical: 'technical',
+  Randori: 'randori',
+  Shiai: 'shiai',
+} as const;
+
+const effortBadgeVariants = {
+  1: 'effortEasy',
+  2: 'effortLight',
+  3: 'effortNormal',
+  4: 'effortHard',
+  5: 'effortIntense',
+} as const;
 
 function groupSessionsByMonth(sessions: JudoSession[]): GroupedSessions[] {
   const groups: Map<string, JudoSession[]> = new Map();
@@ -103,7 +111,7 @@ function SessionRow({
   }
 
   return (
-    <div className="rounded-xl px-3 py-5 reveal-fade transition-colors hover:bg-muted/35 sm:px-4">
+    <div className="rounded-xl bg-card/42 px-4 py-4 reveal-fade transition-colors hover:bg-card sm:px-5">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -113,8 +121,7 @@ function SessionRow({
                 {format(parseDateOnly(session.date), 'EEEE, MMMM do')}
               </span>
               <Badge
-                variant="outline"
-                className={CATEGORY_COLORS[session.category || 'Technical']}
+                variant={categoryBadgeVariants[session.category || 'Technical']}
               >
                 {session.category || 'Technical'}
               </Badge>
@@ -132,17 +139,14 @@ function SessionRow({
                 key={idx}
                 type="button"
                 onClick={() => onFilterTechnique(tech)}
-                className="rounded-full border border-primary/30 bg-background/60 px-2.5 py-0.5 text-xs font-medium transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="rounded-full bg-[hsl(var(--color-surface-container-high))] px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 title={`Show sessions tagged ${tech}`}
               >
                 {tech}
               </button>
             ))}
             {session.techniques.length > 3 ? (
-              <Badge
-                variant="outline"
-                className="bg-background/60 border-primary/30"
-              >
+              <Badge variant="secondary">
                 +{session.techniques.length - 3} more
               </Badge>
             ) : null}
@@ -154,7 +158,7 @@ function SessionRow({
             <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
               Effort
             </span>
-            <Badge className={EFFORT_COLORS[session.effort]}>
+            <Badge variant={effortBadgeVariants[session.effort]}>
               {EFFORT_LABELS[session.effort]}
             </Badge>
           </div>
@@ -214,7 +218,7 @@ function SessionRow({
                     href={safeVideoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-primary/20 bg-background/80 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:text-primary/90"
+                    className="inline-flex max-w-full items-center gap-2 rounded-lg bg-[hsl(var(--color-surface-container-high))] px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.16)]"
                   >
                     <ExternalLink className="h-4 w-4 shrink-0" />
                     <span className="truncate">Watch relevant video</span>
@@ -509,12 +513,9 @@ export function SessionHistory({
       {grouped.map(({ monthLabel, sessions: monthSessions }) => (
         <div key={monthLabel} className="mb-8 last:mb-0">
           <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
-          <DataSurface className="p-6">
-            {monthSessions.map((session, idx) => (
+          <DataSurface className="space-y-3" padding="sm" variant="subtle">
+            {monthSessions.map((session) => (
               <div key={session.id}>
-                {idx > 0 && (
-                  <Separator className="my-4 bg-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
-                )}
                 <SessionRow
                   session={session}
                   onDelete={(id) => {
