@@ -8,7 +8,6 @@ import {
   TrainingPlanPreferences,
 } from '@/lib/types';
 import {
-  Calendar,
   CheckCircle2,
   Circle,
   Dumbbell,
@@ -402,20 +401,8 @@ export function DashboardOverview({
             </Button>
           )}
         </div>
-        <div className="grid border-t border-[hsl(var(--color-outline-variant)/0.12)] sm:grid-cols-3">
-          <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
-            <Calendar className="h-4 w-4 text-primary" />
-            <div>
-              <p className="text-label-md text-muted-foreground">
-                Plan progress
-              </p>
-              <p className="mt-1 font-semibold tabular-nums">
-                {stats.completedRollingTarget} / {stats.effectiveRollingTarget}{' '}
-                sessions
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 border-t border-[hsl(var(--color-outline-variant)/0.12)] px-5 py-4 sm:border-l sm:border-t-0 sm:px-6">
+        <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 sm:px-6 sm:pb-6">
+          <div className="flex items-center gap-3 rounded-xl bg-card/55 px-4 py-3">
             <Flame className="h-4 w-4 text-primary" />
             <div>
               <p className="text-label-md text-muted-foreground">
@@ -426,7 +413,7 @@ export function DashboardOverview({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 border-t border-[hsl(var(--color-outline-variant)/0.12)] px-5 py-4 sm:border-l sm:border-t-0 sm:px-6">
+          <div className="flex items-center gap-3 rounded-xl bg-card/55 px-4 py-3">
             <Target className="h-4 w-4 text-primary" />
             <div>
               <p className="text-label-md text-muted-foreground">Next focus</p>

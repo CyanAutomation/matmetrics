@@ -25,14 +25,12 @@ const PluginStateFrame = ({
 }: PluginStateFrameProps): React.ReactElement => {
   const toneClassName =
     tone === 'destructive'
-      ? 'border-destructive/35 bg-destructive/5'
-      : 'border-border bg-muted/30';
+      ? 'bg-destructive/10'
+      : 'bg-[hsl(var(--color-surface-container-low))]';
 
   return (
     <div
-      className={`rounded-md border p-4 ${toneClassName} ${
-        className ?? ''
-      }`.trim()}
+      className={`rounded-xl p-4 ${toneClassName} ${className ?? ''}`.trim()}
       aria-live="polite"
       {...props}
     >

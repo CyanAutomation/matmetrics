@@ -115,7 +115,7 @@ export function DashboardNav({
         </SidebarGroup>
         {workspaceTabs.length > 0 && (
           <SidebarGroup className="mt-4 p-0">
-            <SidebarGroupLabel>Workspace tools</SidebarGroupLabel>
+            <SidebarGroupLabel>Integrations & settings</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
@@ -126,7 +126,7 @@ export function DashboardNav({
                     className="min-h-11 rounded-xl"
                   >
                     <Settings2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Advanced tools</span>
+                    <span className="text-sm font-medium">Manage tools</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {toolsOpen ? renderTabs(workspaceTabs, 'secondary') : null}
