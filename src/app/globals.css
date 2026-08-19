@@ -114,17 +114,17 @@
     --color-secondary-container: 218 30% 20%;
     --color-on-secondary: 0 0% 100%;
     --color-on-secondary-container: 210 40% 98%;
-    --color-surface: 216 50% 5%;
-    --color-surface-container-low: 216 30% 12%;
-    --color-surface-container-lowest: 216 30% 15%;
-    --color-surface-container-high: 216 30% 20%;
-    --color-surface-bright: 216 30% 18%;
+    --color-surface: 216 38% 8%;
+    --color-surface-container-low: 216 27% 12%;
+    --color-surface-container-lowest: 216 24% 15%;
+    --color-surface-container-high: 216 22% 19%;
+    --color-surface-bright: 216 24% 17%;
     --color-surface-tint: 207 100% 34.3%;
-    --color-surface-variant: 216 20% 26%;
+    --color-surface-variant: 216 16% 25%;
     --color-on-surface: 210 40% 98%;
     --color-on-surface-variant: 215 20% 75%;
     --color-outline: 215 20% 65%;
-    --color-outline-variant: 216 20% 35%;
+    --color-outline-variant: 216 15% 31%;
     --color-success: 149 78.1% 26.9%;
     --color-success-container: 149 45% 20%;
     --color-on-success: 0 0% 100%;
@@ -317,6 +317,10 @@
     backdrop-filter: blur(14px);
   }
 
+  .surface-subtle {
+    background-color: hsl(var(--color-surface-container-low) / 0.72);
+  }
+
   .ui-button {
     box-shadow: 0 6px 20px -20px hsl(var(--foreground) / 0.08);
     transform: translateY(0) scale(1);
@@ -404,11 +408,21 @@
     animation: scaleIn 350ms var(--motion-ease-emphasized) both;
   }
 
-  .stagger-1 { animation-delay: 60ms; }
-  .stagger-2 { animation-delay: 120ms; }
-  .stagger-3 { animation-delay: 180ms; }
-  .stagger-4 { animation-delay: 240ms; }
-  .stagger-5 { animation-delay: 300ms; }
+  .stagger-1 {
+    animation-delay: 60ms;
+  }
+  .stagger-2 {
+    animation-delay: 120ms;
+  }
+  .stagger-3 {
+    animation-delay: 180ms;
+  }
+  .stagger-4 {
+    animation-delay: 240ms;
+  }
+  .stagger-5 {
+    animation-delay: 300ms;
+  }
 }
 
 @keyframes revealFadeUp {
@@ -419,7 +433,9 @@
 }
 
 @keyframes fadeIn {
-  to { opacity: 1; }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
