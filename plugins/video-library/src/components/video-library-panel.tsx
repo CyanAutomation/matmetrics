@@ -16,14 +16,10 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginBulkActions } from '@/components/plugins/plugin-bulk-actions';
-import {
-  PluginDataSurfaceFilterRow,
-  PluginDataSurfaceSummaryStrip,
-} from '@/components/plugins/plugin-data-surface';
+import { PluginDataSurfaceFilterRow } from '@/components/plugins/plugin-data-surface';
 import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
-import { VideoLibrarySummary } from './video-library-summary';
 import { useVideoLibraryViewState } from './use-video-library-view-state';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
@@ -520,7 +516,6 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       handleCheckFiltered: handleCheckFiltered,
       isCheckingLinks: isCheckingLinks,
       sortedFilteredRows: sortedFilteredRows,
-      rows: rows,
       loungeRows: loungeRows,
       browseState: browseState,
       handleEmptyStateAction: handleEmptyStateAction,
@@ -584,7 +579,6 @@ function VideoLibraryView({
     handleCheckFiltered,
     isCheckingLinks,
     sortedFilteredRows,
-    rows,
     loungeRows,
     browseState,
     handleEmptyStateAction,
@@ -623,25 +617,23 @@ function VideoLibraryView({
   return (
     <PluginPageShell
       title="Video Library"
-      description="Browse, check, and enjoy your linked session videos. Videos are optional for every session."
+      description="Your session videos, ready when you are."
       tone="info"
       icon={<Film className="h-6 w-6" />}
-    >
-      <VideoLibrarySummary {...summaryCounts} />
-
-      {controlVisibility.showSettingsEntryPoint ? (
-        <div className="flex justify-end">
+      headerActions={
+        controlVisibility.showSettingsEntryPoint ? (
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => setIsSettingsOpen(true)}
           >
             <Cog className="mr-2 h-4 w-4" />
             {VIDEO_LIBRARY_SETTINGS_BUTTON_LABEL}
           </Button>
-        </div>
-      ) : null}
-
+        ) : null
+      }
+    >
       {isCheckingLinks ? (
         <PluginLoadingState
           title="Checking video links"
@@ -650,14 +642,9 @@ function VideoLibraryView({
         />
       ) : null}
 
-      <PluginSectionCard
-        title="Inventory & filters"
-        description="Use core browsing controls first, then open Advanced filters for detailed review."
-        contentClassName="space-y-4"
-      >
-        <div className="space-y-2">
-          <Label>Browse tabs</Label>
-          <div className="flex flex-wrap gap-2">
+      <PluginSectionCard contentClassName="space-y-3" className="bg-card/70">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2" aria-label="Browse videos">
             {(['watchable', 'attention', 'all'] as VideoLibraryTab[]).map(
               (tab) => (
                 <Button
@@ -679,11 +666,16 @@ function VideoLibraryView({
               )
             )}
           </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{summaryCounts.attached} saved</span>
+            {summaryCounts.review > 0 ? (
+              <span>• {summaryCounts.review} need review</span>
+            ) : null}
+          </div>
         </div>
 
-        <PluginDataSurfaceFilterRow>
-          <div className="lg:col-span-3 space-y-2">
-            <Label htmlFor="video-library-search">Search</Label>
+        <PluginDataSurfaceFilterRow className="grid-cols-1 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
+          <div>
             <div className="relative">
               <Search
                 className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
@@ -703,8 +695,7 @@ function VideoLibraryView({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Sort</Label>
+          <div>
             <Select
               value={sortOrder === 'oldest' ? 'oldest' : 'newest'}
               onValueChange={(value) =>
@@ -722,9 +713,6 @@ function VideoLibraryView({
               </SelectContent>
             </Select>
           </div>
-        </PluginDataSurfaceFilterRow>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
             type="button"
             variant="outline"
@@ -732,12 +720,14 @@ function VideoLibraryView({
             aria-expanded={showAdvanced}
             aria-controls="video-library-advanced-filters"
           >
-            Advanced filters
+            More filters
           </Button>
-          {hasAdvancedFiltersApplied ? (
-            <Badge variant="secondary">Advanced filters active</Badge>
-          ) : null}
-        </div>
+        </PluginDataSurfaceFilterRow>
+        {hasAdvancedFiltersApplied ? (
+          <Badge variant="secondary" className="w-fit">
+            More filters active
+          </Badge>
+        ) : null}
 
         {controlVisibility.showAdvancedPanel ? (
           <div
@@ -959,31 +949,6 @@ function VideoLibraryView({
           </div>
         ) : null}
       </PluginSectionCard>
-
-      <PluginDataSurfaceSummaryStrip
-        filteredCount={sortedFilteredRows.length}
-        totalCount={rows.length}
-        itemLabel="sessions"
-        activeFilters={[
-          ...(filters.search.trim()
-            ? [{ label: 'Search', value: filters.search.trim() }]
-            : []),
-          ...(filters.status !== 'all'
-            ? [{ label: 'Status', value: getEntryStatusLabel(filters.status) }]
-            : []),
-          ...(filters.category !== 'all'
-            ? [{ label: 'Category', value: filters.category }]
-            : []),
-          ...(filters.hostname
-            ? [{ label: 'Host', value: filters.hostname }]
-            : []),
-          ...(filters.checked !== 'all'
-            ? [{ label: 'Checked', value: filters.checked }]
-            : []),
-          { label: 'Mode', value: getPresentationLabel(presentationMode) },
-          { label: 'Sort', value: getSortLabel(sortOrder) },
-        ]}
-      />
 
       {summaryCounts.review > 0 ? (
         <PluginInlineMessage

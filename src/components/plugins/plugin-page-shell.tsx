@@ -17,6 +17,7 @@ type PluginPageShellProps = {
   title: ReactNode;
   description: ReactNode;
   icon?: ReactNode;
+  headerActions?: ReactNode;
   notice?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -29,6 +30,7 @@ export function PluginPageShell({
   title,
   description,
   icon,
+  headerActions,
   notice,
   children,
   className,
@@ -46,7 +48,12 @@ export function PluginPageShell({
           contentClassName
         )}
       >
-        <header className="flex items-start gap-3">
+        <header
+          className={cn(
+            'flex items-start gap-3',
+            headerActions ? 'justify-between' : null
+          )}
+        >
           {icon ? (
             <div
               className={cn(
@@ -63,10 +70,18 @@ export function PluginPageShell({
               {icon}
             </div>
           ) : null}
-          <div className={PLUGIN_PAGE_CLASS_PATTERNS.headingHierarchy}>
+          <div
+            className={cn(
+              PLUGIN_PAGE_CLASS_PATTERNS.headingHierarchy,
+              'min-w-0'
+            )}
+          >
             <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
+          {headerActions ? (
+            <div className="shrink-0">{headerActions}</div>
+          ) : null}
         </header>
         {notice ? <div>{notice}</div> : null}
         <div className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>{children}</div>

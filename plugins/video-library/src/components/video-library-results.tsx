@@ -61,7 +61,7 @@ export function VideoLibraryResults({
   onRemove,
 }: VideoLibraryResultsProps) {
   const description =
-    'Filter by tab, status, category, or host to focus your current review task. No-video reminders follow your category expectations.';
+    'Pick a session and watch it in a new tab. Open more filters only when you need to manage the library.';
 
   if (presentationMode === 'table') {
     return (
@@ -168,7 +168,7 @@ export function VideoLibraryResults({
 
   return (
     <PluginGallerySection
-      title="Saved Videos"
+      title="Ready to watch"
       description={description}
       hasTiles={loungeRows.length > 0}
       emptyTitle={browseState.title}
@@ -193,6 +193,7 @@ export function VideoLibraryResults({
           onEdit={onEdit}
           onRemove={onRemove}
           onCheck={(item) => onCheckLinks([item.session.id])}
+          featured={index === 0}
         />
       ))}
     </PluginGallerySection>
