@@ -3,6 +3,7 @@ import {
   Film,
   MoreHorizontal,
   Pencil,
+  Play,
   RefreshCcw,
   Trash2,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ interface VideoTileCardProps {
   onEdit: (row: VideoLibraryRow) => void;
   onRemove: (row: VideoLibraryRow) => void;
   onCheck: (row: VideoLibraryRow) => void;
+  featured?: boolean;
 }
 
 export function VideoTileCard({
@@ -47,6 +49,7 @@ export function VideoTileCard({
   onEdit,
   onRemove,
   onCheck,
+  featured = false,
 }: VideoTileCardProps) {
   const safeThumbnailUrl = (() => {
     if (!row.thumbnailUrl) {
@@ -74,10 +77,14 @@ export function VideoTileCard({
     row.session.description?.trim() ||
     `${row.session.date} • ${row.session.category}`;
   const hostname = row.provider || row.entry.hostname || 'Unknown provider';
+  const hasPreview = Boolean(safeThumbnailUrl);
 
   return (
     <PluginMediaTile
       title={title}
+      className={featured ? 'lg:col-span-2' : undefined}
+      previewClassName={featured ? 'lg:aspect-[2/1]' : undefined}
+      contentClassName={featured ? 'lg:p-5' : undefined}
       previewBackgroundStyle={
         safeThumbnailUrl
           ? { backgroundImage: `url(\"${safeThumbnailUrl}\")` }
@@ -97,7 +104,15 @@ export function VideoTileCard({
               aria-hidden="true"
             />
           </div>
-          <p className="text-sm font-medium">Ready to watch</p>
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
+              <Play
+                className="ml-0.5 h-4 w-4 fill-current"
+                aria-hidden="true"
+              />
+            </span>
+            <span>{hasPreview ? 'Ready to watch' : `${hostname} video`}</span>
+          </div>
         </>
       }
       metadata={
@@ -111,7 +126,7 @@ export function VideoTileCard({
         </>
       }
       supportingText={
-        row.session.techniques.join(', ') || 'No techniques listed'
+        row.session.techniques.slice(0, 3).join(', ') || 'No techniques listed'
       }
       actions={
         <PluginTileActions
