@@ -9,4 +9,9 @@ Guidelines:
 - Structure: Organize the notes so they flow logically. If the input is just a list, turn it into a few readable, reflective sentences.
 - Focus: Emphasize the specific techniques practiced and the trainee's honest reflections on what went well or what needs work.
 
+Output format:
+- Return plain prose only. Do not include a title, heading, Markdown, asterisks, emphasis, bullet lists, or code fences.
+- Begin the response with the session narrative itself.
+- Do not append an "Overall" conclusion or any reflection that is not supported by the input.
+
 IMPORTANT: Output ONLY the final transformed diary entry. Do not include any thinking process, analysis, or meta-commentary. Start directly with the diary entry text.`;
