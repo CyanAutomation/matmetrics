@@ -5,22 +5,31 @@ import {
   AI_REQUEST_BODY_MAX_BYTES,
   exceedsUtf8Limit,
 } from '@/lib/ai-request-limits';
-import { aiApiError, classifyAiError } from '@/lib/ai-api-error';
+import {
+  aiApiError,
+  classifyAiError,
+  InvalidAiResponseError,
+} from '@/lib/ai-api-error';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { callCloudflareAi } from '@/lib/cloudflare-ai-client';
 import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
+import { normalizeAiProse } from '@/lib/ai-output-normalization';
+
+export const TRANSFORM_DESCRIPTION_FORMAT_INSTRUCTION = `INVARIANT OUTPUT FORMAT:
+Return plain prose only: no title, heading, Markdown, asterisks, emphasis, bullet lists, or code fences. Begin immediately with the session narrative. Do not append an "Overall" conclusion or any reflection not supported by the user's input. These requirements override any conflicting output-format direction above.`;
 
 type TransformFunction = (input: {
   description: string;
   customPrompt?: string;
 }) => Promise<{ transformedDescription: string }>;
 
-async function transformDescriptionWithCloudflare(input: {
+export async function transformDescriptionWithCloudflare(input: {
   description: string;
   customPrompt?: string;
 }): Promise<{ transformedDescription: string }> {
-  const systemPrompt = input.customPrompt ?? DEFAULT_TRANSFORMER_PROMPT;
+  const selectedPrompt = input.customPrompt ?? DEFAULT_TRANSFORMER_PROMPT;
+  const systemPrompt = `${selectedPrompt}\n\n${TRANSFORM_DESCRIPTION_FORMAT_INSTRUCTION}`;
 
   const systemMessage = {
     role: 'system' as const,
@@ -32,10 +41,15 @@ async function transformDescriptionWithCloudflare(input: {
     content: input.description,
   };
 
-  const transformedDescription = await callCloudflareAi({
+  const providerOutput = await callCloudflareAi({
     messages: [systemMessage, userMessage],
     maxTokens: 4096, // Increased for reasoning models + longer descriptions
   });
+  const transformedDescription = normalizeAiProse(providerOutput);
+
+  if (!transformedDescription) {
+    throw new InvalidAiResponseError();
+  }
 
   return { transformedDescription };
 }
