@@ -168,8 +168,8 @@ export function VideoLibraryResults({
 
   return (
     <PluginGallerySection
-      title="Ready to watch"
-      description={description}
+      title={`Ready to watch${loungeRows.length ? ` · ${loungeRows.length} verified` : ''}`}
+      description="Browse verified links first. Switch to list view when you need to edit or manage the library."
       hasTiles={loungeRows.length > 0}
       emptyTitle={browseState.title}
       emptyDescription={browseState.description}

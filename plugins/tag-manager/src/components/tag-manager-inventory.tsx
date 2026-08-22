@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import { AlertCircle, Combine, Edit2, Search, Trash2 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -75,45 +74,46 @@ export function TagManagerInventory({
             .join('; ')}.`}
         />
       ) : null}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="divide-y rounded-xl border bg-background/40">
         {filteredTags.map((tag) => (
           <div
             key={tag}
-            className="group flex items-center justify-between rounded-lg bg-background/80 p-3 transition-colors hover:bg-background"
+            className="group flex items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/30"
           >
-            <Badge variant="secondary" className="text-sm font-semibold">
-              {tag}
-            </Badge>
-            <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+            <div className="min-w-0">
+              <p className="font-medium">{tag}</p>
+              <p className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}>
+                Technique tag · changes apply across your training history
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                size="sm"
                 aria-label={`Rename ${tag}`}
-                title={`Rename ${tag}`}
                 onClick={() => onRename(tag)}
               >
                 <Edit2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Rename</span>
               </Button>
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                variant="outline"
+                size="sm"
                 aria-label={`Merge ${tag}`}
-                title={`Merge ${tag}`}
                 onClick={() => onMerge(tag)}
               >
                 <Combine className="h-4 w-4" />
+                <span className="hidden sm:inline">Merge</span>
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                size="sm"
+                interaction="destructive"
                 aria-label={`Delete ${tag}`}
-                title={`Delete ${tag}`}
                 onClick={() => onDelete(tag)}
               >
                 <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete</span>
               </Button>
             </div>
           </div>

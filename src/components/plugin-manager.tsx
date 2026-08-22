@@ -261,37 +261,18 @@ export function PluginManagerInstalledContent(props: {
             key={plugin.id}
             className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4"
           >
-            {/* Header row: name + maturity + toggle */}
+            {/* Header row: user-facing health + toggle */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold">{plugin.name}</span>
-                  {plugin.maturity ? (
-                    <>
-                      <Badge
-                        variant="outline"
-                        className={
-                          resolvePluginTierPresentation(plugin.maturity.tier)
-                            .toneClass
-                        }
-                      >
-                        {
-                          resolvePluginTierPresentation(plugin.maturity.tier)
-                            .label
-                        }{' '}
-                        {plugin.maturity.score}/100
-                      </Badge>
-                      {scoredWithContractIssues ? (
-                        <Badge variant="outline" className="ui-pill-warning">
-                          Contract issues
-                        </Badge>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Unscored
-                    </span>
-                  )}
+                  <Badge
+                    variant="outline"
+                    className={plugin.issues.length > 0 ? 'ui-pill-warning' : 'ui-pill-success'}
+                  >
+                    {plugin.issues.length > 0 ? 'Needs attention' : 'Working'}
+                  </Badge>
+                  {scoredWithContractIssues ? <Badge variant="outline" className="ui-pill-warning">Setup issue</Badge> : null}
                 </div>
                 <p className="mt-0.5 font-mono text-xs text-muted-foreground">
                   {plugin.id} · v{plugin.version}

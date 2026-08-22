@@ -72,10 +72,13 @@ export function VideoTileCard({
     }
   })();
 
-  const title =
+  const rawTitle =
     row.displayTitle ||
     row.session.description?.trim() ||
     `${row.session.date} • ${row.session.category}`;
+  const title = rawTitle.length > 72
+    ? `${rawTitle.slice(0, Math.max(0, rawTitle.slice(0, 72).lastIndexOf(' ')) || 72).trim()}…`
+    : rawTitle;
   const hostname = row.provider || row.entry.hostname || 'Unknown provider';
   const hasPreview = Boolean(safeThumbnailUrl);
 

@@ -16,7 +16,7 @@ export function GitHubRepositoryFields({
   repo,
   branch,
   isEnabled,
-  migrationDone,
+  migrationDone: _migrationDone,
   canUseGitHubSync,
   inputTone,
   testResult,
@@ -36,10 +36,10 @@ export function GitHubRepositoryFields({
   onRepoChange: (value: string) => void;
   onBranchChange: (value: string) => void;
 }) {
-  const disabled = !canUseGitHubSync || (isEnabled && migrationDone);
+  const disabled = !canUseGitHubSync;
   return (
     <>
-      <details className="rounded-lg border bg-muted/20 px-4 py-3">
+      <details className="rounded-lg border bg-muted/20 px-4 py-3" open={!isEnabled}>
         <summary className="cursor-pointer text-sm font-medium">
           Connection requirements
         </summary>
@@ -68,6 +68,10 @@ export function GitHubRepositoryFields({
           className="mt-3 shadow-sm"
         />
       </details>
+      <details className="group" open={!isEnabled}>
+        <summary className="cursor-pointer text-sm font-medium text-muted-foreground group-open:mb-4">
+          {isEnabled ? 'Change repository or branch' : 'Repository details'}
+        </summary>
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-2">
@@ -110,29 +114,6 @@ export function GitHubRepositoryFields({
             />
           </div>
         </div>
-        {isEnabled ? (
-          <PluginSuccessState
-            title="Repository connected"
-            description={
-              <>
-                Connected to <strong>{owner}</strong>/<strong>{repo}</strong>
-                {branch.trim() ? (
-                  <>
-                    {' '}
-                    on branch <strong>{branch.trim()}</strong>
-                  </>
-                ) : (
-                  <> on repository default branch</>
-                )}
-              </>
-            }
-            icon={
-              <CheckCircle2
-                className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`}
-              />
-            }
-          />
-        ) : null}
         {testResult && !testResult.success ? (
           <PluginErrorState
             title="Connection test failed"
@@ -140,6 +121,14 @@ export function GitHubRepositoryFields({
           />
         ) : null}
       </div>
+      </details>
+      {isEnabled ? (
+        <PluginSuccessState
+          title="Automatic sync is on"
+          description={<>Backing up to <strong>{owner}</strong>/<strong>{repo}</strong>{branch.trim() ? <> on <strong>{branch.trim()}</strong></> : null}.</>}
+          icon={<CheckCircle2 className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`} />}
+        />
+      ) : null}
     </>
   );
 }
