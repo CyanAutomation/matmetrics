@@ -56,18 +56,21 @@ const sessionCategoryPresentation: Record<
   { barClass: string; dotClass: string; badgeVariant: SessionCategoryTone }
 > = {
   technical: {
-    barClass: 'bg-[hsl(var(--color-category-technical))]',
-    dotClass: 'bg-[hsl(var(--color-category-technical))]',
+    // These classes are safelisted because this presentation map lives outside
+    // Tailwind's content glob. Keep the dashboard and plan indicators visible
+    // in production builds as well as development.
+    barClass: 'bg-chart-1',
+    dotClass: 'bg-chart-1',
     badgeVariant: 'technical',
   },
   randori: {
-    barClass: 'bg-[hsl(var(--color-category-randori))]',
-    dotClass: 'bg-[hsl(var(--color-category-randori))]',
+    barClass: 'bg-chart-2',
+    dotClass: 'bg-chart-2',
     badgeVariant: 'randori',
   },
   shiai: {
-    barClass: 'bg-[hsl(var(--color-category-shiai))]',
-    dotClass: 'bg-[hsl(var(--color-category-shiai))]',
+    barClass: 'bg-chart-3',
+    dotClass: 'bg-chart-3',
     badgeVariant: 'shiai',
   },
   fallback: {
