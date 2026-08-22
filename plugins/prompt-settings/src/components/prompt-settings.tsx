@@ -144,6 +144,34 @@ export function PromptSettings() {
       )}
 
       <PluginFormSection
+        title="Quick preferences"
+        description="Start with a writing style, then fine-tune the full instructions only if you need to."
+      >
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            ['Reflective', 'Use an informal, personal, and reflective tone.'],
+            ['Brief', 'Keep the final diary entry concise and focused on the most useful details.'],
+            ['Technical', 'Prioritize precise technique names, key mechanics, and specific learning points.'],
+          ].map(([label, instruction]) => (
+            <Button
+              key={label}
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={areControlsDisabled}
+              onClick={() => {
+                setPrompt((current) => current.includes(instruction) ? current : `${current.trim()}\n\n${instruction}`.trim());
+                setSaveStatus('idle');
+                setSaveError(null);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </PluginFormSection>
+
+      <PluginFormSection
         title="Prompt profile"
         description="Define system instructions used by the AI transform action."
         footerClassName="p-6"
@@ -248,11 +276,11 @@ export function PromptSettings() {
               htmlFor="custom-prompt"
               className="text-sm font-bold flex items-center gap-2"
             >
-              System Instructions
+              Advanced instructions
               <span
                 className={`text-xs font-normal ${getPluginUiTokenClassNames('text.subtle')}`}
               >
-                (Requires Handlebars syntax for context)
+                (optional template variables)
               </span>
             </Label>
             <Textarea
@@ -271,7 +299,7 @@ export function PromptSettings() {
               className={`text-[11px] italic ${getPluginUiTokenClassNames('text.subtle')}`}
             >
               {isPromptMeaningful
-                ? 'Note: The AI will automatically append your practice description to the end of these instructions during transformation.'
+                ? 'Your practice description is automatically included when the AI transforms a session. You only need template variables for advanced customisation.'
                 : 'Add at least one instruction before saving. Blank prompts cannot be saved.'}
             </p>
           </div>

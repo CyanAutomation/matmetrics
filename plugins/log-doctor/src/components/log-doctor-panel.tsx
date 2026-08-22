@@ -392,8 +392,8 @@ function LogDoctorView({
 
   return (
     <PluginPageShell
-      title="Log Doctor"
-      description="Scan, preview, and optionally apply markdown normalization fixes. Use Session Audit to detect data quality issues."
+      title="Data quality"
+      description="Find missing or inconsistent training data, review it, then apply only the fixes you approve."
       icon={<Stethoscope className="h-6 w-6" />}
       className="max-w-4xl"
     >
@@ -419,14 +419,21 @@ function LogDoctorView({
             if (activeTab !== 'validation') return null;
             return (
               <>
-                <LogDoctorRepositoryTarget
-                  owner={owner}
-                  repo={repo}
-                  branch={branch}
-                  onOwnerChange={setOwner}
-                  onRepoChange={setRepo}
-                  onBranchChange={setBranch}
-                />
+                <details className="rounded-lg border bg-muted/20 px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Repository source ({owner}/{repo})
+                  </summary>
+                  <div className="mt-4">
+                    <LogDoctorRepositoryTarget
+                      owner={owner}
+                      repo={repo}
+                      branch={branch}
+                      onOwnerChange={setOwner}
+                      onRepoChange={setRepo}
+                      onBranchChange={setBranch}
+                    />
+                  </div>
+                </details>
 
                 <PluginActionRow>
                   <PluginBulkActions
@@ -444,7 +451,7 @@ function LogDoctorView({
                         onClick={handleScan}
                         disabled={isScanning || !owner || !repo}
                       >
-                        {isScanning ? 'Scanning…' : 'Scan repository'}
+                        {isScanning ? 'Checking data…' : 'Run data quality check'}
                       </Button>
                     </PluginActionPrimary>
                     <PluginActionSecondary>

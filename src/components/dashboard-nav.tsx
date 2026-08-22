@@ -14,7 +14,7 @@ import {
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { Settings2, Sparkles } from 'lucide-react';
+import { ChevronDown, Settings2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   getGuestBadgeLabel,
@@ -41,20 +41,24 @@ export function DashboardNav({
   isGuest,
   guestWorkspaceSource,
 }: DashboardNavProps) {
-  const [toolsOpen, setToolsOpen] = React.useState(false);
+  const [systemOpen, setSystemOpen] = React.useState(false);
   const guestBadgeLabel = getGuestBadgeLabel(guestWorkspaceSource);
   const guestWorkspaceDesc = getGuestWorkspaceDescription(guestWorkspaceSource);
   const trainingTabs = visibleTabs.filter(
     (tab) => tab.id === 'dashboard' || tab.id === 'history'
   );
-  const workspaceTabs = visibleTabs.filter(
-    (tab) => tab.id !== 'dashboard' && tab.id !== 'history'
+  const workspaceTabs = visibleTabs.filter((tab) => tab.id !== 'dashboard' && tab.id !== 'history');
+  const workspaceTab = (title: string) => workspaceTabs.filter((tab) => tab.title === title);
+  const libraryTabs = [...workspaceTab('Video Library'), ...workspaceTab('Tag Manager')];
+  const preferenceTabs = workspaceTab('Prompt Settings');
+  const systemTabs = workspaceTabs.filter(
+    (tab) => !libraryTabs.includes(tab) && !preferenceTabs.includes(tab)
   );
-  const hasActiveTool = workspaceTabs.some((tab) => tab.id === activeTab);
+  const hasActiveSystemTool = systemTabs.some((tab) => tab.id === activeTab);
 
   React.useEffect(() => {
-    if (hasActiveTool) setToolsOpen(true);
-  }, [hasActiveTool]);
+    if (hasActiveSystemTool) setSystemOpen(true);
+  }, [hasActiveSystemTool]);
 
   const renderTabs = (
     tabs: DashboardTab[],
@@ -115,21 +119,33 @@ export function DashboardNav({
         </SidebarGroup>
         {workspaceTabs.length > 0 && (
           <SidebarGroup className="mt-4 p-0">
-            <SidebarGroupLabel>Integrations & settings</SidebarGroupLabel>
+            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-2">
+                {renderTabs(libraryTabs, 'secondary')}
+                {renderTabs(preferenceTabs, 'secondary')}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        {systemTabs.length > 0 && (
+          <SidebarGroup className="mt-4 p-0">
+            <SidebarGroupLabel>System</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={hasActiveTool}
-                    onClick={() => setToolsOpen((open) => !open)}
-                    aria-expanded={toolsOpen}
+                    isActive={hasActiveSystemTool}
+                    onClick={() => setSystemOpen((open) => !open)}
+                    aria-expanded={systemOpen}
                     className="min-h-11 rounded-xl"
                   >
                     <Settings2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Manage tools</span>
+                    <span className="text-sm font-medium">Sync & maintenance</span>
+                    <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${systemOpen ? 'rotate-180' : ''}`} />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {toolsOpen ? renderTabs(workspaceTabs, 'secondary') : null}
+                {systemOpen ? renderTabs(systemTabs, 'secondary') : null}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
