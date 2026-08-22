@@ -9,7 +9,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { DashboardDialogs } from '@/components/dashboard-dialogs';
 import { DashboardHeader } from '@/components/dashboard-header';
-import { TAB_IDS } from '@/lib/navigation/tab-definitions';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { useSessionsData } from '@/hooks/use-sessions-data';
 import { usePluginTabs } from '@/hooks/use-plugin-tabs';
@@ -75,7 +74,6 @@ export default function Home() {
   const handleSessionAdded = () => {
     refreshSessions();
     setIsLogModalOpen(false);
-    if (activeTab !== TAB_IDS.history) setActiveTab(TAB_IDS.history);
   };
 
   const isGuest = authMode === 'guest';

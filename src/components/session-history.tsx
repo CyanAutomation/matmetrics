@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { deleteSession } from '@/lib/storage';
+import { deleteSession, saveSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ToastAction } from '@/components/ui/toast';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -109,6 +110,11 @@ function SessionRow({
       safeVideoUrl = null;
     }
   }
+  const notePreview = [session.description, session.notes]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(' · ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return (
     <div className="rounded-xl bg-card/42 px-4 py-4 reveal-fade transition-colors hover:bg-card sm:px-5">
@@ -151,6 +157,11 @@ function SessionRow({
               </Badge>
             ) : null}
           </div>
+          {notePreview ? (
+            <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {notePreview}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
@@ -168,8 +179,9 @@ function SessionRow({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-11 w-11 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                className="h-11 w-11 text-muted-foreground hover:bg-primary/5 hover:text-primary"
                 aria-label={`Actions for session from ${sessionDateLabel}`}
+                title="Session actions"
               >
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
@@ -268,14 +280,14 @@ export function SessionHistory({
   const [toDate, setToDate] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (session: JudoSession) => {
     if (deletingSessionId) {
       return;
     }
 
-    setDeletingSessionId(id);
+    setDeletingSessionId(session.id);
     try {
-      const result = await deleteSession(id);
+      const result = await deleteSession(session.id);
       onRefresh();
       toast({
         title: 'Session deleted',
@@ -283,6 +295,31 @@ export function SessionHistory({
           result.status === 'queued'
             ? 'The change is saved locally and queued to sync when the connection is ready.'
             : 'The training session has been removed from your history.',
+        action: (
+          <ToastAction
+            altText="Restore deleted session"
+            onClick={() => {
+              void saveSession(session)
+                .then(() => {
+                  onRefresh();
+                  toast({
+                    title: 'Session restored',
+                    description:
+                      'The training session is back in your history.',
+                  });
+                })
+                .catch(() => {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Restore failed',
+                    description: 'The training session could not be restored.',
+                  });
+                });
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
       });
     } catch {
       toast({
@@ -518,12 +555,7 @@ export function SessionHistory({
               <div key={session.id}>
                 <SessionRow
                   session={session}
-                  onDelete={(id) => {
-                    const sessionToDelete = sessions.find(
-                      (candidate) => candidate.id === id
-                    );
-                    if (sessionToDelete) requestDelete(sessionToDelete);
-                  }}
+                  onDelete={() => requestDelete(session)}
                   onEdit={setEditingSession}
                   onFilterTechnique={filterByTechnique}
                   deletingSessionId={deletingSessionId}
@@ -596,7 +628,7 @@ export function SessionHistory({
               disabled={!!deletingSessionId}
               onClick={() => {
                 if (!sessionPendingDeletion) return;
-                void handleDelete(sessionPendingDeletion.id).then(() =>
+                void handleDelete(sessionPendingDeletion).then(() =>
                   setSessionPendingDeletion(null)
                 );
               }}

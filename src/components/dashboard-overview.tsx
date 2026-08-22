@@ -397,7 +397,7 @@ export function DashboardOverview({
           </div>
           {onLogSession && (
             <Button className="min-h-11" onClick={onLogSession}>
-              Log training <ArrowRight className="h-4 w-4" />
+              Log session <ArrowRight className="h-4 w-4" />
             </Button>
           )}
         </div>

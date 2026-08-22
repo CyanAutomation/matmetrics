@@ -38,16 +38,11 @@ export function PracticeDescriptionSection({
           interaction="subtle"
           feedbackState={transformLoading ? 'loading' : 'idle'}
           disabled={
-            !canUseAi ||
-            transformLoading ||
-            isSubmitting ||
-            !description
+            !canUseAi || transformLoading || isSubmitting || !description
           }
           className="h-8 gap-2 text-primary border-primary/20 hover:bg-primary/5 text-xs"
           title={
-            !description
-              ? 'Add practice notes to use AI Transform.'
-              : undefined
+            !description ? 'Add practice notes to use AI Transform.' : undefined
           }
         >
           {transformLoading ? (
@@ -71,6 +66,11 @@ export function PracticeDescriptionSection({
         A sentence or two is enough. AI can polish the entry or suggest
         technique tags once you have added some detail.
       </p>
+      {!description && canUseAi ? (
+        <p className="text-xs text-muted-foreground">
+          Add a few words to enable AI transform and tag suggestions.
+        </p>
+      ) : null}
     </fieldset>
   );
 }
