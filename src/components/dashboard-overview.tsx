@@ -57,11 +57,11 @@ function EffortTrend({
   average: number | null;
 }) {
   const chartWidth = 320;
-  const chartHeight = 128;
+  const chartHeight = 240;
   const chartLeft = 28;
   const chartRight = 308;
-  const chartTop = 12;
-  const chartBottom = 92;
+  const chartTop = 18;
+  const chartBottom = 184;
   const points = entries.map((entry, index) => {
     const x =
       entries.length === 1
@@ -73,7 +73,10 @@ function EffortTrend({
   const line = points.map(({ x, y }) => `${x},${y}`).join(' ');
 
   return (
-    <div className="mt-5" aria-label="Recent effort trend">
+    <div
+      className="mt-5 flex min-h-[250px] flex-1 flex-col"
+      aria-label="Recent effort trend"
+    >
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <span className="text-label-md text-muted-foreground">
           Effort trend
@@ -87,7 +90,7 @@ function EffortTrend({
       <svg
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         preserveAspectRatio="none"
-        className="h-36 w-full overflow-visible"
+        className="min-h-[220px] w-full flex-1 overflow-visible"
         role="img"
         aria-label="Reported effort for recent sessions, on a scale from 1 to 5"
       >
@@ -139,7 +142,7 @@ function EffortTrend({
         ))}
         <text
           x={chartLeft}
-          y="118"
+          y="224"
           fill="hsl(var(--color-on-surface-variant))"
           fontSize="10"
         >
@@ -147,7 +150,7 @@ function EffortTrend({
         </text>
         <text
           x={chartRight}
-          y="118"
+          y="224"
           fill="hsl(var(--color-on-surface-variant))"
           fontSize="10"
           textAnchor="end"
@@ -487,7 +490,7 @@ export function DashboardOverview({
 
   return (
     <div className="reveal-fade-up mx-auto w-full max-w-5xl">
-      <div className="mb-6 flex items-end justify-between gap-4 overflow-hidden">
+      <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <p className="text-label-md text-primary">Your training</p>
           <h2 className="text-display-sm mt-1">Build a sustainable rhythm.</h2>
@@ -499,10 +502,10 @@ export function DashboardOverview({
         </div>
         <RessaImage
           pose={2}
-          size="medium"
+          size="compact"
           alt=""
           animate={false}
-          className="-mb-8 hidden w-36 shrink-0 md:flex"
+          className="hidden w-24 shrink-0 self-center md:flex"
         />
       </div>
       <DataSurface className="mb-6 overflow-hidden bg-[hsl(var(--color-surface-container-low))] p-0 shadow-none">
@@ -588,21 +591,46 @@ export function DashboardOverview({
           {stats.rollingPlan.map((item) => (
             <div
               key={item.category}
-              className="flex items-center gap-2 rounded-xl bg-card/55 px-3 py-2.5"
+              className="rounded-xl bg-card/55 px-3 py-3"
             >
-              <span
-                className={cn(
-                  'h-2.5 w-2.5 shrink-0 rounded-full',
-                  resolveSessionCategoryPresentation(item.category).dotClass
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'h-2.5 w-2.5 shrink-0 rounded-full',
+                    resolveSessionCategoryPresentation(item.category).dotClass
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 text-sm font-semibold">
+                  {item.category}
+                </span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums">
+                  {item.completed} / {item.effectiveTarget}
+                </span>
+              </div>
+              <div
+                className="mt-2 grid gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(item.effectiveTarget, 1)}, minmax(0, 1fr))`,
+                }}
+                role="img"
+                aria-label={`${item.category}: ${item.completed} of ${item.effectiveTarget} planned sessions complete`}
+              >
+                {Array.from(
+                  { length: Math.max(item.effectiveTarget, 1) },
+                  (_, index) => (
+                    <span
+                      key={index}
+                      className={cn(
+                        'h-2 rounded-full bg-muted',
+                        index < item.completed &&
+                          resolveDashboardCategoryBarClass(item.category)
+                      )}
+                      aria-hidden="true"
+                    />
+                  )
                 )}
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 text-sm font-semibold">
-                {item.category}
-              </span>
-              <span className="shrink-0 text-sm font-semibold tabular-nums">
-                {item.completed} / {item.effectiveTarget}
-              </span>
+              </div>
             </div>
           ))}
         </div>
@@ -731,7 +759,7 @@ export function DashboardOverview({
       </Dialog>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
+        <DataSurface className="flex flex-col bg-[hsl(var(--color-surface-container-low))]">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h3 className="text-headline-sm">Training load</h3>
             <Dumbbell className="h-5 w-5 text-primary" />
