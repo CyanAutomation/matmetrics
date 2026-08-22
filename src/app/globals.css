@@ -59,6 +59,15 @@
     --color-trend-neutral: 210 20% 42%;
     --color-trend-neutral-container: 204 21.7% 95.5%;
     --color-on-trend-neutral-container: 200 11.1% 10.6%;
+    --color-category-technical: 207.7 100% 33.5%;
+    --color-category-technical-container: 219.1 100% 91.6%;
+    --color-on-category-technical-container: 207.7 100% 24%;
+    --color-category-randori: 173 66% 30%;
+    --color-category-randori-container: 166 55% 89%;
+    --color-on-category-randori-container: 174 69% 16%;
+    --color-category-shiai: 266 52% 45%;
+    --color-category-shiai-container: 268 72% 92%;
+    --color-on-category-shiai-container: 266 55% 23%;
 
     --background: var(--color-surface);
     --foreground: var(--color-on-surface);
@@ -81,9 +90,9 @@
     --border: var(--color-outline-variant);
     --input: var(--color-outline-variant);
     --ring: var(--color-primary-focus);
-    --chart-1: var(--color-primary);
-    --chart-2: var(--color-secondary);
-    --chart-3: var(--color-tertiary);
+    --chart-1: var(--color-category-technical);
+    --chart-2: var(--color-category-randori);
+    --chart-3: var(--color-category-shiai);
     --chart-4: var(--color-primary-container);
     --chart-5: var(--color-surface-variant);
     --radius: 0.75rem;
@@ -158,6 +167,15 @@
     --color-trend-neutral: 220 8.9% 46.1%;
     --color-trend-neutral-container: 220 20% 24%;
     --color-on-trend-neutral-container: 220 13% 91%;
+    --color-category-technical: 211 88% 62%;
+    --color-category-technical-container: 211 56% 22%;
+    --color-on-category-technical-container: 211 100% 90%;
+    --color-category-randori: 171 62% 49%;
+    --color-category-randori-container: 171 45% 18%;
+    --color-on-category-randori-container: 166 75% 87%;
+    --color-category-shiai: 269 78% 71%;
+    --color-category-shiai-container: 268 42% 23%;
+    --color-on-category-shiai-container: 268 100% 92%;
 
     --background: var(--color-surface);
     --foreground: var(--color-on-surface);
@@ -180,9 +198,9 @@
     --border: var(--color-outline-variant);
     --input: var(--color-outline-variant);
     --ring: var(--color-primary-focus);
-    --chart-1: var(--color-primary);
-    --chart-2: var(--color-secondary);
-    --chart-3: var(--color-tertiary);
+    --chart-1: var(--color-category-technical);
+    --chart-2: var(--color-category-randori);
+    --chart-3: var(--color-category-shiai);
     --chart-4: var(--color-primary-container);
     --chart-5: var(--color-surface-variant);
 
