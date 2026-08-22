@@ -75,7 +75,7 @@ export function SessionEssentialsSection({
                 htmlFor={fid('date')}
                 className="text-sm font-semibold block h-5"
               >
-                Session Date
+                Session date <span aria-hidden="true">*</span>
               </Label>
               <Input
                 id={fid('date')}
@@ -94,7 +94,10 @@ export function SessionEssentialsSection({
                 htmlFor={fid('duration')}
                 className="text-sm font-semibold block h-5"
               >
-                Duration (minutes)
+                Duration (minutes){' '}
+                <span className="font-normal text-muted-foreground">
+                  optional
+                </span>
               </Label>
               <Input
                 id={fid('duration')}
@@ -120,10 +123,9 @@ export function SessionEssentialsSection({
                 htmlFor={fid('category')}
                 className="text-sm font-semibold block h-5"
               >
-                Session Type
+                Session type <span aria-hidden="true">*</span>
               </Label>
               <Select
-                name="sessionCategory"
                 value={category}
                 onValueChange={(val) => setCategory(val as typeof category)}
               >
@@ -145,7 +147,9 @@ export function SessionEssentialsSection({
           {/* Row 2: Effort Level (Full Width) */}
           <div className="space-y-2.5">
             <div className="h-5 flex items-center justify-between">
-              <Label className="text-sm font-semibold">Effort Level</Label>
+              <Label className="text-sm font-semibold">
+                Effort level <span aria-hidden="true">*</span>
+              </Label>
               <span className="text-xs text-muted-foreground">
                 {EFFORT_LABELS[effort]}
               </span>
@@ -178,6 +182,10 @@ export function SessionEssentialsSection({
                 );
               })}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Required fields are marked with an asterisk. You can save a quick
+              log with just the essentials and a technique tag.
+            </p>
           </div>
         </div>
       </div>

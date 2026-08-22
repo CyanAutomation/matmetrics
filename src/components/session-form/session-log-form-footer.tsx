@@ -55,7 +55,7 @@ export function SessionLogFormFooter({
         ) : (
           <Save className="h-5 w-5" />
         )}
-        {isEditing ? 'Update Session' : 'Log Training Session'}
+        {isEditing ? 'Update session' : 'Save session'}
       </Button>
     </div>
   );

@@ -83,11 +83,11 @@ export function DashboardHeader({
         <Button
           className="min-h-11 min-w-11 shadow-sm"
           onClick={onLogSession}
-          title="Log a session"
-          aria-label="Log a session"
+          title="Log session"
+          aria-label="Log session"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Log training</span>
+          <span className="hidden sm:inline">Log session</span>
         </Button>
         <ModeToggle />
         <DropdownMenu>

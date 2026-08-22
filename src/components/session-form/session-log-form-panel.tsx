@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useId, useCallback, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
 import { JudoSession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -126,7 +121,7 @@ export function SessionLogForm({
               <PlusCircle className="h-6 w-6" />
             </div>
             <div>
-              <CardTitle>Log Practice Session</CardTitle>
+              <CardTitle>Log session</CardTitle>
             </div>
           </div>
         </CardHeader>
