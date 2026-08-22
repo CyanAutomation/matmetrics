@@ -4,6 +4,7 @@ import test from 'node:test';
 import { derivePluginAllowedClassTokens } from '@/components/plugins/plugin-style-policy';
 import {
   type DashboardChartToken,
+  resolveDashboardCategoryBarClass,
   resolveDashboardCategoryChartToken,
   resolvePluginSeverityToneClass,
   resolvePluginTierPresentation,
@@ -93,4 +94,8 @@ test('dashboard category bars resolve to chart palette token order', () => {
     'chart-4',
     'unknown categories must use the documented fallback token'
   );
+
+  assert.equal(resolveDashboardCategoryBarClass('Technical'), 'bg-chart-1');
+  assert.equal(resolveDashboardCategoryBarClass('Randori'), 'bg-chart-2');
+  assert.equal(resolveDashboardCategoryBarClass('Shiai'), 'bg-chart-3');
 });
