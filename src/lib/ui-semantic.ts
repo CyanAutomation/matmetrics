@@ -37,23 +37,65 @@ export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
 
 export type DashboardChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4';
 
-const dashboardCategoryChartToken: Partial<Record<
-  SessionCategory,
-  DashboardChartToken
->> = {
+export type SessionCategoryTone =
+  | 'technical'
+  | 'randori'
+  | 'shiai'
+  | 'fallback';
+
+const sessionCategoryTone: Partial<
+  Record<SessionCategory, SessionCategoryTone>
+> = {
+  Technical: 'technical',
+  Randori: 'randori',
+  Shiai: 'shiai',
+};
+
+const sessionCategoryPresentation: Record<
+  SessionCategoryTone,
+  { barClass: string; dotClass: string; badgeVariant: SessionCategoryTone }
+> = {
+  technical: {
+    barClass: 'bg-[hsl(var(--color-category-technical))]',
+    dotClass: 'bg-[hsl(var(--color-category-technical))]',
+    badgeVariant: 'technical',
+  },
+  randori: {
+    barClass: 'bg-[hsl(var(--color-category-randori))]',
+    dotClass: 'bg-[hsl(var(--color-category-randori))]',
+    badgeVariant: 'randori',
+  },
+  shiai: {
+    barClass: 'bg-[hsl(var(--color-category-shiai))]',
+    dotClass: 'bg-[hsl(var(--color-category-shiai))]',
+    badgeVariant: 'shiai',
+  },
+  fallback: {
+    barClass: 'bg-chart-4',
+    dotClass: 'bg-chart-4',
+    badgeVariant: 'fallback',
+  },
+};
+
+export function resolveSessionCategoryTone(
+  categoryName: string
+): SessionCategoryTone {
+  return sessionCategoryTone[categoryName as SessionCategory] ?? 'fallback';
+}
+
+export function resolveSessionCategoryPresentation(categoryName: string) {
+  return sessionCategoryPresentation[resolveSessionCategoryTone(categoryName)];
+}
+
+const dashboardCategoryChartToken: Partial<
+  Record<SessionCategory, DashboardChartToken>
+> = {
   Technical: 'chart-1',
   Randori: 'chart-2',
   Shiai: 'chart-3',
 };
 
 const dashboardCategoryFallbackChartToken: DashboardChartToken = 'chart-4';
-
-const dashboardChartTokenBarClass: Record<DashboardChartToken, string> = {
-  'chart-1': 'bg-chart-1',
-  'chart-2': 'bg-chart-2',
-  'chart-3': 'bg-chart-3',
-  'chart-4': 'bg-chart-4',
-};
 
 export function resolveDashboardCategoryChartToken(
   categoryName: string
@@ -65,7 +107,13 @@ export function resolveDashboardCategoryChartToken(
 }
 
 export function resolveDashboardCategoryBarClass(categoryName: string): string {
-  return dashboardChartTokenBarClass[
-    resolveDashboardCategoryChartToken(categoryName)
-  ];
+  return resolveSessionCategoryPresentation(categoryName).barClass;
+}
+
+export function resolveDashboardTechniqueBarClass(index: number): string {
+  return (
+    ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-primary/60'][
+      index
+    ] ?? 'bg-chart-4'
+  );
 }

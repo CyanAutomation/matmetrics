@@ -8,12 +8,12 @@ import {
   TrainingPlanPreferences,
 } from '@/lib/types';
 import {
-  CheckCircle2,
-  Circle,
   Dumbbell,
   Flame,
   ArrowRight,
   Target,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { RessaImage } from '@/components/ressa-image';
@@ -28,7 +28,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { resolveDashboardCategoryBarClass } from '@/lib/ui-semantic';
+import {
+  resolveDashboardCategoryBarClass,
+  resolveDashboardTechniqueBarClass,
+  resolveSessionCategoryPresentation,
+} from '@/lib/ui-semantic';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
@@ -37,6 +41,129 @@ interface DashboardOverviewProps {
   sessions: JudoSession[];
   onLogSession?: () => void;
   isRefreshing?: boolean;
+}
+
+type RecentEffort = {
+  date: string;
+  timestamp: string;
+  effort: number;
+};
+
+function EffortTrend({
+  entries,
+  average,
+}: {
+  entries: RecentEffort[];
+  average: number | null;
+}) {
+  const chartWidth = 320;
+  const chartHeight = 128;
+  const chartLeft = 28;
+  const chartRight = 308;
+  const chartTop = 12;
+  const chartBottom = 92;
+  const points = entries.map((entry, index) => {
+    const x =
+      entries.length === 1
+        ? (chartLeft + chartRight) / 2
+        : chartLeft + ((chartRight - chartLeft) * index) / (entries.length - 1);
+    const y = chartTop + ((5 - entry.effort) * (chartBottom - chartTop)) / 4;
+    return { ...entry, x, y };
+  });
+  const line = points.map(({ x, y }) => `${x},${y}`).join(' ');
+
+  return (
+    <div className="mt-5" aria-label="Recent effort trend">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <span className="text-label-md text-muted-foreground">
+          Effort trend
+        </span>
+        <span className="text-sm font-semibold tabular-nums">
+          {average === null
+            ? 'No sessions in the last 14 days'
+            : `Average ${average.toFixed(1)} / 5`}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        preserveAspectRatio="none"
+        className="h-36 w-full overflow-visible"
+        role="img"
+        aria-label="Reported effort for recent sessions, on a scale from 1 to 5"
+      >
+        {[5, 4, 3, 2, 1].map((value) => {
+          const y = chartTop + ((5 - value) * (chartBottom - chartTop)) / 4;
+          return (
+            <g key={value}>
+              <line
+                x1={chartLeft}
+                x2={chartRight}
+                y1={y}
+                y2={y}
+                stroke="hsl(var(--color-outline-variant) / 0.35)"
+                strokeWidth="1"
+              />
+              <text
+                x="0"
+                y={y + 3}
+                fill="hsl(var(--color-on-surface-variant))"
+                fontSize="10"
+              >
+                {value}
+              </text>
+            </g>
+          );
+        })}
+        {points.length > 1 && (
+          <polyline
+            fill="none"
+            points={line}
+            stroke="hsl(var(--color-primary))"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {points.map((point) => (
+          <g key={`${point.timestamp}-${point.effort}`}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="5"
+              fill="hsl(var(--color-primary))"
+              stroke="hsl(var(--color-surface-container-low))"
+              strokeWidth="2"
+            />
+            <title>{`${point.date}: effort ${point.effort} of 5`}</title>
+          </g>
+        ))}
+        <text
+          x={chartLeft}
+          y="118"
+          fill="hsl(var(--color-on-surface-variant))"
+          fontSize="10"
+        >
+          {entries[0]?.date}
+        </text>
+        <text
+          x={chartRight}
+          y="118"
+          fill="hsl(var(--color-on-surface-variant))"
+          fontSize="10"
+          textAnchor="end"
+        >
+          {entries.at(-1)?.date}
+        </text>
+      </svg>
+      <ol className="sr-only">
+        {entries.map((entry) => (
+          <li key={`${entry.timestamp}-${entry.effort}`}>
+            {entry.date}: effort {entry.effort} of 5
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 export function DashboardOverview({
@@ -49,6 +176,7 @@ export function DashboardOverview({
     30
   );
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [isPlanDetailsOpen, setIsPlanDetailsOpen] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planDraft, setPlanDraft] = useState<TrainingPlanPreferences>(
@@ -207,16 +335,6 @@ export function DashboardOverview({
       (session) => parseDateOnly(session.date) >= lastFortnight
     ).length;
 
-    const recentAverage =
-      recentEfforts
-        .slice(-3)
-        .reduce((total, session) => total + session.effort, 0) /
-      Math.min(recentEfforts.length, 3);
-    const earlierEfforts = recentEfforts.slice(-6, -3);
-    const earlierAverage = earlierEfforts.length
-      ? earlierEfforts.reduce((total, session) => total + session.effort, 0) /
-        earlierEfforts.length
-      : null;
     const rollingPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
       (category) => {
         const plan = preferences.trainingPlan.categories[category];
@@ -341,8 +459,6 @@ export function DashboardOverview({
       completedRollingTarget,
       effectiveRollingTarget,
       nextFocus: nextPlanItem?.category ?? 'Consistency',
-      recentAverage,
-      earlierAverage,
       remainingPlanSessions,
       coachingInsight,
       effortInsight,
@@ -370,8 +486,8 @@ export function DashboardOverview({
   }
 
   return (
-    <div className="reveal-fade-up max-w-5xl mx-auto w-full">
-      <div className="mb-6">
+    <div className="reveal-fade-up mx-auto w-full max-w-5xl">
+      <div className="mb-6 flex items-end justify-between gap-4 overflow-hidden">
         <div>
           <p className="text-label-md text-primary">Your training</p>
           <h2 className="text-display-sm mt-1">Build a sustainable rhythm.</h2>
@@ -381,8 +497,15 @@ export function DashboardOverview({
               : `Last session ${stats.latestSessionLabel} · ${stats.completedRollingTarget} of ${stats.effectiveRollingTarget} planned sessions in the last 30 days`}
           </p>
         </div>
+        <RessaImage
+          pose={2}
+          size="medium"
+          alt=""
+          animate={false}
+          className="-mb-8 hidden w-36 shrink-0 md:flex"
+        />
       </div>
-      <DataSurface className="mb-8 overflow-hidden bg-[hsl(var(--color-surface-container-low))] p-0 shadow-none">
+      <DataSurface className="mb-6 overflow-hidden bg-[hsl(var(--color-surface-container-low))] p-0 shadow-none">
         <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
             <p className="text-label-md text-primary">
@@ -424,68 +547,112 @@ export function DashboardOverview({
       </DataSurface>
 
       <DataSurface className="mb-8 bg-[hsl(var(--color-surface-container-low))]">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-label-md text-primary">Your realistic plan</p>
-            <h3 className="text-headline-sm">
-              Train to your availability, not an ideal week.
-            </h3>
+            <p className="text-label-md text-primary">Your plan</p>
+            <p className="mt-1 text-headline-sm">
+              <span className="tabular-nums">
+                {stats.completedRollingTarget} of {stats.effectiveRollingTarget}
+              </span>{' '}
+              sessions complete
+            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setPlanError(null);
-              setPlanDraft(preferences.trainingPlan);
-              setIsPlanDialogOpen(true);
-            }}
-          >
-            Edit plan
-          </Button>
-        </div>
-        <div className="mt-5 space-y-3">
-          {stats.rollingPlan.map((item) => (
-            <button
-              key={item.category}
-              type="button"
-              onClick={onLogSession}
-              disabled={!onLogSession}
-              className="group flex w-full items-center gap-4 rounded-xl bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card disabled:cursor-default disabled:hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={isPlanDetailsOpen}
+              onClick={() => setIsPlanDetailsOpen((open) => !open)}
             >
-              {item.isComplete ? (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+              {isPlanDetailsOpen ? 'Hide details' : 'View plan'}
+              {isPlanDetailsOpen ? (
+                <ChevronUp className="h-4 w-4" />
               ) : (
-                <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4" />
               )}
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="font-semibold">{item.category}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPlanError(null);
+                setPlanDraft(preferences.trainingPlan);
+                setIsPlanDialogOpen(true);
+              }}
+            >
+              Edit plan
+            </Button>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {stats.rollingPlan.map((item) => (
+            <div
+              key={item.category}
+              className="flex items-center gap-2 rounded-xl bg-card/55 px-3 py-2.5"
+            >
+              <span
+                className={cn(
+                  'h-2.5 w-2.5 shrink-0 rounded-full',
+                  resolveSessionCategoryPresentation(item.category).dotClass
+                )}
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 text-sm font-semibold">
+                {item.category}
+              </span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums">
+                {item.completed} / {item.effectiveTarget}
+              </span>
+            </div>
+          ))}
+        </div>
+        {isPlanDetailsOpen && (
+          <div className="mt-3 space-y-2">
+            {stats.rollingPlan.map((item) => (
+              <div
+                key={item.category}
+                className="rounded-xl bg-card/55 px-4 py-3"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="flex items-center gap-2 font-semibold">
+                    <span
+                      className={cn(
+                        'h-2.5 w-2.5 shrink-0 rounded-full',
+                        resolveSessionCategoryPresentation(item.category)
+                          .dotClass
+                      )}
+                      aria-hidden="true"
+                    />
+                    {item.category}
+                  </span>
                   <span className="shrink-0 text-sm font-semibold tabular-nums">
                     {item.completed} / {item.effectiveTarget}
                   </span>
-                </span>
-                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted">
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                   <span
-                    className="block h-full rounded-full bg-primary"
+                    className={cn(
+                      'block h-full rounded-full',
+                      resolveDashboardCategoryBarClass(item.category)
+                    )}
                     style={{
                       width: `${Math.min(100, (item.completed / Math.max(item.effectiveTarget, 1)) * 100)}%`,
                     }}
                   />
-                </span>
-                <span className="mt-2 block text-xs text-muted-foreground">
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
                   {item.isComplete
                     ? 'Complete for this 30-day window'
                     : `${item.remaining} ${item.remaining === 1 ? 'session' : 'sessions'} remaining`}{' '}
                   · Target: per {item.cadence}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Your weekly targets are converted to a rolling 30-day target, so every
-          session type is measured on the same timeframe.
-        </p>
+                </p>
+              </div>
+            ))}
+            <p className="px-1 text-xs text-muted-foreground">
+              Weekly targets are shown as a 30-day equivalent.
+            </p>
+          </div>
+        )}
       </DataSurface>
 
       <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
@@ -573,39 +740,10 @@ export function DashboardOverview({
           <p className="mt-1 text-sm text-muted-foreground">
             {stats.effortInsight.detail}
           </p>
-          <div className="mt-6" aria-label="Recent sessions by date and effort">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{stats.recentEfforts[0]?.date}</span>
-              <span>{stats.recentEfforts.at(-1)?.date}</span>
-            </div>
-            <ol className="relative mt-3 flex h-16 items-center before:absolute before:left-0 before:right-0 before:h-px before:bg-[hsl(var(--color-outline-variant)/0.35)]">
-              {stats.recentEfforts.map((entry, index, entries) => {
-                const first = new Date(entries[0].timestamp).getTime();
-                const last = new Date(entries.at(-1)!.timestamp).getTime();
-                const current = new Date(entry.timestamp).getTime();
-                const position =
-                  last === first
-                    ? 50
-                    : ((current - first) / (last - first)) * 100;
-                return (
-                  <li
-                    key={`${entry.timestamp}-${index}`}
-                    className="absolute -translate-x-1/2"
-                    style={{ left: `${position}%` }}
-                    title={`${entry.date}: reported effort ${entry.effort} of 5`}
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-sm">
-                      {entry.effort}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Each marker is positioned by its actual session date. Number =
-              reported effort out of 5.
-            </p>
-          </div>
+          <EffortTrend
+            entries={stats.recentEfforts}
+            average={stats.recentEffortAverage}
+          />
         </DataSurface>
 
         {/* Training Distribution — surface, not card */}
@@ -644,8 +782,8 @@ export function DashboardOverview({
               <p className="text-label-md text-muted-foreground">
                 Session Types
               </p>
-              {stats.categoryStats.map((cat, idx) => (
-                <div key={idx} className="flex items-center">
+              {stats.categoryStats.map((cat) => (
+                <div key={cat.name} className="flex items-center">
                   <div className="flex-1 space-y-1">
                     <div className="flex justify-between items-center mb-1">
                       <p className="text-sm font-medium leading-none">
@@ -676,7 +814,7 @@ export function DashboardOverview({
                 Top Techniques
               </p>
               {stats.topTechniques.map((tech, idx) => (
-                <div key={idx} className="flex items-center">
+                <div key={tech.name} className="flex items-center">
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {tech.name}
@@ -685,13 +823,7 @@ export function DashboardOverview({
                       <div
                         className={cn(
                           'h-full rounded-full',
-                          [
-                            'bg-primary',
-                            'bg-sky-500',
-                            'bg-violet-500',
-                            'bg-amber-500',
-                            'bg-emerald-500',
-                          ][idx]
+                          resolveDashboardTechniqueBarClass(idx)
                         )}
                         style={{
                           width: `${(tech.count / stats.maxTechniqueCount) * 100}%`,

@@ -54,6 +54,15 @@ export const CANONICAL_DESIGN_TOKEN_KEYS = [
   'trend-neutral',
   'trend-neutral-container',
   'on-trend-neutral-container',
+  'category-technical',
+  'category-technical-container',
+  'on-category-technical-container',
+  'category-randori',
+  'category-randori-container',
+  'on-category-randori-container',
+  'category-shiai',
+  'category-shiai-container',
+  'on-category-shiai-container',
 ] as const;
 
 export type CanonicalDesignTokenKey =
