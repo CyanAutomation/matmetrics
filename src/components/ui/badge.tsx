@@ -16,11 +16,11 @@ const badgeVariants = cva(
           'bg-[hsl(var(--color-error-container))] text-[hsl(var(--color-on-error-container))] hover:bg-[hsl(var(--color-error-container)/0.9)] ring-transparent',
         outline: 'bg-card text-foreground',
         technical:
-          'bg-[hsl(var(--color-info-container))] text-[hsl(var(--color-on-info-container))] ring-transparent',
+          'bg-[hsl(var(--color-category-technical-container))] text-[hsl(var(--color-on-category-technical-container))] ring-transparent',
         randori:
-          'bg-[hsl(var(--color-secondary-container))] text-[hsl(var(--color-on-secondary-container))] ring-transparent',
+          'bg-[hsl(var(--color-category-randori-container))] text-[hsl(var(--color-on-category-randori-container))] ring-transparent',
         shiai:
-          'bg-[hsl(var(--color-primary-fixed)/0.18)] text-primary ring-transparent',
+          'bg-[hsl(var(--color-category-shiai-container))] text-[hsl(var(--color-on-category-shiai-container))] ring-transparent',
         effortEasy:
           'bg-[hsl(var(--color-surface-container-high))] text-muted-foreground ring-transparent',
         effortLight:
