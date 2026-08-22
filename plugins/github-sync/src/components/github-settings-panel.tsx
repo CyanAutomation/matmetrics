@@ -390,8 +390,8 @@ export function GitHubSettings() {
 
   return (
     <PluginPageShell
-      title="GitHub Repository Configuration"
-      description="Configure where your training sessions will be synced."
+      title="Sync & backup"
+      description="Keep your training diary safely mirrored in your GitHub repository."
       tone="info"
       icon={<Github className="h-6 w-6" />}
       notice={
@@ -415,8 +415,12 @@ export function GitHubSettings() {
       )}
 
       <PluginFormSection
-        title="Repository setup"
-        description="Connect this account to a GitHub repository target."
+        title={isEnabled ? 'Repository connection' : 'Connect a repository'}
+        description={
+          isEnabled
+            ? `Automatic sync is on for ${owner}/${repo}. Change the destination only when you need to.`
+            : 'Choose where new and updated training sessions should be backed up.'
+        }
         footerActions={
           <PluginActionRow>
             <PluginActionSecondary>
@@ -443,9 +447,9 @@ export function GitHubSettings() {
             <PluginActionPrimary>
               <Button
                 onClick={() => void handleSaveConfig()}
-                disabled={!canUseGitHubSync || !owner || !repo || isEnabled}
+                disabled={!canUseGitHubSync || !owner || !repo}
               >
-                Save Configuration
+                {isEnabled ? 'Save changes' : 'Connect repository'}
               </Button>
             </PluginActionPrimary>
 
@@ -519,8 +523,8 @@ export function GitHubSettings() {
 
       {isEnabled && !migrationDone && (
         <PluginEmptyState
-          title="Initial sync pending"
-          description="GitHub sync is enabled, but existing sessions have not been pushed yet. Run initial sync below to backfill your current training history."
+          title="Your backup is ready for its first sync"
+          description="New entries will sync automatically. Run one initial sync now to copy your existing training history."
           icon={
             <AlertCircle
               className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.info')}`}
@@ -533,15 +537,13 @@ export function GitHubSettings() {
       {/* Bulk Sync Section */}
       {isEnabled && !migrationDone && (
         <PluginFormSection
-          title="Initial Sync"
-          description="Push all existing sessions to your GitHub repository."
+          title="First backup"
+          description="Copy your existing sessions once; future changes will sync automatically."
         >
           <p
             className={`mb-4 text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
           >
-            Click below to sync all your existing training sessions to GitHub.
-            This is a one-time operation and will create the folder structure in
-            your repository.
+            This creates the training-log folder structure in your repository.
           </p>
           <Button
             onClick={() => void handleBulkSync()}
@@ -556,7 +558,7 @@ export function GitHubSettings() {
             ) : (
               <>
                 <RefreshCw className="h-4 w-4" />
-                Sync All Sessions to GitHub
+                Start first backup
               </>
             )}
           </Button>
@@ -565,8 +567,8 @@ export function GitHubSettings() {
 
       {isEnabled && (
         <PluginTableSection
-          title="Sync History & Results"
-          description="Inspect sync results and per-file diagnostics."
+          title="Recent sync activity"
+          description="Review a sync only when you need to troubleshoot a result."
           hasRows={true}
           emptyTitle="No sync history"
           emptyDescription="Load sync history to inspect recent run details."
