@@ -26,12 +26,13 @@ export function OptionalFieldsSection({
   fid,
 }: OptionalFieldsSectionProps) {
   return (
-    <details className="group rounded-lg border border-border/70 bg-muted/20">
+    <details className="group rounded-xl bg-muted/35">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-muted-foreground marker:content-none">
-        Add session reflection, or relevant video link
+        Add reflection or a relevant video{' '}
+        <span className="font-normal">(optional)</span>
         <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
       </summary>
-      <div className="space-y-4 border-t border-border/70 p-4">
+      <div className="space-y-4 px-4 pb-4">
         <div className="space-y-2">
           <Label
             htmlFor={fid('video-url')}
@@ -55,8 +56,8 @@ export function OptionalFieldsSection({
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Paste a public YouTube or other http(s) video link related
-              to this session.
+              Paste a public YouTube or other http(s) video link related to this
+              session.
             </p>
           )}
         </div>

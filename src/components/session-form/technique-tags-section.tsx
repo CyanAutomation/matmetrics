@@ -35,7 +35,7 @@ export function TechniqueTagsSection({
   onRemoveTech,
 }: TechniqueTagsSectionProps) {
   return (
-    <div className="space-y-4 pt-2 border-t border-border/70 pt-5">
+    <div className="space-y-4 pt-5">
       <div className="flex items-center justify-between gap-3">
         <Label className="text-label-md text-muted-foreground">
           Technique tags
@@ -46,17 +46,10 @@ export function TechniqueTagsSection({
           size="sm"
           onClick={onSuggest}
           feedbackState={suggestLoading ? 'loading' : 'idle'}
-          disabled={
-            !canUseAi ||
-            suggestLoading ||
-            isSubmitting ||
-            !description
-          }
+          disabled={!canUseAi || suggestLoading || isSubmitting || !description}
           className="h-7 gap-1.5 text-muted-foreground hover:text-foreground text-xs"
           title={
-            !description
-              ? 'Add practice notes to suggest tags.'
-              : undefined
+            !description ? 'Add practice notes to suggest tags.' : undefined
           }
         >
           {suggestLoading ? (
@@ -67,7 +60,7 @@ export function TechniqueTagsSection({
           Suggest tags
         </Button>
       </div>
-      <div className="flex flex-wrap gap-2 min-h-[48px] p-4 rounded-lg bg-muted/45 ring-1 ring-black/5 dark:ring-white/10 [[data-contrast='high']_&]:ring-[hsl(var(--color-outline-variant)/0.9)]">
+      <div className="flex min-h-[48px] flex-wrap gap-2 rounded-lg bg-muted/45 p-4 [[data-contrast='high']_&]:outline [[data-contrast='high']_&]:outline-[hsl(var(--color-outline-variant)/0.9)]">
         {techniques.length === 0 && (
           <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
             <Brain className="h-4 w-4" />

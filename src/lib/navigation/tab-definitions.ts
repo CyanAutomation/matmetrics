@@ -83,7 +83,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   {
     id: TAB_IDS.dashboard,
     title: 'Dashboard',
-    headerTitle: 'Training Overview',
+    headerTitle: 'Dashboard',
     icon: LayoutDashboard,
     section: 'core',
     render: ({ sessions, onLogSession, isRefreshing }) =>
