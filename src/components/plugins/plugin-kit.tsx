@@ -96,7 +96,7 @@ export function PluginStatusPanel({
 }
 
 type PluginTableSectionProps = {
-  title: ReactNode;
+  title?: ReactNode;
   description?: ReactNode;
   headerActions?: ReactNode;
   emptyTitle: string;

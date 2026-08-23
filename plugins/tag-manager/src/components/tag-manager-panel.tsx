@@ -25,8 +25,12 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
 import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
-import { PluginActionRow, PluginActionPrimary } from '@/components/plugins/plugin-action-row';
+import {
+  PluginActionRow,
+  PluginActionPrimary,
+} from '@/components/plugins/plugin-action-row';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { useTagManagerData } from './use-tag-manager-data';
 import { useTagManagerDialogState } from './use-tag-manager-dialog-state';
 import { TagManagerInventory } from './tag-manager-inventory';
@@ -345,9 +349,23 @@ export function TagManager({ onRefresh }: TagManagerProps) {
 
   return (
     <PluginPageShell
-      title="Technique Library"
-      description="Manage your technique tags. Changes apply globally to all logged sessions."
+      title="Tag Manager"
+      description="Search, rename, merge, or remove tagged techniques."
       icon={<Tags className="h-6 w-6" />}
+      headerActions={
+        <div className="relative w-full sm:w-80">
+          <Search
+            className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
+          />
+          <Input
+            aria-label="Search tags"
+            placeholder="Search tags..."
+            className="h-11 pl-10"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+      }
     >
       {isMutatingTags ? (
         <PluginLoadingState
@@ -357,8 +375,6 @@ export function TagManager({ onRefresh }: TagManagerProps) {
         />
       ) : null}
       <PluginTableSection
-        title="Tag inventory"
-        description="Search, rename, merge, or remove techniques."
         hasRows={filteredTags.length > 0}
         emptyTitle="No tags to display"
         emptyDescription={emptyState.message}
@@ -373,7 +389,6 @@ export function TagManager({ onRefresh }: TagManagerProps) {
           tags={tags}
           filteredTags={filteredTags}
           search={search}
-          onSearchChange={setSearch}
           onRename={(tag) => {
             setEditingTag(tag);
             setNewTagName(tag);
