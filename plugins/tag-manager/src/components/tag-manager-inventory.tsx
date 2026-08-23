@@ -1,22 +1,33 @@
 'use client';
 
 import { useMemo } from 'react';
-import { AlertCircle, Combine, Edit2, Search, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  Combine,
+  Edit2,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
-  PluginDataSurfaceFilterRow,
+  PluginDataList,
+  PluginDataListRow,
   PluginDataSurfaceSummaryStrip,
 } from '@/components/plugins/plugin-data-surface';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function TagManagerInventory({
   tags,
   filteredTags,
   search,
-  onSearchChange,
   onRename,
   onMerge,
   onDelete,
@@ -24,7 +35,6 @@ export function TagManagerInventory({
   tags: string[];
   filteredTags: string[];
   search: string;
-  onSearchChange: (value: string) => void;
   onRename: (tag: string) => void;
   onMerge: (tag: string) => void;
   onDelete: (tag: string) => void;
@@ -41,19 +51,6 @@ export function TagManagerInventory({
 
   return (
     <>
-      <PluginDataSurfaceFilterRow className="mb-6 lg:grid-cols-2">
-        <div className="relative lg:col-span-2">
-          <Search
-            className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
-          />
-          <Input
-            placeholder="Search techniques..."
-            className="pl-10"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
-      </PluginDataSurfaceFilterRow>
       <PluginDataSurfaceSummaryStrip
         filteredCount={filteredTags.length}
         totalCount={tags.length}
@@ -74,51 +71,79 @@ export function TagManagerInventory({
             .join('; ')}.`}
         />
       ) : null}
-      <div className="divide-y rounded-xl border bg-background/40">
+      <PluginDataList role="list" aria-label="Technique tags">
         {filteredTags.map((tag) => (
-          <div
-            key={tag}
-            className="group flex items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/30"
-          >
+          <PluginDataListRow key={tag} role="listitem">
             <div className="min-w-0">
               <p className="font-medium">{tag}</p>
-              <p className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}>
-                Technique tag · changes apply across your training history
-              </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="hidden shrink-0 items-center gap-2 sm:flex">
               <Button
-                variant="ghost"
-                size="sm"
+                variant="outline"
+                size="default"
+                className={getPluginUiTokenClassNames('action.primary')}
                 aria-label={`Rename ${tag}`}
                 onClick={() => onRename(tag)}
               >
                 <Edit2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Rename</span>
+                Rename
               </Button>
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
+                className={getPluginUiTokenClassNames('action.warning')}
                 aria-label={`Merge ${tag}`}
                 onClick={() => onMerge(tag)}
               >
                 <Combine className="h-4 w-4" />
-                <span className="hidden sm:inline">Merge</span>
+                Merge
               </Button>
               <Button
-                variant="ghost"
-                size="sm"
+                variant="outline"
+                size="default"
+                className={getPluginUiTokenClassNames('action.destructive')}
                 interaction="destructive"
                 aria-label={`Delete ${tag}`}
                 onClick={() => onDelete(tag)}
               >
                 <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete</span>
+                Delete
               </Button>
             </div>
-          </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 sm:hidden"
+                  aria-label={`Actions for ${tag}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onRename(tag)}>
+                  <Edit2 className="h-4 w-4" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMerge(tag)}>
+                  <Combine className="h-4 w-4" />
+                  Merge
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className={getPluginUiTokenClassNames(
+                    'action.destructive-menu-item'
+                  )}
+                  onClick={() => onDelete(tag)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </PluginDataListRow>
         ))}
-      </div>
+      </PluginDataList>
     </>
   );
 }

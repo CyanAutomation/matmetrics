@@ -50,7 +50,7 @@ export function PluginPageShell({
       >
         <header
           className={cn(
-            'flex items-start gap-3',
+            'flex flex-col items-start gap-3 sm:flex-row',
             headerActions ? 'justify-between' : null
           )}
         >
@@ -73,14 +73,14 @@ export function PluginPageShell({
           <div
             className={cn(
               PLUGIN_PAGE_CLASS_PATTERNS.headingHierarchy,
-              'min-w-0'
+              'min-w-0 flex-1'
             )}
           >
             <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
           {headerActions ? (
-            <div className="shrink-0">{headerActions}</div>
+            <div className="w-full shrink-0 sm:w-auto">{headerActions}</div>
           ) : null}
         </header>
         {notice ? <div>{notice}</div> : null}

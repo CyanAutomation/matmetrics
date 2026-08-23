@@ -37,6 +37,18 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
     'text-primary',
     'hover:bg-primary/5',
   ],
+  'action.primary': [
+    'border-primary/20',
+    'bg-primary/5',
+    'text-primary',
+    'hover:bg-primary/10',
+  ],
+  'action.warning': [
+    'border-[hsl(var(--color-warning)/0.35)]',
+    'bg-[hsl(var(--color-warning-container))]',
+    'text-[hsl(var(--color-on-warning-container))]',
+    'hover:brightness-95',
+  ],
   'action.destructive': [
     'border-destructive/40',
     'text-destructive',
