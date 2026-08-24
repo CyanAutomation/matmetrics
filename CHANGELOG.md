@@ -4,6 +4,14 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.3.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.3.0...nextn-v1.3.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* recover malformed sessions and add Sentry ([59fd404](https://github.com/CyanAutomation/matmetrics/commit/59fd404cdb1913774557b1537602cf6f810958a1))
+* recover malformed sessions and add Sentry ([#646](https://github.com/CyanAutomation/matmetrics/issues/646)) ([651c4e1](https://github.com/CyanAutomation/matmetrics/commit/651c4e1db2d16c37514dde4e3835fe1e2d814102))
+
 ## [1.3.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.2.0...nextn-v1.3.0) (2026-08-24)
 
 
