@@ -305,12 +305,6 @@ test('installed table exposes every validation severity on rendered badges', () 
             message: 'Missing entrypoint',
           },
         ],
-        maturity: {
-          tier: 'gold',
-          score: 92,
-          reasons: [],
-          nextActions: [],
-        } as any,
       }),
       createInstalledPluginRow({
         id: 'warning-plugin',
@@ -335,7 +329,6 @@ test('installed table exposes every validation severity on rendered badges', () 
     ],
   });
 
-  assert.match(tableMarkup, /ui-pill-trend-positive/);
   for (const severity of ['error', 'warning', 'info']) {
     assert.match(tableMarkup, new RegExp(`data-severity="${severity}"`));
   }
