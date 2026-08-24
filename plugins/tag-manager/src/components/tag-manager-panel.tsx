@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputWithIcon } from '@/components/ui/input-with-icon';
 import { tagService } from '@/lib/tags';
 import { Tags, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -30,7 +31,6 @@ import {
   PluginActionPrimary,
 } from '@/components/plugins/plugin-action-row';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
-import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { useTagManagerData } from './use-tag-manager-data';
 import { useTagManagerDialogState } from './use-tag-manager-dialog-state';
 import { TagManagerInventory } from './tag-manager-inventory';
@@ -353,14 +353,11 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       description="Search, rename, merge, or remove tagged techniques."
       icon={<Tags className="h-6 w-6" />}
       headerActions={
-        <div className="relative w-full sm:w-80">
-          <Search
-            className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
-          />
-          <Input
+        <div className="w-full sm:w-80">
+          <InputWithIcon
+            icon={<Search className="h-4 w-4" />}
             aria-label="Search tags"
             placeholder="Search tags..."
-            className="h-11 pl-10"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />

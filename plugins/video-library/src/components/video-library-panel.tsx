@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { InputWithIcon } from '@/components/ui/input-with-icon';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -676,23 +677,18 @@ function VideoLibraryView({
 
         <PluginDataSurfaceFilterRow className="grid-cols-1 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
           <div>
-            <div className="relative">
-              <Search
-                className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${getPluginUiTokenClassNames('icon.subtle')}`}
-              />
-              <Input
-                id="video-library-search"
-                value={filters.search}
-                onChange={(event) =>
-                  setFilters((current: any) => ({
-                    ...current,
-                    search: event.target.value,
-                  }))
-                }
-                className="pl-9"
-                placeholder="Search date, host, or techniques"
-              />
-            </div>
+            <InputWithIcon
+              icon={<Search className="h-4 w-4" />}
+              id="video-library-search"
+              value={filters.search}
+              onChange={(event) =>
+                setFilters((current: any) => ({
+                  ...current,
+                  search: event.target.value,
+                }))
+              }
+              placeholder="Search date, host, or techniques"
+            />
           </div>
 
           <div>

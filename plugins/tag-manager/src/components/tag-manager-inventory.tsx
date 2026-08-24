@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { RowActions } from '@/components/ui/row-actions';
 import {
   PluginDataList,
   PluginDataListRow,
@@ -77,7 +78,40 @@ export function TagManagerInventory({
             <div className="min-w-0">
               <p className="font-medium">{tag}</p>
             </div>
-            <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            <RowActions
+              overflow={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label={`Actions for ${tag}`}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onRename(tag)}>
+                      <Edit2 className="h-4 w-4" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onMerge(tag)}>
+                      <Combine className="h-4 w-4" />
+                      Merge
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={getPluginUiTokenClassNames(
+                        'action.destructive-menu-item'
+                      )}
+                      onClick={() => onDelete(tag)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
+            >
               <Button
                 variant="outline"
                 size="default"
@@ -91,7 +125,7 @@ export function TagManagerInventory({
               <Button
                 variant="outline"
                 size="default"
-                className={getPluginUiTokenClassNames('action.warning')}
+                className={getPluginUiTokenClassNames('action.secondary')}
                 aria-label={`Merge ${tag}`}
                 onClick={() => onMerge(tag)}
               >
@@ -109,38 +143,7 @@ export function TagManagerInventory({
                 <Trash2 className="h-4 w-4" />
                 Delete
               </Button>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 sm:hidden"
-                  aria-label={`Actions for ${tag}`}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onRename(tag)}>
-                  <Edit2 className="h-4 w-4" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onMerge(tag)}>
-                  <Combine className="h-4 w-4" />
-                  Merge
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className={getPluginUiTokenClassNames(
-                    'action.destructive-menu-item'
-                  )}
-                  onClick={() => onDelete(tag)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            </RowActions>
           </PluginDataListRow>
         ))}
       </PluginDataList>
