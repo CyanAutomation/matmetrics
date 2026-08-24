@@ -2,9 +2,16 @@ import path from 'path';
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+const sentryRelease =
+  process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA;
+const sentryEnvironment =
+  process.env.SENTRY_ENVIRONMENT ?? process.env.VERCEL_ENV ?? 'development';
+
 const nextConfig: NextConfig = {
   env: {
     SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_RELEASE: sentryRelease,
+    SENTRY_ENVIRONMENT: sentryEnvironment,
   },
   webpack(config) {
     config.resolve.alias = {
@@ -55,6 +62,7 @@ export default withSentryConfig(nextConfig, {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   org: 'cyanautomation',
   project: 'matmetrics',
+  release: sentryRelease ? { name: sentryRelease } : undefined,
   silent: !process.env.CI,
   widenClientFileUpload: true,
   webpack: {
