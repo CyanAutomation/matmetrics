@@ -8,6 +8,7 @@ import maturityScorecards from '../../../docs/plugin-maturity-scorecards.json';
 import githubSyncManifest from '../../../plugins/github-sync/plugin.json';
 import logDoctorManifest from '../../../plugins/log-doctor/plugin.json';
 import promptSettingsManifest from '../../../plugins/prompt-settings/plugin.json';
+import sessionTypesManifest from '../../../plugins/session-types/plugin.json';
 import tagManagerManifest from '../../../plugins/tag-manager/plugin.json';
 import videoLibraryManifest from '../../../plugins/video-library/plugin.json';
 
@@ -16,6 +17,7 @@ type PluginId =
   | 'github-sync'
   | 'log-doctor'
   | 'prompt-settings'
+  | 'session-types'
   | 'video-library';
 
 type PublishedScorecardRow = {
@@ -60,6 +62,7 @@ const pluginFixtures: Record<PluginId, unknown> = {
   'github-sync': githubSyncManifest,
   'log-doctor': logDoctorManifest,
   'prompt-settings': promptSettingsManifest,
+  'session-types': sessionTypesManifest,
   'video-library': videoLibraryManifest,
 };
 
