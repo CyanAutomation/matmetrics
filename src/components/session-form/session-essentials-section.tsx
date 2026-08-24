@@ -12,20 +12,21 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { RessaImage } from '@/components/ressa-image';
-import { EFFORT_LABELS } from '@/lib/types';
+import { EFFORT_LABELS, SessionCategory } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface SessionEssentialsSectionProps {
   date: string;
   duration: string;
-  category: 'Technical' | 'Randori' | 'Shiai';
+  category: SessionCategory;
+  availableCategories: SessionCategory[];
   effort: 1 | 2 | 3 | 4 | 5;
   showAvatar: boolean;
   shouldHideHeader: boolean;
   fid: (suffix: string) => string;
   setDate: (value: string) => void;
   setDuration: (value: string) => void;
-  setCategory: (value: 'Technical' | 'Randori' | 'Shiai') => void;
+  setCategory: (value: SessionCategory) => void;
   setEffort: (value: 1 | 2 | 3 | 4 | 5) => void;
 }
 
@@ -33,6 +34,7 @@ export function SessionEssentialsSection({
   date,
   duration,
   category,
+  availableCategories,
   effort,
   showAvatar,
   shouldHideHeader,
@@ -136,9 +138,14 @@ export function SessionEssentialsSection({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Technical">Technical</SelectItem>
-                  <SelectItem value="Randori">Randori</SelectItem>
-                  <SelectItem value="Shiai">Shiai</SelectItem>
+                  {availableCategories.map((availableCategory) => (
+                    <SelectItem
+                      key={availableCategory}
+                      value={availableCategory}
+                    >
+                      {availableCategory}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -183,8 +190,8 @@ export function SessionEssentialsSection({
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Required fields are marked with an asterisk. You can save a quick
-              log with just the essentials and a technique tag.
+              Required fields are marked with an asterisk. Technique tags and
+              reflection are optional.
             </p>
           </div>
         </div>

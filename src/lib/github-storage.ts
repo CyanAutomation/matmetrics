@@ -1208,7 +1208,7 @@ ${latestDate ? `- **Latest Session**: ${latestDate}` : ''}
 Sessions are organized by date in \`data/YYYY/MM/\` directories as markdown files.
 
 Each session includes:
-- Date and session type (Technical, Randori, or Shiai)
+- Date and session type (Technical, Randori, Shiai, Cardio, or S&C)
 - Effort level (1-5)
 - Techniques practiced
 - Notes and observations

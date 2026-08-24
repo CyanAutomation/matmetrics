@@ -1,5 +1,21 @@
 export type EffortLevel = 1 | 2 | 3 | 4 | 5;
-export type SessionCategory = 'Technical' | 'Randori' | 'Shiai';
+export const SESSION_CATEGORIES = [
+  'Technical',
+  'Randori',
+  'Shiai',
+  'Cardio',
+  'S&C',
+] as const;
+
+export type SessionCategory = (typeof SESSION_CATEGORIES)[number];
+
+export const DEFAULT_ENABLED_SESSION_CATEGORIES: SessionCategory[] = [
+  ...SESSION_CATEGORIES,
+];
+
+export interface SessionTypePreferences {
+  enabledCategories: SessionCategory[];
+}
 export type TrainingPlanCadence = 'week' | 'month';
 
 /**
@@ -20,6 +36,8 @@ export const DEFAULT_TRAINING_PLAN: TrainingPlanPreferences = {
     Technical: { targetSessions: 1, cadence: 'week' },
     Randori: { targetSessions: 2, cadence: 'month' },
     Shiai: { targetSessions: 1, cadence: 'month' },
+    Cardio: { targetSessions: 0, cadence: 'month' },
+    'S&C': { targetSessions: 0, cadence: 'month' },
   },
 };
 
@@ -128,6 +146,7 @@ export interface UserPreferences {
   auditConfig?: AuditConfig;
   lastAuditRun?: AuditRunResult; // cached result from last audit run
   trainingPlan: TrainingPlanPreferences;
+  sessionTypes: SessionTypePreferences;
 }
 
 export interface AuthenticatedUser {

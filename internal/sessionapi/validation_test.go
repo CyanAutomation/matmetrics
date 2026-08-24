@@ -89,6 +89,25 @@ func TestValidateSessionIDValidation(t *testing.T) {
 	})
 }
 
+func TestValidateSessionAcceptsEverySupportedCategory(t *testing.T) {
+	for _, category := range []model.SessionCategory{
+		model.CategoryTechnical,
+		model.CategoryRandori,
+		model.CategoryShiai,
+		model.CategoryCardio,
+		model.CategoryStrengthConditioning,
+	} {
+		t.Run(string(category), func(t *testing.T) {
+			session := validSession(func(session *model.Session) {
+				session.Category = category
+			})
+			if err := ValidateSession(session); err != nil {
+				t.Fatalf("ValidateSession() error = %v, want nil", err)
+			}
+		})
+	}
+}
+
 func TestValidateSessionRejectsInvalidDateCases(t *testing.T) {
 	tests := []struct {
 		name    string

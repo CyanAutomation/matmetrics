@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-08T16:09:49.217Z",
+  "generatedAt": "2026-08-24T21:11:08.541Z",
   "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
   "sourceEntrypoint": "plugins/*/src/index.ts",
-  "cacheKey": "00a447b20be0417191aae066ea35c05c3d31f6b355baacf22ed78e05dfd70322",
+  "cacheKey": "0f202f3b07eb23151d17a8a57d08a04f6e826ce941c458d439f7b1ac52be87a9",
   "plugins": [
     {
       "id": "github-sync",
@@ -18,11 +18,7 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": [
-        "sharedShell",
-        "sharedState",
-        "sharedDestructiveConfirmation"
-      ]
+      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
     },
     {
       "id": "log-doctor",
@@ -38,11 +34,7 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": [
-        "sharedShell",
-        "sharedState",
-        "sharedDestructiveConfirmation"
-      ]
+      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
     },
     {
       "id": "prompt-settings",
@@ -50,6 +42,22 @@
       "uiEntrypoints": [
         "plugins/prompt-settings/src/index.ts",
         "plugins/prompt-settings/src/components/prompt-settings.tsx"
+      ],
+      "checks": {
+        "sharedShell": true,
+        "sharedState": true,
+        "sharedDestructiveConfirmation": true
+      },
+      "score": 3,
+      "maxScore": 3,
+      "missing": []
+    },
+    {
+      "id": "session-types",
+      "entrypoint": "plugins/session-types/src/index.ts",
+      "uiEntrypoints": [
+        "plugins/session-types/src/index.ts",
+        "plugins/session-types/src/components/session-types.tsx"
       ],
       "checks": {
         "sharedShell": true,
@@ -74,11 +82,7 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": [
-        "sharedShell",
-        "sharedState",
-        "sharedDestructiveConfirmation"
-      ]
+      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
     },
     {
       "id": "video-library",
@@ -94,11 +98,7 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": [
-        "sharedShell",
-        "sharedState",
-        "sharedDestructiveConfirmation"
-      ]
+      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
     }
   ]
 }

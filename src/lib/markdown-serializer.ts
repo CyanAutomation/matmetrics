@@ -1,5 +1,10 @@
 import matter from 'gray-matter';
-import { JudoSession, EffortLevel, SessionCategory } from './types';
+import {
+  JudoSession,
+  EffortLevel,
+  SessionCategory,
+  SESSION_CATEGORIES,
+} from './types';
 import {
   isBlockedNetworkHostname,
   normalizeNetworkHostname,
@@ -168,16 +173,12 @@ function validateCategory(value: unknown): SessionCategory {
     throw new Error('Missing or invalid "category" in frontmatter');
   }
 
-  switch (value) {
-    case 'Technical':
-    case 'Randori':
-    case 'Shiai':
-      return value;
-    default:
-      throw new Error(
-        'Invalid "category" in frontmatter: must be one of Technical, Randori, Shiai'
-      );
+  if (SESSION_CATEGORIES.includes(value as SessionCategory)) {
+    return value as SessionCategory;
   }
+  throw new Error(
+    `Invalid "category" in frontmatter: must be one of ${SESSION_CATEGORIES.join(', ')}`
+  );
 }
 
 function validateDuration(value: unknown): number | undefined {

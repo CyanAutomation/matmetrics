@@ -9,13 +9,15 @@ import logDoctorManifest from '../plugins/log-doctor/plugin.json';
 import promptSettingsManifest from '../plugins/prompt-settings/plugin.json';
 import tagManagerManifest from '../plugins/tag-manager/plugin.json';
 import videoLibraryManifest from '../plugins/video-library/plugin.json';
+import sessionTypesManifest from '../plugins/session-types/plugin.json';
 
 type PluginId =
   | 'tag-manager'
   | 'github-sync'
   | 'log-doctor'
   | 'prompt-settings'
-  | 'video-library';
+  | 'video-library'
+  | 'session-types';
 
 type ScoreArtifactRow = {
   id: PluginId;
@@ -40,6 +42,7 @@ const pluginManifests: Record<PluginId, unknown> = {
   'log-doctor': logDoctorManifest,
   'prompt-settings': promptSettingsManifest,
   'video-library': videoLibraryManifest,
+  'session-types': sessionTypesManifest,
 };
 
 const stableNormalize = (value: unknown): unknown => {

@@ -33,7 +33,7 @@ func ValidateSession(session model.Session) error {
 		return fmt.Errorf("Invalid effort level (must be an integer 1-5)")
 	}
 	switch session.Category {
-	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai:
+	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai, model.CategoryCardio, model.CategoryStrengthConditioning:
 	default:
 		return fmt.Errorf("Invalid category")
 	}
