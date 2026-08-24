@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Filter,
   MoreHorizontal,
+  Search,
   X,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -28,6 +29,7 @@ import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
 import { Input } from '@/components/ui/input';
+import { InputWithIcon } from '@/components/ui/input-with-icon';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -437,12 +439,13 @@ export function SessionHistory({
         className="sticky top-3 z-[1] mb-6 rounded-2xl bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
       >
         <div className="flex gap-2">
-          <Input
+          <InputWithIcon
+            icon={<Search className="h-4 w-4" />}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search techniques or notes"
             aria-label="Search training history"
-            className="h-11 flex-1"
+            wrapperClassName="flex-1"
           />
           <Button
             type="button"
