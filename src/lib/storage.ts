@@ -31,6 +31,7 @@ import {
 } from './user-preferences';
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import type { UserPreferences } from './types';
+import { normalizeSessionList } from './session-normalization';
 import {
   initializeSyncLeaseModule,
   setActiveSyncLease,
@@ -721,7 +722,7 @@ export function retryCloudSync(): void {
 function getLocalStorageCache(): JudoSession[] {
   try {
     const stored = localStorage.getItem(getSessionsStorageKey());
-    return stored ? JSON.parse(stored) : [];
+    return stored ? normalizeSessionList(JSON.parse(stored)) : [];
   } catch (e) {
     console.error('Failed to parse localStorage cache', e);
     return [];
@@ -811,11 +812,13 @@ function parseSessionListResponse(payload: unknown): {
   sessions: JudoSession[];
   issues: SessionFileIssue[];
 } {
-  const sessions: JudoSession[] = Array.isArray(payload)
-    ? payload
-    : Array.isArray((payload as any)?.sessions)
-      ? (payload as any).sessions
-      : [];
+  const sessions = normalizeSessionList(
+    Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as any)?.sessions)
+        ? (payload as any).sessions
+        : []
+  );
   const issues: SessionFileIssue[] = Array.isArray((payload as any)?.issues)
     ? (payload as any).issues
     : [];
