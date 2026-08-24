@@ -10,7 +10,7 @@ const sentryEnvironment =
 const nextConfig: NextConfig = {
   env: {
     SENTRY_DSN: process.env.SENTRY_DSN,
-    SENTRY_RELEASE: sentryRelease,
+    SENTRY_RELEASE: sentryRelease ?? undefined,
     SENTRY_ENVIRONMENT: sentryEnvironment,
   },
   webpack(config) {
