@@ -35,12 +35,19 @@ export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
   };
 }
 
-export type DashboardChartToken = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4';
+export type DashboardChartToken =
+  | 'chart-1'
+  | 'chart-2'
+  | 'chart-3'
+  | 'chart-4'
+  | 'chart-5';
 
 export type SessionCategoryTone =
   | 'technical'
   | 'randori'
   | 'shiai'
+  | 'cardio'
+  | 'strengthConditioning'
   | 'fallback';
 
 const sessionCategoryTone: Partial<
@@ -49,6 +56,8 @@ const sessionCategoryTone: Partial<
   Technical: 'technical',
   Randori: 'randori',
   Shiai: 'shiai',
+  Cardio: 'cardio',
+  'S&C': 'strengthConditioning',
 };
 
 const sessionCategoryPresentation: Record<
@@ -73,6 +82,16 @@ const sessionCategoryPresentation: Record<
     dotClass: 'bg-chart-3',
     badgeVariant: 'shiai',
   },
+  cardio: {
+    barClass: 'bg-chart-4',
+    dotClass: 'bg-chart-4',
+    badgeVariant: 'cardio',
+  },
+  strengthConditioning: {
+    barClass: 'bg-chart-5',
+    dotClass: 'bg-chart-5',
+    badgeVariant: 'strengthConditioning',
+  },
   fallback: {
     barClass: 'bg-chart-4',
     dotClass: 'bg-chart-4',
@@ -96,6 +115,8 @@ const dashboardCategoryChartToken: Partial<
   Technical: 'chart-1',
   Randori: 'chart-2',
   Shiai: 'chart-3',
+  Cardio: 'chart-4',
+  'S&C': 'chart-5',
 };
 
 const dashboardCategoryFallbackChartToken: DashboardChartToken = 'chart-4';

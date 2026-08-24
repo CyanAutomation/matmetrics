@@ -8,6 +8,8 @@ const (
 	CategoryTechnical SessionCategory = "Technical"
 	CategoryRandori   SessionCategory = "Randori"
 	CategoryShiai     SessionCategory = "Shiai"
+	CategoryCardio    SessionCategory = "Cardio"
+	CategoryStrengthConditioning SessionCategory = "S&C"
 )
 
 type Session struct {

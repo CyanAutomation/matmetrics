@@ -1,0 +1,37 @@
+{
+  "id": "session-types",
+  "name": "Session Types Plugin",
+  "version": "1.0.0",
+  "description": "Provides a dashboard tab for choosing the session types available when logging training.",
+  "maturity": {
+    "tier": "bronze",
+    "evidence": {
+      "testFiles": ["plugins/session-types/plugin.test.ts"],
+      "uxCriteria": {
+        "loadingStatePresent": ["plugins/session-types/plugin.test.ts"],
+        "errorStateWithRecovery": ["plugins/session-types/plugin.test.ts"],
+        "emptyStateWithCta": ["plugins/session-types/plugin.test.ts"],
+        "destructiveActionSafety": ["plugins/session-types/plugin.test.ts"]
+      }
+    }
+  },
+  "uiContract": {
+    "layoutVariant": "standard",
+    "requiredUxStates": ["loading", "error", "empty", "destructive"],
+    "designTokenVariants": ["layout.standard", "surface.session-types"]
+  },
+  "enabled": true,
+  "uiExtensions": [
+    {
+      "type": "dashboard_tab",
+      "id": "session-types-dashboard-tab",
+      "title": "Session Types",
+      "config": {
+        "tabId": "session-types",
+        "headerTitle": "Session Types",
+        "icon": "sliders",
+        "component": "session_types"
+      }
+    }
+  ]
+}

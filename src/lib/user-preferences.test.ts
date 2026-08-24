@@ -3,9 +3,30 @@ import test from 'node:test';
 
 import {
   DEFAULT_VIDEO_LIBRARY_PREFERENCES,
+  normalizeSessionTypePreferences,
   normalizeExpectedVideoCategories,
   normalizeTrainingPlanPreferences,
 } from '@/lib/user-preferences';
+
+test('normalizeSessionTypePreferences preserves valid enabled types and always enables Technical', () => {
+  assert.deepEqual(
+    normalizeSessionTypePreferences({
+      enabledCategories: ['S&C', 'Cardio', 'Technical', 'Cardio'],
+    }),
+    { enabledCategories: ['Technical', 'Cardio', 'S&C'] }
+  );
+
+  assert.deepEqual(
+    normalizeSessionTypePreferences({ enabledCategories: ['Randori'] }),
+    { enabledCategories: ['Technical', 'Randori'] }
+  );
+});
+
+test('normalizeSessionTypePreferences defaults legacy preferences to every session type', () => {
+  assert.deepEqual(normalizeSessionTypePreferences(undefined), {
+    enabledCategories: ['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'],
+  });
+});
 
 test('normalizeExpectedVideoCategories keeps valid categories in canonical order', () => {
   assert.deepEqual(
@@ -29,6 +50,14 @@ test('normalizeTrainingPlanPreferences keeps personal targets and migrates legac
           targetSessions: 1,
           cadence: 'week',
         },
+        Cardio: {
+          targetSessions: 0,
+          cadence: 'month',
+        },
+        'S&C': {
+          targetSessions: 0,
+          cadence: 'month',
+        },
       },
     }),
     {
@@ -44,6 +73,14 @@ test('normalizeTrainingPlanPreferences keeps personal targets and migrates legac
         Shiai: {
           targetSessions: 1,
           cadence: 'week',
+        },
+        Cardio: {
+          targetSessions: 0,
+          cadence: 'month',
+        },
+        'S&C': {
+          targetSessions: 0,
+          cadence: 'month',
         },
       },
     }

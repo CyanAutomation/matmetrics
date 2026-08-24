@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   Github,
   Stethoscope,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -129,6 +130,7 @@ const pluginTabIcons: Record<string, LucideIcon> = {
   brain: BrainCircuit,
   github: Github,
   stethoscope: Stethoscope,
+  sliders: SlidersHorizontal,
 };
 
 export const resolveDashboardExtensionsToTabs = async (

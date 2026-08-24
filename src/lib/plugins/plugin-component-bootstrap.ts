@@ -36,6 +36,10 @@ const staticPlugins: StaticPlugin[] = [
     id: 'video-library',
     load: () => require('../../../plugins/video-library/src/index'),
   },
+  {
+    id: 'session-types',
+    load: () => require('../../../plugins/session-types/src/index'),
+  },
 ];
 
 const initializePlugin = async (plugin: StaticPlugin): Promise<void> => {
