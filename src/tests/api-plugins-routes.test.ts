@@ -353,7 +353,7 @@ test('GET /api/plugins/list returns current maturity scores for bundled plugins'
     ['github-sync', { score: 91, tier: 'silver' }],
     ['log-doctor', { score: 89, tier: 'silver' }],
     ['prompt-settings', { score: 91, tier: 'silver' }],
-    ['session-types', { score: 67, tier: 'bronze' }],
+    ['session-types', { score: 75, tier: 'silver' }],
     ['video-library', { score: 91, tier: 'silver' }],
   ]);
   const bundledPluginDirectoryEntries = await readdir(
