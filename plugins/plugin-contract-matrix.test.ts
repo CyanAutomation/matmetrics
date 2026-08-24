@@ -8,6 +8,8 @@ import tagManagerManifest from './tag-manager/plugin.json';
 import { initPlugin as initTagManagerPlugin } from './tag-manager/src';
 import videoLibraryManifest from './video-library/plugin.json';
 import { initPlugin as initVideoLibraryPlugin } from './video-library/src';
+import sessionTypesManifest from './session-types/plugin.json';
+import { initPlugin as initSessionTypesPlugin } from './session-types/src';
 import { testPluginManifestContract } from './test-plugin-manifest-contract';
 import { testPluginRegistrationContract } from './test-plugin-registration-contract';
 
@@ -62,6 +64,13 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
     componentId: 'video_library',
     manifest: videoLibraryManifest,
     initPlugin: initVideoLibraryPlugin,
+  },
+  {
+    pluginId: 'session-types',
+    dashboardExtensionId: 'session-types-dashboard-tab',
+    componentId: 'session_types',
+    manifest: sessionTypesManifest,
+    initPlugin: initSessionTypesPlugin,
   },
 ] as const;
 

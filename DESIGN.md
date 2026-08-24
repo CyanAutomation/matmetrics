@@ -43,13 +43,23 @@ Supporting accent colors for secondary actions and chart series.
 
 Session type is a stable semantic meaning, not a chart-position colour. Use these tokens for the category dot, badge, progress indicator, filter result, and chart series everywhere in the product. Always pair the colour with the category label or icon.
 
-| Token                     | Light / dark           | Intended usage                                    |
-| ------------------------- | ---------------------- | ------------------------------------------------- |
-| `category-technical`      | blue / blue            | Technical sessions and their associated data      |
-| `category-randori`        | teal / teal            | Randori sessions and their associated data        |
-| `category-shiai`          | violet / violet        | Shiai sessions and their associated data          |
-| `category-*-container`    | tonal category surface | Category badges and low-emphasis category content |
-| `on-category-*-container` | contrast text          | Text and icons on category containers             |
+| Token                                         | Light / dark         | Intended usage                                    |
+| --------------------------------------------- | -------------------- | ------------------------------------------------- |
+| `category-technical`                          | blue / blue          | Technical sessions and their associated data      |
+| `category-technical-container`                | tonal blue surface   | Technical badges and low-emphasis content         |
+| `on-category-technical-container`             | contrast text        | Text and icons on Technical containers            |
+| `category-randori`                            | teal / teal          | Randori sessions and their associated data        |
+| `category-randori-container`                  | tonal teal surface   | Randori badges and low-emphasis content           |
+| `on-category-randori-container`               | contrast text        | Text and icons on Randori containers              |
+| `category-shiai`                              | violet / violet      | Shiai sessions and their associated data          |
+| `category-shiai-container`                    | tonal violet surface | Shiai badges and low-emphasis content             |
+| `on-category-shiai-container`                 | contrast text        | Text and icons on Shiai containers                |
+| `category-cardio`                             | orange / orange      | Cardio sessions and their associated data         |
+| `category-cardio-container`                   | tonal orange surface | Cardio badges and low-emphasis content            |
+| `on-category-cardio-container`                | contrast text        | Text and icons on Cardio containers               |
+| `category-strength-conditioning`              | rose / rose          | Strength & Conditioning sessions and their data   |
+| `category-strength-conditioning-container`    | tonal rose surface   | Strength & Conditioning badges and content        |
+| `on-category-strength-conditioning-container` | contrast text        | Text and icons on Strength & Conditioning content |
 
 #### Surface & Background Tokens
 

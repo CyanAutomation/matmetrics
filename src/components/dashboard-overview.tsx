@@ -175,6 +175,7 @@ export function DashboardOverview({
   isRefreshing = false,
 }: DashboardOverviewProps) {
   const { canSavePreferences, preferences, user } = useAuth();
+  const enabledCategories = preferences.sessionTypes.enabledCategories;
   const [distributionWindow, setDistributionWindow] = useState<30 | 90 | 'all'>(
     30
   );
@@ -262,18 +263,16 @@ export function DashboardOverview({
         )
       : sortedSessions;
     const techniqueCount: Record<string, number> = {};
-    const categoryCount: Record<string, number> = {
-      Technical: 0,
-      Randori: 0,
-      Shiai: 0,
-    };
+    const categoryCount: Record<string, number> = Object.fromEntries(
+      enabledCategories.map((category) => [category, 0])
+    );
 
     distributionSessions.forEach((s) => {
       s.techniques.forEach((t) => {
         techniqueCount[t] = (techniqueCount[t] || 0) + 1;
       });
-      if (s.category) {
-        categoryCount[s.category] = (categoryCount[s.category] || 0) + 1;
+      if (enabledCategories.includes(s.category)) {
+        categoryCount[s.category] += 1;
       }
     });
 
@@ -323,11 +322,12 @@ export function DashboardOverview({
     );
 
     const rollingStart = subDays(now, 29);
-    const sessionsInRollingWindowByCategory: Record<SessionCategory, number> = {
-      Technical: 0,
-      Randori: 0,
-      Shiai: 0,
-    };
+    const sessionsInRollingWindowByCategory: Record<SessionCategory, number> =
+      Object.fromEntries(
+        (['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'] as const).map(
+          (category) => [category, 0]
+        )
+      ) as Record<SessionCategory, number>;
     sortedSessions.forEach((session) => {
       if (parseDateOnly(session.date) >= rollingStart) {
         sessionsInRollingWindowByCategory[session.category] += 1;
@@ -338,25 +338,23 @@ export function DashboardOverview({
       (session) => parseDateOnly(session.date) >= lastFortnight
     ).length;
 
-    const rollingPlan = (['Technical', 'Randori', 'Shiai'] as const).map(
-      (category) => {
-        const plan = preferences.trainingPlan.categories[category];
-        const effectiveTarget =
-          plan.cadence === 'week'
-            ? Math.round(plan.targetSessions * (30 / 7))
-            : plan.targetSessions;
-        const completed = sessionsInRollingWindowByCategory[category];
-        const remaining = Math.max(0, effectiveTarget - completed);
-        return {
-          category,
-          completed,
-          cadence: plan.cadence,
-          effectiveTarget,
-          remaining,
-          isComplete: completed >= effectiveTarget,
-        };
-      }
-    );
+    const rollingPlan = enabledCategories.map((category) => {
+      const plan = preferences.trainingPlan.categories[category];
+      const effectiveTarget =
+        plan.cadence === 'week'
+          ? Math.round(plan.targetSessions * (30 / 7))
+          : plan.targetSessions;
+      const completed = sessionsInRollingWindowByCategory[category];
+      const remaining = Math.max(0, effectiveTarget - completed);
+      return {
+        category,
+        completed,
+        cadence: plan.cadence,
+        effectiveTarget,
+        remaining,
+        isComplete: completed >= effectiveTarget,
+      };
+    });
     const nextPlanItem = [...rollingPlan]
       .filter((item) => item.remaining > 0)
       .sort((left, right) => right.remaining - left.remaining)[0];
@@ -467,7 +465,12 @@ export function DashboardOverview({
       effortInsight,
       recentEffortAverage,
     };
-  }, [distributionWindow, preferences.trainingPlan, sessions]);
+  }, [
+    distributionWindow,
+    enabledCategories,
+    preferences.trainingPlan,
+    sessions,
+  ]);
 
   if (!stats) {
     return (
@@ -693,7 +696,7 @@ export function DashboardOverview({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
-            {(['Technical', 'Randori', 'Shiai'] as const).map((category) => {
+            {enabledCategories.map((category) => {
               const plan = planDraft.categories[category];
               return (
                 <div

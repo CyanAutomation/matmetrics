@@ -16,7 +16,9 @@ import type {
   AuditMode,
   AuditRunResult,
   GitHubSettings,
+  SessionCategory,
   SessionAudit,
+  SessionTypePreferences,
   TrainingPlanPreferences,
   UserPreferences,
   VideoLibraryPreferences,
@@ -26,6 +28,8 @@ import {
   DEFAULT_AUDIT_CONFIG,
   DEFAULT_TRAINING_PLAN,
   DEFAULT_EXPECTED_VIDEO_CATEGORIES,
+  DEFAULT_ENABLED_SESSION_CATEGORIES,
+  SESSION_CATEGORIES,
 } from './types';
 import {
   areAuditConfigsEqual,
@@ -52,6 +56,10 @@ export const DEFAULT_VIDEO_LIBRARY_PREFERENCES: VideoLibraryPreferences = {
   expectedVideoCategories: [...DEFAULT_EXPECTED_VIDEO_CATEGORIES],
 };
 
+export const DEFAULT_SESSION_TYPE_PREFERENCES: SessionTypePreferences = {
+  enabledCategories: [...DEFAULT_ENABLED_SESSION_CATEGORIES],
+};
+
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   transformerPrompt: DEFAULT_TRANSFORMER_PROMPT,
   gitHub: DEFAULT_GITHUB_SETTINGS,
@@ -61,6 +69,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   auditConfig: DEFAULT_AUDIT_CONFIG,
   lastAuditRun: undefined,
   trainingPlan: DEFAULT_TRAINING_PLAN,
+  sessionTypes: DEFAULT_SESSION_TYPE_PREFERENCES,
 };
 
 type PreferencesListener = (preferences: UserPreferences) => void;
@@ -103,7 +112,12 @@ function cloneDefaults(): UserPreferences {
         Technical: { ...DEFAULT_TRAINING_PLAN.categories.Technical },
         Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
         Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
+        Cardio: { ...DEFAULT_TRAINING_PLAN.categories.Cardio },
+        'S&C': { ...DEFAULT_TRAINING_PLAN.categories['S&C'] },
       },
+    },
+    sessionTypes: {
+      enabledCategories: [...DEFAULT_ENABLED_SESSION_CATEGORIES],
     },
   };
 }
@@ -125,12 +139,14 @@ export function normalizeTrainingPlanPreferences(
         Technical: { ...DEFAULT_TRAINING_PLAN.categories.Technical },
         Randori: { ...DEFAULT_TRAINING_PLAN.categories.Randori },
         Shiai: { ...DEFAULT_TRAINING_PLAN.categories.Shiai },
+        Cardio: { ...DEFAULT_TRAINING_PLAN.categories.Cardio },
+        'S&C': { ...DEFAULT_TRAINING_PLAN.categories['S&C'] },
       },
     };
   }
 
   const input = value as Partial<TrainingPlanPreferences>;
-  const categories = (['Technical', 'Randori', 'Shiai'] as const).reduce(
+  const categories = SESSION_CATEGORIES.reduce(
     (result, category) => {
       const savedCategory = input.categories?.[category];
       const defaults = DEFAULT_TRAINING_PLAN.categories[category];
@@ -157,6 +173,30 @@ export function normalizeTrainingPlanPreferences(
   );
 
   return { categories };
+}
+
+export function normalizeSessionTypePreferences(
+  value: unknown
+): SessionTypePreferences {
+  if (!value || typeof value !== 'object') {
+    return { enabledCategories: [...DEFAULT_ENABLED_SESSION_CATEGORIES] };
+  }
+
+  const input = value as Partial<SessionTypePreferences>;
+  const selected = Array.isArray(input.enabledCategories)
+    ? input.enabledCategories.filter(
+        (category): category is SessionCategory =>
+          typeof category === 'string' &&
+          SESSION_CATEGORIES.includes(category as SessionCategory)
+      )
+    : DEFAULT_ENABLED_SESSION_CATEGORIES;
+  const enabled = new Set<SessionCategory>(['Technical', ...selected]);
+
+  return {
+    enabledCategories: SESSION_CATEGORIES.filter((category) =>
+      enabled.has(category)
+    ),
+  };
 }
 
 function normalizeGitHubSettings(value: unknown): GitHubSettings {
@@ -244,8 +284,6 @@ function normalizeAuditMode(value: unknown, config: AuditConfig): AuditMode {
     ? 'standard'
     : 'custom';
 }
-
-const SESSION_CATEGORIES = ['Technical', 'Randori', 'Shiai'] as const;
 
 export function normalizeExpectedVideoCategories(
   value: unknown
@@ -441,6 +479,7 @@ function normalizePreferences(value: unknown): UserPreferences {
     auditConfig: normalizedAuditConfig,
     lastAuditRun: normalizeLastAuditRun(input.lastAuditRun),
     trainingPlan: normalizeTrainingPlanPreferences(input.trainingPlan),
+    sessionTypes: normalizeSessionTypePreferences(input.sessionTypes),
   };
 }
 
@@ -643,6 +682,9 @@ export async function initializeUserPreferences(
           }
         : {}),
       trainingPlan: serializeTrainingPlan(mergedPreferences.trainingPlan),
+      sessionTypes: normalizeSessionTypePreferences(
+        mergedPreferences.sessionTypes
+      ),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -746,6 +788,22 @@ export async function saveTrainingPlanPreference(
       trainingPlan: serializeTrainingPlan(normalizedPlan),
       updatedAt: serverTimestamp(),
     },
+    { merge: true }
+  );
+}
+
+export async function saveSessionTypePreferences(
+  uid: string,
+  sessionTypes: SessionTypePreferences
+): Promise<void> {
+  const normalized = normalizeSessionTypePreferences(sessionTypes);
+  currentPreferences = { ...currentPreferences, sessionTypes: normalized };
+  writeCachedPreferences(currentPreferences);
+  notifyPreferencesChanged();
+
+  await setDoc(
+    getPreferencesDocRef(uid),
+    { sessionTypes: normalized, updatedAt: serverTimestamp() },
     { merge: true }
   );
 }

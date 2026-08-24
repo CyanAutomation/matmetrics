@@ -65,12 +65,15 @@ test('dashboard category bars resolve to chart palette token order', () => {
     { category: 'Technical', token: 'chart-1' },
     { category: 'Randori', token: 'chart-2' },
     { category: 'Shiai', token: 'chart-3' },
+    { category: 'Cardio', token: 'chart-4' },
+    { category: 'S&C', token: 'chart-5' },
   ];
   const approvedTokens = new Set<DashboardChartToken>([
     'chart-1',
     'chart-2',
     'chart-3',
     'chart-4',
+    'chart-5',
   ]);
   const resolvedTokens = scenarios.map(({ category, token }) => {
     const resolvedToken = resolveDashboardCategoryChartToken(category);

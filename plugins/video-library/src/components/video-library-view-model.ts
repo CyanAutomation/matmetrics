@@ -1,4 +1,4 @@
-import type { SessionCategory } from '@/lib/types';
+import { SESSION_CATEGORIES, type SessionCategory } from '@/lib/types';
 import type {
   VideoDomainRemovalImpact,
   VideoLibraryRow,
@@ -34,9 +34,7 @@ export type VideoLibrarySortOption =
   | 'provider';
 
 export const SESSION_CATEGORY_OPTIONS: SessionCategory[] = [
-  'Technical',
-  'Randori',
-  'Shiai',
+  ...SESSION_CATEGORIES,
 ];
 
 export const VIDEO_LIBRARY_LOADING_LABEL = 'Checking...';
