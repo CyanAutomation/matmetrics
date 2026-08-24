@@ -268,7 +268,8 @@ export function DashboardOverview({
     );
 
     distributionSessions.forEach((s) => {
-      s.techniques.forEach((t) => {
+      const techniques = Array.isArray(s.techniques) ? s.techniques : [];
+      techniques.forEach((t) => {
         techniqueCount[t] = (techniqueCount[t] || 0) + 1;
       });
       if (enabledCategories.includes(s.category)) {
