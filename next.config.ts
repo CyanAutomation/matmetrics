@@ -1,7 +1,11 @@
 import path from 'path';
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
+  env: {
+    SENTRY_DSN: process.env.SENTRY_DSN,
+  },
   webpack(config) {
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
@@ -47,4 +51,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: 'cyanautomation',
+  project: 'matmetrics',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+});
