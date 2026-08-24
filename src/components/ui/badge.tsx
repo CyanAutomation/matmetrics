@@ -21,6 +21,10 @@ const badgeVariants = cva(
           'bg-[hsl(var(--color-category-randori-container))] text-[hsl(var(--color-on-category-randori-container))] ring-transparent',
         shiai:
           'bg-[hsl(var(--color-category-shiai-container))] text-[hsl(var(--color-on-category-shiai-container))] ring-transparent',
+        cardio:
+          'bg-[hsl(var(--color-category-cardio-container))] text-[hsl(var(--color-on-category-cardio-container))] ring-transparent',
+        strengthConditioning:
+          'bg-[hsl(var(--color-category-strength-conditioning-container))] text-[hsl(var(--color-on-category-strength-conditioning-container))] ring-transparent',
         effortEasy:
           'bg-[hsl(var(--color-surface-container-high))] text-muted-foreground ring-transparent',
         effortLight:

@@ -307,7 +307,7 @@ func validateSession(session model.Session) error {
 		return fmt.Errorf("session effort must be between 1 and 5")
 	}
 	switch session.Category {
-	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai:
+	case model.CategoryTechnical, model.CategoryRandori, model.CategoryShiai, model.CategoryCardio, model.CategoryStrengthConditioning:
 	default:
 		return fmt.Errorf("invalid session category %q", session.Category)
 	}

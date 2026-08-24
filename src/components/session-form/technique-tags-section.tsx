@@ -64,7 +64,7 @@ export function TechniqueTagsSection({
         {techniques.length === 0 && (
           <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">
             <Brain className="h-4 w-4" />
-            Tags will appear here...
+            Technique tags are optional.
           </span>
         )}
         {techniques.map((tech) => (

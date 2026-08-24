@@ -13,6 +13,7 @@ export default {
     'bg-chart-3',
     'bg-chart-4',
     'bg-chart-5',
+    'bg-chart-5',
   ],
   theme: {
     extend: {

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { validateDate } from './date';
 import { validateTechniques } from './techniques';
 import { validateVideoUrl } from './video-url';
+import { SESSION_CATEGORIES } from '../types';
 
 /**
  * Custom Zod refinement that uses existing date validator
@@ -48,7 +49,7 @@ const videoUrlSchema = z
       });
       return;
     }
-    
+
     const result = validateVideoUrl(val);
     if (!result.ok) {
       ctx.addIssue({
@@ -95,7 +96,9 @@ const notesSchema = z
  * Effort level validation with exact error message match
  */
 const effortSchema = z
-  .number({ invalid_type_error: 'Invalid effort level (must be an integer 1-5)' })
+  .number({
+    invalid_type_error: 'Invalid effort level (must be an integer 1-5)',
+  })
   .int({ message: 'Invalid effort level (must be an integer 1-5)' })
   .refine((val) => val >= 1 && val <= 5, {
     message: 'Invalid effort level (must be an integer 1-5)',
@@ -106,7 +109,9 @@ const effortSchema = z
  * Duration validation with exact error message match
  */
 const durationSchema = z
-  .number({ invalid_type_error: 'Invalid duration: expected a non-negative integer' })
+  .number({
+    invalid_type_error: 'Invalid duration: expected a non-negative integer',
+  })
   .int({ message: 'Invalid duration: expected a non-negative integer' })
   .nonnegative({ message: 'Invalid duration: expected a non-negative integer' })
   .optional();
@@ -117,7 +122,7 @@ const durationSchema = z
 export const sessionFieldsSchema = z.object({
   date: dateSchema,
   effort: effortSchema,
-  category: z.enum(['Technical', 'Randori', 'Shiai'], {
+  category: z.enum(SESSION_CATEGORIES, {
     errorMap: () => ({ message: 'Invalid category' }),
   }),
   techniques: techniquesSchema,

@@ -1,11 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  EffortLevel,
-  JudoSession,
-  SessionCategory,
-} from '@/lib/types';
+import { EffortLevel, JudoSession, SessionCategory } from '@/lib/types';
 import { saveSession, updateSession } from '@/lib/storage';
 import { formatLocalDateInputValue } from '@/lib/utils';
 
@@ -125,15 +121,6 @@ export function useFormSubmit(
   const isEditing = !!sessionToEdit;
 
   const validateForm = useCallback((): boolean => {
-    if (formData.techniques.length === 0) {
-      options.showToast({
-        variant: 'destructive',
-        title: 'Incomplete log',
-        description: 'Please add at least one technique tag.',
-      });
-      return false;
-    }
-
     const trimmedVideoUrl = formData.videoUrl.trim();
     if (trimmedVideoUrl) {
       try {
@@ -168,7 +155,8 @@ export function useFormSubmit(
     return {
       id:
         sessionToEdit?.id ||
-        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        (typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
           : typeof crypto !== 'undefined' &&
               typeof crypto.getRandomValues === 'function'
@@ -227,13 +215,7 @@ export function useFormSubmit(
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    isSubmitting,
-    validateForm,
-    buildSessionData,
-    isEditing,
-    options,
-  ]);
+  }, [isSubmitting, validateForm, buildSessionData, isEditing, options]);
 
   return {
     isSubmitting,

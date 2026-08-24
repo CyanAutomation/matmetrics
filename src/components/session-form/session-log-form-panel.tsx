@@ -3,7 +3,7 @@
 import React, { useId, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
-import { JudoSession } from '@/lib/types';
+import { JudoSession, SessionCategory } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
@@ -39,7 +39,7 @@ export function SessionLogForm({
   showAvatar = true,
 }: SessionLogFormProps) {
   const { toast } = useToast();
-  const { canUseAi, authAvailable } = useAuth();
+  const { canUseAi, authAvailable, preferences } = useAuth();
   const uniquePrefix = useId().replace(/[^a-zA-Z0-9]/g, 'id');
   const fid = (suffix: string) => `judo-log-${uniquePrefix}-${suffix}`;
 
@@ -51,6 +51,14 @@ export function SessionLogForm({
 
   // Use custom hooks for form state management
   const formState = useSessionFormState(sessionToEdit);
+  const availableCategories = sessionToEdit
+    ? Array.from(
+        new Set<SessionCategory>([
+          ...preferences.sessionTypes.enabledCategories,
+          sessionToEdit.category,
+        ])
+      )
+    : preferences.sessionTypes.enabledCategories;
   const videoUrlValidationMessage = useVideoUrlValidation(formState.videoUrl);
 
   // Reset AI form and feedback when sessionToEdit changes
@@ -139,6 +147,7 @@ export function SessionLogForm({
             date={formState.date}
             duration={formState.duration}
             category={formState.category}
+            availableCategories={availableCategories}
             effort={formState.effort}
             showAvatar={showAvatar}
             shouldHideHeader={shouldHideHeader}

@@ -444,7 +444,7 @@ Notes.`;
 
   assert.throws(
     () => markdownToSession(markdownWithInvalidCategory),
-    /Invalid "category" in frontmatter: must be one of Technical, Randori, Shiai/
+    /Invalid "category" in frontmatter: must be one of Technical, Randori, Shiai, Cardio, S&C/
   );
 });
 
@@ -526,12 +526,7 @@ Notes.`;
 });
 
 test('videoUrl with public hosts is allowed', () => {
-  const allowedHosts = [
-    'example.com',
-    'www.youtube.com',
-    '8.8.8.8',
-    '1.1.1.1',
-  ];
+  const allowedHosts = ['example.com', 'www.youtube.com', '8.8.8.8', '1.1.1.1'];
 
   for (const host of allowedHosts) {
     const markdown = `---

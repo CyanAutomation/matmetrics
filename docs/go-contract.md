@@ -11,11 +11,10 @@ This document freezes the cross-language contract between the existing TypeScrip
 - `description?: string`
 - `techniques: string[]`
 - `effort: 1 | 2 | 3 | 4 | 5`
-- `category: "Technical" | "Randori" | "Shiai"`
+- `category: "Technical" | "Randori" | "Shiai" | "Cardio" | "S&C"`
 - `notes?: string`
 - `duration?: number` (session duration in minutes)
 - `videoUrl?: string` (optional absolute `http://` or `https://` URL to a session video; empty or whitespace-only values are normalized to omitted)
-
 
 ## Canonical Validation Contract
 
@@ -33,7 +32,7 @@ Validation rules:
 - `effort`
   - Must be integer in range 1..5 or fail with `invalid effort level (must be an integer 1-5)`.
 - `category`
-  - Must be one of `Technical`, `Randori`, `Shiai`; else `invalid category`.
+  - Must be one of `Technical`, `Randori`, `Shiai`, `Cardio`, `S&C`; else `invalid category`.
 - `techniques`
   - Must be array of strings; each item is trimmed and non-empty, with index-specific errors like `invalid techniques[0]: value cannot be empty`.
   - Values are deduplicated after trimming in TS route persistence.

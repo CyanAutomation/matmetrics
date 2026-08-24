@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { JudoSession, EFFORT_LABELS } from '@/lib/types';
+import { JudoSession, EFFORT_LABELS, SESSION_CATEGORIES } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,6 +51,8 @@ const categoryBadgeVariants = {
   Technical: 'technical',
   Randori: 'randori',
   Shiai: 'shiai',
+  Cardio: 'cardio',
+  'S&C': 'strengthConditioning',
 } as const;
 
 const effortBadgeVariants = {
@@ -492,9 +494,11 @@ export function SessionHistory({
             className="h-11 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="all">All session types</option>
-            <option value="Technical">Technical</option>
-            <option value="Randori">Randori</option>
-            <option value="Shiai">Shiai</option>
+            {SESSION_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
           <select
             value={effortFilter}
