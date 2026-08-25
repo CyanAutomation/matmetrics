@@ -8,7 +8,7 @@ function normalizePersistedSession(
 ): JudoSession | null {
   if (
     typeof payload.id !== 'string' ||
-    payload.id.trim() === '' ||
+    payload.id.trim().length === 0 ||
     payload.id.length > MAX_PERSISTED_SESSION_ID_LENGTH
   ) {
     return null;
