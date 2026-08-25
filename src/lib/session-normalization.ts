@@ -1,5 +1,32 @@
-import { validateSessionPayload } from './session-validation';
+import { validateSessionFields } from './session-validation-fields';
 import type { JudoSession } from './types';
+
+const MAX_PERSISTED_SESSION_ID_LENGTH = 100;
+
+function normalizePersistedSession(
+  payload: Record<string, unknown>
+): JudoSession | null {
+  if (
+    typeof payload.id !== 'string' ||
+    payload.id.trim().length === 0 ||
+    payload.id.length > MAX_PERSISTED_SESSION_ID_LENGTH
+  ) {
+    return null;
+  }
+
+  const fieldsResult = validateSessionFields(payload);
+  if (!fieldsResult.ok) {
+    return null;
+  }
+
+  return {
+    id: payload.id,
+    ...fieldsResult.values,
+    ...(typeof payload.revisionSha === 'string' && payload.revisionSha
+      ? { revisionSha: payload.revisionSha }
+      : {}),
+  };
+}
 
 /**
  * Converts persisted or API-supplied session data into the current contract.
@@ -29,9 +56,7 @@ export function normalizeSessionList(value: unknown): JudoSession[] {
       payload.techniques = [];
     }
 
-    const result = validateSessionPayload(payload, {
-      generateIdWhenMissing: false,
-    });
-    return result.ok ? [result.session] : [];
+    const session = normalizePersistedSession(payload);
+    return session ? [session] : [];
   });
 }
