@@ -2,6 +2,7 @@ import { validateSessionFields } from './session-validation-fields';
 import type { JudoSession } from './types';
 
 const MAX_PERSISTED_SESSION_ID_LENGTH = 100;
+const HTML_INJECTION_CHARACTER_PATTERN = /[<>&"']/;
 
 function normalizePersistedSession(
   payload: Record<string, unknown>
@@ -9,7 +10,9 @@ function normalizePersistedSession(
   if (
     typeof payload.id !== 'string' ||
     payload.id.trim().length === 0 ||
-    payload.id.length > MAX_PERSISTED_SESSION_ID_LENGTH
+    payload.id !== payload.id.trim() ||
+    payload.id.length > MAX_PERSISTED_SESSION_ID_LENGTH ||
+    HTML_INJECTION_CHARACTER_PATTERN.test(payload.id)
   ) {
     return null;
   }
