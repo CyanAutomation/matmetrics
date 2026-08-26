@@ -47,18 +47,10 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = 'Chart';
 
-const ChartTooltip = RechartsPrimitive.Tooltip;
-
 export {
   ChartContext,
-  ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
   ChartStyle,
 };
 
-export type {
-  ChartConfig,
-  ChartMarkerShape,
-  ChartStrokeStyle,
-} from './chart-types';
+export type { ChartConfig } from './chart-types';
