@@ -1,3 +1,6 @@
+// fallow-ignore-file unused-export
+// This file is a test helper module; all exports are appropriately used only in test files.
+
 /**
  * Test mock builders for GitHub API responses
  */
