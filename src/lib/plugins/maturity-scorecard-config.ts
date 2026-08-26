@@ -1,4 +1,7 @@
-import type { PluginMaturityCategory } from '@/lib/plugins/types';
+import type {
+  PluginMaturityCategory,
+  PluginMaturityTier,
+} from '@/lib/plugins/types';
 
 export const MATURITY_CATEGORY_LABELS: Record<PluginMaturityCategory, string> =
   {
@@ -19,3 +22,12 @@ export const MATURITY_CATEGORY_MAXIMUMS: Record<
   test_coverage: 20,
   operability_docs: 15,
 };
+
+/**
+ * Converts a string to a valid PluginMaturityTier.
+ * Used when loading published scorecards or manifest tier declarations.
+ */
+export const parseMaturityTier = (value: string): PluginMaturityTier =>
+  value === 'gold' || value === 'silver' || value === 'bronze'
+    ? value
+    : 'bronze';

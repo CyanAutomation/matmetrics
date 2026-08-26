@@ -1,34 +1,19 @@
-import path from 'node:path';
-
 import type {
   PluginManifest,
   PluginMaturityEvidenceSource,
   PluginMaturityScorecard,
   PluginMaturityUxCriterion,
 } from '@/lib/plugins/types';
-import { fileExists, pushUnique } from './scoring';
+import { pushUnique } from './scoring';
 import {
   findFilesAssertingCriterion,
   findFilesAssertingState,
 } from './maturity-ux-evidence';
 import { uxCriterionLabels } from './maturity-ux-patterns';
-
-const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
-  path.relative(repoRoot, filePath).split(path.sep).join('/');
-
-const resolveEvidenceFiles = async (
-  repoRoot: string,
-  relativePaths: string[]
-): Promise<string[]> => {
-  const files: string[] = [];
-  for (const relativePath of relativePaths) {
-    const normalized = relativePath.trim();
-    if (!normalized) continue;
-    const absolutePath = path.join(repoRoot, ...normalized.split('/'));
-    if (await fileExists(absolutePath)) files.push(absolutePath);
-  }
-  return files;
-};
+import {
+  toRepoRelativePath,
+  resolveEvidenceFiles,
+} from './maturity-ux-evidence-locator';
 
 type UxVerificationResult = {
   categoryScoreDelta: number;
