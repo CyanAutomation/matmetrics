@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isGitHubConfigured } from '@/lib/github-storage';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
-import { GitHubConfig } from '@/lib/types';
-import { requireAuthenticatedUser } from '@/lib/server-auth';
-import { parseJsonObjectBody } from '@/lib/request-body';
+import { validateGitHubRoute } from '@/lib/github-route-helpers';
 
 /**
  * POST /api/github/sync-all
@@ -11,54 +8,15 @@ import { parseJsonObjectBody } from '@/lib/request-body';
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuthenticatedUser(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
-    if (!isGitHubConfigured()) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'GITHUB_TOKEN environment variable not configured',
-        },
-        { status: 400 }
-      );
-    }
-
-    const parsedBody = await parseJsonObjectBody(request);
-    if (!parsedBody.ok) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid request body' },
-        { status: 400 }
-      );
-    }
-    const body = parsedBody.value;
-    const config: GitHubConfig = {
-      owner: typeof body.owner === 'string' ? body.owner.trim() : '',
-      repo: typeof body.repo === 'string' ? body.repo.trim() : '',
-      branch: typeof body.branch === 'string' ? body.branch.trim() : undefined,
-    };
-
-    // Validate config
-    if (!config.owner || !config.repo) {
-      return NextResponse.json(
-        { success: false, message: 'Missing owner or repo' },
-        { status: 400 }
-      );
-    }
-
-    if (body.branch !== undefined && !config.branch) {
-      return NextResponse.json(
-        { success: false, message: 'Branch cannot be empty when provided' },
-        { status: 400 }
-      );
+    const validation = await validateGitHubRoute(request, { parseMode: 'strict' });
+    if (!validation.ok) {
+      return validation.response;
     }
 
     return proxyGoFunction(request, {
       path: '/api/go/github/sync-all',
       method: 'POST',
-      body: config,
+      body: validation.config,
     });
   } catch (error) {
     console.error('Error in bulk sync', error);
