@@ -28,12 +28,26 @@ test('preserves persisted sessions with legacy IDs containing reserved character
   ]);
 });
 
-test('excludes persisted sessions with missing, blank, or oversized IDs', () => {
+test('excludes persisted sessions with invalid whitespace or length', () => {
   const sessions = normalizeSessionList([
     { ...validSession, id: undefined, techniques: [] },
     { ...validSession, id: '  ', techniques: [] },
+    { ...validSession, id: ' session-1', techniques: [] },
+    { ...validSession, id: 'session-1 ', techniques: [] },
     { ...validSession, id: 'a'.repeat(101), techniques: [] },
   ]);
+
+  assert.deepEqual(sessions, []);
+});
+
+test('excludes persisted session IDs containing HTML injection characters', () => {
+  const sessions = normalizeSessionList(
+    ['<', '>', '&', '"', "'"].map((character) => ({
+      ...validSession,
+      id: `legacy${character}session`,
+      techniques: [],
+    }))
+  );
 
   assert.deepEqual(sessions, []);
 });
