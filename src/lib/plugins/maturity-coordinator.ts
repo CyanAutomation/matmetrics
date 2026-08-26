@@ -34,6 +34,7 @@ import {
   normalizeMaturityCategoryScores,
   totalMaturityScore,
 } from './maturity-scorecard';
+import { toRepoRelativePath } from './maturity-ux-evidence-locator';
 
 type ScorePluginMaturityOptions = {
   manifest: PluginManifest;
@@ -44,9 +45,6 @@ type ScorePluginMaturityOptions = {
 };
 
 type CategoryAccumulator = Record<PluginMaturityCategory, number>;
-
-const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
-  path.relative(repoRoot, filePath).split(path.sep).join('/');
 
 /** Scores a plugin's maturity across contract, runtime, features, tests, and docs. */
 export const scorePluginMaturity = async ({

@@ -5,7 +5,10 @@ import type {
   PluginMaturityScorecard,
   PluginMaturityTier,
 } from '@/lib/plugins/types';
-import { MATURITY_CATEGORY_LABELS } from './maturity-scorecard-config';
+import {
+  MATURITY_CATEGORY_LABELS,
+  parseMaturityTier,
+} from './maturity-scorecard-config';
 
 type PublishedScorecard = {
   id: string;
@@ -13,11 +16,6 @@ type PublishedScorecard = {
   tier: string;
   declaredTier?: string;
 };
-
-const toTier = (value: string): PluginMaturityTier =>
-  value === 'gold' || value === 'silver' || value === 'bronze'
-    ? value
-    : 'bronze';
 
 /**
  * Returns the build-generated maturity summary used by the interactive plugin
@@ -32,10 +30,10 @@ export const getPublishedPluginMaturity = (
   );
 
   const tier = published
-    ? toTier(published.tier)
+    ? parseMaturityTier(published.tier)
     : (manifest.maturity?.tier ?? 'bronze');
   const declaredTier = published?.declaredTier
-    ? toTier(published.declaredTier)
+    ? parseMaturityTier(published.declaredTier)
     : manifest.maturity?.tier;
   const evidenceFiles = manifest.maturity?.evidence?.testFiles ?? [];
 
