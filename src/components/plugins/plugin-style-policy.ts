@@ -197,7 +197,7 @@ export interface PluginStylePolicyValidationOptions {
 }
 
 const forbiddenRawColorClassPattern =
-  /^(?:[a-z-]+:)*(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo)(?:-\d{2,3})?(?:\/\d{1,3})?$/;
+  /^(?:[a-z-]+:)*(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?$/;
 
 export function validatePluginUiTokenVariants(
   variants: Readonly<Record<string, readonly string[]>>,
