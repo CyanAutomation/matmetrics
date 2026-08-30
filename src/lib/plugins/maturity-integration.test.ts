@@ -5,6 +5,7 @@ import test from 'node:test';
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
 
 import { MATURITY_PRIMITIVES } from '@/lib/plugins/maturity-config';
+import { determineTier } from '@/lib/plugins/scoring/determine-tier';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
 import githubSyncManifest from '../../../plugins/github-sync/plugin.json';
@@ -40,52 +41,6 @@ const scoreFixture = async ({
   });
 };
 
-test('fixture tiers align to documented maturity thresholds', async () => {
-  const warning: PluginValidationIssue = {
-    severity: 'warning',
-    path: 'uiExtensions[0].capabilities',
-    message: 'Synthetic fixture warning: plugin requires undeclared capability.',
-  };
-
-  const cases: Array<{
-    name: string;
-    fixture: PluginFixture;
-    expectedTier: 'bronze' | 'silver' | 'gold';
-    thresholdCheck: (score: number) => void;
-  }> = [
-    {
-      name: 'silver fixture at/above gold cutoff but blocked from gold promotion',
-      fixture: {
-        pluginDirectoryName: 'github-sync',
-        manifest: githubSyncManifest,
-      },
-      expectedTier: 'silver',
-      thresholdCheck: (score) => {
-        assert.ok(score >= MATURITY_THRESHOLDS.goldMin);
-      },
-    },
-    {
-      name: 'bronze fixture despite high score when blocking warning is present',
-      fixture: {
-        pluginDirectoryName: 'prompt-settings',
-        manifest: promptSettingsManifest,
-        extraValidationIssues: [warning],
-      },
-      expectedTier: 'bronze',
-      thresholdCheck: (score) => {
-        assert.ok(score >= MATURITY_THRESHOLDS.goldMin);
-      },
-    },
-  ];
-
-  for (const scenario of cases) {
-    const scorecard = await scoreFixture(scenario.fixture);
-
-    scenario.thresholdCheck(scorecard.score);
-    assert.equal(scorecard.tier, scenario.expectedTier, scenario.name);
-  }
-});
-
 test('github-sync fixture scores as Silver with a concrete Gold next action', async () => {
   const scorecard = await scoreFixture({
     pluginDirectoryName: 'github-sync',
@@ -105,7 +60,8 @@ test('prompt-settings fixture drops to Bronze when capability warnings are prese
   const warning: PluginValidationIssue = {
     severity: 'warning',
     path: 'uiExtensions[0].capabilities',
-    message: 'Synthetic fixture warning: plugin requires undeclared capability.',
+    message:
+      'Synthetic fixture warning: plugin requires undeclared capability.',
   };
 
   const scorecard = await scoreFixture({
@@ -128,42 +84,66 @@ test('prompt-settings fixture drops to Bronze when capability warnings are prese
   );
 });
 
-test('threshold boundary guards: score below cutoffs must not auto-promote tiers', async () => {
-  const bronzeWithWarning = await scoreFixture({
-    pluginDirectoryName: 'prompt-settings',
-    manifest: promptSettingsManifest,
-    extraValidationIssues: [
-      {
-        severity: 'warning',
-        path: 'uiExtensions[0].capabilities',
-        message: 'Synthetic fixture warning: plugin requires undeclared capability.',
-      },
-    ],
-  });
+test('tier determination honors Silver and Gold score boundaries', () => {
+  const categoryScores = {
+    contract_metadata: 20,
+    runtime_integration: 20,
+    feature_quality: 25,
+    test_coverage: 20,
+    operability_docs: 15,
+  };
+  const cases = [
+    {
+      name: 'immediately below Silver',
+      score: MATURITY_THRESHOLDS.silverMin - 1,
+      expectedTier: 'bronze',
+    },
+    {
+      name: 'at Silver',
+      score: MATURITY_THRESHOLDS.silverMin,
+      expectedTier: 'silver',
+    },
+    {
+      name: 'immediately above Silver',
+      score: MATURITY_THRESHOLDS.silverMin + 1,
+      expectedTier: 'silver',
+    },
+    {
+      name: 'immediately below Gold',
+      score: MATURITY_THRESHOLDS.goldMin - 1,
+      expectedTier: 'silver',
+    },
+    {
+      name: 'at Gold',
+      score: MATURITY_THRESHOLDS.goldMin,
+      expectedTier: 'gold',
+    },
+    {
+      name: 'immediately above Gold',
+      score: MATURITY_THRESHOLDS.goldMin + 1,
+      expectedTier: 'gold',
+    },
+  ] as const;
 
-  // Validate that plugins scoring just below thresholds don't get promoted.
-  // The actual scores should be tested against thresholds, not mathematical identities.
-  if (bronzeWithWarning.score < MATURITY_THRESHOLDS.silverMin) {
-    assert.ok(bronzeWithWarning.score < MATURITY_THRESHOLDS.silverMin, 'Score should be below silver threshold');
+  for (const testCase of cases) {
+    const result = determineTier({
+      totalScore: testCase.score,
+      categoryScores,
+      hasValidationErrors: false,
+      hasBlockingWarnings: false,
+      hasAnyTestEvidence: true,
+      hasReadme: true,
+      hasExplicitTestEvidence: true,
+      allRelevantUxCriteriaExplicitlyVerified: true,
+      hasGoldSupportDocs: true,
+      isExplicitGoldReview: true,
+      validationIssues: [],
+      blockingWarnings: [],
+    });
+
+    assert.equal(result.tier, testCase.expectedTier, testCase.name);
   }
-  if (bronzeWithWarning.score < MATURITY_THRESHOLDS.goldMin && bronzeWithWarning.score >= MATURITY_THRESHOLDS.silverMin) {
-    assert.ok(bronzeWithWarning.score < MATURITY_THRESHOLDS.goldMin, 'Score should be below gold threshold');
-  }
-
-  assert.notEqual(bronzeWithWarning.tier, 'silver');
-  assert.notEqual(bronzeWithWarning.tier, 'gold');
-
-  const silverWithoutGoldReview = await scoreFixture({
-    pluginDirectoryName: 'github-sync',
-    manifest: githubSyncManifest,
-  });
-
-  assert.ok(silverWithoutGoldReview.score >= MATURITY_THRESHOLDS.goldMin - 1);
-  assert.equal(silverWithoutGoldReview.tier, 'silver');
-  assert.notEqual(silverWithoutGoldReview.tier, 'gold');
 });
-
-
 
 test('maturity primitive taxonomy classification matches documented groups', () => {
   const primitiveCases: Array<{
@@ -255,11 +235,7 @@ test('maturity primitive taxonomy classification matches documented groups', () 
     const primitiveName = String(testCase.primitiveName);
     const source = MATURITY_PRIMITIVES.getSourceOfPrimitive(primitiveName);
 
-    assert.equal(
-      source,
-      testCase.expectedSource,
-      testCase.name
-    );
+    assert.equal(source, testCase.expectedSource, testCase.name);
     assert.equal(
       MATURITY_PRIMITIVES.isUiState(primitiveName),
       testCase.expectedIsUiState,
@@ -268,7 +244,9 @@ test('maturity primitive taxonomy classification matches documented groups', () 
 
     if ('expectedSourcePrimitives' in testCase) {
       assert.deepEqual(
-        source === null ? null : MATURITY_PRIMITIVES.getPrimitivesBySource(source),
+        source === null
+          ? null
+          : MATURITY_PRIMITIVES.getPrimitivesBySource(source),
         testCase.expectedSourcePrimitives,
         `${testCase.name}: source primitive roundtrip`
       );
@@ -285,7 +263,9 @@ test('maturity primitive taxonomy classification matches documented groups', () 
     'unknown primitive should not be treated as ui state'
   );
   assert.deepEqual(
-    MATURITY_PRIMITIVES.getPrimitivesBySource('@/components/plugins/unknown-source'),
+    MATURITY_PRIMITIVES.getPrimitivesBySource(
+      '@/components/plugins/unknown-source'
+    ),
     null,
     'unknown source path should return null'
   );
