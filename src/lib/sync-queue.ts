@@ -16,6 +16,14 @@ const SYNC_QUEUE_LOCK_KEY_BASE = 'matmetrics_sync_queue_lock';
 const SYNC_QUEUE_LOCK_NAME = 'matmetrics-sync-queue';
 const DEFAULT_SYNC_QUEUE_LEASE_TTL_MS = 5000;
 let syncQueueLeaseTtlMs = DEFAULT_SYNC_QUEUE_LEASE_TTL_MS;
+let getLeaseTime = Date.now;
+let scheduleLeaseRenewal = (
+  callback: () => void,
+  intervalMs: number
+): ReturnType<typeof setInterval> => setInterval(callback, intervalMs);
+let cancelLeaseRenewal = (timer: ReturnType<typeof setInterval>): void => {
+  clearInterval(timer);
+};
 const SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS = 7;
 const SYNC_QUEUE_LOCK_BACKOFF_MIN_MS = 4;
 const SYNC_QUEUE_LOCK_BACKOFF_MAX_MS = 20;
@@ -433,7 +441,7 @@ function ensureActiveStorageLeaseOwnership(): void {
     lease.owner !== activeQueueLease.owner ||
     lease.nonce !== activeQueueLease.nonce ||
     lease.epoch !== activeQueueLease.epoch ||
-    lease.expiresAt <= Date.now()
+    lease.expiresAt <= getLeaseTime()
   ) {
     throw new Error('Storage lease is no longer owned by current tab');
   }
@@ -446,7 +454,7 @@ function renewActiveStorageQueueLease(): void {
     owner: storageLease.owner,
     nonce: storageLease.nonce,
     epoch: storageLease.epoch,
-    expiresAt: Date.now() + syncQueueLeaseTtlMs,
+    expiresAt: getLeaseTime() + syncQueueLeaseTtlMs,
   };
   localStorage.setItem(
     getSyncQueueLockStorageKey(),
@@ -503,7 +511,7 @@ async function acquireQueueWriteLease(): Promise<boolean> {
     attempt < SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS;
     attempt += 1
   ) {
-    const now = Date.now();
+    const now = getLeaseTime();
     const existingLease = readQueueLease();
     if (
       existingLease &&
@@ -525,7 +533,7 @@ async function acquireQueueWriteLease(): Promise<boolean> {
       epoch: Math.max(
         (existingLease?.epoch ?? 0) + 1,
         queueLeaseEpochCounter + 1,
-        Date.now()
+        getLeaseTime()
       ),
     };
     queueLeaseEpochCounter = nextLease.epoch;
@@ -564,26 +572,31 @@ async function acquireQueueWriteLease(): Promise<boolean> {
   return false;
 }
 
-async function withQueueWriteLease(action: () => void | Promise<void>): Promise<void> {
+async function withQueueWriteLease(
+  action: () => void | Promise<void>
+): Promise<void> {
   const acquired = await acquireQueueWriteLease();
   if (!acquired) {
     throw new Error('Failed to acquire sync queue write lease');
   }
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   if (activeQueueLease?.mode === 'storage') {
-    heartbeatTimer = setInterval(() => {
-      try {
-        renewActiveStorageQueueLease();
-      } catch {
-        // Action path will fail on next lease verification before commit.
-      }
-    }, Math.max(25, Math.floor(syncQueueLeaseTtlMs / 3)));
+    heartbeatTimer = scheduleLeaseRenewal(
+      () => {
+        try {
+          renewActiveStorageQueueLease();
+        } catch {
+          // Action path will fail on next lease verification before commit.
+        }
+      },
+      Math.max(25, Math.floor(syncQueueLeaseTtlMs / 3))
+    );
   }
   try {
     await action();
   } finally {
     if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
+      cancelLeaseRenewal(heartbeatTimer);
     }
     releaseQueueLease();
   }
@@ -692,11 +705,43 @@ function writeQueueWithLatestMerge(
 export const __testInternals = {
   withQueueWriteLease,
   readQueueLease,
+  writeQueueWithLatestMerge,
+  acquireCompetingStorageLease(owner: string): QueueWriteLease {
+    const existingLease = readQueueLease();
+    const now = getLeaseTime();
+    if (existingLease && existingLease.expiresAt > now) {
+      throw new Error('Storage lease is still active');
+    }
+    const lease: QueueWriteLease = {
+      owner,
+      nonce: createQueueLeaseNonce(),
+      epoch: Math.max(
+        (existingLease?.epoch ?? 0) + 1,
+        queueLeaseEpochCounter + 1,
+        now
+      ),
+      expiresAt: now + syncQueueLeaseTtlMs,
+    };
+    queueLeaseEpochCounter = lease.epoch;
+    localStorage.setItem(getSyncQueueLockStorageKey(), JSON.stringify(lease));
+    return lease;
+  },
+  setLeaseClockForTests(now: () => number): void {
+    getLeaseTime = now;
+  },
+  disableLeaseRenewalForTests(): void {
+    scheduleLeaseRenewal = () => 0 as ReturnType<typeof setInterval>;
+    cancelLeaseRenewal = () => {};
+  },
   setLeaseTtlForTests(ttlMs: number): void {
     syncQueueLeaseTtlMs = ttlMs;
   },
   resetLeaseTtlForTests(): void {
     syncQueueLeaseTtlMs = DEFAULT_SYNC_QUEUE_LEASE_TTL_MS;
+    getLeaseTime = Date.now;
+    scheduleLeaseRenewal = (callback, intervalMs) =>
+      setInterval(callback, intervalMs);
+    cancelLeaseRenewal = (timer) => clearInterval(timer);
   },
 };
 
