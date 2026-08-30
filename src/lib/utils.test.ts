@@ -22,7 +22,7 @@ test('date-only helpers preserve calendar semantics without timezone drift', () 
   assert.equal(isSameMonthAndYear('2025-02-01', reference), false);
 });
 
-test('formatLocalDateInputValue uses local calendar components', () => {
+test('formatLocalDateInputValue uses local components and zero-pads values', () => {
   const cases = [
     { date: new Date(2025, 0, 2, 23, 59, 59), expected: '2025-01-02' },
     { date: new Date(2025, 2, 4, 12, 0, 0), expected: '2025-03-04' },
