@@ -25,7 +25,7 @@ test('date-only helpers preserve calendar semantics without timezone drift', () 
 test('formatLocalDateInputValue uses local calendar components', () => {
   const cases = [
     { date: new Date(2025, 0, 2, 23, 59, 59), expected: '2025-01-02' },
-    { date: new Date(2025, 10, 12, 12, 0, 0), expected: '2025-11-12' },
+    { date: new Date(2025, 2, 4, 12, 0, 0), expected: '2025-03-04' },
   ];
 
   cases.forEach(({ date, expected }) => {
