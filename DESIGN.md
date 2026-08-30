@@ -10,15 +10,17 @@ We break the "standard app" mold by using **Intentional Asymmetry** and **Tonal 
 
 The product palette is rooted in "MatMetrics Blue" for decisive training actions and data emphasis in both themes. Ressa's warm orange is reserved for illustration and brand storytelling, rather than routine analytics. Both themes share the "Clean Mat" (`surface: #f7fafc` in light, dark blue-grey surface in dark mode). We move beyond flat UI by treating the screen as a physical space with varying elevations.
 
-### Canonical Token Guidance (Source of Truth)
+<!-- BEGIN GENERATED DESIGN TOKENS -->
 
-Use the following token tables as the canonical source for implementation. Product surfaces, charts, badges, and controls should reference token names only (never hardcoded hex values in component code).
+### Canonical Token Guidance
+
+This section is generated from `src/lib/design-tokens.ts`, the sole machine-readable source of canonical token keys. Do not edit the generated tables directly; run `npm run docs:design-tokens` after changing the source.
 
 #### Primary Tokens
 
 Core brand and emphasis colors for highest-priority actions and primary data.
 
-| Token                  | Hex                                 | Intended Usage                                                                                                           |
+| Token                  | Value                               | Intended usage                                                                                                           |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `primary`              | `#006bab` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series, high-emphasis links. MatMetrics Blue is the primary product signal.        |
 | `primary-container`    | `#0075c2` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion for primary CTAs                                                           |
@@ -31,7 +33,7 @@ Core brand and emphasis colors for highest-priority actions and primary data.
 
 Supporting accent colors for secondary actions and chart series.
 
-| Token                    | Hex       | Intended Usage                                   |
+| Token                    | Value     | Intended usage                                   |
 | ------------------------ | --------- | ------------------------------------------------ |
 | `secondary`              | `#515f78` | Secondary actions, supporting data series        |
 | `tertiary`               | `#67587a` | Tertiary chart series and alternate data accents |
@@ -43,7 +45,7 @@ Supporting accent colors for secondary actions and chart series.
 
 Session type is a stable semantic meaning, not a chart-position colour. Use these tokens for the category dot, badge, progress indicator, filter result, and chart series everywhere in the product. Always pair the colour with the category label or icon.
 
-| Token                                         | Light / dark         | Intended usage                                    |
+| Token                                         | Value                | Intended usage                                    |
 | --------------------------------------------- | -------------------- | ------------------------------------------------- |
 | `category-technical`                          | blue / blue          | Technical sessions and their associated data      |
 | `category-technical-container`                | tonal blue surface   | Technical badges and low-emphasis content         |
@@ -65,7 +67,7 @@ Session type is a stable semantic meaning, not a chart-position colour. Use thes
 
 Layered background colors for creating depth and visual hierarchy.
 
-| Token                      | Hex                                 | Intended Usage                                              |
+| Token                      | Value                               | Intended usage                                              |
 | -------------------------- | ----------------------------------- | ----------------------------------------------------------- |
 | `surface`                  | `#f7fafc`                           | App canvas/base background                                  |
 | `surface-container-low`    | `#f1f4f6`                           | Section grouping backgrounds                                |
@@ -79,7 +81,7 @@ Layered background colors for creating depth and visual hierarchy.
 
 Colors for typography and focus indicators.
 
-| Token                | Hex       | Intended Usage                                       |
+| Token                | Value     | Intended usage                                       |
 | -------------------- | --------- | ---------------------------------------------------- |
 | `on-surface`         | `#181c1e` | Primary body text/icons                              |
 | `on-surface-variant` | `#43474a` | Secondary text, helper metadata                      |
@@ -92,7 +94,7 @@ Colors for communicating status, outcomes, and important information.
 
 ##### Success
 
-| Token                  | Hex       | Intended Usage                        |
+| Token                  | Value     | Intended usage                        |
 | ---------------------- | --------- | ------------------------------------- |
 | `success`              | `#0f7a43` | Positive outcomes, successful states  |
 | `success-container`    | `#d7f3e3` | Success banners, positive badge fills |
@@ -101,7 +103,7 @@ Colors for communicating status, outcomes, and important information.
 
 ##### Warning
 
-| Token                  | Hex       | Intended Usage                            |
+| Token                  | Value     | Intended usage                            |
 | ---------------------- | --------- | ----------------------------------------- |
 | `warning`              | `#b26a00` | Cautionary messages, anomaly callouts     |
 | `warning-container`    | `#ffe7c2` | Warning badges, caution background panels |
@@ -110,20 +112,20 @@ Colors for communicating status, outcomes, and important information.
 
 ##### Error
 
-| Token                | Hex       | Intended Usage                                      |
+| Token                | Value     | Intended usage                                      |
 | -------------------- | --------- | --------------------------------------------------- |
 | `error`              | `#c62828` | Error states, critical regressions                  |
 | `error-container`    | `#ffd9d6` | Error banners, destructive confirmation backgrounds |
-| `on-error`           | `#ffffff` | Text/icons on `error`                               |
+| `on-error`           | `#ffffff` | Text/icons on error                                 |
 | `on-error-container` | `#5f1313` | Text/icons on `error-container`                     |
 
 ##### Info
 
-| Token               | Hex       | Intended Usage                                  |
+| Token               | Value     | Intended usage                                  |
 | ------------------- | --------- | ----------------------------------------------- |
 | `info`              | `#00639b` | Informational notices, neutral status messaging |
 | `info-container`    | `#cde5ff` | Info callouts, non-critical status cards        |
-| `on-info`           | `#ffffff` | Text/icons on `info`                            |
+| `on-info`           | `#ffffff` | Text/icons on info                              |
 | `on-info-container` | `#0d3b66` | Text/icons on `info-container`                  |
 
 #### Interactive State Tokens
@@ -132,7 +134,7 @@ Colors for communicating button and control states during interaction.
 
 ##### Primary Control States
 
-| Token              | Hex                                 | Intended Usage                   |
+| Token              | Value                               | Intended usage                   |
 | ------------------ | ----------------------------------- | -------------------------------- |
 | `primary-hover`    | `#D64C04` (light), `#004f94` (dark) | Hover state for primary controls |
 | `primary-pressed`  | `#C43D00` (light), `#00437d` (dark) | Pressed/active state for primary |
@@ -141,7 +143,7 @@ Colors for communicating button and control states during interaction.
 
 ##### Secondary Control States
 
-| Token                | Hex       | Intended Usage                     |
+| Token                | Value     | Intended usage                     |
 | -------------------- | --------- | ---------------------------------- |
 | `secondary-hover`    | `#47556c` | Hover state for secondary controls |
 | `secondary-pressed`  | `#3d495d` | Pressed/active state for secondary |
@@ -152,7 +154,7 @@ Colors for communicating button and control states during interaction.
 
 Colors for communicating positive, negative, and neutral trends in data visualization.
 
-| Token                         | Hex       | Intended Usage                           |
+| Token                         | Value     | Intended usage                           |
 | ----------------------------- | --------- | ---------------------------------------- |
 | `trend-positive`              | `#0f7a43` | Positive chart deltas, uptrend badges    |
 | `trend-positive-container`    | `#d7f3e3` | Positive trend chip backgrounds          |
@@ -166,17 +168,7 @@ Colors for communicating positive, negative, and neutral trends in data visualiz
 
 ### Token Naming Convention
 
-All semantic tokens use **kebab-case**.
-
-Examples:
-
-- `primary-container`
-- `surface-container-lowest`
-- `on-surface-variant`
-- `trend-positive-container`
-- `outline-variant`
-
-Rule: use lowercase letters and hyphen separators only. Do not introduce `snake_case`, `PascalCase`, or mixed-separator aliases in new token definitions.
+Canonical token keys use lowercase letters and hyphen separators only (kebab-case).
 
 ### Token Migration Mapping (Old -> Canonical)
 
@@ -201,6 +193,8 @@ Use this mapping during migration for frontend and Go/CLI consumers so token loo
 | `surface_tint`             | `surface-tint`             |
 | `primary_fixed`            | `primary-fixed`            |
 | `on_primary_fixed`         | `on-primary-fixed`         |
+
+<!-- END GENERATED DESIGN TOKENS -->
 
 **Migration note:** Components must consume semantic token names from the shared token map/theme layer (e.g., CSS variables or design-token exports) instead of inline raw hex values. This applies to existing button variants, chart series, badges, and any newly introduced states.
 
