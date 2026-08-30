@@ -407,7 +407,7 @@ test('POST checks links with bounded concurrency', async () => {
             expectedConcurrency + index + 1
           );
           await waitForFetchCount(expectedStarted);
-          assert.equal(pendingFetches.length, expectedStarted);
+          assert.equal(pendingFetches.length, expectedStarted - expectedConcurrency);
         }
 
         const response = await responsePromise;
