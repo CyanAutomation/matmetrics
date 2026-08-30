@@ -16,6 +16,8 @@ export type PluginUiMigrationRow = {
   score: number;
   maxScore: number;
   missing: PrimitiveKey[];
+  status: 'migrated' | 'partially-migrated' | 'malformed' | 'absent-entrypoint';
+  diagnostics: string[];
 };
 
 const pluginComponentImportPattern =
@@ -74,7 +76,7 @@ const normalizeImportedName = (value: string): string =>
 const getUiEntrypoints = async (
   pluginEntryPath: string,
   repoRoot: string
-): Promise<string[]> => {
+): Promise<{ files: string[]; diagnostics: string[] }> => {
   const entryContents = await readFile(pluginEntryPath, 'utf8');
   const importMap = new Map<string, string>();
 
@@ -102,6 +104,7 @@ const getUiEntrypoints = async (
   }
 
   const resolvedUiFiles = new Set<string>([pluginEntryPath]);
+  const diagnostics: string[] = [];
 
   for (const match of entryContents.matchAll(createElementPattern)) {
     const componentName = match[1];
@@ -121,10 +124,14 @@ const getUiEntrypoints = async (
     );
     if (resolved) {
       resolvedUiFiles.add(resolved);
+    } else {
+      diagnostics.push(
+        `UI component "${componentName}" import "${importSource}" could not be resolved.`
+      );
     }
   }
 
-  return [...resolvedUiFiles];
+  return { files: [...resolvedUiFiles], diagnostics };
 };
 
 const sourceHasSharedShell = (contents: string): boolean =>
@@ -158,61 +165,75 @@ export const scanPluginUiMigration = async (
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
-  const rows = (
-    await Promise.all(
-      pluginDirs.map(async (pluginId) => {
-        const entrypoint = path.join(pluginsRoot, pluginId, 'src', 'index.ts');
-        let uiEntrypoints: string[];
-        try {
-          uiEntrypoints = await getUiEntrypoints(entrypoint, repoRoot);
-        } catch (error) {
-          console.warn(
-            `Skipping plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`
-          );
-          return null;
-        }
-        const checks = defaultChecks();
-
-        for (const uiFile of uiEntrypoints) {
-          let contents: string;
-          try {
-            contents = await readFile(uiFile, 'utf8');
-          } catch (error) {
-            console.warn(
-              `Skipping UI entrypoint "${relativePath(repoRoot, uiFile)}" for plugin "${pluginId}": ${
-                error instanceof Error ? error.message : String(error)
-              }`
-            );
-            continue;
-          }
-          checks.sharedShell ||= sourceHasSharedShell(contents);
-          checks.sharedState ||= sourceHasSharedState(contents);
-          checks.sharedDestructiveConfirmation ||=
-            sourceHasSharedDestructiveConfirmation(contents);
-        }
-
-        const maxScore = 3;
-        const score = scoreChecks(checks);
-        const missing = (
-          Object.entries(checks) as Array<[PrimitiveKey, boolean]>
-        )
-          .filter(([, met]) => !met)
-          .map(([key]) => key);
-
+  const rows = await Promise.all(
+    pluginDirs.map(async (pluginId) => {
+      const entrypoint = path.join(pluginsRoot, pluginId, 'src', 'index.ts');
+      let uiEntrypoints: string[];
+      let diagnostics: string[];
+      try {
+        const result = await getUiEntrypoints(entrypoint, repoRoot);
+        uiEntrypoints = result.files;
+        diagnostics = result.diagnostics;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         return {
           id: pluginId,
           entrypoint: relativePath(repoRoot, entrypoint),
-          uiEntrypoints: uiEntrypoints.map((filePath) =>
-            relativePath(repoRoot, filePath)
-          ),
-          checks,
-          score,
-          maxScore,
-          missing,
+          uiEntrypoints: [],
+          checks: defaultChecks(),
+          score: 0,
+          maxScore: 3,
+          missing: Object.keys(defaultChecks()) as PrimitiveKey[],
+          status: 'absent-entrypoint',
+          diagnostics: [`Plugin entrypoint could not be read: ${message}`],
         } satisfies PluginUiMigrationRow;
-      })
-    )
-  ).filter((row): row is PluginUiMigrationRow => row !== null);
+      }
+      const checks = defaultChecks();
+
+      for (const uiFile of uiEntrypoints) {
+        let contents: string;
+        try {
+          contents = await readFile(uiFile, 'utf8');
+        } catch (error) {
+          diagnostics.push(
+            `UI entrypoint "${relativePath(repoRoot, uiFile)}" could not be read: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+          continue;
+        }
+        checks.sharedShell ||= sourceHasSharedShell(contents);
+        checks.sharedState ||= sourceHasSharedState(contents);
+        checks.sharedDestructiveConfirmation ||=
+          sourceHasSharedDestructiveConfirmation(contents);
+      }
+
+      const maxScore = 3;
+      const score = scoreChecks(checks);
+      const missing = (Object.entries(checks) as Array<[PrimitiveKey, boolean]>)
+        .filter(([, met]) => !met)
+        .map(([key]) => key);
+
+      return {
+        id: pluginId,
+        entrypoint: relativePath(repoRoot, entrypoint),
+        uiEntrypoints: uiEntrypoints.map((filePath) =>
+          relativePath(repoRoot, filePath)
+        ),
+        checks,
+        score,
+        maxScore,
+        missing,
+        status:
+          diagnostics.length > 0
+            ? 'malformed'
+            : score === maxScore
+              ? 'migrated'
+              : 'partially-migrated',
+        diagnostics,
+      } satisfies PluginUiMigrationRow;
+    })
+  );
 
   return rows;
 };

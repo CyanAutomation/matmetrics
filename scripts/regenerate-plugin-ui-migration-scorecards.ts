@@ -52,6 +52,8 @@ const buildArtifact = async (): Promise<PluginUiMigrationArtifact> => {
       maxScore: plugin.maxScore,
       checks: plugin.checks,
       missing: plugin.missing,
+      status: plugin.status,
+      diagnostics: plugin.diagnostics,
     }))
   );
 
