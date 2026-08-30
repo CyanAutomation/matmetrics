@@ -96,7 +96,7 @@ if (start === -1) {
   documentSuffix = currentDocument.slice(end + END_MARKER.length);
 }
 
-format(generatedSection, { parser: 'markdown' })
+void format(generatedSection, { parser: 'markdown' })
   .then((formattedGeneratedSection) => {
     const updatedDocument = `${documentPrefix}${formattedGeneratedSection.trimEnd()}${documentSuffix}`;
     if (process.argv.includes('--check')) {
