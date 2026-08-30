@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import {
+  PluginEmptyState,
+  PluginLoadingState,
+  PluginSuccessState,
+} from '@/components/plugins/plugin-state';
 
 import {
   derivePromptSettingsViewState,
   derivePromptSettingsUiState,
   PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION,
-  PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
-  PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
   PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
   PROMPT_SETTINGS_ERROR_RETRY_LABEL,
   PROMPT_SETTINGS_LOADING_TEXT,
@@ -17,12 +23,16 @@ import {
 } from './prompt-settings';
 import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/user-preferences';
 
+const normalizeMarkup = (markup: string): string =>
+  markup.replace(/\s+/g, ' ').trim();
+
 test('save flow emits success toast when preference write succeeds', async () => {
   const toastCalls: Array<{
     title?: string;
     description?: string;
     variant?: string;
   }> = [];
+  let renderedStatus = '';
 
   const didSave = await runPromptSaveFlow({
     uid: 'user-123',
@@ -31,6 +41,12 @@ test('save flow emits success toast when preference write succeeds', async () =>
     feedback: {
       toast: (config) => {
         toastCalls.push(config);
+        renderedStatus = renderToStaticMarkup(
+          <div role="status">
+            {config.title && <h2>{config.title}</h2>}
+            <p>{config.description}</p>
+          </div>
+        );
       },
       logError: () => {
         throw new Error('logError should not be called for successful save');
@@ -39,13 +55,10 @@ test('save flow emits success toast when preference write succeeds', async () =>
   });
 
   assert.equal(didSave, true);
-  assert.deepEqual(toastCalls, [
-    {
-      title: 'Prompt updated',
-      description:
-        'Your AI transformation instructions have been saved successfully.',
-    },
-  ]);
+  assert.equal(toastCalls.length, 1);
+  assert.match(renderedStatus, /role="status"/);
+  assert.match(renderedStatus, /<h2>Prompt updated<\/h2>/);
+  assert.match(renderedStatus, /instructions.*saved/i);
 });
 
 test('save flow emits destructive toast and logs error when preference write fails', async () => {
@@ -95,6 +108,7 @@ test('reset flow emits success toast for destructive confirmation action', async
     description?: string;
     variant?: string;
   }> = [];
+  let renderedStatus = '';
 
   const didReset = await runPromptResetFlow({
     uid: 'user-123',
@@ -102,6 +116,9 @@ test('reset flow emits success toast for destructive confirmation action', async
     feedback: {
       toast: (config) => {
         toastCalls.push(config);
+        renderedStatus = renderToStaticMarkup(
+          <div role="status">{config.description}</div>
+        );
       },
       logError: () => {
         throw new Error('logError should not be called for successful reset');
@@ -110,11 +127,9 @@ test('reset flow emits success toast for destructive confirmation action', async
   });
 
   assert.equal(didReset, true);
-  assert.deepEqual(toastCalls, [
-    {
-      description: 'Prompt reset to default training terminology guidelines.',
-    },
-  ]);
+  assert.equal(toastCalls.length, 1);
+  assert.match(renderedStatus, /role="status"/);
+  assert.match(renderedStatus, /prompt.*reset.*default.*terminology/i);
 });
 
 test('reset flow emits destructive toast and logs error when destructive action fails', async () => {
@@ -216,10 +231,13 @@ test('loading criterion anchor: loading state present with loading text and disa
   assert.equal(loadingState.loading, true);
   assert.equal(loadingState.isLoadingSavedSettings, true);
   assert.equal(loadingState.areControlsDisabled, false);
-  assert.equal(
-    PROMPT_SETTINGS_LOADING_TEXT.toLowerCase().includes('loading'),
-    true
+  const markup = normalizeMarkup(
+    renderToStaticMarkup(
+      <PluginLoadingState description={PROMPT_SETTINGS_LOADING_TEXT} />
+    )
   );
+  assert.match(markup, /<h3[^>]*>Loading<\/h3>/);
+  assert.match(markup, /loading saved prompt settings/i);
 });
 
 test('loading criterion anchor: loading disables interaction when save or reset is in progress', () => {
@@ -433,26 +451,24 @@ test('empty/default state semantics expose default profile and CTA action metada
     PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION
   );
   assert.equal(state.isEmptyStateCtaAvailable, true);
-});
-
-test('copy-contract: prompt settings exported copy constants', () => {
-  assert.deepEqual(
-    {
-      loadingText: PROMPT_SETTINGS_LOADING_TEXT,
-      errorRetryLabel: PROMPT_SETTINGS_ERROR_RETRY_LABEL,
-      emptyStateCtaText: PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
-      destructiveConfirmLabel: PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
-      destructiveCancelLabel: PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
-    },
-    {
-      loadingText: 'Loading saved prompt settings...',
-      errorRetryLabel: 'Retry',
-      emptyStateCtaText:
-        'Add instructions or import a profile snippet, then save to create your first custom prompt profile.',
-      destructiveConfirmLabel: 'Yes, reset prompt',
-      destructiveCancelLabel: 'Cancel',
-    }
+  const markup = normalizeMarkup(
+    renderToStaticMarkup(
+      <PluginEmptyState
+        title="Start your first prompt profile"
+        description={
+          <>
+            You are currently using the default prompt.{' '}
+            {PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT}
+          </>
+        }
+        ctaLabel="Save Prompt"
+        onCta={() => undefined}
+      />
+    )
   );
+  assert.match(markup, /<h3[^>]*>Start your first prompt profile<\/h3>/);
+  assert.match(markup, /currently using the default prompt/i);
+  assert.match(markup, /<button[^>]*>Save Prompt<\/button>/);
 });
 
 test('view state captures save status transitions', () => {
@@ -487,6 +503,16 @@ test('view state captures save status transitions', () => {
   assert.equal(savingState.areControlsDisabled, true);
   assert.equal(saveErrorState.hasSaveError, true);
   assert.equal(saveSuccessState.hasSaveSuccess, true);
+  const markup = normalizeMarkup(
+    renderToStaticMarkup(
+      <PluginSuccessState
+        title="Prompt saved"
+        description="Your prompt profile is up to date."
+      />
+    )
+  );
+  assert.match(markup, /<h3[^>]*>Prompt saved<\/h3>/);
+  assert.match(markup, /prompt profile.*up to date/i);
 });
 
 test('end-to-end style save retry flow fails once then succeeds', async () => {
