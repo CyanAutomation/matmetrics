@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-24T21:11:08.541Z",
+  "generatedAt": "2026-08-30T14:26:46.625Z",
   "generator": "scripts/regenerate-plugin-ui-migration-scorecards.ts",
   "sourceEntrypoint": "plugins/*/src/index.ts",
-  "cacheKey": "0f202f3b07eb23151d17a8a57d08a04f6e826ce941c458d439f7b1ac52be87a9",
+  "cacheKey": "43185df8d031642b0fbfa040ccf1da6c3534037d45bd6e7275cbe0dbca8ea400",
   "plugins": [
     {
       "id": "github-sync",
@@ -18,7 +18,13 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ],
+      "status": "partially-migrated",
+      "diagnostics": []
     },
     {
       "id": "log-doctor",
@@ -34,7 +40,13 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ],
+      "status": "partially-migrated",
+      "diagnostics": []
     },
     {
       "id": "prompt-settings",
@@ -50,7 +62,9 @@
       },
       "score": 3,
       "maxScore": 3,
-      "missing": []
+      "missing": [],
+      "status": "migrated",
+      "diagnostics": []
     },
     {
       "id": "session-types",
@@ -66,7 +80,9 @@
       },
       "score": 3,
       "maxScore": 3,
-      "missing": []
+      "missing": [],
+      "status": "migrated",
+      "diagnostics": []
     },
     {
       "id": "tag-manager",
@@ -82,7 +98,13 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ],
+      "status": "partially-migrated",
+      "diagnostics": []
     },
     {
       "id": "video-library",
@@ -98,7 +120,13 @@
       },
       "score": 0,
       "maxScore": 3,
-      "missing": ["sharedShell", "sharedState", "sharedDestructiveConfirmation"]
+      "missing": [
+        "sharedShell",
+        "sharedState",
+        "sharedDestructiveConfirmation"
+      ],
+      "status": "partially-migrated",
+      "diagnostics": []
     }
   ]
 }
