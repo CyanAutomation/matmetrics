@@ -21,14 +21,14 @@ test('session-types is discovered and mapped to a dashboard tab', async () => {
   const pluginsRoot = await mkdtemp(
     path.join(os.tmpdir(), 'matmetrics-session-types-')
   );
+  test.after(() => rm(pluginsRoot, { recursive: true, force: true }));
+
   const pluginRoot = path.join(pluginsRoot, sessionTypesManifest.id);
   await mkdir(pluginRoot);
   await writeFile(
     path.join(pluginRoot, 'plugin.json'),
     JSON.stringify(sessionTypesManifest)
   );
-
-  test.after(() => rm(pluginsRoot, { recursive: true, force: true }));
 
   const extensions = await discoverEnabledDashboardTabExtensions({
     pluginsRoot,
