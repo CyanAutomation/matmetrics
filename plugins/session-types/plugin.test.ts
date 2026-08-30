@@ -34,6 +34,7 @@ test('session-types is discovered and mapped to a dashboard tab', async () => {
     pluginsRoot,
     enabledOverrides: {},
   });
+  assert.ok(sessionTypesManifest.uiExtensions?.length, 'manifest must have uiExtensions');
   const manifestExtension = sessionTypesManifest.uiExtensions[0];
 
   assert.equal(extensions.length, 1);
