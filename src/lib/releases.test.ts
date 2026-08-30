@@ -5,6 +5,7 @@ import {
   assertReleaseVersionConsistency,
   getRecentReleasesFromSource,
   parseChangelog,
+  validateReleaseVersionConsistency,
 } from '@/lib/releases';
 
 const CHANGELOG_FIXTURE = `# Changelog
@@ -72,7 +73,8 @@ test('getRecentReleasesFromSource returns the latest three releases', () => {
 });
 
 test('parseChangelog supports release-please and manual headings together', () => {
-  const releases = parseChangelog(`## [1.2.1](https://github.com/CyanAutomation/matmetrics/compare/v1.2.0...v1.2.1) (2026-08-16)
+  const releases =
+    parseChangelog(`## [1.2.1](https://github.com/CyanAutomation/matmetrics/compare/v1.2.0...v1.2.1) (2026-08-16)
 
 ### Bug Fixes
 - Corrected a session sync failure
@@ -125,5 +127,80 @@ test('assertReleaseVersionConsistency rejects mismatched versions', () => {
   assert.throws(
     () => assertReleaseVersionConsistency(releases, '1.2.1'),
     /does not match app version/
+  );
+});
+
+test('validateReleaseVersionConsistency reports a mismatched package version', () => {
+  const releases = parseChangelog(CHANGELOG_FIXTURE);
+
+  assert.deepEqual(
+    validateReleaseVersionConsistency({
+      applicationVersion: '1.2.0',
+      packageVersion: '1.2.1',
+      releases,
+    }),
+    [
+      {
+        source: 'package.json',
+        expectedVersion: '1.2.0',
+        actualVersion: '1.2.1',
+      },
+    ]
+  );
+});
+
+test('validateReleaseVersionConsistency reports a mismatched application version', () => {
+  const releases = parseChangelog(CHANGELOG_FIXTURE);
+
+  assert.deepEqual(
+    validateReleaseVersionConsistency({
+      applicationVersion: '1.2.1',
+      packageVersion: '1.2.0',
+      releases,
+    }),
+    [
+      {
+        source: 'package.json',
+        expectedVersion: '1.2.1',
+        actualVersion: '1.2.0',
+      },
+      {
+        source: 'CHANGELOG.md',
+        expectedVersion: '1.2.1',
+        actualVersion: '1.2.0',
+      },
+    ]
+  );
+});
+
+test('validateReleaseVersionConsistency reports a mismatched changelog version', () => {
+  const releases = parseChangelog(CHANGELOG_FIXTURE);
+
+  assert.deepEqual(
+    validateReleaseVersionConsistency({
+      applicationVersion: '1.2.1',
+      packageVersion: '1.2.1',
+      releases,
+    }),
+    [
+      {
+        source: 'CHANGELOG.md',
+        expectedVersion: '1.2.1',
+        actualVersion: '1.2.0',
+      },
+    ]
+  );
+});
+
+test('validateReleaseVersionConsistency resolves the latest release by version', () => {
+  const releases = parseChangelog(CHANGELOG_FIXTURE);
+
+  assert.deepEqual(
+    validateReleaseVersionConsistency({
+      applicationVersion: '1.2.0',
+      packageVersion: '1.2.0',
+      releases: releases.toReversed(),
+    }),
+    []
   );
 });
