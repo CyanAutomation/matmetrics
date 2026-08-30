@@ -19,9 +19,10 @@
     "test:all": "npm run validate:plugin-ui-contract && node scripts/check-tsx-availability.cjs && NODE_ENV=test node --experimental-test-module-mocks --import tsx --test $(find plugins src -name '*.test.ts' ! -path 'src/lib/storage.test.ts') && NODE_ENV=test node --experimental-test-module-mocks --import tsx src/lib/storage.test.ts",
     "go:build": "GOCACHE=/tmp/matmetrics-go-cache go build ./go/cmd/matmetrics-cli",
     "go:test": "GOCACHE=/tmp/matmetrics-go-cache go test ./internal/... ./go/... ./api/go/...",
-    "verify": "npm run test:all && npm run typecheck && npm run build && npm run go:test",
+    "verify": "npm run test:all && npm run plugin:maturity:check && npm run typecheck && npm run build && npm run go:test",
     "ci:contracts": "npm run validate:plugin-ui-contract && node --experimental-test-module-mocks --import tsx --test plugins/plugin-ui-contract-usage.test.ts plugins/plugin-ui-contract-composition-fixtures.test.ts src/lib/plugins/plugin-contract-gate.test.ts",
     "plugin:maturity:regenerate": "node --import tsx scripts/regenerate-plugin-maturity-scorecards.ts",
+    "plugin:maturity:check": "node --import tsx scripts/regenerate-plugin-maturity-scorecards.ts --check",
     "plugin:ui-migration:regenerate": "node --import tsx scripts/regenerate-plugin-ui-migration-scorecards.ts",
     "validate:plugin-ui-contract": "node scripts/check-tsx-availability.cjs && node --import tsx scripts/validate-plugin-ui-contract.ts",
     "validate:theme-contrast": "node scripts/check-theme-contrast.mjs"

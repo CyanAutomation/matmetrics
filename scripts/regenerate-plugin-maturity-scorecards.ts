@@ -1,5 +1,6 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
 import type { PluginManifest } from '@/lib/plugins/types';
@@ -28,7 +29,7 @@ type ScoreArtifactRow = {
   manifestEvidenceHash: string;
 };
 
-type ScoreArtifact = {
+export type ScoreArtifact = {
   generatedAt: string;
   generator: string;
   sourceEntrypoint: string;
@@ -62,6 +63,10 @@ const stableNormalize = (value: unknown): unknown => {
   return value;
 };
 
+/** Canonical serialization used for both artifact output and freshness checks. */
+export const serializeScoreArtifact = (value: unknown): string =>
+  `${JSON.stringify(stableNormalize(value), null, 2)}\n`;
+
 const digest = async (value: unknown): Promise<string> => {
   const normalized = JSON.stringify(stableNormalize(value));
   const bytes = new TextEncoder().encode(normalized);
@@ -71,7 +76,9 @@ const digest = async (value: unknown): Promise<string> => {
     .join('');
 };
 
-const buildArtifact = async (): Promise<ScoreArtifact> => {
+export const buildScoreArtifact = async (
+  generatedAt = new Date().toISOString()
+): Promise<ScoreArtifact> => {
   const pluginsRoot = path.join(process.cwd(), 'plugins');
 
   const plugins = (
@@ -121,12 +128,70 @@ const buildArtifact = async (): Promise<ScoreArtifact> => {
   );
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     generator: 'scripts/regenerate-plugin-maturity-scorecards.ts',
     sourceEntrypoint: 'src/app/api/plugins/list/route.ts',
     cacheKey,
     plugins,
   };
+};
+
+const formatFieldDiff = (
+  expected: unknown,
+  actual: unknown,
+  field = '$'
+): string[] => {
+  if (Object.is(expected, actual)) return [];
+
+  if (
+    expected &&
+    actual &&
+    typeof expected === 'object' &&
+    typeof actual === 'object'
+  ) {
+    const expectedRecord = expected as Record<string, unknown>;
+    const actualRecord = actual as Record<string, unknown>;
+    const keys = new Set([
+      ...Object.keys(expectedRecord),
+      ...Object.keys(actualRecord),
+    ]);
+    return [...keys]
+      .sort()
+      .flatMap((key) =>
+        formatFieldDiff(
+          expectedRecord[key],
+          actualRecord[key],
+          Array.isArray(expected) || Array.isArray(actual)
+            ? `${field}[${key}]`
+            : `${field}.${key}`
+        )
+      );
+  }
+
+  return [
+    `${field}: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`,
+  ];
+};
+
+export const checkPublishedScoreArtifact = async (
+  artifactPath: string
+): Promise<void> => {
+  const published = JSON.parse(
+    await readFile(artifactPath, 'utf8')
+  ) as ScoreArtifact;
+  const generated = await buildScoreArtifact(published.generatedAt);
+
+  if (serializeScoreArtifact(published) === serializeScoreArtifact(generated)) {
+    console.log(`Verified ${artifactPath}`);
+    return;
+  }
+
+  const diff = formatFieldDiff(published, generated);
+  throw new Error(
+    `Published maturity scorecard is stale:\n${diff
+      .map((line) => `- ${line}`)
+      .join('\n')}\nRegenerate it with: npm run plugin:maturity:regenerate`
+  );
 };
 
 const main = async () => {
@@ -135,11 +200,18 @@ const main = async () => {
     'docs',
     'plugin-maturity-scorecards.json'
   );
-  const artifact = await buildArtifact();
+  if (process.argv.includes('--check')) {
+    await checkPublishedScoreArtifact(artifactPath);
+    return;
+  }
+
+  const artifact = await buildScoreArtifact();
   await mkdir(path.dirname(artifactPath), { recursive: true });
-  await writeFile(`${artifactPath}`, `${JSON.stringify(artifact, null, 2)}\n`);
+  await writeFile(artifactPath, serializeScoreArtifact(artifact));
   console.log(`Wrote ${artifactPath}`);
   console.log(`cacheKey=${artifact.cacheKey}`);
 };
 
-void main();
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void main();
+}
