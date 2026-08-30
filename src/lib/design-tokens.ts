@@ -73,8 +73,3 @@ export const CANONICAL_DESIGN_TOKEN_KEYS = [
 
 export type CanonicalDesignTokenKey =
   (typeof CANONICAL_DESIGN_TOKEN_KEYS)[number];
-
-const kebabCaseTokenPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export const isKebabCaseDesignTokenKey = (value: string): boolean =>
-  kebabCaseTokenPattern.test(value);
