@@ -359,6 +359,8 @@ test('POST checks links with bounded concurrency', async () => {
   await withStoredGitHubConfig('null', async () => {
     await withTempDataDir(async () => {
       const sessionCount = 40;
+      // The route's documented link-check concurrency limit is six requests.
+      const expectedConcurrency = 6;
       for (let index = 0; index < sessionCount; index += 1) {
         await createLocalSession(
           makeSession(
@@ -369,18 +371,24 @@ test('POST checks links with bounded concurrency', async () => {
       }
 
       const originalFetch = global.fetch;
-      let inFlight = 0;
-      let maxInFlight = 0;
-      global.fetch = (async () => {
-        inFlight += 1;
-        maxInFlight = Math.max(maxInFlight, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        inFlight -= 1;
-        return new Response(null, { status: 200 });
-      }) as typeof fetch;
+      const pendingFetches: Array<(response: Response) => void> = [];
+      let fetchStarted: (() => void) | undefined;
+      const waitForFetchCount = async (expectedCount: number) => {
+        while (pendingFetches.length < expectedCount) {
+          await new Promise<void>((resolve) => {
+            fetchStarted = resolve;
+          });
+        }
+      };
+      global.fetch = (() =>
+        new Promise<Response>((resolve) => {
+          pendingFetches.push(resolve);
+          fetchStarted?.();
+          fetchStarted = undefined;
+        })) as typeof fetch;
 
       try {
-        const response = await POST(
+        const responsePromise = POST(
           new NextRequest('http://localhost/api/video-library/check-links', {
             method: 'POST',
             headers: { authorization: 'Bearer test-token' },
@@ -388,12 +396,28 @@ test('POST checks links with bounded concurrency', async () => {
           })
         );
 
+        await waitForFetchCount(expectedConcurrency);
+        await Promise.resolve();
+        assert.equal(pendingFetches.length, expectedConcurrency);
+
+        for (let index = 0; index < sessionCount; index += 1) {
+          pendingFetches[index](new Response(null, { status: 200 }));
+          const expectedStarted = Math.min(
+            sessionCount,
+            expectedConcurrency + index + 1
+          );
+          await waitForFetchCount(expectedStarted);
+          assert.equal(pendingFetches.length, expectedStarted);
+        }
+
+        const response = await responsePromise;
         assert.equal(response.status, 200);
         const payload = await response.json();
         assert.equal(payload.results.length, sessionCount);
         assert.ok(
-          maxInFlight <= 6,
-          `expected max concurrency <= 6, got ${maxInFlight}`
+          payload.results.every(
+            (result: { status: string }) => result.status === 'reachable'
+          )
         );
       } finally {
         global.fetch = originalFetch;
