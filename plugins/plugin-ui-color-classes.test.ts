@@ -225,6 +225,53 @@ test('plugin token variant validator rejects invalid policy fixtures', () => {
   );
 });
 
+test('plugin token variant validator accepts recognized semantic color utilities', () => {
+  const fixtures = [
+    'bg-muted',
+    'text-primary',
+    'bg-destructive/10',
+    'hover:bg-muted',
+  ];
+
+  for (const token of fixtures) {
+    assert.doesNotThrow(
+      () =>
+        validatePluginUiTokenVariants(
+          { 'layout.fixture': [token] },
+          {
+            recognizedTokens: new Set([token]),
+            requiredVariantRoles: {},
+          }
+        ),
+      `${req('normalizedVariantTokens')} expected recognized semantic token "${token}" to pass`
+    );
+  }
+});
+
+test('plugin token variant validator rejects raw palette color utilities', () => {
+  const fixtures = [
+    'bg-red-500',
+    'hover:bg-red-500',
+    'text-blue-600',
+    'border-amber-200/50',
+  ];
+
+  for (const token of fixtures) {
+    assert.throws(
+      () =>
+        validatePluginUiTokenVariants(
+          { 'layout.fixture': [token] },
+          {
+            recognizedTokens: new Set([token]),
+            requiredVariantRoles: {},
+          }
+        ),
+      /forbidden raw color token/,
+      `${req('normalizedVariantTokens')} expected raw palette token "${token}" to fail`
+    );
+  }
+});
+
 test('plugin surfaces block forbidden semantic utility classes with per-file diagnostics', () => {
   const allowlist = derivePluginAllowedClassTokens();
 
