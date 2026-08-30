@@ -96,8 +96,8 @@ if (start === -1) {
   documentSuffix = currentDocument.slice(end + END_MARKER.length);
 }
 
-format(generatedSection, { parser: 'markdown' }).then(
-  (formattedGeneratedSection) => {
+format(generatedSection, { parser: 'markdown' })
+  .then((formattedGeneratedSection) => {
     const updatedDocument = `${documentPrefix}${formattedGeneratedSection.trimEnd()}${documentSuffix}`;
     if (process.argv.includes('--check')) {
       if (updatedDocument !== currentDocument) {
@@ -110,5 +110,8 @@ format(generatedSection, { parser: 'markdown' }).then(
       writeFileSync(designDocumentPath, updatedDocument);
       console.log('Generated design-token tables in DESIGN.md.');
     }
-  }
-);
+  })
+  .catch((error) => {
+    console.error('Failed to format generated documentation:', error);
+    process.exitCode = 1;
+  });
