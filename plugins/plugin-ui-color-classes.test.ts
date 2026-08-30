@@ -5,7 +5,9 @@ import test from 'node:test';
 import { globSync } from 'glob';
 import {
   derivePluginAllowedClassTokens,
+  PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP,
   PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
+  validatePluginUiTokenVariants,
 } from '../src/components/plugins/plugin-style-policy';
 import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
 
@@ -133,22 +135,94 @@ test('plugin theme tone variants resolve only policy-backed class tokens', () =>
   }
 });
 
-test('plugin token variants only contain normalized class tokens', () => {
-  for (const [variant, classTokens] of Object.entries(
-    PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP
-  )) {
-    classTokens.forEach((token) => {
-      assert.equal(
-        token.trim(),
-        token,
-        `${req('normalizedVariantTokens')} variant ${variant} contains untrimmed token: ${token}`
-      );
-      assert.ok(
-        !token.includes('\n'),
-        `${req('normalizedVariantTokens')} variant ${variant} contains multiline token: ${token}`
-      );
-    });
+test('plugin token variant policy contains recognized, unique tokens for every semantic role', () => {
+  assert.doesNotThrow(
+    () =>
+      validatePluginUiTokenVariants(PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP),
+    `${req('normalizedVariantTokens')} expected the production plugin token policy to be valid`
+  );
+
+  const roleAssertions = Object.entries(
+    PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP
+  ).map(([variant, expectedRole]) => ({ variant, expectedRole }));
+
+  for (const { variant, expectedRole } of roleAssertions) {
+    assert.ok(
+      variant in PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP,
+      `${req('normalizedVariantTokens')} missing required ${expectedRole} variant ${variant}`
+    );
+    assert.equal(
+      variant.split('.')[0],
+      expectedRole,
+      `${req('normalizedVariantTokens')} variant ${variant} has the wrong semantic role`
+    );
   }
+});
+
+test('plugin token variant validator rejects invalid policy fixtures', () => {
+  const recognizedTokens = new Set(['flex', 'text-primary']);
+  const fixtures = [
+    {
+      name: 'empty token list',
+      variants: { 'layout.fixture': [] },
+      error: /must contain tokens/,
+    },
+    {
+      name: 'empty token',
+      variants: { 'layout.fixture': [''] },
+      error: /non-normalized token/,
+    },
+    {
+      name: 'surrounding whitespace',
+      variants: { 'layout.fixture': [' flex'] },
+      error: /non-normalized token/,
+    },
+    {
+      name: 'embedded newline',
+      variants: { 'layout.fixture': ['flex\ntext-primary'] },
+      error: /non-normalized token/,
+    },
+    {
+      name: 'duplicate token',
+      variants: { 'layout.fixture': ['flex', 'flex'] },
+      error: /duplicate token/,
+    },
+    {
+      name: 'unknown utility',
+      variants: { 'layout.fixture': ['animate-unapproved'] },
+      error: /unknown policy token/,
+    },
+    {
+      name: 'forbidden raw color class',
+      variants: { 'layout.fixture': ['hover:bg-red-500'] },
+      error: /forbidden raw color token/,
+    },
+  ] as const;
+
+  for (const fixture of fixtures) {
+    assert.throws(
+      () =>
+        validatePluginUiTokenVariants(fixture.variants, {
+          recognizedTokens,
+          requiredVariantRoles: {},
+        }),
+      fixture.error,
+      `${req('normalizedVariantTokens')} expected ${fixture.name} fixture to fail`
+    );
+  }
+
+  assert.throws(
+    () =>
+      validatePluginUiTokenVariants(
+        { 'layout.fixture': ['flex'] },
+        {
+          recognizedTokens,
+          requiredVariantRoles: { 'layout.fixture': 'surface' },
+        }
+      ),
+    /must map to semantic role "surface"/,
+    `${req('normalizedVariantTokens')} expected a mismatched semantic role to fail`
+  );
 });
 
 test('plugin surfaces block forbidden semantic utility classes with per-file diagnostics', () => {
