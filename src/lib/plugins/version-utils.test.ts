@@ -19,20 +19,21 @@ test('compareVersions - handles missing patch versions', () => {
   assert.equal(compareVersions('1', '1.0.0'), 0);
 });
 
-test('meetsMinimumVersion - returns true when version meets or exceeds minimum', () => {
-  assert.equal(meetsMinimumVersion('1.0.0', '1.0.0'), true);
-  assert.equal(meetsMinimumVersion('2.0.0', '1.0.0'), true);
-  assert.equal(meetsMinimumVersion('1.1.0', '1.0.0'), true);
-});
+test('meetsMinimumVersion - plugin version must equal or exceed the minimum version', () => {
+  const cases = [
+    { current: '1.2.3', minimum: '1.2.3', expected: true },
+    { current: '2.0.0', minimum: '1.9.9', expected: true },
+    { current: '1.9.9', minimum: '2.0.0', expected: false },
+    { current: '1.1.9', minimum: '1.2.0', expected: false },
+    { current: '1.2.2', minimum: '1.2.3', expected: false },
+    { current: '1.2', minimum: '1.2.0', expected: true },
+  ];
 
-test('meetsMinimumVersion - returns false when version is below minimum', () => {
-  assert.equal(meetsMinimumVersion('0.9.0', '1.0.0'), false);
-  assert.equal(meetsMinimumVersion('0.1.0', '0.2.0'), false);
-});
-
-test('meetsMinimumVersion - handles real-world version scenarios', () => {
-  const currentVersion = '0.1.0';
-  assert.equal(meetsMinimumVersion(currentVersion, '0.1.0'), true);
-  assert.equal(meetsMinimumVersion(currentVersion, '0.2.0'), false);
-  assert.equal(meetsMinimumVersion(currentVersion, '1.0.0'), false);
+  for (const { current, minimum, expected } of cases) {
+    assert.equal(
+      meetsMinimumVersion(current, minimum),
+      expected,
+      `${current} >= ${minimum}`
+    );
+  }
 });
