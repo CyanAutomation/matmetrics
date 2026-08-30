@@ -350,27 +350,60 @@ test('subsequent reads after malformed JSON return stable empty queue without re
 test('storage lease heartbeat renews during long-running critical section', async () => {
   resetQueue();
   __testInternals.setLeaseTtlForTests(150);
-
-  await __testInternals.withQueueWriteLease(async () => {
-    const initialLease = __testInternals.readQueueLease();
-    assert.ok(initialLease);
-    let renewedLease = initialLease;
-    const deadline = Date.now() + 200;
-    while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      const observedLease = __testInternals.readQueueLease();
-      if (observedLease) {
-        renewedLease = observedLease;
-      }
-      if (renewedLease.expiresAt > initialLease.expiresAt) {
-        break;
-      }
-    }
-    assert.equal(renewedLease.owner, initialLease.owner);
-    assert.equal(renewedLease.nonce, initialLease.nonce);
-    assert.equal(renewedLease.epoch, initialLease.epoch);
-    assert.ok(renewedLease.expiresAt > initialLease.expiresAt);
+  let now = 1_000;
+  let heartbeat: (() => void) | undefined;
+  let renewalInterval: number | undefined;
+  let criticalSectionStarted: (() => void) | undefined;
+  const criticalSectionStart = new Promise<void>((resolve) => {
+    criticalSectionStarted = resolve;
   });
+  let finishCriticalSection: (() => void) | undefined;
+  const criticalSectionFinished = new Promise<void>((resolve) => {
+    finishCriticalSection = resolve;
+  });
+  let initialLease:
+    | ReturnType<typeof __testInternals.readQueueLease>
+    | undefined;
+
+  const leasePromise = __testInternals.withQueueWriteLease(
+    async () => {
+      initialLease = __testInternals.readQueueLease();
+      criticalSectionStarted?.();
+      await criticalSectionFinished;
+    },
+    {
+      now: () => now,
+      scheduler: {
+        schedule(callback: () => void, intervalMs: number): object {
+          heartbeat = callback;
+          renewalInterval = intervalMs;
+          return {};
+        },
+        cancel(): void {},
+      },
+    }
+  );
+
+  await criticalSectionStart;
+  assert.ok(initialLease);
+  assert.equal(renewalInterval, 50);
+  assert.ok(renewalInterval);
+  assert.ok(heartbeat);
+  now += renewalInterval;
+  heartbeat();
+
+  const renewedLease = __testInternals.readQueueLease();
+  assert.ok(renewedLease);
+  assert.equal(renewedLease.owner, initialLease.owner);
+  assert.equal(renewedLease.nonce, initialLease.nonce);
+  assert.equal(renewedLease.epoch, initialLease.epoch);
+  assert.equal(
+    renewedLease.expiresAt,
+    initialLease.expiresAt + renewalInterval
+  );
+
+  finishCriticalSection?.();
+  await leasePromise;
 });
 
 test('stale owner commit is prevented after lease expiry and competing re-acquire', async () => {
