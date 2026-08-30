@@ -401,7 +401,7 @@ test('POST checks links with bounded concurrency', async () => {
         assert.equal(pendingFetches.length, expectedConcurrency);
 
         for (let index = 0; index < sessionCount; index += 1) {
-          pendingFetches[index](new Response(null, { status: 200 }));
+          pendingFetches.shift()!(new Response(null, { status: 200 }));
           const expectedStarted = Math.min(
             sessionCount,
             expectedConcurrency + index + 1
