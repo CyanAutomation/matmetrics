@@ -349,6 +349,16 @@ type QueueWriteLease = {
   epoch: number;
 };
 
+type QueueLeaseScheduler = {
+  schedule(callback: () => void, intervalMs: number): unknown;
+  cancel(timer: unknown): void;
+};
+
+type QueueLeaseDependencies = {
+  now?: () => number;
+  scheduler?: QueueLeaseScheduler;
+};
+
 type ActiveQueueLease =
   | { mode: 'web-lock'; release: () => void }
   | { mode: 'storage'; owner: string; nonce: string; epoch: number };
@@ -430,7 +440,9 @@ function getActiveStorageQueueLease(): ActiveQueueLease & {
   return activeQueueLease;
 }
 
-function ensureActiveStorageLeaseOwnership(): void {
+function ensureActiveStorageLeaseOwnership(
+  now: () => number = getLeaseTime
+): void {
   if (!activeQueueLease || activeQueueLease.mode !== 'storage') {
     return;
   }
@@ -441,26 +453,26 @@ function ensureActiveStorageLeaseOwnership(): void {
     lease.owner !== activeQueueLease.owner ||
     lease.nonce !== activeQueueLease.nonce ||
     lease.epoch !== activeQueueLease.epoch ||
-    lease.expiresAt <= getLeaseTime()
+    lease.expiresAt <= now()
   ) {
     throw new Error('Storage lease is no longer owned by current tab');
   }
 }
 
-function renewActiveStorageQueueLease(): void {
+function renewActiveStorageQueueLease(now: () => number = getLeaseTime): void {
   const storageLease = getActiveStorageQueueLease();
-  ensureActiveStorageLeaseOwnership();
+  ensureActiveStorageLeaseOwnership(now);
   const renewedLease: QueueWriteLease = {
     owner: storageLease.owner,
     nonce: storageLease.nonce,
     epoch: storageLease.epoch,
-    expiresAt: getLeaseTime() + syncQueueLeaseTtlMs,
+    expiresAt: now() + syncQueueLeaseTtlMs,
   };
   localStorage.setItem(
     getSyncQueueLockStorageKey(),
     JSON.stringify(renewedLease)
   );
-  ensureActiveStorageLeaseOwnership();
+  ensureActiveStorageLeaseOwnership(now);
 }
 
 async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
@@ -504,19 +516,21 @@ async function tryAcquireNavigatorQueueLock(): Promise<boolean> {
   return true;
 }
 
-async function acquireQueueWriteLease(): Promise<boolean> {
+async function acquireQueueWriteLease(
+  now: () => number = getLeaseTime
+): Promise<boolean> {
   if (await tryAcquireNavigatorQueueLock()) return true;
   for (
     let attempt = 0;
     attempt < SYNC_QUEUE_LOCK_ACQUIRE_ATTEMPTS;
     attempt += 1
   ) {
-    const now = getLeaseTime();
+    const currentTime = now();
     const existingLease = readQueueLease();
     if (
       existingLease &&
       existingLease.owner !== queueOwnerId &&
-      existingLease.expiresAt > now
+      existingLease.expiresAt > currentTime
     ) {
       await sleep(
         randomBetween(
@@ -528,12 +542,12 @@ async function acquireQueueWriteLease(): Promise<boolean> {
     }
     const nextLease: QueueWriteLease = {
       owner: queueOwnerId,
-      expiresAt: now + syncQueueLeaseTtlMs,
+      expiresAt: currentTime + syncQueueLeaseTtlMs,
       nonce: createQueueLeaseNonce(),
       epoch: Math.max(
         (existingLease?.epoch ?? 0) + 1,
         queueLeaseEpochCounter + 1,
-        getLeaseTime()
+        now()
       ),
     };
     queueLeaseEpochCounter = nextLease.epoch;
@@ -573,18 +587,24 @@ async function acquireQueueWriteLease(): Promise<boolean> {
 }
 
 async function withQueueWriteLease(
-  action: () => void | Promise<void>
+  action: () => void | Promise<void>,
+  dependencies: QueueLeaseDependencies = {}
 ): Promise<void> {
-  const acquired = await acquireQueueWriteLease();
+  const now = dependencies.now ?? getLeaseTime;
+  const scheduler = dependencies.scheduler ?? {
+    schedule: scheduleLeaseRenewal,
+    cancel: cancelLeaseRenewal,
+  };
+  const acquired = await acquireQueueWriteLease(now);
   if (!acquired) {
     throw new Error('Failed to acquire sync queue write lease');
   }
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let heartbeatTimer: unknown | null = null;
   if (activeQueueLease?.mode === 'storage') {
-    heartbeatTimer = scheduleLeaseRenewal(
+    heartbeatTimer = scheduler.schedule(
       () => {
         try {
-          renewActiveStorageQueueLease();
+          renewActiveStorageQueueLease(now);
         } catch {
           // Action path will fail on next lease verification before commit.
         }
@@ -596,7 +616,7 @@ async function withQueueWriteLease(
     await action();
   } finally {
     if (heartbeatTimer) {
-      cancelLeaseRenewal(heartbeatTimer);
+      scheduler.cancel(heartbeatTimer);
     }
     releaseQueueLease();
   }
@@ -730,7 +750,7 @@ export const __testInternals = {
     getLeaseTime = now;
   },
   disableLeaseRenewalForTests(): void {
-    scheduleLeaseRenewal = () => 0 as ReturnType<typeof setInterval>;
+    scheduleLeaseRenewal = () => 0 as unknown as ReturnType<typeof setInterval>;
     cancelLeaseRenewal = () => {};
   },
   setLeaseTtlForTests(ttlMs: number): void {
