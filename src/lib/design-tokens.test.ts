@@ -3,10 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
-import {
-  CANONICAL_DESIGN_TOKEN_KEYS,
-  isKebabCaseDesignTokenKey,
-} from '@/lib/design-tokens';
+import { CANONICAL_DESIGN_TOKEN_KEYS } from '@/lib/design-tokens';
 
 const repoRoot = process.cwd();
 
@@ -28,25 +25,10 @@ test('canonical design token keys match DESIGN.md section 2 source of truth', ()
   const sourceOfTruthKeys = extractSection2TokenKeys();
 
   assert.deepEqual(CANONICAL_DESIGN_TOKEN_KEYS, sourceOfTruthKeys);
-});
 
-test('canonical design token keys remain kebab-case and do not introduce underscores', () => {
-  const tokenNameCases = [
-    { token: 'primary', expected: true },
-    { token: 'primary-container', expected: true },
-    { token: 'surface-container-lowest', expected: true },
-    { token: 'on-trend-positive-container', expected: true },
-    { token: 'Primary-container', expected: false },
-    { token: 'primary_container', expected: false },
-    { token: 'primary container', expected: false },
-    { token: '-primary-container', expected: false },
-    { token: 'primary-container-', expected: false },
-    { token: 'primary--container', expected: false },
-  ];
-
-  for (const { token, expected } of tokenNameCases) {
-    assert.equal(isKebabCaseDesignTokenKey(token), expected, token);
+  // DESIGN.md section 2, "Token Naming Convention": canonical keys use
+  // lowercase letters and hyphen separators only.
+  for (const token of CANONICAL_DESIGN_TOKEN_KEYS) {
+    assert.match(token, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
   }
-
-  assert.ok(CANONICAL_DESIGN_TOKEN_KEYS.every(isKebabCaseDesignTokenKey));
 });
