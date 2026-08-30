@@ -373,81 +373,34 @@ test('storage lease heartbeat renews during long-running critical section', asyn
   });
 });
 
-test('lease expires and competing tab can re-acquire while original action is still running', async () => {
-  resetQueue();
-  __testInternals.setLeaseTtlForTests(25);
-
-  const setItem = localStorage.setItem.bind(localStorage);
-  const tabAOwnerIds = new Set<string>();
-  localStorage.setItem = (key: string, value: string): void => {
-    if (key.includes('matmetrics_sync_queue_lock')) {
-      const parsed = JSON.parse(value) as { owner?: string };
-      if (parsed.owner) tabAOwnerIds.add(parsed.owner);
-    }
-    setItem(key, value);
-  };
-
-  try {
-    await __testInternals.withQueueWriteLease(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-  } finally {
-    localStorage.setItem = setItem;
-  }
-
-  const currentLease = __testInternals.readQueueLease();
-  assert.equal(currentLease, null);
-  assert.ok(tabAOwnerIds.size >= 1);
-});
-
 test('stale owner commit is prevented after lease expiry and competing re-acquire', async () => {
   resetQueue();
+  let now = 1_000;
   __testInternals.setLeaseTtlForTests(20);
+  __testInternals.setLeaseClockForTests(() => now);
+  __testInternals.disableLeaseRenewalForTests();
 
-  const queueKey = getSyncQueueStorageKey();
-  const leaseKey = getScopedStorageKey('matmetrics_sync_queue_lock');
-  const competitorLease = {
-    owner: 'competing-tab',
-    nonce: 'competing-nonce',
-    epoch: 1_000_000,
-    expiresAt: Number.MAX_SAFE_INTEGER,
-  };
-  let replacedByCompetitor = false;
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-  localStorage.setItem = (key: string, value: string): void => {
-    if (!replacedByCompetitor && key === queueKey) {
-      originalSetItem(leaseKey, JSON.stringify(competitorLease));
-      replacedByCompetitor = true;
-    }
-    originalSetItem(key, value);
-  };
+  await __testInternals.withQueueWriteLease(async () => {
+    const ownerALease = __testInternals.readQueueLease();
+    assert.ok(ownerALease);
 
-  const errors: unknown[] = [];
-  const originalError = console.error;
-  console.error = (...args: unknown[]) => {
-    errors.push(args);
-  };
+    now = ownerALease.expiresAt + 1;
+    const ownerBLease = __testInternals.acquireCompetingStorageLease('owner-b');
 
-  try {
-    await queueOperation({
-      type: 'CREATE',
-      session: makeSession('session-stale'),
-    });
-
-    assert.equal(replacedByCompetitor, true);
-    assert.deepEqual(getQueue(), []);
-    assert.deepEqual(__testInternals.readQueueLease(), competitorLease);
-    assert.ok(
-      errors.some(
-        (entry) =>
-          Array.isArray(entry) &&
-          String(entry[0]).includes('Failed to queue operation')
-      )
+    assert.equal(ownerBLease.owner, 'owner-b');
+    assert.notEqual(ownerBLease.owner, ownerALease.owner);
+    assert.notEqual(ownerBLease.nonce, ownerALease.nonce);
+    assert.ok(ownerBLease.epoch > ownerALease.epoch);
+    assert.deepEqual(__testInternals.readQueueLease(), ownerBLease);
+    assert.throws(
+      () =>
+        __testInternals.writeQueueWithLatestMerge([
+          createOp('session-stale', now),
+        ]),
+      /Storage lease is no longer owned by current tab/
     );
-  } finally {
-    localStorage.setItem = originalSetItem;
-    console.error = originalError;
-  }
+    assert.deepEqual(getQueue(), []);
+  });
 });
 
 test('identity-based removal succeeds under concurrent writes where index-based removal fails', async () => {
