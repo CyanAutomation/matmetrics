@@ -25,13 +25,12 @@ const MATURITY_THRESHOLDS = {
   goldMin: 85,
 } as const;
 
-const scoreFixture = async ({
-  pluginDirectoryName,
-  manifest,
-  extraValidationIssues = [],
-}: PluginFixture) => {
+const scoreFixture = async (
+  { pluginDirectoryName, manifest, extraValidationIssues = [] }: PluginFixture,
+  assertionMessage?: string
+) => {
   const validation = validatePluginManifest(manifest);
-  assert.equal(validation.isValid, true);
+  assert.equal(validation.isValid, true, assertionMessage);
 
   return scorePluginMaturity({
     manifest: validation.manifest,
@@ -41,22 +40,7 @@ const scoreFixture = async ({
   });
 };
 
-test('github-sync fixture scores as Silver with a concrete Gold next action', async () => {
-  const scorecard = await scoreFixture({
-    pluginDirectoryName: 'github-sync',
-    manifest: githubSyncManifest,
-  });
-
-  assert.equal(scorecard.tier, 'silver');
-  assert.ok(scorecard.score >= MATURITY_THRESHOLDS.goldMin);
-  assert.ok(
-    scorecard.nextActions.includes(
-      'Gold requires an explicit Gold review recorded in manifest maturity metadata.'
-    )
-  );
-});
-
-test('prompt-settings fixture drops to Bronze when capability warnings are present', async () => {
+test('fixture tiers align to documented maturity thresholds', async () => {
   const warning: PluginValidationIssue = {
     severity: 'warning',
     path: 'uiExtensions[0].capabilities',
@@ -64,24 +48,67 @@ test('prompt-settings fixture drops to Bronze when capability warnings are prese
       'Synthetic fixture warning: plugin requires undeclared capability.',
   };
 
-  const scorecard = await scoreFixture({
-    pluginDirectoryName: 'prompt-settings',
-    manifest: promptSettingsManifest,
-    extraValidationIssues: [warning],
-  });
+  const cases: Array<{
+    name: string;
+    fixture: PluginFixture;
+    injectedValidationIssues: PluginValidationIssue[];
+    expectedTier: 'bronze' | 'silver' | 'gold';
+    expectedScoreRange: readonly [minimum: number, maximum: number];
+    expectedReason: string;
+    expectedNextAction: string;
+  }> = [
+    {
+      name: 'requires an explicit Gold review before promoting a high-scoring plugin',
+      fixture: {
+        pluginDirectoryName: 'github-sync',
+        manifest: githubSyncManifest,
+      },
+      injectedValidationIssues: [],
+      expectedTier: 'silver',
+      expectedScoreRange: [MATURITY_THRESHOLDS.goldMin, 100],
+      expectedReason:
+        'Gold requires an explicit Gold review recorded in manifest maturity metadata.',
+      expectedNextAction:
+        'Gold requires an explicit Gold review recorded in manifest maturity metadata.',
+    },
+    {
+      name: 'caps a high-scoring plugin at Bronze when capability warnings are present',
+      fixture: {
+        pluginDirectoryName: 'prompt-settings',
+        manifest: promptSettingsManifest,
+      },
+      injectedValidationIssues: [warning],
+      expectedTier: 'bronze',
+      expectedScoreRange: [MATURITY_THRESHOLDS.goldMin, 100],
+      expectedReason:
+        'Capability or version warnings cap the plugin at Bronze until resolved.',
+      expectedNextAction:
+        'Resolve manifest warnings before promoting the plugin beyond Bronze.',
+    },
+  ];
 
-  assert.equal(scorecard.tier, 'bronze');
-  assert.ok(scorecard.score >= MATURITY_THRESHOLDS.goldMin);
-  assert.ok(
-    scorecard.reasons.includes(
-      'Capability or version warnings cap the plugin at Bronze until resolved.'
-    )
-  );
-  assert.ok(
-    scorecard.nextActions.includes(
-      'Resolve manifest warnings before promoting the plugin beyond Bronze.'
-    )
-  );
+  for (const testCase of cases) {
+    const scorecard = await scoreFixture(
+      {
+        ...testCase.fixture,
+        extraValidationIssues: testCase.injectedValidationIssues,
+      },
+      testCase.name
+    );
+    const [minimumScore, maximumScore] = testCase.expectedScoreRange;
+
+    assert.equal(scorecard.tier, testCase.expectedTier, testCase.name);
+    assert.ok(scorecard.score >= minimumScore, testCase.name);
+    assert.ok(scorecard.score <= maximumScore, testCase.name);
+    assert.ok(
+      scorecard.reasons.includes(testCase.expectedReason),
+      testCase.name
+    );
+    assert.ok(
+      scorecard.nextActions.includes(testCase.expectedNextAction),
+      testCase.name
+    );
+  }
 });
 
 test('tier determination honors Silver and Gold score boundaries', () => {
