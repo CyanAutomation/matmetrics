@@ -10,7 +10,50 @@ export const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
   'ui-pill-trend-positive',
 ] as const;
 
-export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
+const PLUGIN_UI_CONTRACT_TOKEN_CLASS_ALLOWLIST = [
+  'max-w-4xl',
+  'max-w-6xl',
+  'bg-card/95',
+  'border-border',
+  'rounded-md',
+  'border',
+  'p-3',
+  'bg-muted',
+  'grid',
+  'gap-3',
+  'flex',
+  'flex-wrap',
+  'gap-2',
+  'ml-auto',
+  'bg-muted/30',
+  'text-foreground',
+  'border-primary/25',
+  'bg-primary/5',
+  'text-primary',
+  'border-destructive/30',
+  'bg-destructive/10',
+  'text-destructive',
+  'border-primary/20',
+  'hover:bg-primary/5',
+  'hover:bg-primary/10',
+  'border-[hsl(var(--color-warning)/0.35)]',
+  'bg-[hsl(var(--color-warning-container))]',
+  'text-[hsl(var(--color-on-warning-container))]',
+  'hover:brightness-95',
+  'border-destructive/40',
+  'hover:bg-destructive/10',
+  'text-muted-foreground',
+  'hover:text-foreground',
+  'focus:text-destructive',
+  'hover:bg-muted',
+  'text-[hsl(var(--color-on-success-container))]',
+  'rounded',
+  'bg-background/70',
+  'px-2',
+  'py-1',
+] as const;
+
+const pluginUiContractTokenVariantClassMap = {
   'layout.standard': ['max-w-4xl'],
   'layout.wide': ['max-w-6xl'],
   'surface.github-sync': ['bg-card/95', 'border-border'],
@@ -73,6 +116,50 @@ export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP = {
   'code.inline': ['rounded', 'bg-background/70', 'px-2', 'py-1'],
 } as const;
 
+export type PluginUiSemanticRole =
+  | 'layout'
+  | 'surface'
+  | 'tone'
+  | 'action'
+  | 'tab'
+  | 'text'
+  | 'icon'
+  | 'code';
+
+export const PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP = {
+  'layout.standard': 'layout',
+  'layout.wide': 'layout',
+  'surface.github-sync': 'surface',
+  'surface.prompt-settings': 'surface',
+  'surface.tag-manager': 'surface',
+  'surface.video-library': 'surface',
+  'surface.log-doctor': 'surface',
+  'surface.filter-panel': 'surface',
+  'surface.diff-preview': 'surface',
+  'layout.filter-bar': 'layout',
+  'layout.action-row': 'layout',
+  'layout.action-row.trailing': 'layout',
+  'tone.inline.default': 'tone',
+  'tone.inline.info': 'tone',
+  'tone.inline.warning': 'tone',
+  'tone.inline.success': 'tone',
+  'tone.inline.error': 'tone',
+  'action.secondary': 'action',
+  'action.primary': 'action',
+  'action.warning': 'action',
+  'action.destructive': 'action',
+  'action.subtle': 'action',
+  'action.destructive-menu-item': 'action',
+  'tab.inactive': 'tab',
+  'text.subtle': 'text',
+  'text.danger': 'text',
+  'text.success': 'text',
+  'icon.subtle': 'icon',
+  'icon.info': 'icon',
+  'icon.success': 'icon',
+  'code.inline': 'code',
+} as const satisfies Record<string, PluginUiSemanticRole>;
+
 const PLUGIN_THEME_TONE_ALLOWLIST = [
   'bg-muted',
   'bg-muted/20',
@@ -103,6 +190,79 @@ const PLUGIN_THEME_TONE_ALLOWLIST = [
   'shadow-sm',
   'shadow-md',
 ] as const;
+
+export interface PluginStylePolicyValidationOptions {
+  recognizedTokens?: ReadonlySet<string>;
+  requiredVariantRoles?: Readonly<Record<string, PluginUiSemanticRole>>;
+}
+
+const forbiddenRawColorClassPattern =
+  /^(?:[a-z-]+:)*(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo)(?:-\d{2,3})?(?:\/\d{1,3})?$/;
+
+export function validatePluginUiTokenVariants(
+  variants: Readonly<Record<string, readonly string[]>>,
+  options: PluginStylePolicyValidationOptions = {}
+): void {
+  const recognizedTokens =
+    options.recognizedTokens ??
+    new Set([
+      ...PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST,
+      ...PLUGIN_UI_CONTRACT_TOKEN_CLASS_ALLOWLIST,
+      ...PLUGIN_THEME_TONE_ALLOWLIST,
+    ]);
+  const requiredVariantRoles =
+    options.requiredVariantRoles ??
+    PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP;
+
+  for (const [variant, tokens] of Object.entries(variants)) {
+    if (tokens.length === 0) {
+      throw new Error(`Plugin UI variant "${variant}" must contain tokens`);
+    }
+
+    const seen = new Set<string>();
+    for (const token of tokens) {
+      if (token.length === 0 || /\s/.test(token)) {
+        throw new Error(
+          `Plugin UI variant "${variant}" contains a non-normalized token: "${token}"`
+        );
+      }
+      if (seen.has(token)) {
+        throw new Error(
+          `Plugin UI variant "${variant}" contains duplicate token: "${token}"`
+        );
+      }
+      if (forbiddenRawColorClassPattern.test(token)) {
+        throw new Error(
+          `Plugin UI variant "${variant}" contains forbidden raw color token: "${token}"`
+        );
+      }
+      if (!recognizedTokens.has(token)) {
+        throw new Error(
+          `Plugin UI variant "${variant}" contains unknown policy token: "${token}"`
+        );
+      }
+      seen.add(token);
+    }
+  }
+
+  for (const [variant, expectedRole] of Object.entries(requiredVariantRoles)) {
+    if (!(variant in variants)) {
+      throw new Error(
+        `Plugin UI policy is missing required ${expectedRole} variant "${variant}"`
+      );
+    }
+    if (variant.split('.')[0] !== expectedRole) {
+      throw new Error(
+        `Plugin UI variant "${variant}" must map to semantic role "${expectedRole}"`
+      );
+    }
+  }
+}
+
+validatePluginUiTokenVariants(pluginUiContractTokenVariantClassMap);
+
+export const PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP =
+  pluginUiContractTokenVariantClassMap;
 
 export type PluginUiContractTokenVariant =
   keyof typeof PLUGIN_UI_CONTRACT_TOKEN_VARIANT_CLASS_MAP;
