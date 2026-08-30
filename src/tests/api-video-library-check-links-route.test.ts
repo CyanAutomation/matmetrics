@@ -372,9 +372,10 @@ test('POST checks links with bounded concurrency', async () => {
 
       const originalFetch = global.fetch;
       const pendingFetches: Array<(response: Response) => void> = [];
+      let fetchCount = 0;
       let fetchStarted: (() => void) | undefined;
       const waitForFetchCount = async (expectedCount: number) => {
-        while (pendingFetches.length < expectedCount) {
+        while (fetchCount < expectedCount) {
           await new Promise<void>((resolve) => {
             fetchStarted = resolve;
           });
@@ -383,6 +384,7 @@ test('POST checks links with bounded concurrency', async () => {
       global.fetch = (() =>
         new Promise<Response>((resolve) => {
           pendingFetches.push(resolve);
+          fetchCount += 1;
           fetchStarted?.();
           fetchStarted = undefined;
         })) as typeof fetch;
@@ -406,8 +408,12 @@ test('POST checks links with bounded concurrency', async () => {
             sessionCount,
             expectedConcurrency + index + 1
           );
+          const expectedPending = Math.min(
+            expectedConcurrency,
+            sessionCount - index - 1
+          );
           await waitForFetchCount(expectedStarted);
-          assert.equal(pendingFetches.length, expectedStarted - expectedConcurrency);
+          assert.equal(pendingFetches.length, expectedPending);
         }
 
         const response = await responsePromise;
