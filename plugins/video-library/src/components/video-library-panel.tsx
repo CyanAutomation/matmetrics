@@ -29,6 +29,7 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import {
   Dialog,
   DialogContent,
@@ -645,16 +646,23 @@ function VideoLibraryView({
 
       <PluginSectionCard contentClassName="space-y-3" className="bg-card/70">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2" aria-label="Browse videos">
+          <SegmentedControl
+            aria-label="Browse videos"
+            value={filters.tab}
+            onValueChange={(tab) =>
+              setFilters((current: any) => ({
+                ...current,
+                tab: tab as VideoLibraryTab,
+              }))
+            }
+            className="flex-wrap"
+          >
             {(['watchable', 'attention', 'all'] as VideoLibraryTab[]).map(
               (tab) => (
-                <Button
+                <SegmentedControl.Item
                   key={tab}
-                  type="button"
-                  variant={filters.tab === tab ? 'default' : 'outline'}
-                  onClick={() =>
-                    setFilters((current: any) => ({ ...current, tab }))
-                  }
+                  value={tab}
+                  className="inline-flex items-center gap-1"
                 >
                   {getTabLabel(tab)}
                   <Badge
@@ -663,10 +671,10 @@ function VideoLibraryView({
                   >
                     {tabCounts[tab]}
                   </Badge>
-                </Button>
+                </SegmentedControl.Item>
               )
             )}
-          </div>
+          </SegmentedControl>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>{summaryCounts.attached} saved</span>
             {summaryCounts.review > 0 ? (
