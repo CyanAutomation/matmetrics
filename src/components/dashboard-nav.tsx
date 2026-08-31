@@ -12,6 +12,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { ChevronDown, Settings2, Sparkles } from 'lucide-react';
@@ -68,11 +71,30 @@ export function DashboardNav({
 
   const renderTabs = (
     tabs: DashboardTab[],
-    emphasis: 'primary' | 'secondary'
+    emphasis: 'primary' | 'secondary',
+    nested = false
   ) =>
     tabs.map((tab) => {
       const Icon = tab.icon;
       const isActive = activeTab === tab.id;
+      if (nested) {
+        return (
+          <SidebarMenuSubItem key={tab.id}>
+            <SidebarMenuSubButton
+              asChild
+              isActive={isActive}
+              aria-current={isActive ? 'page' : undefined}
+              className="h-9 rounded-lg text-sm font-medium data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
+            >
+              <button type="button" onClick={() => onTabChange(tab.id)}>
+                <Icon className="h-4 w-4" />
+                <span>{tab.title}</span>
+              </button>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        );
+      }
+
       return (
         <SidebarMenuItem key={tab.id}>
           <SidebarMenuButton
@@ -124,7 +146,7 @@ export function DashboardNav({
           </SidebarGroupContent>
         </SidebarGroup>
         {workspaceTabs.length > 0 && (
-          <SidebarGroup className="mt-4 p-0">
+          <SidebarGroup className="mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2">
             <SidebarGroupLabel>Workspace</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
@@ -135,7 +157,7 @@ export function DashboardNav({
           </SidebarGroup>
         )}
         {systemTabs.length > 0 && (
-          <SidebarGroup className="mt-4 p-0">
+          <SidebarGroup className="mt-4 rounded-2xl border border-[hsl(var(--color-outline-variant)/0.52)] bg-[hsl(var(--color-surface-container-low)/0.42)] p-2">
             <SidebarGroupLabel>System</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
@@ -157,7 +179,11 @@ export function DashboardNav({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <div id="system-navigation">
-                  {systemOpen ? renderTabs(systemTabs, 'secondary') : null}
+                  {systemOpen ? (
+                    <SidebarMenuSub className="mt-1">
+                      {renderTabs(systemTabs, 'secondary', true)}
+                    </SidebarMenuSub>
+                  ) : null}
                 </div>
               </SidebarMenu>
             </SidebarGroupContent>
