@@ -591,53 +591,6 @@ export function DashboardOverview({
             </Button>
           </div>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          {stats.rollingPlan.map((item) => (
-            <div
-              key={item.category}
-              className="rounded-xl bg-card/55 px-3 py-3"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'h-2.5 w-2.5 shrink-0 rounded-full',
-                    resolveSessionCategoryPresentation(item.category).dotClass
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 flex-1 text-sm font-semibold">
-                  {item.category}
-                </span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums">
-                  {item.completed} / {item.effectiveTarget}
-                </span>
-              </div>
-              <div
-                className="mt-2 grid gap-1"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.max(item.effectiveTarget, 1)}, minmax(0, 1fr))`,
-                }}
-                role="img"
-                aria-label={`${item.category}: ${item.completed} of ${item.effectiveTarget} planned sessions complete`}
-              >
-                {Array.from(
-                  { length: Math.max(item.effectiveTarget, 1) },
-                  (_, index) => (
-                    <span
-                      key={index}
-                      className={cn(
-                        'h-2 rounded-full bg-muted',
-                        index < item.completed &&
-                          resolveDashboardCategoryBarClass(item.category)
-                      )}
-                      aria-hidden="true"
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
         {isPlanDetailsOpen && (
           <div className="mt-3 space-y-2">
             {stats.rollingPlan.map((item) => (
