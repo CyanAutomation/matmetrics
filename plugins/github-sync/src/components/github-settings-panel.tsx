@@ -25,7 +25,6 @@ import {
 } from '@/lib/user-preferences';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
-import { PluginNotice } from '@/components/plugins/plugin-notice';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 import {
@@ -391,17 +390,9 @@ export function GitHubSettings() {
   return (
     <PluginPageShell
       title="GitHub Sync"
-      description="Keep your training diary safely mirrored in your GitHub repository."
+      description="Keep a safe copy of your training diary in GitHub."
       tone="info"
       icon={<Github className="h-6 w-6" />}
-      notice={
-        <PluginNotice
-          tone="info"
-          icon={<Github className="h-4 w-4" />}
-          title="GitHub Sync"
-          description="Sync your Judo training sessions to a personal GitHub repository. Sessions are stored as markdown files and synced automatically when you create or update entries."
-        />
-      }
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canUseGitHubSync && (
@@ -414,11 +405,19 @@ export function GitHubSettings() {
         />
       )}
 
+      {isEnabled && (
+        <PluginStatusPanel
+          variant="success"
+          title="Backup is on"
+          description={`New and updated sessions are backed up automatically to ${owner}/${repo}${branch ? ` · ${branch}` : ''}.`}
+        />
+      )}
+
       <PluginFormSection
-        title={isEnabled ? 'Repository connection' : 'Connect a repository'}
+        title={isEnabled ? 'Backup connection' : 'Connect a repository'}
         description={
           isEnabled
-            ? `Automatic sync is on for ${owner}/${repo}. Change the destination only when you need to.`
+            ? `Backing up to ${owner}/${repo}. Manage the destination only when it changes.`
             : 'Choose where new and updated training sessions should be backed up.'
         }
         footerActions={
@@ -455,19 +454,42 @@ export function GitHubSettings() {
           </PluginActionRow>
         }
       >
-        <GitHubRepositoryFields
-          owner={owner}
-          repo={repo}
-          branch={branch}
-          isEnabled={isEnabled}
-          migrationDone={migrationDone}
-          canUseGitHubSync={canUseGitHubSync}
-          inputTone={theme.inputTone}
-          testResult={testResult}
-          onOwnerChange={setOwner}
-          onRepoChange={setRepo}
-          onBranchChange={setBranch}
-        />
+        {isEnabled ? (
+          <details className="rounded-lg border bg-muted/20 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Manage backup connection
+            </summary>
+            <div className="mt-4">
+              <GitHubRepositoryFields
+                owner={owner}
+                repo={repo}
+                branch={branch}
+                isEnabled={isEnabled}
+                migrationDone={migrationDone}
+                canUseGitHubSync={canUseGitHubSync}
+                inputTone={theme.inputTone}
+                testResult={testResult}
+                onOwnerChange={setOwner}
+                onRepoChange={setRepo}
+                onBranchChange={setBranch}
+              />
+            </div>
+          </details>
+        ) : (
+          <GitHubRepositoryFields
+            owner={owner}
+            repo={repo}
+            branch={branch}
+            isEnabled={isEnabled}
+            migrationDone={migrationDone}
+            canUseGitHubSync={canUseGitHubSync}
+            inputTone={theme.inputTone}
+            testResult={testResult}
+            onOwnerChange={setOwner}
+            onRepoChange={setRepo}
+            onBranchChange={setBranch}
+          />
+        )}
       </PluginFormSection>
 
       {!isEnabled && (
@@ -528,8 +550,8 @@ export function GitHubSettings() {
 
       {isEnabled && (
         <PluginTableSection
-          title="Recent sync activity"
-          description="Review a sync only when you need to troubleshoot a result."
+          title="Recent backup activity"
+          description="Open an entry only when you need to troubleshoot a backup."
           hasRows={true}
           emptyTitle="No sync history"
           emptyDescription="Load sync history to inspect recent run details."
