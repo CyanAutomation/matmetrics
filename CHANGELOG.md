@@ -4,6 +4,13 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.6.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.5.0...nextn-v1.6.0) (2026-08-31)
+
+
+### Features
+
+* unify dashboard and maintenance UI ([6e979a7](https://github.com/CyanAutomation/matmetrics/commit/6e979a7df9021b3a426d18990ff5af1a75ac9b04))
+
 ## [1.5.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.4.0...nextn-v1.5.0) (2026-08-31)
 
 
