@@ -12,18 +12,16 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { ChevronDown, Settings2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   getGuestBadgeLabel,
   getGuestWorkspaceDescription,
 } from '@/lib/dashboard-utils';
 import type { DashboardTab } from '@/lib/navigation/tab-definitions';
+import { groupDashboardTabs } from '@/lib/navigation/navigation-groups';
 
 interface DashboardNavProps {
   activeTab: string;
@@ -44,57 +42,17 @@ export function DashboardNav({
   isGuest,
   guestWorkspaceSource,
 }: DashboardNavProps) {
-  const [systemOpen, setSystemOpen] = React.useState(false);
   const guestBadgeLabel = getGuestBadgeLabel(guestWorkspaceSource);
   const guestWorkspaceDesc = getGuestWorkspaceDescription(guestWorkspaceSource);
-  const trainingTabs = visibleTabs.filter(
-    (tab) => tab.id === 'dashboard' || tab.id === 'history'
-  );
-  const workspaceTabs = visibleTabs.filter(
-    (tab) => tab.id !== 'dashboard' && tab.id !== 'history'
-  );
-  const workspaceTab = (title: string) =>
-    workspaceTabs.filter((tab) => tab.title === title);
-  const libraryTabs = [
-    ...workspaceTab('Video Library'),
-    ...workspaceTab('Tag Manager'),
-  ];
-  const preferenceTabs = workspaceTab('Prompt Settings');
-  const systemTabs = workspaceTabs.filter(
-    (tab) => !libraryTabs.includes(tab) && !preferenceTabs.includes(tab)
-  );
-  const hasActiveSystemTool = systemTabs.some((tab) => tab.id === activeTab);
-
-  React.useEffect(() => {
-    if (hasActiveSystemTool) setSystemOpen(true);
-  }, [hasActiveSystemTool]);
+  const navigationGroups = groupDashboardTabs(visibleTabs);
 
   const renderTabs = (
     tabs: DashboardTab[],
-    emphasis: 'primary' | 'secondary',
-    nested = false
+    emphasis: 'primary' | 'secondary'
   ) =>
     tabs.map((tab) => {
       const Icon = tab.icon;
       const isActive = activeTab === tab.id;
-      if (nested) {
-        return (
-          <SidebarMenuSubItem key={tab.id}>
-            <SidebarMenuSubButton
-              asChild
-              isActive={isActive}
-              aria-current={isActive ? 'page' : undefined}
-              className="h-9 rounded-lg text-sm font-medium data-[active=true]:bg-[hsl(var(--color-primary-fixed))] data-[active=true]:text-[hsl(var(--color-on-primary-fixed))]"
-            >
-              <button type="button" onClick={() => onTabChange(tab.id)}>
-                <Icon className="h-4 w-4" />
-                <span>{tab.title}</span>
-              </button>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-        );
-      }
-
       return (
         <SidebarMenuItem key={tab.id}>
           <SidebarMenuButton
@@ -137,58 +95,28 @@ export function DashboardNav({
       </SidebarHeader>
 
       <SidebarContent className="p-2">
-        <SidebarGroup className="p-0">
-          <SidebarGroupLabel>Training</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-2">
-              {renderTabs(trainingTabs, 'primary')}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {workspaceTabs.length > 0 && (
-          <SidebarGroup className="mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2">
-            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        {navigationGroups.map((group, index) => (
+          <SidebarGroup
+            key={group.label}
+            className={
+              index === 0
+                ? 'p-0'
+                : group.label === 'Advanced'
+                  ? 'mt-4 rounded-2xl border border-[hsl(var(--color-outline-variant)/0.52)] bg-[hsl(var(--color-surface-container-low)/0.42)] p-2'
+                  : 'mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2'
+            }
+          >
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
-                {renderTabs(libraryTabs, 'secondary')}
-                {renderTabs(preferenceTabs, 'secondary')}
+                {renderTabs(
+                  group.tabs,
+                  group.label === 'Training' ? 'primary' : 'secondary'
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
-        {systemTabs.length > 0 && (
-          <SidebarGroup className="mt-4 rounded-2xl border border-[hsl(var(--color-outline-variant)/0.52)] bg-[hsl(var(--color-surface-container-low)/0.42)] p-2">
-            <SidebarGroupLabel>System</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-2">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={false}
-                    onClick={() => setSystemOpen((open) => !open)}
-                    aria-expanded={systemOpen}
-                    aria-controls="system-navigation"
-                    className="min-h-11 rounded-xl"
-                  >
-                    <Settings2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">
-                      Sync & maintenance
-                    </span>
-                    <ChevronDown
-                      className={`ml-auto h-4 w-4 transition-transform ${systemOpen ? 'rotate-180' : ''}`}
-                    />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <div id="system-navigation">
-                  {systemOpen ? (
-                    <SidebarMenuSub className="mt-1">
-                      {renderTabs(systemTabs, 'secondary', true)}
-                    </SidebarMenuSub>
-                  ) : null}
-                </div>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        ))}
       </SidebarContent>
 
       {isGuest && (
