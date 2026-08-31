@@ -19,16 +19,7 @@ import { AuthProvider } from '@/components/auth-provider';
 import { LogDoctor } from './log-doctor';
 
 describe('LogDoctor component', () => {
-  it('simulates scan/preview/apply interactions and preserves disabled destructive controls before selection', async () => {
-    const events: Array<{
-      action: string;
-      stage: string;
-      metadata: Record<string, unknown>;
-    }> = [];
-    window.addEventListener('logDoctorDestructiveAction', (event) => {
-      events.push((event as CustomEvent).detail);
-    });
-
+  it('starts with a simple diagnosis choice and reveals validation controls on demand', () => {
     const view = render(
       <AuthProvider>
         <LogDoctor />
@@ -36,41 +27,17 @@ describe('LogDoctor component', () => {
     );
 
     try {
-      fireEvent.change(view.getByLabelText('Owner'), {
-        target: { value: 'team-a' },
-      });
-      fireEvent.change(view.getByLabelText('Repository'), {
-        target: { value: 'matmetrics' },
-      });
-
-      fireEvent.click(view.getByRole('button', { name: 'Scan repository' }));
-      await waitFor(() => {
-        assert.ok(view.getByRole('button', { name: 'Preview fixes' }));
-      });
-
-      // Failure-path UI assertions: actions remain disabled until valid selection exists.
-      assert.equal(
-        view
-          .getByRole('button', { name: 'Preview fixes' })
-          .hasAttribute('disabled'),
-        true
+      assert.ok(view.getByRole('button', { name: 'Check training data' }));
+      assert.ok(view.getByRole('button', { name: 'Review prior checks' }));
+      fireEvent.click(
+        view.getByRole('button', { name: 'Check training data' })
       );
       assert.equal(
         view
-          .getByRole('button', {
-            name: /Apply normalization fixes to 0 selected files/i,
-          })
+          .getByRole('button', { name: 'Run training data check' })
           .hasAttribute('disabled'),
         true
       );
-
-      // Keep this test behavior-focused by validating the UI does not emit destructive
-      // action events when destructive controls are disabled.
-      const applyDisabledButton = view.getByRole('button', {
-        name: /Apply normalization fixes to 0 selected files/i,
-      }) as HTMLButtonElement;
-      applyDisabledButton.click();
-      assert.equal(events.length, 0);
     } finally {
       view.unmount();
     }
@@ -84,7 +51,9 @@ describe('LogDoctor component', () => {
     );
 
     try {
-      fireEvent.click(view.getByRole('tab', { name: 'Session Audit' }));
+      fireEvent.click(
+        view.getByRole('button', { name: 'Review prior checks' })
+      );
 
       await waitFor(() => {
         assert.ok(view.getByText('Session audit status'));
