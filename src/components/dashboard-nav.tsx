@@ -101,9 +101,7 @@ export function DashboardNav({
             className={
               index === 0
                 ? 'p-0'
-                : group.label === 'Advanced'
-                  ? 'mt-4 rounded-2xl border border-[hsl(var(--color-outline-variant)/0.52)] bg-[hsl(var(--color-surface-container-low)/0.42)] p-2'
-                  : 'mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2'
+                : 'mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2'
             }
           >
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>

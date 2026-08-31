@@ -28,6 +28,7 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
+import { PageShell } from '@/components/ui/page-shell';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { Input } from '@/components/ui/input';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
@@ -90,6 +91,7 @@ interface SessionRowProps {
   onEdit: (session: JudoSession) => void;
   onFilterTechnique: (technique: string) => void;
   deletingSessionId: string | null;
+  density: 'comfortable' | 'compact';
 }
 
 function SessionRow({
@@ -98,6 +100,7 @@ function SessionRow({
   onEdit,
   onFilterTechnique,
   deletingSessionId,
+  density,
 }: SessionRowProps) {
   const sessionDateLabel = format(
     parseDateOnly(session.date),
@@ -122,7 +125,12 @@ function SessionRow({
     .trim();
 
   return (
-    <div className="rounded-xl bg-card/42 px-4 py-4 reveal-fade transition-colors hover:bg-card sm:px-5">
+    <div
+      className={cn(
+        'rounded-xl bg-card/42 px-4 reveal-fade transition-colors hover:bg-card sm:px-5',
+        density === 'compact' ? 'py-3' : 'py-4'
+      )}
+    >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -163,7 +171,12 @@ function SessionRow({
             ) : null}
           </div>
           {notePreview ? (
-            <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            <p
+              className={cn(
+                'max-w-2xl text-sm leading-6 text-muted-foreground',
+                density === 'compact' ? 'line-clamp-1' : 'line-clamp-2'
+              )}
+            >
               {notePreview}
             </p>
           ) : null}
@@ -284,6 +297,7 @@ export function SessionHistory({
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('compact');
 
   const handleDelete = async (session: JudoSession) => {
     if (deletingSessionId) {
@@ -416,25 +430,69 @@ export function SessionHistory({
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl bg-muted/45">
-        <RessaImage
-          pose={2}
-          size="medium"
-          alt="Ressa encouraging you to log your first session"
-        />
-        <p className="text-center font-semibold mt-4 mb-1">No sessions yet</p>
-        <p className="text-center text-sm text-muted-foreground mb-6">
-          Log your first training session and it will appear here.
-        </p>
-        {onLogSession && (
-          <Button onClick={onLogSession}>Log your first session</Button>
-        )}
-      </div>
+      <PageShell
+        title="Training history"
+        description="Search and revisit your training sessions."
+        actions={
+          onLogSession ? (
+            <Button onClick={onLogSession}>Log session</Button>
+          ) : undefined
+        }
+      >
+        <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl bg-muted/45">
+          <RessaImage
+            pose={2}
+            size="medium"
+            alt="Ressa encouraging you to log your first session"
+          />
+          <p className="text-center font-semibold mt-4 mb-1">No sessions yet</p>
+          <p className="text-center text-sm text-muted-foreground mb-6">
+            Log your first training session and it will appear here.
+          </p>
+          {onLogSession && (
+            <Button onClick={onLogSession}>Log your first session</Button>
+          )}
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="reveal-fade-up max-w-4xl mx-auto w-full">
+    <PageShell
+      title="Training history"
+      description="Search, filter, and revisit your training sessions."
+      actions={
+        <div className="flex items-center gap-2">
+          <div
+            className="inline-flex rounded-lg bg-[hsl(var(--color-surface-container-low))] p-1"
+            aria-label="History display density"
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant={density === 'compact' ? 'secondary' : 'ghost'}
+              aria-pressed={density === 'compact'}
+              onClick={() => setDensity('compact')}
+            >
+              Compact
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={density === 'comfortable' ? 'secondary' : 'ghost'}
+              aria-pressed={density === 'comfortable'}
+              onClick={() => setDensity('comfortable')}
+            >
+              Comfortable
+            </Button>
+          </div>
+          {onLogSession ? (
+            <Button onClick={onLogSession}>Log session</Button>
+          ) : null}
+        </div>
+      }
+      className="reveal-fade-up max-w-4xl"
+    >
       <FilterBar
         label="Filter training history"
         className="sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
@@ -567,6 +625,7 @@ export function SessionHistory({
                   onEdit={setEditingSession}
                   onFilterTechnique={filterByTechnique}
                   deletingSessionId={deletingSessionId}
+                  density={density}
                 />
               </div>
             ))}
@@ -646,6 +705,6 @@ export function SessionHistory({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

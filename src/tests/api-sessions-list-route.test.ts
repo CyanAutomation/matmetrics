@@ -73,6 +73,22 @@ test('GET list returns local sessions when no GitHub config is requested', async
         payload.sessions.map((session: JudoSession) => session.id),
         ['list-b', 'list-a']
       );
+      const etag = response.headers.get('etag');
+      assert.ok(etag);
+
+      const conditionalResponse = await GET(
+        new NextRequest('http://localhost/api/sessions/list', {
+          headers: {
+            authorization: 'Bearer test-token',
+            'if-none-match': etag,
+          },
+        })
+      );
+      assert.equal(conditionalResponse.status, 304);
+      assert.equal(
+        conditionalResponse.headers.get('cache-control'),
+        'private, max-age=30, stale-while-revalidate=120'
+      );
     });
   });
 });

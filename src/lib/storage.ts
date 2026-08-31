@@ -126,6 +126,7 @@ let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledRefreshAt = 0;
 let scheduledRefreshForce = false;
 let lastSuccessfulRemoteRefreshAt = 0;
+let sessionListEtag: string | null = null;
 let storageGeneration = 0;
 const syncOwnerId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -479,11 +480,7 @@ export async function saveSession(
       );
     }
 
-    if (shouldThrottleGitHubRefresh()) {
-      scheduleRefresh();
-    } else {
-      void refreshSessionsFromAPI();
-    }
+    void refreshSessionsFromAPI({ force: true });
     return { status: 'synced' };
   }
 
@@ -549,11 +546,7 @@ export async function updateSession(
       );
     }
 
-    if (shouldThrottleGitHubRefresh()) {
-      scheduleRefresh();
-    } else {
-      void refreshSessionsFromAPI();
-    }
+    void refreshSessionsFromAPI({ force: true });
     return { status: 'synced' };
   }
 
@@ -610,11 +603,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
       );
     }
 
-    if (shouldThrottleGitHubRefresh()) {
-      scheduleRefresh();
-    } else {
-      void refreshSessionsFromAPI();
-    }
+    void refreshSessionsFromAPI({ force: true });
     return { status: 'synced' };
   }
 
@@ -883,8 +872,16 @@ async function refreshSessionsFromAPI(options?: {
     try {
       const gitHubConfig = getGitHubConfig();
       const url = buildSessionListUrl(gitHubConfig, force);
-      const headers = await getAuthHeaders();
+      const headers = new Headers(await getAuthHeaders());
+      if (!force && sessionListEtag) {
+        headers.set('If-None-Match', sessionListEtag);
+      }
       const res = await fetch(url.toString(), { headers });
+
+      if (res.status === 304) {
+        lastSuccessfulRemoteRefreshAt = Date.now();
+        return;
+      }
 
       if (!res.ok) {
         console.warn(
@@ -894,6 +891,7 @@ async function refreshSessionsFromAPI(options?: {
       }
 
       const payload = await res.json();
+      sessionListEtag = res.headers.get('ETag') ?? sessionListEtag;
       const { sessions, issues } = parseSessionListResponse(payload);
 
       if (!isStorageGenerationCurrent(generation)) {
@@ -1257,11 +1255,7 @@ async function syncPendingOperations(): Promise<void> {
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      if (shouldThrottleGitHubRefresh()) {
-        scheduleRefresh();
-      } else {
-        await refreshSessionsFromAPI();
-      }
+      await refreshSessionsFromAPI({ force: true });
     } finally {
       clearLeaseHeartbeat();
       if (leaseAcquired && isStorageGenerationCurrent(generation)) {
