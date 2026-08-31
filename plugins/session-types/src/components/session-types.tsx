@@ -86,7 +86,7 @@ export function SessionTypes() {
 
   return (
     <PluginPageShell
-      title="Session types"
+      title="Session Types"
       description="Choose the practices available when you log training and set your plan. Technical is always available."
       icon={<SlidersHorizontal className="h-6 w-6" />}
       tone="info"

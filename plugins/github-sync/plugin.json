@@ -56,7 +56,7 @@
       "title": "GitHub Sync",
       "config": {
         "tabId": "github-sync",
-        "headerTitle": "GitHub Sync Config",
+        "headerTitle": "GitHub Sync",
         "icon": "github",
         "component": "github_settings"
       }
