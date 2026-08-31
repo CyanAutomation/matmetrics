@@ -30,11 +30,13 @@ The UI is organized as a series of nested layers that create depth without visua
 ### Component Philosophy
 
 **Cards are the exception, not the default.** Use Card only for:
+
 - Form surfaces where the form itself is the interaction boundary
 - Modal content containers
 - Surfaces requiring explicit lift (floating panels, dropdowns)
 
 For data display, prefer:
+
 - **DataSurface**: Soft-toned container for grouped data
 - **DataStrip**: Label/value row for flat statistic display
 - **Section + Separator**: Whitespace and thin dividers between related items
@@ -50,31 +52,31 @@ All design tokens use **kebab-case** naming and are exported from `src/lib/desig
 
 #### Primary Tokens
 
-| Token | Hex | Usage |
-| --- | --- | --- |
-| `primary` | `#E85D04` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series |
-| `primary-container` | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion |
-| `on-primary` | `#ffffff` | Text/icons on `primary` backgrounds |
-| `on-primary-container` | `#ffffff` | Text/icons on `primary-container` |
+| Token                  | Hex                                 | Usage                                         |
+| ---------------------- | ----------------------------------- | --------------------------------------------- |
+| `primary`              | `#E85D04` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series  |
+| `primary-container`    | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion |
+| `on-primary`           | `#ffffff`                           | Text/icons on `primary` backgrounds           |
+| `on-primary-container` | `#ffffff`                           | Text/icons on `primary-container`             |
 
 #### Surface & Background Tokens
 
-| Token | Hex | Usage |
-| --- | --- | --- |
-| `surface` | `#f7fafc` | App canvas/base background |
-| `surface-container-low` | `#f1f4f6` | Section grouping backgrounds |
-| `surface-container-lowest` | `#ffffff` | Cards and foreground modules |
-| `surface-container-high` | `#e5e9eb` | Elevated neutral containers |
-| `surface-variant` | `#e0e3e5` | Muted chart elements, neutral separators |
+| Token                      | Hex       | Usage                                    |
+| -------------------------- | --------- | ---------------------------------------- |
+| `surface`                  | `#f7fafc` | App canvas/base background               |
+| `surface-container-low`    | `#f1f4f6` | Section grouping backgrounds             |
+| `surface-container-lowest` | `#ffffff` | Cards and foreground modules             |
+| `surface-container-high`   | `#e5e9eb` | Elevated neutral containers              |
+| `surface-variant`          | `#e0e3e5` | Muted chart elements, neutral separators |
 
 #### Status & Semantic Tokens
 
-| Token | Hex | Usage |
-| --- | --- | --- |
-| `success` | `#0f7a43` | Positive outcomes, successful states |
+| Token     | Hex       | Usage                                 |
+| --------- | --------- | ------------------------------------- |
+| `success` | `#0f7a43` | Positive outcomes, successful states  |
 | `warning` | `#b26a00` | Cautionary messages, anomaly callouts |
-| `error` | `#c62828` | Error states, critical regressions |
-| `info` | `#00639b` | Informational notices |
+| `error`   | `#c62828` | Error states, critical regressions    |
+| `info`    | `#00639b` | Informational notices                 |
 
 #### Dashboard Session Category Chart Palette
 
@@ -84,12 +86,12 @@ distinct. Category data outside the frozen session contract is displayed with
 the reserved fallback token rather than being assigned a supported category's
 color.
 
-| Session category | Chart token | Behavior |
-| --- | --- | --- |
-| `Technical` | `chart-1` | Supported category |
-| `Randori` | `chart-2` | Supported category |
-| `Shiai` | `chart-3` | Supported category |
-| Unknown category | `chart-4` | Reserved fallback |
+| Session category | Chart token | Behavior           |
+| ---------------- | ----------- | ------------------ |
+| `Technical`      | `chart-1`   | Supported category |
+| `Randori`        | `chart-2`   | Supported category |
+| `Shiai`          | `chart-3`   | Supported category |
+| Unknown category | `chart-4`   | Reserved fallback  |
 
 Category bar implementations must resolve these semantic chart token names and
 must not rely on raw Tailwind color strings or palette values as their contract.
@@ -111,12 +113,12 @@ The system uses **Inter** as the primary typographic engine, leveraging mathemat
 
 ### Typography Scale
 
-| Scale | Usage | Example |
-| --- | --- | --- |
-| `display-lg` to `display-sm` | Major milestones, session counts | "127 Sessions" |
-| `headline-lg` to `headline-sm` | Technique categories, section headers | "Nage-waza" |
-| `body-lg` to `body-sm` | Descriptive text, helper copy | Session descriptions |
-| `label-md` | Short, scannable UI labels | "RANDORI DURATION" |
+| Scale                          | Usage                                 | Example              |
+| ------------------------------ | ------------------------------------- | -------------------- |
+| `display-lg` to `display-sm`   | Major milestones, session counts      | "127 Sessions"       |
+| `headline-lg` to `headline-sm` | Technique categories, section headers | "Nage-waza"          |
+| `body-lg` to `body-sm`         | Descriptive text, helper copy         | Session descriptions |
+| `label-md`                     | Short, scannable UI labels            | "RANDORI DURATION"   |
 
 ### Typography Guidelines
 
@@ -148,12 +150,30 @@ not skip these levels or use heading elements for descriptive copy or actions.
 // shadow-[var(--shadow-ambient)] hover:brightness-105
 ```
 
+### Segmented Controls
+
+Use `SegmentedControl` for a small set of mutually exclusive peer views or
+timeframes. It exposes the selected state with `aria-pressed`; do not recreate
+its background, padding, or selected treatment inside individual pages.
+
+```tsx
+<SegmentedControl
+  aria-label="Training distribution timeframe"
+  value={timeframe}
+  onValueChange={setTimeframe}
+>
+  <SegmentedControl.Item value="30">30 days</SegmentedControl.Item>
+  <SegmentedControl.Item value="90">90 days</SegmentedControl.Item>
+</SegmentedControl>
+```
+
+Use `FilterBar` for additive filters and quick filter chips. Do not use a
+segmented control when users can select more than one option.
+
 ### Technique Chips
 
 ```tsx
-<Toggle pressed={selected}>
-  Uchi mata
-</Toggle>
+<Toggle pressed={selected}>Uchi mata</Toggle>
 
 // Class recipe:
 // rounded-full h-8 px-3 text-xs font-medium
@@ -182,6 +202,7 @@ not skip these levels or use heading elements for descriptive copy or actions.
 ### The "No-Line" Rule
 
 **Boundaries must be defined through background shifts.** For example:
+
 - Card using `surface-container-lowest` (#ffffff) sits atop `surface-container-low` (#f1f4f6)
 - This creates "soft" containment that feels premium and architectural
 
@@ -206,11 +227,11 @@ not skip these levels or use heading elements for descriptive copy or actions.
 
 ### Spacing Scale
 
-| Device | Section Gap | Card Gap | Internal Padding |
-| --- | --- | --- | --- |
-| Desktop | `spacing-16` (64px) | `spacing-8` (32px) | `spacing-6-8` (24-32px) |
-| Tablet | `spacing-12` (48px) | `spacing-6` (24px) | `spacing-5-6` (20-24px) |
-| Mobile | `spacing-8-10` (32-40px) | `spacing-4-5` (16-20px) | `spacing-4` (16px) |
+| Device  | Section Gap              | Card Gap                | Internal Padding        |
+| ------- | ------------------------ | ----------------------- | ----------------------- |
+| Desktop | `spacing-16` (64px)      | `spacing-8` (32px)      | `spacing-6-8` (24-32px) |
+| Tablet  | `spacing-12` (48px)      | `spacing-6` (24px)      | `spacing-5-6` (20-24px) |
+| Mobile  | `spacing-8-10` (32-40px) | `spacing-4-5` (16-20px) | `spacing-4` (16px)      |
 
 ## Implementation Guidelines
 
@@ -218,8 +239,8 @@ not skip these levels or use heading elements for descriptive copy or actions.
 
 ```css
 :root {
-  --color-primary: #E85D04;
-  --color-primary-container: #F5843C;
+  --color-primary: #e85d04;
+  --color-primary-container: #f5843c;
   --color-surface: #f7fafc;
   --color-surface-low: #f1f4f6;
   --color-surface-lowest: #ffffff;

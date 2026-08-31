@@ -150,24 +150,39 @@ export function PromptSettings() {
         <div className="mt-3 flex flex-wrap gap-2">
           {[
             ['Reflective', 'Use an informal, personal, and reflective tone.'],
-            ['Brief', 'Keep the final diary entry concise and focused on the most useful details.'],
-            ['Technical', 'Prioritize precise technique names, key mechanics, and specific learning points.'],
-          ].map(([label, instruction]) => (
-            <Button
-              key={label}
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={areControlsDisabled}
-              onClick={() => {
-                setPrompt((current) => current.includes(instruction) ? current : `${current.trim()}\n\n${instruction}`.trim());
-                setSaveStatus('idle');
-                setSaveError(null);
-              }}
-            >
-              {label}
-            </Button>
-          ))}
+            [
+              'Brief',
+              'Keep the final diary entry concise and focused on the most useful details.',
+            ],
+            [
+              'Technical',
+              'Prioritize precise technique names, key mechanics, and specific learning points.',
+            ],
+          ].map(([label, instruction]) => {
+            const isApplied = prompt.includes(instruction);
+
+            return (
+              <Button
+                key={label}
+                type="button"
+                variant={isApplied ? 'secondary' : 'outline'}
+                size="sm"
+                aria-pressed={isApplied}
+                disabled={areControlsDisabled}
+                onClick={() => {
+                  setPrompt((current) =>
+                    current.includes(instruction)
+                      ? current
+                      : `${current.trim()}\n\n${instruction}`.trim()
+                  );
+                  setSaveStatus('idle');
+                  setSaveError(null);
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })}
         </div>
       </PluginFormSection>
 

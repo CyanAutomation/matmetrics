@@ -36,6 +36,7 @@ import {
 import { cn, parseDateOnly } from '@/lib/utils';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];
@@ -740,27 +741,21 @@ export function DashboardOverview({
                 {stats.trainingDataRange}
               </span>
             </div>
-            <div
-              className="flex rounded-lg border border-border bg-secondary/20 p-1"
+            <SegmentedControl
               aria-label="Training distribution timeframe"
+              value={String(distributionWindow)}
+              onValueChange={(value) =>
+                setDistributionWindow(
+                  value === 'all' ? 'all' : (Number(value) as 30 | 90)
+                )
+              }
             >
               {([30, 90, 'all'] as const).map((window) => (
-                <button
-                  key={window}
-                  type="button"
-                  aria-pressed={distributionWindow === window}
-                  onClick={() => setDistributionWindow(window)}
-                  className={cn(
-                    'rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    distributionWindow === window
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
+                <SegmentedControl.Item key={window} value={String(window)}>
                   {window === 'all' ? 'All time' : `${window} days`}
-                </button>
+                </SegmentedControl.Item>
               ))}
-            </div>
+            </SegmentedControl>
           </div>
           <div className="space-y-8">
             <div className="space-y-4">
