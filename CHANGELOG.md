@@ -4,6 +4,16 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.5.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.4.0...nextn-v1.5.0) (2026-08-31)
+
+
+### Features
+
+* consolidate application UI patterns ([61b9f7e](https://github.com/CyanAutomation/matmetrics/commit/61b9f7eabcd603b20575792905d99ebeca1c9c9e))
+* consolidate application UI patterns ([#674](https://github.com/CyanAutomation/matmetrics/issues/674)) ([7610dfd](https://github.com/CyanAutomation/matmetrics/commit/7610dfdbe3cf18a22334314446b59b742f50157e))
+* standardize segmented UI controls ([2207b5c](https://github.com/CyanAutomation/matmetrics/commit/2207b5cf6cfab659308856ceca6557e5da57efd9))
+* standardize segmented UI controls ([#676](https://github.com/CyanAutomation/matmetrics/issues/676)) ([bbcecb5](https://github.com/CyanAutomation/matmetrics/commit/bbcecb59d1ba14c71f961d81defa4c7bb17cac33))
+
 ## [1.4.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.3.1...nextn-v1.4.0) (2026-08-30)
 
 
