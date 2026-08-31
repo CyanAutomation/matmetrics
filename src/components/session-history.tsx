@@ -28,6 +28,7 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
 import { cn, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
+import { FilterBar } from '@/components/ui/filter-bar';
 import { Input } from '@/components/ui/input';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
 import {
@@ -434,9 +435,9 @@ export function SessionHistory({
 
   return (
     <div className="reveal-fade-up max-w-4xl mx-auto w-full">
-      <section
-        aria-label="Filter training history"
-        className="sticky top-3 z-[1] mb-6 rounded-2xl bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
+      <FilterBar
+        label="Filter training history"
+        className="sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
       >
         <div className="flex gap-2">
           <InputWithIcon
@@ -544,7 +545,7 @@ export function SessionHistory({
           average effort {filteredAverageEffort.toFixed(1)}/5
           {filteredDuration ? ` · ${filteredDuration} minutes` : ''}
         </p>
-      </section>
+      </FilterBar>
 
       {filteredSessions.length === 0 ? (
         <div className="rounded-xl bg-muted/45 p-8 text-center">

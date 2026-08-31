@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { RowActions } from '@/components/ui/row-actions';
 import {
   PluginDataList,
   PluginDataListRow,
@@ -78,72 +77,38 @@ export function TagManagerInventory({
             <div className="min-w-0">
               <p className="font-medium">{tag}</p>
             </div>
-            <RowActions
-              overflow={
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label={`Actions for ${tag}`}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onRename(tag)}>
-                      <Edit2 className="h-4 w-4" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onMerge(tag)}>
-                      <Combine className="h-4 w-4" />
-                      Merge
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className={getPluginUiTokenClassNames(
-                        'action.destructive-menu-item'
-                      )}
-                      onClick={() => onDelete(tag)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              }
-            >
-              <Button
-                variant="outline"
-                size="default"
-                className={getPluginUiTokenClassNames('action.primary')}
-                aria-label={`Rename ${tag}`}
-                onClick={() => onRename(tag)}
-              >
-                <Edit2 className="h-4 w-4" />
-                Rename
-              </Button>
-              <Button
-                variant="outline"
-                size="default"
-                className={getPluginUiTokenClassNames('action.secondary')}
-                aria-label={`Merge ${tag}`}
-                onClick={() => onMerge(tag)}
-              >
-                <Combine className="h-4 w-4" />
-                Merge
-              </Button>
-              <Button
-                variant="outline"
-                size="default"
-                className={getPluginUiTokenClassNames('action.destructive')}
-                interaction="destructive"
-                aria-label={`Delete ${tag}`}
-                onClick={() => onDelete(tag)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            </RowActions>
+            <div className="ml-auto shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label={`Actions for ${tag}`}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onRename(tag)}>
+                    <Edit2 className="h-4 w-4" />
+                    Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onMerge(tag)}>
+                    <Combine className="h-4 w-4" />
+                    Merge
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={getPluginUiTokenClassNames(
+                      'action.destructive-menu-item'
+                    )}
+                    onClick={() => onDelete(tag)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </PluginDataListRow>
         ))}
       </PluginDataList>
