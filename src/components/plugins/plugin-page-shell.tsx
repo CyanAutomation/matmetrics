@@ -4,6 +4,7 @@ import {
   getPluginThemeTokens,
   type PluginThemeTone,
 } from '@/components/plugins/plugin-theme';
+import { PageShell } from '@/components/ui/page-shell';
 import { cn } from '@/lib/utils';
 
 export const PLUGIN_PAGE_CLASS_PATTERNS = {
@@ -41,51 +42,36 @@ export function PluginPageShell({
   const tokens = getPluginThemeTokens(tone);
 
   return (
-    <section className={cn(PLUGIN_PAGE_CLASS_PATTERNS.container, className)}>
-      <div
-        className={cn(
-          PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing,
-          contentClassName
-        )}
-      >
-        <header
-          className={cn(
-            'flex flex-col items-start gap-3 sm:flex-row',
-            headerActions ? 'justify-between' : null
-          )}
-        >
-          {icon ? (
-            <div
-              className={cn(
-                'shrink-0',
-                iconFrame === 'filled'
-                  ? [
-                      'rounded-lg p-2',
-                      tokens.headerIconBg,
-                      tokens.surfaceElevation,
-                    ]
-                  : null
-              )}
-            >
-              {icon}
-            </div>
-          ) : null}
-          <div
+    <PageShell
+      title={title}
+      description={description}
+      icon={
+        icon ? (
+          <span
             className={cn(
-              PLUGIN_PAGE_CLASS_PATTERNS.headingHierarchy,
-              'min-w-0 flex-1'
+              'block shrink-0',
+              iconFrame === 'filled'
+                ? [
+                    'rounded-lg p-2',
+                    tokens.headerIconBg,
+                    tokens.surfaceElevation,
+                  ]
+                : null
             )}
           >
-            <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-            <p className="text-sm text-muted-foreground">{description}</p>
-          </div>
-          {headerActions ? (
-            <div className="w-full shrink-0 sm:w-auto">{headerActions}</div>
-          ) : null}
-        </header>
-        {notice ? <div>{notice}</div> : null}
-        <div className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>{children}</div>
-      </div>
-    </section>
+            {icon}
+          </span>
+        ) : undefined
+      }
+      actions={headerActions}
+      className={cn(PLUGIN_PAGE_CLASS_PATTERNS.container, className)}
+      contentClassName={cn(
+        PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing,
+        contentClassName
+      )}
+    >
+      {notice ? <div>{notice}</div> : null}
+      <div className={PLUGIN_PAGE_CLASS_PATTERNS.cardSpacing}>{children}</div>
+    </PageShell>
   );
 }
