@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Github,
@@ -87,7 +88,19 @@ export function GitHubSettings() {
     selectedHistoryPath,
     setSelectedHistoryPath,
   } = useGitHubSettingsState(preferences);
+  const [isManagingConnection, setIsManagingConnection] = useState(false);
   const theme = getPluginThemeTokens('info');
+  const hasConnectionChanges = useMemo(() => {
+    const saved = preferences.gitHub.config;
+    return (
+      owner.trim() !== (saved?.owner ?? '') ||
+      repo.trim() !== (saved?.repo ?? '') ||
+      branch.trim() !== (saved?.branch ?? '')
+    );
+  }, [branch, owner, preferences.gitHub.config, repo]);
+  const lastSyncLabel = preferences.gitHub.lastSyncTime
+    ? new Date(preferences.gitHub.lastSyncTime).toLocaleString()
+    : 'No completed sync yet';
 
   const handleSaveConfig = async () => {
     if (!user) return;
@@ -114,6 +127,7 @@ export function GitHubSettings() {
       enabled: true,
     });
     setIsEnabled(true);
+    setIsManagingConnection(false);
 
     toast({
       title: 'Configuration Saved',
@@ -408,8 +422,8 @@ export function GitHubSettings() {
       {isEnabled && (
         <PluginStatusPanel
           variant="success"
-          title="Backup is on"
-          description={`New and updated sessions are backed up automatically to ${owner}/${repo}${branch ? ` · ${branch}` : ''}.`}
+          title="Backup healthy"
+          description={`Automatic backup is on for ${owner}/${repo}${branch ? ` · ${branch}` : ''}. Last synced: ${lastSyncLabel}.`}
         />
       )}
 
@@ -420,62 +434,61 @@ export function GitHubSettings() {
             ? `Backing up to ${owner}/${repo}. Manage the destination only when it changes.`
             : 'Choose where new and updated training sessions should be backed up.'
         }
+        headerActions={
+          isEnabled ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsManagingConnection((open) => !open)}
+              aria-expanded={isManagingConnection}
+            >
+              {isManagingConnection ? 'Done' : 'Manage connection'}
+            </Button>
+          ) : undefined
+        }
         footerActions={
-          <PluginActionRow>
-            <PluginActionSecondary>
-              <Button
-                onClick={() => void handleTestConnection()}
-                disabled={!controlState.canTestConnection}
-                variant="outline"
-                className="gap-2"
-              >
-                {isTesting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {controlState.testConnectionLabel}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Test Connection
-                  </>
-                )}
-              </Button>
-            </PluginActionSecondary>
+          !isEnabled || isManagingConnection ? (
+            <PluginActionRow>
+              <PluginActionSecondary>
+                <Button
+                  onClick={() => void handleTestConnection()}
+                  disabled={!controlState.canTestConnection}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {controlState.testConnectionLabel}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Test Connection
+                    </>
+                  )}
+                </Button>
+              </PluginActionSecondary>
 
-            <PluginActionPrimary>
-              <Button
-                onClick={() => void handleSaveConfig()}
-                disabled={!canUseGitHubSync || !owner || !repo}
-              >
-                {isEnabled ? 'Save changes' : 'Connect repository'}
-              </Button>
-            </PluginActionPrimary>
-          </PluginActionRow>
+              <PluginActionPrimary>
+                <Button
+                  onClick={() => void handleSaveConfig()}
+                  disabled={
+                    !canUseGitHubSync ||
+                    !owner ||
+                    !repo ||
+                    (isEnabled && !hasConnectionChanges)
+                  }
+                >
+                  {isEnabled ? 'Save changes' : 'Connect repository'}
+                </Button>
+              </PluginActionPrimary>
+            </PluginActionRow>
+          ) : undefined
         }
       >
-        {isEnabled ? (
-          <details className="rounded-lg border bg-muted/20 px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium">
-              Manage backup connection
-            </summary>
-            <div className="mt-4">
-              <GitHubRepositoryFields
-                owner={owner}
-                repo={repo}
-                branch={branch}
-                isEnabled={isEnabled}
-                migrationDone={migrationDone}
-                canUseGitHubSync={canUseGitHubSync}
-                inputTone={theme.inputTone}
-                testResult={testResult}
-                onOwnerChange={setOwner}
-                onRepoChange={setRepo}
-                onBranchChange={setBranch}
-              />
-            </div>
-          </details>
-        ) : (
+        {!isEnabled || isManagingConnection ? (
           <GitHubRepositoryFields
             owner={owner}
             repo={repo}
@@ -489,7 +502,7 @@ export function GitHubSettings() {
             onRepoChange={setRepo}
             onBranchChange={setBranch}
           />
-        )}
+        ) : null}
       </PluginFormSection>
 
       {!isEnabled && (
@@ -506,8 +519,8 @@ export function GitHubSettings() {
 
       {isEnabled && !migrationDone && (
         <PluginEmptyState
-          title="Your backup is ready for its first sync"
-          description="New entries will sync automatically. Run one initial sync now to copy your existing training history."
+          title="First backup still needed"
+          description="New entries will back up automatically. Run one initial sync when you are ready to copy your existing history."
           icon={
             <AlertCircle
               className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.info')}`}
@@ -517,151 +530,150 @@ export function GitHubSettings() {
         />
       )}
 
-      {/* Bulk Sync Section */}
-      {isEnabled && !migrationDone && (
-        <PluginFormSection
-          title="First backup"
-          description="Copy your existing sessions once; future changes will sync automatically."
-        >
-          <p
-            className={`mb-4 text-sm ${getPluginUiTokenClassNames('text.subtle')}`}
-          >
-            This creates the training-log folder structure in your repository.
-          </p>
-          <Button
-            onClick={() => void handleBulkSync()}
-            disabled={!controlState.canRunSyncAll}
-            className="gap-2"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {controlState.syncAllLabel}
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                Start first backup
-              </>
-            )}
-          </Button>
-        </PluginFormSection>
-      )}
-
       {isEnabled && (
-        <PluginTableSection
-          title="Recent backup activity"
-          description="Open an entry only when you need to troubleshoot a backup."
-          hasRows={true}
-          emptyTitle="No sync history"
-          emptyDescription="Load sync history to inspect recent run details."
-          headerActions={
-            <Button
-              variant="outline"
-              onClick={() => void handleLoadSyncHistory()}
-              disabled={!controlState.canRefreshHistory}
-              className="gap-2"
+        <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Troubleshooting and activity
+          </summary>
+          <div className="mt-4 space-y-6">
+            <PluginFormSection
+              title={migrationDone ? 'Sync now' : 'Run first backup'}
+              description={
+                migrationDone
+                  ? 'Use this only to troubleshoot or force a complete backup check.'
+                  : 'Copy existing training history once; future changes back up automatically.'
+              }
+            >
+              <Button
+                variant="outline"
+                onClick={() => void handleBulkSync()}
+                disabled={!controlState.canRunSyncAll}
+                className="gap-2"
+              >
+                {isSyncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {isSyncing
+                  ? controlState.syncAllLabel
+                  : migrationDone
+                    ? 'Sync now'
+                    : 'Start first backup'}
+              </Button>
+            </PluginFormSection>
+            <PluginTableSection
+              title="Recent backup activity"
+              description="Open an entry only when you need to troubleshoot a backup."
+              hasRows={true}
+              emptyTitle="No sync history"
+              emptyDescription="Load sync history to inspect recent run details."
+              headerActions={
+                <Button
+                  variant="outline"
+                  onClick={() => void handleLoadSyncHistory()}
+                  disabled={!controlState.canRefreshHistory}
+                  className="gap-2"
+                >
+                  {syncHistoryState.status === 'loading' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {controlState.refreshHistoryLabel}
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      {controlState.refreshHistoryLabel}
+                    </>
+                  )}
+                </Button>
+              }
             >
               {syncHistoryState.status === 'loading' ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {controlState.refreshHistoryLabel}
-                </>
+                <PluginLoadingState description="Loading sync history and per-file diagnostics." />
               ) : (
                 <>
-                  <RefreshCw className="h-4 w-4" />
-                  {controlState.refreshHistoryLabel}
+                  <SyncResultsMainPanel
+                    state={syncHistoryState}
+                    onRetry={() => void handleLoadSyncHistory()}
+                    onRunSync={() => void handleBulkSync()}
+                  />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h4 className="mb-2 text-sm font-semibold">
+                        History list
+                      </h4>
+                      <SyncResultsHistoryList
+                        state={syncHistoryState}
+                        selectedPath={selectedHistoryPath}
+                        onSelect={setSelectedHistoryPath}
+                        onRetry={() => void handleLoadSyncHistory()}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="mb-2 text-sm font-semibold">
+                        Detail pane
+                      </h4>
+                      <SyncResultsDetailPane
+                        state={syncHistoryState}
+                        selectedPath={selectedHistoryPath}
+                        onRetry={() => void handleLoadSyncHistory()}
+                      />
+                    </div>
+                  </div>
                 </>
               )}
-            </Button>
-          }
-        >
-          {syncHistoryState.status === 'loading' ? (
-            <PluginLoadingState description="Loading sync history and per-file diagnostics." />
-          ) : (
-            <>
-              <SyncResultsMainPanel
-                state={syncHistoryState}
-                onRetry={() => void handleLoadSyncHistory()}
-                onRunSync={() => void handleBulkSync()}
-              />
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h4 className="mb-2 text-sm font-semibold">History list</h4>
-                  <SyncResultsHistoryList
-                    state={syncHistoryState}
-                    selectedPath={selectedHistoryPath}
-                    onSelect={setSelectedHistoryPath}
-                    onRetry={() => void handleLoadSyncHistory()}
-                  />
-                </div>
-                <div>
-                  <h4 className="mb-2 text-sm font-semibold">Detail pane</h4>
-                  <SyncResultsDetailPane
-                    state={syncHistoryState}
-                    selectedPath={selectedHistoryPath}
-                    onRetry={() => void handleLoadSyncHistory()}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-        </PluginTableSection>
-      )}
-
-      {/* Success State */}
-      {isEnabled && migrationDone && (
-        <PluginStatusPanel
-          variant="success"
-          title="GitHub Sync Active"
-          description={
-            syncHistoryState.status === 'success'
-              ? 'Your latest sync completed successfully. New sessions will sync automatically.'
-              : 'Automatic sync is enabled. Run sync once to confirm the current repository status.'
-          }
-          className={getPluginUiTokenClassNames('tone.inline.info')}
-        />
+            </PluginTableSection>
+          </div>
+        </details>
       )}
 
       {isEnabled && (
-        <PluginFormSection
-          title="Danger zone"
-          description="These actions stop syncing or remove the saved repository connection. Your existing training records are not deleted."
-          className="border-destructive/30"
-          footerActions={
-            <PluginActionRow>
-              <PluginActionDestructive>
-                <Button
-                  onClick={() => void handleDisable()}
-                  disabled={!controlState.canDisableSync}
-                  variant="outline"
-                  className={`gap-2 ${getPluginUiTokenClassNames('action.destructive')}`}
-                >
-                  {isDisabling ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  {isDisabling ? controlState.disableLabel : 'Disable sync'}
-                </Button>
-              </PluginActionDestructive>
-              <PluginActionTrailing>
-                <Button
-                  onClick={() => setIsClearDialogOpen(true)}
-                  disabled={!controlState.canOpenClearDialog}
-                  variant="ghost"
-                  size="sm"
-                  className={`gap-2 ${getPluginUiTokenClassNames('action.subtle')}`}
-                >
-                  {isClearing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Clear saved connection
-                </Button>
-              </PluginActionTrailing>
-            </PluginActionRow>
-          }
-        />
+        <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-destructive">
+            Danger zone
+          </summary>
+          <div className="mt-4">
+            <PluginFormSection
+              title="Danger zone"
+              description="These actions stop syncing or remove the saved repository connection. Your existing training records are not deleted."
+              className="border-destructive/30"
+              footerActions={
+                <PluginActionRow>
+                  <PluginActionDestructive>
+                    <Button
+                      onClick={() => void handleDisable()}
+                      disabled={!controlState.canDisableSync}
+                      variant="outline"
+                      className={`gap-2 ${getPluginUiTokenClassNames('action.destructive')}`}
+                    >
+                      {isDisabling ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                      {isDisabling ? controlState.disableLabel : 'Disable sync'}
+                    </Button>
+                  </PluginActionDestructive>
+                  <PluginActionTrailing>
+                    <Button
+                      onClick={() => setIsClearDialogOpen(true)}
+                      disabled={!controlState.canOpenClearDialog}
+                      variant="ghost"
+                      size="sm"
+                      className={`gap-2 ${getPluginUiTokenClassNames('action.subtle')}`}
+                    >
+                      {isClearing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Clear saved connection
+                    </Button>
+                  </PluginActionTrailing>
+                </PluginActionRow>
+              }
+            />
+          </div>
+        </details>
       )}
 
       <PluginDestructiveAction
