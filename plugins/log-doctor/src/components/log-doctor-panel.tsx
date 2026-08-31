@@ -392,7 +392,7 @@ function LogDoctorView({
 
   return (
     <PluginPageShell
-      title="Data quality"
+      title="Log Doctor"
       description="Find missing or inconsistent training data, review it, then apply only the fixes you approve."
       icon={<Stethoscope className="h-6 w-6" />}
       className="max-w-4xl"
@@ -451,7 +451,9 @@ function LogDoctorView({
                         onClick={handleScan}
                         disabled={isScanning || !owner || !repo}
                       >
-                        {isScanning ? 'Checking data…' : 'Run data quality check'}
+                        {isScanning
+                          ? 'Checking data…'
+                          : 'Run data quality check'}
                       </Button>
                     </PluginActionPrimary>
                     <PluginActionSecondary>
