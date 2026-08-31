@@ -37,6 +37,7 @@ import { cn, parseDateOnly } from '@/lib/utils';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { MetricBarList } from '@/components/ui/metric-bar-list';
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];
@@ -74,10 +75,7 @@ function EffortTrend({
   const line = points.map(({ x, y }) => `${x},${y}`).join(' ');
 
   return (
-    <div
-      className="mt-5 flex min-h-[250px] flex-1 flex-col"
-      aria-label="Recent effort trend"
-    >
+    <div className="mt-5" aria-label="Recent effort trend">
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <span className="text-label-md text-muted-foreground">
           Effort trend
@@ -90,8 +88,8 @@ function EffortTrend({
       </div>
       <svg
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-        preserveAspectRatio="none"
-        className="min-h-[220px] w-full flex-1 overflow-visible"
+        preserveAspectRatio="xMidYMid meet"
+        className="block w-full overflow-visible"
         role="img"
         aria-label="Reported effort for recent sessions, on a scale from 1 to 5"
       >
@@ -143,7 +141,7 @@ function EffortTrend({
         ))}
         <text
           x={chartLeft}
-          y="224"
+          y="208"
           fill="hsl(var(--color-on-surface-variant))"
           fontSize="10"
         >
@@ -151,7 +149,7 @@ function EffortTrend({
         </text>
         <text
           x={chartRight}
-          y="224"
+          y="208"
           fill="hsl(var(--color-on-surface-variant))"
           fontSize="10"
           textAnchor="end"
@@ -716,8 +714,8 @@ export function DashboardOverview({
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <DataSurface className="flex flex-col bg-[hsl(var(--color-surface-container-low))]">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h3 className="text-headline-sm">Training load</h3>
             <Dumbbell className="h-5 w-5 text-primary" />
@@ -762,58 +760,32 @@ export function DashboardOverview({
               <p className="text-label-md text-muted-foreground">
                 Session Types
               </p>
-              {stats.categoryStats.map((cat) => (
-                <div key={cat.name} className="flex items-center">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-sm font-medium leading-none">
-                        {cat.name}
-                      </p>
-                      <span className="text-body-sm font-semibold text-muted-foreground">
-                        {cat.count}
-                      </span>
-                    </div>
-                    <div className="flex h-2 w-full rounded-full bg-secondary">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all duration-500',
-                          resolveDashboardCategoryBarClass(cat.name)
-                        )}
-                        style={{
-                          width: `${(cat.count / stats.maxCategoryCount) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <MetricBarList
+                ariaLabel="Session type distribution"
+                items={stats.categoryStats.map((cat) => ({
+                  label: cat.name,
+                  value: cat.count,
+                  barClassName: cn(
+                    'transition-all duration-500',
+                    resolveDashboardCategoryBarClass(cat.name)
+                  ),
+                }))}
+              />
             </div>
 
             <div className="space-y-4">
               <p className="text-label-md text-muted-foreground">
                 Top Techniques
               </p>
-              {stats.topTechniques.map((tech, idx) => (
-                <div key={tech.name} className="flex items-center">
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {tech.name}
-                    </p>
-                    <div className="flex h-2 w-full rounded-full bg-secondary">
-                      <div
-                        className={cn(
-                          'h-full rounded-full',
-                          resolveDashboardTechniqueBarClass(idx)
-                        )}
-                        style={{
-                          width: `${(tech.count / stats.maxTechniqueCount) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ml-4 text-sm font-medium">{tech.count}x</div>
-                </div>
-              ))}
+              <MetricBarList
+                ariaLabel="Top techniques"
+                items={stats.topTechniques.map((tech, idx) => ({
+                  label: tech.name,
+                  value: tech.count,
+                  valueLabel: `${tech.count}x`,
+                  barClassName: resolveDashboardTechniqueBarClass(idx),
+                }))}
+              />
             </div>
           </div>
         </DataSurface>

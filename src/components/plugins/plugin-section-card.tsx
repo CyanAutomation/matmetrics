@@ -44,7 +44,7 @@ export function PluginSectionCard({
               {title ? (
                 <h3
                   data-slot="plugin-section-card-title"
-                  className="text-2xl font-semibold leading-none tracking-tight"
+                  className="text-headline-sm"
                 >
                   {title}
                 </h3>
