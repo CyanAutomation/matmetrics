@@ -442,7 +442,7 @@ function LogDoctorView({
                     isDisabled={selectedCount === 0}
                     disabledMessage={
                       selectedCount === 0
-                        ? 'Select at least one invalid file to preview or apply fixes.'
+                        ? 'Run a check, then select any fixes you want to review.'
                         : undefined
                     }
                   >
@@ -453,28 +453,34 @@ function LogDoctorView({
                       >
                         {isScanning
                           ? 'Checking data…'
-                          : 'Run data quality check'}
+                          : 'Run training data check'}
                       </Button>
                     </PluginActionPrimary>
-                    <PluginActionSecondary>
-                      <Button
-                        variant="secondary"
-                        onClick={handlePreviewFixes}
-                        disabled={isPreviewing || selectedCount === 0}
-                      >
-                        {isPreviewing ? 'Previewing…' : 'Preview fixes'}
-                      </Button>
-                    </PluginActionSecondary>
-                    <PluginActionDestructive>
-                      <Button
-                        variant="destructive"
-                        onClick={handleApplyFixes}
-                        disabled={isApplying || selectedCount === 0}
-                        aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
-                      >
-                        {isApplying ? 'Applying…' : 'Apply fixes'}
-                      </Button>
-                    </PluginActionDestructive>
+                    {selectedCount > 0 ? (
+                      <>
+                        <PluginActionSecondary>
+                          <Button
+                            variant="secondary"
+                            onClick={handlePreviewFixes}
+                            disabled={isPreviewing}
+                          >
+                            {isPreviewing ? 'Previewing…' : 'Review fixes'}
+                          </Button>
+                        </PluginActionSecondary>
+                        <PluginActionDestructive>
+                          <Button
+                            variant="destructive"
+                            onClick={handleApplyFixes}
+                            disabled={isApplying}
+                            aria-label={`Apply normalization fixes to ${selectedCount} selected files`}
+                          >
+                            {isApplying
+                              ? 'Applying…'
+                              : `Apply ${selectedCount} approved fixes`}
+                          </Button>
+                        </PluginActionDestructive>
+                      </>
+                    ) : null}
                     {isBusy ? (
                       <PluginActionSecondary>
                         <Button

@@ -7,6 +7,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import { PluginConfirmationDialog } from '@/components/plugins/plugin-confirmation';
@@ -17,6 +18,7 @@ import {
   PluginSuccessState,
 } from '@/components/plugins/plugin-state';
 import { PluginFormSection } from '@/components/plugins/plugin-kit';
+import { PluginSettingRow } from '@/components/plugins/plugin-setting-row';
 import { SESSION_CATEGORIES, type SessionCategory } from '@/lib/types';
 import { saveSessionTypePreferences } from '@/lib/user-preferences';
 
@@ -157,35 +159,37 @@ export function SessionTypes() {
               const required = category === 'Technical';
               const enabled = enabledCategories.includes(category);
               return (
-                <div
+                <PluginSettingRow
                   key={category}
-                  className="flex items-center justify-between gap-4 p-4"
-                >
-                  <div>
-                    <Label
-                      htmlFor={`session-type-${category}`}
-                      className="font-semibold"
-                    >
+                  title={
+                    <Label htmlFor={`session-type-${category}`}>
                       {category}
                     </Label>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {required
-                        ? 'Required for every MatMetrics workspace.'
-                        : enabled
-                          ? 'Available for new session logs and training plans.'
-                          : 'Hidden from new session logs and training plans.'}
-                    </p>
-                  </div>
-                  <Switch
-                    id={`session-type-${category}`}
-                    checked={enabled}
-                    disabled={required || !canSavePreferences || isSaving}
-                    aria-label={`${required ? 'Required' : 'Toggle'} ${category} session type`}
-                    onCheckedChange={(checked) =>
-                      toggleCategory(category, checked)
-                    }
-                  />
-                </div>
+                  }
+                  badge={
+                    required ? (
+                      <Badge variant="secondary">Required</Badge>
+                    ) : null
+                  }
+                  description={
+                    required
+                      ? 'Always available in logging and plans.'
+                      : enabled
+                        ? 'Available in new session logs and training plans.'
+                        : 'Hidden from new session logs and training plans.'
+                  }
+                  control={
+                    <Switch
+                      id={`session-type-${category}`}
+                      checked={enabled}
+                      disabled={required || !canSavePreferences || isSaving}
+                      aria-label={`${required ? 'Required' : 'Toggle'} ${category} session type`}
+                      onCheckedChange={(checked) =>
+                        toggleCategory(category, checked)
+                      }
+                    />
+                  }
+                />
               );
             })}
           </div>
