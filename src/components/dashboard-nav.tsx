@@ -47,9 +47,15 @@ export function DashboardNav({
   const trainingTabs = visibleTabs.filter(
     (tab) => tab.id === 'dashboard' || tab.id === 'history'
   );
-  const workspaceTabs = visibleTabs.filter((tab) => tab.id !== 'dashboard' && tab.id !== 'history');
-  const workspaceTab = (title: string) => workspaceTabs.filter((tab) => tab.title === title);
-  const libraryTabs = [...workspaceTab('Video Library'), ...workspaceTab('Tag Manager')];
+  const workspaceTabs = visibleTabs.filter(
+    (tab) => tab.id !== 'dashboard' && tab.id !== 'history'
+  );
+  const workspaceTab = (title: string) =>
+    workspaceTabs.filter((tab) => tab.title === title);
+  const libraryTabs = [
+    ...workspaceTab('Video Library'),
+    ...workspaceTab('Tag Manager'),
+  ];
   const preferenceTabs = workspaceTab('Prompt Settings');
   const systemTabs = workspaceTabs.filter(
     (tab) => !libraryTabs.includes(tab) && !preferenceTabs.includes(tab)
@@ -135,17 +141,24 @@ export function DashboardNav({
               <SidebarMenu className="gap-2">
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={hasActiveSystemTool}
+                    isActive={false}
                     onClick={() => setSystemOpen((open) => !open)}
                     aria-expanded={systemOpen}
+                    aria-controls="system-navigation"
                     className="min-h-11 rounded-xl"
                   >
                     <Settings2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Sync & maintenance</span>
-                    <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${systemOpen ? 'rotate-180' : ''}`} />
+                    <span className="text-sm font-medium">
+                      Sync & maintenance
+                    </span>
+                    <ChevronDown
+                      className={`ml-auto h-4 w-4 transition-transform ${systemOpen ? 'rotate-180' : ''}`}
+                    />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {systemOpen ? renderTabs(systemTabs, 'secondary') : null}
+                <div id="system-navigation">
+                  {systemOpen ? renderTabs(systemTabs, 'secondary') : null}
+                </div>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef } from 'react';
 
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
-import { cn } from '@/lib/utils';
+import { FilterBar } from '@/components/ui/filter-bar';
 
 type PluginFilterBarProps = ComponentPropsWithoutRef<'div'>;
 
@@ -11,15 +11,18 @@ export function PluginFilterBar({
   ...props
 }: PluginFilterBarProps) {
   return (
-    <div
+    <FilterBar
       {...props}
-      className={cn(
+      label={props['aria-label'] ?? 'Filters'}
+      className={[
         getPluginUiTokenClassNames('layout.filter-bar'),
         'lg:grid-cols-5',
-        className
-      )}
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
-    </div>
+    </FilterBar>
   );
 }
