@@ -396,7 +396,6 @@ function LogDoctorView({
       title="Log Doctor"
       description="Find missing or inconsistent training data, review it, then apply only the fixes you approve."
       icon={<Stethoscope className="h-6 w-6" />}
-      className="max-w-4xl"
     >
       {!hasStartedDiagnosis ? (
         <div className="grid gap-4 sm:grid-cols-2">
