@@ -50,6 +50,7 @@ export function validatePluginColorClasses(
   const inspectText = (value: string, start: number): void => {
     for (const match of value.matchAll(/\S+/g)) {
       const token = match[0];
+      const matchIndex = match.index ?? 0;
       const color = token.match(colorUtility);
       if (!color || options.allowedTokens.has(token)) continue;
       if (
@@ -58,7 +59,7 @@ export function validatePluginColorClasses(
         continue;
       }
       const position = sourceFile.getLineAndCharacterOfPosition(
-        start + (match.index ?? 0)
+        start + matchIndex
       );
       diagnostics.push({
         file,
