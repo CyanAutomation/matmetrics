@@ -134,12 +134,22 @@ expect(screen.getByRole('button', { name: 'cancel' })).toBeVisible();`,
   );
 });
 
-test('evidence scanners propagate missing-file errors', async () => {
-  await assert.rejects(
-    findFilesAssertingState(
-      ['/tmp/matmetrics-file-that-does-not-exist'],
-      'loading'
-    ),
-    /ENOENT/
+test('findFilesAssertingState propagates raw filesystem failures with the affected path', async () => {
+  const directory = await mkdtemp(
+    path.join(tmpdir(), 'matmetrics-ux-missing-')
   );
+  const missingFile = path.join(directory, 'missing.test.ts');
+
+  try {
+    await assert.rejects(
+      findFilesAssertingState([missingFile], 'loading'),
+      (error: NodeJS.ErrnoException) => {
+        assert.equal(error.code, 'ENOENT');
+        assert.equal(error.path, missingFile);
+        return true;
+      }
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
