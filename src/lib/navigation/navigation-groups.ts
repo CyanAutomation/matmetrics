@@ -4,27 +4,27 @@ type NavigableTab = {
 };
 
 export type NavigationGroup<T extends NavigableTab = NavigableTab> = {
-  label: 'Training' | 'Workspace' | 'Data & backup' | 'Advanced';
+  label: 'Today' | 'Library' | 'Plan' | 'Settings';
   tabs: T[];
 };
 
 const groupOrder: ReadonlyArray<NavigationGroup['label']> = [
-  'Training',
-  'Workspace',
-  'Data & backup',
-  'Advanced',
+  'Today',
+  'Library',
+  'Plan',
+  'Settings',
 ];
 
 const tabGroupByTitle: Record<string, NavigationGroup['label']> = {
-  Dashboard: 'Training',
-  'Training History': 'Training',
-  'Session Types': 'Training',
-  'Video Library': 'Workspace',
-  'Tag Manager': 'Workspace',
-  'Prompt Settings': 'Workspace',
-  'GitHub Sync': 'Data & backup',
-  'Log Doctor': 'Data & backup',
-  Plugins: 'Advanced',
+  Dashboard: 'Today',
+  'Training History': 'Today',
+  'Video Library': 'Library',
+  'Tag Manager': 'Library',
+  'Session Types': 'Plan',
+  'Prompt Settings': 'Settings',
+  'GitHub Sync': 'Settings',
+  'Log Doctor': 'Settings',
+  Plugins: 'Settings',
 };
 
 /**
@@ -38,7 +38,7 @@ export function groupDashboardTabs<T extends NavigableTab>(
     .map((label) => ({
       label,
       tabs: tabs.filter(
-        (tab) => (tabGroupByTitle[tab.title] ?? 'Workspace') === label
+        (tab) => (tabGroupByTitle[tab.title] ?? 'Settings') === label
       ),
     }))
     .filter((group) => group.tabs.length > 0);

@@ -158,6 +158,32 @@ test('installed content renders behavior-defining UI surfaces for each scenario 
   assert.match(accessBlockedMarkup, /Sign in with a configured account/);
 });
 
+test('installed plugin cards show a maturity score and tier when a scorecard is available', () => {
+  const markup = renderInstalledContentMarkup({
+    installedPluginsViewState: 'table',
+    installedPlugins: [
+      createInstalledPluginRow({
+        maturity: {
+          score: 82,
+          tier: 'silver',
+        } as InstalledPluginRow['maturity'],
+      }),
+    ],
+  });
+
+  assert.match(markup, /Quality score/);
+  assert.match(markup, /Silver 82\/100/);
+});
+
+test('installed plugin cards make an unavailable maturity rating explicit', () => {
+  const markup = renderInstalledContentMarkup({
+    installedPluginsViewState: 'table',
+    installedPlugins: [createInstalledPluginRow()],
+  });
+
+  assert.match(markup, /Quality score pending/);
+});
+
 test('deriveInstalledPlugins keeps tag-manager priority and does not mutate source rows across repeated calls', () => {
   const installedManifestRows: InstalledPluginManifestRow[] = [
     {

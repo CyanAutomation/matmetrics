@@ -530,8 +530,8 @@ export function DashboardOverview({
             </Button>
           )}
         </div>
-        <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 sm:px-6 sm:pb-6">
-          <div className="flex items-center gap-3 rounded-xl bg-card/55 px-4 py-3">
+        <div className="grid gap-4 border-t border-[hsl(var(--color-outline-variant)/0.16)] px-5 pt-4 sm:grid-cols-2 sm:px-6 sm:pt-5">
+          <div className="flex items-center gap-3">
             <Flame className="h-4 w-4 text-primary" />
             <div>
               <p className="text-label-md text-muted-foreground">
@@ -542,7 +542,7 @@ export function DashboardOverview({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-xl bg-card/55 px-4 py-3">
+          <div className="flex items-center gap-3 sm:border-l sm:border-[hsl(var(--color-outline-variant)/0.16)] sm:pl-6">
             <Target className="h-4 w-4 text-primary" />
             <div>
               <p className="text-label-md text-muted-foreground">Next focus</p>
@@ -552,7 +552,7 @@ export function DashboardOverview({
         </div>
       </DataSurface>
 
-      <DataSurface className="mb-8 bg-[hsl(var(--color-surface-container-low))]">
+      <DataSurface className="mb-8 bg-[hsl(var(--color-surface-container-low))] shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-label-md text-primary">Your plan</p>
@@ -595,7 +595,7 @@ export function DashboardOverview({
             {stats.rollingPlan.map((item) => (
               <div
                 key={item.category}
-                className="rounded-xl bg-card/55 px-4 py-3"
+                className="border-t border-[hsl(var(--color-outline-variant)/0.16)] py-3 first:border-t-0 first:pt-0"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="flex items-center gap-2 font-semibold">
