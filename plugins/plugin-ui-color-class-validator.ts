@@ -58,7 +58,7 @@ export function validatePluginColorClasses(
         continue;
       }
       const position = sourceFile.getLineAndCharacterOfPosition(
-        start + match.index
+        start + (match.index ?? 0)
       );
       diagnostics.push({
         file,
