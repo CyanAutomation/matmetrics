@@ -10,6 +10,10 @@ import {
   validatePluginUiTokenVariants,
 } from '../src/components/plugins/plugin-style-policy';
 import { getPluginThemeTokens } from '../src/components/plugins/plugin-theme';
+import {
+  PluginColorClassException,
+  validatePluginColorClasses,
+} from './plugin-ui-color-class-validator';
 
 const repoRoot = process.cwd();
 const REQUIREMENT_SOURCES = {
@@ -36,54 +40,53 @@ const scannedFiles = [
   ...readFileList('src/components/plugins/**/*.{ts,tsx}'),
 ];
 
-const fileAllowlist = new Set([
-  'src/components/plugins/plugin-style-policy.ts',
-  'src/components/plugins/plugin-theme.ts',
-  'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
-  'plugins/github-sync/src/components/github-sync-results.tsx',
-  'src/components/plugins/plugin-state.tsx',
-  'src/components/plugins/plugin-kit.tsx',
-  'src/components/plugins/plugin-data-surface.tsx',
-]);
-
-const forbiddenPluginColorClassPattern =
-  /\b(?:text|bg|border)-(?:red|green|blue|amber|yellow|purple|pink|indigo|destructive|primary|secondary|accent|muted|foreground)(?:-(?:foreground|\d{2,3}))?(?:\/\d{1,3})?\b/;
-
-const classNameExpressionPattern = /className\s*=\s*({[^}]*}|"[^"]*"|'[^']*')/g;
-const stringLiteralPattern = /(["'`])((?:\\.|(?!\1).)*)\1/g;
-
-function extractClassTokensFromSource(source: string): string[] {
-  const tokens: string[] = [];
-
-  const collectFromFragment = (fragment: string): void => {
-    const matches = fragment.matchAll(stringLiteralPattern);
-    for (const match of matches) {
-      const value = match[2];
-      value
-        .split(/\s+/)
-        .map((entry) => entry.trim())
-        .filter(Boolean)
-        .forEach((entry) => tokens.push(entry));
-    }
-  };
-
-  const classNameMatches = source.matchAll(classNameExpressionPattern);
-  for (const match of classNameMatches) {
-    collectFromFragment(match[1]);
-  }
-
-  return tokens;
-}
-
-function findForbiddenClassTokens(tokens: Iterable<string>): string[] {
-  return [
-    ...new Set(
-      [...tokens].filter((token) =>
-        forbiddenPluginColorClassPattern.test(token)
-      )
-    ),
-  ];
-}
+const colorClassExceptions: readonly PluginColorClassException[] = [
+  {
+    file: 'plugins/github-sync/src/components/github-sync-results.tsx',
+    token: 'text-red-700',
+    reason: 'Legacy sync error states migrate under PLUG-224.',
+  },
+  {
+    file: 'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+    token: 'border-primary',
+    reason: 'Legacy selected audit option migrates under PLUG-224.',
+  },
+  {
+    file: 'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+    token: 'hover:bg-muted/30',
+    reason: 'Legacy audit option hover state migrates under PLUG-224.',
+  },
+  {
+    file: 'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+    token: 'border-yellow-200',
+    reason: 'Legacy warning alert migrates under PLUG-224.',
+  },
+  {
+    file: 'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+    token: 'bg-yellow-50',
+    reason: 'Legacy warning alert migrates under PLUG-224.',
+  },
+  {
+    file: 'plugins/log-doctor/src/components/log-doctor-audit-settings.tsx',
+    token: 'text-yellow-800',
+    reason: 'Legacy warning alert migrates under PLUG-224.',
+  },
+  {
+    file: 'src/components/plugins/plugin-kit.tsx',
+    token: 'bg-secondary/35',
+    reason: 'Compatibility surface pending a policy token.',
+  },
+  {
+    file: 'src/components/plugins/plugin-data-surface.tsx',
+    token: 'bg-secondary/55',
+    reason: 'Compatibility surface pending a policy token.',
+  },
+  {
+    file: 'src/components/plugins/plugin-data-surface.tsx',
+    token: 'bg-secondary/35',
+    reason: 'Compatibility surface pending a policy token.',
+  },
+];
 
 test('policy helper derives a normalized allowlist from variants and themes', () => {
   const allowlist = derivePluginAllowedClassTokens();
@@ -276,28 +279,85 @@ test('plugin surfaces block forbidden semantic utility classes with per-file dia
   const allowlist = derivePluginAllowedClassTokens();
 
   const violations = scannedFiles.flatMap((filePath) => {
-    if (fileAllowlist.has(filePath)) {
-      return [];
-    }
-
     const source = readFileSync(path.join(repoRoot, filePath), 'utf8');
-    const classTokens = extractClassTokensFromSource(source);
-    const forbiddenTokens = findForbiddenClassTokens(classTokens).filter(
-      (token) => !allowlist.has(token)
+    return validatePluginColorClasses(source, filePath, {
+      allowedTokens: allowlist,
+      exceptions: colorClassExceptions,
+    }).map(
+      ({ file, line, token, replacement }) =>
+        `${file}:${line}: ${token} (replace with ${replacement})`
     );
-
-    return forbiddenTokens.length > 0
-      ? [
-          `${filePath}: ${forbiddenTokens
-            .sort((left, right) => left.localeCompare(right))
-            .join(', ')}`,
-        ]
-      : [];
   });
 
   assert.deepEqual(
     violations,
     [],
     `${req('forbiddenClassEnforcement')} found forbidden hardcoded plugin color classes:\n${violations.join('\n')}`
+  );
+});
+
+test('plugin color class AST validator handles static JSX composition precisely', () => {
+  const source = `
+    const prose = 'text-red-500';
+    const dynamic = getClasses();
+    export const Fixture = ({ active }: { active: boolean }) => (
+      <div className={cn(
+        'text-primary',
+        active ? 'bg-red-500' : 'bg-muted',
+        \`border-amber-200/50 \${active ? 'text-blue-600' : dynamic}\`,
+        dynamic
+      )} data-example="text-pink-500">
+        <span
+          className={
+            active
+              ? 'hover:bg-green-600'
+              : 'text-muted-foreground'
+          }
+        />
+      </div>
+    );
+  `;
+
+  assert.deepEqual(
+    validatePluginColorClasses(source, 'fixture.tsx', {
+      allowedTokens: new Set([
+        'text-primary',
+        'bg-muted',
+        'text-muted-foreground',
+      ]),
+    }).map(({ line, token, replacement }) => ({ line, token, replacement })),
+    [
+      { line: 7, token: 'bg-red-500', replacement: 'bg-destructive/10' },
+      {
+        line: 8,
+        token: 'border-amber-200/50',
+        replacement: 'border-destructive/30',
+      },
+      { line: 8, token: 'text-blue-600', replacement: 'text-destructive' },
+      {
+        line: 14,
+        token: 'hover:bg-green-600',
+        replacement: 'hover:bg-destructive/10',
+      },
+    ]
+  );
+});
+
+test('plugin color class AST validator applies token-scoped documented exceptions', () => {
+  const source = `<div className="bg-red-500 text-blue-600" />`;
+  const diagnostics = validatePluginColorClasses(source, 'legacy.tsx', {
+    allowedTokens: new Set(),
+    exceptions: [
+      {
+        file: 'legacy.tsx',
+        token: 'bg-red-500',
+        reason: 'Tracked legacy surface.',
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    diagnostics.map(({ token }) => token),
+    ['text-blue-600']
   );
 });
