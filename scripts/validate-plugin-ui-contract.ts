@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -574,7 +574,8 @@ export const computePrimitiveUsage = async (
       primitiveLocals.set(imported.localName, imported.requirement);
     }
 
-    const composition = evaluatePluginComponentCompositionFromSource(sourceText);
+    const composition =
+      evaluatePluginComponentCompositionFromSource(sourceText);
     if (composition.hasSingleTopLevelPageShell) {
       usage.singleTopLevelPageShell = true;
     }
@@ -650,8 +651,8 @@ export const discoverPluginManifests = async (
     pluginDirs.map(async (pluginDir) => {
       const manifestPath = path.join(root, pluginDir, 'plugin.json');
       try {
-        await access(manifestPath);
-        return manifestPath;
+        const manifestStat = await stat(manifestPath);
+        return manifestStat.isFile() ? manifestPath : null;
       } catch {
         return null;
       }
