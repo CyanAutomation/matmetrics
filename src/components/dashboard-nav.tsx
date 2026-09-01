@@ -31,6 +31,13 @@ interface DashboardNavProps {
   guestWorkspaceSource: 'custom' | 'demo';
 }
 
+const navigationLabels: Record<string, string> = {
+  'prompt-settings': 'AI writing',
+  'github-sync': 'Backup',
+  'log-doctor': 'Data check',
+  plugin_manager: 'Extensions',
+};
+
 /**
  * DashboardNav: Reusable sidebar navigation component for the dashboard
  * Renders the MatMetrics logo, tab navigation, and guest workspace indicator
@@ -69,7 +76,7 @@ export function DashboardNav({
                   : 'text-sm font-medium'
               }
             >
-              {tab.title}
+              {navigationLabels[tab.id] ?? tab.title}
             </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -101,7 +108,7 @@ export function DashboardNav({
             className={
               index === 0
                 ? 'p-0'
-                : 'mt-4 rounded-2xl bg-[hsl(var(--color-surface-container-low)/0.72)] p-2'
+                : 'mt-5 border-t border-[hsl(var(--color-outline-variant)/0.16)] pt-4'
             }
           >
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -109,7 +116,7 @@ export function DashboardNav({
               <SidebarMenu className="gap-2">
                 {renderTabs(
                   group.tabs,
-                  group.label === 'Training' ? 'primary' : 'secondary'
+                  group.label === 'Today' ? 'primary' : 'secondary'
                 )}
               </SidebarMenu>
             </SidebarGroupContent>

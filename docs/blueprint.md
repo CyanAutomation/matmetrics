@@ -54,8 +54,8 @@ All design tokens use **kebab-case** naming and are exported from `src/lib/desig
 
 | Token                  | Hex                                 | Usage                                         |
 | ---------------------- | ----------------------------------- | --------------------------------------------- |
-| `primary`              | `#E85D04` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series  |
-| `primary-container`    | `#F5843C` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion |
+| `primary`              | `#006BAB` (light), `#296BCD` (dark) | Primary action backgrounds, key chart series  |
+| `primary-container`    | `#0075C2` (light), `#0075d6` (dark) | Elevated primary surfaces, gradient companion |
 | `on-primary`           | `#ffffff`                           | Text/icons on `primary` backgrounds           |
 | `on-primary-container` | `#ffffff`                           | Text/icons on `primary-container`             |
 

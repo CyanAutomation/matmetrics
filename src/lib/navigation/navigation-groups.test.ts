@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { groupDashboardTabs } from './navigation-groups';
 
-test('groups user-facing dashboard tabs by task, keeping admin controls separate', () => {
+test('groups user-facing dashboard tabs by the athlete task, keeping extensions in settings', () => {
   const tabs = [
     { id: 'dashboard', title: 'Dashboard' },
     { id: 'history', title: 'Training History' },
@@ -20,20 +20,20 @@ test('groups user-facing dashboard tabs by task, keeping admin controls separate
 
   assert.deepEqual(
     groups.map((group) => group.label),
-    ['Training', 'Workspace', 'Data & backup', 'Advanced']
+    ['Today', 'Library', 'Plan', 'Settings']
   );
   assert.deepEqual(
     groups.map((group) => group.tabs.map((tab) => tab.title)),
     [
-      ['Dashboard', 'Training History', 'Session Types'],
-      ['Video Library', 'Tag Manager', 'Prompt Settings'],
-      ['GitHub Sync', 'Log Doctor'],
-      ['Plugins'],
+      ['Dashboard', 'Training History'],
+      ['Video Library', 'Tag Manager'],
+      ['Session Types'],
+      ['Prompt Settings', 'GitHub Sync', 'Log Doctor', 'Plugins'],
     ]
   );
 });
 
-test('retains unrecognised plugin tabs in Workspace instead of hiding them', () => {
+test('retains unrecognised plugin tabs in Settings instead of hiding them', () => {
   const groups = groupDashboardTabs([
     { id: 'dashboard', title: 'Dashboard' },
     { id: 'analysis', title: 'Technique analysis' },

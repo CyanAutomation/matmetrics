@@ -268,11 +268,40 @@ export function PluginManagerInstalledContent(props: {
                   <span className="text-sm font-semibold">{plugin.name}</span>
                   <Badge
                     variant="outline"
-                    className={plugin.issues.length > 0 ? 'ui-pill-warning' : 'ui-pill-success'}
+                    className={
+                      plugin.issues.length > 0
+                        ? 'ui-pill-warning'
+                        : 'ui-pill-success'
+                    }
                   >
                     {plugin.issues.length > 0 ? 'Needs attention' : 'Working'}
                   </Badge>
-                  {scoredWithContractIssues ? <Badge variant="outline" className="ui-pill-warning">Setup issue</Badge> : null}
+                  {plugin.maturity ? (
+                    <Badge
+                      variant="outline"
+                      className={
+                        resolvePluginTierPresentation(plugin.maturity.tier)
+                          .toneClass
+                      }
+                      aria-label={`Quality score: ${resolvePluginTierPresentation(plugin.maturity.tier).label} ${plugin.maturity.score} out of 100`}
+                    >
+                      Quality score ·{' '}
+                      {
+                        resolvePluginTierPresentation(plugin.maturity.tier)
+                          .label
+                      }{' '}
+                      {plugin.maturity.score}/100
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="ui-pill-trend-neutral">
+                      Quality score pending
+                    </Badge>
+                  )}
+                  {scoredWithContractIssues ? (
+                    <Badge variant="outline" className="ui-pill-warning">
+                      Setup issue
+                    </Badge>
+                  ) : null}
                 </div>
                 <p className="mt-0.5 font-mono text-xs text-muted-foreground">
                   {plugin.id} · v{plugin.version}
@@ -664,7 +693,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     <PluginPageShell
       title="Plugins"
       description="Enable or disable installed plugins, and review plugin issues."
-      className="max-w-4xl"
       contentClassName={PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing}
     >
       {accessAlert}
