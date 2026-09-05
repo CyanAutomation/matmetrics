@@ -112,9 +112,15 @@ export const detectMaturityPrimitiveEvidence = (
     );
     const source = match[2];
 
-    for (const [criterion, configuration] of Object.entries(
-      MATURITY_PRIMITIVES
-    )) {
+    const criterionKeys: MaturityPrimitiveCriterion[] = [
+      'uiStates',
+      'shells',
+      'sections',
+      'destructiveActions',
+      'dataSurfaces',
+    ];
+    for (const criterion of criterionKeys) {
+      const configuration = MATURITY_PRIMITIVES[criterion];
       if (
         typeof configuration !== 'object' ||
         configuration === null ||
