@@ -88,41 +88,58 @@ test('findFilesAssertingState recognizes broad loading assertions and preserves 
   );
 });
 
-test('findFilesAssertingCriterion verifies each composite UX criterion', async () => {
+test('findFilesAssertingCriterion recognizes rendered standard UX states from docs/plugin-ui-contract.md#standard-state-components', async () => {
   await withEvidenceFiles(
     {
-      'loading.test.ts': `expect(screen.getByText('loading')).toBeVisible();`,
-      'error-recovery.test.ts': `expect(screen.getByText('error')).toBeVisible();
-expect(screen.getByRole('button', { name: 'retry' })).toBeVisible();`,
-      'empty-cta.test.ts': `expect(screen.getByText('no results')).toBeVisible();
-expect(screen.getByRole('button', { name: 'add' })).toBeVisible();`,
+      'loading.test.tsx': `
+        import { PluginLoadingState } from '@/components/plugins/plugin-state';
+        render(<PluginLoadingState />);
+        expect(screen.getByText('loading')).toBeVisible();
+      `,
+      'error-recovery.test.tsx': `
+        import { PluginErrorState } from '@/components/plugins/plugin-state';
+        render(<PluginErrorState />);
+        expect(screen.getByText('error')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'retry' })).toBeVisible();
+      `,
+      'empty-cta.test.tsx': `
+        import { PluginEmptyState } from '@/components/plugins/plugin-state';
+        render(<PluginEmptyState />);
+        expect(screen.getByText('no results')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'add' })).toBeVisible();
+      `,
       'destructive-safe.test.ts': `expect(screen.getByText('delete item')).toBeVisible();
 expect(screen.getByRole('dialog', { name: 'confirm deletion' })).toBeVisible();
 expect(screen.getByRole('button', { name: 'cancel' })).toBeVisible();`,
       'incomplete.test.ts': `expect(screen.getByText('error')).toBeVisible();`,
     },
     async (paths) => {
-      assert.deepEqual(
-        await findFilesAssertingCriterion(
-          Object.values(paths),
-          'loadingStatePresent'
-        ),
-        [paths['loading.test.ts']]
-      );
-      assert.deepEqual(
-        await findFilesAssertingCriterion(
-          Object.values(paths),
-          'errorStateWithRecovery'
-        ),
-        [paths['error-recovery.test.ts']]
-      );
-      assert.deepEqual(
-        await findFilesAssertingCriterion(
-          Object.values(paths),
-          'emptyStateWithCta'
-        ),
-        [paths['empty-cta.test.ts']]
-      );
+      const cases = [
+        {
+          criterion: 'loadingStatePresent',
+          evidenceFile: 'loading.test.tsx',
+        },
+        {
+          criterion: 'errorStateWithRecovery',
+          evidenceFile: 'error-recovery.test.tsx',
+        },
+        {
+          criterion: 'emptyStateWithCta',
+          evidenceFile: 'empty-cta.test.tsx',
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        assert.deepEqual(
+          await findFilesAssertingCriterion(
+            Object.values(paths),
+            testCase.criterion
+          ),
+          [paths[testCase.evidenceFile]],
+          `${testCase.criterion} satisfies docs/plugin-ui-contract.md#standard-state-components`
+        );
+      }
+
       assert.deepEqual(
         await findFilesAssertingCriterion(
           Object.values(paths),
