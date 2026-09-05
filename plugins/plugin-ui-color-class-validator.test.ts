@@ -34,3 +34,34 @@ test('validator covers object/array/binary/conditional/helper call paths', () =>
   // Allowed token should not appear
   assert.ok(!tokens.includes('text-primary'));
 });
+
+test('validator handles parenthesized expressions', () => {
+  const source = `
+    export const Fixture = () => (
+      <div className={( 'bg-red-500' )} />
+    );
+  `;
+
+  const diagnostics = validatePluginColorClasses(source, 'paren.tsx', {
+    allowedTokens: new Set([]),
+  });
+
+  const tokens = diagnostics.map((d) => d.token);
+  assert.ok(tokens.includes('bg-red-500'));
+});
+
+test('validator resolves computed property name expressions when concatenated', () => {
+  const source = `
+    const color = 'pink-500';
+    export const Fixture = () => (
+      <div className={clsx({ ['text-' + 'pink-500']: true })} />
+    );
+  `;
+
+  const diagnostics = validatePluginColorClasses(source, 'computed.tsx', {
+    allowedTokens: new Set([]),
+  });
+
+  const tokens = diagnostics.map((d) => d.token);
+  assert.ok(tokens.includes('text-pink-500'));
+});

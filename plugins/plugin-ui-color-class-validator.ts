@@ -104,7 +104,30 @@ export function validatePluginColorClasses(
           ) {
             inspectExpression(property.name);
           } else if (ts.isComputedPropertyName(property.name)) {
-            inspectExpression(property.name.expression);
+            // Try to evaluate simple string-concatenation expressions
+            const tryEvalToString = (expr: ts.Expression): string | null => {
+              if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+                return expr.text;
+              }
+              if (ts.isParenthesizedExpression(expr)) return tryEvalToString(expr.expression);
+              if (
+                ts.isBinaryExpression(expr) &&
+                expr.operatorToken.kind === ts.SyntaxKind.PlusToken
+              ) {
+                const left = tryEvalToString(expr.left as ts.Expression);
+                const right = tryEvalToString(expr.right as ts.Expression);
+                if (left !== null && right !== null) return left + right;
+                return null;
+              }
+              return null;
+            };
+
+            const evaluated = tryEvalToString(property.name.expression);
+            if (evaluated !== null) {
+              inspectText(evaluated, property.name.expression.getStart(sourceFile) + 1);
+            } else {
+              inspectExpression(property.name.expression);
+            }
           }
           inspectExpression(property.initializer);
         }
