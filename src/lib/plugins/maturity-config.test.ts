@@ -1,83 +1,83 @@
-import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
 import { MATURITY_PRIMITIVES } from './maturity-config';
 
 describe('maturity-config', () => {
   describe('MATURITY_PRIMITIVES', () => {
-    it('should define UI state primitives', () => {
-      assert.ok(MATURITY_PRIMITIVES.uiStates);
-      assert.equal(
-        MATURITY_PRIMITIVES.uiStates.source,
-        '@/components/plugins/plugin-state'
+    it('defines every primitive group required by docs/plugin-ui-contract.md#required-shell-usage', () => {
+      const groups = [
+        {
+          name: 'uiStates',
+          source: '@/components/plugins/plugin-state',
+          names: ['PluginLoadingState', 'PluginErrorState', 'PluginEmptyState'],
+        },
+        {
+          name: 'shells',
+          source: '@/components/plugins/plugin-page-shell',
+          names: ['PluginPageShell'],
+        },
+        {
+          name: 'sections',
+          source: '@/components/plugins/plugin-section-card',
+          names: ['PluginSectionCard'],
+        },
+        {
+          name: 'destructiveActions',
+          source: '@/components/plugins/plugin-destructive-action',
+          names: ['PluginDestructiveAction'],
+        },
+        {
+          name: 'dataSurfaces',
+          source: '@/components/plugins/plugin-data-surface',
+          names: [
+            'PluginDataSurfaceTable',
+            'PluginDataSurfaceFilterRow',
+            'PluginDataSurfaceSummaryStrip',
+            'PluginEmptyFilteredResults',
+          ],
+        },
+      ] as const;
+
+      for (const group of groups) {
+        const configuredGroup = MATURITY_PRIMITIVES[group.name];
+
+        assert.equal(configuredGroup.source, group.source, group.name);
+        assert.deepEqual(configuredGroup.names, group.names, group.name);
+        assert.deepEqual(
+          MATURITY_PRIMITIVES.getPrimitivesBySource(group.source),
+          group.names,
+          group.name
+        );
+        for (const primitiveName of group.names) {
+          assert.equal(
+            MATURITY_PRIMITIVES.getSourceOfPrimitive(primitiveName),
+            group.source,
+            `${group.name}: ${primitiveName}`
+          );
+        }
+      }
+    });
+
+    it('detects PluginSectionCard imports as satisfying docs/plugin-ui-contract.md#required-shell-usage', () => {
+      const fixture =
+        "import { PluginSectionCard } from '@/components/plugins/plugin-section-card';";
+      const importMatch = fixture.match(
+        /import\s*{\s*(\w+)\s*}\s*from\s*'([^']+)'/
       );
-      assert.ok(Array.isArray(MATURITY_PRIMITIVES.uiStates.names));
+
+      assert.ok(importMatch, 'fixture should contain a named primitive import');
+      const [, importedPrimitive, source] = importMatch;
+      const detectedPrimitives =
+        MATURITY_PRIMITIVES.getPrimitivesBySource(source);
+
       assert.ok(
-        MATURITY_PRIMITIVES.uiStates.names.includes('PluginLoadingState')
+        detectedPrimitives?.includes(importedPrimitive),
+        'PluginSectionCard satisfies docs/plugin-ui-contract.md#required-shell-usage'
       );
-      assert.ok(
-        MATURITY_PRIMITIVES.uiStates.names.includes('PluginErrorState')
-      );
-      assert.ok(
-        MATURITY_PRIMITIVES.uiStates.names.includes('PluginEmptyState')
-      );
-    });
-
-    it('should define PluginPageShell primitive', () => {
-      assert.ok(MATURITY_PRIMITIVES.shells);
-      assert.equal(
-        MATURITY_PRIMITIVES.shells.source,
-        '@/components/plugins/plugin-page-shell'
-      );
-      assert.ok(MATURITY_PRIMITIVES.shells.names.includes('PluginPageShell'));
-    });
-
-    it('should define section primitives', () => {
-      assert.ok(MATURITY_PRIMITIVES.sections);
-      assert.equal(
-        MATURITY_PRIMITIVES.sections.source,
-        '@/components/plugins/plugin-section-card'
-      );
-      assert.ok(Array.isArray(MATURITY_PRIMITIVES.sections.names));
-    });
-
-    it('should define destructive action primitives required by docs/plugin-ui-contract.md#destructive-flow-requirements', () => {
-      assert.ok(MATURITY_PRIMITIVES.destructiveActions);
-      const { source, names } = MATURITY_PRIMITIVES.destructiveActions;
-
-      assert.equal(source, '@/components/plugins/plugin-destructive-action');
-      assert.deepEqual(names, ['PluginDestructiveAction']);
-      assert.deepEqual(
-        MATURITY_PRIMITIVES.getPrimitivesBySource(source),
-        names
-      );
-      assert.equal(
-        MATURITY_PRIMITIVES.getSourceOfPrimitive('PluginDestructiveAction'),
-        source
-      );
-    });
-
-    it('should define data surface primitives', () => {
-      assert.ok(MATURITY_PRIMITIVES.dataSurfaces);
-      assert.ok(Array.isArray(MATURITY_PRIMITIVES.dataSurfaces.names));
-    });
-
-    it('should provide helper method to get primitives by source', () => {
-      assert.ok(MATURITY_PRIMITIVES.getPrimitivesBySource);
-      const stateSource = MATURITY_PRIMITIVES.getPrimitivesBySource(
-        '@/components/plugins/plugin-state'
-      );
-      assert.deepEqual(stateSource, MATURITY_PRIMITIVES.uiStates.names);
-    });
-
-    it('should provide helper method to find source of primitive name', () => {
-      assert.ok(MATURITY_PRIMITIVES.getSourceOfPrimitive);
-      const source =
-        MATURITY_PRIMITIVES.getSourceOfPrimitive('PluginPageShell');
-      assert.equal(source, '@/components/plugins/plugin-page-shell');
     });
 
     it('should provide helper method to check if primitive is a UI state', () => {
-      assert.ok(MATURITY_PRIMITIVES.isUiState);
       assert.equal(MATURITY_PRIMITIVES.isUiState('PluginLoadingState'), true);
       assert.equal(MATURITY_PRIMITIVES.isUiState('PluginPageShell'), false);
     });
