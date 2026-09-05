@@ -164,6 +164,7 @@ test('toValidationTable skips runtime renderer checks by default (server-safe)',
 });
 
 test('server-side API validation preserves the client bootstrap boundary', () => {
+  const isolatedValidationTimeoutMs = 10_000;
   const blockedModules = [
     'runtime-component-validation',
     'plugin-component-bootstrap',
@@ -172,7 +173,10 @@ test('server-side API validation preserves the client bootstrap boundary', () =>
   const loaderSource = `
     const blockedModules = ${JSON.stringify(blockedModules)};
     export async function resolve(specifier, context, nextResolve) {
-      if (blockedModules.some((moduleName) => specifier.endsWith(moduleName) || specifier.includes(`/${moduleName}`))) {
+      const pathWithoutQuery = specifier.split(/[?#]/, 1)[0];
+      const fileName = pathWithoutQuery.split('/').at(-1);
+      const moduleName = fileName?.replace(/\\.(?:[cm]?[jt]sx?)$/, '');
+      if (moduleName && blockedModules.includes(moduleName)) {
         throw new Error(\`Server validation crossed into blocked client/runtime module: \${specifier}\`);
       }
       return nextResolve(specifier, context);
@@ -219,7 +223,7 @@ test('server-side API validation preserves the client bootstrap boundary', () =>
       cwd: process.cwd(),
       encoding: 'utf8',
       input: validationScript,
-      timeout: 10000,
+      timeout: isolatedValidationTimeoutMs,
     }
   );
 
