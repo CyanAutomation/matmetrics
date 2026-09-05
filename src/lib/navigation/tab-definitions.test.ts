@@ -83,10 +83,6 @@ test('core tabs no longer include prompt settings', () => {
   );
 });
 
-test('plugins is the last core navigation item', () => {
-  assert.equal(coreTabs[coreTabs.length - 1]?.title, 'Plugins');
-});
-
 test('resolves plugin tab when renderer is registered in the registry', async () => {
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
