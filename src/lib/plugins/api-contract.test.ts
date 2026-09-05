@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 const loadApiContract = async () => import('@/lib/plugins/api-contract');
 
@@ -163,22 +163,69 @@ test('toValidationTable skips runtime renderer checks by default (server-safe)',
   assert.deepEqual(result.rows, []);
 });
 
-test('server-side validation files avoid static bootstrap import chains', async () => {
-  const [validateSource, apiContractSource] = await Promise.all([
-    readFile(new URL('./validate.ts', import.meta.url), 'utf8'),
-    readFile(new URL('./api-contract.ts', import.meta.url), 'utf8'),
-  ]);
+test('server-side API validation preserves the client bootstrap boundary', () => {
+  const blockedModules = [
+    'runtime-component-validation',
+    'plugin-component-bootstrap',
+    'dashboard-tab-adapters',
+  ];
+  const loaderSource = `
+    const blockedModules = ${JSON.stringify(blockedModules)};
+    export async function resolve(specifier, context, nextResolve) {
+      if (blockedModules.some((moduleName) => specifier.endsWith(moduleName) || specifier.includes(`/${moduleName}`))) {
+        throw new Error(\`Server validation crossed into blocked client/runtime module: \${specifier}\`);
+      }
+      return nextResolve(specifier, context);
+    }
+  `;
+  const registerLoaderSource = `
+    import { register } from 'node:module';
+    register(${JSON.stringify(
+      `data:text/javascript,${encodeURIComponent(loaderSource)}`
+    )}, import.meta.url);
+  `;
+  const registerLoaderUrl = `data:text/javascript,${encodeURIComponent(
+    registerLoaderSource
+  )}`;
+  const validationScript = `
+    const apiContractModule = await import('@/lib/plugins/api-contract');
+    const { toValidationTable } = apiContractModule.default ?? apiContractModule;
+    const result = toValidationTable({
+      id: 'isolated-server-validation-plugin',
+      name: 'Isolated Server Validation Plugin',
+      version: '1.0.0',
+      description: 'Exercises the server-only validation dependency boundary',
+      capabilities: ['tag_mutation'],
+      uiExtensions: [{
+        type: 'dashboard_tab',
+        id: 'isolated-server-tab',
+        title: 'Server Safe',
+        config: {
+          tabId: 'server-safe',
+          headerTitle: 'Server Safe',
+          component: 'intentionally_not_bootstrapped',
+        },
+      }],
+    });
+    if (!result.isValid || result.rows.length !== 0) {
+      throw new Error(\`Unexpected validation result: \${JSON.stringify(result)}\`);
+    }
+  `;
+
+  const isolatedValidation = spawnSync(
+    process.execPath,
+    ['--import', registerLoaderUrl, '--import', 'tsx', '--input-type=module'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      input: validationScript,
+      timeout: 10000,
+    }
+  );
 
   assert.equal(
-    validateSource.includes(
-      "from '@/lib/plugins/runtime-component-validation'"
-    ),
-    false,
-    'validate.ts should not statically import runtime-component-validation'
-  );
-  assert.equal(
-    apiContractSource.includes('validateDeclaredComponentsAtRuntime: true'),
-    false,
-    'api-contract.ts should not force runtime component validation in server paths'
+    isolatedValidation.status,
+    0,
+    `Server-side API validation must remain isolated from runtime component validation and client bootstrap modules.\n${isolatedValidation.stderr}`
   );
 });
