@@ -82,6 +82,14 @@ export type MaturityPrimitiveCriterion =
   | 'destructiveActions'
   | 'dataSurfaces';
 
+const MATURITY_PRIMITIVE_CRITERIA: readonly MaturityPrimitiveCriterion[] = [
+  'uiStates',
+  'shells',
+  'sections',
+  'destructiveActions',
+  'dataSurfaces',
+];
+
 export interface MaturityPrimitiveEvidence {
   criterion: MaturityPrimitiveCriterion;
   source: string;
@@ -112,18 +120,9 @@ export const detectMaturityPrimitiveEvidence = (
     );
     const source = match[2];
 
-    const criterionKeys: MaturityPrimitiveCriterion[] = [
-      'uiStates',
-      'shells',
-      'sections',
-      'destructiveActions',
-      'dataSurfaces',
-    ];
-    for (const criterion of criterionKeys) {
+    for (const criterion of MATURITY_PRIMITIVE_CRITERIA) {
       const configuration = MATURITY_PRIMITIVES[criterion];
       if (configuration.source !== source) {
-        continue;
-      }
         continue;
       }
 
@@ -132,10 +131,9 @@ export const detectMaturityPrimitiveEvidence = (
       );
       if (primitives.length === 0) continue;
 
-      const typedCriterion = criterion as MaturityPrimitiveCriterion;
-      const existing = evidence.get(typedCriterion);
-      evidence.set(typedCriterion, {
-        criterion: typedCriterion,
+      const existing = evidence.get(criterion);
+      evidence.set(criterion, {
+        criterion,
         source,
         primitives: [...(existing?.primitives ?? []), ...primitives],
       });
