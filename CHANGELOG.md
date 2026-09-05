@@ -4,6 +4,13 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.7.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.6.0...nextn-v1.7.0) (2026-09-05)
+
+
+### Features
+
+* enhance color class validation to handle parenthesized and computed property name expressions ([0652ba0](https://github.com/CyanAutomation/matmetrics/commit/0652ba0eece25215b042f87768529a34711dfad1))
+
 ## [1.6.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.5.0...nextn-v1.6.0) (2026-08-31)
 
 
