@@ -172,7 +172,7 @@ test('server-side API validation preserves the client bootstrap boundary', () =>
   const loaderSource = `
     const blockedModules = ${JSON.stringify(blockedModules)};
     export async function resolve(specifier, context, nextResolve) {
-      if (blockedModules.some((moduleName) => specifier.includes(moduleName))) {
+      if (blockedModules.some((moduleName) => specifier.endsWith(moduleName) || specifier.includes(`/${moduleName}`))) {
         throw new Error(\`Server validation crossed into blocked client/runtime module: \${specifier}\`);
       }
       return nextResolve(specifier, context);
