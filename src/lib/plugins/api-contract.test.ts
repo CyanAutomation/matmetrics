@@ -219,6 +219,7 @@ test('server-side API validation preserves the client bootstrap boundary', () =>
       cwd: process.cwd(),
       encoding: 'utf8',
       input: validationScript,
+      timeout: 10000,
     }
   );
 
