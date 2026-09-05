@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { MATURITY_PRIMITIVES } from './maturity-config';
+import {
+  detectMaturityPrimitiveEvidence,
+  MATURITY_PRIMITIVES,
+} from './maturity-config';
 
 describe('maturity-config', () => {
   describe('MATURITY_PRIMITIVES', () => {
@@ -59,22 +62,44 @@ describe('maturity-config', () => {
       }
     });
 
-    it('detects PluginSectionCard imports as satisfying docs/plugin-ui-contract.md#required-shell-usage', () => {
-      const fixture =
-        "import { PluginSectionCard } from '@/components/plugins/plugin-section-card';";
-      const importMatch = fixture.match(
-        /import\s*{\s*(\w+)\s*}\s*from\s*'([^']+)'/
-      );
+    it('detects table-driven maturity-policy evidence required by docs/plugin-ui-contract.md results/data presentation', () => {
+      const cases = [
+        {
+          name: 'required shell section',
+          sourceText:
+            "import { PluginSectionCard } from '@/components/plugins/plugin-section-card';",
+          expectedCriterion: 'sections',
+          expectedPrimitive: 'PluginSectionCard',
+        },
+        {
+          name: 'results/data presentation data surface',
+          sourceText: `
+            import {
+              PluginDataSurfaceTable,
+            } from '@/components/plugins/plugin-data-surface';
 
-      assert.ok(importMatch, 'fixture should contain a named primitive import');
-      const [, importedPrimitive, source] = importMatch;
-      const detectedPrimitives =
-        MATURITY_PRIMITIVES.getPrimitivesBySource(source);
+            export function Results() {
+              return <PluginDataSurfaceTable columns={[]} rows={[]} />;
+            }
+          `,
+          expectedCriterion: 'dataSurfaces',
+          expectedPrimitive: 'PluginDataSurfaceTable',
+        },
+      ] as const;
 
-      assert.ok(
-        detectedPrimitives?.includes(importedPrimitive),
-        'PluginSectionCard satisfies docs/plugin-ui-contract.md#required-shell-usage'
-      );
+      for (const testCase of cases) {
+        assert.deepEqual(
+          detectMaturityPrimitiveEvidence(testCase.sourceText),
+          [
+            {
+              criterion: testCase.expectedCriterion,
+              source: MATURITY_PRIMITIVES[testCase.expectedCriterion].source,
+              primitives: [testCase.expectedPrimitive],
+            },
+          ],
+          `${testCase.name} satisfies docs/plugin-ui-contract.md results/data presentation`
+        );
+      }
     });
 
     it('should provide helper method to check if primitive is a UI state', () => {
