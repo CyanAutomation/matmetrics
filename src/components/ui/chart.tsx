@@ -50,10 +50,4 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = 'Chart';
 
-export {
-  ChartContext,
-  ChartTooltipContent,
-  ChartStyle,
-};
-
-export type { ChartConfig } from './chart-types';
+// Exports removed: tests should import implementation modules directly.

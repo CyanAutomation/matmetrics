@@ -5,12 +5,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // @ts-expect-error Next bundles this parser without publishing type declarations.
 import { parse } from 'next/dist/compiled/node-html-parser';
 
-import {
-  ChartContext,
-  ChartStyle,
-  ChartTooltipContent,
-  type ChartConfig,
-} from './chart';
+import { ChartContext } from './chart-context';
+import { ChartStyle } from './chart-style';
+import { ChartTooltipContent } from './chart-tooltip-content';
+import type { ChartConfig } from './chart-types';
 
 function renderElement(jsx: ReactElement) {
   const markup = renderToStaticMarkup(jsx);
