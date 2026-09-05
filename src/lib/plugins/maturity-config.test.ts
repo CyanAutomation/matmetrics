@@ -102,9 +102,68 @@ describe('maturity-config', () => {
       }
     });
 
-    it('should provide helper method to check if primitive is a UI state', () => {
-      assert.equal(MATURITY_PRIMITIVES.isUiState('PluginLoadingState'), true);
-      assert.equal(MATURITY_PRIMITIVES.isUiState('PluginPageShell'), false);
+    it('recognizes rendered standard UX states required by docs/plugin-ui-contract.md#standard-state-components', () => {
+      const cases = [
+        {
+          name: 'loading-state criterion',
+          primitive: 'PluginLoadingState',
+          sourceText: `
+            import { PluginLoadingState } from '@/components/plugins/plugin-state';
+
+            export function Plugin() {
+              return <PluginLoadingState />;
+            }
+          `,
+        },
+        {
+          name: 'error-state criterion',
+          primitive: 'PluginErrorState',
+          sourceText: `
+            import { PluginErrorState } from '@/components/plugins/plugin-state';
+
+            export function Plugin() {
+              return <PluginErrorState />;
+            }
+          `,
+        },
+        {
+          name: 'empty-state criterion',
+          primitive: 'PluginEmptyState',
+          sourceText: `
+            import { PluginEmptyState } from '@/components/plugins/plugin-state';
+
+            export function Plugin() {
+              return <PluginEmptyState />;
+            }
+          `,
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        assert.deepEqual(
+          detectMaturityPrimitiveEvidence(testCase.sourceText),
+          [
+            {
+              criterion: 'uiStates',
+              source: '@/components/plugins/plugin-state',
+              primitives: [testCase.primitive],
+            },
+          ],
+          `${testCase.name} satisfies docs/plugin-ui-contract.md#standard-state-components`
+        );
+      }
+    });
+
+    it('does not recognize a similarly named unsupported UX state component', () => {
+      const sourceText = `
+        import { PluginLoadingStateIndicator } from '@/components/plugins/plugin-state';
+
+        export function Plugin() {
+          return <PluginLoadingStateIndicator />;
+        }
+      `;
+
+      assert.deepEqual(detectMaturityPrimitiveEvidence(sourceText), []);
     });
 
     it('should return null for unknown source in getPrimitivesBySource', () => {
