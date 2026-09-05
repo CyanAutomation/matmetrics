@@ -56,6 +56,7 @@ import {
 } from '@/components/plugins/plugin-kit';
 import { useGitHubSettingsState } from './use-github-settings-state';
 import { GitHubRepositoryFields } from './github-repository-fields';
+import { useGitHubSettingsOperations } from './use-github-settings-operations';
 
 export function GitHubSettings() {
   const { toast } = useToast();
@@ -101,247 +102,32 @@ export function GitHubSettings() {
   const lastSyncLabel = preferences.gitHub.lastSyncTime
     ? new Date(preferences.gitHub.lastSyncTime).toLocaleString()
     : 'No completed sync yet';
-
-  const handleSaveConfig = async () => {
-    if (!user) return;
-
-    const validationError = getGitHubSettingsValidationError(owner, repo);
-    if (validationError) {
-      toast({
-        title: 'Validation Error',
-        description: validationError,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const normalizedBranch = branch.trim();
-    const config: GitHubConfig = {
-      owner,
-      repo,
-      ...(normalizedBranch && { branch: normalizedBranch }),
-    };
-    await saveGitHubSettingsPreference(user.uid, {
-      ...preferences.gitHub,
-      config,
-      enabled: true,
-    });
-    setIsEnabled(true);
-    setIsManagingConnection(false);
-
-    toast({
-      title: 'Configuration Saved',
-      description: `GitHub sync configured for ${owner}/${repo}`,
-    });
-  };
-
-  const handleTestConnection = async () => {
-    const validationError = getGitHubSettingsValidationError(owner, repo);
-    if (validationError) {
-      toast({
-        title: 'Validation Error',
-        description: validationError,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsTesting(true);
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/github/validate', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          owner,
-          repo,
-          branch: branch.trim() || undefined,
-        }),
-      });
-
-      const result = await parseGitHubApiResponse(
-        response,
-        'Unable to validate this repository right now. Please try again.'
-      );
-      setTestResult(result);
-
-      if (result.success) {
-        toast({
-          title: 'Connection Successful',
-          description: `Connected to ${owner}/${repo}`,
-        });
-      } else {
-        toast({
-          title: 'Connection Failed',
-          description: result.message,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      setTestResult({
-        success: false,
-        message: buildGitHubNetworkErrorMessage(
-          'Network error while testing connection',
-          error
-        ),
-      });
-      toast({
-        title: 'Network Error',
-        description:
-          'We could not reach the server to test your GitHub connection.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const handleBulkSync = async () => {
-    if (!user) return;
-
-    if (!isEnabled || !owner || !repo) {
-      toast({
-        title: 'Error',
-        description: 'Please configure and enable GitHub sync first.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const response = await fetch('/api/github/sync-all', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          owner,
-          repo,
-          branch: branch.trim() || undefined,
-        }),
-      });
-
-      const result = await parseGitHubApiResponse(
-        response,
-        'Sync failed due to an unexpected server response. Please try again.'
-      );
-
-      if (result.success) {
-        await saveGitHubSettingsPreference(user.uid, {
-          ...preferences.gitHub,
-          config: {
-            owner,
-            repo,
-            ...(branch.trim() ? { branch: branch.trim() } : {}),
-          },
-          enabled: true,
-          migrationDone: true,
-          syncStatus: 'success',
-          lastSyncTime: new Date().toISOString(),
-        });
-        setMigrationDone(true);
-        toast({
-          title: 'Bulk Sync Complete',
-          description: result.message,
-        });
-      } else {
-        toast({
-          title: response.ok ? 'Sync Failed' : 'Server Error',
-          description: result.message,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Network Error',
-        description: buildGitHubNetworkErrorMessage(
-          'Bulk sync request failed',
-          error
-        ),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleDisable = async () => {
-    if (!user) return;
-    setIsDisabling(true);
-    try {
-      await saveGitHubSettingsPreference(user.uid, {
-        ...preferences.gitHub,
-        enabled: false,
-      });
-      const nextState = deriveDisableOutcome({
-        owner,
-        repo,
-        branch,
-        isEnabled,
-        migrationDone,
-        isClearDialogOpen,
-        testResult,
-      });
-      setIsEnabled(nextState.isEnabled);
-      toast({
-        title: 'Sync Disabled',
-        description: 'GitHub sync has been turned off.',
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      toast({
-        title: 'Server Error',
-        description: `Unable to disable GitHub sync: ${message}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDisabling(false);
-    }
-  };
-
-  const handleClear = async () => {
-    if (!user) return;
-    setIsClearing(true);
-    try {
-      await clearGitHubConfigPreference(user.uid);
-      const nextState = resolveClearDialogOutcome(
-        {
-          owner,
-          repo,
-          branch,
-          isEnabled,
-          migrationDone,
-          isClearDialogOpen,
-          testResult,
-        },
-        'confirm'
-      );
-      setOwner(nextState.owner);
-      setRepo(nextState.repo);
-      setBranch(nextState.branch);
-      setIsEnabled(nextState.isEnabled);
-      setTestResult(nextState.testResult);
-      setMigrationDone(nextState.migrationDone);
-      setIsClearDialogOpen(nextState.isClearDialogOpen);
-      toast({
-        title: 'Configuration Cleared',
-        description: 'GitHub repository settings were removed.',
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      toast({
-        title: 'Server Error',
-        description: `Unable to clear GitHub settings: ${message}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsClearing(false);
-    }
-  };
+  const {
+    handleSaveConfig,
+    handleTestConnection,
+    handleBulkSync,
+    handleDisable,
+    handleClear,
+  } = useGitHubSettingsOperations({
+    owner,
+    repo,
+    branch,
+    isEnabled,
+    migrationDone,
+    isClearDialogOpen,
+    testResult,
+    onSetIsEnabled: setIsEnabled,
+    onSetIsTesting: setIsTesting,
+    onSetTestResult: setTestResult,
+    onSetIsSyncing: setIsSyncing,
+    onSetIsDisabling: setIsDisabling,
+    onSetIsClearing: setIsClearing,
+    onSetMigrationDone: setMigrationDone,
+    onSetIsClearDialogOpen: setIsClearDialogOpen,
+    onSetOwner: setOwner,
+    onSetRepo: setRepo,
+    onSetBranch: setBranch,
+  });
 
   const handleLoadSyncHistory = async () => {
     if (!owner || !repo) {
