@@ -11,6 +11,7 @@ import { discoverEnabledDashboardTabExtensions } from '@/lib/plugins/discovery.s
 
 testPluginManifestContract({
   pluginId: 'session-types',
+  requiredCapabilities: [],
   dashboardExtensionId: 'session-types-dashboard-tab',
   componentId: 'session_types',
   manifest: sessionTypesManifest,

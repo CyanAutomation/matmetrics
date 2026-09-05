@@ -16,6 +16,7 @@ import type {
 
 type PluginManifestContractParams = {
   pluginId: string;
+  requiredCapabilities: readonly string[];
   dashboardExtensionId: string;
   componentId: string;
   manifest: unknown;
@@ -156,6 +157,7 @@ const assertRequiredUxStates = (
 
 export const testPluginManifestContract = ({
   pluginId,
+  requiredCapabilities,
   dashboardExtensionId,
   componentId,
   manifest,
@@ -177,6 +179,11 @@ export const testPluginManifestContract = ({
       validation.manifest.id,
       pluginId,
       `${reqPrefix}manifest id must match plugin id`
+    );
+    assert.deepEqual(
+      validation.manifest.capabilities ?? [],
+      requiredCapabilities,
+      `${reqPrefix}[${pluginId}] manifest capabilities must match the required runtime capabilities`
     );
 
     const dashboardTab = getDashboardTabExtension(
