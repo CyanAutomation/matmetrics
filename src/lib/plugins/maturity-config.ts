@@ -121,13 +121,9 @@ export const detectMaturityPrimitiveEvidence = (
     ];
     for (const criterion of criterionKeys) {
       const configuration = MATURITY_PRIMITIVES[criterion];
-      if (
-        typeof configuration !== 'object' ||
-        configuration === null ||
-        !('source' in configuration) ||
-        !('names' in configuration) ||
-        configuration.source !== source
-      ) {
+      if (configuration.source !== source) {
+        continue;
+      }
         continue;
       }
 
