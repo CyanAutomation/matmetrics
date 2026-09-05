@@ -12,30 +12,11 @@ import {
 } from '@/lib/plugins/dashboard-tab-adapters';
 import { resetPluginComponentRegistryInitializationForTests } from '@/lib/plugins/plugin-component-bootstrap';
 import { type TabRenderContext } from '@/lib/navigation/tab-definitions';
-import tagManagerManifest from '../../../plugins/tag-manager/plugin.json';
 import { initPlugin } from '../../../plugins/tag-manager/src/index';
 
 test.afterEach(() => {
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
-});
-
-test('tag-manager manifest contract includes required runtime fields', () => {
-  assert.equal(tagManagerManifest.id, 'tag-manager');
-  assert.deepEqual(tagManagerManifest.capabilities, ['tag_mutation']);
-  assert.equal(tagManagerManifest.maturity?.uxStates?.loading, true);
-  assert.equal(
-    tagManagerManifest.maturity?.uxCriteria?.loadingStatePresent,
-    true
-  );
-  assert.equal(
-    tagManagerManifest.uiExtensions[0]?.id,
-    'tag-manager-dashboard-tab'
-  );
-  assert.equal(
-    tagManagerManifest.uiExtensions[0]?.config.component,
-    'tag_manager'
-  );
 });
 
 test('tag-manager initPlugin registers its renderer with refresh wiring', () => {

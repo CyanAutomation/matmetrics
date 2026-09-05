@@ -13,6 +13,7 @@ import { discoverEnabledDashboardTabExtensions } from '@/lib/plugins/discovery.s
 
 testPluginManifestContract({
   pluginId: 'prompt-settings',
+  requiredCapabilities: [],
   dashboardExtensionId: 'prompt-settings-dashboard-tab',
   componentId: 'prompt_settings',
   manifest: promptSettingsManifest,

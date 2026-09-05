@@ -20,6 +20,7 @@ const REQUIREMENT_SOURCES = {
 
 type PluginContractFixture = {
   pluginId: string;
+  requiredCapabilities: readonly string[];
   dashboardExtensionId: string;
   componentId: string;
   manifest: unknown;
@@ -32,6 +33,7 @@ type PluginContractFixture = {
 const pluginContractFixtures: readonly PluginContractFixture[] = [
   {
     pluginId: 'github-sync',
+    requiredCapabilities: [],
     dashboardExtensionId: 'github-sync-dashboard-tab',
     componentId: 'github_settings',
     manifest: githubSyncManifest,
@@ -39,6 +41,7 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
   },
   {
     pluginId: 'log-doctor',
+    requiredCapabilities: [],
     dashboardExtensionId: 'log-doctor-dashboard-tab',
     componentId: 'log_doctor',
     manifest: logDoctorManifest,
@@ -46,6 +49,7 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
   },
   {
     pluginId: 'prompt-settings',
+    requiredCapabilities: [],
     dashboardExtensionId: 'prompt-settings-dashboard-tab',
     componentId: 'prompt_settings',
     manifest: promptSettingsManifest,
@@ -53,6 +57,7 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
   },
   {
     pluginId: 'tag-manager',
+    requiredCapabilities: ['tag_mutation'],
     dashboardExtensionId: 'tag-manager-dashboard-tab',
     componentId: 'tag_manager',
     manifest: tagManagerManifest,
@@ -60,6 +65,7 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
   },
   {
     pluginId: 'video-library',
+    requiredCapabilities: ['video_audit'],
     dashboardExtensionId: 'video-library-dashboard-tab',
     componentId: 'video_library',
     manifest: videoLibraryManifest,
@@ -67,6 +73,7 @@ const pluginContractFixtures: readonly PluginContractFixture[] = [
   },
   {
     pluginId: 'session-types',
+    requiredCapabilities: [],
     dashboardExtensionId: 'session-types-dashboard-tab',
     componentId: 'session_types',
     manifest: sessionTypesManifest,
