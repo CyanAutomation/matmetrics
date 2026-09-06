@@ -11,27 +11,7 @@ import {
   SessionLookupOperationalError,
   SessionNotFoundError,
 } from './file-storage';
-
-async function withMockedGitHub(
-  handler: typeof fetch,
-  run: () => Promise<void>
-) {
-  const originalFetch = global.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'test-token';
-  global.fetch = handler;
-
-  try {
-    await run();
-  } finally {
-    global.fetch = originalFetch;
-    if (originalToken === undefined) {
-      delete process.env.GITHUB_TOKEN;
-    } else {
-      process.env.GITHUB_TOKEN = originalToken;
-    }
-  }
-}
+import { withMockedGitHub } from './test-helpers/github-mock-builder';
 
 function toContentsPayload(markdown: string) {
   return {

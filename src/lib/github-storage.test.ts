@@ -20,11 +20,6 @@ import {
   withMockedGitHub,
 } from './test-helpers/github-mock-builder';
 
-// Deprecated - use makeTestSession from test-helpers instead
-function makeSession(id: string): JudoSession {
-  return makeTestSession(id);
-}
-
 beforeEach(() => {
   __resetDefaultBranchCacheForTests();
   __resetManifestCacheForTests();
@@ -34,8 +29,8 @@ test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs
   const idA = 'a/b';
   const idB = 'a?b';
 
-  const githubPathA = getGitHubSessionPath(makeSession(idA));
-  const githubPathB = getGitHubSessionPath(makeSession(idB));
+  const githubPathA = getGitHubSessionPath(makeTestSession(idA));
+  const githubPathB = getGitHubSessionPath(makeTestSession(idB));
 
   assert.notEqual(githubPathA, githubPathB);
   assert.ok(githubPathA.startsWith('data/2025/03/'));
@@ -43,13 +38,13 @@ test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs
   assert.ok(githubPathB.endsWith('a%3Fb.md'));
 
   const overlyLongSessionId = 'a'.repeat(101);
-  assert.throws(() => getGitHubSessionPath(makeSession(overlyLongSessionId)), {
+  assert.throws(() => getGitHubSessionPath(makeTestSession(overlyLongSessionId)), {
     message: 'Session ID exceeds maximum allowed length of 100 characters',
   });
 });
 
 test('two writers from the same revision cannot silently overwrite each other', async () => {
-  const base = makeSession('concurrent');
+  const base = makeTestSession('concurrent');
   const first = { ...base, notes: 'first writer', revisionSha: 'sha-base' };
   const second = { ...base, notes: 'second writer', revisionSha: 'sha-base' };
   let remoteSha = 'sha-base';
@@ -396,7 +391,7 @@ test('default branch refresh invalidates prior-branch manifest scope', async () 
       const mainPath = await findSessionPathOnGitHubById('shared', config);
       assert.equal(mainPath, 'data/2025/03/20250314-matmetrics-shared.md');
 
-      await createSessionOnGitHub(makeSession('trigger'), config);
+      await createSessionOnGitHub(makeTestSession('trigger'), config);
 
       const trunkPath = await findSessionPathOnGitHubById('shared', config);
       assert.equal(trunkPath, null);
@@ -488,7 +483,7 @@ test('bulkPushSessions reports README update failure after pushing session conte
       );
     }) as typeof fetch,
     async () => {
-      const result = await bulkPushSessions([makeSession('session-1')], {
+      const result = await bulkPushSessions([makeTestSession('session-1')], {
         owner: 'o',
         repo: 'r',
       });
@@ -506,7 +501,7 @@ test('bulkPushSessions reports README update failure after pushing session conte
 });
 
 test('createSessionOnGitHub treats an identical existing file as success', async () => {
-  const session = makeSession('session-1');
+  const session = makeTestSession('session-1');
   let putAttempts = 0;
 
   await withMockedGitHub(
@@ -763,7 +758,7 @@ function moveFailureHandler(session: JudoSession, state: MoveFailureState) {
 }
 
 const movedSession = {
-  ...makeSession('session-1'),
+  ...makeTestSession('session-1'),
   date: '2025-02-12',
 };
 
@@ -893,7 +888,7 @@ test('resolveBranch cache is isolated by token fingerprint', async () => {
     }) as typeof fetch,
     async () => {
       const config = { owner: 'o', repo: 'r' };
-      const session = makeSession('token-specific');
+      const session = makeTestSession('token-specific');
 
       process.env.GITHUB_TOKEN = 'token-a';
       await createSessionOnGitHub(session, config);
@@ -938,7 +933,7 @@ test('default branch cache expires after TTL', async () => {
       }) as typeof fetch,
       async () => {
         const config = { owner: 'o', repo: 'r' };
-        const session = makeSession('ttl');
+        const session = makeTestSession('ttl');
 
         await createSessionOnGitHub(session, config);
         now += 60 * 1000;
@@ -955,7 +950,7 @@ test('default branch cache expires after TTL', async () => {
 });
 
 test('createSessionOnGitHub invalidates stale default branch cache and retries once on invalid ref write failure', async () => {
-  const session = makeSession('branch-rename');
+  const session = makeTestSession('branch-rename');
   let repoLookupCount = 0;
   let putCount = 0;
 
