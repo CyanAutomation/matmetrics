@@ -17,7 +17,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 ## Tech Stack
 
-- **Framework**: [Next.js 15](https://nextjs.org/) with TypeScript
+- **Framework**: [Next.js 16](https://nextjs.org/) with TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
 - **Data Storage**: GitHub-backed markdown files with local markdown fallback
@@ -30,7 +30,7 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 - **Primary Color**: MatMetrics Blue (#006BAB) in light mode, MatMetrics Blue (#296BCD) in dark mode
 - **Background**: Light desaturated blue (#ECF1F4) for a clean canvas
-- **Accent Color**: Progress Cyan (#3DCCE2) for interactive elements
+- **Accent Color**: Semantic tokens for interactive elements; see [blueprint.md](docs/blueprint.md)
 - **Typography**: Inter (sans-serif) for clarity and modern appearance
 - **Icons**: Minimalist line-art icons from Lucide React
 - **Layout**: Clean, spacious design with responsive components
@@ -123,6 +123,7 @@ Firebase values come from:
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
 - `SENTRY_DSN` enables browser-side error monitoring. Set in Vercel for every deployment environment.
 - `SENTRY_AUTH_TOKEN` is used only in CI/Vercel to upload source maps and create releases.
+- `MATMETRICS_AUTH_TEST_MODE` enables simplified test-mode authentication. Requires both this variable set to `true` and `NODE_ENV=test`. See [Authentication Setup](#test-mode-authentication) for details.
 
 ## Available Scripts
 
@@ -132,6 +133,7 @@ Firebase values come from:
 - **`npm run lint`**: Run ESLint
 - **`npm run typecheck`**: Run TypeScript type checking
 - **`npm run verify`**: Run the full verification suite sequentially (`test`, `typecheck`, `build`, `go:test`)
+- **`npm run test`**: Run TypeScript unit tests (runs `validate:plugin-ui-contract` contract validation first, then executes `.test.ts` files with Node's test runner under `NODE_ENV=test`)
 - **`npm test -- <file>`**: Run a specific TypeScript test file with Node's test runner (for example: `npm test -- src/lib/foo.test.ts`)
 - **Current API route test entry points**: `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts` (use `src/lib/plugins/validate.test.ts` for plugin validation behavior checks).
 - **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
@@ -170,15 +172,14 @@ The primary authentication method uses Firebase with the following configuration
 
 ### Test Mode Authentication
 
-For development and testing, you can enable test mode using the `MATMETRICS_AUTH_TEST_MODE=true` environment variable. This is particularly useful for:
+For development and testing, you can enable test mode using **two** environment variables: `MATMETRICS_AUTH_TEST_MODE=true` **and** `NODE_ENV=test`. Both must be set for test mode to activate. This is particularly useful for:
 
 - **Unit Testing**: Testing authentication logic without real Firebase tokens
-- **Development**: Working offline or when Firebase credentials aren't available
 - **CI/CD**: Running tests in environments where Firebase configuration isn't available
 
 #### Test Mode Behavior
 
-When test mode is enabled, both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same simplified contract:
+When test mode is enabled (both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test`), both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same simplified contract:
 
 - **Header**: `Authorization: Bearer test-token`
 - **Case Sensitivity**: `Bearer` is case-insensitive (`Bearer` and `bearer` are both accepted)
@@ -187,15 +188,14 @@ When test mode is enabled, both authentication paths (Next.js route handlers and
 
 #### When to Use Test Mode
 
-1. **Development**: Set `MATMETRICS_AUTH_TEST_MODE=true` in your local development environment
-2. **Testing**: Enable in test environments (when `NODE_ENV=test`)
-3. **CI/CD**: Use for automated testing pipelines
+1. **Testing**: Enable both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test` in test environments
+2. **CI/CD**: Set both variables in automated testing pipelines
 
 #### Integration with Firebase Authentication
 
-The authentication system automatically falls back to Firebase authentication when:
+The authentication system automatically falls back to Firebase authentication when either condition is false:
 
-- Test mode is disabled (`MATMETRICS_AUTH_TEST_MODE` is not `true`)
+- Test mode is not fully enabled (either `MATMETRICS_AUTH_TEST_MODE` is not `true` **or** `NODE_ENV` is not `test`)
 - Firebase is properly configured (all required environment variables are set)
 
 This ensures that test mode doesn't interfere with production authentication while providing a simplified testing experience.
@@ -272,13 +272,22 @@ Accepts `{ description: string }` and returns `{ suggestions: string[] }`. Analy
 
 Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt.
 
-## Browser Support
+### Input Limits
 
-MatMetrics uses modern CSS and JavaScript features. It requires a modern browser with support for:
+API routes enforce UTF-8 byte size limits to prevent oversized requests:
 
-- CSS Grid and Flexbox
-- CSS Custom Properties (CSS Variables)
-- ES2020+ JavaScript features
+| Limit | Value | Applied To |
+| --- | --- | --- |
+| Request body | 16 KB | Entire JSON body passed to any AI endpoint |
+| Description field | 8 KB | The `description` string in `/api/ai/transform-description` |
+| Custom prompt | 2 KB | The optional `customPrompt` string in `/api/ai/transform-description` |
+
+Requests exceeding these limits receive an `INPUT_TOO_LARGE` error response (HTTP 400).
+
+### Output Constraints
+
+The `/api/ai/transform-description` endpoint enforces strict output formatting: the model returns plain prose only — no title, heading, Markdown syntax, asterisks, emphasis markers, bullet lists, or code fences. The narrative begins immediately without any introductory phrase. No "Overall" conclusion or reflection is appended unless supported by the user's input.
+## Contributing
 
 ## Contributing
 
