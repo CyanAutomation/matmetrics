@@ -1,11 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
-import {
-  PluginFormSection,
-  PluginLoadingState,
-  PluginTableSection,
-} from '@/components/plugins/plugin-kit';
+import { PluginFormSection, PluginTableSection } from '@/components/plugins/plugin-kit';
+import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import {
   SyncResultsMainPanel,
   SyncResultsHistoryList,

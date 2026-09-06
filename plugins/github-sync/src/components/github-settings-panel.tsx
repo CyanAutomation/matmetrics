@@ -160,6 +160,10 @@ export function GitHubSettings() {
     isClearDialogOpen,
   });
 
+  const historyHasRows = Boolean(
+    syncHistoryState && Array.isArray(syncHistoryState.data?.files) && syncHistoryState.data.files.length > 0
+  );
+
   const handleCancelClearDialog = () => {
     const nextState = resolveClearDialogOutcome(
       {
@@ -208,7 +212,8 @@ export function GitHubSettings() {
         />
       )}
 
-      <GitHubSettingsConnectionForm
+      <PluginFormSection title="Connection" description="Repository and branch settings">
+        <GitHubSettingsConnectionForm
         owner={owner}
         repo={repo}
         branch={branch}
@@ -227,7 +232,8 @@ export function GitHubSettings() {
         onTestConnection={handleTestConnection}
         onSaveConfig={handleSaveConfig}
         controlState={controlState}
-      />
+        />
+      </PluginFormSection>
 
       {!isEnabled && (
         <PluginEmptyState
@@ -255,16 +261,24 @@ export function GitHubSettings() {
       )}
 
       {isEnabled && (
-        <GitHubSettingsHistoryPanel
-          migrationDone={migrationDone}
-          handleBulkSync={handleBulkSync}
-          handleLoadSyncHistory={handleLoadSyncHistory}
-          syncHistoryState={syncHistoryState}
-          selectedHistoryPath={selectedHistoryPath}
-          setSelectedHistoryPath={setSelectedHistoryPath}
-          controlState={controlState}
-          isSyncing={isSyncing}
-        />
+        <PluginTableSection
+          title="Troubleshooting and activity"
+          description="Troubleshooting and activity"
+          hasRows={historyHasRows}
+          emptyTitle="No sync history"
+          emptyDescription="Load sync history to inspect recent run details."
+        >
+          <GitHubSettingsHistoryPanel
+            migrationDone={migrationDone}
+            handleBulkSync={handleBulkSync}
+            handleLoadSyncHistory={handleLoadSyncHistory}
+            syncHistoryState={syncHistoryState}
+            selectedHistoryPath={selectedHistoryPath}
+            setSelectedHistoryPath={setSelectedHistoryPath}
+            controlState={controlState}
+            isSyncing={isSyncing}
+          />
+        </PluginTableSection>
       )}
 
       {isEnabled && (
