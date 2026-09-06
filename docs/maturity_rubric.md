@@ -73,17 +73,17 @@ Final Score = Base Score (0–100) + Modifiers (±10 max) – Penalties (0–20 
 
 The base rubric contains 9 deterministic categories, each scored 0–5 and weighted to produce a universal 0–100 base score.
 
-| Category | Weight | Purpose |
-|----------|--------|---------|
-| Repository Completeness | 10% | Essential repo metadata and release hygiene |
-| Setup & Reproducibility | 15% | Clear onboarding and one-command startup |
-| Runtime Operability | 15% | Stable execution and observable behavior |
-| Testing & Verification | 15% | Test coverage and automation |
-| CI/CD & Delivery | 10% | Build pipeline and release infrastructure |
-| Codebase Maintainability | 10% | Structure, cleanliness, and tooling |
-| Security & Dependency Hygiene | 10% | Secrets management and dependency safety |
-| Documentation Depth | 10% | Usage examples, architecture, troubleshooting |
-| Project Governance Signals | 5% | Issue/PR templates, active maintenance |
+| Category                      | Weight | Purpose                                       |
+| ----------------------------- | ------ | --------------------------------------------- |
+| Repository Completeness       | 10%    | Essential repo metadata and release hygiene   |
+| Setup & Reproducibility       | 15%    | Clear onboarding and one-command startup      |
+| Runtime Operability           | 15%    | Stable execution and observable behavior      |
+| Testing & Verification        | 15%    | Test coverage and automation                  |
+| CI/CD & Delivery              | 10%    | Build pipeline and release infrastructure     |
+| Codebase Maintainability      | 10%    | Structure, cleanliness, and tooling           |
+| Security & Dependency Hygiene | 10%    | Secrets management and dependency safety      |
+| Documentation Depth           | 10%    | Usage examples, architecture, troubleshooting |
+| Project Governance Signals    | 5%     | Issue/PR templates, active maintenance        |
 
 ### Base Score Calculation
 
@@ -364,13 +364,13 @@ Penalties are deterministic hard deductions for risky or broken states. Penaltie
 
 Use these score buckets to interpret your final maturity score:
 
-| Score Range | Interpretation | Meaning |
-|---|---|---|
-| 0–24 | Idea / Abandoned | Concept stage or inactive |
-| 25–44 | Prototype | Early development, limited polish |
-| 45–64 | Working Project | Functional, but setup or testing gaps exist |
-| 65–79 | Maintainable Product | Reliable, documented, actively maintained |
-| 80–100 | Mature Product | Production-ready, comprehensive, highly reliable |
+| Score Range | Interpretation       | Meaning                                          |
+| ----------- | -------------------- | ------------------------------------------------ |
+| 0–24        | Idea / Abandoned     | Concept stage or inactive                        |
+| 25–44       | Prototype            | Early development, limited polish                |
+| 45–64       | Working Project      | Functional, but setup or testing gaps exist      |
+| 65–79       | Maintainable Product | Reliable, documented, actively maintained        |
+| 80–100      | Mature Product       | Production-ready, comprehensive, highly reliable |
 
 ---
 

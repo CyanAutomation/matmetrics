@@ -32,7 +32,7 @@ docs/         → Architecture decisions and contracts
 
 Frontend and CLI share a frozen **session shape** and **markdown format**. Changes require both TypeScript and Go updates.
 
-- **Shape**: `id`, `date` (YYYY-MM-DD), `techniques[]`, `effort` (1–5), `category` (Technical|Randori|Shiai), `description`, `notes`, `duration`
+- **Shape**: `id`, `date` (YYYY-MM-DD), `techniques[]`, `effort` (1–5), `category` (Technical|Randori|Shiai|Cardio|S&C), `description`, `notes`, `duration`, `videoUrl`
 - **Markdown format**: YAML frontmatter + fixed sections (id, date, effort, category)
 
 See [docs/go-contract.md](./docs/go-contract.md) for the complete contract and exact markdown template.
@@ -86,9 +86,10 @@ date: '2026-03-18'
 effort: 3
 category: 'Technical'
 duration: 90
+videoUrl: 'https://example.com/session.mp4'
 ---
 
-# March 18, 2026 – Judo Session
+# 2026-03-18 - Judo Session: Technical
 
 ## Techniques Practiced
 
@@ -114,11 +115,11 @@ Exact rules in [docs/go-contract.md](./docs/go-contract.md). The CLI validates t
 
 ### Environment Variables
 
-See [README.md](./README.md) for required variables (GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, Firebase keys). Locally, copy `.env.example` to `.env.local`.
+See [README.md](./README.md) for required variables (GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, Firebase keys, SENTRY_DSN, SENTRY_AUTH_TOKEN). Locally, copy `.env.example` to `.env.local`.
 
 ### AI & Cloudflare Gateway
 
-AI-powered technique suggestions and practice description transformation are provided via Cloudflare AI Gateway. API routes in `src/app/api/ai/` call the Cloudflare gateway using the `dynamic/matmetrics` model routing configuration. The client implementation is in `src/lib/cloudflare-ai-client.ts` with error handling and type safety via Zod schemas.
+AI-powered technique suggestions and practice description transformation are provided via Cloudflare AI Gateway. Two POST endpoints accept `{ description }` payloads and return JSON responses with suggestions or transformed prose. Client implementation is in `src/lib/cloudflare-ai-client.ts` with error handling and type safety via Zod schemas.
 
 ### Markdown Documentation
 

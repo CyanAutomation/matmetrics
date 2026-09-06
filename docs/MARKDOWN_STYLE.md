@@ -21,9 +21,9 @@ Headings must follow a strict hierarchical structure with no skipped levels. The
 ### Incorrect Patterns
 
 ```markdown
-## Document Title  ← ❌ Should be H1
+## Document Title ← ❌ Should be H1
 
-### Subsection    ← ❌ Skips H2
+### Subsection ← ❌ Skips H2
 ```
 
 **Reference examples:** [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), [docs/go-contract.md](go-contract.md)
@@ -109,7 +109,7 @@ Use markdown pipe-delimited tables with proper alignment:
 
 ```markdown
 | Column A | Column B | Column C |
-|----------|----------|----------|
+| -------- | -------- | -------- |
 | Value 1  | Value 2  | Value 3  |
 | Value 4  | Value 5  | Value 6  |
 ```
@@ -229,7 +229,7 @@ Use these terms consistently across all documentation:
 ### Bold and Italics
 
 - **Bold** (`**text**`) — For emphasis on key terms, headings within prose, or important warnings
-- *Italic* (`*text*`) — For code variable names in prose, technical terms, or filenames when not using inline code
+- _Italic_ (`*text*`) — For code variable names in prose, technical terms, or filenames when not using inline code
 
 ### Inline Code
 
@@ -312,15 +312,15 @@ Structure: Title → Prerequisites → Step-by-Step Instructions → Verificatio
 
 All markdown files are validated using `.markdownlint.json` with these key rules:
 
-| Rule | Enforces |
-|------|----------|
-| `first-line-h1` | First heading must be H1 |
-| `heading-increment` | No skipped heading levels (H1 → H2 → H3, not H1 → H3) |
-| `fenced-code-language` | Code blocks must have language tag |
-| `line-length` | Lines should not exceed 120 characters |
-| `no-bare-urls` | URLs must be in markdown links |
-| `blanks-around-headings` | Blank lines before/after headings |
-| `no-multiple-blanks` | Max 1 consecutive blank line |
+| Rule                     | Enforces                                              |
+| ------------------------ | ----------------------------------------------------- |
+| `first-line-h1`          | First heading must be H1                              |
+| `heading-increment`      | No skipped heading levels (H1 → H2 → H3, not H1 → H3) |
+| `fenced-code-language`   | Code blocks must have language tag                    |
+| `line-length`            | Lines should not exceed 120 characters                |
+| `no-bare-urls`           | URLs must be in markdown links                        |
+| `blanks-around-headings` | Blank lines before/after headings                     |
+| `no-multiple-blanks`     | Max 1 consecutive blank line                          |
 
 ### Running Linting
 
