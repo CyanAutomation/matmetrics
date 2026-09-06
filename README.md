@@ -287,7 +287,7 @@ Requests exceeding these limits receive an `INPUT_TOO_LARGE` error response (HTT
 ### Output Constraints
 
 The `/api/ai/transform-description` endpoint enforces strict output formatting: the model returns plain prose only — no title, heading, Markdown syntax, asterisks, emphasis markers, bullet lists, or code fences. The narrative begins immediately without any introductory phrase. No "Overall" conclusion or reflection is appended unless supported by the user's input.
-- ES2020+ JavaScript features
+## Contributing
 
 ## Contributing
 
