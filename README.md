@@ -28,14 +28,14 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 
 ## Design System
 
-- **Primary Color**: Ressa Red (#E85D04) in light mode, MatMetrics Blue (#296BCD) in dark mode
+- **Primary Color**: MatMetrics Blue (#006BAB) in light mode, MatMetrics Blue (#296BCD) in dark mode
 - **Background**: Light desaturated blue (#ECF1F4) for a clean canvas
 - **Accent Color**: Progress Cyan (#3DCCE2) for interactive elements
 - **Typography**: Inter (sans-serif) for clarity and modern appearance
 - **Icons**: Minimalist line-art icons from Lucide React
 - **Layout**: Clean, spacious design with responsive components
 
-See [DESIGN.md](DESIGN.md) for full design specifications.
+See [docs/blueprint.md](docs/blueprint.md) for full design specifications.
 
 ## Getting Started
 
@@ -55,13 +55,13 @@ git clone <repository-url>
 cd matmetrics
 ```
 
-1. Install dependencies:
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-1. Set up environment variables:
+3. Set up environment variables:
 
 Copy `.env.example` to `.env.local` and add your API keys:
 
