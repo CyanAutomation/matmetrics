@@ -10,7 +10,7 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
-import { GitHubConfig } from '@/lib/types';
+
 import {
   runLoadGitHubSyncHistory,
   SyncResultsDetailPane,
