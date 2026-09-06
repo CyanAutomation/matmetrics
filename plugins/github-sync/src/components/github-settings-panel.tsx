@@ -146,7 +146,9 @@ export function GitHubSettings() {
   });
 
   const historyHasRows = Boolean(
-    syncHistoryState && Array.isArray(syncHistoryState.data?.files) && syncHistoryState.data.files.length > 0
+    syncHistoryState && 
+    syncHistoryState.status === 'success' && 
+    syncHistoryState.data.files.length > 0
   );
 
   const handleCancelClearDialog = () => {
