@@ -1,12 +1,8 @@
-// fallow-ignore-file unused-export
-// This file is a test helper module; all exports are appropriately used only in test files.
-
 /**
  * Test mock builders for GitHub API responses
  */
 
 import type { JudoSession } from '../types';
-import { sessionToMarkdown } from '../markdown-serializer';
 
 /**
  * Creates a minimal test session fixture
@@ -54,16 +50,7 @@ export class GitHubMockBuilder {
   private branches = new Map<string, { commitSha: string; treeSha: string }>();
   private trees = new Map<string, { truncated: boolean; entries: GitHubTreeEntry[] }>();
   private contents = new Map<string, GitHubContentsEntry[]>();
-  private files = new Map<string, { sha: string; content: string }>();
-  private defaultBranch = 'main';
-
-  /**
-   * Configure the default branch for the repo
-   */
-  setDefaultBranch(branch: string): this {
-    this.defaultBranch = branch;
-    return this;
-  }
+  private readonly defaultBranch = 'main';
 
   /**
    * Add a branch with a commit and tree SHA
@@ -94,36 +81,12 @@ export class GitHubMockBuilder {
   }
 
   /**
-   * Add a file with content (for GET /contents/:path)
-   */
-  addFile(path: string, content: string, sha = 'file-sha'): this {
-    this.files.set(path, { sha, content });
-    return this;
-  }
-
-  /**
-   * Add a session file at the appropriate path
-   */
-  addSession(session: JudoSession, sha = 'session-sha'): this {
-    const date = new Date(session.date);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const datePrefix = session.date.replace(/-/g, '');
-    const encodedId = encodeURIComponent(session.id);
-    const path = `data/${year}/${month}/${datePrefix}-matmetrics-${encodedId}.md`;
-    
-    const content = sessionToMarkdown(session);
-    return this.addFile(path, content, sha);
-  }
-
-  /**
    * Build the mock fetch handler
    */
   build(owner = 'o', repo = 'r'): typeof fetch {
     const branches = this.branches;
     const trees = this.trees;
     const contents = this.contents;
-    const files = this.files;
     const defaultBranch = this.defaultBranch;
 
     return (async (url: string | URL | Request, init?: RequestInit) => {
@@ -194,7 +157,7 @@ export class GitHubMockBuilder {
         );
       }
 
-      // GET /repos/:owner/:repo/contents/:path - get file or directory
+      // GET /repos/:owner/:repo/contents/:path - get directory listing only
       const contentsMatch = path.match(/\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
       if (contentsMatch && method === 'GET') {
         const contentPath = decodeURIComponent(contentsMatch[1]);
@@ -205,45 +168,9 @@ export class GitHubMockBuilder {
           return new Response(JSON.stringify(dirListing), { status: 200 });
         }
 
-        // Check if it's a file
-        const file = files.get(contentPath);
-        if (file) {
-          return new Response(
-            JSON.stringify({
-              sha: file.sha,
-              content: Buffer.from(file.content).toString('base64'),
-            }),
-            { status: 200 }
-          );
-        }
-
         return new Response(JSON.stringify({ message: 'Not Found' }), {
           status: 404,
         });
-      }
-
-      // PUT /repos/:owner/:repo/contents/:path - update file
-      if (contentsMatch && method === 'PUT') {
-        const contentPath = decodeURIComponent(contentsMatch[1]);
-        const body = JSON.parse(String(init?.body));
-        const file = files.get(contentPath);
-
-        // Check SHA match for updates
-        if (file && body.sha !== file.sha) {
-          return new Response(JSON.stringify({ message: 'sha does not match' }), {
-            status: 409,
-          });
-        }
-
-        // Update file
-        const newSha = `updated-${Date.now()}`;
-        const newContent = Buffer.from(body.content, 'base64').toString('utf8');
-        files.set(contentPath, { sha: newSha, content: newContent });
-
-        return new Response(
-          JSON.stringify({ content: { sha: newSha } }),
-          { status: 200 }
-        );
       }
 
       // Default: not found
