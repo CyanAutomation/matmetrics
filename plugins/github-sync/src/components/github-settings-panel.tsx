@@ -10,7 +10,6 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { GitHubConfig } from '@/lib/types';
 import {
   runLoadGitHubSyncHistory,
@@ -20,10 +19,7 @@ import {
 } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
-import {
-  clearGitHubConfigPreference,
-  saveGitHubSettingsPreference,
-} from '@/lib/user-preferences';
+// user-preferences handled in operations hook
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
@@ -37,14 +33,11 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
-  buildGitHubNetworkErrorMessage,
-  deriveDisableOutcome,
   deriveGitHubSettingsControlState,
   GITHUB_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
-  getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from './github-settings-view-model';
-import { parseGitHubApiResponse } from './github-settings-api';
+// parseGitHubApiResponse is used in the operations hook
 import {
   PluginLoadingState,
   PluginEmptyState,
@@ -57,9 +50,11 @@ import {
 import { useGitHubSettingsState } from './use-github-settings-state';
 import { GitHubRepositoryFields } from './github-repository-fields';
 import { useGitHubSettingsOperations } from './use-github-settings-operations';
+import GitHubSettingsConnectionForm from './github-settings-connection-form';
+import GitHubSettingsHistoryPanel from './github-settings-history-panel';
+import GitHubSettingsDangerZone from './github-settings-danger-zone';
 
 export function GitHubSettings() {
-  const { toast } = useToast();
   const { user, preferences, canUseGitHubSync, authAvailable } = useAuth();
   const {
     owner,
@@ -213,83 +208,26 @@ export function GitHubSettings() {
         />
       )}
 
-      <PluginFormSection
-        title={isEnabled ? 'Backup connection' : 'Connect a repository'}
-        description={
-          isEnabled
-            ? `Backing up to ${owner}/${repo}. Manage the destination only when it changes.`
-            : 'Choose where new and updated training sessions should be backed up.'
-        }
-        headerActions={
-          isEnabled ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsManagingConnection((open) => !open)}
-              aria-expanded={isManagingConnection}
-            >
-              {isManagingConnection ? 'Done' : 'Manage connection'}
-            </Button>
-          ) : undefined
-        }
-        footerActions={
-          !isEnabled || isManagingConnection ? (
-            <PluginActionRow>
-              <PluginActionSecondary>
-                <Button
-                  onClick={() => void handleTestConnection()}
-                  disabled={!controlState.canTestConnection}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  {isTesting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {controlState.testConnectionLabel}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Test Connection
-                    </>
-                  )}
-                </Button>
-              </PluginActionSecondary>
-
-              <PluginActionPrimary>
-                <Button
-                  onClick={() => void handleSaveConfig()}
-                  disabled={
-                    !canUseGitHubSync ||
-                    !owner ||
-                    !repo ||
-                    (isEnabled && !hasConnectionChanges)
-                  }
-                >
-                  {isEnabled ? 'Save changes' : 'Connect repository'}
-                </Button>
-              </PluginActionPrimary>
-            </PluginActionRow>
-          ) : undefined
-        }
-      >
-        {!isEnabled || isManagingConnection ? (
-          <GitHubRepositoryFields
-            owner={owner}
-            repo={repo}
-            branch={branch}
-            isEnabled={isEnabled}
-            migrationDone={migrationDone}
-            canUseGitHubSync={canUseGitHubSync}
-            inputTone={theme.inputTone}
-            testResult={testResult}
-            onOwnerChange={setOwner}
-            onRepoChange={setRepo}
-            onBranchChange={setBranch}
-          />
-        ) : null}
-      </PluginFormSection>
+      <GitHubSettingsConnectionForm
+        owner={owner}
+        repo={repo}
+        branch={branch}
+        isEnabled={isEnabled}
+        migrationDone={migrationDone}
+        canUseGitHubSync={canUseGitHubSync}
+        inputTone={theme.inputTone}
+        testResult={testResult}
+        isTesting={isTesting}
+        hasConnectionChanges={hasConnectionChanges}
+        isManagingConnection={isManagingConnection}
+        setIsManagingConnection={setIsManagingConnection}
+        onOwnerChange={setOwner}
+        onRepoChange={setRepo}
+        onBranchChange={setBranch}
+        onTestConnection={handleTestConnection}
+        onSaveConfig={handleSaveConfig}
+        controlState={controlState}
+      />
 
       {!isEnabled && (
         <PluginEmptyState
@@ -317,149 +255,26 @@ export function GitHubSettings() {
       )}
 
       {isEnabled && (
-        <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Troubleshooting and activity
-          </summary>
-          <div className="mt-4 space-y-6">
-            <PluginFormSection
-              title={migrationDone ? 'Sync now' : 'Run first backup'}
-              description={
-                migrationDone
-                  ? 'Use this only to troubleshoot or force a complete backup check.'
-                  : 'Copy existing training history once; future changes back up automatically.'
-              }
-            >
-              <Button
-                variant="outline"
-                onClick={() => void handleBulkSync()}
-                disabled={!controlState.canRunSyncAll}
-                className="gap-2"
-              >
-                {isSyncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                {isSyncing
-                  ? controlState.syncAllLabel
-                  : migrationDone
-                    ? 'Sync now'
-                    : 'Start first backup'}
-              </Button>
-            </PluginFormSection>
-            <PluginTableSection
-              title="Recent backup activity"
-              description="Open an entry only when you need to troubleshoot a backup."
-              hasRows={true}
-              emptyTitle="No sync history"
-              emptyDescription="Load sync history to inspect recent run details."
-              headerActions={
-                <Button
-                  variant="outline"
-                  onClick={() => void handleLoadSyncHistory()}
-                  disabled={!controlState.canRefreshHistory}
-                  className="gap-2"
-                >
-                  {syncHistoryState.status === 'loading' ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {controlState.refreshHistoryLabel}
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      {controlState.refreshHistoryLabel}
-                    </>
-                  )}
-                </Button>
-              }
-            >
-              {syncHistoryState.status === 'loading' ? (
-                <PluginLoadingState description="Loading sync history and per-file diagnostics." />
-              ) : (
-                <>
-                  <SyncResultsMainPanel
-                    state={syncHistoryState}
-                    onRetry={() => void handleLoadSyncHistory()}
-                    onRunSync={() => void handleBulkSync()}
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <h4 className="mb-2 text-sm font-semibold">
-                        History list
-                      </h4>
-                      <SyncResultsHistoryList
-                        state={syncHistoryState}
-                        selectedPath={selectedHistoryPath}
-                        onSelect={setSelectedHistoryPath}
-                        onRetry={() => void handleLoadSyncHistory()}
-                      />
-                    </div>
-                    <div>
-                      <h4 className="mb-2 text-sm font-semibold">
-                        Detail pane
-                      </h4>
-                      <SyncResultsDetailPane
-                        state={syncHistoryState}
-                        selectedPath={selectedHistoryPath}
-                        onRetry={() => void handleLoadSyncHistory()}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </PluginTableSection>
-          </div>
-        </details>
+        <GitHubSettingsHistoryPanel
+          migrationDone={migrationDone}
+          handleBulkSync={handleBulkSync}
+          handleLoadSyncHistory={handleLoadSyncHistory}
+          syncHistoryState={syncHistoryState}
+          selectedHistoryPath={selectedHistoryPath}
+          setSelectedHistoryPath={setSelectedHistoryPath}
+          controlState={controlState}
+          isSyncing={isSyncing}
+        />
       )}
 
       {isEnabled && (
-        <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
-          <summary className="cursor-pointer text-sm font-semibold text-destructive">
-            Danger zone
-          </summary>
-          <div className="mt-4">
-            <PluginFormSection
-              title="Danger zone"
-              description="These actions stop syncing or remove the saved repository connection. Your existing training records are not deleted."
-              className="border-destructive/30"
-              footerActions={
-                <PluginActionRow>
-                  <PluginActionDestructive>
-                    <Button
-                      onClick={() => void handleDisable()}
-                      disabled={!controlState.canDisableSync}
-                      variant="outline"
-                      className={`gap-2 ${getPluginUiTokenClassNames('action.destructive')}`}
-                    >
-                      {isDisabling ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
-                      {isDisabling ? controlState.disableLabel : 'Disable sync'}
-                    </Button>
-                  </PluginActionDestructive>
-                  <PluginActionTrailing>
-                    <Button
-                      onClick={() => setIsClearDialogOpen(true)}
-                      disabled={!controlState.canOpenClearDialog}
-                      variant="ghost"
-                      size="sm"
-                      className={`gap-2 ${getPluginUiTokenClassNames('action.subtle')}`}
-                    >
-                      {isClearing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                      Clear saved connection
-                    </Button>
-                  </PluginActionTrailing>
-                </PluginActionRow>
-              }
-            />
-          </div>
-        </details>
+        <GitHubSettingsDangerZone
+          controlState={controlState}
+          handleDisable={handleDisable}
+          setIsClearDialogOpen={setIsClearDialogOpen}
+          isDisabling={isDisabling}
+          isClearing={isClearing}
+        />
       )}
 
       <PluginDestructiveAction
