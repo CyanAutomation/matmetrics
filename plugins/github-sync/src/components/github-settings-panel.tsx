@@ -1,21 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import {
   Github,
-  CheckCircle2,
   AlertCircle,
-  Loader2,
-  Trash2,
-  RefreshCw,
 } from 'lucide-react';
 
 import {
   runLoadGitHubSyncHistory,
-  SyncResultsDetailPane,
-  SyncResultsHistoryList,
-  SyncResultsMainPanel,
 } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
@@ -24,13 +16,8 @@ import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
-import {
-  PluginActionDestructive,
-  PluginActionPrimary,
-  PluginActionRow,
-  PluginActionSecondary,
-  PluginActionTrailing,
-} from '@/components/plugins/plugin-action-row';
+
+
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   deriveGitHubSettingsControlState,
@@ -39,7 +26,6 @@ import {
 } from './github-settings-view-model';
 // parseGitHubApiResponse is used in the operations hook
 import {
-  PluginLoadingState,
   PluginEmptyState,
 } from '@/components/plugins/plugin-state';
 import {
@@ -48,7 +34,6 @@ import {
   PluginTableSection,
 } from '@/components/plugins/plugin-kit';
 import { useGitHubSettingsState } from './use-github-settings-state';
-import { GitHubRepositoryFields } from './github-repository-fields';
 import { useGitHubSettingsOperations } from './use-github-settings-operations';
 import GitHubSettingsConnectionForm from './github-settings-connection-form';
 import GitHubSettingsHistoryPanel from './github-settings-history-panel';
