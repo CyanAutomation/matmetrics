@@ -89,6 +89,12 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 # Firebase admin SDK - paste the full service account JSON on one line
 # Firebase console → Project Settings → Service accounts → Generate new private key
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
+
+# Sentry DSN for error monitoring in browser bundle
+SENTRY_DSN=https://example@o0.ingest.sentry.io/0
+
+# Sentry auth token for CI/Vercel source map uploads and release creation
+SENTRY_AUTH_TOKEN=sentry_example_token
 ```
 
 Firebase values come from:
@@ -102,6 +108,8 @@ Firebase values come from:
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase console → Project Settings → Your web app                                |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase console → Project Settings → Your web app                                |
 | `FIREBASE_SERVICE_ACCOUNT_KEY`             | Firebase console → Project Settings → Service accounts → Generate new private key |
+| `SENTRY_DSN`                               | Sentry dashboard → Project settings → Client keys (DSN)                           |
+| `SENTRY_AUTH_TOKEN`                        | sentry.io → User settings → Auth tokens                                           |
 
 ### Environment variable behavior
 
@@ -113,6 +121,8 @@ Firebase values come from:
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
+- `SENTRY_DSN` enables browser-side error monitoring. Set in Vercel for every deployment environment.
+- `SENTRY_AUTH_TOKEN` is used only in CI/Vercel to upload source maps and create releases.
 
 ## Available Scripts
 
@@ -228,6 +238,8 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
    - In the "Environment Variables" section, add:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
      - `CLOUDFLARE_API_TOKEN`: Your Cloudflare API token (get with: `wrangler auth token`)
+     - `SENTRY_DSN`: Your Sentry DSN for error monitoring
+     - `SENTRY_AUTH_TOKEN`: Your Sentry auth token for source map uploads
 
 4. **Deploy**:
    - Click "Deploy"
@@ -252,13 +264,13 @@ src/
 
 ## AI Features
 
-### Technique Suggester
+### POST /api/ai/suggest-techniques
 
-Analyzes user input and suggests relevant Judo techniques for quick tagging during session logging. Powered by Cloudflare AI Gateway with the `dynamic/matmetrics` model routing.
+Accepts `{ description: string }` and returns `{ suggestions: string[] }`. Analyzes the provided session description and returns an array of suggested Judo technique names. Powered by Cloudflare AI Gateway with the `dynamic/matmetrics` model routing.
 
-### Practice Description Transformer
+### POST /api/ai/transform-description
 
-Processes and categorizes technique descriptions to normalize and standardize input data. Uses customizable prompts to maintain consistent formatting and terminology.
+Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt.
 
 ## Browser Support
 
