@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import { tagService, type TagOperationSummary } from '@/lib/tags';
 import {
   buildErrorRecoveryDescription,
-  resolveDeleteDialogCancel,
   runDeleteConfirmation,
 } from './tag-manager-view-model';
 
@@ -57,12 +56,12 @@ export function useTagManagerOperations({
   renameAnalysis,
   mergeAnalysis,
   deleteAnalysis,
-  isAnalyzingRename,
-  isApplyingRename,
-  isAnalyzingMerge,
-  isApplyingMerge,
-  isAnalyzingDelete,
-  isApplyingDelete,
+  isAnalyzingRename: _isAnalyzingRename,
+  isApplyingRename: _isApplyingRename,
+  isAnalyzingMerge: _isAnalyzingMerge,
+  isApplyingMerge: _isApplyingMerge,
+  isAnalyzingDelete: _isAnalyzingDelete,
+  isApplyingDelete: _isApplyingDelete,
   onSetEditingTag,
   onSetNewTagName,
   onSetRenameAnalysis,

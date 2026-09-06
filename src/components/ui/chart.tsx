@@ -6,7 +6,6 @@ import * as RechartsPrimitive from 'recharts';
 import { cn } from '@/lib/utils';
 import { ChartStyle } from './chart-style';
 import { ChartContext } from './chart-context';
-import { ChartTooltipContent } from './chart-tooltip-content';
 import type { ChartConfig } from './chart-types';
 
 // fallow-ignore-file unused-export

@@ -3,7 +3,6 @@ import publishedScorecards from '../../../docs/plugin-maturity-scorecards.json';
 import type {
   PluginManifest,
   PluginMaturityScorecard,
-  PluginMaturityTier,
 } from '@/lib/plugins/types';
 import {
   MATURITY_CATEGORY_LABELS,
