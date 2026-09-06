@@ -239,8 +239,8 @@ segmented control when users can select more than one option.
 
 ```css
 :root {
-  --color-primary: #e85d04;
-  --color-primary-container: #f5843c;
+  --color-primary: #006bab;
+  --color-primary-container: #0075c2;
   --color-surface: #f7fafc;
   --color-surface-low: #f1f4f6;
   --color-surface-lowest: #ffffff;
@@ -339,7 +339,6 @@ Uses asymmetrical layout with `headline-lg` titles and `DataStrip` components fo
 
 ## References
 
-- [DESIGN.md](DESIGN.md) - Comprehensive design system documentation
 - [src/lib/design-tokens.ts](../src/lib/design-tokens.ts) - Canonical token definitions
 - [docs/MARKDOWN_STYLE.md](MARKDOWN_STYLE.md) - Documentation standards
 - [AGENTS.md](../AGENTS.md) - Project guidelines and architecture
