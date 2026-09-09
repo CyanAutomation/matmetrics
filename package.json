@@ -53,7 +53,7 @@
     "firebase-admin": "^14.3.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.475.0",
-    "next": "16.3.0",
+    "next": "^16.3.4",
     "next-themes": "^0.4.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
@@ -76,5 +76,13 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.23.11",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "@firebase/util@1.14.0": true,
+    "@firebase/util@1.15.3": true,
+    "@sentry/cli@2.58.6": true,
+    "esbuild@0.28.1": true,
+    "protobufjs@7.6.5": true,
+    "unrs-resolver@1.11.1": true
   }
 }
