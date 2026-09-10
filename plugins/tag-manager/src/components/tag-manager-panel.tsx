@@ -463,7 +463,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                   isApplyingRename
                 }
               >
-                {isAnalyzingRename ? 'Analyzing...' : 'Analyze'}
+                {isAnalyzingRename ? 'Reviewing...' : 'Review changes'}
               </Button>
             )}
           </DialogFooter>
@@ -567,7 +567,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
                       !targetMergeTag || isAnalyzingMerge || isApplyingMerge
                     }
                   >
-                    {isAnalyzingMerge ? 'Analyzing...' : 'Analyze'}
+                    {isAnalyzingMerge ? 'Reviewing...' : 'Review changes'}
                   </Button>
                 )}
               </PluginActionPrimary>
