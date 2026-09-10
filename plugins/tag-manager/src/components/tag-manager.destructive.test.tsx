@@ -51,7 +51,7 @@ test('delete flow requires explicit confirmation before destructive apply', asyn
   // 3) apply is blocked until confirmation/analyze produces safe result
   const actionsBeforeAnalysis = deriveDeleteDialogActions(initiatedState);
   assert.equal(actionsBeforeAnalysis.mode, 'analyze');
-  assert.equal(actionsBeforeAnalysis.primaryLabel, 'Analyze');
+  assert.equal(actionsBeforeAnalysis.primaryLabel, 'Review changes');
 
   let deleteInvocations = 0;
   const preConfirmResult = await runDeleteConfirmation({

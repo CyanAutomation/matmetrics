@@ -39,6 +39,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ToastAction } from '@/components/ui/toast';
+import { deferMenuDialogOpen } from '@/lib/interaction';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -102,6 +104,7 @@ function SessionRow({
   deletingSessionId,
   density,
 }: SessionRowProps) {
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const sessionDateLabel = format(
     parseDateOnly(session.date),
     'EEEE, MMMM do, yyyy'
@@ -192,7 +195,10 @@ function SessionRow({
             </Badge>
           </div>
 
-          <DropdownMenu>
+          <DropdownMenu
+            open={isActionsMenuOpen}
+            onOpenChange={setIsActionsMenuOpen}
+          >
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -205,13 +211,21 @@ function SessionRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(session)}>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsActionsMenuOpen(false);
+                  deferMenuDialogOpen(() => onEdit(session));
+                }}
+              >
                 <Edit2 className="mr-2 h-4 w-4" />
                 Edit session
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={deletingSessionId === session.id}
-                onClick={() => onDelete(session.id)}
+                onSelect={() => {
+                  setIsActionsMenuOpen(false);
+                  deferMenuDialogOpen(() => onDelete(session.id));
+                }}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -463,29 +477,20 @@ export function SessionHistory({
       description="Search, filter, and revisit your training sessions."
       actions={
         <div className="flex items-center gap-2">
-          <div
-            className="inline-flex rounded-lg bg-[hsl(var(--color-surface-container-low))] p-1"
+          <SegmentedControl
             aria-label="History display density"
+            value={density}
+            onValueChange={(value) =>
+              setDensity(value as 'comfortable' | 'compact')
+            }
           >
-            <Button
-              type="button"
-              size="sm"
-              variant={density === 'compact' ? 'secondary' : 'ghost'}
-              aria-pressed={density === 'compact'}
-              onClick={() => setDensity('compact')}
-            >
+            <SegmentedControl.Item value="compact">
               Compact
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={density === 'comfortable' ? 'secondary' : 'ghost'}
-              aria-pressed={density === 'comfortable'}
-              onClick={() => setDensity('comfortable')}
-            >
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="comfortable">
               Comfortable
-            </Button>
-          </div>
+            </SegmentedControl.Item>
+          </SegmentedControl>
           {onLogSession ? (
             <Button onClick={onLogSession}>Log session</Button>
           ) : null}

@@ -12,6 +12,21 @@ export const FIELD_INTERACTION_CLASS =
 export const CARD_INTERACTION_CLASS =
   'ui-card-interaction transition-[transform,box-shadow,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/20';
 
+/**
+ * Opens a modal on the next task after a Radix menu selection. Opening both
+ * layers in the same React event can leave the document pointer-locked after
+ * the dialog closes.
+ */
+export function deferMenuDialogOpen(
+  openDialog: () => void,
+  schedule: (
+    callback: () => void,
+    delayMs: number
+  ) => ReturnType<typeof setTimeout> = setTimeout
+) {
+  return schedule(openDialog, 0);
+}
+
 function getFeedbackResetDelay(state: Exclude<FeedbackState, 'idle'>) {
   return state === 'error' ? 1800 : 1400;
 }
