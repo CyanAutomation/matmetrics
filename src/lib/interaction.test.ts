@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createActionFeedbackController } from './interaction';
+import {
+  createActionFeedbackController,
+  deferMenuDialogOpen,
+} from './interaction';
 
 type ScheduledTask = {
   id: number;
@@ -160,4 +163,22 @@ test('reset() and dispose() cancel pending idle resets', () => {
 
   assert.equal(disposeClearCalls, 1);
   assert.deepEqual(disposeStates, ['error']);
+});
+
+test('menu-launched dialogs wait until the menu has finished closing', () => {
+  const calls: string[] = [];
+  let scheduled: (() => void) | undefined;
+
+  deferMenuDialogOpen(
+    () => calls.push('open-dialog'),
+    (callback) => {
+      scheduled = callback;
+      return 1 as unknown as ReturnType<typeof setTimeout>;
+    }
+  );
+
+  assert.deepEqual(calls, []);
+  assert.ok(scheduled);
+  scheduled?.();
+  assert.deepEqual(calls, ['open-dialog']);
 });

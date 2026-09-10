@@ -7,14 +7,7 @@ import {
   SessionCategory,
   TrainingPlanPreferences,
 } from '@/lib/types';
-import {
-  Dumbbell,
-  Flame,
-  ArrowRight,
-  Target,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { Dumbbell, Flame, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { RessaImage } from '@/components/ressa-image';
 import { Button } from '@/components/ui/button';
@@ -524,11 +517,6 @@ export function DashboardOverview({
               {stats.coachingInsight.detail}
             </p>
           </div>
-          {onLogSession && (
-            <Button className="min-h-11" onClick={onLogSession}>
-              Log session <ArrowRight className="h-4 w-4" />
-            </Button>
-          )}
         </div>
         <div className="grid gap-4 border-t border-[hsl(var(--color-outline-variant)/0.16)] px-5 pt-4 sm:grid-cols-2 sm:px-6 sm:pt-5">
           <div className="flex items-center gap-3">
@@ -675,24 +663,23 @@ export function DashboardOverview({
                     </div>
                     <div className="space-y-2">
                       <Label>Cadence</Label>
-                      <div className="flex rounded-md border border-input p-1">
+                      <SegmentedControl
+                        aria-label={`${category} plan cadence`}
+                        value={plan.cadence}
+                        onValueChange={(value) =>
+                          updatePlanCadence(category, value as 'week' | 'month')
+                        }
+                      >
                         {(['week', 'month'] as const).map((cadence) => (
-                          <button
+                          <SegmentedControl.Item
                             key={cadence}
-                            type="button"
-                            aria-pressed={plan.cadence === cadence}
-                            onClick={() => updatePlanCadence(category, cadence)}
-                            className={cn(
-                              'rounded px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                              plan.cadence === cadence
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-secondary'
-                            )}
+                            value={cadence}
+                            className="px-3 py-2 text-sm"
                           >
                             Per {cadence}
-                          </button>
+                          </SegmentedControl.Item>
                         ))}
-                      </div>
+                      </SegmentedControl>
                     </div>
                   </div>
                 </div>
