@@ -82,13 +82,13 @@ test('delete flow exposes loading labels and disabled actions while async work i
   const harness = createDeleteFlowHarness();
 
   const idleActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(idleActions.primaryLabel, 'Analyze');
+  assert.equal(idleActions.primaryLabel, 'Review changes');
   assert.equal(idleActions.primaryDisabled, false);
   assert.equal(idleActions.cancelDisabled, false);
 
   harness.analyzeStart();
   const analyzingActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(analyzingActions.primaryLabel, 'Analyzing...');
+  assert.equal(analyzingActions.primaryLabel, 'Reviewing...');
   assert.equal(analyzingActions.primaryDisabled, true);
   assert.equal(analyzingActions.cancelDisabled, true);
 

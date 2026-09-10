@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertCircle,
   Combine,
@@ -17,6 +17,7 @@ import {
 } from '@/components/plugins/plugin-data-surface';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { PluginInlineMessage } from '@/components/plugins/plugin-inline-message';
+import { deferMenuDialogOpen } from '@/lib/interaction';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +40,7 @@ export function TagManagerInventory({
   onMerge: (tag: string) => void;
   onDelete: (tag: string) => void;
 }) {
+  const [openMenuTag, setOpenMenuTag] = useState<string | null>(null);
   const possibleDuplicateGroups = useMemo(() => {
     const groups = new Map<string, string[]>();
     for (const tag of tags) {
@@ -78,7 +80,10 @@ export function TagManagerInventory({
               <p className="font-medium">{tag}</p>
             </div>
             <div className="ml-auto shrink-0">
-              <DropdownMenu>
+              <DropdownMenu
+                open={openMenuTag === tag}
+                onOpenChange={(open) => setOpenMenuTag(open ? tag : null)}
+              >
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -89,11 +94,21 @@ export function TagManagerInventory({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onRename(tag)}>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setOpenMenuTag(null);
+                      deferMenuDialogOpen(() => onRename(tag));
+                    }}
+                  >
                     <Edit2 className="h-4 w-4" />
                     Rename
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onMerge(tag)}>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setOpenMenuTag(null);
+                      deferMenuDialogOpen(() => onMerge(tag));
+                    }}
+                  >
                     <Combine className="h-4 w-4" />
                     Merge
                   </DropdownMenuItem>
@@ -101,7 +116,10 @@ export function TagManagerInventory({
                     className={getPluginUiTokenClassNames(
                       'action.destructive-menu-item'
                     )}
-                    onClick={() => onDelete(tag)}
+                    onSelect={() => {
+                      setOpenMenuTag(null);
+                      deferMenuDialogOpen(() => onDelete(tag));
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete

@@ -52,7 +52,7 @@ export function deriveDeleteDialogActions(state: DeleteDialogState) {
   }
   return {
     cancelDisabled,
-    primaryLabel: state.isAnalyzingDelete ? 'Analyzing...' : 'Analyze',
+    primaryLabel: state.isAnalyzingDelete ? 'Reviewing...' : 'Review changes',
     primaryDisabled: cancelDisabled,
     mode: 'analyze' as const,
   };

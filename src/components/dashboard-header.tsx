@@ -68,6 +68,12 @@ export function DashboardHeader({
         >
           <PageIcon className="h-5 w-5" aria-hidden="true" />
         </span>
+        <div className="hidden min-w-0 sm:block">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {title}
+          </p>
+          <p className="text-xs text-muted-foreground">Training workspace</p>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         {!isOnline && (
