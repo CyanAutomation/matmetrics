@@ -480,7 +480,11 @@ export async function saveSession(
       );
     }
 
-    void refreshSessionsFromAPI({ force: true });
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 
@@ -546,7 +550,11 @@ export async function updateSession(
       );
     }
 
-    void refreshSessionsFromAPI({ force: true });
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 
@@ -603,7 +611,11 @@ export async function deleteSession(id: string): Promise<MutationResult> {
       );
     }
 
-    void refreshSessionsFromAPI({ force: true });
+    if (shouldThrottleGitHubRefresh()) {
+      scheduleRefresh();
+    } else {
+      void refreshSessionsFromAPI();
+    }
     return { status: 'synced' };
   }
 

@@ -319,6 +319,152 @@ serialTest(
 );
 
 serialTest(
+  'successful GitHub-backed update schedules a non-forced deferred refresh',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+
+    const session = makeSession('session-deferred-update');
+    let updateRequests = 0;
+    const listUrls: URL[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        updateRequests += 1;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
+      if (url.pathname === '/api/sessions/list') {
+        listUrls.push(url);
+        return new Response(JSON.stringify([session]), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await updateSession(session);
+
+      assert.equal(updateRequests, 1);
+      assert.equal(listUrls.length, 0);
+
+      await delay(40);
+      await flushAsyncWork();
+
+      assert.equal(listUrls.length, 1);
+      assert.equal(listUrls[0].searchParams.has('force'), false);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'successful GitHub-backed delete schedules a non-forced deferred refresh',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+
+    const session = makeSession('session-deferred-delete');
+    let deleteRequests = 0;
+    const listUrls: URL[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        deleteRequests += 1;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
+      if (url.pathname === '/api/sessions/list') {
+        listUrls.push(url);
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await deleteSession(session.id);
+
+      assert.equal(deleteRequests, 1);
+      assert.equal(listUrls.length, 0);
+
+      await delay(40);
+      await flushAsyncWork();
+
+      assert.equal(listUrls.length, 1);
+      assert.equal(listUrls[0].searchParams.has('force'), false);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'successful non-GitHub mutations refresh immediately without debounce',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    __setGitHubRefreshTimingForTests({
+      cooldownMs: 60_000,
+      debounceMs: 60_000,
+    });
+
+    const session = makeSession('session-immediate-non-github');
+    let listRequests = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+
+      if (url.pathname === '/api/sessions/list') {
+        listRequests += 1;
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await saveSession(session);
+      await flushAsyncWork();
+      assert.equal(listRequests, 1);
+
+      await updateSession(session);
+      await flushAsyncWork();
+      assert.equal(listRequests, 2);
+
+      await deleteSession(session.id);
+      await flushAsyncWork();
+      assert.equal(listRequests, 3);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'teardownStorageListeners cancels scheduled refresh callbacks',
   async () => {
     installBrowserEnv();
