@@ -4,6 +4,13 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.9.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.0...nextn-v1.9.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* unify modal launch and dashboard controls ([5cf4d6f](https://github.com/CyanAutomation/matmetrics/commit/5cf4d6f9f58e05fbd5ac809b469990a9f22383bf))
+
 ## [1.9.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.8.0...nextn-v1.9.0) (2026-09-06)
 
 
