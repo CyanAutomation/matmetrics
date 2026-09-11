@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+
+import { APP_VERSION } from '@/lib/app-version';
+
 const loadApiContract = async () => import('@/lib/plugins/api-contract');
 
 test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', async () => {
@@ -72,7 +75,7 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', async 
     version: '1.0.0',
     description: 'Test',
     enabled: true,
-    minVersion: '1.3.0',
+    minVersion: '2.0.0',
     capabilities: [],
     uiExtensions: [
       {
@@ -96,6 +99,24 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', async 
       w.includes('requires matmetrics version')
     )
   );
+});
+
+test('autoDisablePluginIfNeeded - keeps a compatible plugin enabled', async () => {
+  const { autoDisablePluginIfNeeded } = await loadApiContract();
+  const manifest = {
+    id: 'compatible-plugin',
+    name: 'Compatible Plugin',
+    version: '1.0.0',
+    description: 'Test',
+    enabled: true,
+    minVersion: APP_VERSION,
+    capabilities: [],
+    uiExtensions: [],
+  };
+
+  const result = autoDisablePluginIfNeeded(manifest);
+  assert.equal((result.manifest as typeof manifest).enabled, true);
+  assert.equal(result.autoDisabledWithWarnings, undefined);
 });
 
 test('autoDisablePluginIfNeeded - respects already disabled plugins', async () => {
