@@ -3,7 +3,13 @@
   "bootstrap-sha": "e76c2b528529a286b2e3ff3221ed6ee7e9f46799",
   "packages": {
     ".": {
-      "release-type": "node"
+      "release-type": "node",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "src/lib/app-version.ts"
+        }
+      ]
     }
   }
 }
