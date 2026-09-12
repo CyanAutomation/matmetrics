@@ -53,10 +53,10 @@
     {
       "type": "dashboard_tab",
       "id": "github-sync-dashboard-tab",
-      "title": "GitHub Sync",
+      "title": "Backup",
       "config": {
         "tabId": "github-sync",
-        "headerTitle": "GitHub Sync",
+        "headerTitle": "Backup",
         "icon": "github",
         "component": "github_settings"
       }

@@ -54,10 +54,10 @@
     {
       "type": "dashboard_tab",
       "id": "prompt-settings-dashboard-tab",
-      "title": "Prompt Settings",
+      "title": "AI writing",
       "config": {
         "tabId": "prompt-settings",
-        "headerTitle": "AI Prompt Configuration",
+        "headerTitle": "AI writing",
         "icon": "brain",
         "component": "prompt_settings"
       }

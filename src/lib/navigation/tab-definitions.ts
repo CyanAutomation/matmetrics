@@ -113,8 +113,8 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
   },
   {
     id: TAB_IDS.pluginManager,
-    title: 'Plugins',
-    headerTitle: 'Plugin Manager',
+    title: 'Extensions',
+    headerTitle: 'Extensions',
     icon: Puzzle,
     section: 'core',
     render: ({ refreshPluginExtensions }) =>
