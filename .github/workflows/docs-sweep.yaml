@@ -1,33 +1,22 @@
 name: Kaseki Docs Sweep
 
 on:
-  # schedule:
-  #   - cron: "0 5 * * 4"
+  schedule:
+    - cron: "0 5 * * 4"
   workflow_dispatch:
     inputs:
-      ref:
-        description: Git ref to inspect
+      validation_profile:
+        description: Validation to run in the Kaseki workspace
         required: true
-        default: main
-        type: string
-      task_description:
-        description: What Kaseki should do
-        required: true
-        default: Keep README.md and docs/ accurate against the current implementation.
-        type: string
-      allowlist:
-        description: Permitted changed-file patterns, comma-separated
-        required: true
-        default: README.md,docs/**/*.md
-        type: string
-      validation_command:
-        description: Validation command to run (leave blank for none)
-        required: false
-        default: npm run check
-        type: string
+        default: docs
+        type: choice
+        options:
+          - docs
+          - lint
+          - none
 
 run-name: >-
-  Docs sweep · ${{ github.repository }}@${{ inputs.ref }}
+  Docs sweep · ${{ github.repository }}@${{ github.sha }}
 
 permissions:
   contents: read
@@ -36,14 +25,27 @@ concurrency:
   group: kaseki-docs-sweep-${{ github.repository }}
   cancel-in-progress: false
 
+env:
+  # Set this repository or organization variable to the approved Kaseki controller URL.
+  KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL }}
+  ALLOWLIST: README.md,docs/**/*.md
+  TASK_DESCRIPTION: Keep README.md and docs/ accurate against the current implementation.
+
 jobs:
   system_status:
     name: Kaseki System Status
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    env:
-      KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL || 'https://kaseki-tunnel.scheimann.xyz' }}
     steps:
+      - name: Validate controller URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${KASEKI_BASE_URL:?KASEKI_BASE_URL is not configured}"
+          [[ "$KASEKI_BASE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || {
+            echo "::error::KASEKI_BASE_URL must be an HTTPS origin without a path, query, or fragment."
+            exit 1
+          }
       - name: Verify controller health
         shell: bash
         run: |
@@ -63,8 +65,6 @@ jobs:
     needs: system_status
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    env:
-      KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL || 'https://kaseki-tunnel.scheimann.xyz' }}
     steps:
       - name: Verify controller readiness
         shell: bash
@@ -86,7 +86,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     env:
-      KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL || 'https://kaseki-tunnel.scheimann.xyz' }}
       KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
     steps:
       - name: Verify gateway connectivity and authentication
@@ -112,15 +111,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      # Create this as a repository or organization Actions variable.
-      KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL || 'https://kaseki-tunnel.scheimann.xyz' }}
-
-      # Automatically targets the repository containing this workflow.
+      # Always target the immutable commit that started this run.
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-      REF: ${{ inputs.ref }}
-      TASK_DESCRIPTION: ${{ inputs.task_description }}
-      ALLOWLIST: ${{ inputs.allowlist }}
-      VALIDATION_COMMAND: ${{ inputs.validation_command }}
+      REF: ${{ github.sha }}
+      VALIDATION_COMMAND: ${{ github.event_name == 'schedule' && 'npm run validate:docs' || inputs.validation_profile == 'docs' && 'npm run validate:docs' || inputs.validation_profile == 'lint' && 'npm run lint' || '' }}
 
     steps:
       - name: Check Kaseki availability
