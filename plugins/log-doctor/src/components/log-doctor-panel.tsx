@@ -393,7 +393,7 @@ function LogDoctorView({
 
   return (
     <PluginPageShell
-      title="Log Doctor"
+      title="Data check"
       description="Find missing or inconsistent training data, review it, then apply only the fixes you approve."
       icon={<Stethoscope className="h-6 w-6" />}
     >

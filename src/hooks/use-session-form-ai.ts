@@ -11,6 +11,8 @@ interface UseSessionFormAiState {
   isLoadingSuggest: boolean;
   suggestedTechniques: string[];
   transformedDescription: string | null;
+  transformMessage: string | null;
+  suggestMessage: string | null;
 }
 
 interface UseSessionFormAiActions {
@@ -136,6 +138,8 @@ export function useSessionFormAi(
   const [transformedDescription, setTransformedDescription] = useState<
     string | null
   >(null);
+  const [transformMessage, setTransformMessage] = useState<string | null>(null);
+  const [suggestMessage, setSuggestMessage] = useState<string | null>(null);
 
   // AbortControllers for handling in-flight requests
   const transformControllerRef = useRef<AbortController | null>(null);
@@ -172,6 +176,7 @@ export function useSessionFormAi(
       transformControllerRef.current = controller;
 
       setIsLoadingTransform(true);
+      setTransformMessage(null);
       try {
         const customPrompt = readTransformerPrompt();
         const headers = await readAuthHeaders({
@@ -206,6 +211,7 @@ export function useSessionFormAi(
           throw new TransformFailureError('unusable-result');
         }
         setTransformedDescription(transformed);
+        setTransformMessage('Your notes are ready to review.');
         onSuccess(transformed);
         toast({
           title: 'Description Refined',
@@ -222,6 +228,7 @@ export function useSessionFormAi(
         }
         const failure =
           error instanceof TransformFailureError ? error.failure : 'network';
+        setTransformMessage(transformFailureDescriptions[failure]);
         toast({
           variant: 'destructive',
           title: 'Transformation Failed',
@@ -279,6 +286,7 @@ export function useSessionFormAi(
       suggestControllerRef.current = controller;
 
       setIsLoadingSuggest(true);
+      setSuggestMessage(null);
       try {
         const headers = await readAuthHeaders({
           'Content-Type': 'application/json',
@@ -308,17 +316,24 @@ export function useSessionFormAi(
 
         if (uniqueNew.length > 0) {
           setSuggestedTechniques(uniqueNew);
+          setSuggestMessage(
+            `Added ${uniqueNew.length} suggested ${
+              uniqueNew.length === 1 ? 'technique' : 'techniques'
+            }.`
+          );
           onSuccess(uniqueNew);
           toast({
             title: 'AI Suggestions Added',
             description: `Identified ${uniqueNew.length} techniques from your description.`,
           });
         } else {
+          const message =
+            suggestions.length > 0
+              ? 'All suggested techniques are already tagged.'
+              : 'No specific techniques were identified in these notes.';
+          setSuggestMessage(message);
           toast({
-            description:
-              suggestions.length > 0
-                ? 'All suggested techniques are already tagged.'
-                : "AI couldn't identify specific techniques.",
+            description: message,
           });
         }
       } catch (error) {
@@ -329,6 +344,9 @@ export function useSessionFormAi(
         ) {
           return;
         }
+        setSuggestMessage(
+          'The AI helper could not suggest techniques. Please try again.'
+        );
         toast({
           variant: 'destructive',
           title: 'AI Suggestion Failed',
@@ -355,6 +373,8 @@ export function useSessionFormAi(
     setIsLoadingSuggest(false);
     setSuggestedTechniques([]);
     setTransformedDescription(null);
+    setTransformMessage(null);
+    setSuggestMessage(null);
   }, []);
 
   useEffect(
@@ -370,6 +390,8 @@ export function useSessionFormAi(
     isLoadingSuggest,
     suggestedTechniques,
     transformedDescription,
+    transformMessage,
+    suggestMessage,
     transform,
     suggest,
     reset,

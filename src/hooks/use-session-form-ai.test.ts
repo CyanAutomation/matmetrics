@@ -90,6 +90,8 @@ function setup() {
           suggest: hook.isLoadingSuggest,
           techniques: hook.suggestedTechniques,
           description: hook.transformedDescription,
+          transformMessage: hook.transformMessage,
+          suggestMessage: hook.suggestMessage,
         })
       ),
       React.createElement(
@@ -199,6 +201,10 @@ test('transform reports network failures without exposing the rejection', async 
     harness.view.getByTestId('toast-description').textContent,
     'Check your connection and try again.'
   );
+  assert.equal(
+    harness.state().transformMessage,
+    'Check your connection and try again.'
+  );
 });
 
 for (const [name, resolvedResponse] of [
@@ -305,6 +311,10 @@ test('a replacement request aborts and ignores the prior request late result', a
     await second;
   });
   assert.equal(harness.state().description, 'fresh');
+  assert.equal(
+    harness.state().transformMessage,
+    'Your notes are ready to review.'
+  );
   assert.deepEqual(harness.successes, ['fresh']);
 });
 
@@ -332,6 +342,8 @@ test('reset aborts pending work and clears derived values', async () => {
     suggest: false,
     techniques: [],
     description: null,
+    transformMessage: null,
+    suggestMessage: null,
   });
   await act(async () => {
     pending.result.resolve(response({ transformedDescription: 'late' }));

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Cog,
   Film,
@@ -152,8 +152,6 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   const [isSavingCategoryExpectations, setIsSavingCategoryExpectations] =
     useState(false);
   const [isCheckingLinks, setIsCheckingLinks] = useState(false);
-  const [autoCheckedRowIds, setAutoCheckedRowIds] = useState<string[]>([]);
-  const autoCheckSignatureRef = useRef<string>('');
 
   const videoLibraryPreferences = useMemo(
     () =>
@@ -390,41 +388,6 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
       filteredRows.filter((row) => row.isCheckable).map((row) => row.session.id)
     );
   };
-
-  useEffect(() => {
-    if (!authAvailable || !user || isCheckingLinks) {
-      return;
-    }
-
-    const maxAutoChecks = 6;
-    const candidateIds = sortedFilteredRows
-      .filter((row) => row.isCheckable && !row.isChecked)
-      .slice(0, maxAutoChecks)
-      .map((row) => row.session.id)
-      .filter((sessionId) => !autoCheckedRowIds.includes(sessionId));
-
-    if (candidateIds.length === 0) {
-      return;
-    }
-
-    const signature = candidateIds.join('|');
-    if (autoCheckSignatureRef.current === signature) {
-      return;
-    }
-    autoCheckSignatureRef.current = signature;
-    setAutoCheckedRowIds((current) =>
-      Array.from(new Set([...current, ...candidateIds]))
-    );
-
-    void handleCheckLinks(candidateIds, { silent: true });
-  }, [
-    authAvailable,
-    user,
-    isCheckingLinks,
-    sortedFilteredRows,
-    autoCheckedRowIds,
-    handleCheckLinks,
-  ]);
 
   const handleClearVideo = async () => {
     if (!sessionPendingClear) {
@@ -682,6 +645,10 @@ function VideoLibraryView({
             ) : null}
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Link health is checked only when you request it, so opening the
+          library never triggers background network checks.
+        </p>
 
         <PluginDataSurfaceFilterRow className="grid-cols-1 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
           <div>
