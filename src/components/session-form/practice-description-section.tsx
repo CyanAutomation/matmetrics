@@ -11,6 +11,7 @@ interface PracticeDescriptionSectionProps {
   canUseAi: boolean;
   isSubmitting: boolean;
   transformLoading: boolean;
+  transformMessage: string | null;
   fid: (suffix: string) => string;
   onTransform: () => void;
 }
@@ -21,6 +22,7 @@ export function PracticeDescriptionSection({
   canUseAi,
   isSubmitting,
   transformLoading,
+  transformMessage,
   fid,
   onTransform,
 }: PracticeDescriptionSectionProps) {
@@ -66,6 +68,11 @@ export function PracticeDescriptionSection({
         A sentence or two is enough. AI can polish the entry or suggest
         technique tags once you have added some detail.
       </p>
+      {transformMessage ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {transformMessage}
+        </p>
+      ) : null}
       {!description && canUseAi ? (
         <p className="text-xs text-muted-foreground">
           Add a few words to enable AI transform and tag suggestions.

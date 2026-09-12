@@ -14,6 +14,7 @@ interface TechniqueTagsSectionProps {
   canUseAi: boolean;
   isSubmitting: boolean;
   suggestLoading: boolean;
+  suggestMessage: string | null;
   description: string;
   fid: (suffix: string) => string;
   onSuggest: () => void;
@@ -28,6 +29,7 @@ export function TechniqueTagsSection({
   canUseAi,
   isSubmitting,
   suggestLoading,
+  suggestMessage,
   description,
   fid,
   onSuggest,
@@ -83,6 +85,11 @@ export function TechniqueTagsSection({
           </Badge>
         ))}
       </div>
+      {suggestMessage ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {suggestMessage}
+        </p>
+      ) : null}
       <div className="flex gap-2">
         <Input
           id={fid('manual-tag')}
