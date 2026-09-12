@@ -1,14 +1,25 @@
 name: CI
 
 on:
-  workflow_dispatch: 
-  
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -17,23 +28,36 @@ jobs:
       - name: Build
         run: npm run build
 
-  validate-and-test:
+  quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
       - name: Install full dependencies (includes devDependencies)
         run: npm ci
-      - name: Preflight tsx availability
-        run: node -e "require.resolve('tsx')"
-      - name: Validate plugin UI contract
-        run: npm run validate:plugin-ui-contract
-      - name: Run unit tests
-        run: npm run test
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
       - name: Run full TypeScript test suite
         run: npm run test:all
       - name: Run contract checks
         run: npm run ci:contracts
+      - name: Check plugin maturity scorecards
+        run: npm run plugin:maturity:check
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build Go CLI
+        run: go build ./go/cmd/matmetrics-cli
+      - name: Run Go tests
+        run: go test ./internal/... ./go/... ./api/go/...
