@@ -57,10 +57,10 @@
     {
       "type": "dashboard_tab",
       "id": "log-doctor-dashboard-tab",
-      "title": "Log Doctor",
+      "title": "Data check",
       "config": {
         "tabId": "log-doctor",
-        "headerTitle": "Log Doctor",
+        "headerTitle": "Data check",
         "icon": "stethoscope",
         "component": "log_doctor"
       }

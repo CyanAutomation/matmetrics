@@ -34,7 +34,7 @@ test('proxyGoFunction returns JSON payloads for JSON upstream errors', async () 
   }
 });
 
-test('proxyGoFunction returns plain text responses with status and key headers', async () => {
+test('proxyGoFunction normalizes non-JSON upstream failures into an actionable JSON response', async () => {
   const originalFetch = global.fetch;
   global.fetch = async () =>
     new Response('backend unavailable', {
@@ -52,11 +52,11 @@ test('proxyGoFunction returns plain text responses with status and key headers',
     });
 
     assert.equal(response.status, 503);
-    assert.equal(await response.text(), 'backend unavailable');
-    assert.equal(
-      response.headers.get('content-type'),
-      'text/plain; charset=utf-8'
-    );
+    assert.deepEqual(await response.json(), {
+      error: 'Upstream service returned an unexpected response',
+      details: 'backend unavailable',
+    });
+    assert.equal(response.headers.get('content-type'), 'application/json');
     assert.equal(response.headers.get('cache-control'), 'no-store');
   } finally {
     global.fetch = originalFetch;

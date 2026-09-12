@@ -88,6 +88,33 @@ export async function proxyGoFunction(
 
   const rawBody = await response.text().catch(() => '');
 
+  if (!response.ok) {
+    try {
+      const payload = JSON.parse(rawBody) as unknown;
+      return NextResponse.json(payload, {
+        status: response.status,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch {
+      // Continue to the controlled fallback below. Some platform failures are
+      // HTML responses with a misleading or missing content type.
+    }
+
+    return NextResponse.json(
+      {
+        error: 'Upstream service returned an unexpected response',
+        details: rawBody || `HTTP ${response.status}`,
+      },
+      {
+        // A non-JSON error page is infrastructure failure, rather than a
+        // response the product can safely interpret as an API contract. Keep
+        // the upstream status so callers retain their existing semantics.
+        status: response.status,
+        headers: { 'Cache-Control': 'no-store' },
+      }
+    );
+  }
+
   return new NextResponse(rawBody || null, {
     status: response.status,
     headers: buildProxyResponseHeaders(response),
