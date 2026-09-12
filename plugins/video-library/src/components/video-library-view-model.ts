@@ -58,7 +58,7 @@ export function getVideoLibraryReviewAlertDescription(reviewCount: number) {
 const VIDEO_LIBRARY_STATUS_LABELS: Record<VideoLibraryStatusFilter, string> = {
   all: 'All statuses',
   missing: 'No linked video',
-  allowed_unchecked: 'Allowed',
+  allowed_unchecked: 'Ready to check',
   disallowed_domain: 'Provider not yet trusted',
   invalid_url: 'Invalid URL',
   reachable: 'Reachable',

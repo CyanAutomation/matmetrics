@@ -342,7 +342,7 @@ test('lounge sorting supports newest, oldest, recently checked, and provider mod
 test('entry status labels reflect all status filter types with readable descriptions', () => {
   assert.equal(getEntryStatusLabel('all'), 'All statuses');
   assert.equal(getEntryStatusLabel('missing'), 'No linked video');
-  assert.equal(getEntryStatusLabel('allowed_unchecked'), 'Allowed');
+  assert.equal(getEntryStatusLabel('allowed_unchecked'), 'Ready to check');
   assert.equal(
     getEntryStatusLabel('disallowed_domain'),
     'Provider not yet trusted'

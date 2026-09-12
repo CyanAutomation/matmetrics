@@ -164,6 +164,7 @@ export function SessionLogForm({
             canUseAi={canUseAi}
             isSubmitting={isSubmitting}
             transformLoading={aiForm.isLoadingTransform}
+            transformMessage={aiForm.transformMessage}
             fid={fid}
             onTransform={handleTransform}
           />
@@ -175,6 +176,7 @@ export function SessionLogForm({
             canUseAi={canUseAi}
             isSubmitting={isSubmitting}
             suggestLoading={aiForm.isLoadingSuggest}
+            suggestMessage={aiForm.suggestMessage}
             description={formState.description}
             fid={fid}
             onSuggest={handleSuggest}

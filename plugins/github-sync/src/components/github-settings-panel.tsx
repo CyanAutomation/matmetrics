@@ -1,14 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  Github,
-  AlertCircle,
-} from 'lucide-react';
+import { Github, AlertCircle } from 'lucide-react';
 
-import {
-  runLoadGitHubSyncHistory,
-} from './github-sync-results';
+import { runLoadGitHubSyncHistory } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 // user-preferences handled in operations hook
@@ -17,7 +12,6 @@ import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-noti
 import { PluginDestructiveAction } from '@/components/plugins/plugin-destructive-action';
 import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 
-
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import {
   deriveGitHubSettingsControlState,
@@ -25,9 +19,7 @@ import {
   resolveClearDialogOutcome,
 } from './github-settings-view-model';
 // parseGitHubApiResponse is used in the operations hook
-import {
-  PluginEmptyState,
-} from '@/components/plugins/plugin-state';
+import { PluginEmptyState } from '@/components/plugins/plugin-state';
 import {
   PluginFormSection,
   PluginStatusPanel,
@@ -146,8 +138,8 @@ export function GitHubSettings() {
   });
 
   const historyHasRows = Boolean(
-    syncHistoryState && 
-    syncHistoryState.status === 'success' && 
+    syncHistoryState &&
+    syncHistoryState.status === 'success' &&
     syncHistoryState.data.files.length > 0
   );
 
@@ -175,7 +167,7 @@ export function GitHubSettings() {
 
   return (
     <PluginPageShell
-      title="GitHub Sync"
+      title="Backup"
       description="Keep a safe copy of your training diary in GitHub."
       tone="info"
       icon={<Github className="h-6 w-6" />}
@@ -199,26 +191,29 @@ export function GitHubSettings() {
         />
       )}
 
-      <PluginFormSection title="Connection" description="Repository and branch settings">
+      <PluginFormSection
+        title="Connection"
+        description="Repository and branch settings"
+      >
         <GitHubSettingsConnectionForm
-        owner={owner}
-        repo={repo}
-        branch={branch}
-        isEnabled={isEnabled}
-        migrationDone={migrationDone}
-        canUseGitHubSync={canUseGitHubSync}
-        inputTone={theme.inputTone}
-        testResult={testResult}
-        isTesting={isTesting}
-        hasConnectionChanges={hasConnectionChanges}
-        isManagingConnection={isManagingConnection}
-        setIsManagingConnection={setIsManagingConnection}
-        onOwnerChange={setOwner}
-        onRepoChange={setRepo}
-        onBranchChange={setBranch}
-        onTestConnection={handleTestConnection}
-        onSaveConfig={handleSaveConfig}
-        controlState={controlState}
+          owner={owner}
+          repo={repo}
+          branch={branch}
+          isEnabled={isEnabled}
+          migrationDone={migrationDone}
+          canUseGitHubSync={canUseGitHubSync}
+          inputTone={theme.inputTone}
+          testResult={testResult}
+          isTesting={isTesting}
+          hasConnectionChanges={hasConnectionChanges}
+          isManagingConnection={isManagingConnection}
+          setIsManagingConnection={setIsManagingConnection}
+          onOwnerChange={setOwner}
+          onRepoChange={setRepo}
+          onBranchChange={setBranch}
+          onTestConnection={handleTestConnection}
+          onSaveConfig={handleSaveConfig}
+          controlState={controlState}
         />
       </PluginFormSection>
 
