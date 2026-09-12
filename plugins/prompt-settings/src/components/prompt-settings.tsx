@@ -119,8 +119,8 @@ export function PromptSettings() {
 
   return (
     <PluginPageShell
-      title="AI Transformation Prompt"
-      description="Edit the instructions used to polish your practice descriptions."
+      title="AI writing"
+      description="Choose how AI polishes your practice descriptions."
       tone="info"
       icon={<BrainCircuit className="h-6 w-6" />}
       notice={

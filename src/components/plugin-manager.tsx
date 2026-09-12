@@ -691,15 +691,15 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
 
   return (
     <PluginPageShell
-      title="Plugins"
-      description="Enable or disable installed plugins, and review plugin issues."
+      title="Extensions"
+      description="Enable or disable installed extensions, and review any issues."
       contentClassName={PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing}
     >
       {accessAlert}
 
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-headline-sm">Installed Plugins</h3>
+          <h3 className="text-headline-sm">Installed extensions</h3>
           {canManagePlugins && lastUpdatedAt && (
             <p className="text-xs text-muted-foreground mt-1">
               Last updated: {lastUpdatedAt.toLocaleString()}
