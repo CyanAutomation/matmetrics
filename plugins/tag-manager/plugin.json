@@ -60,7 +60,7 @@
       "title": "Tag Manager",
       "config": {
         "tabId": "tag-manager",
-        "headerTitle": "Manage Tags",
+        "headerTitle": "Tag Manager",
         "icon": "tags",
         "component": "tag_manager"
       }

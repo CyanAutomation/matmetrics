@@ -491,9 +491,6 @@ export function SessionHistory({
               Comfortable
             </SegmentedControl.Item>
           </SegmentedControl>
-          {onLogSession ? (
-            <Button onClick={onLogSession}>Log session</Button>
-          ) : null}
         </div>
       }
       className="reveal-fade-up max-w-4xl"
