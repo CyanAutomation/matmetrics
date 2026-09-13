@@ -166,7 +166,59 @@ describe('useFileValidationController', () => {
     assert.equal(result.current.isScanning, false);
   });
 
-  it('cancels an in-flight scan', async () => {
+  it('keeps the newest result when requests complete out of order', async () => {
+    const requests: Array<{
+      signal: AbortSignal;
+      resolve: (response: Response) => void;
+    }> = [];
+    const { result } = renderHook(() =>
+      useFileValidationController(config, {
+        getAuthHeaders: authHeaders,
+        fetch: (_input, init) =>
+          new Promise<Response>((resolve) => {
+            requests.push({ signal: init?.signal as AbortSignal, resolve });
+          }),
+      })
+    );
+
+    let firstScan!: Promise<void>;
+    let secondScan!: Promise<void>;
+    act(() => {
+      firstScan = result.current.scanFiles();
+    });
+    await waitFor(() => assert.equal(requests.length, 1));
+    act(() => {
+      secondScan = result.current.scanFiles();
+    });
+    await waitFor(() => assert.equal(requests.length, 2));
+
+    assert.equal(requests[0]?.signal.aborted, true);
+    requests[1]?.resolve(
+      jsonResponse({
+        success: true,
+        message: 'Newest scan',
+        summary: { totalFiles: 1, validFiles: 1, invalidFiles: 0 },
+        files: [{ path: 'data/newest.md', status: 'valid' }],
+      })
+    );
+    await act(async () => secondScan);
+
+    requests[0]?.resolve(
+      jsonResponse({
+        success: true,
+        message: 'Stale scan',
+        summary: { totalFiles: 1, validFiles: 0, invalidFiles: 1 },
+        files: [{ path: 'data/stale.md', status: 'invalid' }],
+      })
+    );
+    await act(async () => firstScan);
+
+    assert.equal(result.current.scanResult?.message, 'Newest scan');
+    assert.equal(result.current.isScanning, false);
+    assert.equal(result.current.uiState.phase, 'success');
+  });
+
+  it('cancels an in-flight scan without presenting an error', async () => {
     let observedSignal: AbortSignal | undefined;
     const { result } = renderHook(() =>
       useFileValidationController(config, {
@@ -194,8 +246,44 @@ describe('useFileValidationController', () => {
 
     assert.equal(observedSignal?.aborted, true);
     assert.equal(result.current.isScanning, false);
-    assert.match(result.current.errorMessage ?? '', /Request canceled/);
-    assert.equal(result.current.uiState.phase, 'error');
+    assert.equal(result.current.errorMessage, null);
+    assert.equal(result.current.uiState.phase, 'idle');
+  });
+
+  it('aborts the active request and ignores its completion after unmount', async () => {
+    let observedSignal: AbortSignal | undefined;
+    let resolveRequest!: (response: Response) => void;
+    const request = new Promise<Response>((resolve) => {
+      resolveRequest = resolve;
+    });
+    const { result, unmount } = renderHook(() =>
+      useFileValidationController(config, {
+        getAuthHeaders: authHeaders,
+        fetch: (_input, init) => {
+          observedSignal = init?.signal ?? undefined;
+          return request;
+        },
+      })
+    );
+
+    let scanPromise!: Promise<void>;
+    act(() => {
+      scanPromise = result.current.scanFiles();
+    });
+    await waitFor(() => assert.ok(observedSignal));
+
+    unmount();
+    assert.equal(observedSignal?.aborted, true);
+
+    resolveRequest(
+      jsonResponse({
+        success: true,
+        message: 'Late scan',
+        summary: { totalFiles: 0, validFiles: 0, invalidFiles: 0 },
+        files: [],
+      })
+    );
+    await scanPromise;
   });
 
   it('reset clears scan and fix results derived from completed requests', async () => {
