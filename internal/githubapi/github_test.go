@@ -706,6 +706,75 @@ Out of order sections.
 	}
 }
 
+func TestFixLogsApplyDoesNotOverwriteConcurrentGitHubEdit(t *testing.T) {
+	input := `---
+id: "needs-fix"
+date: "2026-03-20"
+effort: 3
+category: "Technical"
+---
+
+# Needs fix
+
+## Notes
+
+Original notes.
+
+## Techniques Practiced
+- Kouchi gari
+`
+	concurrentContent := strings.Replace(input, "Original notes.", "Externally edited notes.", 1)
+
+	for _, conflictStatus := range []int{http.StatusConflict, http.StatusUnprocessableEntity} {
+		t.Run(http.StatusText(conflictStatus), func(t *testing.T) {
+			getCount := 0
+			putCount := 0
+			client := &Client{
+				BaseURL: "https://example.test",
+				HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+					switch {
+					case r.Method == http.MethodGet && r.URL.Path == "/repos/o/r":
+						return jsonResponse(http.StatusOK, `{"default_branch":"main"}`), nil
+					case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/data/2026/03/needs-fix.md"):
+						getCount++
+						if getCount == 1 {
+							return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-original", "content": base64.StdEncoding.EncodeToString([]byte(input))}), nil
+						}
+						return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-external", "content": base64.StdEncoding.EncodeToString([]byte(concurrentContent))}), nil
+					case r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/contents/data/2026/03/needs-fix.md"):
+						putCount++
+						return jsonResponse(conflictStatus, `{"message":"sha does not match"}`), nil
+					default:
+						return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+					}
+				})},
+				Token: "test-token",
+			}
+
+			result, err := client.FixLogs(model.GitHubConfig{Owner: "o", Repo: "r"}, LogDoctorFixRequest{
+				Mode:         LogDoctorFixModeApply,
+				Paths:        []string{"data/2026/03/needs-fix.md"},
+				ConfirmApply: true,
+			})
+			if err != nil {
+				t.Fatalf("FixLogs() error = %v", err)
+			}
+			if result.Success || len(result.Files) != 1 || result.Files[0].Status != "error" {
+				t.Fatalf("expected per-file revision conflict, got %#v", result)
+			}
+			if !strings.Contains(result.Files[0].Message, "revision conflict") || !strings.Contains(result.Files[0].Message, "preview again") {
+				t.Fatalf("unexpected conflict message: %q", result.Files[0].Message)
+			}
+			if getCount != 2 {
+				t.Fatalf("expected original and conflict reads, got %d", getCount)
+			}
+			if putCount != 1 {
+				t.Fatalf("external edit could be overwritten: got %d PUT requests, want 1", putCount)
+			}
+		})
+	}
+}
+
 func TestFixLogsApplyRequiresConfirmation(t *testing.T) {
 	resetListSessionsCacheForTests()
 
