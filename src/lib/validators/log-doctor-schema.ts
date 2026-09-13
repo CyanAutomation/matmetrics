@@ -12,15 +12,25 @@ export const logDoctorFixOptionsSchema = z.object({
 });
 
 export const logDoctorFixRequestSchema = z.object({
-  owner: z.string().trim().refine(val => val.length > 0, {
-    message: 'Missing owner or repo',
-  }),
-  repo: z.string().trim().refine(val => val.length > 0, {
-    message: 'Missing owner or repo',
-  }),
-  branch: z.string().trim().refine(val => val.length > 0, {
-    message: 'Branch cannot be empty when provided',
-  }).optional(),
+  owner: z
+    .string()
+    .trim()
+    .refine((val) => val.length > 0, {
+      message: 'Missing owner or repo',
+    }),
+  repo: z
+    .string()
+    .trim()
+    .refine((val) => val.length > 0, {
+      message: 'Missing owner or repo',
+    }),
+  branch: z
+    .string()
+    .trim()
+    .refine((val) => val.length > 0, {
+      message: 'Branch cannot be empty when provided',
+    })
+    .optional(),
   mode: z.enum(['dry-run', 'apply']).default('dry-run'),
   paths: z
     .array(z.string())
@@ -29,7 +39,11 @@ export const logDoctorFixRequestSchema = z.object({
       'At least one file path must be selected'
     )
     .transform((paths) => paths.filter((path) => isSafeLogPath(path))),
-  options: logDoctorFixOptionsSchema.optional().default({}),
+  options: logDoctorFixOptionsSchema.optional().default({
+    normalizeFrontmatter: true,
+    enforceSectionOrder: true,
+    preserveUserContent: true,
+  }),
   confirmApply: z.boolean().default(false),
 });
 
