@@ -51,12 +51,12 @@ export function validateSessionFields(
     };
   } catch (error) {
     if (error instanceof ZodError) {
-      const firstError = error.errors[0];
+      const firstError = error.issues[0];
       // Return just the message without field prefix since custom validators
       // already include the field name in their error messages
       return {
         ok: false,
-        error: firstError.message,
+        error: firstError?.message ?? 'Invalid session data',
       };
     }
     return { ok: false, error: 'Invalid session data' };

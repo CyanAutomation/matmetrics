@@ -40,10 +40,13 @@ export async function POST(request: NextRequest) {
       validated = logDoctorFixRequestSchema.parse(body);
     } catch (error) {
       if (error instanceof ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         // Return just the message without field prefix for consistency
         return NextResponse.json(
-          { success: false, message: firstError.message },
+          {
+            success: false,
+            message: firstError?.message ?? 'Invalid request body',
+          },
           { status: 400 }
         );
       }
