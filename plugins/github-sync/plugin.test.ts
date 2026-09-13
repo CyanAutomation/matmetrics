@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
-import { Github } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 import React from 'react';
 
 import githubSyncManifest from './plugin.json';
@@ -91,7 +91,7 @@ test('github-sync is discovered and mapped to its dashboard settings tab', async
   assert.ok(tabs[0]?.title.trim(), 'navigation item needs an accessible label');
   assert.equal(
     tabs[0]?.icon,
-    Github,
+    GitBranch,
     'navigation item should use a supported icon'
   );
   assert.equal(typeof tabs[0]?.render, 'function');

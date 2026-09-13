@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Github, Loader2 } from 'lucide-react';
+import { GitBranch, Loader2 } from 'lucide-react';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,7 +209,7 @@ export function SignInScreen({
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Github className="h-4 w-4" />
+                  <GitBranch className="h-4 w-4" />
                 )}
                 GitHub
               </Button>
