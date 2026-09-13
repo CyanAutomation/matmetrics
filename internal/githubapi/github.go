@@ -375,7 +375,7 @@ func (c *Client) FixLogs(config model.GitHubConfig, request LogDoctorFixRequest)
 			continue
 		}
 
-		commitSHA, applyErr := c.applyLogDoctorFix(config, branch, path, sha, updated)
+		commitSHA, applyErr := c.applyLogDoctorFix(config, branch, path, sha, content, updated)
 		if applyErr != nil {
 			fileResult.Status = "error"
 			fileResult.Message = applyErr.Error()
@@ -843,11 +843,11 @@ func (c *Client) getFile(config model.GitHubConfig, filePath string, branch stri
 	return response.SHA, string(decoded), nil
 }
 
-func (c *Client) applyLogDoctorFix(config model.GitHubConfig, branch, path, sha, content string) (string, error) {
+func (c *Client) applyLogDoctorFix(config model.GitHubConfig, branch, path, sha, originalContent, updatedContent string) (string, error) {
 	commitMessage := "log-doctor: normalize session markdown"
 	body := map[string]any{
 		"message": commitMessage,
-		"content": base64.StdEncoding.EncodeToString([]byte(content)),
+		"content": base64.StdEncoding.EncodeToString([]byte(updatedContent)),
 		"branch":  branch,
 		"sha":     sha,
 	}
@@ -862,9 +862,12 @@ func (c *Client) applyLogDoctorFix(config model.GitHubConfig, branch, path, sha,
 		return "", err
 	}
 
-	latestSHA, _, getErr := c.getFile(config, path, branch)
+	latestSHA, latestContent, getErr := c.getFile(config, path, branch)
 	if getErr != nil {
-		return "", fmt.Errorf("conflict retry failed while reading latest SHA: %w", getErr)
+		return "", fmt.Errorf("conflict retry failed while reading latest revision: %w", getErr)
+	}
+	if latestContent != originalContent {
+		return "", fmt.Errorf("revision conflict: file changed after Log Doctor generated the fix; preview again before applying")
 	}
 	body["sha"] = latestSHA
 
