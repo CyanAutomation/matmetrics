@@ -97,7 +97,7 @@ const notesSchema = z
  */
 const effortSchema = z
   .number({
-    invalid_type_error: 'Invalid effort level (must be an integer 1-5)',
+    error: 'Invalid effort level (must be an integer 1-5)',
   })
   .int({ message: 'Invalid effort level (must be an integer 1-5)' })
   .refine((val) => val >= 1 && val <= 5, {
@@ -110,7 +110,7 @@ const effortSchema = z
  */
 const durationSchema = z
   .number({
-    invalid_type_error: 'Invalid duration: expected a non-negative integer',
+    error: 'Invalid duration: expected a non-negative integer',
   })
   .int({ message: 'Invalid duration: expected a non-negative integer' })
   .nonnegative({ message: 'Invalid duration: expected a non-negative integer' })
@@ -123,7 +123,7 @@ export const sessionFieldsSchema = z.object({
   date: dateSchema,
   effort: effortSchema,
   category: z.enum(SESSION_CATEGORIES, {
-    errorMap: () => ({ message: 'Invalid category' }),
+    error: 'Invalid category',
   }),
   techniques: techniquesSchema,
   description: descriptionSchema,
