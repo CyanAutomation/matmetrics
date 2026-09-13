@@ -5,7 +5,7 @@ import {
   History,
   Tags,
   BrainCircuit,
-  Github,
+  GitBranch,
   Stethoscope,
   SlidersHorizontal,
   type LucideIcon,
@@ -128,7 +128,7 @@ export const coreTabs: ReadonlyArray<TabDefinition> = [
 const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
   brain: BrainCircuit,
-  github: Github,
+  github: GitBranch,
   stethoscope: Stethoscope,
   sliders: SlidersHorizontal,
 };
