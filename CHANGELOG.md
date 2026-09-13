@@ -4,6 +4,14 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.9.4](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.3...nextn-v1.9.4) (2026-09-13)
+
+
+### Bug Fixes
+
+* **deps:** restore Tailwind CSS 3 ([d68109e](https://github.com/CyanAutomation/matmetrics/commit/d68109e4670a096fed3abcd17c6b9e3d29a73f20))
+* **log-doctor:** guard file validation requests ([df2d29b](https://github.com/CyanAutomation/matmetrics/commit/df2d29b26612b83c6e27cdadefe7de3267c6216c))
+
 ## [1.9.3](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.2...nextn-v1.9.3) (2026-09-11)
 
 
