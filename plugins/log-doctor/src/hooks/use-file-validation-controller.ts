@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
 import { createUiState } from '../components/log-doctor-state';
@@ -43,8 +43,20 @@ export const useFileValidationController = (
     operation: null,
     message: '',
   });
-  const [activeController, setActiveController] =
-    useState<AbortController | null>(null);
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      requestIdRef.current += 1;
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
+    };
+  }, []);
 
   const performValidationAction = useCallback(
     async (
@@ -62,19 +74,22 @@ export const useFileValidationController = (
         return;
       }
 
-      setErrorMessage(null);
+      activeControllerRef.current?.abort();
+      const requestId = ++requestIdRef.current;
+      const controller = new AbortController();
+      activeControllerRef.current = controller;
+      const isCurrentRequest = (): boolean =>
+        isMountedRef.current && requestIdRef.current === requestId;
 
-      if (action === 'scan') {
-        setIsScanning(true);
-      } else if (action === 'preview') {
-        setIsPreviewing(true);
-      } else {
-        setIsApplying(true);
+      if (!isCurrentRequest()) {
+        return;
       }
 
+      setErrorMessage(null);
+      setIsScanning(action === 'scan');
+      setIsPreviewing(action === 'preview');
+      setIsApplying(action === 'apply');
       setUiState(createUiState(action, 'loading'));
-      const controller = new AbortController();
-      setActiveController(controller);
 
       try {
         const headers = await dependencies.getAuthHeaders({
@@ -122,6 +137,9 @@ export const useFileValidationController = (
 
         if (action === 'scan') {
           const payload = await parseLogDoctorApiResponse<ScanResult>(response);
+          if (!isCurrentRequest()) {
+            return;
+          }
           setScanResult(payload);
           setUiState(
             payload.summary.totalFiles === 0
@@ -130,6 +148,9 @@ export const useFileValidationController = (
           );
         } else {
           const payload = await parseLogDoctorApiResponse<FixResult>(response);
+          if (!isCurrentRequest()) {
+            return;
+          }
           setFixResult(payload);
           setUiState(
             payload.files.length === 0
@@ -138,17 +159,30 @@ export const useFileValidationController = (
           );
         }
       } catch (error) {
+        if (!isCurrentRequest()) {
+          return;
+        }
+
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'name' in error &&
+          error.name === 'AbortError'
+        ) {
+          setErrorMessage(null);
+          setUiState({ phase: 'idle', operation: null, message: '' });
+          return;
+        }
+
         const reason = toErrorReason(error);
         const errorUiState = createUiState(action, 'error', { reason });
         setErrorMessage(errorUiState.message);
         setUiState(errorUiState);
       } finally {
-        setActiveController(null);
-        if (action === 'scan') {
+        if (isCurrentRequest() && activeControllerRef.current === controller) {
+          activeControllerRef.current = null;
           setIsScanning(false);
-        } else if (action === 'preview') {
           setIsPreviewing(false);
-        } else {
           setIsApplying(false);
         }
       }
@@ -175,12 +209,18 @@ export const useFileValidationController = (
   );
 
   const cancelOperation = useCallback((): void => {
-    activeController?.abort();
-  }, [activeController]);
+    activeControllerRef.current?.abort();
+  }, []);
 
   const reset = useCallback((): void => {
+    requestIdRef.current += 1;
+    activeControllerRef.current?.abort();
+    activeControllerRef.current = null;
     setScanResult(null);
     setFixResult(null);
+    setIsScanning(false);
+    setIsPreviewing(false);
+    setIsApplying(false);
     setErrorMessage(null);
     setUiState({ phase: 'idle', operation: null, message: '' });
   }, []);
