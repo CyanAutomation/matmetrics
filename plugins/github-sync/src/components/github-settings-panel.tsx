@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Github, AlertCircle } from 'lucide-react';
+import { GitBranch, AlertCircle } from 'lucide-react';
 
 import { runLoadGitHubSyncHistory } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
@@ -170,7 +170,7 @@ export function GitHubSettings() {
       title="Backup"
       description="Keep a safe copy of your training diary in GitHub."
       tone="info"
-      icon={<Github className="h-6 w-6" />}
+      icon={<GitBranch className="h-6 w-6" />}
       className="animate-in slide-in-from-bottom-4 fade-in duration-500"
     >
       {!canUseGitHubSync && (
