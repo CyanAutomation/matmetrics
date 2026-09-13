@@ -4,6 +4,13 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.9.5](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.4...nextn-v1.9.5) (2026-09-13)
+
+
+### Bug Fixes
+
+* use Zod issues for validation errors ([0c2bcda](https://github.com/CyanAutomation/matmetrics/commit/0c2bcda720459322050ba5b84b5d2c5fdc0b55f7))
+
 ## [1.9.4](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.3...nextn-v1.9.4) (2026-09-13)
 
 
