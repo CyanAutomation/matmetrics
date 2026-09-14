@@ -261,6 +261,130 @@ func TestCreateSessionInvalidatesListSessionsCache(t *testing.T) {
 	}
 }
 
+func TestListSessionsDoesNotCacheResultsStartedBeforeMutation(t *testing.T) {
+	config := model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}
+	staleSessions := []model.Session{{
+		ID:         "session-existing",
+		Date:       "2026-03-18",
+		Effort:     3,
+		Category:   model.CategoryTechnical,
+		Techniques: []string{"Uchi mata"},
+	}}
+	existingMarkdown, err := markdown.SessionToMarkdown(staleSessions[0])
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		transport roundTripFunc
+		mutate    func(*Client) error
+	}{
+		{
+			name: "create",
+			transport: func(r *http.Request) (*http.Response, error) {
+				switch {
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				case r.Method == http.MethodPut:
+					return jsonResponse(http.StatusOK, `{"content":{"sha":"sha-new"}}`), nil
+				default:
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				}
+			},
+			mutate: func(client *Client) error {
+				_, err := client.CreateSession(config, model.Session{ID: "session-new", Date: "2026-03-19", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{}})
+				return err
+			},
+		},
+		{
+			name: "update",
+			transport: func(r *http.Request) (*http.Response, error) {
+				switch {
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+					return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-old", "content": base64.StdEncoding.EncodeToString([]byte(existingMarkdown))}), nil
+				case r.Method == http.MethodPut:
+					return jsonResponse(http.StatusOK, `{"content":{"sha":"sha-new"}}`), nil
+				default:
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				}
+			},
+			mutate: func(client *Client) error {
+				updated := staleSessions[0]
+				updated.Notes = "updated"
+				_, err := client.UpdateSession(config, updated)
+				return err
+			},
+		},
+		{
+			name: "delete",
+			transport: func(r *http.Request) (*http.Response, error) {
+				switch {
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+					return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+					return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+					return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-existing.md","type":"blob"}]}`), nil
+				case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+					return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-old", "content": base64.StdEncoding.EncodeToString([]byte(existingMarkdown))}), nil
+				case r.Method == http.MethodDelete:
+					return jsonResponse(http.StatusOK, `{}`), nil
+				default:
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				}
+			},
+			mutate: func(client *Client) error {
+				return client.DeleteSessionByID(config, "session-existing")
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetListSessionsCacheForTests()
+			client := &Client{BaseURL: "https://example.test", HTTPClient: &http.Client{Transport: test.transport}, Token: "test-token"}
+			cacheKey := client.listSessionsCacheKey(config, config.Branch)
+			call, leader := beginListSessionsCall(cacheKey, false)
+			if !leader {
+				t.Fatal("expected initial list call to be the leader")
+			}
+
+			if err := test.mutate(client); err != nil {
+				t.Fatalf("mutation error = %v", err)
+			}
+			finishListSessionsCall(cacheKey, call, staleSessions, nil)
+
+			if cached, ok := loadCachedSessions(cacheKey); ok {
+				t.Fatalf("stale result was cached after completed mutation: %#v", cached)
+			}
+		})
+	}
+}
+
+func TestFinishListSessionsCallDoesNotDeleteReplacement(t *testing.T) {
+	resetListSessionsCacheForTests()
+	const cacheKey = "cache-key"
+
+	first, leader := beginListSessionsCall(cacheKey, false)
+	if !leader {
+		t.Fatal("expected first call to be the leader")
+	}
+	replacement, leader := beginListSessionsCall(cacheKey, true)
+	if !leader {
+		t.Fatal("expected forced replacement call to be the leader")
+	}
+
+	finishListSessionsCall(cacheKey, first, nil, nil)
+	joined, leader := beginListSessionsCall(cacheKey, false)
+	if leader || joined != replacement {
+		t.Fatal("finishing replaced call removed the replacement inflight entry")
+	}
+	finishListSessionsCall(cacheKey, replacement, nil, nil)
+}
+
 func TestGetFileEncodesPathSegmentsAndRefQuery(t *testing.T) {
 	resetListSessionsCacheForTests()
 
