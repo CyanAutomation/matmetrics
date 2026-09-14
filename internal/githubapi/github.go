@@ -31,18 +31,21 @@ type cachedSessionsEntry struct {
 }
 
 type listSessionsCall struct {
-	done     chan struct{}
-	sessions []model.Session
-	err      error
+	done       chan struct{}
+	sessions   []model.Session
+	err        error
+	generation uint64
 }
 
 var listSessionsCacheState = struct {
-	mu       sync.Mutex
-	entries  map[string]cachedSessionsEntry
-	inflight map[string]*listSessionsCall
+	mu          sync.Mutex
+	entries     map[string]cachedSessionsEntry
+	inflight    map[string]*listSessionsCall
+	generations map[string]uint64
 }{
-	entries:  make(map[string]cachedSessionsEntry),
-	inflight: make(map[string]*listSessionsCall),
+	entries:     make(map[string]cachedSessionsEntry),
+	inflight:    make(map[string]*listSessionsCall),
+	generations: make(map[string]uint64),
 }
 
 type Client struct {
@@ -445,9 +448,6 @@ func (c *Client) ListSessions(config model.GitHubConfig, force bool) ([]model.Se
 	}
 
 	sessions, err := c.listSessionsUncached(config, branch)
-	if err == nil {
-		storeCachedSessions(cacheKey, sessions)
-	}
 	finishListSessionsCall(cacheKey, call, sessions, err)
 	return cloneSessions(sessions), err
 }
@@ -996,7 +996,9 @@ func (c *Client) listSessionsCacheKey(config model.GitHubConfig, branch string) 
 
 func (c *Client) invalidateListSessionsCache(config model.GitHubConfig, branch string) {
 	listSessionsCacheState.mu.Lock()
-	delete(listSessionsCacheState.entries, c.listSessionsCacheKey(config, branch))
+	key := c.listSessionsCacheKey(config, branch)
+	delete(listSessionsCacheState.entries, key)
+	listSessionsCacheState.generations[key]++
 	listSessionsCacheState.mu.Unlock()
 }
 
@@ -1033,15 +1035,6 @@ func loadCachedSessions(key string) ([]model.Session, bool) {
 	return cloneSessions(entry.Sessions), true
 }
 
-func storeCachedSessions(key string, sessions []model.Session) {
-	listSessionsCacheState.mu.Lock()
-	listSessionsCacheState.entries[key] = cachedSessionsEntry{
-		Sessions: cloneSessions(sessions),
-		CachedAt: time.Now(),
-	}
-	listSessionsCacheState.mu.Unlock()
-}
-
 func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
 	listSessionsCacheState.mu.Lock()
 	defer listSessionsCacheState.mu.Unlock()
@@ -1052,7 +1045,10 @@ func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
 		}
 	}
 
-	call := &listSessionsCall{done: make(chan struct{})}
+	call := &listSessionsCall{
+		done:       make(chan struct{}),
+		generation: listSessionsCacheState.generations[key],
+	}
 	listSessionsCacheState.inflight[key] = call
 	return call, true
 }
@@ -1061,7 +1057,15 @@ func finishListSessionsCall(key string, call *listSessionsCall, sessions []model
 	listSessionsCacheState.mu.Lock()
 	call.sessions = cloneSessions(sessions)
 	call.err = err
-	delete(listSessionsCacheState.inflight, key)
+	if err == nil && call.generation == listSessionsCacheState.generations[key] {
+		listSessionsCacheState.entries[key] = cachedSessionsEntry{
+			Sessions: cloneSessions(sessions),
+			CachedAt: time.Now(),
+		}
+	}
+	if listSessionsCacheState.inflight[key] == call {
+		delete(listSessionsCacheState.inflight, key)
+	}
 	close(call.done)
 	listSessionsCacheState.mu.Unlock()
 }
@@ -1070,6 +1074,7 @@ func resetListSessionsCacheForTests() {
 	listSessionsCacheState.mu.Lock()
 	listSessionsCacheState.entries = make(map[string]cachedSessionsEntry)
 	listSessionsCacheState.inflight = make(map[string]*listSessionsCall)
+	listSessionsCacheState.generations = make(map[string]uint64)
 	listSessionsCacheState.mu.Unlock()
 }
 
