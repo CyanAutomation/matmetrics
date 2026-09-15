@@ -1,4 +1,4 @@
-[![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml)
+[![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml) [![CodeQL](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql)
 
 # MatMetrics
 
