@@ -7,12 +7,14 @@ This guide consolidates all critical setup steps for deploying MatMetrics. Essen
 ## Prerequisites
 
 ### Development Environment
+
 - Node.js 24.x
 - npm 11.x
 - Google Gen AI API key (for AI-powered features)
 - GitHub personal access token for GitHub-backed storage
 
 ### Production Environment
+
 - Vercel account
 - Firebase project
 - GitHub repository for session storage
@@ -22,51 +24,57 @@ This guide consolidates all critical setup steps for deploying MatMetrics. Essen
 ### 1. Environment Variables Configuration
 
 #### Local Development
+
 ```bash
 cp .env.example .env.local
 ```
 
 Add all required variables to `.env.local`:
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `GITHUB_TOKEN` | ✓ | GitHub → Settings → Developer settings → Personal access tokens |
-| `GOOGLE_GENAI_API_KEY` | ✓ | [ai.google.dev](https://ai.google.dev/) |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | ✓ | Firebase console → Project Settings → Your web app |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | ✓ | Firebase console → Project Settings → Your web app |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | ✓ | Firebase console → Project Settings → Your web app |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | ✓ | Firebase console → Project Settings → Your web app |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✓ | Firebase console → Project Settings → Your web app |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | ✓ | Firebase console → Project Settings → Your web app |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | ✓ | Firebase console → Project Settings → Service accounts |
+| Variable                                   | Required | Source                                                          |
+| ------------------------------------------ | -------- | --------------------------------------------------------------- |
+| `GITHUB_TOKEN`                             | ✓        | GitHub → Settings → Developer settings → Personal access tokens |
+| `GOOGLE_GENAI_API_KEY`                     | ✓        | [ai.google.dev](https://ai.google.dev/)                         |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | ✓        | Firebase console → Project Settings → Your web app              |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | ✓        | Firebase console → Project Settings → Your web app              |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | ✓        | Firebase console → Project Settings → Your web app              |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | ✓        | Firebase console → Project Settings → Your web app              |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✓        | Firebase console → Project Settings → Your web app              |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | ✓        | Firebase console → Project Settings → Your web app              |
+| `FIREBASE_SERVICE_ACCOUNT_KEY`             | ✓        | Firebase console → Project Settings → Service accounts          |
 
 #### Vercel Configuration
+
 Add all environment variables to Vercel dashboard under **Environment Variables**:
 
 **Critical Notes:**
+
 - `NEXT_PUBLIC_*` variables are baked at build time and require redeployment to take effect
 - Changes to these variables alone (without code changes) need a manual "Redeploy" in Vercel dashboard
 
 ### 2. Firebase Project Setup
 
 #### Create Firebase Project
+
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Create a new project
 3. Add a web app to the project
 
 #### Get Firebase Configuration
+
 From Firebase console → Project Settings → Your web app, copy the configuration values:
 
-| Variable | Where to find it |
-|----------|------------------|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase SDK config |
+| Variable                                   | Where to find it    |
+| ------------------------------------------ | ------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Firebase SDK config |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Firebase SDK config |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Firebase SDK config |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Firebase SDK config |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase SDK config |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase SDK config |
 
 #### Generate Service Account Key
+
 1. Go to Firebase console → Project Settings → Service accounts
 2. Click "Generate new private key" → download `.json` file
 3. Convert to single-line string for environment variable:
@@ -147,6 +155,7 @@ For GitHub-backed session storage:
    - Vercel will automatically build and deploy your application
 
 ### Data Storage Behavior
+
 - **Before GitHub configuration**: Sessions are written to local markdown storage under `data/YYYY/MM/`
 - **After GitHub setup**: Sessions are stored directly in the configured repository
 - **Browser behavior**: Always maintains local cache and offline sync queue
@@ -154,19 +163,23 @@ For GitHub-backed session storage:
 ## Post-Deployment Verification
 
 ### 1. Test Authentication
+
 - Try to log in using Firebase authentication
 - Verify that user preferences can be saved
 
 ### 2. Test Session Storage
+
 - Create a test session
 - Verify it appears in the session list
 - Check that it's stored in GitHub (if configured) or local markdown files
 
 ### 3. Test AI Features
+
 - Try the technique suggestion feature
 - Verify Google Gen AI integration is working
 
 ### 4. Test GitHub Sync
+
 - Enable GitHub sync in the app settings
 - Verify sessions sync between local and remote storage
 
@@ -175,21 +188,25 @@ For GitHub-backed session storage:
 ### Common Issues
 
 #### Authentication Fails
+
 - Check Firebase Authorised Domains configuration
 - Verify all `NEXT_PUBLIC_FIREBASE_*` variables are correctly set
 - Ensure deployment URL matches exactly what's added to Firebase
 
 #### Service Account Key Issues
+
 - Verify the key is pasted as a single-line JSON string
 - Check that `\n` characters in `private_key` are escaped as `\\n`
 - Regenerate the key if corrupted
 
 #### GitHub Sync Not Working
+
 - Verify `GITHUB_TOKEN` has correct permissions
 - Check repository access permissions
 - Verify the token is not expired
 
 #### Build Failures
+
 - Ensure all environment variables are set before build
 - Check Node.js version compatibility (requires 24.x)
 - Verify dependency installation is complete
@@ -203,13 +220,13 @@ For GitHub-backed session storage:
 
 ## Quick Reference Summary
 
-| Task | Location | Criticality |
-|------|----------|-------------|
-| Environment Variables | Step 1 | 🔴 Critical |
-| Firebase Service Account Key | Step 2 | 🔴 Critical (common pitfall) |
-| Firestore Security Rules | Step 3 | 🔴 Critical |
-| Firebase Authorised Domains | Step 4 | 🔴 Critical (most commonly missed) |
-| GitHub Token | Step 5 | 🟡 Important |
-| Vercel Deployment | Deployment Process | 🟡 Important |
+| Task                         | Location           | Criticality                        |
+| ---------------------------- | ------------------ | ---------------------------------- |
+| Environment Variables        | Step 1             | 🔴 Critical                        |
+| Firebase Service Account Key | Step 2             | 🔴 Critical (common pitfall)       |
+| Firestore Security Rules     | Step 3             | 🔴 Critical                        |
+| Firebase Authorised Domains  | Step 4             | 🔴 Critical (most commonly missed) |
+| GitHub Token                 | Step 5             | 🟡 Important                       |
+| Vercel Deployment            | Deployment Process | 🟡 Important                       |
 
 **Key Takeaway:** The most common deployment failures are missing Firebase Authorised Domains and improper FIREBASE_SERVICE_ACCOUNT_KEY formatting. Double-check these two items before deployment.

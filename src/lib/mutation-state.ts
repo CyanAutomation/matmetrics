@@ -174,7 +174,9 @@ function applyOptimisticMutation(
  * Get all sessions with optimistic mutations applied
  * Mutations are applied in order of version to maintain consistency
  */
-export function getOptimisticSessions(baseSessions: JudoSession[]): JudoSession[] {
+export function getOptimisticSessions(
+  baseSessions: JudoSession[]
+): JudoSession[] {
   return Array.from(dirtyMutations.values())
     .sort((left, right) => left.version - right.version)
     .reduce(applyOptimisticMutation, baseSessions);

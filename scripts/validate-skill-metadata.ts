@@ -56,7 +56,10 @@ function parseYamlFrontMatter(content: string): SkillMetadata | null {
     const value = trimmed.substring(colonIndex + 1).trim();
 
     // Remove quotes if present
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       metadata[key] = value.slice(1, -1);
     } else {
       metadata[key] = value;
@@ -66,7 +69,10 @@ function parseYamlFrontMatter(content: string): SkillMetadata | null {
   return metadata;
 }
 
-function validateSkill(skillPath: string, folderName: string): ValidationResult {
+function validateSkill(
+  skillPath: string,
+  folderName: string
+): ValidationResult {
   const skillFile = join(skillPath, 'SKILL.md');
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -78,7 +84,9 @@ function validateSkill(skillPath: string, folderName: string): ValidationResult 
     metadata = parseYamlFrontMatter(content);
 
     if (!metadata) {
-      errors.push('No YAML frontmatter found (expected --- ... --- at top of file)');
+      errors.push(
+        'No YAML frontmatter found (expected --- ... --- at top of file)'
+      );
     } else {
       // Validate required fields
       for (const field of REQUIRED_FIELDS) {
@@ -93,7 +101,7 @@ function validateSkill(skillPath: string, folderName: string): ValidationResult 
         if (metadata.name !== folderName) {
           errors.push(
             `Metadata 'name' field '${metadata.name}' does not match folder name '${folderName}'\n` +
-              `  Fix: Update line in SKILL.md: name: ${folderName}`,
+              `  Fix: Update line in SKILL.md: name: ${folderName}`
           );
         }
       }
@@ -106,7 +114,9 @@ function validateSkill(skillPath: string, folderName: string): ValidationResult 
       }
     }
   } catch (err) {
-    errors.push(`Failed to read SKILL.md: ${err instanceof Error ? err.message : String(err)}`);
+    errors.push(
+      `Failed to read SKILL.md: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   return {
@@ -133,7 +143,7 @@ function main() {
   }
 
   const results: ValidationResult[] = skillFolders.map((folder) =>
-    validateSkill(join(SKILLS_DIR, folder), folder),
+    validateSkill(join(SKILLS_DIR, folder), folder)
   );
 
   // Print results

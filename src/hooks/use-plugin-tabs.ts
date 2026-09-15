@@ -79,7 +79,10 @@ export function usePluginTabs(deps?: {
 
   // Get selected tab from visible tabs
   const selectedTab = useMemo(
-    () => visibleTabs.find((tab) => tab.id === deps?.activeTab) ?? visibleTabs[0] ?? null,
+    () =>
+      visibleTabs.find((tab) => tab.id === deps?.activeTab) ??
+      visibleTabs[0] ??
+      null,
     [visibleTabs, deps?.activeTab]
   );
 

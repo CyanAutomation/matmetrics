@@ -25,20 +25,25 @@ concurrency:
   group: kaseki-docs-sweep-${{ github.repository }}
   cancel-in-progress: false
 
-env:
-  # Set this repository or organization variable to the approved Kaseki controller URL.
-  KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL }}
-  # Comma-separated controller hostnames permitted to receive the Kaseki API token.
-  # Configure this controlled variable alongside KASEKI_BASE_URL.
-  KASEKI_ALLOWED_HOSTS: ${{ vars.KASEKI_ALLOWED_HOSTS }}
-  ALLOWLIST: README.md,docs/**/*.md
-  TASK_DESCRIPTION: Keep README.md and docs/ accurate against the current implementation.
-
 jobs:
-  system_status:
-    name: Kaseki System Status
+  docs_sweep:
+    name: Run Kaseki documentation sweep
+    environment: kaseki-docs
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    # Kaseki permits a three-hour execution window; leave sufficient time for
+    # queueing, controller retries, and a final status read before Actions ends.
+    timeout-minutes: 360
+    env:
+      # These environment-scoped variables and the API token form one protected
+      # trust boundary. Do not define fallbacks at repository or organization scope.
+      KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL }}
+      KASEKI_ALLOWED_HOSTS: ${{ vars.KASEKI_ALLOWED_HOSTS }}
+      KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
+      ALLOWLIST: README.md,docs/**/*.md
+      TASK_DESCRIPTION: Keep README.md and docs/ accurate against the current implementation.
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      REF: ${{ github.sha }}
+      VALIDATION_COMMAND: ${{ github.event_name == 'schedule' && 'npm run validate:docs' || (inputs.validation_profile == 'docs' && 'npm run validate:docs' || inputs.validation_profile == 'lint' && 'npm run lint' || '') }}
     steps:
       - name: Validate controller URL
         shell: bash
@@ -70,19 +75,12 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
 
-          curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors \
-            --connect-timeout 10 --max-time 20 \
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 20 --max-filesize 1048576 \
             --output "$response_file" \
             "$KASEKI_BASE_URL/health"
           jq -e '.status == "healthy"' "$response_file" >/dev/null
-          jq . "$response_file"
-
-  readiness:
-    name: Kaseki System Readiness
-    needs: system_status
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
+          echo 'Kaseki controller is healthy.'
       - name: Verify controller readiness
         shell: bash
         run: |
@@ -90,22 +88,12 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
 
-          curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors \
-            --connect-timeout 10 --max-time 20 \
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 20 --max-filesize 1048576 \
             --output "$response_file" \
             "$KASEKI_BASE_URL/ready"
           jq -e '.status == "ready"' "$response_file" >/dev/null
-          jq . "$response_file"
-
-  api_connection:
-    name: Kaseki API Status
-    needs: readiness
-    environment: kaseki-docs
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    env:
-      KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
-    steps:
+          echo 'Kaseki controller is ready.'
       - name: Verify gateway connectivity and authentication
         shell: bash
         run: |
@@ -115,31 +103,29 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
 
-          curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors \
-            --connect-timeout 10 --max-time 60 \
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
             --output "$response_file" \
             --header "Authorization: Bearer $KASEKI_API_TOKEN" \
             "$KASEKI_BASE_URL/api/gateway-test?stage=1"
           jq -e '.status == "ok"' "$response_file" >/dev/null
-          jq . "$response_file"
-
-  dispatch:
-    name: Submit Kaseki documentation sweep
-    needs: api_connection
-    environment: kaseki-docs
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      # Always target the immutable commit that started this run.
-      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-      REF: ${{ github.sha }}
-      VALIDATION_COMMAND: ${{ github.event_name == 'schedule' && 'npm run validate:docs' || (inputs.validation_profile == 'docs' && 'npm run validate:docs' || inputs.validation_profile == 'lint' && 'npm run lint' || '') }}
-
-    steps:
-      - name: Check Kaseki availability
+          echo 'Kaseki gateway authentication succeeded.'
+      - name: Verify Kaseki publication readiness
+        shell: bash
         run: |
-          curl --fail --silent --show-error --max-time 20 \
-            "$KASEKI_BASE_URL/ready"
+          set -euo pipefail
+          : "${KASEKI_API_TOKEN:?KASEKI_API_TOKEN is not configured}"
+
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
+            --output "$response_file" \
+            --header "Authorization: Bearer $KASEKI_API_TOKEN" \
+            "$KASEKI_BASE_URL/api/preflight"
+          jq -e '.status == "ok"' "$response_file" >/dev/null
+          echo 'Kaseki publication readiness succeeded.'
 
       - name: Submit documentation sweep
         id: submit
@@ -149,7 +135,10 @@ jobs:
           set -euo pipefail
           : "${KASEKI_API_TOKEN:?KASEKI_API_TOKEN is not configured}"
 
-          idempotency_key="$(uuidgen)"
+          # GITHUB_RUN_ID remains stable when a workflow run is re-run. Kaseki
+          # therefore replays the original task instead of enqueueing another one.
+          digest="$(printf '%s' "$GITHUB_REPOSITORY:$GITHUB_WORKFLOW:$GITHUB_RUN_ID" | shasum -a 256 | awk '{print $1}')"
+          idempotency_key="${digest:0:8}-${digest:8:4}-4${digest:13:3}-8${digest:17:3}-${digest:20:12}"
 
           payload="$(
             jq -n \
@@ -164,6 +153,7 @@ jobs:
                 ref: $ref,
                 idempotencyKey: $idempotencyKey,
                 taskMode: "patch",
+                publishMode: "pr",
                 timeoutSeconds: 10800,
                 changedFilesAllowlist: (
                   $allowlist
@@ -179,6 +169,9 @@ jobs:
                 goalCheck: {
                   enabled: true,
                   maxRetries: 1
+                },
+                scouting: {
+                  enabled: false
                 },
                 taskPrompt: (
                   $taskDescription
@@ -197,10 +190,11 @@ jobs:
           )"
 
           response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
 
           http_status="$(
             curl --silent --show-error \
-              --retry 3 --retry-all-errors --max-time 60 \
+              --retry 3 --retry-all-errors --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
               --output "$response_file" \
               --write-out '%{http_code}' \
               --request POST "$KASEKI_BASE_URL/api/runs" \
@@ -223,7 +217,7 @@ jobs:
             exit 1
           fi
 
-          run_id="$(jq -er '.id' "$response_file")"
+          run_id="$(jq -er '.id | if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$") then . else error("invalid Kaseki run id") end' "$response_file")"
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       - name: Publish submission details
@@ -254,3 +248,52 @@ jobs:
             echo
             echo "Monitor the run: $KASEKI_BASE_URL/ui"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Wait for Kaseki completion
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.submit.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 21000))
+
+          while (( SECONDS < deadline )); do
+            response_file="$(mktemp)"
+            trap 'rm -f "$response_file"' EXIT
+
+            curl --fail --silent --show-error --retry 3 --retry-all-errors \
+              --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
+              --output "$response_file" \
+              --header "Authorization: Bearer $KASEKI_API_TOKEN" \
+              "$KASEKI_BASE_URL/api/runs/$RUN_ID/status"
+            run_status="$(jq -er '.status | select(type == "string")' "$response_file")"
+
+            case "$run_status" in
+              completed)
+                exit_code="$(jq -er '.exitCode // 0 | select(type == "number")' "$response_file")"
+                if [[ "$exit_code" == 0 ]]; then
+                  echo "Kaseki run $RUN_ID completed successfully."
+                  exit 0
+                fi
+                echo "::error::Kaseki run $RUN_ID completed with exit code $exit_code."
+                exit 1
+                ;;
+              failed|cancelled)
+                echo "::error::Kaseki run $RUN_ID ended with status $run_status."
+                exit 1
+                ;;
+              queued|running)
+                echo "Kaseki run $RUN_ID is $run_status; checking again in 30 seconds."
+                ;;
+              *)
+                echo "::error::Kaseki run $RUN_ID returned unexpected status $run_status."
+                exit 1
+                ;;
+            esac
+
+            rm -f "$response_file"
+            trap - EXIT
+            sleep 30
+          done
+
+          echo "::error::Kaseki run $RUN_ID did not complete within 350 minutes."
+          exit 1

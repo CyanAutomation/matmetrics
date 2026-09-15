@@ -14,12 +14,10 @@ import { getGuestWorkspaceSummary } from '@/lib/guest-mode';
  * Manages session data loading, sync status, and guest workspace info
  * Handles storage initialization, listener setup, and periodic sync updates
  */
-export function useSessionsData(
-  deps?: {
-    userId?: string | null;
-    authMode?: string;
-  }
-) {
+export function useSessionsData(deps?: {
+  userId?: string | null;
+  authMode?: string;
+}) {
   const [sessions, setSessions] = useState<JudoSession[]>([]);
   const [sessionFileIssues, setSessionFileIssues] = useState<
     SessionFileIssue[]

@@ -69,6 +69,7 @@ func handleSessions(args []string) {
 ```
 
 **Key patterns:**
+
 - Each subcommand is a separate function (`handleSessions`, `handleGitHub`)
 - Per-command `flag.FlagSet` isolates flags (no global state)
 - Exit on error immediately; no error return threading
@@ -90,24 +91,25 @@ func parseSessionDate(dateStr string) (time.Time, error) {
 // Full session validation
 func ValidateSession(s *model.Session) error {
   var errs []string
-  
+
   if !regexp.MustCompile(SessionIDPattern).MatchString(s.ID) {
     errs = append(errs, fmt.Sprintf("Invalid session ID: %s", s.ID))
   }
-  
+
   if s.Effort < 1 || s.Effort > 5 {
     errs = append(errs, fmt.Sprintf("Effort must be 1-5, got %d", s.Effort))
   }
-  
+
   if len(errs) > 0 {
     return fmt.Errorf("validation failed: %s", strings.Join(errs, "; "))
   }
-  
+
   return nil
 }
 ```
 
 **Key patterns:**
+
 - Regex patterns at package level for reuse
 - Collect all errors before returning (avoid early exit for partial feedback)
 - Error messages include field name and context
@@ -126,6 +128,7 @@ data/
 ```
 
 **File naming rules:**
+
 - Prefix: `YYYYMMDD` (date of session)
 - Middle: `-matmetrics-` (namespace)
 - Suffix: URL-encoded session ID (or legacy sanitized format)
@@ -141,10 +144,10 @@ data/
 // Acquire lock for a session
 func acquireLock(sessionID string) (string, error) {
   lockDir := filepath.Join(".index", sessionID)
-  
+
   // Create lock file: <lockDir>/<pid>
   lockFile := filepath.Join(lockDir, fmt.Sprintf("%d", os.Getpid()))
-  
+
   for attempt := 0; attempt < maxRetries; attempt++ {
     if err := os.MkdirAll(lockDir, 0755); err == nil {
       if err := os.WriteFile(lockFile, nil, 0644); err == nil {
@@ -153,14 +156,14 @@ func acquireLock(sessionID string) (string, error) {
     }
     time.Sleep(time.Duration(attempt*50) * time.Millisecond) // Exponential backoff
   }
-  
+
   return "", fmt.Errorf("failed to acquire lock after retries")
 }
 
 // Release lock and check for stale PIDs
 func releaseLock(lockFile string) error {
   lockDir := filepath.Dir(lockFile)
-  
+
   // Clean up stale locks (PIDs not running)
   entries, _ := os.ReadDir(lockDir)
   for _, e := range entries {
@@ -170,12 +173,13 @@ func releaseLock(lockFile string) error {
       os.Remove(filepath.Join(lockDir, pidStr)) // Stale, remove
     }
   }
-  
+
   return os.Remove(lockFile)
 }
 ```
 
 **Key patterns:**
+
 - Lock files are PIDs; avoids named-lock collisions
 - Retry with exponential backoff (50ms, 100ms, 150ms, ...)
 - Clean up stale locks from dead processes
@@ -196,26 +200,27 @@ type GitHubCache struct {
 func (c *GitHubCache) Get(key string) (interface{}, bool) {
   c.mu.RLock()
   defer c.mu.RUnlock()
-  
+
   if cached, ok := c.data[key]; ok {
     if time.Since(c.timestamp[key]) < c.ttl {
       return cached, true // Cache hit
     }
   }
-  
+
   return nil, false // Cache miss or expired
 }
 
 func (c *GitHubCache) Set(key string, value interface{}) {
   c.mu.Lock()
   defer c.mu.Unlock()
-  
+
   c.data[key] = value
   c.timestamp[key] = time.Now()
 }
 ```
 
 **Key patterns:**
+
 - Per-key TTL tracking (not global)
 - RWMutex for concurrent reads
 - In-flight deduplication: only one goroutine fetches; others wait on channel
@@ -233,7 +238,7 @@ func ParseSession(content string) (*model.Session, error) {
   if lines[0] != "---" {
     return nil, fmt.Errorf("missing frontmatter start")
   }
-  
+
   var yamlLines []string
   endIdx := -1
   for i := 1; i < len(lines); i++ {
@@ -243,17 +248,17 @@ func ParseSession(content string) (*model.Session, error) {
     }
     yamlLines = append(yamlLines, lines[i])
   }
-  
+
   if endIdx == -1 {
     return nil, fmt.Errorf("missing frontmatter end")
   }
-  
+
   // Parse YAML
   var s model.Session
   if err := yaml.Unmarshal([]byte(strings.Join(yamlLines, "\n")), &s); err != nil {
     return nil, err
   }
-  
+
   return &s, nil
 }
 
@@ -274,6 +279,7 @@ func RenderSession(s *model.Session) string {
 ```
 
 **Key patterns:**
+
 - YAML frontmatter delimited by `---`
 - Strict parsing: fail on missing delimiters
 - String builder for efficient rendering
@@ -322,7 +328,7 @@ func TestListSessionsFromGitHub(t *testing.T) {
       }),
     },
   }
-  
+
   sessions, _ := gh.ListSessions("owner", "repo", "main")
   if len(sessions) != 1 {
     t.Fail()
@@ -343,7 +349,7 @@ func findSessionFile(dataDir, sessionID string) (string, error) {
   if path, err := findByPattern(dataDir, fmt.Sprintf("*-%s.md", url.QueryEscape(sessionID))); err == nil {
     return path, nil
   }
-  
+
   // Fall back to legacy sanitized format
   sanitized := strings.Map(func(r rune) rune {
     if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
@@ -351,7 +357,7 @@ func findSessionFile(dataDir, sessionID string) (string, error) {
     }
     return '-'
   }, sessionID)
-  
+
   return findByPattern(dataDir, fmt.Sprintf("*-%s.md", sanitized))
 }
 ```
@@ -419,16 +425,16 @@ func (c *InFlightCache) Get(key string, fetch func() (interface{}, error)) (inte
     c.mu.Unlock()
     return <-ch, nil // Wait for in-flight result
   }
-  
+
   ch := make(chan interface{})
   c.results[key] = ch
   c.mu.Unlock()
-  
+
   // This goroutine owns the fetch
   result, _ := fetch()
   ch <- result
   close(ch)
-  
+
   return result, nil
 }
 ```

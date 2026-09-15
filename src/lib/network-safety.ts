@@ -38,7 +38,10 @@ export function isBlockedNetworkHostname(hostname: string): boolean {
     return true;
   }
 
-  if (looksLikeIpLiteral(normalizedHost) && getIpVersion(normalizedHost) === 0) {
+  if (
+    looksLikeIpLiteral(normalizedHost) &&
+    getIpVersion(normalizedHost) === 0
+  ) {
     return true;
   }
 

@@ -116,7 +116,7 @@ describe('parseLogDoctorApiResponse', () => {
       status: 200,
       headers: { 'content-type': 'text/plain' },
     });
-    
+
     // Mock the url property (would normally be set by fetch API)
     Object.defineProperty(response, 'url', {
       value: 'https://example.com/api/scan',

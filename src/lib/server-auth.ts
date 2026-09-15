@@ -58,9 +58,7 @@ export async function requireAuthenticatedUser(
     );
   }
 
-  if (
-    !isAuthTestModeEnabled() && !isFirebaseAdminConfigured()
-  ) {
+  if (!isAuthTestModeEnabled() && !isFirebaseAdminConfigured()) {
     return NextResponse.json(
       { error: 'Firebase admin is not configured' },
       { status: 500 }

@@ -60,16 +60,52 @@ test('[REQ-GHS-001][#431] auth gating disables GitHub actions when feature acces
       ...testCase.input,
     });
 
-    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
-    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
-    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
-    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
-    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
-    assert.equal(result.hasRepoIdentity, testCase.expected.hasRepoIdentity, testCase.name);
-    assert.equal(result.showConnectedState, testCase.expected.showConnectedState, testCase.name);
+    assert.equal(
+      result.canTestConnection,
+      testCase.expected.canTestConnection,
+      testCase.name
+    );
+    assert.equal(
+      result.canRunSyncAll,
+      testCase.expected.canRunSyncAll,
+      testCase.name
+    );
+    assert.equal(
+      result.canRefreshHistory,
+      testCase.expected.canRefreshHistory,
+      testCase.name
+    );
+    assert.equal(
+      result.canDisableSync,
+      testCase.expected.canDisableSync,
+      testCase.name
+    );
+    assert.equal(
+      result.canOpenClearDialog,
+      testCase.expected.canOpenClearDialog,
+      testCase.name
+    );
+    assert.equal(
+      result.hasRepoIdentity,
+      testCase.expected.hasRepoIdentity,
+      testCase.name
+    );
+    assert.equal(
+      result.showConnectedState,
+      testCase.expected.showConnectedState,
+      testCase.name
+    );
 
-    assert.equal(result.testConnectionLabel, 'Test Connection', `${testCase.name}: testConnectionLabel`);
-    assert.equal(result.syncAllLabel, 'Sync All Sessions to GitHub', `${testCase.name}: syncAllLabel`);
+    assert.equal(
+      result.testConnectionLabel,
+      'Test Connection',
+      `${testCase.name}: testConnectionLabel`
+    );
+    assert.equal(
+      result.syncAllLabel,
+      'Sync All Sessions to GitHub',
+      `${testCase.name}: syncAllLabel`
+    );
   }
 });
 
@@ -113,18 +149,42 @@ test('[REQ-GHS-002][#431] in-flight labels are scoped to their matching action',
       ...testCase.input,
     });
 
-    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
-    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
-    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
-    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
-    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
+    assert.equal(
+      result.canTestConnection,
+      testCase.expected.canTestConnection,
+      testCase.name
+    );
+    assert.equal(
+      result.canRunSyncAll,
+      testCase.expected.canRunSyncAll,
+      testCase.name
+    );
+    assert.equal(
+      result.canRefreshHistory,
+      testCase.expected.canRefreshHistory,
+      testCase.name
+    );
+    assert.equal(
+      result.canDisableSync,
+      testCase.expected.canDisableSync,
+      testCase.name
+    );
+    assert.equal(
+      result.canOpenClearDialog,
+      testCase.expected.canOpenClearDialog,
+      testCase.name
+    );
 
     assert.equal(
       result.testConnectionLabel,
       testCase.labels.testConnectionLabel,
       `${testCase.name}: testConnectionLabel`
     );
-    assert.equal(result.syncAllLabel, testCase.labels.syncAllLabel, `${testCase.name}: syncAllLabel`);
+    assert.equal(
+      result.syncAllLabel,
+      testCase.labels.syncAllLabel,
+      `${testCase.name}: syncAllLabel`
+    );
   }
 });
 
@@ -170,15 +230,47 @@ test('[REQ-GHS-003][#431] destructive-action gating locks clear/disable controls
       ...testCase.input,
     });
 
-    assert.equal(result.canTestConnection, testCase.expected.canTestConnection, testCase.name);
-    assert.equal(result.canRunSyncAll, testCase.expected.canRunSyncAll, testCase.name);
-    assert.equal(result.canRefreshHistory, testCase.expected.canRefreshHistory, testCase.name);
-    assert.equal(result.canDisableSync, testCase.expected.canDisableSync, testCase.name);
-    assert.equal(result.canOpenClearDialog, testCase.expected.canOpenClearDialog, testCase.name);
-    assert.equal(result.canConfirmClear, testCase.expected.canConfirmClear, testCase.name);
+    assert.equal(
+      result.canTestConnection,
+      testCase.expected.canTestConnection,
+      testCase.name
+    );
+    assert.equal(
+      result.canRunSyncAll,
+      testCase.expected.canRunSyncAll,
+      testCase.name
+    );
+    assert.equal(
+      result.canRefreshHistory,
+      testCase.expected.canRefreshHistory,
+      testCase.name
+    );
+    assert.equal(
+      result.canDisableSync,
+      testCase.expected.canDisableSync,
+      testCase.name
+    );
+    assert.equal(
+      result.canOpenClearDialog,
+      testCase.expected.canOpenClearDialog,
+      testCase.name
+    );
+    assert.equal(
+      result.canConfirmClear,
+      testCase.expected.canConfirmClear,
+      testCase.name
+    );
 
-    assert.equal(result.disableLabel, testCase.labels.disableLabel, `${testCase.name}: disableLabel`);
-    assert.equal(result.clearLabel, testCase.labels.clearLabel, `${testCase.name}: clearLabel`);
+    assert.equal(
+      result.disableLabel,
+      testCase.labels.disableLabel,
+      `${testCase.name}: disableLabel`
+    );
+    assert.equal(
+      result.clearLabel,
+      testCase.labels.clearLabel,
+      `${testCase.name}: clearLabel`
+    );
   }
 });
 

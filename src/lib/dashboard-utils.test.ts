@@ -16,20 +16,29 @@ test('dashboard utilities - user initials generation', async (t) => {
     assert.equal(initials, 'JD');
   });
 
-  await t.test('generates initials from email when display name is unavailable', () => {
-    const initials = getUserInitials(null, 'alice.evans@example.com', false);
-    assert.equal(initials, 'AE');
-  });
+  await t.test(
+    'generates initials from email when display name is unavailable',
+    () => {
+      const initials = getUserInitials(null, 'alice.evans@example.com', false);
+      assert.equal(initials, 'AE');
+    }
+  );
 
-  await t.test('uses guest label when both display name and email are unavailable in guest mode', () => {
-    const initials = getUserInitials(null, null, true);
-    assert.equal(initials, 'G');
-  });
+  await t.test(
+    'uses guest label when both display name and email are unavailable in guest mode',
+    () => {
+      const initials = getUserInitials(null, null, true);
+      assert.equal(initials, 'G');
+    }
+  );
 
-  await t.test('uses MM default when both display name and email are unavailable in non-guest mode', () => {
-    const initials = getUserInitials(null, null, false);
-    assert.equal(initials, 'MM');
-  });
+  await t.test(
+    'uses MM default when both display name and email are unavailable in non-guest mode',
+    () => {
+      const initials = getUserInitials(null, null, false);
+      assert.equal(initials, 'MM');
+    }
+  );
 
   await t.test('handles single-word display names', () => {
     const initials = getUserInitials('Alice', 'alice@example.com', false);
@@ -37,7 +46,11 @@ test('dashboard utilities - user initials generation', async (t) => {
   });
 
   await t.test('limits initials to 2 characters maximum', () => {
-    const initials = getUserInitials('John Michael Doe', 'john@example.com', false);
+    const initials = getUserInitials(
+      'John Michael Doe',
+      'john@example.com',
+      false
+    );
     assert.equal(initials.length, 2);
     assert.equal(initials, 'JM');
   });
@@ -48,7 +61,11 @@ test('dashboard utilities - user initials generation', async (t) => {
   });
 
   await t.test('handles email with multiple domains correctly', () => {
-    const initials = getUserInitials(null, 'john.doe@subdomain.example.com', false);
+    const initials = getUserInitials(
+      null,
+      'john.doe@subdomain.example.com',
+      false
+    );
     assert.equal(initials, 'JD');
   });
 });
@@ -84,14 +101,17 @@ test('dashboard utilities - sync status text generation', async (t) => {
     assert.equal(getSyncStatusText(status), 'Syncing');
   });
 
-  await t.test('returns pending count when online but not syncing with pending items', () => {
-    const status: SyncStatus = {
-      isOnline: true,
-      isSyncing: false,
-      pendingCount: 3,
-    };
-    assert.equal(getSyncStatusText(status), '3 pending');
-  });
+  await t.test(
+    'returns pending count when online but not syncing with pending items',
+    () => {
+      const status: SyncStatus = {
+        isOnline: true,
+        isSyncing: false,
+        pendingCount: 3,
+      };
+      assert.equal(getSyncStatusText(status), '3 pending');
+    }
+  );
 
   await t.test('returns synced when online with no pending items', () => {
     const status: SyncStatus = {
@@ -158,11 +178,14 @@ test('dashboard utilities - guest mode alert message', async (t) => {
     assert.match(message, /AI tools, GitHub sync/);
   });
 
-  await t.test('returns custom workspace message without auth available', () => {
-    const message = getGuestModeAlertMessage('custom', false);
-    assert.match(message, /logging sessions locally/);
-    assert.match(message, /Sign-in is not available/);
-  });
+  await t.test(
+    'returns custom workspace message without auth available',
+    () => {
+      const message = getGuestModeAlertMessage('custom', false);
+      assert.match(message, /logging sessions locally/);
+      assert.match(message, /Sign-in is not available/);
+    }
+  );
 
   await t.test('returns demo workspace message with auth available', () => {
     const message = getGuestModeAlertMessage('demo', true);

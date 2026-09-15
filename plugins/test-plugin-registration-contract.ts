@@ -94,57 +94,69 @@ export const testPluginRegistrationContract = (
       runRegistrationAssertions(params);
     });
 
-    await t.test('negative: missing register fails with structured contract error', () => {
-      assert.throws(() => {
-        runRegistrationAssertions({
-          ...params,
-          initPlugin: ({ registerPluginComponent }) => {
-            registerPluginComponent?.(params.componentId, {});
+    await t.test(
+      'negative: missing register fails with structured contract error',
+      () => {
+        assert.throws(
+          () => {
+            runRegistrationAssertions({
+              ...params,
+              initPlugin: ({ registerPluginComponent }) => {
+                registerPluginComponent?.(params.componentId, {});
+              },
+            });
           },
-        });
-      }, (error: unknown) => {
-        assert.ok(error instanceof assert.AssertionError);
-        assert.equal(error.code, 'ERR_ASSERTION');
-        assert.match(String(error.message), /Contract violation: initPlugin must call context\.register/);
-        assert.ok(String(error.message).includes(`[${params.pluginId}]`));
-        return true;
-      });
-    });
+          (error: unknown) => {
+            assert.ok(error instanceof assert.AssertionError);
+            assert.equal(error.code, 'ERR_ASSERTION');
+            assert.match(
+              String(error.message),
+              /Contract violation: initPlugin must call context\.register/
+            );
+            assert.ok(String(error.message).includes(`[${params.pluginId}]`));
+            return true;
+          }
+        );
+      }
+    );
 
     await t.test(
       'negative: missing registerPluginComponent fails with structured contract error',
       () => {
-        assert.throws(() => {
-          runRegistrationAssertions({
-            ...params,
-            initPlugin: ({ register }) => {
-              register?.(params.dashboardExtensionId);
-            },
-          });
-        }, (error: unknown) => {
-          assert.ok(error instanceof assert.AssertionError);
-          assert.equal(error.code, 'ERR_ASSERTION');
-          assert.match(String(error.message), /Contract violation: initPlugin must call context\.registerPluginComponent/);
-          return true;
-        });
+        assert.throws(
+          () => {
+            runRegistrationAssertions({
+              ...params,
+              initPlugin: ({ register }) => {
+                register?.(params.dashboardExtensionId);
+              },
+            });
+          },
+          (error: unknown) => {
+            assert.ok(error instanceof assert.AssertionError);
+            assert.equal(error.code, 'ERR_ASSERTION');
+            assert.match(
+              String(error.message),
+              /Contract violation: initPlugin must call context\.registerPluginComponent/
+            );
+            return true;
+          }
+        );
       }
     );
 
     await t.test('negative: duplicate registration attempt is rejected', () => {
-      assert.throws(
-        () => {
-          runRegistrationAssertions({
-            ...params,
-            initPlugin: ({ register, registerPluginComponent }) => {
-              register?.(params.dashboardExtensionId);
-              register?.(params.dashboardExtensionId);
-              registerPluginComponent?.(params.componentId, {});
-              registerPluginComponent?.(params.componentId, {});
-            },
-          });
-        },
-        /register exactly one dashboard extension id|register exactly one component id/
-      );
+      assert.throws(() => {
+        runRegistrationAssertions({
+          ...params,
+          initPlugin: ({ register, registerPluginComponent }) => {
+            register?.(params.dashboardExtensionId);
+            register?.(params.dashboardExtensionId);
+            registerPluginComponent?.(params.componentId, {});
+            registerPluginComponent?.(params.componentId, {});
+          },
+        });
+      }, /register exactly one dashboard extension id|register exactly one component id/);
     });
   });
 };

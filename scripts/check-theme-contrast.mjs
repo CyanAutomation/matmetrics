@@ -82,7 +82,9 @@ function resolveToken(name, vars, stack = []) {
     throw new Error(`Missing token: --${name}`);
   }
   if (stack.includes(name)) {
-    throw new Error(`Circular token reference: ${[...stack, name].join(' -> ')}`);
+    throw new Error(
+      `Circular token reference: ${[...stack, name].join(' -> ')}`
+    );
   }
 
   const raw = vars.get(name);
@@ -97,7 +99,9 @@ function resolveToken(name, vars, stack = []) {
 }
 
 function parseHslTriplet(value) {
-  const match = value.match(/^(-?\d*\.?\d+)\s+(-?\d*\.?\d+)%\s+(-?\d*\.?\d+)%$/);
+  const match = value.match(
+    /^(-?\d*\.?\d+)\s+(-?\d*\.?\d+)%\s+(-?\d*\.?\d+)%$/
+  );
   if (!match) {
     throw new Error(`Unsupported HSL triplet: ${value}`);
   }
@@ -135,12 +139,22 @@ function toLinear(channel) {
 }
 
 function relativeLuminance(rgb) {
-  return 0.2126 * toLinear(rgb.r) + 0.7152 * toLinear(rgb.g) + 0.0722 * toLinear(rgb.b);
+  return (
+    0.2126 * toLinear(rgb.r) +
+    0.7152 * toLinear(rgb.g) +
+    0.0722 * toLinear(rgb.b)
+  );
 }
 
 function contrastRatio(foreground, background) {
-  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
-  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background)
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background)
+  );
   return (lighter + 0.05) / (darker + 0.05);
 }
 
@@ -195,21 +209,42 @@ for (const [theme, selector] of Object.entries(THEME_SELECTORS)) {
 }
 
 if (outputJson) {
-  console.log(JSON.stringify({ success: failures.length === 0, threshold: REQUIRED_RATIO, reports, failures }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        success: failures.length === 0,
+        threshold: REQUIRED_RATIO,
+        reports,
+        failures,
+      },
+      null,
+      2
+    )
+  );
 } else {
   for (const report of reports) {
     if (report.ok) {
-      console.log(`PASS [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`);
+      console.log(
+        `PASS [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`
+      );
       continue;
     }
     if (report.reason === 'contrast-below-threshold') {
-      console.log(`FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 < ${report.threshold}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`);
+      console.log(
+        `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 < ${report.threshold}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`
+      );
       continue;
     }
-    console.log(`FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.reason}`);
+    console.log(
+      `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.reason}`
+    );
   }
-  console.log(`\nChecked ${reports.length} token pairs across ${Object.keys(THEME_SELECTORS).length} themes.`);
-  console.log('Coverage includes canonical token semantics plus explicitly-declared UI token pairings.');
+  console.log(
+    `\nChecked ${reports.length} token pairs across ${Object.keys(THEME_SELECTORS).length} themes.`
+  );
+  console.log(
+    'Coverage includes canonical token semantics plus explicitly-declared UI token pairings.'
+  );
   if (failures.length) {
     console.log(`${failures.length} failure(s).`);
   } else {

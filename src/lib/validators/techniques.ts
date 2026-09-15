@@ -18,7 +18,10 @@ export function validateTechniques(
     const t = techniques[i];
 
     if (typeof t !== 'string') {
-      return { ok: false, error: `Invalid techniques[${i}]: expected a string` };
+      return {
+        ok: false,
+        error: `Invalid techniques[${i}]: expected a string`,
+      };
     }
 
     const trimmed = t.trim();
