@@ -47,10 +47,7 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config];
 }
 
-type ChartTooltipItem = RechartsPayload<
-  RechartsValueType,
-  RechartsNameType
->;
+type ChartTooltipItem = RechartsPayload<RechartsValueType, RechartsNameType>;
 
 type ChartTooltipContentProps = Omit<
   React.ComponentProps<typeof RechartsPrimitive.Tooltip>,
@@ -106,9 +103,11 @@ function getTooltipLabel(
 
 function renderTooltipLabel(
   value: React.ReactNode,
-  labelFormatter: NonNullable<
-    React.ComponentProps<typeof RechartsPrimitive.Tooltip>['labelFormatter']
-  > | undefined,
+  labelFormatter:
+    | NonNullable<
+        React.ComponentProps<typeof RechartsPrimitive.Tooltip>['labelFormatter']
+      >
+    | undefined,
   payload: ChartTooltipItem[],
   className?: string
 ) {

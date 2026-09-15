@@ -24,7 +24,7 @@ export function getUserInitials(
     // Extract username part before @ and replace dots/underscores with spaces
     nameToProcess = email.split('@')[0].replace(/[._-]/g, ' ');
   }
-  
+
   // If still no name, return the appropriate default initials
   if (!nameToProcess) {
     return isGuest ? 'G' : 'MM';
@@ -44,9 +44,7 @@ export function getUserInitials(
  * @param workspaceSource - Either 'custom' (guest session data) or 'demo' (seeded preview)
  * @returns Human-readable label for the workspace state
  */
-export function getGuestBadgeLabel(
-  workspaceSource: 'custom' | 'demo'
-): string {
+export function getGuestBadgeLabel(workspaceSource: 'custom' | 'demo'): string {
   return workspaceSource === 'custom' ? 'Guest Workspace' : 'Demo Preview';
 }
 
@@ -76,9 +74,7 @@ export function getSyncStatusText(syncStatus: SyncStatus): string {
 export function getGuestWorkspaceDescription(
   workspaceSource: 'custom' | 'demo'
 ): string {
-  return workspaceSource === 'custom'
-    ? 'Local guest data'
-    : 'Demo data loaded';
+  return workspaceSource === 'custom' ? 'Local guest data' : 'Demo data loaded';
 }
 
 /**

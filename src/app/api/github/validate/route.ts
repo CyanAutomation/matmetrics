@@ -8,7 +8,9 @@ import { validateGitHubRoute } from '@/lib/github-route-helpers';
  */
 export async function POST(request: NextRequest) {
   try {
-    const validation = await validateGitHubRoute(request, { parseMode: 'loose' });
+    const validation = await validateGitHubRoute(request, {
+      parseMode: 'loose',
+    });
     if (!validation.ok) {
       return validation.response;
     }

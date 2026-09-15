@@ -51,7 +51,9 @@ function inspectText(
     if (exceptions.some((item) => item.file === file && item.token === token)) {
       continue;
     }
-    const position = sourceFile.getLineAndCharacterOfPosition(start + matchIndex);
+    const position = sourceFile.getLineAndCharacterOfPosition(
+      start + matchIndex
+    );
     diagnostics.push({
       file,
       line: position.line + 1,
@@ -75,27 +77,108 @@ function inspectExpression(
   diagnostics: PluginColorClassDiagnostic[]
 ): void {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    inspectText(node.text, node.getStart(sourceFile) + 1, sourceFile, file, allowedTokens, exceptions, diagnostics);
+    inspectText(
+      node.text,
+      node.getStart(sourceFile) + 1,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      diagnostics
+    );
   } else if (ts.isTemplateExpression(node)) {
-    inspectText(node.head.text, node.head.getStart(sourceFile) + 1, sourceFile, file, allowedTokens, exceptions, diagnostics);
+    inspectText(
+      node.head.text,
+      node.head.getStart(sourceFile) + 1,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      diagnostics
+    );
     for (const span of node.templateSpans) {
-      inspectExpression(span.expression, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
-      inspectText(span.literal.text, span.literal.getStart(sourceFile) + 1, sourceFile, file, allowedTokens, exceptions, diagnostics);
+      inspectExpression(
+        span.expression,
+        sourceFile,
+        file,
+        allowedTokens,
+        exceptions,
+        helpers,
+        diagnostics
+      );
+      inspectText(
+        span.literal.text,
+        span.literal.getStart(sourceFile) + 1,
+        sourceFile,
+        file,
+        allowedTokens,
+        exceptions,
+        diagnostics
+      );
     }
   } else if (ts.isConditionalExpression(node)) {
-    inspectExpression(node.whenTrue, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
-    inspectExpression(node.whenFalse, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+    inspectExpression(
+      node.whenTrue,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    );
+    inspectExpression(
+      node.whenFalse,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    );
   } else if (
     ts.isBinaryExpression(node) &&
     node.operatorToken.kind === ts.SyntaxKind.PlusToken
   ) {
-    inspectExpression(node.left, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
-    inspectExpression(node.right, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+    inspectExpression(
+      node.left,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    );
+    inspectExpression(
+      node.right,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    );
   } else if (ts.isParenthesizedExpression(node)) {
-    inspectExpression(node.expression, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+    inspectExpression(
+      node.expression,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    );
   } else if (ts.isArrayLiteralExpression(node)) {
     node.elements.forEach((element) => {
-      if (ts.isExpression(element)) inspectExpression(element, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+      if (ts.isExpression(element))
+        inspectExpression(
+          element,
+          sourceFile,
+          file,
+          allowedTokens,
+          exceptions,
+          helpers,
+          diagnostics
+        );
     });
   } else if (ts.isObjectLiteralExpression(node)) {
     node.properties.forEach((property) => {
@@ -105,14 +188,26 @@ function inspectExpression(
           ts.isNumericLiteral(property.name) ||
           ts.isNoSubstitutionTemplateLiteral(property.name)
         ) {
-          inspectExpression(property.name, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+          inspectExpression(
+            property.name,
+            sourceFile,
+            file,
+            allowedTokens,
+            exceptions,
+            helpers,
+            diagnostics
+          );
         } else if (ts.isComputedPropertyName(property.name)) {
           // Try to evaluate simple string-concatenation expressions
           const tryEvalToString = (expr: ts.Expression): string | null => {
-            if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+            if (
+              ts.isStringLiteral(expr) ||
+              ts.isNoSubstitutionTemplateLiteral(expr)
+            ) {
               return expr.text;
             }
-            if (ts.isParenthesizedExpression(expr)) return tryEvalToString(expr.expression);
+            if (ts.isParenthesizedExpression(expr))
+              return tryEvalToString(expr.expression);
             if (
               ts.isBinaryExpression(expr) &&
               expr.operatorToken.kind === ts.SyntaxKind.PlusToken
@@ -127,12 +222,36 @@ function inspectExpression(
 
           const evaluated = tryEvalToString(property.name.expression);
           if (evaluated !== null) {
-            inspectText(evaluated, property.name.expression.getStart(sourceFile) + 1, sourceFile, file, allowedTokens, exceptions, diagnostics);
+            inspectText(
+              evaluated,
+              property.name.expression.getStart(sourceFile) + 1,
+              sourceFile,
+              file,
+              allowedTokens,
+              exceptions,
+              diagnostics
+            );
           } else {
-            inspectExpression(property.name.expression, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+            inspectExpression(
+              property.name.expression,
+              sourceFile,
+              file,
+              allowedTokens,
+              exceptions,
+              helpers,
+              diagnostics
+            );
           }
         }
-        inspectExpression(property.initializer, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+        inspectExpression(
+          property.initializer,
+          sourceFile,
+          file,
+          allowedTokens,
+          exceptions,
+          helpers,
+          diagnostics
+        );
       }
     });
   } else if (
@@ -140,7 +259,17 @@ function inspectExpression(
     ts.isIdentifier(node.expression) &&
     helpers.has(node.expression.text)
   ) {
-    node.arguments.forEach((arg) => inspectExpression(arg, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics));
+    node.arguments.forEach((arg) =>
+      inspectExpression(
+        arg,
+        sourceFile,
+        file,
+        allowedTokens,
+        exceptions,
+        helpers,
+        diagnostics
+      )
+    );
   }
 }
 
@@ -176,11 +305,27 @@ function visitAstForClassNames(
       ts.isJsxExpression(node.initializer) &&
       node.initializer.expression
     ) {
-      inspectExpression(node.initializer.expression, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics);
+      inspectExpression(
+        node.initializer.expression,
+        sourceFile,
+        file,
+        allowedTokens,
+        exceptions,
+        helpers,
+        diagnostics
+      );
     }
   }
   ts.forEachChild(node, (child) =>
-    visitAstForClassNames(child, sourceFile, file, allowedTokens, exceptions, helpers, diagnostics)
+    visitAstForClassNames(
+      child,
+      sourceFile,
+      file,
+      allowedTokens,
+      exceptions,
+      helpers,
+      diagnostics
+    )
   );
 }
 
@@ -201,6 +346,14 @@ export function validatePluginColorClasses(
   const exceptions = options.exceptions ?? [];
   const diagnostics: PluginColorClassDiagnostic[] = [];
 
-  visitAstForClassNames(sourceFile, sourceFile, file, options.allowedTokens, exceptions, helpers, diagnostics);
+  visitAstForClassNames(
+    sourceFile,
+    sourceFile,
+    file,
+    options.allowedTokens,
+    exceptions,
+    helpers,
+    diagnostics
+  );
   return diagnostics;
 }

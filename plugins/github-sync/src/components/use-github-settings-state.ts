@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import type { UserPreferences } from '@/lib/types';
-import type { GitHubSyncHistoryData, GitHubSyncSurfaceState } from './github-sync-results';
+import type {
+  GitHubSyncHistoryData,
+  GitHubSyncSurfaceState,
+} from './github-sync-results';
 
 export function useGitHubSettingsState(preferences: UserPreferences) {
   const [owner, setOwner] = useState('');

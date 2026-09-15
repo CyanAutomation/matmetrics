@@ -70,6 +70,23 @@ jobs:
         run: |
           go test -race -coverprofile=coverage.out ./internal/... ./go/... ./api/go/...
           go tool cover -func=coverage.out
+      - name: Upload Go coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: go-coverage-${{ github.sha }}
+          path: coverage.out
+          if-no-files-found: error
+          retention-days: 14
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
 
   workflow-lint:
     runs-on: ubuntu-24.04
@@ -81,7 +98,7 @@ jobs:
           go-version: '1.25.0'
           cache: false
       - name: Lint GitHub Actions workflows
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        run: go run github.com/rhysd/actionlint/cmd/actionlint
 
   release-please:
     name: Release Please

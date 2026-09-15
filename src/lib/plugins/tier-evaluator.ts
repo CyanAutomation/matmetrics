@@ -1,7 +1,4 @@
-import type {
-  PluginMaturityCategory,
-  PluginMaturityTier,
-} from './types';
+import type { PluginMaturityCategory, PluginMaturityTier } from './types';
 
 /**
  * Evaluates plugin maturity tier based on category scores and evidence.
@@ -23,7 +20,10 @@ export class TierEvaluator {
     categoryScores: Record<PluginMaturityCategory, number>,
     evidence?: Record<PluginMaturityCategory, string[]>
   ): PluginMaturityTier {
-    const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
+    const totalScore = Object.values(categoryScores).reduce(
+      (sum, score) => sum + score,
+      0
+    );
 
     // Check Gold tier criteria
     if (this.shouldPromoteToGold(totalScore, categoryScores, evidence)) {

@@ -1415,7 +1415,10 @@ async function scanYearDirectory(
  * Resolve duplicate session matches, throwing error if multiple paths found.
  * Returns the single matching path or null if no matches.
  */
-function resolveDuplicates(matchingPaths: Set<string>, safeId: string): string | null {
+function resolveDuplicates(
+  matchingPaths: Set<string>,
+  safeId: string
+): string | null {
   const uniqueMatches = [...matchingPaths].sort();
   if (uniqueMatches.length === 0) {
     return null;

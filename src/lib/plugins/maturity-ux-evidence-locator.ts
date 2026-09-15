@@ -6,8 +6,10 @@ import { fileExists } from './scoring';
  * Converts an absolute file path to a repo-relative path.
  * Used for display and configuration in manifests.
  */
-export const toRepoRelativePath = (repoRoot: string, filePath: string): string =>
-  path.relative(repoRoot, filePath).split(path.sep).join('/');
+export const toRepoRelativePath = (
+  repoRoot: string,
+  filePath: string
+): string => path.relative(repoRoot, filePath).split(path.sep).join('/');
 
 /**
  * Resolves manifest evidence file paths to absolute file paths.

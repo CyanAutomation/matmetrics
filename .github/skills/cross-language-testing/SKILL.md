@@ -35,14 +35,14 @@ The session shape and markdown format are **frozen**. Changes require updates in
 ```typescript
 // src/lib/types.ts (TypeScript)
 export interface Session {
-  id: string;                          // Alphanumeric + dash/underscore
-  date: string;                        // YYYY-MM-DD format
-  techniques: string[];                // Array of technique names
-  effort: number;                      // 1-5 (integer)
+  id: string; // Alphanumeric + dash/underscore
+  date: string; // YYYY-MM-DD format
+  techniques: string[]; // Array of technique names
+  effort: number; // 1-5 (integer)
   category: 'Technical' | 'Randori' | 'Shiai'; // Enum
-  description: string;                 // Free text
-  notes: string;                       // Free text
-  duration: number;                    // Minutes (integer)
+  description: string; // Free text
+  notes: string; // Free text
+  duration: number; // Minutes (integer)
 }
 ```
 
@@ -182,15 +182,17 @@ describe('Session Validation (Fixture-Driven Parity)', () => {
   fixtures.fixtures.forEach((fixture) => {
     it(`should validate: ${fixture.name}`, () => {
       const result = validateSession(fixture.session);
-      
+
       if (fixture.shouldPass) {
         expect(result.isValid).toBe(true);
         expect(result.errors).toEqual([]);
       } else {
         expect(result.isValid).toBe(false);
-        expect(result.errors.some((err) =>
-          err.message.includes(fixture.expectedErrorMatch)
-        )).toBe(true);
+        expect(
+          result.errors.some((err) =>
+            err.message.includes(fixture.expectedErrorMatch)
+          )
+        ).toBe(true);
       }
     });
   });
@@ -217,7 +219,7 @@ func TestValidateSessionParityFixtures(t *testing.T) {
       ExpectedErrorMatch  string         `json:"expectedErrorMatch"`
     } `json:"fixtures"`
   }
-  
+
   if err := json.Unmarshal(fixtureData, &data); err != nil {
     t.Fatal(err)
   }
@@ -225,7 +227,7 @@ func TestValidateSessionParityFixtures(t *testing.T) {
   for _, fixture := range data.Fixtures {
     t.Run(fixture.Name, func(t *testing.T) {
       err := sessionapi.ValidateSession(&fixture.Session)
-      
+
       if fixture.ShouldPass {
         if err != nil {
           t.Errorf("Expected validation to pass, got error: %v", err)
@@ -235,7 +237,7 @@ func TestValidateSessionParityFixtures(t *testing.T) {
           t.Errorf("Expected validation to fail, but passed")
         }
         if !strings.Contains(err.Error(), fixture.ExpectedErrorMatch) {
-          t.Errorf("Expected error to contain '%s', got: %v", 
+          t.Errorf("Expected error to contain '%s', got: %v",
             fixture.ExpectedErrorMatch, err)
         }
       }
@@ -259,7 +261,7 @@ export async function requireAuthenticatedUser(
   request: Request
 ): Promise<{ uid: string; email?: string }> {
   const token = extractBearerToken(request.headers.get('authorization'));
-  
+
   if (!token) {
     throw new AuthError('Missing authorization header', 401);
   }
@@ -325,7 +327,7 @@ describe('Dual-Mode Authentication', () => {
     const req = new NextRequest('http://localhost/api/sessions', {
       headers: { authorization: 'Bearer test-token' },
     });
-    
+
     const user = await requireAuthenticatedUser(req);
     expect(user.uid).toBe('test-user');
   });
@@ -335,7 +337,7 @@ describe('Dual-Mode Authentication', () => {
     const req = new NextRequest('http://localhost/api/sessions', {
       headers: { authorization: 'Bearer wrong-token' },
     });
-    
+
     expect(() => requireAuthenticatedUser(req)).toThrow('Invalid test token');
   });
 });
@@ -347,13 +349,13 @@ describe('Dual-Mode Authentication', () => {
 func TestDualModeAuth(t *testing.T) {
   t.Run("test mode with valid token", func(t *testing.T) {
     t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
-    
+
     req := &http.Request{
       Header: http.Header{
         "Authorization": []string{"Bearer test-token"},
       },
     }
-    
+
     uid, email, err := httpapi.RequireAuthenticatedUser(req)
     if err != nil {
       t.Fatalf("Expected no error, got: %v", err)
@@ -365,13 +367,13 @@ func TestDualModeAuth(t *testing.T) {
 
   t.Run("test mode with invalid token", func(t *testing.T) {
     t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
-    
+
     req := &http.Request{
       Header: http.Header{
         "Authorization": []string{"Bearer wrong-token"},
       },
     }
-    
+
     _, _, err := httpapi.RequireAuthenticatedUser(req)
     if err == nil {
       t.Fatal("Expected error for invalid token")
@@ -423,7 +425,7 @@ test('should save session to file', async () => {
   await withTempDataDir(async (dataDir) => {
     const session = { id: 'test-1', date: '2026-03-18' };
     await fileStorage.create(session);
-    
+
     const file = fs.readFileSync(
       path.join(dataDir, '2026/03/YYYYMMDD-matmetrics-test-1.md'),
       'utf-8'
@@ -451,7 +453,9 @@ export async function withStoredGitHubConfig(
 }
 
 // In storage code
-export async function getStoredGitHubConfig(): Promise<GitHubConfig | undefined> {
+export async function getStoredGitHubConfig(): Promise<
+  GitHubConfig | undefined
+> {
   // During tests, return injected config
   const testConfig = testConfigStore.getStore();
   if (testConfig) return testConfig;
@@ -467,7 +471,7 @@ test('should route to GitHub when configured', async () => {
     async () => {
       const session = { id: 'test-1', date: '2026-03-18' };
       await sessionStorage.create(session); // Should go to GitHub
-      
+
       expect(mockGitHubAPI.create).toHaveBeenCalled();
     }
   );
@@ -490,7 +494,7 @@ func TestGitHubListSessions(t *testing.T) {
     if req.URL.Path != "/repos/test-owner/test-repo/contents/data" {
       t.Errorf("Unexpected path: %s", req.URL.Path)
     }
-    
+
     body := []byte(`[{"name": "20260318-matmetrics-sess1.md", "type": "file"}]`)
     return &http.Response{
       StatusCode: 200,
@@ -559,7 +563,7 @@ export function validateSession(session: Session): ValidationResult {
     ...validateEffort(session.effort),
     // ... other validations
   ];
-  
+
   return { isValid: allErrors.length === 0, errors: allErrors };
 }
 ```
@@ -582,7 +586,7 @@ func ValidateSession(s *model.Session) error {
   allErrs = append(allErrs, validateDuration(s)...)
   allErrs = append(allErrs, validateEffort(s)...)
   // ... other validations
-  
+
   if len(allErrs) > 0 {
     return fmt.Errorf("validation failed: %s", strings.Join(allErrs, "; "))
   }

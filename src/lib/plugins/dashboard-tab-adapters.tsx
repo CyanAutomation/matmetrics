@@ -9,7 +9,11 @@ import {
 import { type PluginRuntimeWarning } from '@/lib/plugins/types';
 
 export type { DashboardTabRenderer, PluginComponentRegistration };
-export { getDashboardTabRenderer, registerPluginComponent, clearDashboardTabRendererRegistryForTests };
+export {
+  getDashboardTabRenderer,
+  registerPluginComponent,
+  clearDashboardTabRendererRegistryForTests,
+};
 
 export const resolveDashboardTabRenderer = async (
   componentId: string
