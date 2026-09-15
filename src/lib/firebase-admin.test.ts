@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 import { parseServiceAccountKey } from './firebase-admin';
 
@@ -11,6 +12,14 @@ type ParseCase = {
     private_key: string;
   } | null;
 };
+
+test('jwks-rsa utilities load through CommonJS', () => {
+  const requireFromTest = createRequire(import.meta.url);
+
+  assert.doesNotThrow(() => {
+    requireFromTest('jwks-rsa/src/utils');
+  });
+});
 
 test('parseServiceAccountKey table-driven behavior', async (t) => {
   const cases: ParseCase[] = [
