@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import { discoverEnabledDashboardTabExtensions } from '@/lib/plugins/discovery.server';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const extensions = await discoverEnabledDashboardTabExtensions();
+    const user = await requireAuthenticatedUser(request);
+    if (user instanceof NextResponse) return user;
+    const extensions = await discoverEnabledDashboardTabExtensions({ userId: user.uid });
     return NextResponse.json(
       { extensions },
       {

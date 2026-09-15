@@ -1,0 +1,14 @@
+{
+  "name": "matmetrics-data-worker",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply matmetrics-data --local",
+    "migrate:remote": "wrangler d1 migrations apply matmetrics-data --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260914.0",
+    "wrangler": "^4.39.0",
+    "typescript": "^5.0.0"
+  }
+}

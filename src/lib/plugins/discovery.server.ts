@@ -15,6 +15,7 @@ import {
 import { validatePluginManifest } from '@/lib/plugins/validate';
 
 type DiscoveryOptions = {
+  userId?: string;
   pluginsRoot?: string;
   approvedManifestSources?: unknown[];
   enabledOverrides?: PluginEnabledOverrides;
@@ -72,8 +73,8 @@ const discoverValidatedPluginManifests = async (
 ): Promise<PluginManifest[]> => {
   const pluginsRoot = options.pluginsRoot ?? getPluginsRoot();
   const candidates = await loadFilesystemManifestCandidates(pluginsRoot);
-  const enabledOverrides =
-    options.enabledOverrides ?? (await loadPluginEnabledOverrides());
+  const enabledOverrides = options.enabledOverrides ??
+    (options.userId ? await loadPluginEnabledOverrides(options.userId) : {});
 
   return candidates
     .map((candidate) => validatePluginManifest(candidate))

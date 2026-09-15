@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFirebaseAdminDb } from './firebase-admin';
+import { loadStoredPreferences } from './preferences-store.server';
 import { normalizeGitHubConfig } from './session-storage';
 import type { GitHubConfig } from './types';
 
@@ -36,18 +36,8 @@ async function getStoredGitHubConfigForUser(
     return readTestModeGitHubConfig();
   }
 
-  const snapshot = await getFirebaseAdminDb()
-    .collection('users')
-    .doc(uid)
-    .collection('preferences')
-    .doc('app')
-    .get();
-
-  if (!snapshot.exists) {
-    return undefined;
-  }
-
-  const preferences = snapshot.data() as FirebasePreferences;
+  const stored = await loadStoredPreferences(uid);
+  const preferences = stored.preferences as FirebasePreferences | null;
   return normalizeGitHubConfig(preferences?.gitHub?.config);
 }
 

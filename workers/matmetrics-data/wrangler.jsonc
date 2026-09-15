@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "matmetrics-data",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-15",
+  "secrets": { "required": ["MATMETRICS_INTERNAL_API_SECRET"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "matmetrics-data",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
