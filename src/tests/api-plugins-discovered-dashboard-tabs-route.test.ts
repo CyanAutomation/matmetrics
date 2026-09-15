@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { NextRequest } from 'next/server';
 
 // biome-ignore lint/security/noCommonJs: Test runtime exposes Next route modules through CommonJS interop.
 const routeModule =
@@ -13,12 +14,17 @@ const { persistPluginEnabledOverride, resetPluginEnabledOverridesForTests } =
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
+const authenticatedRequest = () =>
+  new NextRequest('http://localhost/api/plugins/discovered-dashboard-tabs', {
+    headers: { authorization: 'Bearer test-token' },
+  });
+
 test.afterEach(() => {
   resetPluginEnabledOverridesForTests();
 });
 
 test('discovered dashboard tabs route is force-dynamic and no-store', async () => {
-  const response = await DISCOVER_DASHBOARD_TABS();
+  const response = await DISCOVER_DASHBOARD_TABS(authenticatedRequest());
 
   assert.equal(dynamic, 'force-dynamic');
   assert.equal(response.status, 200);
@@ -29,7 +35,7 @@ test('discovered dashboard tabs route is force-dynamic and no-store', async () =
 });
 
 test('discovered dashboard tabs route reflects enabled overrides', async () => {
-  const enabledResponse = await DISCOVER_DASHBOARD_TABS();
+  const enabledResponse = await DISCOVER_DASHBOARD_TABS(authenticatedRequest());
   assert.equal(enabledResponse.status, 200);
   const enabledPayload = await enabledResponse.json();
   assert.equal(
@@ -52,9 +58,9 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
     true
   );
 
-  await persistPluginEnabledOverride('tag-manager', false);
+  await persistPluginEnabledOverride('test-user', 'tag-manager', false);
 
-  const disabledResponse = await DISCOVER_DASHBOARD_TABS();
+  const disabledResponse = await DISCOVER_DASHBOARD_TABS(authenticatedRequest());
   assert.equal(disabledResponse.status, 200);
   const disabledPayload = await disabledResponse.json();
   assert.equal(

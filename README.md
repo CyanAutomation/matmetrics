@@ -80,6 +80,10 @@ GITHUB_TOKEN=your_github_token
 # Cloudflare AI Gateway API - Get with: wrangler auth token
 CLOUDFLARE_API_TOKEN=your_cloudflare_token
 
+# Cloudflare D1 preference data Worker (server-only)
+CLOUDFLARE_DATA_WORKER_URL=https://matmetrics-data.example.workers.dev
+MATMETRICS_INTERNAL_API_SECRET=generate-a-long-random-secret
+
 # Firebase client SDK - Firebase console → Project Settings → Your web app
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -120,6 +124,7 @@ Firebase values come from:
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
+- `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.

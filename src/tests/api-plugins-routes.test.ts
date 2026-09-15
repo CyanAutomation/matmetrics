@@ -229,7 +229,7 @@ test('POST /api/plugins/toggle persists enabled override without mutating plugin
     assert.equal(togglePayload.manifest.enabled, false);
     assert.equal(
       togglePayload.fileTreeDiffSummary.files[0].path,
-      'firestore:app/pluginConfig'
+      'd1:user/test-user/pluginConfig'
     );
 
     const listResponse = await LIST(
