@@ -27,7 +27,9 @@ interface UseGitHubSettingsOperationsProps {
   testResult: { success: boolean; message: string } | null;
   onSetIsEnabled: (enabled: boolean) => void;
   onSetIsTesting: (testing: boolean) => void;
-  onSetTestResult: (result: { success: boolean; message: string } | null) => void;
+  onSetTestResult: (
+    result: { success: boolean; message: string } | null
+  ) => void;
   onSetIsSyncing: (syncing: boolean) => void;
   onSetIsDisabling: (disabling: boolean) => void;
   onSetIsClearing: (clearing: boolean) => void;
@@ -158,14 +160,7 @@ export function useGitHubSettingsOperations({
     } finally {
       onSetIsTesting(false);
     }
-  }, [
-    owner,
-    repo,
-    branch,
-    onSetIsTesting,
-    onSetTestResult,
-    toast,
-  ]);
+  }, [owner, repo, branch, onSetIsTesting, onSetTestResult, toast]);
 
   const handleBulkSync = useCallback(async () => {
     if (!user) return;

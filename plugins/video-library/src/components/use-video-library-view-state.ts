@@ -1,8 +1,6 @@
 import { useState } from 'react';
 
-import type {
-  VideoLibraryFilters,
-} from '@/lib/video-library';
+import type { VideoLibraryFilters } from '@/lib/video-library';
 import type {
   VideoLibraryPresentationMode,
   VideoLibrarySortOption,

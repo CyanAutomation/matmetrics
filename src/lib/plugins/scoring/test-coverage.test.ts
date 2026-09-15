@@ -38,7 +38,10 @@ describe('scoreTestCoverage', () => {
 
   it('returns heuristic-evidence score without explicit-evidence bonus', async () => {
     const result = await scoreTestCoverage({
-      testEvidenceFiles: ['src/lib/plugins/foo.spec.ts', 'src/lib/plugins/bar.test.ts'],
+      testEvidenceFiles: [
+        'src/lib/plugins/foo.spec.ts',
+        'src/lib/plugins/bar.test.ts',
+      ],
       testEvidenceSource: 'heuristic',
       missingExplicitTestFiles: [],
       manifest: createManifest(),

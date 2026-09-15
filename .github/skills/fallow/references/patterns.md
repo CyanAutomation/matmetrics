@@ -108,7 +108,7 @@ Parse the JSON to list specific files and exports that became unused.
 ```yaml
 - name: Fallow analysis
   run: npx -y fallow dead-code --ci > fallow.sarif
-  continue-on-error: true  # --ci sets --fail-on-issues; continue to upload SARIF even if issues found
+  continue-on-error: true # --ci sets --fail-on-issues; continue to upload SARIF even if issues found
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -143,7 +143,7 @@ Computes a health score (0-100 with letter grade) in combined mode and enables t
 - uses: fallow-rs/fallow@v2
   with:
     command: audit
-    gate: new-only        # default; fails only on findings introduced by this PR
+    gate: new-only # default; fails only on findings introduced by this PR
     fail-on-issues: true
 ```
 
@@ -174,7 +174,7 @@ The official action supports inline PR annotations via GitHub workflow commands.
     command: dead-code
     changed-since: main
     annotations: true
-    max-annotations: 50   # default: 50, limits annotation count
+    max-annotations: 50 # default: 50, limits annotation count
 ```
 
 Annotations appear as inline warnings on the PR diff. They work with all commands (`dead-code`, `dupes`, `health`, and the default combined mode). The `max-annotations` input prevents annotation flooding on large projects.
@@ -213,8 +213,8 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMAND: "dead-code"
-    FALLOW_FAIL_ON_ISSUES: "true"
+    FALLOW_COMMAND: 'dead-code'
+    FALLOW_FAIL_ON_ISSUES: 'true'
 ```
 
 Generates Code Quality reports (inline MR annotations) automatically. In MR pipelines, `--changed-since` is automatically set to the target branch — no manual configuration needed.
@@ -235,8 +235,8 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMENT: "true"
-    FALLOW_SUMMARY_SCOPE: "diff"
+    FALLOW_COMMENT: 'true'
+    FALLOW_SUMMARY_SCOPE: 'diff'
 ```
 
 Posts a summary comment on the MR with issue counts and findings. In MR pipelines, `--changed-since` is auto-detected from `$CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, so only issues from changed files are reported. `FALLOW_SUMMARY_SCOPE: "diff"` also hides project-level dependency/catalog/override findings whose anchor line is outside the diff. Requires `GITLAB_TOKEN` CI/CD variable (project access token with `api` scope); `CI_JOB_TOKEN` is read-only for MR notes in the official GitLab API.
@@ -250,8 +250,8 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_REVIEW: "true"
-    FALLOW_REVIEW_GUIDANCE: "true"
+    FALLOW_REVIEW: 'true'
+    FALLOW_REVIEW_GUIDANCE: 'true'
 ```
 
 Posts inline review comments directly on the MR diff lines where issues were found. `FALLOW_REVIEW_GUIDANCE: "true"` adds collapsed "What to do" guidance blocks to each inline finding. This gives developers precise feedback without leaving the code review flow. Can be combined with `FALLOW_COMMENT: "true"` for both a summary and inline comments. Requires `GITLAB_TOKEN`.
@@ -265,11 +265,11 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMENT: "true"
-    FALLOW_SUMMARY_SCOPE: "diff"
-    FALLOW_REVIEW: "true"
-    FALLOW_REVIEW_GUIDANCE: "true"
-    FALLOW_FAIL_ON_ISSUES: "true"
+    FALLOW_COMMENT: 'true'
+    FALLOW_SUMMARY_SCOPE: 'diff'
+    FALLOW_REVIEW: 'true'
+    FALLOW_REVIEW_GUIDANCE: 'true'
+    FALLOW_FAIL_ON_ISSUES: 'true'
 ```
 
 Posts both a summary comment and inline review comments on the MR. `FALLOW_SUMMARY_SCOPE: "diff"` only affects the sticky summary; inline review comments remain anchored to diff lines. The template auto-detects the package manager (npm/pnpm/yarn) from lockfiles, so review comments show the correct commands for the project (e.g., `pnpm remove` instead of `npm uninstall`).
@@ -283,9 +283,9 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_SCORE: "true"
-    FALLOW_TREND: "true"
-    FALLOW_COMMENT: "true"
+    FALLOW_SCORE: 'true'
+    FALLOW_TREND: 'true'
+    FALLOW_COMMENT: 'true'
 ```
 
 Computes the health score and compares against saved snapshots. The MR comment includes a health delta header showing score changes. `FALLOW_TREND` implies `FALLOW_SCORE`.
@@ -488,12 +488,12 @@ fallow dupes --format json --quiet
 
 ### Detection mode mapping
 
-| jscpd | fallow |
-| ------- | -------- |
-| Default (exact tokens) | `strict` |
-| — | `mild` (fallow default, syntax normalized) |
-| — | `weak` (literal normalization) |
-| — | `semantic` (variable rename detection) |
+| jscpd                  | fallow                                     |
+| ---------------------- | ------------------------------------------ |
+| Default (exact tokens) | `strict`                                   |
+| —                      | `mild` (fallow default, syntax normalized) |
+| —                      | `weak` (literal normalization)             |
+| —                      | `semantic` (variable rename detection)     |
 
 ---
 
@@ -614,7 +614,7 @@ The export is genuinely unused. Consider removing it or marking it as intentiona
 
 ```typescript
 // fallow-ignore-next-line unused-export
-export const publicApi = createWidget();  // Used by external consumers
+export const publicApi = createWidget(); // Used by external consumers
 ```
 
 ---
@@ -653,9 +653,9 @@ For frameworks not covered by the 118 built-in plugins.
     {
       "name": "my-framework",
       "enablers": ["my-framework"],
-      "entryPoints": ["src/routes/**/*.ts", "src/middleware/**/*.ts"]
-    }
-  ]
+      "entryPoints": ["src/routes/**/*.ts", "src/middleware/**/*.ts"],
+    },
+  ],
 }
 ```
 
@@ -670,9 +670,9 @@ Create `.fallow/plugins/my-framework.jsonc`:
   "entryPoints": ["src/routes/**/*.ts"],
   "alwaysUsedFiles": ["src/bootstrap.ts"],
   "usedExports": {
-    "src/config.ts": ["default"]
+    "src/config.ts": ["default"],
   },
-  "toolingDependencies": ["my-framework-cli"]
+  "toolingDependencies": ["my-framework-cli"],
 }
 ```
 
@@ -681,7 +681,7 @@ Create `.fallow/plugins/my-framework.jsonc`:
 ```jsonc
 // .fallowrc.json
 {
-  "plugins": ["tools/plugins/"]
+  "plugins": ["tools/plugins/"],
 }
 ```
 
@@ -804,4 +804,4 @@ Use `--force` to remove a hook script that the user has edited (the marker is no
 
 ### Distinguish from `fallow hooks install --target git`
 
-`fallow hooks install --target git` is a different target: it scaffolds a shell-level Git pre-commit hook under `.git/hooks/` that runs `fallow` on changed files. That is the *human* enforcement path. `fallow hooks install --target agent` is the *agent* enforcement path, targeting `.claude/` and `AGENTS.md`. Both can live in the same repo: git hooks catch human commits, the agent gate catches agent commits.
+`fallow hooks install --target git` is a different target: it scaffolds a shell-level Git pre-commit hook under `.git/hooks/` that runs `fallow` on changed files. That is the _human_ enforcement path. `fallow hooks install --target agent` is the _agent_ enforcement path, targeting `.claude/` and `AGENTS.md`. Both can live in the same repo: git hooks catch human commits, the agent gate catches agent commits.

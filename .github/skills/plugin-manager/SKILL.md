@@ -409,11 +409,11 @@ MatMetrics gates plugin reviews and releases by maturity tier. Use this workflow
 
 ### Maturity Tiers
 
-| Tier | Test Coverage | Documentation | UI/UX | Release Quality | Timeline |
-|------|---------------|----------------|-------|-----------------|----------|
-| **Bronze** | None | Minimal | Acceptable | Alpha; expect bugs | Internal/experiment |
-| **Silver** | 40%+ | Complete | Polish | Beta; production-ready | Ready to share externally |
-| **Gold** | 80%+ | Exemplary | Excellent | Production; supported | Recommended for all users |
+| Tier       | Test Coverage | Documentation | UI/UX      | Release Quality        | Timeline                  |
+| ---------- | ------------- | ------------- | ---------- | ---------------------- | ------------------------- |
+| **Bronze** | None          | Minimal       | Acceptable | Alpha; expect bugs     | Internal/experiment       |
+| **Silver** | 40%+          | Complete      | Polish     | Beta; production-ready | Ready to share externally |
+| **Gold**   | 80%+          | Exemplary     | Excellent  | Production; supported  | Recommended for all users |
 
 ### Scoring Workflow
 
@@ -441,6 +441,7 @@ MatMetrics gates plugin reviews and releases by maturity tier. Use this workflow
    - Example: [plugins/video-library/src/components/](../../../plugins/video-library/src/components/)
 
 4. **Code Quality** — Run checks:
+
    ```bash
    npm run lint -- plugins/<plugin-id>
    npm run typecheck -- plugins/<plugin-id>
@@ -462,6 +463,7 @@ Plugin maturity scores are tracked in two files:
 **Recording a tier upgrade:**
 
 1. Update `docs/plugin-maturity-scorecards.json`:
+
    ```json
    {
      "pluginId": "prompt-settings",
@@ -478,6 +480,7 @@ Plugin maturity scores are tracked in two files:
    ```
 
 2. Add entry to `docs/plugin-maturity-score-changelog.md`:
+
    ```markdown
    ## 2026-03-10: prompt-settings upgraded to Silver
 
@@ -491,10 +494,12 @@ Plugin maturity scores are tracked in two files:
 Study these plugins to understand maturity tiers:
 
 **Silver Tier (Production-Ready):**
+
 - [plugins/prompt-settings/](../../../plugins/prompt-settings/) — Settings panel with custom instructions
 - [plugins/github-sync/](../../../plugins/github-sync/) — GitHub session sync dashboard
 
 **Bronze Tier (Experimental):**
+
 - [plugins/tag-manager/](../../../plugins/tag-manager/) — Session tagging (early stage)
 - [plugins/log-doctor/](../../../plugins/log-doctor/) — Log analysis (in development)
 

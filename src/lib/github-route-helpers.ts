@@ -75,14 +75,25 @@ export async function validateGitHubRoute(
 
   // Step 4: Build and validate config
   const config: GitHubConfig = {
-    owner: typeof body === 'object' && body && 'owner' in body && typeof body.owner === 'string'
-      ? body.owner.trim()
-      : '',
-    repo: typeof body === 'object' && body && 'repo' in body && typeof body.repo === 'string'
-      ? body.repo.trim()
-      : '',
+    owner:
+      typeof body === 'object' &&
+      body &&
+      'owner' in body &&
+      typeof body.owner === 'string'
+        ? body.owner.trim()
+        : '',
+    repo:
+      typeof body === 'object' &&
+      body &&
+      'repo' in body &&
+      typeof body.repo === 'string'
+        ? body.repo.trim()
+        : '',
     branch:
-      typeof body === 'object' && body && 'branch' in body && typeof body.branch === 'string'
+      typeof body === 'object' &&
+      body &&
+      'branch' in body &&
+      typeof body.branch === 'string'
         ? body.branch.trim()
         : undefined,
   };
@@ -97,7 +108,13 @@ export async function validateGitHubRoute(
     };
   }
 
-  if (body && typeof body === 'object' && 'branch' in body && body.branch !== undefined && !config.branch) {
+  if (
+    body &&
+    typeof body === 'object' &&
+    'branch' in body &&
+    body.branch !== undefined &&
+    !config.branch
+  ) {
     return {
       ok: false,
       response: NextResponse.json(

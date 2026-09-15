@@ -22,11 +22,8 @@ export interface TestCoverageInput {
 export async function scoreTestCoverage(
   input: TestCoverageInput
 ): Promise<CategoryScoringResult> {
-  const {
-    testEvidenceFiles,
-    testEvidenceSource,
-    missingExplicitTestFiles,
-  } = input;
+  const { testEvidenceFiles, testEvidenceSource, missingExplicitTestFiles } =
+    input;
 
   let score = 0;
   const evidence: string[] = [];

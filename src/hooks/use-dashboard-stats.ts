@@ -3,7 +3,11 @@
 import { useMemo } from 'react';
 import { subDays } from 'date-fns';
 import { parseDateOnly } from '@/lib/utils';
-import type { JudoSession, SessionCategory, UserPreferences } from '@/lib/types';
+import type {
+  JudoSession,
+  SessionCategory,
+  UserPreferences,
+} from '@/lib/types';
 
 export interface DashboardStats {
   avgEffort: number;

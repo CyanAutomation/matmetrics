@@ -63,7 +63,7 @@ export async function createSession(
     // Route to GitHub storage
     return await githubStorage.create(session);
   }
-  
+
   // 2. Fall back to local file storage
   return await fileStorage.create(session);
 }
@@ -71,25 +71,26 @@ export async function createSession(
 // Example: List sessions
 export async function listSessions(): Promise<Session[]> {
   const githubConfig = await getStoredGitHubConfig();
-  
+
   if (githubConfig) {
     // Check manifest cache first (30s TTL)
     if (!isManifestCacheStale()) {
       return manifestCache.sessions;
     }
-    
+
     // Fetch manifest from GitHub
     const sessions = await githubStorage.list();
     manifestCache.set(sessions);
     return sessions;
   }
-  
+
   // Fall back to local
   return await fileStorage.list();
 }
 ```
 
 **Key patterns:**
+
 - Single entry point: all reads/writes go through orchestrator
 - Configuration check: `getStoredGitHubConfig()` determines routing
 - Manifest caching: 30s TTL on `list()` operations
@@ -120,11 +121,11 @@ for (const sessionId of sessionIds) {
 
 **Caching Strategy:**
 
-| Cache | TTL | Key | When to Clear |
-|-------|-----|-----|---------------|
-| Manifest | 30s | `owner/repo/token/branch` | On write, on `forceRefresh: true` |
-| Default Branch | 5min | `owner/repo/token` | On branch change, on config update |
-| In-Flight Requests | Lifetime | `(method, url, token)` | Auto (channel closes) |
+| Cache              | TTL      | Key                       | When to Clear                      |
+| ------------------ | -------- | ------------------------- | ---------------------------------- |
+| Manifest           | 30s      | `owner/repo/token/branch` | On write, on `forceRefresh: true`  |
+| Default Branch     | 5min     | `owner/repo/token`        | On branch change, on config update |
+| In-Flight Requests | Lifetime | `(method, url, token)`    | Auto (channel closes)              |
 
 **Example: Manifest Cache Scope**
 
@@ -153,6 +154,7 @@ export function invalidateManifestCache(config: GitHubConfig) {
 ```
 
 **Key patterns:**
+
 - Manifest keyed by owner+repo+token+branch (not global)
 - Default branch cached separately (5min)
 - In-flight deduplication: concurrent identical requests share single fetch
@@ -187,28 +189,30 @@ async function acquireLock(
   const lockDir = path.join('data', '.index', sessionId);
   const lockFile = path.join(lockDir, String(process.pid));
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeoutMs) {
     try {
       // Atomic: create lock file (fails if already exists)
       await fs.promises.mkdir(lockDir, { recursive: true });
       await fs.promises.writeFile(lockFile, '', { flag: 'wx' });
-      
+
       // Clean up stale locks (PIDs that don't exist)
       await cleanStaleLocks(lockDir);
-      
+
       return lockFile;
     } catch (err) {
       if (err instanceof Error && err.message.includes('EEXIST')) {
         // Lock held by another process, retry
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         continue;
       }
       throw err;
     }
   }
-  
-  throw new Error(`Failed to acquire lock for ${sessionId} after ${timeoutMs}ms`);
+
+  throw new Error(
+    `Failed to acquire lock for ${sessionId} after ${timeoutMs}ms`
+  );
 }
 
 async function releaseLock(lockFile: string): Promise<void> {
@@ -226,14 +230,14 @@ async function releaseLock(lockFile: string): Promise<void> {
 // After write, scan for sessions with duplicate IDs
 async function detectDuplicates(dataDir: string): Promise<string[]> {
   const sessions = new Map<string, string[]>(); // sessionId -> [paths]
-  
+
   for await (const [filePath, session] of walkSessions(dataDir)) {
     if (!sessions.has(session.id)) {
       sessions.set(session.id, []);
     }
     sessions.get(session.id)!.push(filePath);
   }
-  
+
   return Array.from(sessions.entries())
     .filter(([_, paths]) => paths.length > 1)
     .map(([id, _]) => id);
@@ -243,12 +247,13 @@ async function detectDuplicates(dataDir: string): Promise<string[]> {
 if (duplicates.length > 0) {
   throw new Error(
     `Duplicate session IDs found: ${duplicates.join(', ')}. ` +
-    `Manual cleanup required in data/ directory.`
+      `Manual cleanup required in data/ directory.`
   );
 }
 ```
 
 **Key patterns:**
+
 - Per-session lock files in `.index/` (not a global lock)
 - Exponential backoff retry (50ms, 100ms, 150ms, ...)
 - Stale lock cleanup (remove PIDs not running)
@@ -277,25 +282,29 @@ async function acquireLease(mutationId: string, ttlMs: number = 45_000) {
     ttl: ttlMs,
     heartbeatInterval: 5_000,
   };
-  
+
   // Store lease in localStorage
   localStorage.setItem(`lease:${mutationId}`, JSON.stringify(lease));
-  
+
   // Heartbeat: extend lease before expiration
   const heartbeat = setInterval(() => {
-    const current = JSON.parse(localStorage.getItem(`lease:${mutationId}`) || '{}');
+    const current = JSON.parse(
+      localStorage.getItem(`lease:${mutationId}`) || '{}'
+    );
     current.acquiredAt = Date.now();
     localStorage.setItem(`lease:${mutationId}`, JSON.stringify(current));
   }, lease.heartbeatInterval);
-  
+
   return { ...lease, cancel: () => clearInterval(heartbeat) };
 }
 
 // Another tab tries to acquire same mutation
 function canAcquireLease(mutationId: string): boolean {
-  const lease = JSON.parse(localStorage.getItem(`lease:${mutationId}`) || 'null');
+  const lease = JSON.parse(
+    localStorage.getItem(`lease:${mutationId}`) || 'null'
+  );
   if (!lease) return true; // No existing lease
-  
+
   // Lease expired (takeover allowed)
   const ageMs = Date.now() - lease.acquiredAt;
   return ageMs > lease.ttl;
@@ -316,11 +325,11 @@ interface SyncQueueEntry {
 
 function enqueue(entry: SyncQueueEntry) {
   // Delete old entry for same session (keep only latest)
-  const existing = queue.find(e => e.sessionId === entry.sessionId);
+  const existing = queue.find((e) => e.sessionId === entry.sessionId);
   if (existing) {
-    queue = queue.filter(e => e.sessionId !== entry.sessionId);
+    queue = queue.filter((e) => e.sessionId !== entry.sessionId);
   }
-  
+
   queue.push(entry);
   persist();
 }
@@ -330,14 +339,14 @@ async function flushQueue() {
   for (const entry of queue) {
     try {
       const lease = await acquireLease(entry.sessionId);
-      
+
       // Retry operation
-      await session-storage[entry.operation](entry.sessionData);
-      
+      (await session) - storage[entry.operation](entry.sessionData);
+
       // Success: remove from queue
-      queue = queue.filter(e => e !== entry);
+      queue = queue.filter((e) => e !== entry);
       persist();
-      
+
       lease.cancel();
     } catch (err) {
       entry.attempts++;
@@ -352,6 +361,7 @@ async function flushQueue() {
 ```
 
 **Key patterns:**
+
 - Lease TTL: 45s default (configurable via env var `NEXT_PUBLIC_SYNC_LEASE_TTL_MS`)
 - Heartbeat: extend lease every 5s (configurable via env var `NEXT_PUBLIC_SYNC_HEARTBEAT_MS`)
 - Deduplication: one entry per session ID (latest operation wins)
@@ -399,16 +409,14 @@ export async function setGitHubConfig(config: GitHubConfig) {
 
 ```typescript
 // Test helper: creates temp dataDir and resets for test
-async function withTempDataDir(
-  run: (dataDir: string) => Promise<void>
-) {
+async function withTempDataDir(run: (dataDir: string) => Promise<void>) {
   const dataDir = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'matmetrics-test-')
   );
-  
+
   // Inject temp dataDir into storage layer
   __setDataDirForTests(dataDir);
-  
+
   try {
     await run(dataDir);
   } finally {
@@ -421,7 +429,7 @@ test('should detect duplicate sessions', async () => {
   await withTempDataDir(async (dataDir) => {
     // Create two sessions with same ID
     await fileStorage.create({ id: 'dup', date: '2026-03-18' });
-    
+
     try {
       await fileStorage.create({ id: 'dup', date: '2026-03-18' });
       fail('Should have thrown duplicate error');
@@ -449,15 +457,15 @@ test('should use manifest cache', async () => {
   const mockGH = mockGitHubAPI({
     'session-1': { path: 'data/2026/03/...', sha: 'abc' },
   });
-  
+
   __setGitHubStorageForTests(mockGH);
-  
+
   // First call: populates cache
   await storageOrchestrator.listSessions();
-  
+
   // Second call: uses cache (no API call)
   await storageOrchestrator.listSessions();
-  
+
   expect(mockGH.list).toHaveBeenCalledTimes(1); // Only called once
 });
 ```
@@ -467,20 +475,20 @@ test('should use manifest cache', async () => {
 ```typescript
 test('should deduplicate mutations', async () => {
   const queue = new SyncQueue();
-  
+
   // Enqueue create, then update for same session
   queue.enqueue({
     sessionId: 'sess-1',
     operation: 'create',
     sessionData: { id: 'sess-1', title: 'Old' },
   });
-  
+
   queue.enqueue({
     sessionId: 'sess-1',
     operation: 'update',
     sessionData: { id: 'sess-1', title: 'New' },
   });
-  
+
   // Queue should have only one entry (the update)
   expect(queue.entries).toHaveLength(1);
   expect(queue.entries[0].operation).toBe('update');
@@ -488,9 +496,9 @@ test('should deduplicate mutations', async () => {
 
 test('should handle lease expiration', async () => {
   const lease = await acquireLease('sess-1', 100); // 100ms TTL
-  
-  await new Promise(resolve => setTimeout(resolve, 150)); // Wait for expiry
-  
+
+  await new Promise((resolve) => setTimeout(resolve, 150)); // Wait for expiry
+
   // Another caller can now take over
   const canTakeover = canAcquireLease('sess-1');
   expect(canTakeover).toBe(true);
@@ -530,7 +538,9 @@ const manifestCache = new Map<ManifestCacheKey, Session[]>();
 // FIX: Enforce 100-char limit BEFORE encoding
 const MAX_SESSION_ID_LEN = 100;
 if (sessionId.length > MAX_SESSION_ID_LEN) {
-  throw new Error(`Session ID too long: ${sessionId.length} > ${MAX_SESSION_ID_LEN}`);
+  throw new Error(
+    `Session ID too long: ${sessionId.length} > ${MAX_SESSION_ID_LEN}`
+  );
 }
 
 const encoded = encodeURIComponent(sessionId); // Now safe to encode
@@ -577,13 +587,15 @@ export async function createSession(session, githubConfig) {
 // RIGHT: Validate config matches stored config
 export async function createSession(session, requestedConfig) {
   const storedConfig = await getStoredGitHubConfig();
-  
-  if (requestedConfig && 
-      (requestedConfig.owner !== storedConfig.owner ||
-       requestedConfig.repo !== storedConfig.repo)) {
+
+  if (
+    requestedConfig &&
+    (requestedConfig.owner !== storedConfig.owner ||
+      requestedConfig.repo !== storedConfig.repo)
+  ) {
     throw new Error('Requested GitHub config does not match stored config');
   }
-  
+
   return githubStorage.create(session, storedConfig);
 }
 ```
@@ -596,7 +608,7 @@ export async function createSession(session, requestedConfig) {
 - [src/lib/github-storage.ts](../../../src/lib/github-storage.ts) — GitHub layer, manifest caching
 - [src/lib/file-storage.ts](../../../src/lib/file-storage.ts) — Local file layer, locking
 - [src/lib/sync-queue.ts](../../../src/lib/sync-queue.ts) — Offline sync queue
-- [src/tests/api-sessions-*.test.ts](../../../src/tests) — Integration tests
+- [src/tests/api-sessions-\*.test.ts](../../../src/tests) — Integration tests
 - [docs/go-contract.md](../../../docs/go-contract.md) — Session shape contract
 
 ## Next Steps

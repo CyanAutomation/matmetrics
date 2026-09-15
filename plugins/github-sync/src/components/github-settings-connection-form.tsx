@@ -99,7 +99,10 @@ export function GitHubSettingsConnectionForm({
               <Button
                 onClick={() => void onSaveConfig()}
                 disabled={
-                  !canUseGitHubSync || !owner || !repo || (isEnabled && !hasConnectionChanges)
+                  !canUseGitHubSync ||
+                  !owner ||
+                  !repo ||
+                  (isEnabled && !hasConnectionChanges)
                 }
               >
                 {isEnabled ? 'Save changes' : 'Connect repository'}

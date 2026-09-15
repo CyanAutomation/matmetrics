@@ -37,7 +37,10 @@ Rules:
   try {
     // Try to parse the entire response as JSON first
     const parsed = JSON.parse(response);
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === 'string')
+    ) {
       return parsed;
     }
   } catch {
@@ -46,7 +49,10 @@ Rules:
     if (jsonMatch) {
       try {
         const extracted = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(extracted) && extracted.every((item) => typeof item === 'string')) {
+        if (
+          Array.isArray(extracted) &&
+          extracted.every((item) => typeof item === 'string')
+        ) {
           return extracted;
         }
       } catch {
@@ -54,7 +60,7 @@ Rules:
       }
     }
   }
-  
+
   return [];
 }
 

@@ -2,7 +2,7 @@
  * Parses API responses from log-doctor endpoints.
  * Handles JSON parsing, error extraction, and consistent error formatting.
  */
-export const parseLogDoctorApiResponse = async <T,>(
+export const parseLogDoctorApiResponse = async <T>(
   response: Response
 ): Promise<T> => {
   const statusLabel = `HTTP ${response.status}`;

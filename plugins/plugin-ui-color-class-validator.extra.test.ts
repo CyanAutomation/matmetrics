@@ -9,9 +9,13 @@ test('validator evaluates nested binary concatenation inside computed property n
     );
   `;
 
-  const diagnostics = validatePluginColorClasses(source, 'nested-computed.tsx', {
-    allowedTokens: new Set(),
-  });
+  const diagnostics = validatePluginColorClasses(
+    source,
+    'nested-computed.tsx',
+    {
+      allowedTokens: new Set(),
+    }
+  );
 
   const tokens = diagnostics.map((d) => d.token);
   assert.ok(tokens.includes('text-pink-500'));

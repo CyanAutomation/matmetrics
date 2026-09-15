@@ -34,14 +34,14 @@ Tests use Node's native `--test` runner (not Jest); test files are `*.test.ts` c
 
 MatMetrics is a Judo training session tracker with a **dual-language full-stack**:
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15 + React 19 + TypeScript + Tailwind + Radix UI |
-| API | Next.js route handlers in `src/app/api/` |
-| CLI + Go API | Go in `go/cmd/` and `internal/` |
-| Storage | GitHub markdown (primary), local `data/` markdown (fallback), Firebase Firestore (user prefs) |
-| AI | Cloudflare AI Gateway with `dynamic/matmetrics` model routing |
-| Auth | Firebase Auth (client) + Firebase Admin SDK (server) |
+| Layer        | Technology                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| Frontend     | Next.js 15 + React 19 + TypeScript + Tailwind + Radix UI                                      |
+| API          | Next.js route handlers in `src/app/api/`                                                      |
+| CLI + Go API | Go in `go/cmd/` and `internal/`                                                               |
+| Storage      | GitHub markdown (primary), local `data/` markdown (fallback), Firebase Firestore (user prefs) |
+| AI           | Cloudflare AI Gateway with `dynamic/matmetrics` model routing                                 |
+| Auth         | Firebase Auth (client) + Firebase Admin SDK (server)                                          |
 
 ### Storage Layers
 

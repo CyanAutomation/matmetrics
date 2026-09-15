@@ -9,8 +9,14 @@ import type {
  */
 export class EvidenceAccumulator {
   private categoryScores: Record<PluginMaturityCategory, number>;
-  private evidence: Record<PluginMaturityCategory, string[]> = {} as Record<PluginMaturityCategory, string[]>;
-  private reasons: Record<PluginMaturityCategory, string> = {} as Record<PluginMaturityCategory, string>;
+  private evidence: Record<PluginMaturityCategory, string[]> = {} as Record<
+    PluginMaturityCategory,
+    string[]
+  >;
+  private reasons: Record<PluginMaturityCategory, string> = {} as Record<
+    PluginMaturityCategory,
+    string
+  >;
   private nextActions: string[] = [];
 
   constructor() {
@@ -75,9 +81,14 @@ export class EvidenceAccumulator {
    * Get current evidence entries
    */
   getEvidence(): Record<PluginMaturityCategory, string[]> {
-    const result: Record<PluginMaturityCategory, string[]> = {} as Record<PluginMaturityCategory, string[]>;
+    const result: Record<PluginMaturityCategory, string[]> = {} as Record<
+      PluginMaturityCategory,
+      string[]
+    >;
     for (const category in this.evidence) {
-      result[category as PluginMaturityCategory] = [...this.evidence[category as PluginMaturityCategory]];
+      result[category as PluginMaturityCategory] = [
+        ...this.evidence[category as PluginMaturityCategory],
+      ];
     }
     return result;
   }
@@ -86,9 +97,13 @@ export class EvidenceAccumulator {
    * Get current reasons
    */
   getReasons(): Record<PluginMaturityCategory, string> {
-    const result: Record<PluginMaturityCategory, string> = {} as Record<PluginMaturityCategory, string>;
+    const result: Record<PluginMaturityCategory, string> = {} as Record<
+      PluginMaturityCategory,
+      string
+    >;
     for (const category in this.reasons) {
-      result[category as PluginMaturityCategory] = this.reasons[category as PluginMaturityCategory];
+      result[category as PluginMaturityCategory] =
+        this.reasons[category as PluginMaturityCategory];
     }
     return result;
   }
@@ -104,7 +119,10 @@ export class EvidenceAccumulator {
    * Calculate total score from all category scores
    */
   getTotalScore(): number {
-    return Object.values(this.categoryScores).reduce((sum, score) => sum + score, 0);
+    return Object.values(this.categoryScores).reduce(
+      (sum, score) => sum + score,
+      0
+    );
   }
 
   /**

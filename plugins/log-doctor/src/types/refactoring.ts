@@ -3,7 +3,10 @@
  * These types help decompose the monolithic component into focused subcomponents.
  */
 
-import type { AuditSessionResult, DiagnosticsSnapshot } from '../components/log-doctor-state';
+import type {
+  AuditSessionResult,
+  DiagnosticsSnapshot,
+} from '../components/log-doctor-state';
 
 export type FileValidationState = {
   owner: string;

@@ -2,7 +2,11 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Trash2 } from 'lucide-react';
 import { PluginFormSection } from '@/components/plugins/plugin-kit';
-import { PluginActionRow, PluginActionDestructive, PluginActionTrailing } from '@/components/plugins/plugin-action-row';
+import {
+  PluginActionRow,
+  PluginActionDestructive,
+  PluginActionTrailing,
+} from '@/components/plugins/plugin-action-row';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 
 type Props = {
@@ -22,7 +26,9 @@ export function GitHubSettingsDangerZone({
 }: Props) {
   return (
     <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
-      <summary className="cursor-pointer text-sm font-semibold text-destructive">Danger zone</summary>
+      <summary className="cursor-pointer text-sm font-semibold text-destructive">
+        Danger zone
+      </summary>
       <div className="mt-4">
         <PluginFormSection
           title="Danger zone"
@@ -37,7 +43,9 @@ export function GitHubSettingsDangerZone({
                   variant="outline"
                   className={`gap-2 ${getPluginUiTokenClassNames('action.destructive')}`}
                 >
-                  {isDisabling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isDisabling ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
                   {isDisabling ? controlState?.disableLabel : 'Disable sync'}
                 </Button>
               </PluginActionDestructive>
