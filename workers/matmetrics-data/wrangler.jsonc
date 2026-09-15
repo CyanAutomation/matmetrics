@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "matmetrics-data",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c",
       "migrations_dir": "migrations"
     }
   ]
