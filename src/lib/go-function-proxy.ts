@@ -146,10 +146,12 @@ export function buildGitHubSessionBody(
 
 export function buildGitHubDeleteBody(
   id: string,
-  config: GitHubConfig
+  config: GitHubConfig,
+  revisionSha?: string
 ): Record<string, unknown> {
   return {
     id,
     config,
+    ...(revisionSha ? { revisionSha } : {}),
   };
 }
