@@ -4,6 +4,21 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.10.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.5...nextn-v1.10.0) (2026-09-15)
+
+
+### Features
+
+* add Cloudflare D1 preference data path ([b233b6a](https://github.com/CyanAutomation/matmetrics/commit/b233b6a9480618ce15158062c049122b96480fba))
+* add Cloudflare D1 preference data path ([#742](https://github.com/CyanAutomation/matmetrics/issues/742)) ([fa8ec3f](https://github.com/CyanAutomation/matmetrics/commit/fa8ec3f7ed44eba6df27f39dba7fa297f3c47314))
+
+
+### Bug Fixes
+
+* persist D1 preference updates ([3929ff9](https://github.com/CyanAutomation/matmetrics/commit/3929ff9f3c2419c36ea25e9c0d263c395d7a7c1e))
+* persist D1 preference updates ([#743](https://github.com/CyanAutomation/matmetrics/issues/743)) ([ee2e53c](https://github.com/CyanAutomation/matmetrics/commit/ee2e53c6c776fc56cea3b10327425100a240da81))
+* pin jose for CommonJS Firebase auth ([1be7df5](https://github.com/CyanAutomation/matmetrics/commit/1be7df587719d5ebf1e603ef6c5a49f1aaa1f2df))
+
 ## [1.9.5](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.4...nextn-v1.9.5) (2026-09-13)
 
 ### Bug Fixes
