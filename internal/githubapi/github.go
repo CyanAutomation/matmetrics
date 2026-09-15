@@ -515,12 +515,51 @@ func (c *Client) CreateSession(config model.GitHubConfig, session model.Session)
 		return nil, err
 	}
 
-	outcome, err := c.upsertSession(config, branch, session)
+	filePath, err := SessionGitHubPath(session)
 	if err != nil {
 		return nil, err
 	}
-	if outcome != "pushed" && outcome != "skipped" {
-		return nil, fmt.Errorf("unexpected create outcome %q", outcome)
+	rendered, err := markdown.SessionToMarkdown(session)
+	if err != nil {
+		return nil, err
+	}
+
+	existingPaths, err := c.findSessionPathsOnGitHubByID(config, branch, session.ID)
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(existingPaths, filePath) {
+		if _, _, err := c.getFile(config, filePath, branch); err == nil {
+			existingPaths = append(existingPaths, filePath)
+		} else if apiErr, ok := err.(*gitHubAPIError); !ok || apiErr.Status != http.StatusNotFound {
+			return nil, err
+		}
+	}
+
+	for _, existingPath := range existingPaths {
+		_, existingContent, err := c.getFile(config, existingPath, branch)
+		if err != nil {
+			return nil, err
+		}
+		existingSession, err := markdown.MarkdownToSession(existingContent)
+		if err == nil {
+			existingContent, err = markdown.SessionToMarkdown(existingSession)
+		}
+		if err != nil || existingContent != rendered {
+			return nil, CreateConflictError{Path: existingPath}
+		}
+	}
+	if len(existingPaths) > 0 {
+		return &session, nil
+	}
+
+	body := map[string]any{
+		"message": fmt.Sprintf("Create session: %s", session.Date),
+		"content": base64.StdEncoding.EncodeToString([]byte(rendered)),
+		"branch":  branch,
+	}
+	if _, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body); err != nil {
+		return nil, err
 	}
 	c.invalidateListSessionsCache(config, branch)
 
@@ -545,6 +584,15 @@ func (c *Client) UpdateSession(config model.GitHubConfig, session model.Session)
 type RevisionConflictError struct{}
 
 func (RevisionConflictError) Error() string { return "session has a newer remote revision" }
+
+// CreateConflictError indicates that a session ID already exists with different content.
+type CreateConflictError struct {
+	Path string
+}
+
+func (e CreateConflictError) Error() string {
+	return fmt.Sprintf("session already exists with different content at %s", e.Path)
+}
 
 func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) error {
 	branch, err := c.resolveBranch(config)
@@ -604,9 +652,20 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 		return "", "", err
 	}
 
-	suffixIDs, err := storage.SessionIDPathSuffixCandidates(sessionID)
+	paths, err := c.findSessionPathsOnGitHubByID(config, branch, sessionID)
 	if err != nil {
 		return "", "", err
+	}
+	if len(paths) == 0 {
+		return "", branch, nil
+	}
+	return paths[0], branch, nil
+}
+
+func (c *Client) findSessionPathsOnGitHubByID(config model.GitHubConfig, branch, sessionID string) ([]string, error) {
+	suffixIDs, err := storage.SessionIDPathSuffixCandidates(sessionID)
+	if err != nil {
+		return nil, err
 	}
 
 	suffixes := make([]string, 0, len(suffixIDs))
@@ -616,21 +675,23 @@ func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionI
 
 	entries, err := c.getTreeEntriesForPath(config, branch, gitHubSessionRoot)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
+	paths := make([]string, 0)
 	for _, entry := range entries {
 		if entry.Type != "blob" {
 			continue
 		}
 		for _, suffix := range suffixes {
 			if strings.HasSuffix(entry.Path, suffix) {
-				return entry.Path, branch, nil
+				paths = append(paths, entry.Path)
+				break
 			}
 		}
 	}
 
-	return "", branch, nil
+	return paths, nil
 }
 
 func (c *Client) listGitHubSessionPaths(config model.GitHubConfig, branch string) ([]string, error) {
