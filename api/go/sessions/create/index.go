@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"matmetrics/pkg/githubapi"
@@ -46,6 +47,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	session, err := client.CreateSession(request.Config, request.Session)
 	if err != nil {
+		var conflict githubapi.CreateConflictError
+		if errors.As(err, &conflict) {
+			httpapi.WriteError(w, http.StatusConflict, conflict.Error())
+			return
+		}
 		httpapi.WriteError(w, http.StatusInternalServerError, "Failed to create session")
 		return
 	}

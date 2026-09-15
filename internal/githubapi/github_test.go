@@ -3,6 +3,7 @@ package githubapi
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -258,6 +259,104 @@ func TestCreateSessionInvalidatesListSessionsCache(t *testing.T) {
 
 	if treeRequests != 3 {
 		t.Fatalf("expected cache invalidation plus create path lookup to issue three tree requests, got %d", treeRequests)
+	}
+}
+
+func TestCreateSessionIdenticalRetryIsIdempotent(t *testing.T) {
+	resetListSessionsCacheForTests()
+	session := model.Session{ID: "session-1", Date: "2026-03-18", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{"Uchi mata"}}
+	rendered, err := markdown.SessionToMarkdown(session)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+	filePath, err := SessionGitHubPath(session)
+	if err != nil {
+		t.Fatalf("SessionGitHubPath() error = %v", err)
+	}
+
+	putCount := 0
+	client := createTestClientWithExistingSession(t, filePath, rendered, &putCount)
+	got, err := client.CreateSession(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, session)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if got.ID != session.ID || putCount != 0 {
+		t.Fatalf("CreateSession() = %#v, PUT count = %d", got, putCount)
+	}
+}
+
+func TestCreateSessionConflictsAtExpectedPath(t *testing.T) {
+	resetListSessionsCacheForTests()
+	session := model.Session{ID: "session-1", Date: "2026-03-18", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{"Uchi mata"}}
+	existing := session
+	existing.Notes = "different"
+	rendered, err := markdown.SessionToMarkdown(existing)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+	filePath, err := SessionGitHubPath(session)
+	if err != nil {
+		t.Fatalf("SessionGitHubPath() error = %v", err)
+	}
+
+	putCount := 0
+	client := createTestClientWithExistingSession(t, filePath, rendered, &putCount)
+	_, err = client.CreateSession(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, session)
+	if _, ok := err.(CreateConflictError); !ok {
+		t.Fatalf("CreateSession() error = %T %v, want CreateConflictError", err, err)
+	}
+	if putCount != 0 {
+		t.Fatalf("PUT count = %d, want 0", putCount)
+	}
+}
+
+func TestCreateSessionFindsSameIDAtLegacyPath(t *testing.T) {
+	resetListSessionsCacheForTests()
+	session := model.Session{ID: "session-1", Date: "2026-03-18", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{"Uchi mata"}}
+	existing := session
+	existing.Date = "2025-12-31"
+	rendered, err := markdown.SessionToMarkdown(existing)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown() error = %v", err)
+	}
+	legacyPath := "data/2025/12/20251231-matmetrics-session-1.md"
+
+	putCount := 0
+	client := createTestClientWithExistingSession(t, legacyPath, rendered, &putCount)
+	_, err = client.CreateSession(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, session)
+	var conflict CreateConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("CreateSession() error = %T %v, want CreateConflictError", err, err)
+	}
+	if conflict.Path != legacyPath || putCount != 0 {
+		t.Fatalf("conflict = %#v, PUT count = %d", conflict, putCount)
+	}
+}
+
+func createTestClientWithExistingSession(t *testing.T, existingPath, content string, putCount *int) *Client {
+	t.Helper()
+	return &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"truncated": false, "tree": []map[string]string{{"path": existingPath, "type": "blob"}}}), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"+existingPath):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-existing", "content": base64.StdEncoding.EncodeToString([]byte(content))}), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			case r.Method == http.MethodPut:
+				*putCount++
+				return jsonResponse(http.StatusOK, `{}`), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
 	}
 }
 
