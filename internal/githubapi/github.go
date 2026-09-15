@@ -211,7 +211,7 @@ func (c *Client) SyncAll(config model.GitHubConfig, sessions []model.Session) (S
 	}
 
 	for _, session := range sessions {
-		outcome, err := c.upsertSession(config, branch, session)
+		outcome, _, err := c.upsertSession(config, branch, session)
 		if err != nil {
 			result.Success = false
 			result.Failed++
@@ -536,8 +536,9 @@ func (c *Client) CreateSession(config model.GitHubConfig, session model.Session)
 		}
 	}
 
+	var existingSHA string
 	for _, existingPath := range existingPaths {
-		_, existingContent, err := c.getFile(config, existingPath, branch)
+		sha, existingContent, err := c.getFile(config, existingPath, branch)
 		if err != nil {
 			return nil, err
 		}
@@ -548,8 +549,10 @@ func (c *Client) CreateSession(config model.GitHubConfig, session model.Session)
 		if err != nil || existingContent != rendered {
 			return nil, CreateConflictError{Path: existingPath}
 		}
+		existingSHA = sha
 	}
 	if len(existingPaths) > 0 {
+		session.RevisionSHA = existingSHA
 		return &session, nil
 	}
 
@@ -558,9 +561,15 @@ func (c *Client) CreateSession(config model.GitHubConfig, session model.Session)
 		"content": base64.StdEncoding.EncodeToString([]byte(rendered)),
 		"branch":  branch,
 	}
-	if _, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body); err != nil {
+	payload, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body)
+	if err != nil {
 		return nil, err
 	}
+	sha, err := parseContentSHA(payload)
+	if err != nil {
+		return nil, err
+	}
+	session.RevisionSHA = sha
 	c.invalidateListSessionsCache(config, branch)
 
 	return &session, nil
@@ -572,9 +581,11 @@ func (c *Client) UpdateSession(config model.GitHubConfig, session model.Session)
 		return nil, err
 	}
 
-	if _, err := c.upsertSession(config, branch, session); err != nil {
+	_, sha, err := c.upsertSession(config, branch, session)
+	if err != nil {
 		return nil, err
 	}
+	session.RevisionSHA = sha
 	c.invalidateListSessionsCache(config, branch)
 
 	return &session, nil
@@ -809,15 +820,15 @@ func (c *Client) listTreeEntriesFromContentsAPI(config model.GitHubConfig, branc
 	return entries, nil
 }
 
-func (c *Client) upsertSession(config model.GitHubConfig, branch string, session model.Session) (string, error) {
+func (c *Client) upsertSession(config model.GitHubConfig, branch string, session model.Session) (string, string, error) {
 	filePath, err := SessionGitHubPath(session)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	rendered, err := markdown.SessionToMarkdown(session)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	existingPath := filePath
@@ -827,21 +838,21 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 			existingSHA = ""
 			existingContent = ""
 		} else {
-			return "", err
+			return "", "", err
 		}
 	}
 
 	if existingSHA == "" {
 		discoveredPath, _, err := c.findSessionPathOnGitHubByID(config, session.ID)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if discoveredPath != "" && discoveredPath != filePath {
 			existingPath = discoveredPath
 			existingSHA, existingContent, err = c.getFile(config, discoveredPath, branch)
 			if err != nil {
 				if apiErr, ok := err.(*gitHubAPIError); !ok || apiErr.Status != http.StatusNotFound {
-					return "", err
+					return "", "", err
 				}
 				existingSHA = ""
 				existingContent = ""
@@ -850,10 +861,10 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 	}
 
 	if existingSHA != "" && existingContent == rendered && existingPath == filePath {
-		return "skipped", nil
+		return "skipped", existingSHA, nil
 	}
 	if session.RevisionSHA != "" && existingSHA != session.RevisionSHA {
-		return "", RevisionConflictError{}
+		return "", "", RevisionConflictError{}
 	}
 
 	body := map[string]any{
@@ -865,9 +876,13 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 		body["sha"] = existingSHA
 	}
 
-	_, err = c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body)
+	payload, err := c.apiRequest(http.MethodPut, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(filePath)), body)
 	if err != nil {
-		return "", err
+		return "", "", err
+	}
+	resultingSHA, err := parseContentSHA(payload)
+	if err != nil {
+		return "", "", err
 	}
 
 	if existingSHA != "" && existingPath != filePath {
@@ -877,11 +892,26 @@ func (c *Client) upsertSession(config model.GitHubConfig, branch string, session
 			"sha":     existingSHA,
 		})
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 
-	return "pushed", nil
+	return "pushed", resultingSHA, nil
+}
+
+func parseContentSHA(payload []byte) (string, error) {
+	var response struct {
+		Content struct {
+			SHA string `json:"sha"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(payload, &response); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(response.Content.SHA) == "" {
+		return "", fmt.Errorf("GitHub contents response missing content SHA")
+	}
+	return response.Content.SHA, nil
 }
 
 func (c *Client) getFile(config model.GitHubConfig, filePath string, branch string) (sha string, content string, err error) {
