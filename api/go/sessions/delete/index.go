@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -10,9 +11,12 @@ import (
 )
 
 type deleteRequest struct {
-	ID     string             `json:"id"`
-	Config model.GitHubConfig `json:"config"`
+	ID          string             `json:"id"`
+	RevisionSHA string             `json:"revisionSha"`
+	Config      model.GitHubConfig `json:"config"`
 }
+
+var newGitHubClient = githubapi.NewClientFromEnv
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -41,13 +45,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := githubapi.NewClientFromEnv()
+	client, err := newGitHubClient()
 	if err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := client.DeleteSessionByID(request.Config, request.ID); err != nil {
+	if err := client.DeleteSessionByID(request.Config, request.ID, strings.TrimSpace(request.RevisionSHA)); err != nil {
+		var conflict githubapi.RevisionConflictError
+		if errors.As(err, &conflict) {
+			httpapi.WriteError(w, http.StatusConflict, conflict.Error())
+			return
+		}
 		httpapi.WriteError(w, http.StatusInternalServerError, "Failed to delete session")
 		return
 	}

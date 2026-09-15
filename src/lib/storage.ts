@@ -573,6 +573,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
 
   // Update local cache immediately
   const base = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
+  const revisionSha = base.find((session) => session.id === id)?.revisionSha;
   const filtered = base.filter((s) => s.id !== id);
   commitLocalSessions(filtered);
   if (guestMode) {
@@ -585,6 +586,9 @@ export async function deleteSession(id: string): Promise<MutationResult> {
     // Send to API with GitHub config if available
     const gitHubConfig = getGitHubConfig();
     const requestBody: any = {};
+    if (revisionSha) {
+      requestBody.revisionSha = revisionSha;
+    }
     if (gitHubConfig && isGitHubEnabled()) {
       requestBody.gitHubConfig = gitHubConfig;
     }
@@ -605,7 +609,8 @@ export async function deleteSession(id: string): Promise<MutationResult> {
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'DELETE', id, queuedAt: version }),
+        () =>
+          queueOperation({ type: 'DELETE', id, revisionSha, queuedAt: version }),
         id,
         version
       );
@@ -620,7 +625,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   }
 
   // Offline: queue the operation
-  await queueOperation({ type: 'DELETE', id, queuedAt: version });
+  await queueOperation({ type: 'DELETE', id, revisionSha, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -1004,7 +1009,9 @@ function buildOperationRequestBody(
       Object.assign(body, operation.session);
       break;
     case 'DELETE':
-      // DELETE operations don't include body for session data
+      if (operation.revisionSha) {
+        body.revisionSha = operation.revisionSha;
+      }
       break;
   }
 

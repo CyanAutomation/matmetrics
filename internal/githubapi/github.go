@@ -594,7 +594,7 @@ func (e CreateConflictError) Error() string {
 	return fmt.Sprintf("session already exists with different content at %s", e.Path)
 }
 
-func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) error {
+func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID, expectedRevision string) error {
 	branch, err := c.resolveBranch(config)
 	if err != nil {
 		return err
@@ -614,6 +614,9 @@ func (c *Client) DeleteSessionByID(config model.GitHubConfig, sessionID string) 
 			return nil
 		}
 		return err
+	}
+	if expectedRevision != "" && sha != expectedRevision {
+		return RevisionConflictError{}
 	}
 
 	_, err = c.apiRequest(http.MethodDelete, fmt.Sprintf("/repos/%s/%s/contents/%s", config.Owner, config.Repo, encodePathSegments(path)), map[string]any{

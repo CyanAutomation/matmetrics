@@ -1133,7 +1133,8 @@ export async function updateSessionOnGitHub(
  */
 export async function deleteSessionOnGitHubById(
   sessionId: string,
-  config: GitHubConfig
+  config: GitHubConfig,
+  expectedRevision?: string
 ): Promise<GitHubSyncResult> {
   try {
     const branch = await resolveBranch(config);
@@ -1155,6 +1156,14 @@ export async function deleteSessionOnGitHubById(
       return {
         success: true,
         message: 'Session not found on GitHub (already deleted)',
+      };
+    }
+
+    if (expectedRevision && sha !== expectedRevision) {
+      return {
+        success: false,
+        message: 'session has a newer remote revision',
+        errorType: 'conflict',
       };
     }
 
