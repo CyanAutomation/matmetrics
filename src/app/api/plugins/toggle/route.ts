@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await persistPluginEnabledOverride(pluginId, enabled);
+    await persistPluginEnabledOverride(authResult.uid, pluginId, enabled);
 
     return NextResponse.json(
       {
@@ -121,13 +121,13 @@ export async function POST(request: NextRequest) {
             mode: 'applied',
             files: [
               {
-                path: 'firestore:app/pluginConfig',
+                path: `d1:user/${authResult.uid}/pluginConfig`,
                 changeType: 'modified',
               },
             ],
           },
           assumptions: [
-            'Toggle mutations are persisted as Firebase-backed enabled overrides.',
+            'Toggle mutations are persisted as per-user enabled overrides.',
           ],
         }),
       },
