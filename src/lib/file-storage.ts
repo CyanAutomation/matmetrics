@@ -13,6 +13,9 @@ const SESSION_INDEX_MAX_BACKOFF_MS = 250;
 // Unknown PID liveness locks are only reclaimed after this safety timeout.
 // Active PID locks are never reclaimed by age alone.
 const SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+const DELETE_LOCK_RETRY_TIMEOUT_MS = 1000;
+const DELETE_LOCK_INITIAL_BACKOFF_MS = 10;
+const DELETE_LOCK_MAX_BACKOFF_MS = 100;
 const YEAR_DIR_PATTERN = /^\d{4}$/;
 const MONTH_DIR_PATTERN = /^(0[1-9]|1[0-2])$/;
 
@@ -1180,52 +1183,71 @@ export async function deleteSession(id: string): Promise<void> {
 
   // The delete operation must participate in the same path‑locking protocol
   // as updateSession to avoid the delete‑vs‑update race.
-  const MAX_ATTEMPTS = 5;
+  const retryDeadline = Date.now() + DELETE_LOCK_RETRY_TIMEOUT_MS;
+  let backoffMs = DELETE_LOCK_INITIAL_BACKOFF_MS;
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+  while (true) {
     // Re‑resolve the current path in case it moved between attempts.
     const currentPath = await findSessionFileById(id);
     if (!currentPath) {
       // Session already vanished – clean up the index if needed and exit.
-      try {
-        await removeSessionIndex(id);
-      } catch {
-        // ignore index cleanup errors when the session is gone
-      }
+      await removeSessionIndex(id);
       return;
     }
 
-    // Acquire the same lock used by updateSession for the target path.
-    const releaseLock = await acquireSessionUpdateLocks(id, [currentPath]);
+    let releaseLock: (() => Promise<void>) | null = null;
+    let shouldRetry = false;
     try {
+      // Lock acquisition is retryable because a date-changing update can move
+      // the session before releasing the lock on its former path.
+      releaseLock = await acquireSessionUpdateLocks(id, [currentPath]);
+
       // Verify the path hasn't changed while we were waiting for the lock.
       const confirmedPath = await findSessionFileById(id);
       if (confirmedPath !== currentPath) {
         // Path changed – retry under a fresh lock.
-        continue;
+        shouldRetry = true;
+      } else {
+        // Perform the delete while holding the lock.
+        await fs.unlink(await ensureExistingPathWithinDataDir(currentPath));
+        // Remove the index entry atomically with the lock held.
+        await removeSessionIndex(id);
+        return; // success
+      }
+    } catch (error) {
+      if (
+        !(error instanceof SessionUpdateConflictError) &&
+        (error as NodeJS.ErrnoException).code !== 'ENOENT'
+      ) {
+        throw error;
       }
 
-      // Perform the delete while holding the lock.
-      await fs.unlink(await ensureExistingPathWithinDataDir(currentPath));
-      // Remove the index entry atomically with the lock held.
-      await removeSessionIndex(id);
-      return; // success
-    } catch (error) {
-      // Preserve the error to surface if all retries fail.
+      // A held lock, or a file moving/disappearing between lookup and unlink,
+      // is transient. Re-resolve the ID on the next iteration.
       lastError = error;
-      // If the error is ENOENT we might have raced with another delete –
-      // retry a few times before giving up.
+      shouldRetry = true;
     } finally {
-      await releaseLock();
+      if (releaseLock) {
+        await releaseLock();
+      }
     }
-  }
 
-  // If we exit the loop without returning, the delete failed after retries.
-  if (lastError) {
-    throw lastError;
+    if (!shouldRetry) {
+      throw new Error('Failed to delete session without a retryable error');
+    }
+
+    const remainingMs = retryDeadline - Date.now();
+    if (remainingMs <= 0) {
+      if (lastError) {
+        throw lastError;
+      }
+      throw new Error('Failed to delete session before the retry deadline');
+    }
+
+    await sleep(Math.min(backoffMs, remainingMs));
+    backoffMs = Math.min(backoffMs * 2, DELETE_LOCK_MAX_BACKOFF_MS);
   }
-  throw new Error('Failed to delete session after maximum retry attempts');
 }
 
 /**
