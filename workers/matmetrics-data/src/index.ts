@@ -84,6 +84,8 @@ const worker = {
     const stored = await env.DB.prepare('SELECT revision FROM user_preferences WHERE user_id = ?').bind(identity.userId).first<{ revision: number }>();
     const currentRevision = stored?.revision ?? 0;
     if (revision !== currentRevision) return json({ error: 'Preference revision conflict', revision: currentRevision }, 409);
+    const nextRevision = currentRevision + 1;
+    await env.DB.prepare(`INSERT INTO user_preferences (user_id, preferences_json, revision, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET preferences_json = excluded.preferences_json, revision = excluded.revision, updated_at = excluded.updated_at`).bind(identity.userId, preferencesJson, nextRevision, Date.now()).run();
     return json({ preferences, revision: nextRevision });
   },
 };
