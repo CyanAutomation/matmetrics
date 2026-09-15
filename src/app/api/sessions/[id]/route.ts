@@ -233,15 +233,17 @@ export async function DELETE(
       return authzResult.forbiddenResponse;
     }
     const gitHubConfig = authzResult.config;
+    const revisionSha =
+      typeof body.revisionSha === 'string' ? body.revisionSha : undefined;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
       return proxyGoFunction(request, {
         path: '/api/go/sessions/delete',
         method: 'DELETE',
-        body: buildGitHubDeleteBody(id, gitHubConfig),
+        body: buildGitHubDeleteBody(id, gitHubConfig, revisionSha),
       });
     }
 
-    await deleteSessionForConfig(id, gitHubConfig);
+    await deleteSessionForConfig(id, gitHubConfig, revisionSha);
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
@@ -256,6 +258,9 @@ export async function DELETE(
         },
         { status: 409 }
       );
+    }
+    if (error instanceof GitHubRevisionConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
     console.error('Error deleting session', error);

@@ -51,6 +51,40 @@ func TestSessionGitHubPathEncodesIdentifiers(t *testing.T) {
 	}
 }
 
+func TestDeleteSessionByIDRejectsStaleRevision(t *testing.T) {
+	deleteCalls := 0
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/git/trees/"):
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/20260318-matmetrics-session-1.md","type":"blob"}]}`), nil
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "sha-new", "content": ""}), nil
+			case r.Method == http.MethodDelete:
+				deleteCalls++
+				return jsonResponse(http.StatusOK, `{}`), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	err := client.DeleteSessionByID(model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}, "session-1", "sha-read-by-client")
+	var conflict RevisionConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("DeleteSessionByID() error = %v, want RevisionConflictError", err)
+	}
+	if deleteCalls != 0 {
+		t.Fatalf("DELETE calls = %d, want 0", deleteCalls)
+	}
+}
+
 func TestValidateUsesDefaultBranchWhenBranchUnset(t *testing.T) {
 	resetListSessionsCacheForTests()
 
@@ -436,7 +470,7 @@ func TestListSessionsDoesNotCacheResultsStartedBeforeMutation(t *testing.T) {
 				}
 			},
 			mutate: func(client *Client) error {
-				return client.DeleteSessionByID(config, "session-existing")
+				return client.DeleteSessionByID(config, "session-existing", "sha-old")
 			},
 		},
 	}
