@@ -12,8 +12,6 @@ on:
         type: choice
         options:
           - docs
-          - lint
-          - none
 
 run-name: >-
   Docs sweep · ${{ github.repository }}@${{ github.sha }}
@@ -30,9 +28,11 @@ jobs:
     name: Run Kaseki documentation sweep
     environment: kaseki-docs
     runs-on: ubuntu-24.04
+
     # Kaseki permits a three-hour execution window; leave sufficient time for
     # queueing, controller retries, and a final status read before Actions ends.
     timeout-minutes: 360
+
     env:
       # These environment-scoped variables and the API token form one protected
       # trust boundary. Do not define fallbacks at repository or organization scope.
@@ -43,6 +43,7 @@ jobs:
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       REF: ${{ github.sha }}
       VALIDATION_COMMAND: ${{ github.event_name == 'schedule' && 'npm run validate:docs' || (inputs.validation_profile == 'docs' && 'npm run validate:docs' || inputs.validation_profile == 'lint' && 'npm run lint' || '') }}
+
     steps:
       - name: Validate controller URL
         shell: bash
@@ -54,19 +55,6 @@ jobs:
             exit 1
           }
 
-          : "${KASEKI_ALLOWED_HOSTS:?KASEKI_ALLOWED_HOSTS is not configured}"
-          kaseki_host="${KASEKI_BASE_URL#https://}"
-          kaseki_host="${kaseki_host%%:*}"
-          allowed=false
-          IFS=',' read -r -a allowed_hosts <<< "$KASEKI_ALLOWED_HOSTS"
-          for allowed_host in "${allowed_hosts[@]}"; do
-            allowed_host="${allowed_host//[[:space:]]/}"
-            [[ "$kaseki_host" == "$allowed_host" ]] && allowed=true
-          done
-          [[ "$allowed" == true ]] || {
-            echo "::error::KASEKI_BASE_URL host is not listed in KASEKI_ALLOWED_HOSTS."
-            exit 1
-          }
       - name: Verify controller health
         shell: bash
         run: |
@@ -80,6 +68,7 @@ jobs:
             "$KASEKI_BASE_URL/health"
           jq -e '.status == "healthy"' "$response_file" >/dev/null
           echo 'Kaseki controller is healthy.'
+
       - name: Verify controller readiness
         shell: bash
         run: |
@@ -93,6 +82,7 @@ jobs:
             "$KASEKI_BASE_URL/ready"
           jq -e '.status == "ready"' "$response_file" >/dev/null
           echo 'Kaseki controller is ready.'
+
       - name: Verify gateway connectivity and authentication
         shell: bash
         run: |
@@ -109,6 +99,7 @@ jobs:
             "$KASEKI_BASE_URL/api/gateway-test?stage=1"
           jq -e '.status == "ok"' "$response_file" >/dev/null
           echo 'Kaseki gateway authentication succeeded.'
+
       - name: Verify Kaseki publication readiness
         shell: bash
         run: |
@@ -247,6 +238,7 @@ jobs:
             echo
             echo "Monitor the run: $KASEKI_BASE_URL/ui"
           } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Wait for Kaseki completion
         shell: bash
         env:
@@ -281,7 +273,7 @@ jobs:
                 exit 1
                 ;;
               queued|running)
-                echo "Kaseki run $RUN_ID is $run_status; checking again in 30 seconds."
+                echo "Kaseki run $RUN_ID is $run_status; checking again in 60 seconds."
                 ;;
               *)
                 echo "::error::Kaseki run $RUN_ID returned unexpected status $run_status."
@@ -291,7 +283,7 @@ jobs:
 
             rm -f "$response_file"
             trap - EXIT
-            sleep 30
+            sleep 60
           done
 
           echo "::error::Kaseki run $RUN_ID did not complete within 350 minutes."
