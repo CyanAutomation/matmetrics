@@ -284,11 +284,14 @@ serialTest(
     let createRequests = 0;
     let listRequests = 0;
     const originalFetch = global.fetch;
-    global.fetch = (async (input: string | URL | Request) => {
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
       const url = String(input);
       if (url.endsWith('/api/sessions/create')) {
         createRequests += 1;
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        return new Response(String(init?.body), { status: 200 });
       }
 
       if (url.includes('/api/sessions/list')) {
@@ -335,7 +338,7 @@ serialTest(
       const url = new URL(String(input), window.location.origin);
       if (url.pathname === `/api/sessions/${session.id}`) {
         updateRequests += 1;
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        return new Response(JSON.stringify(session), { status: 200 });
       }
 
       if (url.pathname === '/api/sessions/list') {
@@ -429,11 +432,11 @@ serialTest(
     global.fetch = (async (input: string | URL | Request) => {
       const url = new URL(String(input), window.location.origin);
       if (url.pathname === '/api/sessions/create') {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        return new Response(JSON.stringify(session), { status: 200 });
       }
 
       if (url.pathname === `/api/sessions/${session.id}`) {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        return new Response(JSON.stringify(session), { status: 200 });
       }
 
       if (url.pathname === '/api/sessions/list') {
@@ -2127,7 +2130,9 @@ serialTest(
       assert.equal(getQueue().length, 0);
 
       resolveCreate?.(
-        new Response(JSON.stringify({ ok: true }), { status: 200 })
+        new Response(JSON.stringify(makeSession('session-stale-sync')), {
+          status: 200,
+        })
       );
       await savePromise;
       await flushAsyncWork();
@@ -2234,6 +2239,108 @@ serialTest(
       assert.match(warnings[0], /no authenticated user/i);
     } finally {
       console.warn = originalWarn;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'create followed immediately by update uses the revision returned by create',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({
+      cooldownMs: 60_000,
+      debounceMs: 60_000,
+    });
+
+    const session = makeSession('session-consecutive-create-update');
+    const requestRevisions: Array<string | undefined> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      const body = JSON.parse(String(init?.body)) as JudoSession;
+      requestRevisions.push(body.revisionSha);
+      if (url.pathname === '/api/sessions/create') {
+        return new Response(
+          JSON.stringify({ ...session, revisionSha: 'sha-created' }),
+          { status: 201 }
+        );
+      }
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        assert.equal(body.revisionSha, 'sha-created');
+        return new Response(
+          JSON.stringify({ ...body, revisionSha: 'sha-updated' }),
+          { status: 200 }
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await saveSession(session);
+      const updated = { ...getSessions()[0], notes: 'updated immediately' };
+      await updateSession(updated);
+
+      assert.deepEqual(requestRevisions, [undefined, 'sha-created']);
+      assert.equal(getSessions()[0].revisionSha, 'sha-updated');
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'two immediate updates use each newly returned revision',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({
+      cooldownMs: 60_000,
+      debounceMs: 60_000,
+    });
+
+    const session = {
+      ...makeSession('session-consecutive-updates'),
+      revisionSha: 'sha-base',
+    };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([session])
+    );
+    const requestRevisions: Array<string | undefined> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      _input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const body = JSON.parse(String(init?.body)) as JudoSession;
+      requestRevisions.push(body.revisionSha);
+      const revisionSha =
+        requestRevisions.length === 1 ? 'sha-first' : 'sha-second';
+      return new Response(JSON.stringify({ ...body, revisionSha }), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      await updateSession({ ...getSessions()[0], notes: 'first update' });
+      await updateSession({ ...getSessions()[0], notes: 'second update' });
+
+      assert.deepEqual(requestRevisions, ['sha-base', 'sha-first']);
+      assert.equal(getSessions()[0].revisionSha, 'sha-second');
+    } finally {
+      global.fetch = originalFetch;
       teardownStorageListeners();
       __resetStorageStateForTests();
     }

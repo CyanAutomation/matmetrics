@@ -308,6 +308,38 @@ async function syncRequest(
   );
 }
 
+async function parseMutationSession(response: Response): Promise<JudoSession> {
+  const sessions = normalizeSessionList([await response.json()]);
+  if (sessions.length !== 1) {
+    throw new Error('Mutation response did not contain a valid session');
+  }
+  return sessions[0];
+}
+
+function reconcileSuccessfulSession(
+  serverSession: JudoSession,
+  version: number
+): void {
+  const dirty = getDirtyMutations().get(serverSession.id);
+  const current = sessionCache ?? getLocalStorageCache();
+  const reconciled = current.map((cachedSession) => {
+    if (cachedSession.id !== serverSession.id) {
+      return cachedSession;
+    }
+    if (dirty && dirty.version !== version) {
+      return {
+        ...cachedSession,
+        ...(serverSession.revisionSha
+          ? { revisionSha: serverSession.revisionSha }
+          : {}),
+      };
+    }
+    return serverSession;
+  });
+  commitLocalSessions(reconciled);
+  dispatchStorageSync(reconciled);
+}
+
 async function reconcilePermanentFailure(): Promise<void> {
   if (isOnline && !isGuestMode()) {
     await refreshSessionsFromAPI({ force: true });
@@ -465,11 +497,13 @@ export async function saveSession(
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
       });
-      await syncRequest('/api/sessions/create', {
+      const response = await syncRequest('/api/sessions/create', {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
       });
+      const serverSession = await parseMutationSession(response);
+      reconcileSuccessfulSession(serverSession, version);
       clearDirtyMutation(session.id, version);
     } catch (error) {
       return handleMutationSyncFailure(
@@ -535,11 +569,13 @@ export async function updateSession(
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
       });
-      await syncRequest(`/api/sessions/${session.id}`, {
+      const response = await syncRequest(`/api/sessions/${session.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(requestBody),
       });
+      const serverSession = await parseMutationSession(response);
+      reconcileSuccessfulSession(serverSession, version);
       clearDirtyMutation(session.id, version);
     } catch (error) {
       return handleMutationSyncFailure(
@@ -610,7 +646,12 @@ export async function deleteSession(id: string): Promise<MutationResult> {
       return handleMutationSyncFailure(
         error,
         () =>
-          queueOperation({ type: 'DELETE', id, revisionSha, queuedAt: version }),
+          queueOperation({
+            type: 'DELETE',
+            id,
+            revisionSha,
+            queuedAt: version,
+          }),
         id,
         version
       );
@@ -1152,11 +1193,33 @@ async function processSingleQueueOperation(
     }
 
     // Send request
-    await syncRequest(url, {
+    const response = await syncRequest(url, {
       method,
       headers,
       body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });
+
+    if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
+      const serverSession = await parseMutationSession(response);
+      reconcileSuccessfulSession(serverSession, operation.queuedAt);
+      for (const queuedOperation of queue.slice(index + 1)) {
+        if (
+          (queuedOperation.type === 'CREATE' ||
+            queuedOperation.type === 'UPDATE') &&
+          queuedOperation.session.id === serverSession.id
+        ) {
+          queuedOperation.session = {
+            ...queuedOperation.session,
+            revisionSha: serverSession.revisionSha,
+          };
+        } else if (
+          queuedOperation.type === 'DELETE' &&
+          queuedOperation.id === serverSession.id
+        ) {
+          queuedOperation.revisionSha = serverSession.revisionSha;
+        }
+      }
+    }
 
     // Verify lease still owned after operation
     if (
