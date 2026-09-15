@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
   try {
     // Step 1: Authenticate user (dual-mode: Firebase or test-token)
     const user = await requireAuthenticatedUser(request);
-    
+
     // Step 2: Parse request body
     const sessionData = await request.json();
-    
+
     // Step 3: Validate session shape
     if (!sessionData.id || !sessionData.date) {
       return NextResponse.json(
@@ -66,23 +66,22 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Step 4: Resolve GitHub config (user-stored or request override)
     const githubConfig = await resolveAuthorizedGitHubConfig(
       user.uid,
       sessionData.gitHubConfig // Optional override from client
     );
-    
+
     // Step 5: Decide routing: GitHub or local
     if (githubConfig && shouldProxyGitHubRequests()) {
       // Route to Go backend
       return await proxyToGoBackend('/sessions', 'POST', sessionData);
     }
-    
+
     // Step 6: Fallback: handle locally
     const result = await createSessionLocal(sessionData);
     return NextResponse.json(result);
-    
   } catch (error) {
     return errorResponse(error);
   }
@@ -90,6 +89,7 @@ export async function POST(request: NextRequest) {
 ```
 
 **Key patterns:**
+
 1. Authenticate first (dual-mode auth)
 2. Parse and validate request
 3. Resolve configuration (merge stored + request-provided)
@@ -110,7 +110,7 @@ export async function requireAuthenticatedUser(
 ): Promise<{ uid: string; email?: string }> {
   const authHeader = request.headers.get('authorization');
   const token = extractBearerToken(authHeader);
-  
+
   if (!token) {
     throw new AuthError('Missing authorization header', 401);
   }
@@ -133,12 +133,12 @@ export async function requireAuthenticatedUser(
 
 function extractBearerToken(authHeader: string | null): string | null {
   if (!authHeader) return null;
-  
+
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
     return null;
   }
-  
+
   return parts[1];
 }
 ```
@@ -150,7 +150,7 @@ function extractBearerToken(authHeader: string | null): string | null {
 func RequireAuthenticatedUser(r *http.Request) (uid, email string, err error) {
   authHeader := r.Header.Get("Authorization")
   token := extractBearerToken(authHeader)
-  
+
   if token == "" {
     return "", "", fmt.Errorf("missing authorization header")
   }
@@ -198,16 +198,18 @@ export async function resolveAuthorizedGitHubConfig(
 ): Promise<GitHubConfig | undefined> {
   // Load stored config from Firebase
   const storedConfig = await firebaseStorage.loadGitHubConfig(userId);
-  
+
   if (!storedConfig) {
     return undefined; // No GitHub integration configured
   }
 
   // If client requests a config, verify it matches stored config
   if (requestedConfig) {
-    if (requestedConfig.owner !== storedConfig.owner ||
-        requestedConfig.repo !== storedConfig.repo ||
-        requestedConfig.branch !== storedConfig.branch) {
+    if (
+      requestedConfig.owner !== storedConfig.owner ||
+      requestedConfig.repo !== storedConfig.repo ||
+      requestedConfig.branch !== storedConfig.branch
+    ) {
       throw new AuthError(
         'Requested GitHub config does not match stored config',
         403
@@ -232,7 +234,7 @@ async function proxyToGoBackend(
   body?: any
 ): Promise<NextResponse> {
   const baseUrl = process.env.MATMETRICS_GO_PROXY_BASE_URL;
-  
+
   if (!baseUrl) {
     throw new Error('MATMETRICS_GO_PROXY_BASE_URL not configured');
   }
@@ -244,7 +246,7 @@ async function proxyToGoBackend(
     headers: {
       'Content-Type': 'application/json',
       // Forward auth header to Go backend
-      'Authorization': request.headers.get('authorization') || '',
+      Authorization: request.headers.get('authorization') || '',
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -257,6 +259,7 @@ async function proxyToGoBackend(
 ```
 
 **Key patterns:**
+
 - Forward auth header to Go (so Go can re-validate)
 - Preserve response status codes
 - Handle errors from Go and re-throw with context
@@ -342,6 +345,7 @@ export async function shouldProxyGitHubRequests(): Promise<boolean> {
 ```
 
 **Key pattern:**
+
 - Graceful degradation: client still works even if Go backend is down
 - Health check with short timeout (don't hang requests waiting for backend)
 - Log fallback for debugging
@@ -359,7 +363,7 @@ import { POST } from '@/app/api/sessions/create/route';
 describe('POST /api/sessions/create (with Go proxy)', () => {
   beforeEach(() => {
     process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
-    
+
     // Mock fetch to return Go response
     global.fetch = jest.fn(() =>
       Promise.resolve({
@@ -387,10 +391,10 @@ describe('POST /api/sessions/create (with Go proxy)', () => {
 
     const res = await POST(req);
     expect(res.status).toBe(200);
-    
+
     const data = await res.json();
     expect(data.id).toBe('session-1');
-    
+
     // Verify fetch was called with correct URL
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/sessions'),
@@ -400,7 +404,7 @@ describe('POST /api/sessions/create (with Go proxy)', () => {
 
   it('should fall back to local storage if Go unavailable', async () => {
     global.fetch = jest.fn(() => Promise.reject(new Error('ECONNREFUSED')));
-    
+
     const req = new NextRequest('http://localhost/api/sessions/create', {
       method: 'POST',
       headers: { authorization: 'Bearer test-token' },
@@ -412,7 +416,7 @@ describe('POST /api/sessions/create (with Go proxy)', () => {
     });
 
     const res = await POST(req);
-    
+
     // Should still succeed (using local storage)
     expect(res.status).toBe(200);
   });
@@ -456,7 +460,7 @@ func TestCreateSessionHandler(t *testing.T) {
 
   var result map[string]interface{}
   json.NewDecoder(w.Body).Decode(&result)
-  
+
   if result["id"] != "session-1" {
     t.Errorf("Expected id='session-1', got %v", result["id"])
   }
@@ -471,13 +475,13 @@ Test the full round-trip: TypeScript route → Go handler → response → clien
 // src/tests/api-sessions-e2e.test.ts
 describe('Sessions API (End-to-End)', () => {
   // This test requires MATMETRICS_GO_PROXY_BASE_URL to point to a running Go server
-  
+
   it('should create session via TypeScript -> Go -> response', async () => {
     const res = await fetch('http://localhost:9002/api/sessions/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer test-token',
+        Authorization: 'Bearer test-token',
       },
       body: JSON.stringify({
         id: 'e2e-session-1',
@@ -492,14 +496,14 @@ describe('Sessions API (End-to-End)', () => {
     });
 
     expect(res.status).toBe(200);
-    
+
     const data = await res.json();
     expect(data.id).toBe('e2e-session-1');
 
     // Verify session is readable
     const getRes = await fetch(
       'http://localhost:9002/api/sessions/e2e-session-1',
-      { headers: { 'Authorization': 'Bearer test-token' } }
+      { headers: { Authorization: 'Bearer test-token' } }
     );
     expect(getRes.status).toBe(200);
   });
@@ -541,7 +545,9 @@ return await fetch(url);
 // RIGHT: Absolute URL with scheme
 const baseUrl = process.env.MATMETRICS_GO_PROXY_BASE_URL; // http://localhost:8080
 if (!baseUrl.startsWith('http')) {
-  throw new Error('MATMETRICS_GO_PROXY_BASE_URL must be absolute (http:// or https://)');
+  throw new Error(
+    'MATMETRICS_GO_PROXY_BASE_URL must be absolute (http:// or https://)'
+  );
 }
 const url = new URL(path, baseUrl);
 return await fetch(url);
@@ -568,7 +574,7 @@ const response = await fetch(url, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': request.headers.get('authorization') || '',
+    Authorization: request.headers.get('authorization') || '',
   },
   body: JSON.stringify(data),
 });
@@ -591,13 +597,15 @@ export async function createSession(session, clientConfig) {
 // RIGHT: Validate against stored config
 export async function createSession(session, clientConfig) {
   const storedConfig = await getStoredGitHubConfig();
-  
-  if (clientConfig &&
-      (clientConfig.owner !== storedConfig.owner ||
-       clientConfig.repo !== storedConfig.repo)) {
+
+  if (
+    clientConfig &&
+    (clientConfig.owner !== storedConfig.owner ||
+      clientConfig.repo !== storedConfig.repo)
+  ) {
     throw new AuthError('Config mismatch', 403);
   }
-  
+
   return await githubStorage.create(session, storedConfig);
 }
 ```

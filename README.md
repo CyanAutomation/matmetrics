@@ -278,17 +278,18 @@ Accepts `{ description: string, customPrompt?: string }` and returns `{ transfor
 
 API routes enforce UTF-8 byte size limits to prevent oversized requests:
 
-| Limit | Value | Applied To |
-| --- | --- | --- |
-| Request body | 16 KB | Entire JSON body passed to any AI endpoint |
-| Description field | 8 KB | The `description` string in `/api/ai/transform-description` |
-| Custom prompt | 2 KB | The optional `customPrompt` string in `/api/ai/transform-description` |
+| Limit             | Value | Applied To                                                            |
+| ----------------- | ----- | --------------------------------------------------------------------- |
+| Request body      | 16 KB | Entire JSON body passed to any AI endpoint                            |
+| Description field | 8 KB  | The `description` string in `/api/ai/transform-description`           |
+| Custom prompt     | 2 KB  | The optional `customPrompt` string in `/api/ai/transform-description` |
 
 Requests exceeding these limits receive an `INPUT_TOO_LARGE` error response (HTTP 400).
 
 ### Output Constraints
 
 The `/api/ai/transform-description` endpoint enforces strict output formatting: the model returns plain prose only — no title, heading, Markdown syntax, asterisks, emphasis markers, bullet lists, or code fences. The narrative begins immediately without any introductory phrase. No "Overall" conclusion or reflection is appended unless supported by the user's input.
+
 ## Contributing
 
 ## Contributing

@@ -12,7 +12,8 @@ export const useAuditStateManager = (
   userId: string | null,
   initialResults: AuditSessionResult[]
 ) => {
-  const [auditResults, setAuditResults] = useState<AuditSessionResult[]>(initialResults);
+  const [auditResults, setAuditResults] =
+    useState<AuditSessionResult[]>(initialResults);
   const { toast } = useToast();
 
   /**
@@ -73,7 +74,8 @@ export const useAuditStateManager = (
         }),
         {
           successTitle: 'Marked fixed',
-          successDescription: (date) => `Session from ${date} is marked as fixed.`,
+          successDescription: (date) =>
+            `Session from ${date} is marked as fixed.`,
           errorMessage: 'Failed to mark session as fixed.',
         }
       );

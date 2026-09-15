@@ -93,13 +93,13 @@ I'm working on...
 
 ### Used Together Frequently
 
-| Scenario | Skills | Purpose |
-|----------|--------|---------|
-| Add new API endpoint (TypeScript → Go) | api-gateway-pattern + cross-language-testing + error-handling-patterns | Build and test the full round-trip |
-| Implement storage feature | storage-facade + cross-language-testing (if validation parity needed) | Design multi-backend logic; ensure TypeScript↔Go sync |
-| Build CLI subcommand | go-cli-development + error-handling-patterns | Implement Go logic; handle errors consistently |
-| Release plugin | plugin-manager + fallow | Validate manifest, check code health, confirm maturity tier |
-| Debug sync queue issue | storage-facade + error-handling-patterns | Trace through sync logic; classify error origin |
+| Scenario                               | Skills                                                                 | Purpose                                                     |
+| -------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Add new API endpoint (TypeScript → Go) | api-gateway-pattern + cross-language-testing + error-handling-patterns | Build and test the full round-trip                          |
+| Implement storage feature              | storage-facade + cross-language-testing (if validation parity needed)  | Design multi-backend logic; ensure TypeScript↔Go sync       |
+| Build CLI subcommand                   | go-cli-development + error-handling-patterns                           | Implement Go logic; handle errors consistently              |
+| Release plugin                         | plugin-manager + fallow                                                | Validate manifest, check code health, confirm maturity tier |
+| Debug sync queue issue                 | storage-facade + error-handling-patterns                               | Trace through sync logic; classify error origin             |
 
 ---
 

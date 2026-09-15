@@ -48,7 +48,11 @@ test('prompt-settings loading state path produces loading descriptor and renders
     saveStatus: 'idle',
   });
 
-  assert.equal(state.loading, true, `${req('loadingState')} expected loading=true`);
+  assert.equal(
+    state.loading,
+    true,
+    `${req('loadingState')} expected loading=true`
+  );
 
   const html = renderToStaticMarkup(
     React.createElement(PluginLoadingState, {
@@ -57,8 +61,14 @@ test('prompt-settings loading state path produces loading descriptor and renders
     })
   );
 
-  assert.ok(html.includes('Loading prompt settings'), `${req('loadingState')} missing loading title`);
-  assert.ok(html.includes(PROMPT_SETTINGS_LOADING_TEXT), `${req('loadingState')} missing loading description`);
+  assert.ok(
+    html.includes('Loading prompt settings'),
+    `${req('loadingState')} missing loading title`
+  );
+  assert.ok(
+    html.includes(PROMPT_SETTINGS_LOADING_TEXT),
+    `${req('loadingState')} missing loading description`
+  );
 });
 
 test('tag-manager empty-history state path is reachable and renders plugin empty-state primitive', () => {
@@ -83,7 +93,11 @@ test('tag-manager empty-history state path is reachable and renders plugin empty
     })
   );
 
-  assert.match(html, /No tags yet/, `${req('tagManagerEmptyState')} missing empty-state title`);
+  assert.match(
+    html,
+    /No tags yet/,
+    `${req('tagManagerEmptyState')} missing empty-state title`
+  );
   assert.match(
     html,
     /No technique tags found in your history\./,
@@ -120,7 +134,11 @@ test('video-library lounge empty path is reachable and renders plugin empty-stat
 
 test('github-settings missing config path yields blocked controls and observable error fallback', () => {
   const validationError = getGitHubSettingsValidationError('', '');
-  assert.ok(validationError?.toLowerCase().includes('owner') && validationError?.toLowerCase().includes('repository'), `${req('githubValidationErrorState')} expected owner/repository validation guidance`);
+  assert.ok(
+    validationError?.toLowerCase().includes('owner') &&
+      validationError?.toLowerCase().includes('repository'),
+    `${req('githubValidationErrorState')} expected owner/repository validation guidance`
+  );
 
   const controlState = deriveGitHubSettingsControlState({
     canUseGitHubSync: true,
@@ -147,8 +165,14 @@ test('github-settings missing config path yields blocked controls and observable
     })
   );
 
-  assert.ok(html.includes('Configuration invalid'), `${req('githubValidationErrorState')} missing error title`);
-  assert.ok(validationError ? html.includes(validationError) : false, `${req('githubValidationErrorState')} missing validation message`);
+  assert.ok(
+    html.includes('Configuration invalid'),
+    `${req('githubValidationErrorState')} missing error title`
+  );
+  assert.ok(
+    validationError ? html.includes(validationError) : false,
+    `${req('githubValidationErrorState')} missing validation message`
+  );
 });
 
 test('log-doctor reset path clears error state and produces success fallback surface', () => {
@@ -164,7 +188,11 @@ test('log-doctor reset path clears error state and produces success fallback sur
     true
   );
 
-  assert.equal(snapshot.next.uiState.phase, 'idle', `${req('logDoctorResetSuccessState')} reset idle`);
+  assert.equal(
+    snapshot.next.uiState.phase,
+    'idle',
+    `${req('logDoctorResetSuccessState')} reset idle`
+  );
   assert.equal(
     snapshot.previous?.selectedPaths.length,
     1,
@@ -178,7 +206,11 @@ test('log-doctor reset path clears error state and produces success fallback sur
     })
   );
 
-  assert.match(html, /Diagnostics reset/, `${req('logDoctorResetSuccessState')} success title`);
+  assert.match(
+    html,
+    /Diagnostics reset/,
+    `${req('logDoctorResetSuccessState')} success title`
+  );
 });
 
 test('prompt-settings default-profile path can surface an empty-state message payload', () => {
@@ -205,6 +237,12 @@ test('prompt-settings default-profile path can surface an empty-state message pa
     })
   );
 
-  assert.ok(html.includes('No custom profile yet'), `${req('promptDefaultProfileEmptyState')} missing empty-state title`);
-  assert.ok(html.includes(PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT), `${req('promptDefaultProfileEmptyState')} missing empty-state guidance`);
+  assert.ok(
+    html.includes('No custom profile yet'),
+    `${req('promptDefaultProfileEmptyState')} missing empty-state title`
+  );
+  assert.ok(
+    html.includes(PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT),
+    `${req('promptDefaultProfileEmptyState')} missing empty-state guidance`
+  );
 });

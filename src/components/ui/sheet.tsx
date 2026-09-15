@@ -127,9 +127,4 @@ const SheetDescription = React.forwardRef<
 ));
 SheetDescription.displayName = SheetPrimitive.Description.displayName;
 
-export {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetDescription,
-};
+export { Sheet, SheetContent, SheetTitle, SheetDescription };

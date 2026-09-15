@@ -44,7 +44,10 @@ const pluginCompositionFixtures: PluginCompositionFixture[] = [
 
 for (const fixture of pluginCompositionFixtures) {
   test(`${fixture.pluginId} component entrypoint satisfies composition contract`, () => {
-    const source = readFileSync(path.join(repoRoot, fixture.sourcePath), 'utf8');
+    const source = readFileSync(
+      path.join(repoRoot, fixture.sourcePath),
+      'utf8'
+    );
 
     assert.deepEqual(
       evaluatePluginComponentCompositionFromSource(source),

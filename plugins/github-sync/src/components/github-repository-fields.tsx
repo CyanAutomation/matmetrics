@@ -39,7 +39,10 @@ export function GitHubRepositoryFields({
   const disabled = !canUseGitHubSync;
   return (
     <>
-      <details className="rounded-lg border bg-muted/20 px-4 py-3" open={!isEnabled}>
+      <details
+        className="rounded-lg border bg-muted/20 px-4 py-3"
+        open={!isEnabled}
+      >
         <summary className="cursor-pointer text-sm font-medium">
           Connection requirements
         </summary>
@@ -72,61 +75,76 @@ export function GitHubRepositoryFields({
         <summary className="cursor-pointer text-sm font-medium text-muted-foreground group-open:mb-4">
           {isEnabled ? 'Change repository or branch' : 'Repository details'}
         </summary>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="owner" className="text-sm font-semibold">
-              GitHub Owner/Username
-            </Label>
-            <Input
-              id="owner"
-              placeholder="e.g., CyanAutomation"
-              value={owner}
-              onChange={(event) => onOwnerChange(event.target.value)}
-              disabled={disabled}
-              className={inputTone}
-            />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="owner" className="text-sm font-semibold">
+                GitHub Owner/Username
+              </Label>
+              <Input
+                id="owner"
+                placeholder="e.g., CyanAutomation"
+                value={owner}
+                onChange={(event) => onOwnerChange(event.target.value)}
+                disabled={disabled}
+                className={inputTone}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="repo" className="text-sm font-semibold">
+                Repository Name
+              </Label>
+              <Input
+                id="repo"
+                placeholder="e.g., my-judo-diary"
+                value={repo}
+                onChange={(event) => onRepoChange(event.target.value)}
+                disabled={disabled}
+                className={inputTone}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch" className="text-sm font-semibold">
+                Branch (optional)
+              </Label>
+              <Input
+                id="branch"
+                placeholder="e.g., main, master, sync"
+                value={branch}
+                onChange={(event) => onBranchChange(event.target.value)}
+                disabled={disabled}
+                className={inputTone}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="repo" className="text-sm font-semibold">
-              Repository Name
-            </Label>
-            <Input
-              id="repo"
-              placeholder="e.g., my-judo-diary"
-              value={repo}
-              onChange={(event) => onRepoChange(event.target.value)}
-              disabled={disabled}
-              className={inputTone}
+          {testResult && !testResult.success ? (
+            <PluginErrorState
+              title="Connection test failed"
+              message={testResult.message}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="branch" className="text-sm font-semibold">
-              Branch (optional)
-            </Label>
-            <Input
-              id="branch"
-              placeholder="e.g., main, master, sync"
-              value={branch}
-              onChange={(event) => onBranchChange(event.target.value)}
-              disabled={disabled}
-              className={inputTone}
-            />
-          </div>
+          ) : null}
         </div>
-        {testResult && !testResult.success ? (
-          <PluginErrorState
-            title="Connection test failed"
-            message={testResult.message}
-          />
-        ) : null}
-      </div>
       </details>
       {isEnabled ? (
         <PluginSuccessState
           title="Automatic sync is on"
-          description={<>Backing up to <strong>{owner}</strong>/<strong>{repo}</strong>{branch.trim() ? <> on <strong>{branch.trim()}</strong></> : null}.</>}
-          icon={<CheckCircle2 className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`} />}
+          description={
+            <>
+              Backing up to <strong>{owner}</strong>/<strong>{repo}</strong>
+              {branch.trim() ? (
+                <>
+                  {' '}
+                  on <strong>{branch.trim()}</strong>
+                </>
+              ) : null}
+              .
+            </>
+          }
+          icon={
+            <CheckCircle2
+              className={`h-4 w-4 ${getPluginUiTokenClassNames('icon.success')}`}
+            />
+          }
         />
       ) : null}
     </>

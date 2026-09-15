@@ -81,7 +81,9 @@ test('non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal 
 
       assert.equal('status' in result, true);
       if (!('status' in result)) {
-        assert.fail('Expected error response when Firebase admin is unavailable');
+        assert.fail(
+          'Expected error response when Firebase admin is unavailable'
+        );
       }
 
       assert.equal(result.status, 500);

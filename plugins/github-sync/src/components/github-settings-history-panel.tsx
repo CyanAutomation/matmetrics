@@ -1,7 +1,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { PluginFormSection, PluginTableSection } from '@/components/plugins/plugin-kit';
+import {
+  PluginFormSection,
+  PluginTableSection,
+} from '@/components/plugins/plugin-kit';
 import { PluginLoadingState } from '@/components/plugins/plugin-state';
 import {
   SyncResultsMainPanel,
@@ -32,7 +35,9 @@ export function GitHubSettingsHistoryPanel({
 }: Props) {
   return (
     <details className="rounded-xl bg-[hsl(var(--color-surface-container-low))] px-4 py-3">
-      <summary className="cursor-pointer text-sm font-semibold">Troubleshooting and activity</summary>
+      <summary className="cursor-pointer text-sm font-semibold">
+        Troubleshooting and activity
+      </summary>
       <div className="mt-4 space-y-6">
         <PluginFormSection
           title={migrationDone ? 'Sync now' : 'Run first backup'}
@@ -48,8 +53,16 @@ export function GitHubSettingsHistoryPanel({
             disabled={!controlState?.canRunSyncAll}
             className="gap-2"
           >
-            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {isSyncing ? controlState?.syncAllLabel : migrationDone ? 'Sync now' : 'Start first backup'}
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {isSyncing
+              ? controlState?.syncAllLabel
+              : migrationDone
+                ? 'Sync now'
+                : 'Start first backup'}
           </Button>
         </PluginFormSection>
 

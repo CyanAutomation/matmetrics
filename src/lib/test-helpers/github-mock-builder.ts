@@ -48,7 +48,10 @@ interface GitHubContentsEntry {
  */
 export class GitHubMockBuilder {
   private branches = new Map<string, { commitSha: string; treeSha: string }>();
-  private trees = new Map<string, { truncated: boolean; entries: GitHubTreeEntry[] }>();
+  private trees = new Map<
+    string,
+    { truncated: boolean; entries: GitHubTreeEntry[] }
+  >();
   private contents = new Map<string, GitHubContentsEntry[]>();
   private readonly defaultBranch = 'main';
 
@@ -96,14 +99,15 @@ export class GitHubMockBuilder {
 
       // GET /repos/:owner/:repo - get repository metadata
       if (path === `/repos/${owner}/${repo}` && method === 'GET') {
-        return new Response(
-          JSON.stringify({ default_branch: defaultBranch }),
-          { status: 200 }
-        );
+        return new Response(JSON.stringify({ default_branch: defaultBranch }), {
+          status: 200,
+        });
       }
 
       // GET /repos/:owner/:repo/git/ref/heads/:branch - get branch ref
-      const refMatch = path.match(/\/repos\/[^/]+\/[^/]+\/git\/ref\/heads\/(.+)$/);
+      const refMatch = path.match(
+        /\/repos\/[^/]+\/[^/]+\/git\/ref\/heads\/(.+)$/
+      );
       if (refMatch && method === 'GET') {
         const branch = refMatch[1];
         const branchData = branches.get(branch);
@@ -121,7 +125,9 @@ export class GitHubMockBuilder {
       }
 
       // GET /repos/:owner/:repo/git/commits/:sha - get commit
-      const commitMatch = path.match(/\/repos\/[^/]+\/[^/]+\/git\/commits\/(.+)$/);
+      const commitMatch = path.match(
+        /\/repos\/[^/]+\/[^/]+\/git\/commits\/(.+)$/
+      );
       if (commitMatch && method === 'GET') {
         const commitSha = commitMatch[1];
         // Find the branch with this commit SHA
@@ -158,10 +164,12 @@ export class GitHubMockBuilder {
       }
 
       // GET /repos/:owner/:repo/contents/:path - get directory listing only
-      const contentsMatch = path.match(/\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
+      const contentsMatch = path.match(
+        /\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/
+      );
       if (contentsMatch && method === 'GET') {
         const contentPath = decodeURIComponent(contentsMatch[1]);
-        
+
         // Check if it's a directory listing
         const dirListing = contents.get(contentPath);
         if (dirListing) {

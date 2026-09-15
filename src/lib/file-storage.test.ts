@@ -1270,7 +1270,11 @@ test(
       );
 
       await fs.mkdir(path.dirname(malformedPath), { recursive: true });
-      await fs.writeFile(malformedPath, 'not valid markdown frontmatter', 'utf8');
+      await fs.writeFile(
+        malformedPath,
+        'not valid markdown frontmatter',
+        'utf8'
+      );
 
       assert.equal(await findSessionFileById(session.id), sessionPath);
     });
@@ -1335,10 +1339,7 @@ test(
           }),
           SessionNotFoundError
         );
-        await assert.rejects(
-          deleteSession(session.id),
-          SessionNotFoundError
-        );
+        await assert.rejects(deleteSession(session.id), SessionNotFoundError);
       } finally {
         fs.readFile = originalReadFile;
       }
@@ -1768,9 +1769,7 @@ test(
         date: '2025-01-10',
       });
       const sessionPath = await createSession(session);
-      const baseDir = path.dirname(
-        path.dirname(path.dirname(sessionPath))
-      );
+      const baseDir = path.dirname(path.dirname(path.dirname(sessionPath)));
       const symlinkYearDir = path.join(baseDir, '2024');
       const outsideDir = await mkdtemp(
         path.join(tmpdir(), 'matmetrics-symlink-escape-')
@@ -1853,18 +1852,15 @@ test(
       await fs.writeFile(path3, markdown, 'utf-8');
 
       // Should detect all three duplicates
-      await assert.rejects(
-        findSessionFileById(sessionId),
-        (error: unknown) => {
-          assert.equal(error instanceof DuplicateSessionIdError, true);
-          if (!(error instanceof DuplicateSessionIdError)) {
-            return false;
-          }
-          assert.equal(error.paths.length, 3);
-          assert.deepEqual(error.paths, [path1, path2, path3].sort());
-          return true;
+      await assert.rejects(findSessionFileById(sessionId), (error: unknown) => {
+        assert.equal(error instanceof DuplicateSessionIdError, true);
+        if (!(error instanceof DuplicateSessionIdError)) {
+          return false;
         }
-      );
+        assert.equal(error.paths.length, 3);
+        assert.deepEqual(error.paths, [path1, path2, path3].sort());
+        return true;
+      });
     });
   }
 );

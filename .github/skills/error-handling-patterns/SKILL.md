@@ -28,11 +28,11 @@ Errors in MatMetrics span TypeScript and Go and must be classified, propagated, 
 
 MatMetrics errors fall into three categories:
 
-| Category | Recovery | Example | User Message |
-|----------|----------|---------|--------------|
-| **User-Actionable** | Retry with correction | Invalid session ID | "Session ID must contain only letters, numbers, dash, underscore" |
-| **Operational** | Retry or fallback | GitHub rate limit exceeded | "Too many requests to GitHub. Please try again in 5 minutes." |
-| **Permanent** | No recovery | Invalid Firebase token | "Authentication failed. Please sign in again." |
+| Category            | Recovery              | Example                    | User Message                                                      |
+| ------------------- | --------------------- | -------------------------- | ----------------------------------------------------------------- |
+| **User-Actionable** | Retry with correction | Invalid session ID         | "Session ID must contain only letters, numbers, dash, underscore" |
+| **Operational**     | Retry or fallback     | GitHub rate limit exceeded | "Too many requests to GitHub. Please try again in 5 minutes."     |
+| **Permanent**       | No recovery           | Invalid Firebase token     | "Authentication failed. Please sign in again."                    |
 
 **Pattern:**
 
@@ -69,7 +69,7 @@ try {
 export class MatMetricsError extends Error {
   // Classification field
   readonly category: 'user-actionable' | 'operational' | 'permanent';
-  
+
   // Context fields
   readonly statusCode?: number;
   readonly context?: Record<string, unknown>;
@@ -132,16 +132,15 @@ export class AuthError extends MatMetricsError {
 
 export class NotFoundError extends MatMetricsError {
   constructor(resource: string) {
-    super(
-      `${resource} not found`,
-      'user-actionable',
-      { context: { resource } }
-    );
+    super(`${resource} not found`, 'user-actionable', {
+      context: { resource },
+    });
   }
 }
 ```
 
 **Key patterns:**
+
 - Extend base class for inheritance and `instanceof` checks
 - Classify upfront (category never changes)
 - Include context fields for debugging (field names, status codes, values)
@@ -168,8 +167,7 @@ export function isAuthError(error: unknown): error is AuthError {
 // Generic category guard
 export function isUserActionableError(error: unknown): boolean {
   return (
-    error instanceof MatMetricsError &&
-    error.category === 'user-actionable'
+    error instanceof MatMetricsError && error.category === 'user-actionable'
   );
 }
 
@@ -200,16 +198,13 @@ Errors should include enough context for users or developers to fix the issue.
 throw new ValidationError('Invalid effort');
 
 // RIGHT: Include field name, constraint, actual value
-throw new ValidationError(
-  'Effort must be 1-5, got 6',
-  {
-    context: {
-      field: 'effort',
-      constraint: '1-5',
-      actual: 6,
-    }
-  }
-);
+throw new ValidationError('Effort must be 1-5, got 6', {
+  context: {
+    field: 'effort',
+    constraint: '1-5',
+    actual: 6,
+  },
+});
 
 // Display to user
 function renderFieldError(err: ValidationError): string {
@@ -222,14 +217,14 @@ function renderFieldError(err: ValidationError): string {
 
 **Context fields to include:**
 
-| Field | Example | Used For |
-|-------|---------|----------|
-| `field` | "effort" | Highlight form field in UI |
-| `constraint` | "1-5" | Explain what's valid |
-| `actual` | 6 | Show what was provided |
-| `allowedValues` | ["Technical", "Randori", "Shiai"] | Enum options |
-| `resource` | "session-abc123" | Which item failed |
-| `statusCode` | 404 | HTTP status from API |
+| Field           | Example                           | Used For                   |
+| --------------- | --------------------------------- | -------------------------- |
+| `field`         | "effort"                          | Highlight form field in UI |
+| `constraint`    | "1-5"                             | Explain what's valid       |
+| `actual`        | 6                                 | Show what was provided     |
+| `allowedValues` | ["Technical", "Randori", "Shiai"] | Enum options               |
+| `resource`      | "session-abc123"                  | Which item failed          |
+| `statusCode`    | 404                               | HTTP status from API       |
 
 ### Error Propagation Across TypeScript ↔ Go
 
@@ -290,14 +285,10 @@ export function parseErrorResponse(response: {
       return new ValidationError(error);
 
     case 'operational':
-      return new GitHubApiError(
-        error,
-        response.statusCode || 500,
-        {
-          retryAfter: context?.retryAfter as number,
-          context,
-        }
-      );
+      return new GitHubApiError(error, response.statusCode || 500, {
+        retryAfter: context?.retryAfter as number,
+        context,
+      });
 
     case 'permanent':
       return new AuthError(error);
@@ -310,12 +301,12 @@ export function parseErrorResponse(response: {
 // Usage in fetch
 async function fetchFromGo(endpoint: string) {
   const response = await fetch(endpoint);
-  
+
   if (!response.ok) {
     const errorData = await response.json();
     throw parseErrorResponse(errorData);
   }
-  
+
   return response.json();
 }
 ```
@@ -396,16 +387,13 @@ if validationErr, ok := err.(*sessionapi.ValidationError); ok {
 describe('Error Types', () => {
   describe('ValidationError', () => {
     it('should create with context', () => {
-      const err = new ValidationError(
-        'Effort must be 1-5, got 6',
-        {
-          context: {
-            field: 'effort',
-            constraint: '1-5',
-            actual: 6,
-          },
-        }
-      );
+      const err = new ValidationError('Effort must be 1-5, got 6', {
+        context: {
+          field: 'effort',
+          constraint: '1-5',
+          actual: 6,
+        },
+      });
 
       expect(err.category).toBe('user-actionable');
       expect(err.context?.field).toBe('effort');
@@ -427,7 +415,7 @@ describe('Error Types', () => {
       };
 
       const deserialized = parseErrorResponse(serialized);
-      
+
       expect(isGitHubApiError(deserialized)).toBe(true);
       expect((deserialized as GitHubApiError).retryAfter).toBe(60);
     });
@@ -503,10 +491,9 @@ try {
 
 // RIGHT: Throw specific type
 if (effort < 1 || effort > 5) {
-  throw new ValidationError(
-    'Effort must be 1-5, got ' + effort,
-    { context: { field: 'effort', actual: effort } }
-  );
+  throw new ValidationError('Effort must be 1-5, got ' + effort, {
+    context: { field: 'effort', actual: effort },
+  });
 }
 
 // Caller can narrow type

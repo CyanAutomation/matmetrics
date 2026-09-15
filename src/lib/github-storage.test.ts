@@ -38,9 +38,12 @@ test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs
   assert.ok(githubPathB.endsWith('a%3Fb.md'));
 
   const overlyLongSessionId = 'a'.repeat(101);
-  assert.throws(() => getGitHubSessionPath(makeTestSession(overlyLongSessionId)), {
-    message: 'Session ID exceeds maximum allowed length of 100 characters',
-  });
+  assert.throws(
+    () => getGitHubSessionPath(makeTestSession(overlyLongSessionId)),
+    {
+      message: 'Session ID exceeds maximum allowed length of 100 characters',
+    }
+  );
 });
 
 test('two writers from the same revision cannot silently overwrite each other', async () => {
