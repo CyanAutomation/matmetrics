@@ -408,6 +408,9 @@ test(
       await createSession(session);
 
       const originalRename = fs.rename;
+      const originalWriteFile = fs.writeFile;
+      let deleteStarted = false;
+      let deleteLockConflicts = 0;
       let notifyRenameStarted: (() => void) | null = null;
       const renameStarted = new Promise<void>((resolve) => {
         notifyRenameStarted = resolve;
@@ -422,6 +425,21 @@ test(
         await renameGate;
         return originalRename(...(args as Parameters<typeof originalRename>));
       };
+      fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
+        try {
+          return await originalWriteFile.call(fs, ...args);
+        } catch (error) {
+          const [targetPath] = args;
+          if (
+            deleteStarted &&
+            targetPath.toString().endsWith('.lock') &&
+            (error as NodeJS.ErrnoException).code === 'EEXIST'
+          ) {
+            deleteLockConflicts += 1;
+          }
+          throw error;
+        }
+      }) as typeof fs.writeFile;
 
       try {
         const updated = {
@@ -433,7 +451,11 @@ test(
 
         await renameStarted;
 
+        deleteStarted = true;
         const deletePromise = deleteSession('race-session');
+        while (deleteLockConflicts === 0) {
+          await wait(5);
+        }
         if (releaseRename) {
           releaseRename();
         }
@@ -442,12 +464,51 @@ test(
 
         const finalPath = await findSessionFileById('race-session');
         assert.equal(finalPath, null);
+        assert.ok(
+          deleteLockConflicts >= 1,
+          'deleteSession should retry after encountering the update lock'
+        );
       } finally {
         if (releaseRename) {
           releaseRename();
         }
         fs.rename = originalRename;
+        fs.writeFile = originalWriteFile;
       }
+    });
+  }
+);
+
+test(
+  'deleteSession rejects after the bounded retry window when a lock remains active',
+  { concurrency: false },
+  async () => {
+    await withTempDataDir(async () => {
+      const session = makeSession({
+        id: 'delete-active-lock',
+        date: '2025-03-03',
+      });
+      const sessionPath = await createSession(session);
+      const releaseLock = await __acquireSessionUpdateLockForTests(
+        session.id,
+        sessionPath,
+        crypto.randomUUID()
+      );
+
+      const startedAt = Date.now();
+      try {
+        await assert.rejects(
+          deleteSession(session.id),
+          SessionUpdateConflictError
+        );
+      } finally {
+        await releaseLock();
+      }
+      const elapsedMs = Date.now() - startedAt;
+
+      assert.ok(elapsedMs >= 900, `retry window was only ${elapsedMs}ms`);
+      assert.ok(elapsedMs < 3000, `retry window took ${elapsedMs}ms`);
+      assert.equal(await findSessionFileById(session.id), sessionPath);
     });
   }
 );
