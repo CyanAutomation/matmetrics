@@ -314,7 +314,7 @@ func TestCreateSessionIdenticalRetryIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession() error = %v", err)
 	}
-	if got.ID != session.ID || putCount != 0 {
+	if got.ID != session.ID || got.RevisionSHA != "sha-existing" || putCount != 0 {
 		t.Fatalf("CreateSession() = %#v, PUT count = %d", got, putCount)
 	}
 }
@@ -1089,4 +1089,64 @@ func jsonBodyResponse(status int, payload any) *http.Response {
 		panic(err)
 	}
 	return jsonResponse(status, string(raw))
+}
+
+func TestCreateAndUpdateSessionReturnGitHubContentSHA(t *testing.T) {
+	resetListSessionsCacheForTests()
+	config := model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}
+	session := model.Session{ID: "session-return-sha", Date: "2026-03-18", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{"Uchi mata"}}
+	currentSHA := ""
+	currentContent := ""
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/contents/"):
+				if currentSHA == "" {
+					return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+				}
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": currentSHA, "content": base64.StdEncoding.EncodeToString([]byte(currentContent))}), nil
+			case r.Method == http.MethodGet:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			case r.Method == http.MethodPut:
+				var body struct {
+					Content string `json:"content"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					return nil, err
+				}
+				decoded, err := base64.StdEncoding.DecodeString(body.Content)
+				if err != nil {
+					return nil, err
+				}
+				currentContent = string(decoded)
+				if currentSHA == "" {
+					currentSHA = "sha-created"
+				} else {
+					currentSHA = "sha-updated"
+				}
+				return jsonBodyResponse(http.StatusOK, map[string]any{"content": map[string]string{"sha": currentSHA}}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+
+	created, err := client.CreateSession(config, session)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if created.RevisionSHA != "sha-created" {
+		t.Fatalf("CreateSession() revision = %q", created.RevisionSHA)
+	}
+
+	created.Notes = "updated"
+	updated, err := client.UpdateSession(config, *created)
+	if err != nil {
+		t.Fatalf("UpdateSession() error = %v", err)
+	}
+	if updated.RevisionSHA != "sha-updated" {
+		t.Fatalf("UpdateSession() revision = %q", updated.RevisionSHA)
+	}
 }
