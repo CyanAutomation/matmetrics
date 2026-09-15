@@ -1,15 +1,7 @@
 'use client';
 
-import {
-  deleteField,
-  doc,
-  getDoc,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
 import { DEFAULT_TRANSFORMER_PROMPT } from './ai-prompts';
-import { getFirebaseDb } from './firebase-client';
+import { getAuthHeaders } from './auth-session';
 import { getScopedStorageKey } from './client-identity';
 import type {
   AuditConfig,
@@ -76,10 +68,36 @@ type PreferencesListener = (preferences: UserPreferences) => void;
 
 let currentPreferences: UserPreferences = DEFAULT_USER_PREFERENCES;
 let loadedUserId: string | null = null;
+let currentPreferencesRevision = 0;
 const listeners = new Set<PreferencesListener>();
 
-function getPreferencesDocRef(uid: string) {
-  return doc(getFirebaseDb(), 'users', uid, 'preferences', 'app');
+async function requestPreferences<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: await getAuthHeaders(init?.headers),
+  });
+  if (!response.ok) {
+    throw new Error(`Preference request failed (${response.status})`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function persistCurrentPreferences(): Promise<void> {
+  const result = await requestPreferences<{
+    preferences: unknown;
+    revision: number;
+  }>('/api/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preferences: currentPreferences,
+      revision: currentPreferencesRevision,
+    }),
+  });
+  currentPreferencesRevision = result.revision;
 }
 
 function notifyPreferencesChanged(): void {
@@ -483,68 +501,6 @@ function normalizePreferences(value: unknown): UserPreferences {
   };
 }
 
-function serializeTrainingPlan(
-  trainingPlan: TrainingPlanPreferences
-): TrainingPlanPreferences {
-  return normalizeTrainingPlanPreferences(trainingPlan);
-}
-
-function serializeGitHubSettings(
-  gitHub: GitHubSettings
-): Record<string, unknown> {
-  return {
-    enabled: gitHub.enabled,
-    migrationDone: gitHub.migrationDone,
-    syncStatus: gitHub.syncStatus,
-    ...(gitHub.config
-      ? {
-          config: {
-            owner: gitHub.config.owner,
-            repo: gitHub.config.repo,
-            ...(gitHub.config.branch ? { branch: gitHub.config.branch } : {}),
-          },
-        }
-      : {}),
-    ...(gitHub.lastSyncTime ? { lastSyncTime: gitHub.lastSyncTime } : {}),
-  };
-}
-
-function serializeVideoLibraryPreferences(
-  videoLibrary: VideoLibraryPreferences
-): Record<string, unknown> {
-  return {
-    customAllowedDomains: Array.from(
-      new Set(
-        videoLibrary.customAllowedDomains
-          .map((domain) => domain.trim().toLowerCase())
-          .filter((domain) => domain.length > 0)
-      )
-    ).sort(),
-    linkChecksBySessionId: Object.fromEntries(
-      Object.entries(videoLibrary.linkChecksBySessionId || {})
-        .filter(([, snapshot]) => !!snapshot)
-        .map(([sessionId, snapshot]) => [
-          sessionId,
-          {
-            url: snapshot.url,
-            hostname: snapshot.hostname,
-            status: snapshot.status,
-            checkedAt: snapshot.checkedAt,
-            ...(typeof snapshot.httpStatus === 'number'
-              ? { httpStatus: snapshot.httpStatus }
-              : {}),
-            ...(typeof snapshot.error === 'string'
-              ? { error: snapshot.error }
-              : {}),
-          },
-        ])
-    ),
-    expectedVideoCategories: normalizeExpectedVideoCategories(
-      videoLibrary.expectedVideoCategories
-    ),
-  };
-}
-
 function readCachedPreferences(): UserPreferences {
   if (typeof window === 'undefined') {
     return cloneDefaults();
@@ -624,9 +580,13 @@ export async function initializeUserPreferences(
   currentPreferences = readCachedPreferences();
   notifyPreferencesChanged();
 
-  const snapshot = await getDoc(getPreferencesDocRef(uid));
-  const remotePreferences = snapshot.exists()
-    ? normalizePreferences(snapshot.data())
+  const stored = await requestPreferences<{
+    preferences: unknown;
+    revision: number;
+  }>('/api/preferences');
+  currentPreferencesRevision = stored.revision;
+  const remotePreferences = stored.preferences
+    ? normalizePreferences(stored.preferences)
     : cloneDefaults();
   const legacyPreferences = readLegacyPreferences();
 
@@ -651,44 +611,7 @@ export async function initializeUserPreferences(
   writeCachedPreferences(mergedPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      transformerPrompt: mergedPreferences.transformerPrompt,
-      gitHub: serializeGitHubSettings(mergedPreferences.gitHub),
-      videoLibrary: serializeVideoLibraryPreferences(
-        mergedPreferences.videoLibrary
-      ),
-      ...(mergedPreferences.migratedLocalSettingsAt
-        ? { migratedLocalSettingsAt: mergedPreferences.migratedLocalSettingsAt }
-        : {}),
-      ...(mergedPreferences.sessionAudits &&
-      Object.keys(mergedPreferences.sessionAudits).length > 0
-        ? {
-            sessionAudits: serializeSessionAudits(
-              mergedPreferences.sessionAudits
-            ),
-          }
-        : {}),
-      ...(mergedPreferences.auditConfig
-        ? { auditConfig: serializeAuditConfig(mergedPreferences.auditConfig) }
-        : {}),
-      ...(mergedPreferences.auditMode
-        ? { auditMode: mergedPreferences.auditMode }
-        : {}),
-      ...(mergedPreferences.lastAuditRun
-        ? {
-            lastAuditRun: serializeLastAuditRun(mergedPreferences.lastAuditRun),
-          }
-        : {}),
-      trainingPlan: serializeTrainingPlan(mergedPreferences.trainingPlan),
-      sessionTypes: normalizeSessionTypePreferences(
-        mergedPreferences.sessionTypes
-      ),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 
   return mergedPreferences;
 }
@@ -696,6 +619,7 @@ export async function initializeUserPreferences(
 export function clearUserPreferencesState(): void {
   currentPreferences = cloneDefaults();
   loadedUserId = null;
+  currentPreferencesRevision = 0;
   notifyPreferencesChanged();
 }
 
@@ -710,14 +634,7 @@ export async function saveTransformerPromptPreference(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      transformerPrompt: prompt,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export async function resetTransformerPromptPreference(
@@ -737,14 +654,7 @@ export async function saveGitHubSettingsPreference(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      gitHub: serializeGitHubSettings(gitHub),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export async function saveVideoLibraryPreference(
@@ -758,16 +668,7 @@ export async function saveVideoLibraryPreference(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      videoLibrary: serializeVideoLibraryPreferences(
-        currentPreferences.videoLibrary
-      ),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export async function saveTrainingPlanPreference(
@@ -782,14 +683,7 @@ export async function saveTrainingPlanPreference(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      trainingPlan: serializeTrainingPlan(normalizedPlan),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export async function saveSessionTypePreferences(
@@ -801,14 +695,10 @@ export async function saveSessionTypePreferences(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    { sessionTypes: normalized, updatedAt: serverTimestamp() },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
-export async function clearGitHubConfigPreference(uid: string): Promise<void> {
+export async function clearGitHubConfigPreference(_uid: string): Promise<void> {
   const nextGitHub = {
     ...DEFAULT_GITHUB_SETTINGS,
   };
@@ -819,77 +709,12 @@ export async function clearGitHubConfigPreference(uid: string): Promise<void> {
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await updateDoc(getPreferencesDocRef(uid), {
-    gitHub: deleteField(),
-    updatedAt: serverTimestamp(),
-  }).catch(async () => {
-    await setDoc(
-      getPreferencesDocRef(uid),
-      {
-        gitHub: serializeGitHubSettings(nextGitHub),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
+  await persistCurrentPreferences();
 }
 
 /**
  * Audit Management
  */
-
-function serializeAuditConfig(config: AuditConfig): Record<string, unknown> {
-  return {
-    rules: config.rules.map((rule) => ({
-      code: rule.code,
-      enabled: rule.enabled,
-      ...(typeof rule.effortThreshold === 'number'
-        ? { effortThreshold: rule.effortThreshold }
-        : {}),
-      ...(typeof rule.durationStdDevMultiplier === 'number'
-        ? { durationStdDevMultiplier: rule.durationStdDevMultiplier }
-        : {}),
-    })),
-  };
-}
-
-function serializeSessionAudits(
-  audits: Record<string, SessionAudit>
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-
-  for (const [sessionId, audit] of Object.entries(audits)) {
-    result[sessionId] = {
-      sessionId: audit.sessionId,
-      flags: audit.flags.map((flag) => ({
-        code: flag.code,
-        severity: flag.severity,
-        message: flag.message,
-      })),
-      ...(audit.reviewedAt ? { reviewedAt: audit.reviewedAt } : {}),
-      ignoredRules: audit.ignoredRules,
-    };
-  }
-
-  return result;
-}
-
-function serializeLastAuditRun(
-  result: AuditRunResult
-): Record<string, unknown> {
-  return {
-    sessions: result.sessions.map((session) => ({
-      sessionId: session.sessionId,
-      sessionDate: session.sessionDate,
-      flags: session.flags.map((flag) => ({
-        code: flag.code,
-        severity: flag.severity,
-        message: flag.message,
-      })),
-    })),
-    ranAt: result.ranAt,
-  };
-}
 
 export function getSessionAudit(sessionId: string): SessionAudit | undefined {
   return currentPreferences.sessionAudits?.[sessionId];
@@ -913,14 +738,7 @@ export async function saveSessionAudit(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      sessionAudits: serializeSessionAudits(updated),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export function getAuditConfig(): AuditConfig {
@@ -957,15 +775,7 @@ export async function saveAuditConfig(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      auditMode: nextMode,
-      auditConfig: serializeAuditConfig(configForMode),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
 
 export function getLastAuditRun(): AuditRunResult | undefined {
@@ -983,12 +793,5 @@ export async function saveLastAuditRun(
   writeCachedPreferences(currentPreferences);
   notifyPreferencesChanged();
 
-  await setDoc(
-    getPreferencesDocRef(uid),
-    {
-      lastAuditRun: serializeLastAuditRun(result),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  await persistCurrentPreferences();
 }
