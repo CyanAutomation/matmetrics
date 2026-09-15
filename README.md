@@ -1,3 +1,5 @@
+[![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml)
+
 # MatMetrics
 
 A simple web application for tracking Judo practice sessions, analyzing training patterns to help judoka manage their techniques and training intensity.
