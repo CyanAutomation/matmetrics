@@ -507,6 +507,32 @@ test('coalesces update then delete into delete', async () => {
   ]);
 });
 
+test('coalescing an update then delete preserves the client revision', async () => {
+  resetQueue();
+
+  await setQueue(
+    [
+      { type: 'UPDATE', session: makeSession('session-1'), queuedAt: 100 },
+      {
+        type: 'DELETE',
+        id: 'session-1',
+        revisionSha: 'sha-observed-before-delete',
+        queuedAt: 200,
+      },
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    {
+      type: 'DELETE',
+      id: 'session-1',
+      revisionSha: 'sha-observed-before-delete',
+      queuedAt: 200,
+    },
+  ]);
+});
+
 test('coalesces delete then create into recreate create', async () => {
   resetQueue();
   const recreated = { ...makeSession('session-1'), notes: 'recreated' };

@@ -54,7 +54,7 @@ function getErrorType(error: unknown): string {
 type SyncOperationPayload =
   | { type: 'CREATE'; session: JudoSession }
   | { type: 'UPDATE'; session: JudoSession }
-  | { type: 'DELETE'; id: string };
+  | { type: 'DELETE'; id: string; revisionSha?: string };
 
 export type SyncOperation = SyncOperationPayload & { queuedAt: number };
 
@@ -107,7 +107,10 @@ function isValidSyncOperationInput(
   }
 
   if (value.type === 'DELETE') {
-    return typeof value.id === 'string';
+    return (
+      typeof value.id === 'string' &&
+      (value.revisionSha === undefined || typeof value.revisionSha === 'string')
+    );
   }
 
   if (value.type === 'CREATE' || value.type === 'UPDATE') {
@@ -193,7 +196,7 @@ function stableStringify(value: unknown): string {
 
 function getOperationPayloadKey(operation: SyncOperationInput): string {
   if (operation.type === 'DELETE') {
-    return `DELETE:${operation.id}`;
+    return `DELETE:${operation.id}:${operation.revisionSha ?? ''}`;
   }
 
   return `${operation.type}:${stableStringify(operation.session)}`;
