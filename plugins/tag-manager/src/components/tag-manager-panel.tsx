@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
+import { DataToolbar } from '@/components/ui/data-toolbar';
 import { tagService } from '@/lib/tags';
 import { Tags, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -352,18 +353,19 @@ export function TagManager({ onRefresh }: TagManagerProps) {
       title="Tag Manager"
       description="Search, rename, merge, or remove tagged techniques."
       icon={<Tags className="h-6 w-6" />}
-      headerActions={
-        <div className="w-full sm:w-80">
-          <InputWithIcon
-            icon={<Search className="h-4 w-4" />}
-            aria-label="Search tags"
-            placeholder="Search tags..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-      }
     >
+      <DataToolbar
+        label="Filter technique tags"
+        className="grid-cols-1 p-3 sm:p-4"
+      >
+        <InputWithIcon
+          icon={<Search className="h-4 w-4" />}
+          aria-label="Search tags"
+          placeholder="Search tags"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </DataToolbar>
       {isMutatingTags ? (
         <PluginLoadingState
           title="Updating tags"

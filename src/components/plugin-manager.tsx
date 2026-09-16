@@ -6,6 +6,7 @@ import { AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   PluginPageShell,
   PLUGIN_PAGE_CLASS_PATTERNS,
@@ -257,9 +258,9 @@ export function PluginManagerInstalledContent(props: {
           Boolean(plugin.maturity) && hasBlockingContractIssues(plugin.issues);
         const summarySeverity = resolveEntrySummarySeverity(plugin.issues);
         return (
-          <div
+          <Card
             key={plugin.id}
-            className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4"
+            className="flex flex-col gap-3 border border-border bg-card/60 p-4"
           >
             {/* Header row: user-facing health + toggle */}
             <div className="flex items-start justify-between gap-3">
@@ -358,7 +359,7 @@ export function PluginManagerInstalledContent(props: {
                 )}
               </div>
             ) : null}
-          </div>
+          </Card>
         );
       })}
     </div>
