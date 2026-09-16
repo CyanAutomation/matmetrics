@@ -148,7 +148,7 @@ async function consumeMessage(env: Env, message: Message<{ id: string }>): Promi
     }
     if (encoder.encode(text).byteLength > MAX_JOB_RESULT_BYTES) throw new Error('Executor response exceeds job result limit');
     await env.DB.prepare("UPDATE background_jobs SET status = 'completed', result_json = ?, error_message = NULL, updated_at = ? WHERE id = ?").bind(JSON.stringify(JSON.parse(text)), Date.now(), job.id).run();
-    message.ack();
+    return message.ack();
   } catch (error) {
     const failure = error instanceof Error ? error.message : 'Background job failed';
     if (attempts >= MAX_JOB_ATTEMPTS) {
