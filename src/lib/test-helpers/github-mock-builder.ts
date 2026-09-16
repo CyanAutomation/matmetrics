@@ -12,6 +12,7 @@ import type { JudoSession } from '../types';
 /**
  * Creates a minimal test session fixture
  */
+// fallow-ignore-next-line unused-export
 export function makeTestSession(
   id: string,
   overrides: Partial<JudoSession> = {}
@@ -51,6 +52,7 @@ interface GitHubContentsEntry {
 /**
  * Builder for composable GitHub API mocks
  */
+// fallow-ignore-next-line unused-export
 export class GitHubMockBuilder {
   private branches = new Map<string, { commitSha: string; treeSha: string }>();
   private trees = new Map<

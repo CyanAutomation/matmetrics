@@ -8,7 +8,9 @@
     "ignoredFiles": [
       "scripts/__fixtures__/**",
       "src/lib/github-storage.test.ts",
-      "src/lib/test-helpers/**"
+      "src/lib/test-helpers/**",
+      "**/*.test.ts",
+      "**/*.test.tsx"
     ],
     "ignoredExports": [],
     "ignoredTypes": [],
