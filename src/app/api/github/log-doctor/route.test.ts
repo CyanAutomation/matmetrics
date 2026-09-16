@@ -18,7 +18,7 @@ function buildRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
-test('log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo/branch', async () => {
+test('log-doctor route queues a scan and trims owner/repo/branch', async () => {
   const originalFetch = global.fetch;
   const originalToken = process.env.GITHUB_TOKEN;
   const originalAuthMode = process.env.MATMETRICS_AUTH_TEST_MODE;
@@ -27,6 +27,8 @@ test('log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo
 
   process.env.GITHUB_TOKEN = 'ghs_test_token';
   process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+  process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://worker.example';
+  process.env.MATMETRICS_INTERNAL_API_SECRET = 'worker-secret';
 
   global.fetch = async (input, init) => {
     fetchCall = {
@@ -34,8 +36,11 @@ test('log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo
       body: typeof init?.body === 'string' ? init.body : undefined,
     };
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
+    return new Response(JSON.stringify({
+      id: '00000000-0000-4000-8000-000000000001', type: 'log-doctor-scan', status: 'queued', attempts: 0,
+      createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
+    }), {
+      status: 202,
       headers: { 'content-type': 'application/json' },
     });
   };
@@ -49,13 +54,11 @@ test('log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo
       })
     );
 
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 202);
     assert.ok(fetchCall);
-    assert.equal(fetchCall?.url, 'http://localhost/api/go/github/log-doctor');
+    assert.equal(fetchCall?.url, 'https://worker.example/v1/background-jobs');
     assert.deepEqual(JSON.parse(fetchCall?.body ?? '{}'), {
-      owner: 'octocat',
-      repo: 'matmetrics',
-      branch: 'main',
+      type: 'log-doctor-scan', config: { owner: 'octocat', repo: 'matmetrics', branch: 'main' },
     });
   } finally {
     global.fetch = originalFetch;
@@ -64,6 +67,8 @@ test('log-doctor route proxies to /api/go/github/log-doctor and trims owner/repo
     } else {
       process.env.GITHUB_TOKEN = originalToken;
     }
+    delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    delete process.env.MATMETRICS_INTERNAL_API_SECRET;
     if (originalAuthMode === undefined) {
       delete process.env.MATMETRICS_AUTH_TEST_MODE;
     } else {
@@ -124,7 +129,7 @@ test('log-doctor route rejects invalid body before proxying', async () => {
   }
 });
 
-test('log-doctor route returns upstream 404 when proxied go route is absent', async () => {
+test('log-doctor route reports an unavailable queue configuration', async () => {
   const originalFetch = global.fetch;
   const originalToken = process.env.GITHUB_TOKEN;
   const originalAuthMode = process.env.MATMETRICS_AUTH_TEST_MODE;
@@ -132,28 +137,15 @@ test('log-doctor route returns upstream 404 when proxied go route is absent', as
   process.env.GITHUB_TOKEN = 'ghs_test_token';
   process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
-  global.fetch = async (input) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    if (url.endsWith('/api/go/github/log-doctor')) {
-      return new Response(JSON.stringify({ error: 'Not Found' }), {
-        status: 404,
-        headers: { 'content-type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: 'Unexpected route' }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
-  };
+  global.fetch = async () => { throw new Error('must not fetch'); };
 
   try {
     const response = await POST(
       buildRequest({ owner: 'octocat', repo: 'matmetrics', branch: 'main' })
     );
 
-    assert.equal(response.status, 404);
-    assert.deepEqual(await response.json(), { error: 'Not Found' });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { success: false, message: 'Background jobs are not configured' });
   } finally {
     global.fetch = originalFetch;
     if (originalToken === undefined) {
