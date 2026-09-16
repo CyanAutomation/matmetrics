@@ -81,7 +81,7 @@ function parseJobPayload(body: string): JobPayload | null {
 
 function toJobResponse(job: StoredJob): Record<string, unknown> {
   let result: unknown;
-  if (job.result_json) {
+  if (job.result_json !== null) {
     try { result = JSON.parse(job.result_json); } catch { result = undefined; }
   }
   return {
