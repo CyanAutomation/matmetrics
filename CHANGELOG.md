@@ -4,6 +4,21 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.11.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.1...nextn-v1.11.0) (2026-09-16)
+
+
+### Features
+
+* enhance background job handling with error classification and status updates ([dcf8c8a](https://github.com/CyanAutomation/matmetrics/commit/dcf8c8a9dd880a53726a2e1d1000a9e1616a6301))
+* queue background GitHub checks ([c135633](https://github.com/CyanAutomation/matmetrics/commit/c135633f3717c6c32771be1e891e88cadc31cae9))
+* queue background GitHub checks ([#749](https://github.com/CyanAutomation/matmetrics/issues/749)) ([597670d](https://github.com/CyanAutomation/matmetrics/commit/597670d034eb22091bc623ece4453f57631c6c3e))
+
+
+### Bug Fixes
+
+* harden background job execution ([2cdc5c9](https://github.com/CyanAutomation/matmetrics/commit/2cdc5c9a50c290fd625172beeb52938a2bd3a672))
+* harden queued GitHub background checks ([#750](https://github.com/CyanAutomation/matmetrics/issues/750)) ([171aa2c](https://github.com/CyanAutomation/matmetrics/commit/171aa2cdc19f978ec12de809ced48b5ef5c15800))
+
 ## [1.10.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.0...nextn-v1.10.1) (2026-09-16)
 
 
