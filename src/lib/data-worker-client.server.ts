@@ -38,7 +38,7 @@ export function createDataWorkerSignature(
 export async function requestDataWorker<T>(
   path: string,
   options: {
-    method: 'GET' | 'PUT';
+    method: 'GET' | 'POST' | 'PUT';
     userId: string;
     body?: unknown;
   }

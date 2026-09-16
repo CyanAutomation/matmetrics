@@ -20,7 +20,7 @@ export async function validateGitHubRoute(
   request: NextRequest,
   options: { parseMode?: 'strict' | 'loose' } = {}
 ): Promise<
-  | { ok: true; config: GitHubConfig; request: NextRequest }
+  | { ok: true; config: GitHubConfig; request: NextRequest; userId: string }
   | { ok: false; response: NextResponse }
 > {
   const { parseMode = 'strict' } = options;
@@ -124,5 +124,5 @@ export async function validateGitHubRoute(
     };
   }
 
-  return { ok: true, config, request };
+  return { ok: true, config, request, userId: authResult.uid };
 }
