@@ -17,7 +17,7 @@ import test from 'node:test';
 type JobType = 'log-doctor-scan' | 'github-health';
 type JobStatus = 'queued' | 'running' | 'completed' | 'failed';
 
-interface JobPayload {
+interface _JobPayload {
   type: JobType;
   config: { owner: string; repo: string; branch?: string };
 }
@@ -105,16 +105,16 @@ class MockD1Database {
     return { success: false };
   }
 
-  private async executeFirst<T>(sql: string, params: unknown[]): Promise<T | null> {
+  private async executeFirst<T>(sql: string, _params: unknown[]): Promise<T | null> {
     if (sql.includes('SELECT') && sql.includes('FROM background_jobs')) {
-      const id = params[params.length - 1] as string;
+      const id = _params[_params.length - 1] as string;
       const job = this.data.get(id);
       return (job as T) || null;
     }
     return null;
   }
 
-  private async executeAll<T>(sql: string, params: unknown[]): Promise<MockD1Result<T>> {
+  private async executeAll<T>(sql: string, _params: unknown[]): Promise<MockD1Result<T>> {
     if (sql.includes('SELECT') && sql.includes('FROM plugin_enabled_overrides')) {
       // Return empty results for overrides (no setup needed in basic tests)
       return { results: [], success: true };
@@ -132,7 +132,7 @@ class MockD1Database {
   }
 }
 
-class MockQueue<T> {
+class _MockQueue<T> {
   private messages: T[] = [];
 
   async send(message: T) {
