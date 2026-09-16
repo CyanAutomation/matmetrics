@@ -3,7 +3,23 @@
   "name": "matmetrics-data",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-15",
-  "secrets": { "required": ["MATMETRICS_INTERNAL_API_SECRET", "MATMETRICS_BACKGROUND_EXECUTOR_URL", "MATMETRICS_BACKGROUND_EXECUTOR_SECRET"] },
+  "vars": {
+    "MATMETRICS_BACKGROUND_EXECUTOR_URL": "https://matmetrics-teal.vercel.app"
+  },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true
+    }
+  },
+  "secrets": { "required": ["MATMETRICS_INTERNAL_API_SECRET", "MATMETRICS_BACKGROUND_EXECUTOR_SECRET"] },
   "queues": {
     "producers": [
       { "binding": "BACKGROUND_JOBS", "queue": "matmetrics-background-jobs" }
