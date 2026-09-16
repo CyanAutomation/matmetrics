@@ -12,6 +12,12 @@ import { z } from 'zod';
  *
  * Any changes to the type structure, enum values, or validation rules must be
  * reflected in both TypeScript and the Worker to maintain the contract.
+ *
+ * Note: BackgroundJobResult and isBackgroundJobResult are actively used by:
+ * - plugins/log-doctor/src/hooks/use-file-validation-controller.ts (3 usages)
+ * - src/lib/background-job-store.server.ts (2 usages)
+ * - src/lib/background-jobs.test.ts (2 usages)
+ * Do not remove as "dead code" — these are part of the critical job contract.
  */
 
 export const BACKGROUND_JOB_TYPES = [

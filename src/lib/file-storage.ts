@@ -28,7 +28,6 @@ interface SessionIndexRecord {
 }
 
 export class DuplicateSessionIdError extends Error {
-  readonly code = 'DUPLICATE_SESSION_ID';
   readonly sessionId: string;
   readonly paths: string[];
 
@@ -52,7 +51,6 @@ export function isDuplicateSessionIdError(
 }
 
 export class SessionUpdateConflictError extends Error {
-  readonly code = 'SESSION_UPDATE_CONFLICT';
   readonly sessionId: string;
   readonly sessionPath: string;
 
@@ -73,7 +71,6 @@ export function isSessionUpdateConflictError(
 }
 
 export class SessionNotFoundError extends Error {
-  readonly code = 'SESSION_NOT_FOUND';
   readonly sessionId: string;
 
   constructor(sessionId: string) {
@@ -90,7 +87,6 @@ export function isSessionNotFoundError(
 }
 
 export class SessionLookupOperationalError extends Error {
-  readonly code = 'SESSION_LOOKUP_OPERATIONAL_ERROR';
   readonly sessionId: string;
 
   constructor(
