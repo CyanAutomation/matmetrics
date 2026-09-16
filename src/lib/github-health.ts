@@ -12,6 +12,8 @@ export type GitHubHealthResult = {
   };
 };
 
+const GITHUB_REQUEST_TIMEOUT_MS = 10_000;
+
 export async function checkGitHubHealth(
   config: GitHubConfig
 ): Promise<GitHubHealthResult> {
@@ -19,11 +21,14 @@ export async function checkGitHubHealth(
   if (!token) throw new Error('GITHUB_TOKEN environment variable not set');
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  let response;
+  const timeout = setTimeout(
+    () => controller.abort(),
+    GITHUB_REQUEST_TIMEOUT_MS
+  );
+  let response: Response;
   try {
     response = await fetch(
-      `
+      `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`,
       {
         headers: {
           Authorization: `token ${token}`,
@@ -47,7 +52,10 @@ export async function checkGitHubHealth(
     default_branch?: unknown;
   } | null;
   if (!response.ok) {
-    const detail = typeof payload?.message === 'string' ? payload.message : response.statusText;
+    const detail =
+      typeof payload?.message === 'string'
+        ? payload.message
+        : response.statusText;
     throw new Error(`GitHub API error ${response.status}: ${detail}`);
   }
   const branch = config.branch?.trim() || payload?.default_branch;
@@ -57,15 +65,16 @@ export async function checkGitHubHealth(
   const limit = Number(response.headers.get('x-ratelimit-limit'));
   const remaining = Number(response.headers.get('x-ratelimit-remaining'));
   const resetSeconds = Number(response.headers.get('x-ratelimit-reset'));
-  const rateLimit = Number.isFinite(limit) && Number.isFinite(remaining)
-    ? {
-        limit,
-        remaining,
-        ...(Number.isFinite(resetSeconds)
-          ? { resetAt: new Date(resetSeconds * 1000).toISOString() }
-          : {}),
-      }
-    : undefined;
+  const rateLimit =
+    Number.isFinite(limit) && Number.isFinite(remaining)
+      ? {
+          limit,
+          remaining,
+          ...(Number.isFinite(resetSeconds)
+            ? { resetAt: new Date(resetSeconds * 1000).toISOString() }
+            : {}),
+        }
+      : undefined;
   return {
     success: true,
     message: `Successfully connected to ${config.owner}/${config.repo} on branch ${branch}`,
