@@ -1574,7 +1574,7 @@ test('getJob - preserves all job fields', async () => {
 
 test('createJob - creates job with valid payload', async () => {
   const env = createMockEnv();
-  const db = env.DB as any as MockD1Database;
+  const _db = env.DB as any as MockD1Database;
   
   const body = JSON.stringify({
     type: 'log-doctor-scan',
