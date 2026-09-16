@@ -124,11 +124,18 @@ async function handleBackgroundJobs(request: Request, env: Env, userId: string, 
 
 async function executeBackgroundJob(env: Env, job: StoredJob): Promise<Response> {
   const url = new URL('/api/internal/background-jobs/execute', env.MATMETRICS_BACKGROUND_EXECUTOR_URL);
-  return fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: job.id, type: job.type, config: (JSON.parse(job.payload_json) as JobPayload).config }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: job.id, type: job.type, config: (JSON.parse(job.payload_json) as JobPayload).config }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function consumeMessage(env: Env, message: Message<{ id: string }>): Promise<void> {
