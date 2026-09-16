@@ -97,6 +97,65 @@ async function getJob(env: Env, id: string): Promise<StoredJob | null> {
   return env.DB.prepare('SELECT id, user_id, type, status, payload_json, result_json, error_message, attempts, created_at, updated_at FROM background_jobs WHERE id = ?').bind(id).first<StoredJob>();
 }
 
+/**
+ * Safely parses JSON with consistent error handling and context logging.
+ * @returns Parsed object or null if invalid
+ */
+function safeParseJSON<T>(input: string, context: string): T | null {
+  try {
+    return JSON.parse(input) as T;
+  } catch (error) {
+    console.error(`[safeParseJSON] Failed to parse ${context}:`, error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+/**
+ * Updates background job status in the database.
+ * Consolidates duplicate UPDATE patterns for consistency and maintainability.
+ */
+async function updateJobStatus(
+  env: Env,
+  jobId: string,
+  status: JobStatus,
+  options?: {
+    errorMessage?: string;
+    resultJson?: string;
+    attempts?: number;
+  },
+): Promise<void> {
+  const timestamp = Date.now();
+  const params: unknown[] = [status];
+
+  let sql = 'UPDATE background_jobs SET status = ?';
+
+  if (options?.resultJson !== undefined) {
+    sql += ', result_json = ?';
+    params.push(options.resultJson);
+  }
+
+  if (options?.errorMessage !== undefined) {
+    sql += ', error_message = ?';
+    params.push(options.errorMessage);
+  } else if (status === 'running' || status === 'completed') {
+    sql += ', error_message = NULL';
+  }
+
+  if (options?.attempts !== undefined) {
+    sql += ', attempts = ?';
+    params.push(options.attempts);
+  }
+
+  sql += ', updated_at = ? WHERE id = ?';
+  params.push(timestamp, jobId);
+
+  try {
+    await env.DB.prepare(sql).bind(...params).run();
+  } catch (error) {
+    console.error(`[updateJobStatus] Failed to update job ${jobId} to ${status}:`, error instanceof Error ? error.message : String(error));
+  }
+}
+
 async function createJob(env: Env, userId: string, body: string): Promise<Response> {
   const payload = parseJobPayload(body);
   if (!payload) return json({ error: 'Invalid background job payload' }, 400);
@@ -107,7 +166,7 @@ async function createJob(env: Env, userId: string, body: string): Promise<Respon
     await env.BACKGROUND_JOBS.send({ id });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create background job';
-    await env.DB.prepare("UPDATE background_jobs SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?").bind(message.slice(0, 1000), Date.now(), id).run().catch(() => {});
+    await updateJobStatus(env, id, 'failed', { errorMessage: message.slice(0, 1000) }).catch(() => {});
     return json({ error: 'Unable to queue background job' }, 503);
   }
   return json(toJobResponse((await getJob(env, id)) as StoredJob), 202);
@@ -127,10 +186,12 @@ async function executeBackgroundJob(env: Env, job: StoredJob): Promise<Response>
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
+    const payload = safeParseJSON<JobPayload>(job.payload_json, `job-${job.id}-payload`);
+    if (!payload) throw new Error('Failed to parse job payload');
     return await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: job.id, type: job.type, config: (JSON.parse(job.payload_json) as JobPayload).config }),
+      body: JSON.stringify({ id: job.id, type: job.type, config: payload.config }),
       signal: controller.signal,
     });
   } finally {
@@ -142,28 +203,28 @@ async function consumeMessage(env: Env, message: Message<{ id: string }>): Promi
   const job = await getJob(env, message.body.id);
   if (!job || job.status === 'completed' || job.status === 'failed') return message.ack();
   const attempts = job.attempts + 1;
-  await env.DB.prepare("UPDATE background_jobs SET status = 'running', attempts = ?, error_message = NULL, updated_at = ? WHERE id = ?").bind(attempts, Date.now(), job.id).run();
+  await updateJobStatus(env, job.id, 'running', { attempts });
   try {
     const response = await executeBackgroundJob(env, job);
     const text = await response.text();
     if (!response.ok) {
       if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-        await env.DB.prepare("UPDATE background_jobs SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?").bind(`Executor returned ${response.status}`, Date.now(), job.id).run();
+        await updateJobStatus(env, job.id, 'failed', { errorMessage: `Executor returned ${response.status}` });
         return message.ack();
       }
       throw new Error(`Executor returned ${response.status}: ${text.slice(0, 500)}`);
     }
     if (encoder.encode(text).byteLength > MAX_JOB_RESULT_BYTES) throw new Error('Executor response exceeds job result limit');
-    JSON.parse(text);
-    await env.DB.prepare("UPDATE background_jobs SET status = 'completed', result_json = ?, error_message = NULL, updated_at = ? WHERE id = ?").bind(text, Date.now(), job.id).run();
+    if (!safeParseJSON(text, `job-${job.id}-result`)) throw new Error('Executor response is not valid JSON');
+    await updateJobStatus(env, job.id, 'completed', { resultJson: text });
     return message.ack();
   } catch (error) {
     const failure = error instanceof Error ? error.message : 'Background job failed';
     if (attempts >= MAX_JOB_ATTEMPTS) {
-      await env.DB.prepare("UPDATE background_jobs SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?").bind(failure.slice(0, 1000), Date.now(), job.id).run();
+      await updateJobStatus(env, job.id, 'failed', { errorMessage: failure.slice(0, 1000) });
       return message.ack();
     }
-    await env.DB.prepare("UPDATE background_jobs SET status = 'queued', error_message = ?, updated_at = ? WHERE id = ?").bind(failure.slice(0, 1000), Date.now(), job.id).run();
+    await updateJobStatus(env, job.id, 'queued', { errorMessage: failure.slice(0, 1000) });
     return message.retry();
   }
 }
@@ -171,11 +232,12 @@ async function consumeMessage(env: Env, message: Message<{ id: string }>): Promi
 async function handlePreferences(request: Request, env: Env, userId: string, body: string): Promise<Response> {
   if (request.method === 'GET') {
     const row = await env.DB.prepare('SELECT preferences_json, revision FROM user_preferences WHERE user_id = ?').bind(userId).first<{ preferences_json: string; revision: number }>();
-    return json(row ? { preferences: JSON.parse(row.preferences_json), revision: row.revision } : { preferences: null, revision: 0 });
+    const preferences = row ? safeParseJSON(row.preferences_json, `user-${userId}-preferences`) : null;
+    return json(preferences ? { preferences, revision: row!.revision } : { preferences: null, revision: 0 });
   }
   if (request.method !== 'PUT') return json({ error: 'Method not allowed' }, 405);
-  let payload: { preferences?: unknown; revision?: unknown };
-  try { payload = JSON.parse(body); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const payload = safeParseJSON<{ preferences?: unknown; revision?: unknown }>(body, `user-${userId}-preferences-update`);
+  if (!payload) return json({ error: 'Invalid JSON' }, 400);
   if (!payload.preferences || typeof payload.preferences !== 'object' || Array.isArray(payload.preferences) || !Number.isInteger(payload.revision) || (payload.revision as number) < 0) return json({ error: 'Invalid payload' }, 400);
   const preferencesJson = JSON.stringify(payload.preferences);
   if (preferencesJson.length > 1048576) return json({ error: 'Preferences payload exceeds 1MB limit' }, 413);
@@ -200,8 +262,8 @@ const worker: ExportedHandler<Env, { id: string }> = {
         return json({ overrides: Object.fromEntries((result.results ?? []).map((row) => [row.plugin_id, row.enabled === 1])) });
       }
       if (request.method !== 'PUT') return json({ error: 'Method not allowed' }, 405);
-      let payload: { pluginId?: unknown; enabled?: unknown };
-      try { payload = JSON.parse(body); } catch { return json({ error: 'Invalid JSON' }, 400); }
+      const payload = safeParseJSON<{ pluginId?: unknown; enabled?: unknown }>(body, `user-${identity.userId}-plugin-override`);
+      if (!payload) return json({ error: 'Invalid JSON' }, 400);
       if (typeof payload.pluginId !== 'string' || !payload.pluginId.trim() || typeof payload.enabled !== 'boolean') return json({ error: 'Invalid payload' }, 400);
       await env.DB.prepare(`INSERT INTO plugin_enabled_overrides (user_id, plugin_id, enabled, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, plugin_id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`).bind(identity.userId, payload.pluginId.trim(), payload.enabled ? 1 : 0, Date.now()).run();
       return json({ persisted: true });
