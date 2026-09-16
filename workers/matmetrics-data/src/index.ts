@@ -154,6 +154,7 @@ async function consumeMessage(env: Env, message: Message<{ id: string }>): Promi
       throw new Error(`Executor returned ${response.status}: ${text.slice(0, 500)}`);
     }
     if (encoder.encode(text).byteLength > MAX_JOB_RESULT_BYTES) throw new Error('Executor response exceeds job result limit');
+    JSON.parse(text);
     await env.DB.prepare("UPDATE background_jobs SET status = 'completed', result_json = ?, error_message = NULL, updated_at = ? WHERE id = ?").bind(text, Date.now(), job.id).run();
     return message.ack();
   } catch (error) {
@@ -163,7 +164,7 @@ async function consumeMessage(env: Env, message: Message<{ id: string }>): Promi
       return message.ack();
     }
     await env.DB.prepare("UPDATE background_jobs SET status = 'queued', error_message = ?, updated_at = ? WHERE id = ?").bind(failure.slice(0, 1000), Date.now(), job.id).run();
-    message.retry();
+    return message.retry();
   }
 }
 
