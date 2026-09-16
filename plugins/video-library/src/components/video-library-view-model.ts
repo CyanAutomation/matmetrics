@@ -58,10 +58,10 @@ export function getVideoLibraryReviewAlertDescription(reviewCount: number) {
 const VIDEO_LIBRARY_STATUS_LABELS: Record<VideoLibraryStatusFilter, string> = {
   all: 'All statuses',
   missing: 'No linked video',
-  allowed_unchecked: 'Ready to check',
+  allowed_unchecked: 'Unchecked',
   disallowed_domain: 'Provider not yet trusted',
   invalid_url: 'Invalid URL',
-  reachable: 'Reachable',
+  reachable: 'Verified',
   broken: 'Broken',
   check_failed: "Couldn't verify link",
 };

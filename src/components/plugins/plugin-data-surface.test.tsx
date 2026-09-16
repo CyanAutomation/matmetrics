@@ -52,7 +52,7 @@ test('PluginDataSurfaceFilterRow exposes an accessible group and preserves assoc
 
   assert.match(
     html,
-    /<div[^>]*role="group"[^>]*aria-label="Filters"[^>]*data-slot="plugin-filter-row"[^>]*>/
+    /<div[^>]*role="region"[^>]*aria-label="Filters"[^>]*data-slot="plugin-filter-row"[^>]*>/
   );
   assert.match(html, /<label for="status-filter">Status<\/label>/);
   assert.match(html, /<select id="status-filter" name="status">/);
