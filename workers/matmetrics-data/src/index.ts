@@ -102,12 +102,12 @@ async function createJob(env: Env, userId: string, body: string): Promise<Respon
   if (!payload) return json({ error: 'Invalid background job payload' }, 400);
   const now = Date.now();
   const id = crypto.randomUUID();
-  await env.DB.prepare('INSERT INTO background_jobs (id, user_id, type, status, payload_json, attempts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(id, userId, payload.type, 'queued', JSON.stringify(payload), 0, now, now).run();
   try {
+    await env.DB.prepare('INSERT INTO background_jobs (id, user_id, type, status, payload_json, attempts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(id, userId, payload.type, 'queued', JSON.stringify(payload), 0, now, now).run();
     await env.BACKGROUND_JOBS.send({ id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Queue publication failed';
-    await env.DB.prepare("UPDATE background_jobs SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?").bind(message.slice(0, 1000), Date.now(), id).run();
+    const message = error instanceof Error ? error.message : 'Failed to create background job';
+    await env.DB.prepare("UPDATE background_jobs SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?").bind(message.slice(0, 1000), Date.now(), id).run().catch(() => {});
     return json({ error: 'Unable to queue background job' }, 503);
   }
   return json(toJobResponse((await getJob(env, id)) as StoredJob), 202);
