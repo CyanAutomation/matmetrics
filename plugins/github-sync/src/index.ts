@@ -1,15 +1,9 @@
 import React from 'react';
 
 import { GitHubSettings } from './components/github-settings';
-import { type DashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
+import { type PluginContext } from '@/lib/plugins/plugin-lifecycle-types';
 
-export type PluginContext = {
-  register?: (extensionId: string) => void;
-  registerPluginComponent?: (
-    componentId: string,
-    renderer: DashboardTabRenderer
-  ) => void;
-};
+export type { PluginContext };
 
 export const initPlugin = (context: PluginContext): void => {
   context.register?.('github-sync-dashboard-tab');

@@ -113,11 +113,7 @@ export function useLogDoctorAudit(): UseLogDoctorAuditState &
       };
     });
     const runResult: AuditRunResult = {
-      sessions: merged.map(({ sessionId, sessionDate, flags }) => ({
-        sessionId,
-        sessionDate,
-        flags,
-      })),
+      sessions: merged,
       ranAt: new Date().toISOString(),
     };
 

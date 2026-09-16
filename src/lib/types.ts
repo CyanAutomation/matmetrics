@@ -127,12 +127,16 @@ export interface VideoLinkCheckSnapshot {
   error?: string;
 }
 
+export interface AuditSessionResult {
+  sessionId: string;
+  sessionDate: string;
+  flags: AuditFlag[];
+  reviewedAt?: string;
+  ignoredRules: AuditFlagCode[];
+}
+
 export interface AuditRunResult {
-  sessions: Array<{
-    sessionId: string;
-    sessionDate: string;
-    flags: AuditFlag[];
-  }>;
+  sessions: AuditSessionResult[];
   ranAt: string; // ISO timestamp
 }
 
