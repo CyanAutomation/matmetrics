@@ -96,12 +96,24 @@ const notesSchema = z
  * Effort level validation with exact error message match
  */
 const effortSchema = z
-  .number({
-    error: 'Invalid effort level (must be an integer 1-5)',
-  })
-  .int({ message: 'Invalid effort level (must be an integer 1-5)' })
-  .refine((val) => val >= 1 && val <= 5, {
-    message: 'Invalid effort level (must be an integer 1-5)',
+  .unknown()
+  .superRefine((val, ctx) => {
+    // Type check - reject non-number values
+    if (typeof val !== 'number') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid effort level (must be an integer 1-5)',
+      });
+      return;
+    }
+
+    // Check if integer and in range [1, 5]
+    if (!Number.isInteger(val) || val < 1 || val > 5) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid effort level (must be an integer 1-5)',
+      });
+    }
   })
   .transform((val) => val as 1 | 2 | 3 | 4 | 5);
 
@@ -109,22 +121,62 @@ const effortSchema = z
  * Duration validation with exact error message match
  */
 const durationSchema = z
-  .number({
-    error: 'Invalid duration: expected a non-negative integer',
+  .unknown()
+  .optional()
+  .superRefine((val, ctx) => {
+    // If undefined, it's valid (optional field)
+    if (val === undefined) {
+      return;
+    }
+
+    // Type check - reject non-number values
+    if (typeof val !== 'number') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid duration: expected a non-negative integer',
+      });
+      return;
+    }
+
+    // Check if integer and non-negative
+    if (!Number.isInteger(val) || val < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid duration: expected a non-negative integer',
+      });
+    }
   })
-  .int({ message: 'Invalid duration: expected a non-negative integer' })
-  .nonnegative({ message: 'Invalid duration: expected a non-negative integer' })
-  .optional();
+  .transform((val) => val);
 
 /**
- * Complete session validation schema
+ * Category validation with custom error message
  */
+const categorySchema = z
+  .unknown()
+  .superRefine((val, ctx) => {
+    // Type check - reject non-string values
+    if (typeof val !== 'string') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid category',
+      });
+      return;
+    }
+
+    // Check if string is a valid category
+    if (!SESSION_CATEGORIES.includes(val as any)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid category',
+      });
+    }
+  })
+  .transform((val) => val as typeof SESSION_CATEGORIES[number]);
+
 export const sessionFieldsSchema = z.object({
   date: dateSchema,
   effort: effortSchema,
-  category: z.enum(SESSION_CATEGORIES, {
-    error: 'Invalid category',
-  }),
+  category: categorySchema,
   techniques: techniquesSchema,
   description: descriptionSchema,
   notes: notesSchema,
