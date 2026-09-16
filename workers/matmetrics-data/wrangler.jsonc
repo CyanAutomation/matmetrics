@@ -3,7 +3,21 @@
   "name": "matmetrics-data",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-15",
-  "secrets": { "required": ["MATMETRICS_INTERNAL_API_SECRET"] },
+  "secrets": { "required": ["MATMETRICS_INTERNAL_API_SECRET", "MATMETRICS_BACKGROUND_EXECUTOR_URL", "MATMETRICS_BACKGROUND_EXECUTOR_SECRET"] },
+  "queues": {
+    "producers": [
+      { "binding": "BACKGROUND_JOBS", "queue": "matmetrics-background-jobs" }
+    ],
+    "consumers": [
+      {
+        "queue": "matmetrics-background-jobs",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_retries": 5,
+        "dead_letter_queue": "matmetrics-background-jobs-dlq"
+      }
+    ]
+  },
   "d1_databases": [
     {
       "binding": "DB",

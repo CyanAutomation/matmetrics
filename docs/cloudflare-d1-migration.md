@@ -39,6 +39,27 @@ administrative REST API from Vercel.
 6. Deploy the Next.js application. Until both variables are present, it retains
    the Firestore server-side fallback, which permits a controlled cutover.
 
+## Background Jobs and Queues
+
+The same Worker also owns read-only background jobs for Log Doctor scans and
+on-demand GitHub health checks. Apply migration `0002_background_jobs.sql`,
+then create a `matmetrics-background-jobs` Queue and a
+`matmetrics-background-jobs-dlq` dead-letter Queue in every environment before
+deploying the Worker configuration.
+
+Set `MATMETRICS_BACKGROUND_EXECUTOR_URL` to the matching Vercel deployment
+origin and set the same `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` in Vercel and
+as a Worker secret. This credential permits the Worker to invoke only the
+private background executor; Firebase authentication and user authorization
+remain at the public Vercel API boundary. Do not expose either value to the
+browser.
+
+Jobs are persisted in D1 before publication, and Queue messages contain only a
+job ID. Consumers retry transient failures up to five times and record the
+final result or failure against the user-scoped job record. Log Doctor fixes,
+session mutations, and GitHub sync remain synchronous and are intentionally
+not queue consumers.
+
 ## Data Migration and Cutover
 
 1. Export `users/{uid}/preferences/app` from Firestore.
