@@ -18,17 +18,30 @@ export async function checkGitHubHealth(
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN environment variable not set');
 
-  const response = await fetch(
-    `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`,
-    {
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'matmetrics',
-      },
-      cache: 'no-store',
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  let response;
+  try {
+    response = await fetch(
+      `
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'matmetrics',
+        },
+        cache: 'no-store',
+        signal: controller.signal,
+      }
+    );
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('GitHub API request timed out');
     }
-  );
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   const payload = (await response.json().catch(() => null)) as {
     message?: unknown;
     default_branch?: unknown;
