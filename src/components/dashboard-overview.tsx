@@ -496,13 +496,6 @@ export function DashboardOverview({
               : `Last session ${stats.latestSessionLabel} · ${stats.completedRollingTarget} of ${stats.effectiveRollingTarget} planned sessions in the last 30 days`}
           </p>
         </div>
-        <RessaImage
-          pose={2}
-          size="compact"
-          alt=""
-          animate={false}
-          className="hidden w-24 shrink-0 self-center md:flex"
-        />
       </div>
       <DataSurface className="mb-6 overflow-hidden bg-[hsl(var(--color-surface-container-low))] p-0 shadow-none">
         <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">

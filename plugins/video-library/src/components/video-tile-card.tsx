@@ -115,7 +115,7 @@ export function VideoTileCard({
                 aria-hidden="true"
               />
             </span>
-            <span>{hasPreview ? 'Ready to watch' : `${hostname} video`}</span>
+            <span>{hasPreview ? 'Watch video' : `${hostname} video`}</span>
           </div>
         </>
       }

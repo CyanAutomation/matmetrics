@@ -493,7 +493,7 @@ export function SessionHistory({
           </SegmentedControl>
         </div>
       }
-      className="reveal-fade-up max-w-4xl"
+      className="reveal-fade-up"
     >
       <FilterBar
         label="Filter training history"
