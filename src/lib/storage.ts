@@ -918,12 +918,21 @@ async function refreshSessionsFromAPI(options?: {
     return;
   }
 
-  // The dashboard may be showing a local cache while the authoritative list is
-  // loading. Publish that state so it never silently reads as final data.
+  // Install an in-flight guard before broadcasting. storageSync listeners read
+  // sessions synchronously; without the guard, that read starts another refresh
+  // which broadcasts again before its own promise is assigned.
+  let resolveRefreshGate: (() => void) | undefined;
+  let rejectRefreshGate: ((error: unknown) => void) | undefined;
+  const refreshGate = new Promise<void>((resolve, reject) => {
+    resolveRefreshGate = resolve;
+    rejectRefreshGate = reject;
+  });
+  inFlightRefresh = refreshGate;
+  inFlightRefreshForce = force;
   isSyncing = true;
   dispatchStorageSync(sessionCache ?? getLocalStorageCache());
-  inFlightRefreshForce = force;
-  inFlightRefresh = (async () => {
+
+  const refresh = (async () => {
     const generation = storageGeneration;
     const seq = ++refreshSeq;
 
@@ -974,12 +983,12 @@ async function refreshSessionsFromAPI(options?: {
         return;
       }
 
-      inFlightRefresh = null;
       isSyncing = false;
-      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
       const shouldRunQueuedForce = queuedForcedRefresh;
       queuedForcedRefresh = false;
       inFlightRefreshForce = false;
+      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+      inFlightRefresh = null;
 
       if (
         shouldRunQueuedForce &&
@@ -992,7 +1001,10 @@ async function refreshSessionsFromAPI(options?: {
     }
   })();
 
-  return inFlightRefresh;
+  inFlightRefresh = refresh;
+  void refresh.then(resolveRefreshGate, rejectRefreshGate);
+
+  return refresh;
 }
 
 /**
