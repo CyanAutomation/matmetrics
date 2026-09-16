@@ -118,23 +118,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const auth = getFirebaseAuth();
-    const unsubscribeAuth = onAuthStateChanged(auth, async (nextUser) => {
-      const generation = ++authLoadGenerationRef.current;
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      async (nextUser) => {
+        const generation = ++authLoadGenerationRef.current;
 
-      if (!nextUser) {
-        setActiveUserId(null);
-        clearUserPreferencesState();
-        setUser(null);
-        setPreferencesError(null);
+        if (!nextUser) {
+          setActiveUserId(null);
+          clearUserPreferencesState();
+          setUser(null);
+          setPreferencesError(null);
+          setPreferencesReady(true);
+          setAuthReady(true);
+          return;
+        }
+
+        setActiveUserId(nextUser.uid);
+        setUser(toAuthenticatedUser(nextUser));
+        await loadPreferencesForUser(nextUser.uid, generation);
+      },
+      (error) => {
+        authLoadGenerationRef.current += 1;
+        setPreferencesError(
+          error instanceof Error
+            ? error
+            : new Error('Failed to initialize authentication')
+        );
         setPreferencesReady(true);
         setAuthReady(true);
-        return;
       }
-
-      setActiveUserId(nextUser.uid);
-      setUser(toAuthenticatedUser(nextUser));
-      await loadPreferencesForUser(nextUser.uid, generation);
-    });
+    );
 
     return () => {
       unsubscribeAuth();
