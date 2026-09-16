@@ -184,6 +184,49 @@ function installGitHubPreferencesOverride() {
 }
 
 serialTest(
+  'refresh startup does not re-enter when a storage sync listener reads sessions',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    let resolveList: ((value: Response) => void) | undefined;
+    const listPending = new Promise<Response>((resolve) => {
+      resolveList = resolve;
+    });
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      if (String(input).includes('/api/sessions/list')) {
+        return listPending;
+      }
+      throw new Error(`Unexpected fetch: ${input}`);
+    }) as typeof fetch;
+
+    let storageSyncEvents = 0;
+    const onStorageSync = () => {
+      storageSyncEvents += 1;
+      getSessions();
+    };
+    window.addEventListener('storageSync', onStorageSync);
+
+    try {
+      getSessions();
+      await flushAsyncWork();
+
+      assert.equal(storageSyncEvents, 1);
+
+      resolveList?.(new Response(JSON.stringify([]), { status: 200 }));
+      await flushAsyncWork();
+    } finally {
+      window.removeEventListener('storageSync', onStorageSync);
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'stale refresh does not overwrite an optimistic create while the create request is in flight',
   async () => {
     installBrowserEnv();
