@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 
-export type DrLogPose = 1 | 2 | 3 | 4;
+type DrLogPose = 1 | 2 | 3 | 4;
 
 interface DrLogImageProps {
   /**

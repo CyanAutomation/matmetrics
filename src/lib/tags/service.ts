@@ -504,5 +504,3 @@ export function createTagService({
     deleteTag,
   };
 }
-
-export type TagService = ReturnType<typeof createTagService>;
