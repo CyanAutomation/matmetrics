@@ -11,7 +11,7 @@ function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET;
   const value = request.headers.get('authorization');
   if (!secret || !value?.startsWith('Bearer ')) return false;
-  const candidate = value.slice('Bearer '.length);
+  const candidate = value.substring(7);
   const left = Buffer.from(candidate);
   const right = Buffer.from(secret);
   return left.length === right.length && timingSafeEqual(left, right);
