@@ -120,33 +120,13 @@ const effortSchema = z
 /**
  * Duration validation with exact error message match
  */
+const invalidDurationMessage =
+  'Invalid duration: expected a non-negative integer';
 const durationSchema = z
-  .unknown()
-  .optional()
-  .superRefine((val, ctx) => {
-    // If undefined, it's valid (optional field)
-    if (val === undefined) {
-      return;
-    }
-
-    // Type check - reject non-number values
-    if (typeof val !== 'number') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Invalid duration: expected a non-negative integer',
-      });
-      return;
-    }
-
-    // Check if integer and non-negative
-    if (!Number.isInteger(val) || val < 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Invalid duration: expected a non-negative integer',
-      });
-    }
-  })
-  .transform((val) => val);
+  .number({ error: invalidDurationMessage })
+  .int({ error: invalidDurationMessage })
+  .nonnegative({ error: invalidDurationMessage })
+  .optional();
 
 /**
  * Category validation with custom error message
@@ -171,7 +151,7 @@ const categorySchema = z
       });
     }
   })
-  .transform((val) => val as typeof SESSION_CATEGORIES[number]);
+  .transform((val) => val as (typeof SESSION_CATEGORIES)[number]);
 
 export const sessionFieldsSchema = z.object({
   date: dateSchema,
