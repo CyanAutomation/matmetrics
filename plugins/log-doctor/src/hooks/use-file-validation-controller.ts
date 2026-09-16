@@ -25,6 +25,88 @@ const defaultDependencies: FileValidationDependencies = {
   fetch: (...args) => fetch(...args),
 };
 
+/**
+ * Discriminated error type for file validation operations.
+ */
+type ValidationErrorType = 'abort' | 'auth' | 'network' | 'validation' | 'unknown';
+
+interface ValidationError {
+  type: ValidationErrorType;
+  message: string;
+}
+
+/**
+ * Classifies validation errors into actionable categories.
+ */
+function classifyValidationError(error: unknown): ValidationError {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'AbortError'
+  ) {
+    return { type: 'abort', message: '' };
+  }
+
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    return { type: 'network', message: 'Network error occurred' };
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      return { type: 'auth', message: 'Authentication failed' };
+    }
+    return { type: 'validation', message: error.message };
+  }
+
+  return { type: 'unknown', message: 'An unexpected error occurred' };
+}
+
+/**
+ * Builds the request body for file validation operations.
+ */
+function buildValidationRequestBody(
+  action: 'scan' | 'preview' | 'apply',
+  config: FileValidationConfig,
+  selectedPaths: string[] = []
+): unknown {
+  if (action === 'scan') {
+    return {
+      owner: config.owner.trim(),
+      repo: config.repo.trim(),
+      branch: config.branch.trim() || undefined,
+    };
+  }
+
+  const mode =
+    action === 'preview'
+      ? 'dry-run'
+      : 'apply';
+
+  return {
+    owner: config.owner.trim(),
+    repo: config.repo.trim(),
+    branch: config.branch.trim() || undefined,
+    mode,
+    confirmApply: action === 'apply',
+    paths: selectedPaths,
+    options: {
+      normalizeFrontmatter: true,
+      enforceSectionOrder: true,
+      preserveUserContent: true,
+    },
+  };
+}
+
+/**
+ * Determines the API endpoint for file validation.
+ */
+function getValidationEndpoint(action: 'scan' | 'preview' | 'apply'): string {
+  return action === 'scan'
+    ? '/api/github/log-doctor'
+    : '/api/github/log-doctor/fix';
+}
+
 async function waitForBackgroundJob(
   job: BackgroundJobResult,
   dependencies: FileValidationDependencies,
@@ -98,6 +180,7 @@ export const useFileValidationController = (
         return;
       }
 
+      // Abort previous request and track new one
       activeControllerRef.current?.abort();
       const requestId = ++requestIdRef.current;
       const controller = new AbortController();
@@ -109,6 +192,7 @@ export const useFileValidationController = (
         return;
       }
 
+      // Initialize loading state
       setErrorMessage(null);
       setIsScanning(action === 'scan');
       setIsPreviewing(action === 'preview');
@@ -116,42 +200,14 @@ export const useFileValidationController = (
       setUiState(createUiState(action, 'loading'));
 
       try {
+        // Get auth headers and build request
         const headers = await dependencies.getAuthHeaders({
           'Content-Type': 'application/json',
         });
+        const endpoint = getValidationEndpoint(action);
+        const body = buildValidationRequestBody(action, config, selectedPaths);
 
-        const endpoint =
-          action === 'scan'
-            ? '/api/github/log-doctor'
-            : '/api/github/log-doctor/fix';
-        const mode =
-          action === 'scan'
-            ? undefined
-            : action === 'preview'
-              ? 'dry-run'
-              : 'apply';
-
-        const body =
-          action === 'scan'
-            ? {
-                owner: config.owner.trim(),
-                repo: config.repo.trim(),
-                branch: config.branch.trim() || undefined,
-              }
-            : {
-                owner: config.owner.trim(),
-                repo: config.repo.trim(),
-                branch: config.branch.trim() || undefined,
-                mode,
-                confirmApply: action === 'apply',
-                paths: selectedPaths,
-                options: {
-                  normalizeFrontmatter: true,
-                  enforceSectionOrder: true,
-                  preserveUserContent: true,
-                },
-              };
-
+        // Make request and handle response
         const response = await dependencies.fetch(endpoint, {
           method: 'POST',
           headers,
@@ -159,6 +215,7 @@ export const useFileValidationController = (
           body: JSON.stringify(body),
         });
 
+        // Handle scan vs fix responses
         if (action === 'scan') {
           const initial: unknown = await response.json();
           const payload = response.status === 202 && isBackgroundJobResult(initial)
@@ -193,12 +250,9 @@ export const useFileValidationController = (
           return;
         }
 
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'name' in error &&
-          error.name === 'AbortError'
-        ) {
+        // Classify and handle errors
+        const classified = classifyValidationError(error);
+        if (classified.type === 'abort') {
           setErrorMessage(null);
           setUiState({ phase: 'idle', operation: null, message: '' });
           return;
