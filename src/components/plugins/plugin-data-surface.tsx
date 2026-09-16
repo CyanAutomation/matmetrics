@@ -1,8 +1,12 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
-import { PluginFilterBar } from '@/components/plugins/plugin-filter-bar';
 import { PluginEmptyState } from '@/components/plugins/plugin-state';
-import { Badge } from '@/components/ui/badge';
+import {
+  DataList,
+  DataListRow,
+  DataToolbar,
+  DataToolbarSummary,
+} from '@/components/ui/data-toolbar';
 import { cn } from '@/lib/utils';
 
 type PluginDataSurfaceFilterRowProps = {
@@ -15,14 +19,13 @@ export function PluginDataSurfaceFilterRow({
   className,
 }: PluginDataSurfaceFilterRowProps) {
   return (
-    <PluginFilterBar
-      role="group"
-      aria-label="Filters"
+    <DataToolbar
+      label="Filters"
       data-slot="plugin-filter-row"
       className={cn('items-end', className)}
     >
       {children}
-    </PluginFilterBar>
+    </DataToolbar>
   );
 }
 
@@ -46,78 +49,21 @@ export function PluginDataSurfaceSummaryStrip({
   activeFilters = [],
   className,
 }: PluginDataSurfaceSummaryStripProps) {
-  const hasActiveFilters = activeFilters.length > 0;
-  const activeFilterSummary = hasActiveFilters
-    ? `${activeFilters.length} active filter${activeFilters.length === 1 ? '' : 's'}`
-    : 'No active filters';
-
   return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-2 rounded-lg bg-secondary/55 px-3 py-2 text-sm',
-        className
-      )}
-    >
-      <span className="font-medium">
-        Showing {filteredCount} of {totalCount} {itemLabel}
-      </span>
-      <span className="text-muted-foreground">• {activeFilterSummary}</span>
-      {activeFilters.map((filter) => (
-        <Badge key={`${filter.label}:${filter.value ?? ''}`} variant="outline">
-          {filter.label}
-          {filter.value ? `: ${filter.value}` : ''}
-        </Badge>
-      ))}
-    </div>
+    <DataToolbarSummary
+      filteredCount={filteredCount}
+      totalCount={totalCount}
+      itemLabel={itemLabel}
+      activeFilters={activeFilters}
+      className={className}
+    />
   );
 }
 
-type PluginDataListProps = ComponentPropsWithoutRef<'div'>;
-
-/**
- * A shared, tone-led list surface for high-density plugin data. Rows own their
- * contents, while this primitive keeps list containment consistent.
- */
-export function PluginDataList({
-  children,
-  className,
-  ...props
-}: PluginDataListProps) {
-  return (
-    <div
-      {...props}
-      data-slot="plugin-data-list"
-      className={cn(
-        'overflow-hidden rounded-xl bg-[hsl(var(--color-surface-container-lowest))] shadow-[0_12px_24px_-24px_hsl(var(--foreground)/0.4)]',
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-type PluginDataListRowProps = ComponentPropsWithoutRef<'div'>;
-
-/** A responsive row with alternating tonal bands and visible focus feedback. */
-export function PluginDataListRow({
-  children,
-  className,
-  ...props
-}: PluginDataListRowProps) {
-  return (
-    <div
-      {...props}
-      data-slot="plugin-data-list-row"
-      className={cn(
-        'group flex min-h-16 items-center justify-between gap-3 px-3 py-3 transition-colors odd:bg-[hsl(var(--color-surface-container-low)/0.55)] hover:bg-[hsl(var(--color-primary-fixed)/0.35)] focus-within:bg-[hsl(var(--color-primary-fixed)/0.5)]',
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+/** @deprecated Use DataList directly for new product surfaces. */
+export const PluginDataList = DataList;
+/** @deprecated Use DataListRow directly for new product surfaces. */
+export const PluginDataListRow = DataListRow;
 
 type PluginEmptyFilteredResultsProps = {
   title: string;
