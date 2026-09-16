@@ -4,6 +4,15 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.10.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.0...nextn-v1.10.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* keep dashboard available when D1 is slow ([227d71e](https://github.com/CyanAutomation/matmetrics/commit/227d71e732f508cdc49fd6aac7b9a5b7e8a65e38))
+* keep dashboard available when D1 is slow ([#745](https://github.com/CyanAutomation/matmetrics/issues/745)) ([26375cb](https://github.com/CyanAutomation/matmetrics/commit/26375cbfb6dff535e975761036ca641b218d8c63))
+* prevent session refresh re-entrancy ([b363adc](https://github.com/CyanAutomation/matmetrics/commit/b363adc4e823e0f533692dbc17da516d71b9edf5))
+
 ## [1.10.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.5...nextn-v1.10.0) (2026-09-15)
 
 
