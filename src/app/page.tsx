@@ -28,6 +28,8 @@ export default function Home() {
   const {
     authReady,
     preferencesReady,
+    preferencesError,
+    retryPreferencesLoad,
     user,
     signOutUser,
     authMode,
@@ -133,6 +135,26 @@ export default function Home() {
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
             <div className="space-y-6">
+              {preferencesError && user && (
+                <Alert className="ui-alert-warning">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Preferences could not be refreshed</AlertTitle>
+                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Your saved preferences are temporarily unavailable. You
+                      can continue using MatMetrics and retry when the data
+                      service is available.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void retryPreferencesLoad()}
+                    >
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
               {isGuest && (
                 <Alert className="border-[hsl(var(--color-outline-variant)/0.15)] bg-[hsl(var(--color-primary-fixed)/0.45)] shadow-[0_16px_30px_-28px_hsl(var(--primary)/0.18)]">
                   <LockKeyhole className="h-4 w-4 text-[hsl(var(--color-on-primary-fixed))]" />
