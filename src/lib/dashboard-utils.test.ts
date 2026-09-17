@@ -79,7 +79,7 @@ test('dashboard utilities - user initials generation', async (t) => {
   }
 });
 
-test('getGuestBadgeLabel follows the guest-workspace UX copy contract', () => {
+test('getGuestBadgeLabel follows the guest-mode display contract', async (t) => {
   const cases: Array<{
     workspaceSource: Parameters<typeof getGuestBadgeLabel>[0];
     expected: string;
@@ -89,11 +89,13 @@ test('getGuestBadgeLabel follows the guest-workspace UX copy contract', () => {
   ];
 
   for (const { workspaceSource, expected } of cases) {
-    assert.equal(
-      getGuestBadgeLabel(workspaceSource),
-      expected,
-      `Guest-workspace copy in src/app/page.tsx changed for the ${workspaceSource} source; update this contract only for an intentional copy change.`
-    );
+    await t.test(`${workspaceSource} workspace source`, () => {
+      assert.equal(
+        getGuestBadgeLabel(workspaceSource),
+        expected,
+        `Guest-mode display copy in src/app/page.tsx changed for the ${workspaceSource} source; update this contract only for an intentional copy change.`
+      );
+    });
   }
 });
 
