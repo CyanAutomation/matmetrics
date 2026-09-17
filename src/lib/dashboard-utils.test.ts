@@ -11,54 +11,72 @@ import {
 import type { SyncStatus } from '@/lib/sync-queue';
 
 test('dashboard utilities - user initials generation', async (t) => {
-  await t.test('generates initials from display name', () => {
-    const initials = getUserInitials('John Doe', 'john@example.com', false);
-    assert.equal(initials, 'JD');
-  });
+  // Dashboard/profile-display requirement: show compact, uppercase initials with
+  // identity fallbacks that distinguish guest and authenticated users.
+  const cases = [
+    {
+      label: 'display-name: derives initials from the preferred display name',
+      displayName: 'John Doe',
+      email: 'john@example.com',
+      isGuest: false,
+      expected: 'JD',
+    },
+    {
+      label: 'single-word-display-name: handles single-word display names',
+      displayName: 'Alice',
+      email: 'alice@example.com',
+      isGuest: false,
+      expected: 'A',
+    },
+    {
+      label: 'email-fallback: uses the email when the display name is absent',
+      displayName: null,
+      email: 'alice@example.com',
+      isGuest: false,
+      expected: 'A',
+    },
+    {
+      label: 'separator: treats email username separators as word boundaries',
+      displayName: null,
+      email: 'alice.evans@example.com',
+      isGuest: false,
+      expected: 'AE',
+    },
+    {
+      label: 'case-normalization: converts lowercase initials to uppercase',
+      displayName: 'john doe',
+      email: 'john@example.com',
+      isGuest: false,
+      expected: 'JD',
+    },
+    {
+      label: 'maximum-length: limits initials to two characters',
+      displayName: 'John Michael Doe',
+      email: 'john@example.com',
+      isGuest: false,
+      expected: 'JM',
+    },
+    {
+      label: 'guest-default: identifies a guest without profile details',
+      displayName: null,
+      email: null,
+      isGuest: true,
+      expected: 'G',
+    },
+    {
+      label: 'authenticated-default: identifies a user without profile details',
+      displayName: null,
+      email: null,
+      isGuest: false,
+      expected: 'MM',
+    },
+  ];
 
-  await t.test(
-    'generates initials from email when display name is unavailable',
-    () => {
-      const initials = getUserInitials(null, 'alice.evans@example.com', false);
-      assert.equal(initials, 'AE');
-    }
-  );
-
-  await t.test(
-    'uses guest label when both display name and email are unavailable in guest mode',
-    () => {
-      const initials = getUserInitials(null, null, true);
-      assert.equal(initials, 'G');
-    }
-  );
-
-  await t.test(
-    'uses MM default when both display name and email are unavailable in non-guest mode',
-    () => {
-      const initials = getUserInitials(null, null, false);
-      assert.equal(initials, 'MM');
-    }
-  );
-
-  await t.test('handles single-word display names', () => {
-    const initials = getUserInitials('Alice', 'alice@example.com', false);
-    assert.equal(initials, 'A');
-  });
-
-  await t.test('limits initials to 2 characters maximum', () => {
-    const initials = getUserInitials(
-      'John Michael Doe',
-      'john@example.com',
-      false
-    );
-    assert.equal(initials.length, 2);
-    assert.equal(initials, 'JM');
-  });
-
-  await t.test('converts initials to uppercase', () => {
-    const initials = getUserInitials('john doe', 'john@example.com', false);
-    assert.equal(initials, 'JD');
-  });
+  for (const { label, displayName, email, isGuest, expected } of cases) {
+    await t.test(label, () => {
+      assert.equal(getUserInitials(displayName, email, isGuest), expected);
+    });
+  }
 });
 
 test('dashboard utilities - guest badge label', async (t) => {
