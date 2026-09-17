@@ -8,11 +8,17 @@
     "ignoredFiles": [
       "scripts/__fixtures__/**",
       "src/lib/github-storage.test.ts",
-      "src/lib/test-helpers/**",
+      "src/lib/storage-queue.ts",
+      "src/lib/background-jobs.ts",
+      "workers/matmetrics-data/**",
       "**/*.test.ts",
       "**/*.test.tsx"
     ],
-    "ignoredExports": [],
+    "ignoredExports": [
+      "src/lib/test-helpers/github-mock-builder.ts:GitHubMockBuilder",
+      "src/lib/test-helpers/github-mock-builder.ts:makeTestSession",
+      "src/lib/test-helpers/github-mock-builder.ts:withMockedGitHub"
+    ],
     "ignoredTypes": [],
     "ignoredClassMembers": []
   },

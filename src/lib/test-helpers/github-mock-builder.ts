@@ -1,4 +1,4 @@
-// fallow-ignore-file unused-exports
+// fallow-ignore-file unused-export
 // Test helpers: GitHubMockBuilder, makeTestSession, withMockedGitHub are intentionally
 // public exports used by github-storage.test.ts (39+ usages) and session-storage.test.ts (5+ usages).
 // Part of storage test fixture contract. See AGENTS.md "Test Helper Patterns" section.
@@ -215,6 +215,7 @@ export class GitHubMockBuilder {
 /**
  * Helper to mock GitHub API with the given handler
  */
+// fallow-ignore-next-line unused-export
 export async function withMockedGitHub(
   handler: typeof fetch,
   run: () => Promise<void>
