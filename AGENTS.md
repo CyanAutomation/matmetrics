@@ -113,6 +113,27 @@ Exact rules in [docs/go-contract.md](./docs/go-contract.md). The CLI validates t
 - **Tests**: Colocate with source files (`*.test.ts`, `*_test.go`)
 - **Docs**: Major decisions and contracts live in `docs/`
 
+### Cross-Language Contracts
+
+Some exports appear unused in TypeScript but are part of **shared contracts** with Go or Cloudflare Workers. These must never be removed without verifying both implementations.
+
+**Contract Files (Do not suppress without checking both sides):**
+
+- `src/lib/background-jobs.ts` — TypeScript job types (`BackgroundJobResult`, `isBackgroundJobResult`) mirrored in `workers/matmetrics-data/src/index.ts`
+- `src/lib/types.ts` — Session shape shared with Go CLI in `internal/model/session.go`
+- `src/lib/session-validation.ts` — Validation rules synced with Go in `internal/markdown/parser.go`
+
+If an export from these files is flagged as unused, cross-check the Go/Worker implementation before removing. See [docs/go-contract.md](./docs/go-contract.md) for session format details.
+
+### Test Helper Patterns
+
+**Test utilities are intentionally public exports**, not dead code. These files export helpers used across multiple test suites:
+
+- `src/lib/test-helpers/github-mock-builder.ts` — Exports `GitHubMockBuilder`, `makeTestSession`, `withMockedGitHub` used by github-storage.test.ts and session-storage.test.ts
+- `src/tests/api-*.ts` — Shared test fixtures for API route testing
+
+Test helper files use `// fallow-ignore file unused-exports` to suppress false positives. When adding new test utilities, use the same pattern.
+
 ### Environment Variables
 
 See [README.md](./README.md) for required variables (GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, Firebase keys, SENTRY_DSN, SENTRY_AUTH_TOKEN). Locally, copy `.env.example` to `.env.local`.

@@ -1,10 +1,13 @@
+// fallow-ignore-file unused-exports
+// This file exports test helpers intentionally used across multiple test suites.
+// See AGENTS.md "Test Helper Patterns" section.
+
 /**
  * Test mock builders for GitHub API responses
  *
- * Note: Exports (GitHubMockBuilder, makeTestSession, withMockedGitHub) are actively used by:
+ * Exports (GitHubMockBuilder, makeTestSession, withMockedGitHub) are actively used by:
  * - src/lib/github-storage.test.ts (39 usages)
  * - src/lib/session-storage.test.ts (5 usages)
- * Do not remove as "dead code" — these are essential test utilities.
  */
 
 import type { JudoSession } from '../types';
