@@ -1,5 +1,12 @@
+// fallow-ignore-file unused-exports
+// Active exports used by storage.ts sync orchestration:
+// - SyncRequestError: Custom error for sync failures (retryable vs. permanent)
+// - parseRetryAfterMs(): Parse RFC 7231 Retry-After header
+// - processSingleQueueOperation(): Core sync operation handler (139+ call sites in storage.ts)
+
 /**
  * Queue Operation Processing Module
+ * =================================
  *
  * Handles the core logic for processing individual sync operations from the mutation queue.
  * Extracted from storage.ts to reduce cognitive complexity and improve testability.

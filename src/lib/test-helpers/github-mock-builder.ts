@@ -1,13 +1,25 @@
 // fallow-ignore-file unused-exports
-// This file exports test helpers intentionally used across multiple test suites.
-// See AGENTS.md "Test Helper Patterns" section.
+// Test helpers: GitHubMockBuilder, makeTestSession, withMockedGitHub are intentionally
+// public exports used by github-storage.test.ts (39+ usages) and session-storage.test.ts (5+ usages).
+// Part of storage test fixture contract. See AGENTS.md "Test Helper Patterns" section.
 
 /**
- * Test mock builders for GitHub API responses
+ * Test Helper Exports — Intentionally Public
+ * ==========================================
  *
- * Exports (GitHubMockBuilder, makeTestSession, withMockedGitHub) are actively used by:
- * - src/lib/github-storage.test.ts (39 usages)
- * - src/lib/session-storage.test.ts (5 usages)
+ * This file exports test helpers used across multiple storage test suites.
+ * All exports are part of the test helper contract (see AGENTS.md "Test Helper Patterns").
+ *
+ * **Exports:**
+ * - `GitHubMockBuilder` — Builder for composable GitHub API mocks (used by storage tests)
+ * - `makeTestSession()` — Fixture factory for JudoSession objects (used by all session tests)
+ * - `withMockedGitHub()` — Test wrapper for dual-storage integration scenarios
+ *
+ * **Importers:**
+ * - src/lib/github-storage.test.ts (39+ usages)
+ * - src/lib/session-storage.test.ts (5+ usages)
+ *
+ * Do NOT remove these exports. They are part of the storage test fixture contract.
  */
 
 import type { JudoSession } from '../types';
