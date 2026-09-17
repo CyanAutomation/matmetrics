@@ -1,4 +1,4 @@
-// fallow-ignore-file unused-exports
+// fallow-ignore-file unused-export
 // Active exports used by storage.ts sync orchestration:
 // - SyncRequestError: Custom error for sync failures (retryable vs. permanent)
 // - parseRetryAfterMs(): Parse RFC 7231 Retry-After header
@@ -71,7 +71,7 @@ export function parseRetryAfterMs(headerValue: string | null): number | null {
  * Includes session data for CREATE/UPDATE, revision for DELETE,
  * and optionally GitHub configuration if enabled.
  */
-export function buildOperationRequestBody(
+function buildOperationRequestBody(
   operation: SyncOperation,
   gitHubConfig: GitHubConfig | null,
   gitHubEnabled: boolean
@@ -101,7 +101,7 @@ export function buildOperationRequestBody(
  * Get the API endpoint URL for a sync operation.
  * Routing: CREATE → /api/sessions/create, UPDATE/DELETE → /api/sessions/:id
  */
-export function getOperationUrl(operation: SyncOperation): string {
+function getOperationUrl(operation: SyncOperation): string {
   switch (operation.type) {
     case 'CREATE':
       return '/api/sessions/create';
@@ -116,7 +116,7 @@ export function getOperationUrl(operation: SyncOperation): string {
  * Get the HTTP method for a sync operation.
  * CREATE → POST, UPDATE → PUT, DELETE → DELETE
  */
-export function getOperationMethod(
+function getOperationMethod(
   operation: SyncOperation
 ): 'POST' | 'PUT' | 'DELETE' {
   switch (operation.type) {
@@ -147,7 +147,7 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
  * Handle a successful sync operation.
  * Clears the dirty mutation flag so optimistic updates are no longer tracked.
  */
-export function handleOperationSuccess(operation: SyncOperation): void {
+function handleOperationSuccess(operation: SyncOperation): void {
   const sessionId = getSessionIdFromOperation(operation);
   clearDirtyMutation(sessionId, operation.queuedAt);
 }

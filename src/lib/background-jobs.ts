@@ -1,4 +1,4 @@
-// fallow-ignore-file unused-exports
+// fallow-ignore-file unused-export
 // CRITICAL: Cross-language contract with Cloudflare Worker (workers/matmetrics-data/src/index.ts).
 // Exports BackgroundJobResult and isBackgroundJobResult are used by:
 // - log-doctor plugin (use-file-validation-controller.ts)
@@ -62,7 +62,6 @@ export type BackgroundJobStatus = (typeof BACKGROUND_JOB_STATUSES)[number];
  * Full background job result object returned from the Worker.
  * Includes metadata, status, and optional result/error fields.
  */
-// fallow-ignore-next-line unused-export
 export type BackgroundJobResult = {
   id: string;
   type: BackgroundJobType;
@@ -78,7 +77,6 @@ export type BackgroundJobResult = {
  * Type guard to safely check if a value is a valid BackgroundJobResult.
  * Used in response handlers to validate Worker responses.
  */
-// fallow-ignore-next-line unused-export
 export function isBackgroundJobResult(value: unknown): value is BackgroundJobResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;
