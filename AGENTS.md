@@ -119,11 +119,15 @@ Some exports appear unused in TypeScript but are part of **shared contracts** wi
 
 **Contract Files (Do not suppress without checking both sides):**
 
-- `src/lib/background-jobs.ts` — TypeScript job types (`BackgroundJobResult`, `isBackgroundJobResult`) mirrored in `workers/matmetrics-data/src/index.ts`
+- `src/lib/background-jobs.ts` — TypeScript job types (`BackgroundJobResult`, `isBackgroundJobResult`) mirrored in `workers/matmetrics-data/src/index.ts`. **CRITICAL:** Removing these breaks Worker↔Server job contract. See file header for safeguard checklist.
 - `src/lib/types.ts` — Session shape shared with Go CLI in `internal/model/session.go`
 - `src/lib/session-validation.ts` — Validation rules synced with Go in `internal/markdown/parser.go`
 
-If an export from these files is flagged as unused, cross-check the Go/Worker implementation before removing. See [docs/go-contract.md](./docs/go-contract.md) for session format details.
+**Active Exports (Not Dead Code):**
+
+- `src/lib/storage-queue.ts` — Exports (`SyncRequestError`, `parseRetryAfterMs`, `processSingleQueueOperation`) are actively used by `storage.ts` sync orchestration (139+ call sites). Not dead code.
+
+If an export from contract files is flagged as unused, cross-check the Go/Worker implementation before removing. See [docs/go-contract.md](./docs/go-contract.md) for session format details.
 
 ### Test Helper Patterns
 

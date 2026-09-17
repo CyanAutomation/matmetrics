@@ -1,6 +1,11 @@
 // fallow-ignore-file unused-exports
-// This file defines a cross-language contract with the Cloudflare Worker.
-// See AGENTS.md "Cross-Language Contracts" section.
+// CRITICAL: Cross-language contract with Cloudflare Worker (workers/matmetrics-data/src/index.ts).
+// Exports BackgroundJobResult and isBackgroundJobResult are used by:
+// - log-doctor plugin (use-file-validation-controller.ts)
+// - background-job-store.server.ts (Worker response validation)
+// - background-jobs.test.ts
+// DO NOT REMOVE without verifying Worker code and updating both TypeScript and Worker in lockstep.
+// See AGENTS.md "Cross-Language Contracts" section for full contract documentation.
 
 import { z } from 'zod';
 
@@ -11,12 +16,12 @@ import { z } from 'zod';
  * This module defines the TypeScript representation of background jobs that are
  * queued and executed by the matmetrics-data Cloudflare Worker.
  *
- * The types defined here MUST match the Go/Worker definitions in:
+ * The types defined here MUST match the Worker definitions in:
  * - workers/matmetrics-data/src/index.ts (JobType, JobStatus, JobPayload, StoredJob)
  *
  * Any changes to the type structure, enum values, or validation rules must be
  * reflected in both TypeScript and the Worker to maintain the contract.
- */
+ *
 
 export const BACKGROUND_JOB_TYPES = [
   'log-doctor-scan',
