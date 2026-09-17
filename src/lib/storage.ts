@@ -35,7 +35,6 @@ import { normalizeSessionList } from './session-normalization';
 import {
   initializeSyncLeaseModule,
   setActiveSyncLease,
-  hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
   releaseSyncLease as coreReleaseSyncLease,
   renewSyncLease as coreRenewSyncLease,
   tryAcquireSyncLease as coreTryAcquireSyncLease,
@@ -51,6 +50,7 @@ import {
   resetMutationVersion,
   sessionsEqual,
 } from './mutation-state';
+import { SyncRequestError, processSingleQueueOperation, parseRetryAfterMs } from './storage-queue';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -164,35 +164,6 @@ function emitLeaseTakeoverDiagnostic(
     at: new Date().toISOString(),
     ...payload,
   });
-}
-
-class SyncRequestError extends Error {
-  constructor(
-    message: string,
-    public readonly retryable: boolean,
-    public readonly retryAfterMs: number | null = null
-  ) {
-    super(message);
-    this.name = 'SyncRequestError';
-  }
-}
-
-function parseRetryAfterMs(headerValue: string | null): number | null {
-  if (!headerValue) {
-    return null;
-  }
-
-  const seconds = Number(headerValue);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.floor(seconds * 1000);
-  }
-
-  const retryAt = Date.parse(headerValue);
-  if (Number.isNaN(retryAt)) {
-    return null;
-  }
-
-  return Math.max(0, retryAt - Date.now());
 }
 
 function commitLocalSessions(sessions: JudoSession[]): void {
@@ -1046,238 +1017,6 @@ async function prepareAndStartLease(generation: number): Promise<{
   };
 }
 
-/**
- * Helper: Build the request body for a sync operation
- */
-function buildOperationRequestBody(
-  operation: SyncOperation,
-  gitHubConfig: ReturnType<typeof getGitHubConfig>,
-  gitHubEnabled: boolean
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-
-  switch (operation.type) {
-    case 'CREATE':
-    case 'UPDATE':
-      Object.assign(body, operation.session);
-      break;
-    case 'DELETE':
-      if (operation.revisionSha) {
-        body.revisionSha = operation.revisionSha;
-      }
-      break;
-  }
-
-  if (gitHubConfig && gitHubEnabled) {
-    body.gitHubConfig = gitHubConfig;
-  }
-
-  return body;
-}
-
-/**
- * Helper: Get the API endpoint URL for a sync operation
- */
-function getOperationUrl(operation: SyncOperation): string {
-  switch (operation.type) {
-    case 'CREATE':
-      return '/api/sessions/create';
-    case 'UPDATE':
-      return `/api/sessions/${operation.session.id}`;
-    case 'DELETE':
-      return `/api/sessions/${operation.id}`;
-  }
-}
-
-/**
- * Helper: Get the HTTP method for a sync operation
- */
-function getOperationMethod(
-  operation: SyncOperation
-): 'POST' | 'PUT' | 'DELETE' {
-  switch (operation.type) {
-    case 'CREATE':
-      return 'POST';
-    case 'UPDATE':
-      return 'PUT';
-    case 'DELETE':
-      return 'DELETE';
-  }
-}
-
-/**
- * Helper: Extract session ID from a sync operation (needed for mutation tracking)
- */
-function getSessionIdFromOperation(operation: SyncOperation): string {
-  switch (operation.type) {
-    case 'CREATE':
-    case 'UPDATE':
-      return operation.session.id;
-    case 'DELETE':
-      return operation.id;
-  }
-}
-
-/**
- * Helper: Handle a successful sync operation
- */
-function handleOperationSuccess(operation: SyncOperation): void {
-  const sessionId = getSessionIdFromOperation(operation);
-  clearDirtyMutation(sessionId, operation.queuedAt);
-}
-
-/**
- * Helper: Handle sync operation errors (permanent vs retryable)
- */
-async function handleOperationError(
-  error: unknown,
-  operation: SyncOperation,
-  index: number,
-  queue: SyncOperation[],
-  generation: number
-): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
-  if (!(error instanceof SyncRequestError)) {
-    // Non-SyncRequestError: retryable
-    return { retryable: true, retryAfterMs: null };
-  }
-
-  // Handle permanent failures (mark as synced to avoid retry loop)
-  if (!error.retryable) {
-    const remainingOperations = queue.filter((_, i) => i !== index);
-    if (isStorageGenerationCurrent(generation)) {
-      const sessionId = getSessionIdFromOperation(operation);
-      clearDirtyMutation(sessionId, operation.queuedAt);
-      await setQueue(remainingOperations, queue);
-      if (!isStorageGenerationCurrent(generation)) {
-        return { retryable: false, retryAfterMs: null };
-      }
-      await reconcilePermanentFailure();
-    }
-    return { retryable: false, retryAfterMs: null };
-  }
-
-  // Retryable error with optional backoff
-  return {
-    retryable: true,
-    retryAfterMs: error.retryAfterMs,
-  };
-}
-
-/**
- * Process a single queue operation with lease ownership verification and error handling.
- * Returns true if processing should continue, false if lease was lost or error occurred.
- */
-async function processSingleQueueOperation(
-  operation: SyncOperation,
-  index: number,
-  queue: SyncOperation[],
-  generation: number,
-  gitHubConfig: ReturnType<typeof getGitHubConfig>,
-  gitHubEnabled: boolean,
-  onAbort: (remainingOps: SyncOperation[]) => Promise<void>
-): Promise<{ success: boolean; shouldContinue: boolean }> {
-  // Check lease ownership before operation
-  if (
-    !isStorageGenerationCurrent(generation) ||
-    !coreHasActiveSyncLeaseOwnership() ||
-    !coreRenewSyncLease()
-  ) {
-    await onAbort(queue.slice(index));
-    return { success: false, shouldContinue: false };
-  }
-
-  try {
-    // Build request
-    const body = buildOperationRequestBody(
-      operation,
-      gitHubConfig,
-      gitHubEnabled
-    );
-    const url = getOperationUrl(operation);
-    const method = getOperationMethod(operation);
-
-    const headers = await getAuthHeaders({
-      'Content-Type': 'application/json',
-    });
-
-    if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false };
-    }
-
-    // Send request
-    const response = await syncRequest(url, {
-      method,
-      headers,
-      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
-    });
-
-    if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
-      const serverSession = await parseMutationSession(response);
-      reconcileSuccessfulSession(serverSession, operation.queuedAt);
-      for (const queuedOperation of queue.slice(index + 1)) {
-        if (
-          (queuedOperation.type === 'CREATE' ||
-            queuedOperation.type === 'UPDATE') &&
-          queuedOperation.session.id === serverSession.id
-        ) {
-          queuedOperation.session = {
-            ...queuedOperation.session,
-            revisionSha: serverSession.revisionSha,
-          };
-        } else if (
-          queuedOperation.type === 'DELETE' &&
-          queuedOperation.id === serverSession.id
-        ) {
-          queuedOperation.revisionSha = serverSession.revisionSha;
-        }
-      }
-    }
-
-    // Verify lease still owned after operation
-    if (
-      !isStorageGenerationCurrent(generation) ||
-      !coreHasActiveSyncLeaseOwnership()
-    ) {
-      await onAbort(queue.slice(index));
-      return { success: false, shouldContinue: false };
-    }
-
-    // Mark mutation as synced
-    handleOperationSuccess(operation);
-
-    return { success: true, shouldContinue: true };
-  } catch (error) {
-    console.error('Error syncing operation', error);
-
-    const { retryable, retryAfterMs } = await handleOperationError(
-      error,
-      operation,
-      index,
-      queue,
-      generation
-    );
-
-    if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false };
-    }
-
-    // Handle backoff for retryable errors with retry-after header
-    if (retryable && retryAfterMs !== null && retryAfterMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
-    }
-
-    // Stop syncing on error; queue remaining operations for retry
-    if (retryable) {
-      const remainingOperations = queue.slice(index);
-      if (isStorageGenerationCurrent(generation)) {
-        await setQueue(remainingOperations, queue);
-      }
-    }
-
-    return { success: false, shouldContinue: false };
-  }
-}
-
 async function syncPendingOperations(): Promise<void> {
   if (!isOnline || isGuestMode()) return;
   if (inFlightSync) {
@@ -1331,7 +1070,15 @@ async function syncPendingOperations(): Promise<void> {
           generation,
           gitHubConfig,
           gitHubEnabled,
-          onAbort
+          onAbort,
+          // Injected dependencies for testability
+          isStorageGenerationCurrent,
+          syncRequest,
+          parseMutationSession,
+          reconcileSuccessfulSession,
+          setQueue,
+          getAuthHeaders,
+          reconcilePermanentFailure
         );
 
         if (!result.shouldContinue) {
