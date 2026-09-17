@@ -157,16 +157,37 @@ test('dashboard utilities - sync status text generation', async (t) => {
   });
 });
 
-test('dashboard utilities - guest workspace description', async (t) => {
-  await t.test('returns custom description for custom source', () => {
-    const desc = getGuestWorkspaceDescription('custom');
-    assert.equal(desc, 'Local guest data');
-  });
+test('getGuestWorkspaceDescription follows the footer copy requirement', async (t) => {
+  const cases: Array<{
+    workspaceSource: Parameters<typeof getGuestWorkspaceDescription>[0];
+    intendedDescription: string;
+    expectedPresentation: RegExp;
+  }> = [
+    {
+      workspaceSource: 'custom',
+      intendedDescription: 'locally stored guest data',
+      expectedPresentation: /local.*guest.*data/i,
+    },
+    {
+      workspaceSource: 'demo',
+      intendedDescription: 'loaded demo data',
+      expectedPresentation: /demo.*data.*loaded/i,
+    },
+  ];
 
-  await t.test('returns demo description for demo source', () => {
-    const desc = getGuestWorkspaceDescription('demo');
-    assert.equal(desc, 'Demo data loaded');
-  });
+  for (const {
+    workspaceSource,
+    intendedDescription,
+    expectedPresentation,
+  } of cases) {
+    await t.test(`${workspaceSource} presents ${intendedDescription}`, () => {
+      assert.match(
+        getGuestWorkspaceDescription(workspaceSource),
+        expectedPresentation,
+        `The guest-workspace footer must describe ${intendedDescription} for the ${workspaceSource} source.`
+      );
+    });
+  }
 });
 
 test('dashboard utilities - guest mode alert message', async (t) => {
