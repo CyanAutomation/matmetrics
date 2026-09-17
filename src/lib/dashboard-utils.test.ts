@@ -79,16 +79,22 @@ test('dashboard utilities - user initials generation', async (t) => {
   }
 });
 
-test('dashboard utilities - guest badge label', async (t) => {
-  await t.test('returns guest workspace label for custom source', () => {
-    const label = getGuestBadgeLabel('custom');
-    assert.equal(label, 'Guest Workspace');
-  });
+test('getGuestBadgeLabel follows the guest-workspace UX copy contract', () => {
+  const cases: Array<{
+    workspaceSource: Parameters<typeof getGuestBadgeLabel>[0];
+    expected: string;
+  }> = [
+    { workspaceSource: 'custom', expected: 'Guest Workspace' },
+    { workspaceSource: 'demo', expected: 'Demo Preview' },
+  ];
 
-  await t.test('returns demo preview label for demo source', () => {
-    const label = getGuestBadgeLabel('demo');
-    assert.equal(label, 'Demo Preview');
-  });
+  for (const { workspaceSource, expected } of cases) {
+    assert.equal(
+      getGuestBadgeLabel(workspaceSource),
+      expected,
+      `Guest-workspace copy in src/app/page.tsx changed for the ${workspaceSource} source; update this contract only for an intentional copy change.`
+    );
+  }
 });
 
 test('dashboard utilities - sync status text generation', async (t) => {
