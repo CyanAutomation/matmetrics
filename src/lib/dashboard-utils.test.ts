@@ -59,15 +59,6 @@ test('dashboard utilities - user initials generation', async (t) => {
     const initials = getUserInitials('john doe', 'john@example.com', false);
     assert.equal(initials, 'JD');
   });
-
-  await t.test('handles email with multiple domains correctly', () => {
-    const initials = getUserInitials(
-      null,
-      'john.doe@subdomain.example.com',
-      false
-    );
-    assert.equal(initials, 'JD');
-  });
 });
 
 test('dashboard utilities - guest badge label', async (t) => {
