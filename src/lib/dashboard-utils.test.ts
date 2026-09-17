@@ -92,26 +92,25 @@ test('dashboard utilities - sync status text generation', async (t) => {
     assert.equal(getSyncStatusText(status), 'Syncing');
   });
 
-  await t.test(
-    'returns pending count when online but not syncing with pending items',
-    () => {
-      const status: SyncStatus = {
-        isOnline: true,
-        isSyncing: false,
-        pendingCount: 3,
-      };
-      assert.equal(getSyncStatusText(status), '3 pending');
-    }
-  );
+  const pendingCountCases = [
+    { pendingCount: 0, expected: 'Synced' },
+    { pendingCount: 1, expected: '1 pending' },
+    { pendingCount: 2, expected: '2 pending' },
+  ];
 
-  await t.test('returns synced when online with no pending items', () => {
-    const status: SyncStatus = {
-      isOnline: true,
-      isSyncing: false,
-      pendingCount: 0,
-    };
-    assert.equal(getSyncStatusText(status), 'Synced');
-  });
+  for (const { pendingCount, expected } of pendingCountCases) {
+    await t.test(
+      `returns ${expected} for a pending count of ${pendingCount}`,
+      () => {
+        const status: SyncStatus = {
+          isOnline: true,
+          isSyncing: false,
+          pendingCount,
+        };
+        assert.equal(getSyncStatusText(status), expected);
+      }
+    );
+  }
 
   await t.test('prioritizes offline status over syncing', () => {
     const status: SyncStatus = {
@@ -129,24 +128,6 @@ test('dashboard utilities - sync status text generation', async (t) => {
       pendingCount: 3,
     };
     assert.equal(getSyncStatusText(status), 'Syncing');
-  });
-
-  await t.test('handles single pending item correctly', () => {
-    const status: SyncStatus = {
-      isOnline: true,
-      isSyncing: false,
-      pendingCount: 1,
-    };
-    assert.equal(getSyncStatusText(status), '1 pending');
-  });
-
-  await t.test('handles large pending counts', () => {
-    const status: SyncStatus = {
-      isOnline: true,
-      isSyncing: false,
-      pendingCount: 42,
-    };
-    assert.equal(getSyncStatusText(status), '42 pending');
   });
 });
 
