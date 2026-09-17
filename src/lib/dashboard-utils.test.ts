@@ -178,15 +178,15 @@ test('dashboard utilities - guest mode alert message', async (t) => {
     }
   );
 
-  await t.test('returns demo workspace message with auth available', () => {
-    const message = getGuestModeAlertMessage('demo', true);
-    assert.match(message, /seeded preview workspace/);
-    assert.match(message, /turn it into your own/);
-  });
+  await t.test('keeps demo product copy independent of authentication', () => {
+    const authenticatedMessage = getGuestModeAlertMessage('demo', true);
+    const unauthenticatedMessage = getGuestModeAlertMessage('demo', false);
 
-  await t.test('returns demo workspace message without auth available', () => {
-    const message = getGuestModeAlertMessage('demo', false);
-    assert.match(message, /seeded preview workspace/);
+    assert.equal(
+      authenticatedMessage,
+      'You are browsing a seeded preview workspace. Start editing to turn it into your own local guest workspace.'
+    );
+    assert.equal(authenticatedMessage, unauthenticatedMessage);
   });
 });
 
