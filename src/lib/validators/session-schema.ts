@@ -123,10 +123,29 @@ const effortSchema = z
 const invalidDurationMessage =
   'Invalid duration: expected a non-negative integer';
 const durationSchema = z
-  .number({ error: invalidDurationMessage })
-  .int({ error: invalidDurationMessage })
-  .nonnegative({ error: invalidDurationMessage })
-  .optional();
+  .unknown()
+  .optional()
+  .superRefine((val, ctx) => {
+    if (val === undefined) {
+      return;
+    }
+
+    if (typeof val !== 'number') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: invalidDurationMessage,
+      });
+      return;
+    }
+
+    if (!Number.isInteger(val) || val < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: invalidDurationMessage,
+      });
+    }
+  })
+  .transform((val) => val as number | undefined);
 
 /**
  * Category validation with custom error message

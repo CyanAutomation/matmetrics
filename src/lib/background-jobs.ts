@@ -21,7 +21,7 @@ import { z } from 'zod';
  *
  * Any changes to the type structure, enum values, or validation rules must be
  * reflected in both TypeScript and the Worker to maintain the contract.
- *
+ */
 
 export const BACKGROUND_JOB_TYPES = [
   'log-doctor-scan',
