@@ -22,6 +22,13 @@ test('dashboard utilities - user initials generation', async (t) => {
       expected: 'JD',
     },
     {
+      label: 'single-word-display-name: handles single-word display names',
+      displayName: 'Alice',
+      email: 'alice@example.com',
+      isGuest: false,
+      expected: 'A',
+    },
+    {
       label: 'email-fallback: uses the email when the display name is absent',
       displayName: null,
       email: 'alice@example.com',
