@@ -3,8 +3,7 @@ import { validateSessionId } from '@/lib/validators/session-id';
 import { validateSessionFields } from './session-validation-fields';
 
 export type ValidationResult =
-  | { ok: true; session: JudoSession }
-  | { ok: false; error: string };
+  { ok: true; session: JudoSession } | { ok: false; error: string };
 
 export function validateSessionPayload(
   payload: Record<string, unknown>,

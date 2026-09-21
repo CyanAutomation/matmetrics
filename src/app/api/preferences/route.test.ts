@@ -25,5 +25,7 @@ test('preferences route rejects malformed writes before calling a data store', a
     })
   );
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: 'Invalid preference payload' });
+  assert.deepEqual(await response.json(), {
+    error: 'Invalid preference payload',
+  });
 });

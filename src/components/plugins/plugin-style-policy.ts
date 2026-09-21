@@ -117,14 +117,7 @@ const pluginUiContractTokenVariantClassMap = {
 } as const;
 
 export type PluginUiSemanticRole =
-  | 'layout'
-  | 'surface'
-  | 'tone'
-  | 'action'
-  | 'tab'
-  | 'text'
-  | 'icon'
-  | 'code';
+  'layout' | 'surface' | 'tone' | 'action' | 'tab' | 'text' | 'icon' | 'code';
 
 export const PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP = {
   'layout.standard': 'layout',

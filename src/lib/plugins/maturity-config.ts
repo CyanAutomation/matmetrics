@@ -76,11 +76,7 @@ export const MATURITY_PRIMITIVES = {
 } as const;
 
 export type MaturityPrimitiveCriterion =
-  | 'uiStates'
-  | 'shells'
-  | 'sections'
-  | 'destructiveActions'
-  | 'dataSurfaces';
+  'uiStates' | 'shells' | 'sections' | 'destructiveActions' | 'dataSurfaces';
 
 const MATURITY_PRIMITIVE_CRITERIA: readonly MaturityPrimitiveCriterion[] = [
   'uiStates',

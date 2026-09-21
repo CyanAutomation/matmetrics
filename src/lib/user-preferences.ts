@@ -464,8 +464,13 @@ function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
             message: typeof flag?.message === 'string' ? flag.message : '',
           }))
         : [],
-      reviewedAt: typeof session?.reviewedAt === 'string' ? session.reviewedAt : undefined,
-      ignoredRules: Array.isArray(session?.ignoredRules) ? session.ignoredRules : [],
+      reviewedAt:
+        typeof session?.reviewedAt === 'string'
+          ? session.reviewedAt
+          : undefined,
+      ignoredRules: Array.isArray(session?.ignoredRules)
+        ? session.ignoredRules
+        : [],
     })),
     ranAt: input.ranAt,
   };

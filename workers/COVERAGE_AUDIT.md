@@ -19,47 +19,47 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 
 ### ✅ TESTED (2 functions, 13 test cases)
 
-| Function | Category | Tests | Details |
-|----------|----------|-------|---------|
-| `safeParseJSON<T>()` | Utility | 6 | Valid JSON, invalid JSON, empty string, type casting, number/boolean/array handling |
-| `updateJobStatus()` | DB Operation | 7 | Status update (basic, with error, with result), non-existent job, error message clearing, combined options, retry scenarios |
+| Function             | Category     | Tests | Details                                                                                                                     |
+| -------------------- | ------------ | ----- | --------------------------------------------------------------------------------------------------------------------------- |
+| `safeParseJSON<T>()` | Utility      | 6     | Valid JSON, invalid JSON, empty string, type casting, number/boolean/array handling                                         |
+| `updateJobStatus()`  | DB Operation | 7     | Status update (basic, with error, with result), non-existent job, error message clearing, combined options, retry scenarios |
 
 ### ❌ UNTESTED (15 functions)
 
 #### CRITICAL PRIORITY (Core Logic, Security-Sensitive, High Complexity)
 
-| Function | Lines | Complexity | Why Critical | Scenarios Needed |
-|----------|-------|-----------|--------------|------------------|
-| `authenticate()` | 56-63 | HIGH | **Security gate for all requests**; 4 validation checks (headers, format, timestamp window, HMAC timing-safe) | Missing headers, invalid auth format, timestamp too old/new, HMAC mismatch, valid signature |
-| `consumeMessage()` | 203-234 | HIGH | **Complex retry logic**: increments attempts, sets status, handles 4xx (terminal), 5xx (retry), timeout, max 5 attempts | Success path, 4xx error (terminal), 5xx error (retry), timeout, max attempts exceeded, job already completed/failed, parse error |
-| `handlePreferences()` | 237-256 | HIGH | **Conflict detection**: optimistic locking via revision field, upsert logic, 1MB payload limit | GET existing, GET non-existent, PUT update (matching revision), PUT conflict (stale revision), PUT invalid JSON, PUT oversized payload (>1MB), PUT invalid payload structure |
+| Function              | Lines   | Complexity | Why Critical                                                                                                            | Scenarios Needed                                                                                                                                                             |
+| --------------------- | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `authenticate()`      | 56-63   | HIGH       | **Security gate for all requests**; 4 validation checks (headers, format, timestamp window, HMAC timing-safe)           | Missing headers, invalid auth format, timestamp too old/new, HMAC mismatch, valid signature                                                                                  |
+| `consumeMessage()`    | 203-234 | HIGH       | **Complex retry logic**: increments attempts, sets status, handles 4xx (terminal), 5xx (retry), timeout, max 5 attempts | Success path, 4xx error (terminal), 5xx error (retry), timeout, max attempts exceeded, job already completed/failed, parse error                                             |
+| `handlePreferences()` | 237-256 | HIGH       | **Conflict detection**: optimistic locking via revision field, upsert logic, 1MB payload limit                          | GET existing, GET non-existent, PUT update (matching revision), PUT conflict (stale revision), PUT invalid JSON, PUT oversized payload (>1MB), PUT invalid payload structure |
 
 #### HIGH PRIORITY (Important Flows, Validation Logic)
 
-| Function | Lines | Complexity | Why High | Scenarios Needed |
-|----------|-------|-----------|----------|------------------|
-| `expectedSignature()` | 48-51 | MEDIUM | **HMAC-SHA256 generation** for auth; cryptographic correctness critical | Valid secret/timestamp/method/path, signature determinism, different methods produce different sigs |
-| `timingSafeEqual()` | 53-58 | MEDIUM | **Constant-time comparison** prevents timing attacks on HMAC validation | Matching strings, mismatched strings, different lengths |
-| `parseJobPayload()` | 67-80 | MEDIUM | **Validation gate** for background job payloads; 4KB size limit, type enum enforcement, field trimming | Valid payload (all fields), missing type/config, invalid type, owner/repo too long (>200 chars), branch trimming, oversized payload (>4KB), non-JSON input |
-| `createJob()` | 158-178 | MEDIUM | **Complex flow**: validates payload, inserts DB, queues message, handles DB errors | Valid payload (queues job), invalid payload (400), DB failure (500), job state after creation (status=queued, attempts=0) |
-| `executeBackgroundJob()` | 190-201 | MEDIUM | **Network timeout handling**: 30s abort timeout, fetch with bearer token, handles malformed response | Success (2xx response), error response (4xx/5xx), timeout (>30s), malformed response, executor unreachable |
+| Function                 | Lines   | Complexity | Why High                                                                                               | Scenarios Needed                                                                                                                                           |
+| ------------------------ | ------- | ---------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expectedSignature()`    | 48-51   | MEDIUM     | **HMAC-SHA256 generation** for auth; cryptographic correctness critical                                | Valid secret/timestamp/method/path, signature determinism, different methods produce different sigs                                                        |
+| `timingSafeEqual()`      | 53-58   | MEDIUM     | **Constant-time comparison** prevents timing attacks on HMAC validation                                | Matching strings, mismatched strings, different lengths                                                                                                    |
+| `parseJobPayload()`      | 67-80   | MEDIUM     | **Validation gate** for background job payloads; 4KB size limit, type enum enforcement, field trimming | Valid payload (all fields), missing type/config, invalid type, owner/repo too long (>200 chars), branch trimming, oversized payload (>4KB), non-JSON input |
+| `createJob()`            | 158-178 | MEDIUM     | **Complex flow**: validates payload, inserts DB, queues message, handles DB errors                     | Valid payload (queues job), invalid payload (400), DB failure (500), job state after creation (status=queued, attempts=0)                                  |
+| `executeBackgroundJob()` | 190-201 | MEDIUM     | **Network timeout handling**: 30s abort timeout, fetch with bearer token, handles malformed response   | Success (2xx response), error response (4xx/5xx), timeout (>30s), malformed response, executor unreachable                                                 |
 
 #### MEDIUM PRIORITY (Routes, Transformations, DB Reads)
 
-| Function | Lines | Complexity | Why Medium | Scenarios Needed |
-|----------|-------|-----------|-----------|------------------|
-| `json()` | 39 | LOW | Response factory with cache headers | Tested implicitly via other tests |
-| `hex()` | 41 | LOW | ArrayBuffer → hex string conversion | Tested implicitly via signature tests |
-| `toJobResponse()` | 83-90 | LOW | Response object formatting (timestamp conversion, optional fields) | Job with result, job with error, job with both, job with neither |
-| `getJob()` | 93 | LOW | Single job DB query by ID | Job exists, job not found |
-| `handleBackgroundJobs()` | 181-188 | MEDIUM | Router: POST (create), GET (fetch by ID, auth check) | POST job creation, GET existing job (auth match), GET non-existent, GET job (auth mismatch), invalid route |
+| Function                 | Lines   | Complexity | Why Medium                                                         | Scenarios Needed                                                                                           |
+| ------------------------ | ------- | ---------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `json()`                 | 39      | LOW        | Response factory with cache headers                                | Tested implicitly via other tests                                                                          |
+| `hex()`                  | 41      | LOW        | ArrayBuffer → hex string conversion                                | Tested implicitly via signature tests                                                                      |
+| `toJobResponse()`        | 83-90   | LOW        | Response object formatting (timestamp conversion, optional fields) | Job with result, job with error, job with both, job with neither                                           |
+| `getJob()`               | 93      | LOW        | Single job DB query by ID                                          | Job exists, job not found                                                                                  |
+| `handleBackgroundJobs()` | 181-188 | MEDIUM     | Router: POST (create), GET (fetch by ID, auth check)               | POST job creation, GET existing job (auth match), GET non-existent, GET job (auth mismatch), invalid route |
 
 #### INTEGRATION PRIORITY (Main Entry Points)
 
-| Function | Lines | Complexity | Why Integration | Scenarios Needed |
-|----------|-------|-----------|-----------------|------------------|
-| `worker.fetch()` | 258-281 | HIGH | **Main HTTP entry point**; routes to all handlers (background-jobs, plugin-overrides, preferences) | Auth failure → 401, valid auth + /v1/background-jobs POST/GET, /v1/plugin-overrides GET/PUT, /v1/preferences GET/PUT, invalid route → 404 |
-| `worker.queue()` | 284-286 | MEDIUM | **Queue consumer entry point**; routes messages to consumeMessage via Promise.all | Single message, batch of 3+ messages, empty batch, message failure handling |
+| Function         | Lines   | Complexity | Why Integration                                                                                    | Scenarios Needed                                                                                                                          |
+| ---------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `worker.fetch()` | 258-281 | HIGH       | **Main HTTP entry point**; routes to all handlers (background-jobs, plugin-overrides, preferences) | Auth failure → 401, valid auth + /v1/background-jobs POST/GET, /v1/plugin-overrides GET/PUT, /v1/preferences GET/PUT, invalid route → 404 |
+| `worker.queue()` | 284-286 | MEDIUM     | **Queue consumer entry point**; routes messages to consumeMessage via Promise.all                  | Single message, batch of 3+ messages, empty batch, message failure handling                                                               |
 
 ---
 
@@ -68,7 +68,7 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 ✅ **MockD1Database** — In-memory database with INSERT, UPDATE (status-aware), SELECT capabilities  
 ✅ **MockQueue** — Message tracker with ack/retry simulation (basic)  
 ✅ **Node.js test runner** — Native `node:test` module (no Jest)  
-✅ **Type definitions mirrored** — StoredJob, JobPayload, JobType, JobStatus already defined in test file  
+✅ **Type definitions mirrored** — StoredJob, JobPayload, JobType, JobStatus already defined in test file
 
 ### Gaps in Mocks
 
@@ -98,7 +98,7 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 4. ✅ **parseJobPayload()** — Payload validation
    - Dependencies: none (pure)
    - Test data: valid, oversized, missing fields, invalid types
-2. ✅ **toJobResponse()** — Response formatting
+5. ✅ **toJobResponse()** — Response formatting
    - Dependencies: toJobResponse only uses data from StoredJob
    - Simple, can pair with createJob tests
 
@@ -107,7 +107,7 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 6. ✅ **getJob()** — DB read
    - Dependencies: Env.DB
    - Extend MockD1Database.executeFirst() to support SELECT queries
-2. ✅ **createJob()** — DB write + queue
+7. ✅ **createJob()** — DB write + queue
    - Dependencies: parseJobPayload, getJob, updateJobStatus (already tested), Env
    - Will need: Mock Queue verification
 
@@ -116,21 +116,22 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 8. ✅ **executeBackgroundJob()** — Network fetch
    - Dependencies: safeParseJSON (already tested), Env
    - Will need: fetch mock (agent or MSW)
-2. ✅ **consumeMessage()** — Job consumption + retry
+9. ✅ **consumeMessage()** — Job consumption + retry
    - Dependencies: getJob, updateJobStatus, executeBackgroundJob
    - Complex state machine: needs 5+ test scenarios for retry paths
-3. ✅ **handlePreferences()** — Conflict detection
+10. ✅ **handlePreferences()** — Conflict detection
     - Dependencies: safeParseJSON (already tested), Env.DB
     - Extend MockD1Database for user_preferences table queries
 
 ### Phase 2e: Routing & Integration (2–3 days, depends on 2d)
- 1. ✅ **handleBackgroundJobs()** — Router
+
+1.  ✅ **handleBackgroundJobs()** — Router
     - Dependencies: createJob, getJob
     - Simpler than full fetch integration
- 2. ✅ **worker.fetch()** — Main HTTP entry
+2.  ✅ **worker.fetch()** — Main HTTP entry
     - Dependencies: authenticate, handleBackgroundJobs, handlePreferences, worker.fetch routing
     - Full end-to-end: auth → route → handler → response
- 3. ✅ **worker.queue()** — Queue entry
+3.  ✅ **worker.queue()** — Queue entry
     - Dependencies: consumeMessage
     - Simpler: just verify Promise.all handles batch
 
@@ -165,11 +166,11 @@ class MockResponse {
 ```typescript
 // Extend existing with secrets
 interface MockEnv extends Env {
-  DB: MockD1Database
-  BACKGROUND_JOBS: MockQueue<{id: string}>
-  MATMETRICS_INTERNAL_API_SECRET: string
-  MATMETRICS_BACKGROUND_EXECUTOR_URL: string
-  MATMETRICS_BACKGROUND_EXECUTOR_SECRET: string
+  DB: MockD1Database;
+  BACKGROUND_JOBS: MockQueue<{ id: string }>;
+  MATMETRICS_INTERNAL_API_SECRET: string;
+  MATMETRICS_BACKGROUND_EXECUTOR_URL: string;
+  MATMETRICS_BACKGROUND_EXECUTOR_SECRET: string;
 }
 ```
 
@@ -178,8 +179,12 @@ interface MockEnv extends Env {
 ```typescript
 class MockMessage<T> {
   constructor(public body: T) {}
-  async ack(): Promise<void> { /* mark as acked */ }
-  async retry(): Promise<void> { /* mark for retry */ }
+  async ack(): Promise<void> {
+    /* mark as acked */
+  }
+  async retry(): Promise<void> {
+    /* mark for retry */
+  }
 }
 ```
 
@@ -193,13 +198,13 @@ class MockMessage<T> {
 
 ## Risk Assessment
 
-| Risk | Current State | Impact if Untested | Post-Tests |
-|------|---------------|-------------------|-----------|
-| **Auth bypass** | authenticate() untested | 401 validation could be broken; security gate failing silently | Critical path verified |
-| **Retry loop** | consumeMessage() untested | Max attempts limit could be broken; jobs retry forever; customer data stalled | Retry state machine validated |
-| **Conflict overwrites** | handlePreferences() untested | Optimistic locking broken; user preferences corrupted on concurrent edits | Conflict detection verified |
-| **Crypto signature** | expectedSignature() untested | HMAC could be wrong; auth would fail or be bypassable | Determinism + correctness verified |
-| **Payload bombs** | parseJobPayload() untested | 4KB limit could be broken; executor receives 100KB+ payloads | Validation boundaries confirmed |
+| Risk                    | Current State                | Impact if Untested                                                            | Post-Tests                         |
+| ----------------------- | ---------------------------- | ----------------------------------------------------------------------------- | ---------------------------------- |
+| **Auth bypass**         | authenticate() untested      | 401 validation could be broken; security gate failing silently                | Critical path verified             |
+| **Retry loop**          | consumeMessage() untested    | Max attempts limit could be broken; jobs retry forever; customer data stalled | Retry state machine validated      |
+| **Conflict overwrites** | handlePreferences() untested | Optimistic locking broken; user preferences corrupted on concurrent edits     | Conflict detection verified        |
+| **Crypto signature**    | expectedSignature() untested | HMAC could be wrong; auth would fail or be bypassable                         | Determinism + correctness verified |
+| **Payload bombs**       | parseJobPayload() untested   | 4KB limit could be broken; executor receives 100KB+ payloads                  | Validation boundaries confirmed    |
 
 ---
 

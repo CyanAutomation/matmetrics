@@ -45,9 +45,7 @@ export type ActiveSyncLease =
     };
 
 export type LeaseTakeoverReason =
-  | 'expired'
-  | 'forced-reclaim'
-  | 'race-revalidate';
+  'expired' | 'forced-reclaim' | 'race-revalidate';
 
 // ============================================================================
 // Constants
@@ -70,11 +68,9 @@ let syncLockTtlMs = 45_000;
 let allowForcedReclaim = true;
 let getSyncLockStorageKeyFn: (() => string) | null = null;
 let isStorageEventForKeyFn:
-  | ((event: StorageEvent, key: string) => boolean)
-  | null = null;
+  ((event: StorageEvent, key: string) => boolean) | null = null;
 let emitDiagnosticFn:
-  | ((payload: LeaseTakeoverDiagnosticPayload) => void)
-  | null = null;
+  ((payload: LeaseTakeoverDiagnosticPayload) => void) | null = null;
 
 export function initializeSyncLeaseModule(options: {
   syncOwnerId: string;

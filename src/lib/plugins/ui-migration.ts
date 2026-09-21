@@ -2,9 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 type PrimitiveKey =
-  | 'sharedShell'
-  | 'sharedState'
-  | 'sharedDestructiveConfirmation';
+  'sharedShell' | 'sharedState' | 'sharedDestructiveConfirmation';
 
 export type PluginUiMigrationChecks = Record<PrimitiveKey, boolean>;
 

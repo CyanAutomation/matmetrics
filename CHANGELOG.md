@@ -6,42 +6,37 @@ All notable changes to MatMetrics are documented in this file.
 
 ## [1.11.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.1...nextn-v1.11.0) (2026-09-16)
 
-
 ### Features
 
-* enhance background job handling with error classification and status updates ([dcf8c8a](https://github.com/CyanAutomation/matmetrics/commit/dcf8c8a9dd880a53726a2e1d1000a9e1616a6301))
-* queue background GitHub checks ([c135633](https://github.com/CyanAutomation/matmetrics/commit/c135633f3717c6c32771be1e891e88cadc31cae9))
-* queue background GitHub checks ([#749](https://github.com/CyanAutomation/matmetrics/issues/749)) ([597670d](https://github.com/CyanAutomation/matmetrics/commit/597670d034eb22091bc623ece4453f57631c6c3e))
-
+- enhance background job handling with error classification and status updates ([dcf8c8a](https://github.com/CyanAutomation/matmetrics/commit/dcf8c8a9dd880a53726a2e1d1000a9e1616a6301))
+- queue background GitHub checks ([c135633](https://github.com/CyanAutomation/matmetrics/commit/c135633f3717c6c32771be1e891e88cadc31cae9))
+- queue background GitHub checks ([#749](https://github.com/CyanAutomation/matmetrics/issues/749)) ([597670d](https://github.com/CyanAutomation/matmetrics/commit/597670d034eb22091bc623ece4453f57631c6c3e))
 
 ### Bug Fixes
 
-* harden background job execution ([2cdc5c9](https://github.com/CyanAutomation/matmetrics/commit/2cdc5c9a50c290fd625172beeb52938a2bd3a672))
-* harden queued GitHub background checks ([#750](https://github.com/CyanAutomation/matmetrics/issues/750)) ([171aa2c](https://github.com/CyanAutomation/matmetrics/commit/171aa2cdc19f978ec12de809ced48b5ef5c15800))
+- harden background job execution ([2cdc5c9](https://github.com/CyanAutomation/matmetrics/commit/2cdc5c9a50c290fd625172beeb52938a2bd3a672))
+- harden queued GitHub background checks ([#750](https://github.com/CyanAutomation/matmetrics/issues/750)) ([171aa2c](https://github.com/CyanAutomation/matmetrics/commit/171aa2cdc19f978ec12de809ced48b5ef5c15800))
 
 ## [1.10.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.0...nextn-v1.10.1) (2026-09-16)
 
-
 ### Bug Fixes
 
-* keep dashboard available when D1 is slow ([227d71e](https://github.com/CyanAutomation/matmetrics/commit/227d71e732f508cdc49fd6aac7b9a5b7e8a65e38))
-* keep dashboard available when D1 is slow ([#745](https://github.com/CyanAutomation/matmetrics/issues/745)) ([26375cb](https://github.com/CyanAutomation/matmetrics/commit/26375cbfb6dff535e975761036ca641b218d8c63))
-* prevent session refresh re-entrancy ([b363adc](https://github.com/CyanAutomation/matmetrics/commit/b363adc4e823e0f533692dbc17da516d71b9edf5))
+- keep dashboard available when D1 is slow ([227d71e](https://github.com/CyanAutomation/matmetrics/commit/227d71e732f508cdc49fd6aac7b9a5b7e8a65e38))
+- keep dashboard available when D1 is slow ([#745](https://github.com/CyanAutomation/matmetrics/issues/745)) ([26375cb](https://github.com/CyanAutomation/matmetrics/commit/26375cbfb6dff535e975761036ca641b218d8c63))
+- prevent session refresh re-entrancy ([b363adc](https://github.com/CyanAutomation/matmetrics/commit/b363adc4e823e0f533692dbc17da516d71b9edf5))
 
 ## [1.10.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.5...nextn-v1.10.0) (2026-09-15)
 
-
 ### Features
 
-* add Cloudflare D1 preference data path ([b233b6a](https://github.com/CyanAutomation/matmetrics/commit/b233b6a9480618ce15158062c049122b96480fba))
-* add Cloudflare D1 preference data path ([#742](https://github.com/CyanAutomation/matmetrics/issues/742)) ([fa8ec3f](https://github.com/CyanAutomation/matmetrics/commit/fa8ec3f7ed44eba6df27f39dba7fa297f3c47314))
-
+- add Cloudflare D1 preference data path ([b233b6a](https://github.com/CyanAutomation/matmetrics/commit/b233b6a9480618ce15158062c049122b96480fba))
+- add Cloudflare D1 preference data path ([#742](https://github.com/CyanAutomation/matmetrics/issues/742)) ([fa8ec3f](https://github.com/CyanAutomation/matmetrics/commit/fa8ec3f7ed44eba6df27f39dba7fa297f3c47314))
 
 ### Bug Fixes
 
-* persist D1 preference updates ([3929ff9](https://github.com/CyanAutomation/matmetrics/commit/3929ff9f3c2419c36ea25e9c0d263c395d7a7c1e))
-* persist D1 preference updates ([#743](https://github.com/CyanAutomation/matmetrics/issues/743)) ([ee2e53c](https://github.com/CyanAutomation/matmetrics/commit/ee2e53c6c776fc56cea3b10327425100a240da81))
-* pin jose for CommonJS Firebase auth ([1be7df5](https://github.com/CyanAutomation/matmetrics/commit/1be7df587719d5ebf1e603ef6c5a49f1aaa1f2df))
+- persist D1 preference updates ([3929ff9](https://github.com/CyanAutomation/matmetrics/commit/3929ff9f3c2419c36ea25e9c0d263c395d7a7c1e))
+- persist D1 preference updates ([#743](https://github.com/CyanAutomation/matmetrics/issues/743)) ([ee2e53c](https://github.com/CyanAutomation/matmetrics/commit/ee2e53c6c776fc56cea3b10327425100a240da81))
+- pin jose for CommonJS Firebase auth ([1be7df5](https://github.com/CyanAutomation/matmetrics/commit/1be7df587719d5ebf1e603ef6c5a49f1aaa1f2df))
 
 ## [1.9.5](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.9.4...nextn-v1.9.5) (2026-09-13)
 

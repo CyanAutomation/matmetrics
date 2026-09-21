@@ -534,7 +534,11 @@ export async function deleteSessionForConfig(
   expectedRevision?: string
 ): Promise<GitHubSyncResult | null> {
   if (shouldUseGitHubStorage(config)) {
-    const result = await deleteSessionOnGitHubById(id, config, expectedRevision);
+    const result = await deleteSessionOnGitHubById(
+      id,
+      config,
+      expectedRevision
+    );
     if (!result.success) {
       if (result.errorType === 'conflict') {
         throw new GitHubRevisionConflictError(result.message);

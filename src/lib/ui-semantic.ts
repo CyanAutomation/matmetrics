@@ -36,11 +36,7 @@ export function resolvePluginTierPresentation(tier: PluginMaturityTier): {
 }
 
 export type DashboardChartToken =
-  | 'chart-1'
-  | 'chart-2'
-  | 'chart-3'
-  | 'chart-4'
-  | 'chart-5';
+  'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5';
 
 export type SessionCategoryTone =
   | 'technical'

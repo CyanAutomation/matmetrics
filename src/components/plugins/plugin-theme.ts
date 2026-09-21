@@ -4,11 +4,7 @@ import {
 } from '@/components/plugins/plugin-style-policy';
 
 export type PluginThemeTone =
-  | 'default'
-  | 'info'
-  | 'warning'
-  | 'success'
-  | 'error';
+  'default' | 'info' | 'warning' | 'success' | 'error';
 
 export type PluginThemeSlots = {
   headerIconBg: string;

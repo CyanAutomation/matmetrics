@@ -20,9 +20,7 @@ export type InstalledPluginManifestRow = {
 };
 
 export type PluginManagerAccessState =
-  | 'ready'
-  | 'sign-in-required'
-  | 'auth-unavailable';
+  'ready' | 'sign-in-required' | 'auth-unavailable';
 
 type PluginApiErrorPayload = {
   error?: string;

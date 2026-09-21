@@ -113,10 +113,7 @@ export interface VideoLibraryPreferences {
 }
 
 export type VideoLinkCheckStatus =
-  | 'reachable'
-  | 'broken'
-  | 'disallowed_domain'
-  | 'check_failed';
+  'reachable' | 'broken' | 'disallowed_domain' | 'check_failed';
 
 export interface VideoLinkCheckSnapshot {
   url: string;

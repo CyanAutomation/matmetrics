@@ -1,8 +1,5 @@
 export type InteractionTone =
-  | 'default'
-  | 'primary-action'
-  | 'subtle'
-  | 'destructive';
+  'default' | 'primary-action' | 'subtle' | 'destructive';
 
 export type FeedbackState = 'idle' | 'loading' | 'success' | 'error';
 

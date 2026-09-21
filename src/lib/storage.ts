@@ -50,7 +50,11 @@ import {
   resetMutationVersion,
   sessionsEqual,
 } from './mutation-state';
-import { SyncRequestError, processSingleQueueOperation, parseRetryAfterMs } from './storage-queue';
+import {
+  SyncRequestError,
+  processSingleQueueOperation,
+  parseRetryAfterMs,
+} from './storage-queue';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
 const SYNC_LOCK_KEY_BASE = 'matmetrics_sync_lock';
@@ -686,10 +690,7 @@ export function setGitHubSyncStatus(
 }
 
 export function getGitHubSyncStatus():
-  | 'idle'
-  | 'syncing'
-  | 'success'
-  | 'error' {
+  'idle' | 'syncing' | 'success' | 'error' {
   return getGitHubSettings().syncStatus;
 }
 
