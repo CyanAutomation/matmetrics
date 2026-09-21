@@ -4,6 +4,13 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.11.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.11.0...nextn-v1.11.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* use _ for intentionally unused loop variable in kaseki-dry.yaml ([a78d66c](https://github.com/CyanAutomation/matmetrics/commit/a78d66cc7fdd22ab32af4ed765073a562d9f9151))
+
 ## [1.11.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.10.1...nextn-v1.11.0) (2026-09-16)
 
 ### Features
