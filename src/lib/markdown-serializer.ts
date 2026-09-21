@@ -11,6 +11,12 @@ import {
 } from './network-safety';
 
 const SESSION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export const REQUIRED_SESSION_HEADINGS: readonly string[] = [
+  '## Techniques Practiced',
+  '## Session Description',
+  '## Notes',
+];
 /**
  * Convert a JudoSession to a markdown string with YAML frontmatter
  * Format:
@@ -283,11 +289,7 @@ function extractSectionContent(
   content: string,
   heading: string
 ): string | undefined {
-  const sectionHeadings = [
-    '## Techniques Practiced',
-    '## Session Description',
-    '## Notes',
-  ];
+  const sectionHeadings = REQUIRED_SESSION_HEADINGS;
   const targetHeading = `## ${heading}`;
   const lines = content.split('\n');
 
@@ -342,11 +344,7 @@ function extractSectionContent(
 }
 
 function validateRequiredSections(content: string): void {
-  const requiredHeadings = [
-    '## Techniques Practiced',
-    '## Session Description',
-    '## Notes',
-  ];
+  const requiredHeadings = REQUIRED_SESSION_HEADINGS;
 
   const discoveredHeadings = getSectionHeadingsOutsideFencedCodeBlocks(content);
   const missing = requiredHeadings
@@ -363,11 +361,7 @@ function validateRequiredSections(content: string): void {
 function getSectionHeadingsOutsideFencedCodeBlocks(
   content: string
 ): Set<string> {
-  const sectionHeadings = new Set([
-    '## Techniques Practiced',
-    '## Session Description',
-    '## Notes',
-  ]);
+  const sectionHeadings = new Set(REQUIRED_SESSION_HEADINGS);
   const found = new Set<string>();
   const lines = content.split('\n');
 
