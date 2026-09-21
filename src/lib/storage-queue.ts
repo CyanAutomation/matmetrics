@@ -20,9 +20,7 @@
 
 import type { JudoSession, GitHubConfig } from './types';
 import type { SyncOperation } from './sync-queue';
-import {
-  clearDirtyMutation,
-} from './mutation-state';
+import { clearDirtyMutation } from './mutation-state';
 import {
   hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
   renewSyncLease as coreRenewSyncLease,
@@ -219,7 +217,10 @@ export async function processSingleQueueOperation(
   onAbort: (remainingOps: SyncOperation[]) => Promise<void>,
   // Helper functions injected for testability
   isStorageGenerationCurrent: (gen: number) => boolean,
-  syncRequest: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+  syncRequest: (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ) => Promise<Response>,
   parseMutationSession: (response: Response) => Promise<JudoSession>,
   reconcileSuccessfulSession: (session: JudoSession, version: number) => void,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,

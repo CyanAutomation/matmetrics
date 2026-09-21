@@ -1,10 +1,7 @@
 import type { PluginMaturityUxCriterion } from '@/lib/plugins/types';
 
 export type FeatureUxState =
-  | 'loading'
-  | 'error'
-  | 'empty'
-  | 'destructiveAction';
+  'loading' | 'error' | 'empty' | 'destructiveAction';
 
 export const uxStatePatterns: Record<FeatureUxState, RegExp[]> = {
   loading: [

@@ -73,7 +73,8 @@ const discoverValidatedPluginManifests = async (
 ): Promise<PluginManifest[]> => {
   const pluginsRoot = options.pluginsRoot ?? getPluginsRoot();
   const candidates = await loadFilesystemManifestCandidates(pluginsRoot);
-  const enabledOverrides = options.enabledOverrides ??
+  const enabledOverrides =
+    options.enabledOverrides ??
     (options.userId ? await loadPluginEnabledOverrides(options.userId) : {});
 
   return candidates

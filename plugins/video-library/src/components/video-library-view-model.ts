@@ -20,18 +20,12 @@ export type EmptyStateDescriptor = {
   description: string;
   ctaLabel: string;
   action:
-    | 'clearSearch'
-    | 'switchToAll'
-    | 'resetAdvancedFilters'
-    | 'editSession';
+    'clearSearch' | 'switchToAll' | 'resetAdvancedFilters' | 'editSession';
 };
 
 export type VideoLibraryPresentationMode = 'table' | 'lounge';
 export type VideoLibrarySortOption =
-  | 'newest'
-  | 'oldest'
-  | 'recently_checked'
-  | 'provider';
+  'newest' | 'oldest' | 'recently_checked' | 'provider';
 
 export const SESSION_CATEGORY_OPTIONS: SessionCategory[] = [
   ...SESSION_CATEGORIES,

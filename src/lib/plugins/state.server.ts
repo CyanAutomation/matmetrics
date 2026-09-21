@@ -56,38 +56,38 @@ export const applyPluginEnabledOverrides = (
   };
 };
 
-export const loadPluginEnabledOverrides =
-  async (uid: string): Promise<PluginEnabledOverrides> => {
-    if (isTestMode()) {
-      return { ...(TEST_PLUGIN_ENABLED_OVERRIDES.get(uid) ?? {}) };
-    }
+export const loadPluginEnabledOverrides = async (
+  uid: string
+): Promise<PluginEnabledOverrides> => {
+  if (isTestMode()) {
+    return { ...(TEST_PLUGIN_ENABLED_OVERRIDES.get(uid) ?? {}) };
+  }
 
-    if (isDataWorkerConfigured()) {
-      const payload = await requestDataWorker<{ overrides: PluginEnabledOverrides }>(
-        '/v1/plugin-overrides',
-        { method: 'GET', userId: uid }
-      );
-      return normalizePluginEnabledOverrides(payload.overrides);
-    }
+  if (isDataWorkerConfigured()) {
+    const payload = await requestDataWorker<{
+      overrides: PluginEnabledOverrides;
+    }>('/v1/plugin-overrides', { method: 'GET', userId: uid });
+    return normalizePluginEnabledOverrides(payload.overrides);
+  }
 
-    if (!isFirebaseAdminConfigured()) {
-      return {};
-    }
+  if (!isFirebaseAdminConfigured()) {
+    return {};
+  }
 
-    const snapshot = await getFirebaseAdminDb()
-      .collection('users')
-      .doc(uid)
-      .collection(PLUGIN_CONFIG_COLLECTION)
-      .doc(PLUGIN_CONFIG_DOCUMENT)
-      .get();
+  const snapshot = await getFirebaseAdminDb()
+    .collection('users')
+    .doc(uid)
+    .collection(PLUGIN_CONFIG_COLLECTION)
+    .doc(PLUGIN_CONFIG_DOCUMENT)
+    .get();
 
-    if (!snapshot.exists) {
-      return {};
-    }
+  if (!snapshot.exists) {
+    return {};
+  }
 
-    const data = snapshot.data();
-    return normalizePluginEnabledOverrides(data?.enabledOverrides);
-  };
+  const data = snapshot.data();
+  return normalizePluginEnabledOverrides(data?.enabledOverrides);
+};
 
 export const persistPluginEnabledOverride = async (
   uid: string,

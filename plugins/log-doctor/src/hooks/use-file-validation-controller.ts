@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
-import { isBackgroundJobResult, type BackgroundJobResult } from '@/lib/background-jobs';
+import {
+  isBackgroundJobResult,
+  type BackgroundJobResult,
+} from '@/lib/background-jobs';
 import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
 import { createUiState } from '../components/log-doctor-state';
 import type {
@@ -28,7 +31,8 @@ const defaultDependencies: FileValidationDependencies = {
 /**
  * Discriminated error type for file validation operations.
  */
-type ValidationErrorType = 'abort' | 'auth' | 'network' | 'validation' | 'unknown';
+type ValidationErrorType =
+  'abort' | 'auth' | 'network' | 'validation' | 'unknown';
 
 interface ValidationError {
   type: ValidationErrorType;
@@ -53,7 +57,10 @@ function classifyValidationError(error: unknown): ValidationError {
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+    if (
+      error.message.includes('401') ||
+      error.message.includes('Unauthorized')
+    ) {
       return { type: 'auth', message: 'Authentication failed' };
     }
     return { type: 'validation', message: error.message };
@@ -78,10 +85,7 @@ function buildValidationRequestBody(
     };
   }
 
-  const mode =
-    action === 'preview'
-      ? 'dry-run'
-      : 'apply';
+  const mode = action === 'preview' ? 'dry-run' : 'apply';
 
   return {
     owner: config.owner.trim(),
@@ -115,17 +119,26 @@ async function waitForBackgroundJob(
   for (let attempt = 0; attempt < 120; attempt += 1) {
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(resolve, 500);
-      signal.addEventListener('abort', () => {
-        clearTimeout(timeout);
-        reject(new DOMException('Request canceled', 'AbortError'));
-      }, { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timeout);
+          reject(new DOMException('Request canceled', 'AbortError'));
+        },
+        { once: true }
+      );
     });
     const headers = await dependencies.getAuthHeaders();
-    const response = await dependencies.fetch(`/api/background-jobs/${job.id}`, { headers, signal });
+    const response = await dependencies.fetch(
+      `/api/background-jobs/${job.id}`,
+      { headers, signal }
+    );
     const current: unknown = await response.json();
-    if (!response.ok || !isBackgroundJobResult(current)) throw new Error('Unable to read background job status');
+    if (!response.ok || !isBackgroundJobResult(current))
+      throw new Error('Unable to read background job status');
     if (current.status === 'completed') return current.result;
-    if (current.status === 'failed') throw new Error(current.error || 'Background check failed');
+    if (current.status === 'failed')
+      throw new Error(current.error || 'Background check failed');
   }
   throw new Error('Background check is taking longer than expected');
 }
@@ -218,9 +231,14 @@ export const useFileValidationController = (
         // Handle scan vs fix responses
         if (action === 'scan') {
           const initial: unknown = await response.json();
-          const payload = response.status === 202 && isBackgroundJobResult(initial)
-            ? await waitForBackgroundJob(initial, dependencies, controller.signal) as ScanResult
-            : initial as ScanResult;
+          const payload =
+            response.status === 202 && isBackgroundJobResult(initial)
+              ? ((await waitForBackgroundJob(
+                  initial,
+                  dependencies,
+                  controller.signal
+                )) as ScanResult)
+              : (initial as ScanResult);
           if (response.status >= 400) {
             throw new Error('Log Doctor scan request failed');
           }

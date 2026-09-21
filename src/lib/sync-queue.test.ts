@@ -362,8 +362,7 @@ test('storage lease heartbeat renews during long-running critical section', asyn
     finishCriticalSection = resolve;
   });
   let initialLease:
-    | ReturnType<typeof __testInternals.readQueueLease>
-    | undefined;
+    ReturnType<typeof __testInternals.readQueueLease> | undefined;
 
   const leasePromise = __testInternals.withQueueWriteLease(
     async () => {

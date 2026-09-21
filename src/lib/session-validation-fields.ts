@@ -5,8 +5,7 @@ import { validateVideoUrl } from '@/lib/validators/video-url';
 import { ZodError } from 'zod';
 
 type FieldResult =
-  | { ok: true; values: Omit<JudoSession, 'id'> }
-  | { ok: false; error: string };
+  { ok: true; values: Omit<JudoSession, 'id'> } | { ok: false; error: string };
 
 /**
  * Validates session fields using Zod schema.

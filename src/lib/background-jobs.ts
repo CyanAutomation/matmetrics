@@ -77,7 +77,9 @@ export type BackgroundJobResult = {
  * Type guard to safely check if a value is a valid BackgroundJobResult.
  * Used in response handlers to validate Worker responses.
  */
-export function isBackgroundJobResult(value: unknown): value is BackgroundJobResult {
+export function isBackgroundJobResult(
+  value: unknown
+): value is BackgroundJobResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;
   return (

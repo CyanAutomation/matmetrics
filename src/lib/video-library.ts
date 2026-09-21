@@ -16,17 +16,12 @@ const STARTER_VIDEO_ALLOWED_DOMAINS = [
 ] as const;
 
 export type VideoLibraryEntryStatus =
-  | 'missing'
-  | 'allowed_unchecked'
-  | 'disallowed_domain'
-  | 'invalid_url';
+  'missing' | 'allowed_unchecked' | 'disallowed_domain' | 'invalid_url';
 
 export type VideoLibraryTab = 'watchable' | 'attention' | 'no_video' | 'all';
 export type VideoLibraryCheckedFilter = 'all' | 'checked' | 'unchecked';
 export type VideoLibraryStatusFilter =
-  | 'all'
-  | VideoLibraryEntryStatus
-  | VideoLinkCheckStatus;
+  'all' | VideoLibraryEntryStatus | VideoLinkCheckStatus;
 
 export interface VideoLibraryEntry {
   session: JudoSession;

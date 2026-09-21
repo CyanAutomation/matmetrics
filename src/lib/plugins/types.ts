@@ -70,10 +70,7 @@ export type UIExtension =
 export type PluginUILayoutVariant = 'standard' | 'wide' | (string & {});
 
 export type PluginUIContractState =
-  | 'loading'
-  | 'error'
-  | 'empty'
-  | 'destructive';
+  'loading' | 'error' | 'empty' | 'destructive';
 
 export type PluginUIContract = {
   layoutVariant: PluginUILayoutVariant;
@@ -195,8 +192,7 @@ export type PluginManifestValidationFailure = {
 };
 
 export type PluginManifestValidationResult =
-  | PluginManifestValidationSuccess
-  | PluginManifestValidationFailure;
+  PluginManifestValidationSuccess | PluginManifestValidationFailure;
 
 export type PluginRuntimeWarningCode =
   | 'dashboard_tab_renderer_unresolved'

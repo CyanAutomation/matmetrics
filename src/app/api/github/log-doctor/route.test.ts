@@ -36,13 +36,20 @@ test('log-doctor route queues a scan and trims owner/repo/branch', async () => {
       body: typeof init?.body === 'string' ? init.body : undefined,
     };
 
-    return new Response(JSON.stringify({
-      id: '00000000-0000-4000-8000-000000000001', type: 'log-doctor-scan', status: 'queued', attempts: 0,
-      createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
-    }), {
-      status: 202,
-      headers: { 'content-type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        id: '00000000-0000-4000-8000-000000000001',
+        type: 'log-doctor-scan',
+        status: 'queued',
+        attempts: 0,
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }),
+      {
+        status: 202,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
   };
 
   try {
@@ -58,7 +65,8 @@ test('log-doctor route queues a scan and trims owner/repo/branch', async () => {
     assert.ok(fetchCall);
     assert.equal(fetchCall?.url, 'https://worker.example/v1/background-jobs');
     assert.deepEqual(JSON.parse(fetchCall?.body ?? '{}'), {
-      type: 'log-doctor-scan', config: { owner: 'octocat', repo: 'matmetrics', branch: 'main' },
+      type: 'log-doctor-scan',
+      config: { owner: 'octocat', repo: 'matmetrics', branch: 'main' },
     });
   } finally {
     global.fetch = originalFetch;
@@ -137,7 +145,9 @@ test('log-doctor route reports an unavailable queue configuration', async () => 
   process.env.GITHUB_TOKEN = 'ghs_test_token';
   process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
-  global.fetch = async () => { throw new Error('must not fetch'); };
+  global.fetch = async () => {
+    throw new Error('must not fetch');
+  };
 
   try {
     const response = await POST(
@@ -145,7 +155,10 @@ test('log-doctor route reports an unavailable queue configuration', async () => 
     );
 
     assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), { success: false, message: 'Background jobs are not configured' });
+    assert.deepEqual(await response.json(), {
+      success: false,
+      message: 'Background jobs are not configured',
+    });
   } finally {
     global.fetch = originalFetch;
     if (originalToken === undefined) {

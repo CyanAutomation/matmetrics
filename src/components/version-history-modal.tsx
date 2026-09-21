@@ -61,8 +61,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
           signal: controller.signal,
         });
         const payload = (await response.json()) as
-          | RecentReleasesResponse
-          | ReleaseHistoryErrorResponse;
+          RecentReleasesResponse | ReleaseHistoryErrorResponse;
 
         if (!response.ok) {
           if (isReleaseHistoryErrorResponse(payload)) {

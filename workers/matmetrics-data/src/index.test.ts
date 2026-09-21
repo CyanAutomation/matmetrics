@@ -58,7 +58,10 @@ class MockD1Database {
     };
   }
 
-  private async executeRun(sql: string, params: unknown[]): Promise<MockD1Result> {
+  private async executeRun(
+    sql: string,
+    params: unknown[]
+  ): Promise<MockD1Result> {
     if (sql.includes('INSERT INTO background_jobs')) {
       const id = params[0] as string;
       const job: StoredJob = {
@@ -105,7 +108,10 @@ class MockD1Database {
     return { success: false };
   }
 
-  private async executeFirst<T>(sql: string, _params: unknown[]): Promise<T | null> {
+  private async executeFirst<T>(
+    sql: string,
+    _params: unknown[]
+  ): Promise<T | null> {
     if (sql.includes('SELECT') && sql.includes('FROM background_jobs')) {
       const id = _params[_params.length - 1] as string;
       const job = this.data.get(id);
@@ -119,8 +125,14 @@ class MockD1Database {
     return null;
   }
 
-  private async executeAll<T>(sql: string, _params: unknown[]): Promise<MockD1Result<T>> {
-    if (sql.includes('SELECT') && sql.includes('FROM plugin_enabled_overrides')) {
+  private async executeAll<T>(
+    sql: string,
+    _params: unknown[]
+  ): Promise<MockD1Result<T>> {
+    if (
+      sql.includes('SELECT') &&
+      sql.includes('FROM plugin_enabled_overrides')
+    ) {
       // Return empty results for overrides (no setup needed in basic tests)
       return { results: [], success: true };
     }
@@ -134,10 +146,16 @@ class MockD1Database {
   }
 
   // Preferences support for handlePreferences tests
-  private preferences: Map<string, { preferences_json: string; revision: number }> = new Map();
+  private preferences: Map<
+    string,
+    { preferences_json: string; revision: number }
+  > = new Map();
 
   _setPreferences(userId: string, preferences: unknown, revision: number) {
-    this.preferences.set(userId, { preferences_json: JSON.stringify(preferences), revision });
+    this.preferences.set(userId, {
+      preferences_json: JSON.stringify(preferences),
+      revision,
+    });
   }
 
   _getPreferences(userId: string) {
@@ -153,11 +171,24 @@ class MockD1Database {
     return this.data.get(id);
   }
 
-  _setPreferences(userId: string, prefs: Record<string, unknown>, revision: number): void {
-    this.preferences.set(userId, { user_id: userId, data: JSON.stringify(prefs), revision, version: 1 });
+  _setPreferences(
+    userId: string,
+    prefs: Record<string, unknown>,
+    revision: number
+  ): void {
+    this.preferences.set(userId, {
+      user_id: userId,
+      data: JSON.stringify(prefs),
+      revision,
+      version: 1,
+    });
   }
 
-  _getPreferences(userId: string): { user_id: string; data: string; revision: number; version: number } | undefined {
+  _getPreferences(
+    userId: string
+  ):
+    | { user_id: string; data: string; revision: number; version: number }
+    | undefined {
     return this.preferences.get(userId);
   }
 }
@@ -297,7 +328,11 @@ class MockResponse implements Response {
   }
 
   async clone(): Promise<Response> {
-    return new MockResponse(this.body_, this.status, this.statusText) as unknown as Response;
+    return new MockResponse(
+      this.body_,
+      this.status,
+      this.statusText
+    ) as unknown as Response;
   }
 }
 
@@ -353,16 +388,40 @@ const encoder = new TextEncoder();
  * Helper: convert ArrayBuffer to hex string
  */
 function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)].map((value) => value.toString(16).padStart(2, '0')).join('');
+  return [...new Uint8Array(bytes)]
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
  * Generate HMAC-SHA256 signature for request authentication
  */
-async function expectedSignature(secret: string, timestamp: string, method: string, path: string, body: string): Promise<string> {
-  const bodyHash = hex(await crypto.subtle.digest('SHA-256', encoder.encode(body)));
-  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return hex(await crypto.subtle.sign('HMAC', key, encoder.encode(`v1.${timestamp}.${method.toUpperCase()}.${path}.${bodyHash}`)));
+async function expectedSignature(
+  secret: string,
+  timestamp: string,
+  method: string,
+  path: string,
+  body: string
+): Promise<string> {
+  const bodyHash = hex(
+    await crypto.subtle.digest('SHA-256', encoder.encode(body))
+  );
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  return hex(
+    await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(
+        `v1.${timestamp}.${method.toUpperCase()}.${path}.${bodyHash}`
+      )
+    )
+  );
 }
 
 /**
@@ -371,23 +430,40 @@ async function expectedSignature(secret: string, timestamp: string, method: stri
 function timingSafeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
   let result = 0;
-  for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  for (let index = 0; index < left.length; index += 1)
+    result |= left.charCodeAt(index) ^ right.charCodeAt(index);
   return result === 0;
 }
 
 /**
  * Authenticate request via HMAC signature and timestamp validation
  */
-async function authenticate(request: Request, env: Env, body: string): Promise<{ userId: string } | Response> {
+async function authenticate(
+  request: Request,
+  env: Env,
+  body: string
+): Promise<{ userId: string } | Response> {
   const timestamp = request.headers.get('X-Matmetrics-Timestamp');
   const userId = request.headers.get('X-Matmetrics-User-Id');
   const authorization = request.headers.get('Authorization');
-  if (!timestamp || !userId || !authorization?.startsWith('Bearer ')) return { error: 'Unauthorized' } as unknown as Response;
+  if (!timestamp || !userId || !authorization?.startsWith('Bearer '))
+    return { error: 'Unauthorized' } as unknown as Response;
   const timestampNumber = Number(timestamp);
   const MAX_SIGNATURE_AGE_SECONDS = 60;
-  if (!Number.isInteger(timestampNumber) || Math.abs(Date.now() / 1000 - timestampNumber) > MAX_SIGNATURE_AGE_SECONDS) return { error: 'Expired signature' } as unknown as Response;
-  const expected = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, timestamp, request.method, new URL(request.url).pathname, body);
-  if (!timingSafeEqual(authorization.slice(7), expected)) return { error: 'Unauthorized' } as unknown as Response;
+  if (
+    !Number.isInteger(timestampNumber) ||
+    Math.abs(Date.now() / 1000 - timestampNumber) > MAX_SIGNATURE_AGE_SECONDS
+  )
+    return { error: 'Expired signature' } as unknown as Response;
+  const expected = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    timestamp,
+    request.method,
+    new URL(request.url).pathname,
+    body
+  );
+  if (!timingSafeEqual(authorization.slice(7), expected))
+    return { error: 'Unauthorized' } as unknown as Response;
   return { userId };
 }
 
@@ -399,7 +475,10 @@ function safeParseJSON<T>(input: string, context: string): T | null {
   try {
     return JSON.parse(input) as T;
   } catch (error) {
-    console.error(`[safeParseJSON] Failed to parse ${context}:`, error instanceof Error ? error.message : String(error));
+    console.error(
+      `[safeParseJSON] Failed to parse ${context}:`,
+      error instanceof Error ? error.message : String(error)
+    );
     return null;
   }
 }
@@ -411,12 +490,28 @@ function parseJobPayload(body: string): _JobPayload | null {
   const MAX_JOB_PAYLOAD_BYTES = 4 * 1024;
   if (encoder.encode(body).byteLength > MAX_JOB_PAYLOAD_BYTES) return null;
   try {
-    const value = JSON.parse(body) as { type?: unknown; config?: { owner?: unknown; repo?: unknown; branch?: unknown } };
+    const value = JSON.parse(body) as {
+      type?: unknown;
+      config?: { owner?: unknown; repo?: unknown; branch?: unknown };
+    };
     const type = value?.type;
-    const owner = typeof value?.config?.owner === 'string' ? value.config.owner.trim() : '';
-    const repo = typeof value?.config?.repo === 'string' ? value.config.repo.trim() : '';
-    const branch = typeof value?.config?.branch === 'string' ? value.config.branch.trim() : undefined;
-    if ((type !== 'log-doctor-scan' && type !== 'github-health') || !owner || !repo || owner.length > 200 || repo.length > 200 || (branch !== undefined && (!branch || branch.length > 200))) return null;
+    const owner =
+      typeof value?.config?.owner === 'string' ? value.config.owner.trim() : '';
+    const repo =
+      typeof value?.config?.repo === 'string' ? value.config.repo.trim() : '';
+    const branch =
+      typeof value?.config?.branch === 'string'
+        ? value.config.branch.trim()
+        : undefined;
+    if (
+      (type !== 'log-doctor-scan' && type !== 'github-health') ||
+      !owner ||
+      !repo ||
+      owner.length > 200 ||
+      repo.length > 200 ||
+      (branch !== undefined && (!branch || branch.length > 200))
+    )
+      return null;
     return { type, config: { owner, repo, ...(branch ? { branch } : {}) } };
   } catch {
     return null;
@@ -429,10 +524,17 @@ function parseJobPayload(body: string): _JobPayload | null {
 function toJobResponse(job: StoredJob): Record<string, unknown> {
   let result: unknown;
   if (job.result_json !== null) {
-    try { result = JSON.parse(job.result_json); } catch { result = undefined; }
+    try {
+      result = JSON.parse(job.result_json);
+    } catch {
+      result = undefined;
+    }
   }
   return {
-    id: job.id, type: job.type, status: job.status, attempts: job.attempts,
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    attempts: job.attempts,
     createdAt: new Date(job.created_at).toISOString(),
     updatedAt: new Date(job.updated_at).toISOString(),
     ...(result === undefined ? {} : { result }),
@@ -444,23 +546,52 @@ function toJobResponse(job: StoredJob): Record<string, unknown> {
  * Query a single job by ID
  */
 async function getJob(env: Env, id: string): Promise<StoredJob | null> {
-  return (env.DB as any).prepare('SELECT id, user_id, type, status, payload_json, result_json, error_message, attempts, created_at, updated_at FROM background_jobs WHERE id = ?').bind(id).first<StoredJob>();
+  return (env.DB as any)
+    .prepare(
+      'SELECT id, user_id, type, status, payload_json, result_json, error_message, attempts, created_at, updated_at FROM background_jobs WHERE id = ?'
+    )
+    .bind(id)
+    .first<StoredJob>();
 }
 
 /**
  * Creates a new background job and queues it
  */
-async function createJob(env: Env, userId: string, body: string): Promise<{ status: number; body: unknown }> {
+async function createJob(
+  env: Env,
+  userId: string,
+  body: string
+): Promise<{ status: number; body: unknown }> {
   const payload = parseJobPayload(body);
-  if (!payload) return { status: 400, body: { error: 'Invalid background job payload' } };
+  if (!payload)
+    return { status: 400, body: { error: 'Invalid background job payload' } };
   const now = Date.now();
   const id = crypto.randomUUID();
   try {
-    await (env.DB as any).prepare('INSERT INTO background_jobs (id, user_id, type, status, payload_json, attempts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(id, userId, payload.type, 'queued', JSON.stringify(payload), 0, now, now).run();
+    await (env.DB as any)
+      .prepare(
+        'INSERT INTO background_jobs (id, user_id, type, status, payload_json, attempts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        id,
+        userId,
+        payload.type,
+        'queued',
+        JSON.stringify(payload),
+        0,
+        now,
+        now
+      )
+      .run();
     await (env.BACKGROUND_JOBS as any).send({ id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create background job';
-    await updateJobStatus(env as any, id, 'failed', { errorMessage: message.slice(0, 1000) }).catch(() => {});
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to create background job';
+    await updateJobStatus(env as any, id, 'failed', {
+      errorMessage: message.slice(0, 1000),
+    }).catch(() => {});
     return { status: 503, body: { error: 'Unable to queue background job' } };
   }
   const job = await getJob(env, id);
@@ -471,19 +602,39 @@ async function createJob(env: Env, userId: string, body: string): Promise<{ stat
  * Executes a background job via HTTP to executor service
  * @param fetchFn - Optional fetch implementation for testing
  */
-async function executeBackgroundJob(env: Env, job: StoredJob, fetchFn: typeof fetch = globalThis.fetch): Promise<Response> {
-  const url = new URL('/api/internal/background-jobs/execute', env.MATMETRICS_BACKGROUND_EXECUTOR_URL);
+async function executeBackgroundJob(
+  env: Env,
+  job: StoredJob,
+  fetchFn: typeof fetch = globalThis.fetch
+): Promise<Response> {
+  const url = new URL(
+    '/api/internal/background-jobs/execute',
+    env.MATMETRICS_BACKGROUND_EXECUTOR_URL
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
-    const payload = safeParseJSON<_JobPayload>(job.payload_json, `job-${job.id}-payload`);
+    const payload = safeParseJSON<_JobPayload>(
+      job.payload_json,
+      `job-${job.id}-payload`
+    );
     if (!payload) throw new Error('Failed to parse job payload');
-    return await fetchFn(new MockRequest({
-      url: url.toString(),
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: job.id, type: job.type, config: payload.config }),
-    }) as unknown as Request, { signal: controller.signal } as any);
+    return await fetchFn(
+      new MockRequest({
+        url: url.toString(),
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: job.id,
+          type: job.type,
+          config: payload.config,
+        }),
+      }) as unknown as Request,
+      { signal: controller.signal } as any
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -493,33 +644,55 @@ async function executeBackgroundJob(env: Env, job: StoredJob, fetchFn: typeof fe
  * Consumes a message from the queue (processes a background job)
  * @param fetchFn - Optional fetch implementation for testing
  */
-async function consumeMessage(env: Env, message: MockMessage<{ id: string }>, fetchFn: typeof fetch = globalThis.fetch): Promise<void> {
+async function consumeMessage(
+  env: Env,
+  message: MockMessage<{ id: string }>,
+  fetchFn: typeof fetch = globalThis.fetch
+): Promise<void> {
   const MAX_JOB_ATTEMPTS = 5;
   const job = await getJob(env, message.body.id);
-  if (!job || job.status === 'completed' || job.status === 'failed') return message.ack();
+  if (!job || job.status === 'completed' || job.status === 'failed')
+    return message.ack();
   const attempts = job.attempts + 1;
   await updateJobStatus(env as any, job.id, 'running', { attempts });
   try {
     const response = await executeBackgroundJob(env, job, fetchFn);
     const text = await response.text();
     if (!response.ok) {
-      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-        await updateJobStatus(env as any, job.id, 'failed', { errorMessage: `Executor returned ${response.status}` });
+      if (
+        response.status >= 400 &&
+        response.status < 500 &&
+        response.status !== 429
+      ) {
+        await updateJobStatus(env as any, job.id, 'failed', {
+          errorMessage: `Executor returned ${response.status}`,
+        });
         return message.ack();
       }
-      throw new Error(`Executor returned ${response.status}: ${text.slice(0, 500)}`);
+      throw new Error(
+        `Executor returned ${response.status}: ${text.slice(0, 500)}`
+      );
     }
-    if (encoder.encode(text).byteLength > 512 * 1024) throw new Error('Executor response exceeds job result limit');
-    if (!safeParseJSON(text, `job-${job.id}-result`)) throw new Error('Executor response is not valid JSON');
-    await updateJobStatus(env as any, job.id, 'completed', { resultJson: text });
+    if (encoder.encode(text).byteLength > 512 * 1024)
+      throw new Error('Executor response exceeds job result limit');
+    if (!safeParseJSON(text, `job-${job.id}-result`))
+      throw new Error('Executor response is not valid JSON');
+    await updateJobStatus(env as any, job.id, 'completed', {
+      resultJson: text,
+    });
     return message.ack();
   } catch (error) {
-    const failure = error instanceof Error ? error.message : 'Background job failed';
+    const failure =
+      error instanceof Error ? error.message : 'Background job failed';
     if (attempts >= MAX_JOB_ATTEMPTS) {
-      await updateJobStatus(env as any, job.id, 'failed', { errorMessage: failure.slice(0, 1000) });
+      await updateJobStatus(env as any, job.id, 'failed', {
+        errorMessage: failure.slice(0, 1000),
+      });
       return message.ack();
     }
-    await updateJobStatus(env as any, job.id, 'queued', { errorMessage: failure.slice(0, 1000) });
+    await updateJobStatus(env as any, job.id, 'queued', {
+      errorMessage: failure.slice(0, 1000),
+    });
     return message.retry();
   }
 }
@@ -527,24 +700,74 @@ async function consumeMessage(env: Env, message: MockMessage<{ id: string }>, fe
 /**
  * Handles user preferences GET/PUT requests
  */
-async function handlePreferences(request: Request, env: Env, userId: string, body: string): Promise<{ status: number; body: unknown }> {
+async function handlePreferences(
+  request: Request,
+  env: Env,
+  userId: string,
+  body: string
+): Promise<{ status: number; body: unknown }> {
   if (request.method === 'GET') {
-    const row = (await (env.DB as any).prepare('SELECT preferences_json, revision FROM user_preferences WHERE user_id = ?').bind(userId).first()) as { preferences_json: string; revision: number } | null;
-    const preferences = row ? safeParseJSON(row.preferences_json, `user-${userId}-preferences`) : null;
-    return { status: 200, body: preferences ? { preferences, revision: row!.revision } : { preferences: null, revision: 0 } };
+    const row = (await (env.DB as any)
+      .prepare(
+        'SELECT preferences_json, revision FROM user_preferences WHERE user_id = ?'
+      )
+      .bind(userId)
+      .first()) as { preferences_json: string; revision: number } | null;
+    const preferences = row
+      ? safeParseJSON(row.preferences_json, `user-${userId}-preferences`)
+      : null;
+    return {
+      status: 200,
+      body: preferences
+        ? { preferences, revision: row!.revision }
+        : { preferences: null, revision: 0 },
+    };
   }
-  if (request.method !== 'PUT') return { status: 405, body: { error: 'Method not allowed' } };
-  const payload = safeParseJSON<{ preferences?: unknown; revision?: unknown }>(body, `user-${userId}-preferences-update`);
+  if (request.method !== 'PUT')
+    return { status: 405, body: { error: 'Method not allowed' } };
+  const payload = safeParseJSON<{ preferences?: unknown; revision?: unknown }>(
+    body,
+    `user-${userId}-preferences-update`
+  );
   if (!payload) return { status: 400, body: { error: 'Invalid JSON' } };
-  if (!payload.preferences || typeof payload.preferences !== 'object' || Array.isArray(payload.preferences) || !Number.isInteger(payload.revision) || (payload.revision as number) < 0) return { status: 400, body: { error: 'Invalid payload' } };
+  if (
+    !payload.preferences ||
+    typeof payload.preferences !== 'object' ||
+    Array.isArray(payload.preferences) ||
+    !Number.isInteger(payload.revision) ||
+    (payload.revision as number) < 0
+  )
+    return { status: 400, body: { error: 'Invalid payload' } };
   const preferencesJson = JSON.stringify(payload.preferences);
-  if (preferencesJson.length > 1048576) return { status: 413, body: { error: 'Preferences payload exceeds 1MB limit' } };
-  const stored = await (env.DB as any).prepare('SELECT revision FROM user_preferences WHERE user_id = ?').bind(userId).first() as { revision: number } | null;
+  if (preferencesJson.length > 1048576)
+    return {
+      status: 413,
+      body: { error: 'Preferences payload exceeds 1MB limit' },
+    };
+  const stored = (await (env.DB as any)
+    .prepare('SELECT revision FROM user_preferences WHERE user_id = ?')
+    .bind(userId)
+    .first()) as { revision: number } | null;
   const currentRevision = stored?.revision ?? 0;
-  if (payload.revision !== currentRevision) return { status: 409, body: { error: 'Preference revision conflict', revision: currentRevision } };
+  if (payload.revision !== currentRevision)
+    return {
+      status: 409,
+      body: {
+        error: 'Preference revision conflict',
+        revision: currentRevision,
+      },
+    };
   const nextRevision = currentRevision + 1;
-  await (env.DB as any).prepare(`INSERT INTO user_preferences (user_id, preferences_json, revision, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET preferences_json = excluded.preferences_json, revision = excluded.revision, updated_at = excluded.updated_at`).bind(userId, preferencesJson, nextRevision, Date.now()).run();
-  return { status: 200, body: { preferences: payload.preferences, revision: nextRevision } };
+  await (env.DB as any)
+    .prepare(
+      `INSERT INTO user_preferences (user_id, preferences_json, revision, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET preferences_json = excluded.preferences_json, revision = excluded.revision, updated_at = excluded.updated_at`
+    )
+    .bind(userId, preferencesJson, nextRevision, Date.now())
+    .run();
+  return {
+    status: 200,
+    body: { preferences: payload.preferences, revision: nextRevision },
+  };
 }
 
 /**
@@ -559,7 +782,7 @@ async function updateJobStatus(
     errorMessage?: string;
     resultJson?: string;
     attempts?: number;
-  },
+  }
 ): Promise<boolean> {
   const timestamp = Date.now();
   const params: unknown[] = [status];
@@ -594,7 +817,10 @@ async function updateJobStatus(
     dbInstance = (db as Env).DB as any;
   }
 
-  const result = await (dbInstance as any).prepare(sql).bind(...params).run();
+  const result = await (dbInstance as any)
+    .prepare(sql)
+    .bind(...params)
+    .run();
   return result.success;
 }
 
@@ -629,12 +855,18 @@ test('safeParseJSON helper - handles number types', () => {
 });
 
 test('safeParseJSON helper - handles boolean types', () => {
-  const result = safeParseJSON<{ active: boolean }>('{"active": true}', 'active');
+  const result = safeParseJSON<{ active: boolean }>(
+    '{"active": true}',
+    'active'
+  );
   assert.strictEqual(result?.active, true);
 });
 
 test('safeParseJSON helper - handles array types', () => {
-  const result = safeParseJSON<{ items: string[] }>('{"items": ["a", "b"]}', 'items');
+  const result = safeParseJSON<{ items: string[] }>(
+    '{"items": ["a", "b"]}',
+    'items'
+  );
   assert.deepEqual(result?.items, ['a', 'b']);
 });
 
@@ -828,10 +1060,26 @@ test('expectedSignature - produces different signatures for different secrets', 
   const path = '/v1/background-jobs';
   const body = '{"type":"log-doctor-scan"}';
 
-  const sig1 = await expectedSignature('secret-1', timestamp, method, path, body);
-  const sig2 = await expectedSignature('secret-2', timestamp, method, path, body);
+  const sig1 = await expectedSignature(
+    'secret-1',
+    timestamp,
+    method,
+    path,
+    body
+  );
+  const sig2 = await expectedSignature(
+    'secret-2',
+    timestamp,
+    method,
+    path,
+    body
+  );
 
-  assert.notStrictEqual(sig1, sig2, 'Different secrets should produce different signatures');
+  assert.notStrictEqual(
+    sig1,
+    sig2,
+    'Different secrets should produce different signatures'
+  );
 });
 
 test('expectedSignature - produces different signatures for different bodies', async () => {
@@ -840,10 +1088,26 @@ test('expectedSignature - produces different signatures for different bodies', a
   const method = 'POST';
   const path = '/v1/background-jobs';
 
-  const sig1 = await expectedSignature(secret, timestamp, method, path, '{"type":"log-doctor-scan"}');
-  const sig2 = await expectedSignature(secret, timestamp, method, path, '{"type":"github-health"}');
+  const sig1 = await expectedSignature(
+    secret,
+    timestamp,
+    method,
+    path,
+    '{"type":"log-doctor-scan"}'
+  );
+  const sig2 = await expectedSignature(
+    secret,
+    timestamp,
+    method,
+    path,
+    '{"type":"github-health"}'
+  );
 
-  assert.notStrictEqual(sig1, sig2, 'Different bodies should produce different signatures');
+  assert.notStrictEqual(
+    sig1,
+    sig2,
+    'Different bodies should produce different signatures'
+  );
 });
 
 test('expectedSignature - produces different signatures for different timestamps', async () => {
@@ -852,10 +1116,26 @@ test('expectedSignature - produces different signatures for different timestamps
   const path = '/v1/background-jobs';
   const body = '{"type":"log-doctor-scan"}';
 
-  const sig1 = await expectedSignature(secret, '1000000000', method, path, body);
-  const sig2 = await expectedSignature(secret, '2000000000', method, path, body);
+  const sig1 = await expectedSignature(
+    secret,
+    '1000000000',
+    method,
+    path,
+    body
+  );
+  const sig2 = await expectedSignature(
+    secret,
+    '2000000000',
+    method,
+    path,
+    body
+  );
 
-  assert.notStrictEqual(sig1, sig2, 'Different timestamps should produce different signatures');
+  assert.notStrictEqual(
+    sig1,
+    sig2,
+    'Different timestamps should produce different signatures'
+  );
 });
 
 test('timingSafeEqual - returns true for identical strings', () => {
@@ -902,7 +1182,7 @@ test('authenticate - returns userId on valid request', async () => {
     headers: {
       'X-Matmetrics-Timestamp': timestamp,
       'X-Matmetrics-User-Id': userId,
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body,
   });
@@ -933,7 +1213,13 @@ test('authenticate - returns 401 when Authorization header missing', async () =>
 test('authenticate - returns 401 when User-Id header missing', async () => {
   const env = createMockEnv();
   const timestamp = String(Math.floor(Date.now() / 1000));
-  const sig = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, timestamp, 'POST', '/v1/background-jobs', '{}');
+  const sig = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    timestamp,
+    'POST',
+    '/v1/background-jobs',
+    '{}'
+  );
 
   const request = new MockRequest({
     url: 'https://api.example.com/v1/background-jobs',
@@ -941,7 +1227,7 @@ test('authenticate - returns 401 when User-Id header missing', async () => {
     headers: {
       'X-Matmetrics-Timestamp': timestamp,
       // Missing User-Id
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: '{}',
   });
@@ -960,7 +1246,7 @@ test('authenticate - returns 401 when Timestamp header missing', async () => {
     headers: {
       // Missing Timestamp
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: '{}',
   });
@@ -979,7 +1265,7 @@ test('authenticate - returns 401 when Authorization format invalid (missing Bear
     headers: {
       'X-Matmetrics-Timestamp': timestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': 'InvalidFormat sig-here',
+      Authorization: 'InvalidFormat sig-here',
     },
     body: '{}',
   });
@@ -998,7 +1284,7 @@ test('authenticate - returns 401 when HMAC signature mismatches', async () => {
     headers: {
       'X-Matmetrics-Timestamp': timestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': 'Bearer incorrect-signature-value',
+      Authorization: 'Bearer incorrect-signature-value',
     },
     body: '{"type":"log-doctor-scan"}',
   });
@@ -1010,7 +1296,13 @@ test('authenticate - returns 401 when HMAC signature mismatches', async () => {
 test('authenticate - returns 401 when timestamp is too old (>60s)', async () => {
   const env = createMockEnv();
   const oldTimestamp = String(Math.floor(Date.now() / 1000) - 70); // 70 seconds ago
-  const sig = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, oldTimestamp, 'POST', '/v1/background-jobs', '{}');
+  const sig = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    oldTimestamp,
+    'POST',
+    '/v1/background-jobs',
+    '{}'
+  );
 
   const request = new MockRequest({
     url: 'https://api.example.com/v1/background-jobs',
@@ -1018,7 +1310,7 @@ test('authenticate - returns 401 when timestamp is too old (>60s)', async () => 
     headers: {
       'X-Matmetrics-Timestamp': oldTimestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: '{}',
   });
@@ -1030,7 +1322,13 @@ test('authenticate - returns 401 when timestamp is too old (>60s)', async () => 
 test('authenticate - returns 401 when timestamp is in the future (>60s)', async () => {
   const env = createMockEnv();
   const futureTimestamp = String(Math.floor(Date.now() / 1000) + 70); // 70 seconds in future
-  const sig = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, futureTimestamp, 'POST', '/v1/background-jobs', '{}');
+  const sig = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    futureTimestamp,
+    'POST',
+    '/v1/background-jobs',
+    '{}'
+  );
 
   const request = new MockRequest({
     url: 'https://api.example.com/v1/background-jobs',
@@ -1038,7 +1336,7 @@ test('authenticate - returns 401 when timestamp is in the future (>60s)', async 
     headers: {
       'X-Matmetrics-Timestamp': futureTimestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: '{}',
   });
@@ -1056,7 +1354,7 @@ test('authenticate - returns 401 when timestamp is not an integer', async () => 
     headers: {
       'X-Matmetrics-Timestamp': 'not-a-number',
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': 'Bearer sig',
+      Authorization: 'Bearer sig',
     },
     body: '{}',
   });
@@ -1068,7 +1366,13 @@ test('authenticate - returns 401 when timestamp is not an integer', async () => 
 test('authenticate - accepts valid timestamp within 60s window', async () => {
   const env = createMockEnv();
   const recentTimestamp = String(Math.floor(Date.now() / 1000) - 30); // 30 seconds ago (within window)
-  const sig = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, recentTimestamp, 'POST', '/v1/background-jobs', '{}');
+  const sig = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    recentTimestamp,
+    'POST',
+    '/v1/background-jobs',
+    '{}'
+  );
 
   const request = new MockRequest({
     url: 'https://api.example.com/v1/background-jobs',
@@ -1076,7 +1380,7 @@ test('authenticate - accepts valid timestamp within 60s window', async () => {
     headers: {
       'X-Matmetrics-Timestamp': recentTimestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: '{}',
   });
@@ -1089,7 +1393,13 @@ test('authenticate - validates signature against request body', async () => {
   const env = createMockEnv();
   const timestamp = String(Math.floor(Date.now() / 1000));
   const originalBody = '{"type":"log-doctor-scan"}';
-  const sig = await expectedSignature(env.MATMETRICS_INTERNAL_API_SECRET, timestamp, 'POST', '/v1/background-jobs', originalBody);
+  const sig = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    timestamp,
+    'POST',
+    '/v1/background-jobs',
+    originalBody
+  );
 
   // Signature valid for originalBody
   const request = new MockRequest({
@@ -1098,7 +1408,7 @@ test('authenticate - validates signature against request body', async () => {
     headers: {
       'X-Matmetrics-Timestamp': timestamp,
       'X-Matmetrics-User-Id': 'user-123',
-      'Authorization': `Bearer ${sig}`,
+      Authorization: `Bearer ${sig}`,
     },
     body: originalBody,
   });
@@ -1318,7 +1628,11 @@ test('parseJobPayload - rejects invalid JSON', () => {
 test('parseJobPayload - rejects payload exceeding 4KB', () => {
   const oversized = JSON.stringify({
     type: 'log-doctor-scan',
-    config: { owner: 'octocat', repo: 'Hello-World', largeData: 'x'.repeat(5000) },
+    config: {
+      owner: 'octocat',
+      repo: 'Hello-World',
+      largeData: 'x'.repeat(5000),
+    },
   });
 
   const result = parseJobPayload(oversized);
@@ -1516,7 +1830,7 @@ test('toJobResponse - preserves all job metadata', () => {
 test('getJob - retrieves job by ID from database', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const job: StoredJob = {
     id: 'job-abc123',
     user_id: 'user-1',
@@ -1538,7 +1852,7 @@ test('getJob - retrieves job by ID from database', async () => {
 
 test('getJob - returns null when job not found', async () => {
   const env = createMockEnv();
-  
+
   const result = await getJob(env, 'non-existent-id');
   assert.strictEqual(result, null);
 });
@@ -1546,7 +1860,7 @@ test('getJob - returns null when job not found', async () => {
 test('getJob - preserves all job fields', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const job: StoredJob = {
     id: 'job-preserve',
     user_id: 'user-preserve',
@@ -1575,7 +1889,7 @@ test('getJob - preserves all job fields', async () => {
 test('createJob - creates job with valid payload', async () => {
   const env = createMockEnv();
   const _db = env.DB as any as MockD1Database;
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1593,7 +1907,7 @@ test('createJob - creates job with valid payload', async () => {
 
 test('createJob - returns 400 for invalid payload', async () => {
   const env = createMockEnv();
-  
+
   const body = JSON.stringify({ type: 'invalid-type' });
 
   const response = await createJob(env, 'user-1', body);
@@ -1605,7 +1919,7 @@ test('createJob - returns 400 for invalid payload', async () => {
 test('createJob - queues message for created job', async () => {
   const env = createMockEnv();
   const queue = env.BACKGROUND_JOBS as any as _MockQueue<{ id: string }>;
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1621,7 +1935,7 @@ test('createJob - queues message for created job', async () => {
 test('createJob - stores job in database', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const body = JSON.stringify({
     type: 'github-health',
     config: { owner: 'octocat', repo: 'Spoon-Knife' },
@@ -1640,7 +1954,7 @@ test('createJob - stores job in database', async () => {
 
 test('createJob - generates unique ID for each job', async () => {
   const env = createMockEnv();
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1658,7 +1972,7 @@ test('createJob - generates unique ID for each job', async () => {
 test('createJob - stores job with optional branch', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World', branch: 'develop' },
@@ -1676,7 +1990,7 @@ test('createJob - stores job with optional branch', async () => {
 test('createJob - sets initial attempts to 0', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1693,7 +2007,7 @@ test('createJob - sets initial attempts to 0', async () => {
 test('createJob - sets status to queued', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const body = JSON.stringify({
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1710,7 +2024,7 @@ test('createJob - sets status to queued', async () => {
 test('createJob - stores payload as JSON string', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
-  
+
   const originalPayload = {
     type: 'log-doctor-scan',
     config: { owner: 'octocat', repo: 'Hello-World' },
@@ -1745,7 +2059,8 @@ test('executeBackgroundJob - calls executor with valid job data', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
     result_json: null,
     error_message: null,
     attempts: 1,
@@ -1753,7 +2068,11 @@ test('executeBackgroundJob - calls executor with valid job data', async () => {
     updated_at: 1000000001,
   };
 
-  const response = await executeBackgroundJob(env, job, mockFetch.call.bind(mockFetch) as any);
+  const response = await executeBackgroundJob(
+    env,
+    job,
+    mockFetch.call.bind(mockFetch) as any
+  );
 
   assert.strictEqual(response.ok, true);
   assert.strictEqual(response.status, 200);
@@ -1762,7 +2081,10 @@ test('executeBackgroundJob - calls executor with valid job data', async () => {
 });
 
 test('executeBackgroundJob - includes bearer token', async () => {
-  const env = createMockEnv({ ...createMockEnv(), MATMETRICS_BACKGROUND_EXECUTOR_SECRET: 'secret-token-123' });
+  const env = createMockEnv({
+    ...createMockEnv(),
+    MATMETRICS_BACKGROUND_EXECUTOR_SECRET: 'secret-token-123',
+  });
   const mockFetch = new MockFetch();
   let authHeader = '';
 
@@ -1776,7 +2098,8 @@ test('executeBackgroundJob - includes bearer token', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
     result_json: null,
     error_message: null,
     attempts: 1,
@@ -1802,7 +2125,8 @@ test('executeBackgroundJob - returns 500 error from executor', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"octocat","repo":"Hello-World"}}',
     result_json: null,
     error_message: null,
     attempts: 1,
@@ -1810,7 +2134,11 @@ test('executeBackgroundJob - returns 500 error from executor', async () => {
     updated_at: 1000000001,
   };
 
-  const response = await executeBackgroundJob(env, job, mockFetch.call.bind(mockFetch) as any);
+  const response = await executeBackgroundJob(
+    env,
+    job,
+    mockFetch.call.bind(mockFetch) as any
+  );
 
   assert.strictEqual(response.ok, false);
   assert.strictEqual(response.status, 500);
@@ -1830,7 +2158,8 @@ test('consumeMessage - marks job as acked on success', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 0,
@@ -1861,7 +2190,8 @@ test('consumeMessage - increments attempts', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 2,
@@ -1893,7 +2223,8 @@ test('consumeMessage - stores result on success', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 0,
@@ -1925,7 +2256,8 @@ test('consumeMessage - marks 4xx errors as terminal failure', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 0,
@@ -1959,7 +2291,8 @@ test('consumeMessage - retries on 5xx errors', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 0,
@@ -1992,7 +2325,8 @@ test('consumeMessage - respects max attempts (5)', async () => {
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 5, // Already at max
@@ -2065,7 +2399,10 @@ test('consumeMessage - skips already failed job', async () => {
 
 test('handlePreferences - GET returns null for new user', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'GET' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'GET',
+  });
 
   const response = await handlePreferences(request, env, 'new-user', '');
 
@@ -2075,7 +2412,10 @@ test('handlePreferences - GET returns null for new user', async () => {
 
 test('handlePreferences - PUT creates new preferences', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const prefs = { theme: 'dark', notifications: true };
   const body = JSON.stringify({ preferences: prefs, revision: 0 });
 
@@ -2094,7 +2434,10 @@ test('handlePreferences - PUT detects revision conflict', async () => {
   // Set current revision to 2
   db._setPreferences('user-conflict', { theme: 'light' }, 2);
 
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = JSON.stringify({ preferences: { theme: 'dark' }, revision: 1 }); // Stale revision
 
   const response = await handlePreferences(request, env, 'user-conflict', body);
@@ -2107,7 +2450,10 @@ test('handlePreferences - PUT detects revision conflict', async () => {
 
 test('handlePreferences - PUT rejects payload > 1MB', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const hugePayload = { data: 'x'.repeat(1100000) };
   const body = JSON.stringify({ preferences: hugePayload, revision: 0 });
 
@@ -2120,7 +2466,10 @@ test('handlePreferences - PUT rejects payload > 1MB', async () => {
 
 test('handlePreferences - PUT rejects invalid JSON', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = '{ invalid json ]';
 
   const response = await handlePreferences(request, env, 'user-invalid', body);
@@ -2135,7 +2484,10 @@ test('handlePreferences - PUT increments revision', async () => {
 
   db._setPreferences('user-rev', { theme: 'light' }, 1);
 
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = JSON.stringify({ preferences: { theme: 'dark' }, revision: 1 });
 
   const response = await handlePreferences(request, env, 'user-rev', body);
@@ -2147,7 +2499,10 @@ test('handlePreferences - PUT increments revision', async () => {
 
 test('handlePreferences - rejects non-object preferences', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = JSON.stringify({ preferences: 'string', revision: 0 });
 
   const response = await handlePreferences(request, env, 'user-invalid', body);
@@ -2158,7 +2513,10 @@ test('handlePreferences - rejects non-object preferences', async () => {
 
 test('handlePreferences - rejects array preferences', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = JSON.stringify({ preferences: ['item1', 'item2'], revision: 0 });
 
   const response = await handlePreferences(request, env, 'user-array', body);
@@ -2169,7 +2527,10 @@ test('handlePreferences - rejects array preferences', async () => {
 
 test('handlePreferences - rejects negative revision', async () => {
   const env = createMockEnv();
-  const request = new MockRequest({ url: 'https://api.example.com/v1/preferences', method: 'PUT' });
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'PUT',
+  });
   const body = JSON.stringify({ preferences: { theme: 'dark' }, revision: -1 });
 
   const response = await handlePreferences(request, env, 'user-negative', body);
@@ -2190,34 +2551,39 @@ test('worker.queue - processes single message batch', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
   const mockFetch = new MockFetch();
-  
+
   mockFetch.register(/executor/, async () => {
     return new MockResponse('{"result":"success"}', 200);
   });
-  
+
   const job: StoredJob = {
     id: 'job-queue-1',
     user_id: 'user-1',
     type: 'log-doctor-scan',
     status: 'queued',
-    payload_json: '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
+    payload_json:
+      '{"type":"log-doctor-scan","config":{"owner":"test","repo":"repo"}}',
     result_json: null,
     error_message: null,
     attempts: 0,
     created_at: 1000000000,
     updated_at: 1000000000,
   };
-  
+
   db._setJob(job);
-  
+
   const message = new MockMessage({ id: 'job-queue-1' });
   const batch = { messages: [message] };
-  
+
   // Call worker queue handler
   await (async () => {
-    await Promise.all(batch.messages.map((msg) => consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)));
+    await Promise.all(
+      batch.messages.map((msg) =>
+        consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)
+      )
+    );
   })();
-  
+
   assert.strictEqual(message.acked, true);
   const updated = db._getJob('job-queue-1');
   assert.strictEqual(updated?.status, 'completed');
@@ -2227,11 +2593,11 @@ test('worker.queue - handles multiple messages in batch', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
   const mockFetch = new MockFetch();
-  
+
   mockFetch.register(/executor/, async () => {
     return new MockResponse('{"result":"success"}', 200);
   });
-  
+
   const job1: StoredJob = {
     id: 'job-batch-1',
     user_id: 'user-1',
@@ -2244,7 +2610,7 @@ test('worker.queue - handles multiple messages in batch', async () => {
     created_at: 1000000000,
     updated_at: 1000000000,
   };
-  
+
   const job2: StoredJob = {
     id: 'job-batch-2',
     user_id: 'user-1',
@@ -2257,18 +2623,22 @@ test('worker.queue - handles multiple messages in batch', async () => {
     created_at: 1000000000,
     updated_at: 1000000000,
   };
-  
+
   db._setJob(job1);
   db._setJob(job2);
-  
+
   const message1 = new MockMessage({ id: 'job-batch-1' });
   const message2 = new MockMessage({ id: 'job-batch-2' });
   const batch = { messages: [message1, message2] };
-  
+
   await (async () => {
-    await Promise.all(batch.messages.map((msg) => consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)));
+    await Promise.all(
+      batch.messages.map((msg) =>
+        consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)
+      )
+    );
   })();
-  
+
   assert.strictEqual(message1.acked, true);
   assert.strictEqual(message2.acked, true);
   assert.strictEqual(db._getJob('job-batch-1')?.status, 'completed');
@@ -2279,7 +2649,7 @@ test('worker.queue - continues processing after message error', async () => {
   const env = createMockEnv();
   const db = env.DB as any as MockD1Database;
   const mockFetch = new MockFetch();
-  
+
   let callCount = 0;
   mockFetch.register(/executor/, async () => {
     callCount++;
@@ -2288,7 +2658,7 @@ test('worker.queue - continues processing after message error', async () => {
     }
     return new MockResponse('{"result":"success"}', 200);
   });
-  
+
   const job1: StoredJob = {
     id: 'job-error-1',
     user_id: 'user-1',
@@ -2301,7 +2671,7 @@ test('worker.queue - continues processing after message error', async () => {
     created_at: 1000000000,
     updated_at: 1000000000,
   };
-  
+
   const job2: StoredJob = {
     id: 'job-error-2',
     user_id: 'user-1',
@@ -2314,18 +2684,22 @@ test('worker.queue - continues processing after message error', async () => {
     created_at: 1000000000,
     updated_at: 1000000000,
   };
-  
+
   db._setJob(job1);
   db._setJob(job2);
-  
+
   const message1 = new MockMessage({ id: 'job-error-1' });
   const message2 = new MockMessage({ id: 'job-error-2' });
   const batch = { messages: [message1, message2] };
-  
+
   await (async () => {
-    await Promise.all(batch.messages.map((msg) => consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)));
+    await Promise.all(
+      batch.messages.map((msg) =>
+        consumeMessage(env, msg, mockFetch.call.bind(mockFetch) as any)
+      )
+    );
   })();
-  
+
   // First job retried (5xx error)
   assert.strictEqual(message1.retried, true);
   // Second job succeeded

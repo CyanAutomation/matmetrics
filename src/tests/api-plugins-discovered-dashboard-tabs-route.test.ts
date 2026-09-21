@@ -60,7 +60,9 @@ test('discovered dashboard tabs route reflects enabled overrides', async () => {
 
   await persistPluginEnabledOverride('test-user', 'tag-manager', false);
 
-  const disabledResponse = await DISCOVER_DASHBOARD_TABS(authenticatedRequest());
+  const disabledResponse = await DISCOVER_DASHBOARD_TABS(
+    authenticatedRequest()
+  );
   assert.equal(disabledResponse.status, 200);
   const disabledPayload = await disabledResponse.json();
   assert.equal(

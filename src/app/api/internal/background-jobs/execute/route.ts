@@ -19,25 +19,40 @@ function isAuthorized(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   if (!process.env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET) {
-    return NextResponse.json({ error: 'Background executor is not configured' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Background executor is not configured' },
+      { status: 500 }
+    );
   }
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await parseJsonObjectBody(request, { maxBytes: 8 * 1024 });
-  if (!body.ok) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  if (!body.ok)
+    return NextResponse.json(
+      { error: 'Invalid request body' },
+      { status: 400 }
+    );
   const parsed = backgroundJobRequestSchema.safeParse(body.value);
-  if (!parsed.success) return NextResponse.json({ error: 'Invalid background job' }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: 'Invalid background job' },
+      { status: 400 }
+    );
 
   try {
     if (parsed.data.type === 'log-doctor-scan') {
-      return NextResponse.json(await scanTrainingDataWithNext(parsed.data.config));
+      return NextResponse.json(
+        await scanTrainingDataWithNext(parsed.data.config)
+      );
     }
     return NextResponse.json(await checkGitHubHealth(parsed.data.config));
   } catch (error) {
     console.error('Background job execution failed', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Background job failed' },
+      {
+        error: error instanceof Error ? error.message : 'Background job failed',
+      },
       { status: 503 }
     );
   }

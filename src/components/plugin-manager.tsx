@@ -147,11 +147,7 @@ type PluginManagerProps = {
 };
 
 export type PluginManagerInstalledViewState =
-  | 'access-blocked'
-  | 'loading'
-  | 'error'
-  | 'empty'
-  | 'table';
+  'access-blocked' | 'loading' | 'error' | 'empty' | 'table';
 
 export const derivePluginManagerInstalledViewState = (params: {
   canManagePlugins: boolean;

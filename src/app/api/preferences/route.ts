@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Failed to load user preferences', error);
-    return NextResponse.json({ error: 'Failed to load preferences' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to load preferences' },
+      { status: 500 }
+    );
   }
 }
 
@@ -27,8 +30,18 @@ export async function PUT(request: NextRequest) {
   const user = await requireAuthenticatedUser(request);
   if (user instanceof NextResponse) return user;
   const body = await parseJsonObjectBody(request);
-  if (!body.ok || !body.value.preferences || typeof body.value.preferences !== 'object' || Array.isArray(body.value.preferences) || !Number.isInteger(body.value.revision) || (body.value.revision as number) < 0) {
-    return NextResponse.json({ error: 'Invalid preference payload' }, { status: 400 });
+  if (
+    !body.ok ||
+    !body.value.preferences ||
+    typeof body.value.preferences !== 'object' ||
+    Array.isArray(body.value.preferences) ||
+    !Number.isInteger(body.value.revision) ||
+    (body.value.revision as number) < 0
+  ) {
+    return NextResponse.json(
+      { error: 'Invalid preference payload' },
+      { status: 400 }
+    );
   }
   try {
     return NextResponse.json(
@@ -44,6 +57,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error('Failed to save user preferences', error);
-    return NextResponse.json({ error: 'Failed to save preferences' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to save preferences' },
+      { status: 500 }
+    );
   }
 }

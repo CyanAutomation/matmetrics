@@ -20,9 +20,15 @@ export async function GET(
     });
   } catch (error) {
     if (error instanceof DataWorkerError && error.status === 404) {
-      return NextResponse.json({ error: 'Background job not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Background job not found' },
+        { status: 404 }
+      );
     }
     console.error('Failed to load background job', error);
-    return NextResponse.json({ error: 'Failed to load background job' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to load background job' },
+      { status: 500 }
+    );
   }
 }
