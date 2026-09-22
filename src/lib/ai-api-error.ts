@@ -103,10 +103,11 @@ export function classifyAiError(error: unknown): AiApiErrorCode {
     .map((value) => String(value ?? '').toUpperCase())
     .filter(Boolean);
 
-  // Cloudflare-specific error messages
+  // Provider authentication and availability failures.
   if (
     /cloudflare ai authentication failed/i.test(message) ||
-    /CLOUDFLARE_API_TOKEN.*not set/i.test(message)
+    /CLOUDFLARE_API_TOKEN.*not set/i.test(message) ||
+    /OPENROUTER_API_KEY.*not set/i.test(message)
   ) {
     return 'AUTH_REQUIRED';
   }

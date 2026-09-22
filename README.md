@@ -80,6 +80,9 @@ GITHUB_TOKEN=your_github_token
 # Cloudflare AI Gateway API - Get with: wrangler auth token
 CLOUDFLARE_API_TOKEN=your_cloudflare_token
 
+# OpenRouter API key for the server-side JEV training check-in
+OPENROUTER_API_KEY=your_openrouter_key
+
 # Cloudflare D1 preference data Worker (server-only)
 CLOUDFLARE_DATA_WORKER_URL=https://matmetrics-data.example.workers.dev
 MATMETRICS_INTERNAL_API_SECRET=generate-a-long-random-secret
@@ -124,6 +127,7 @@ Firebase values come from:
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
+- `OPENROUTER_API_KEY` enables the optional JEV training check-in. It is read only by the server-side assessment route; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix.
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
@@ -245,6 +249,7 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
    - In the "Environment Variables" section, add:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
      - `CLOUDFLARE_API_TOKEN`: Your Cloudflare API token (get with: `wrangler auth token`)
+     - `OPENROUTER_API_KEY`: OpenRouter API key for the optional server-side JEV training check-in
      - `SENTRY_DSN`: Your Sentry DSN for error monitoring
      - `SENTRY_AUTH_TOKEN`: Your Sentry auth token for source map uploads
 
