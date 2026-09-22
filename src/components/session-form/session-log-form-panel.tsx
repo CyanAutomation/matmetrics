@@ -22,6 +22,8 @@ import { SessionEssentialsSection } from './session-essentials-section';
 import { PracticeDescriptionSection } from './practice-description-section';
 import { TechniqueTagsSection } from './technique-tags-section';
 import { OptionalFieldsSection } from './optional-fields-section';
+import { SessionCheckin } from './session-checkin';
+import { useSessionAssessment } from '@/hooks/use-session-assessment';
 
 interface SessionLogFormProps {
   onSuccess: () => void;
@@ -45,6 +47,8 @@ export function SessionLogForm({
 
   const shouldHideHeader = !!sessionToEdit || hideHeader;
   const aiForm = useSessionFormAi();
+  const sessionAssessment = useSessionAssessment();
+  const clearSessionAssessment = sessionAssessment.clear;
   const submitFeedback = useActionFeedback();
   const resetAiForm = aiForm.reset;
   const resetSubmitFeedback = submitFeedback.reset;
@@ -66,6 +70,15 @@ export function SessionLogForm({
     resetAiForm();
     resetSubmitFeedback();
   }, [sessionToEdit, resetAiForm, resetSubmitFeedback]);
+
+  useEffect(() => {
+    clearSessionAssessment();
+  }, [
+    formState.category,
+    formState.description,
+    formState.notes,
+    clearSessionAssessment,
+  ]);
 
   // Form submit hook
   const { isSubmitting, submit: submitForm } = useFormSubmit(
@@ -167,6 +180,21 @@ export function SessionLogForm({
             transformMessage={aiForm.transformMessage}
             fid={fid}
             onTransform={handleTransform}
+          />
+
+          <SessionCheckin
+            canUseAi={canUseAi}
+            disabled={isSubmitting || !formState.description}
+            isLoading={sessionAssessment.isLoading}
+            assessment={sessionAssessment.assessment}
+            onAssess={() =>
+              sessionAssessment.assess({
+                description: formState.description,
+                notes: formState.notes,
+                category: formState.category,
+              })
+            }
+            onApplyCategory={formState.setCategory}
           />
 
           <TechniqueTagsSection
