@@ -4,6 +4,14 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [1.12.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.11.1...nextn-v1.12.0) (2026-09-22)
+
+
+### Features
+
+* add JEV training check-in ([685742f](https://github.com/CyanAutomation/matmetrics/commit/685742f3f7c51a60b7973a1faca79de48de604ec))
+* add JEV training check-in ([#763](https://github.com/CyanAutomation/matmetrics/issues/763)) ([3413dde](https://github.com/CyanAutomation/matmetrics/commit/3413dde29fd93de2a06d32bcf8511725e987f9bf))
+
 ## [1.11.1](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.11.0...nextn-v1.11.1) (2026-09-21)
 
 
