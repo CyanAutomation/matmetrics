@@ -48,3 +48,31 @@ test('assessment route rejects missing descriptions without calling the provider
   assert.equal((await post(request({ notes: 'Nothing here.' }))).status, 400);
   assert.equal(calls, 0);
 });
+
+test('assessment route returns a safe provider HTTP diagnostic without provider text', async () => {
+  const providerSecret = 'provider echoed private session text and credentials';
+  const providerError = Object.assign(new Error(providerSecret), {
+    status: 402,
+  });
+  const post = createAssessSessionPost(async () => {
+    throw providerError;
+  });
+  const logs: unknown[][] = [];
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => logs.push(args);
+
+  try {
+    const response = await post(request({ description: 'Practice.' }));
+    const responseText = await response.text();
+
+    assert.equal(response.status, 502);
+    assert.match(responseText, /AI_PROVIDER_REJECTED/);
+    assert.match(responseText, /402/);
+    assert.equal(responseText.includes(providerSecret), false);
+    assert.equal(JSON.stringify(logs).includes(providerSecret), false);
+    assert.match(JSON.stringify(logs), /402/);
+    assert.match(JSON.stringify(logs), /AI_PROVIDER_REJECTED/);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
