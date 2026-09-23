@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyAiError, aiApiError } from '@/lib/ai-api-error';
+import {
+  aiApiError,
+  classifyAiError,
+  getAiErrorProviderStatus,
+} from '@/lib/ai-api-error';
 import {
   AI_DESCRIPTION_MAX_BYTES,
   AI_REQUEST_BODY_MAX_BYTES,
@@ -61,8 +65,13 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
       });
       return NextResponse.json({ assessment });
     } catch (error) {
-      console.error('Error assessing session', error);
-      const response = aiApiError(classifyAiError(error));
+      const code = classifyAiError(error);
+      const providerStatus = getAiErrorProviderStatus(error);
+      console.error('Error assessing session', {
+        code,
+        ...(providerStatus === undefined ? {} : { providerStatus }),
+      });
+      const response = aiApiError(code, { providerStatus });
       return NextResponse.json(response.body, { status: response.status });
     }
   };

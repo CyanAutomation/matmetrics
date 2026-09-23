@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
+import { getAiApiErrorMessage } from '@/lib/ai-api-error';
 import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
 import { useToast } from './use-toast';
@@ -45,6 +46,8 @@ export function useSessionAssessment() {
       const nextController = new AbortController();
       controller.current = nextController;
       setIsLoading(true);
+      let failureMessage =
+        'The training check-in could not be completed. Please try again.';
       try {
         const response = await fetch('/api/ai/assess-session', {
           method: 'POST',
@@ -57,7 +60,11 @@ export function useSessionAssessment() {
           payload && typeof payload === 'object'
             ? (payload as { assessment?: unknown }).assessment
             : undefined;
-        if (!response.ok || !isAssessment(candidate))
+        if (!response.ok) {
+          failureMessage = getAiApiErrorMessage(payload);
+          throw new Error('Assessment request failed');
+        }
+        if (!isAssessment(candidate))
           throw new Error('Invalid assessment response');
         setAssessment(candidate);
       } catch {
@@ -66,8 +73,7 @@ export function useSessionAssessment() {
         toast({
           variant: 'destructive',
           title: 'Check-in unavailable',
-          description:
-            'The training check-in could not be completed. Please try again.',
+          description: failureMessage,
         });
       } finally {
         if (controller.current === nextController) {
