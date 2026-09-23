@@ -5,6 +5,7 @@ export const AI_API_ERROR_CODES = [
   'AUTH_REQUIRED',
   'INPUT_TOO_LARGE',
   'INVALID_AI_RESPONSE',
+  'AI_PROVIDER_REJECTED',
   'UNKNOWN_ERROR',
 ] as const;
 
@@ -14,6 +15,7 @@ export interface AiApiErrorResponse {
   error: {
     code: AiApiErrorCode;
     message: string;
+    providerStatus?: number;
   };
 }
 
@@ -50,21 +52,86 @@ const ERROR_DETAILS: Record<
     status: 502,
     message: 'The AI service returned an unusable response. Please try again.',
   },
+  AI_PROVIDER_REJECTED: {
+    status: 502,
+    message: 'The AI provider rejected the check-in request.',
+  },
   UNKNOWN_ERROR: {
     status: 500,
-    message: 'The description could not be transformed. Please try again.',
+    message: 'The AI request could not be completed. Please try again.',
   },
 };
 
-export function aiApiError(code: AiApiErrorCode): {
+export function aiApiError(
+  code: AiApiErrorCode,
+  options: { providerStatus?: number } = {}
+): {
   body: AiApiErrorResponse;
   status: number;
 } {
   const details = ERROR_DETAILS[code];
+  const providerStatus = options.providerStatus;
   return {
-    body: { error: { code, message: details.message } },
+    body: {
+      error: {
+        code,
+        message: details.message,
+        ...(isHttpStatus(providerStatus) ? { providerStatus } : {}),
+      },
+    },
     status: details.status,
   };
+}
+
+function isHttpStatus(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 400 &&
+    value <= 599
+  );
+}
+
+const CHECKIN_FALLBACK_MESSAGE =
+  'The training check-in could not be completed. Please try again.';
+
+/**
+ * Maps only allow-listed API error codes to user-facing copy. Provider text is
+ * intentionally ignored because it can include private request content.
+ */
+export function getAiApiErrorMessage(value: unknown): string {
+  if (!value || typeof value !== 'object') return CHECKIN_FALLBACK_MESSAGE;
+  const error = (value as { error?: unknown }).error;
+  if (!error || typeof error !== 'object') return CHECKIN_FALLBACK_MESSAGE;
+  const details = error as { code?: unknown; providerStatus?: unknown };
+
+  switch (details.code) {
+    case 'AUTH_REQUIRED': {
+      if (isHttpStatus(details.providerStatus)) {
+        return `OpenRouter rejected the JEV credential or denied access (HTTP ${details.providerStatus}). Check OPENROUTER_API_KEY in the Production environment.`;
+      }
+      return 'The JEV credential is missing or was rejected. Check OPENROUTER_API_KEY in the Production environment.';
+    }
+    case 'RATE_LIMITED':
+      return isHttpStatus(details.providerStatus)
+        ? `OpenRouter rate limited the JEV check-in (HTTP ${details.providerStatus}). Wait a moment and try again.`
+        : 'OpenRouter rate limited the JEV check-in. Wait a moment and try again.';
+    case 'SERVICE_UNAVAILABLE':
+      return isHttpStatus(details.providerStatus)
+        ? `OpenRouter is temporarily unavailable (HTTP ${details.providerStatus}). Please try again shortly.`
+        : 'OpenRouter is temporarily unavailable. Please try again shortly.';
+    case 'INPUT_TOO_LARGE':
+      return 'The check-in text is too long. Shorten the description or notes and try again.';
+    case 'INVALID_AI_RESPONSE':
+      return 'JEV returned an unexpected response. Please try again.';
+    case 'AI_PROVIDER_REJECTED': {
+      const status = details.providerStatus;
+      if (!isHttpStatus(status)) return CHECKIN_FALLBACK_MESSAGE;
+      return `OpenRouter rejected the JEV request (HTTP ${status}). Check the Vercel function logs for the same status.`;
+    }
+    default:
+      return CHECKIN_FALLBACK_MESSAGE;
+  }
 }
 
 function errorProperties(error: unknown): {
@@ -153,5 +220,30 @@ export function classifyAiError(error: unknown): AiApiErrorCode {
     )
   )
     return 'SERVICE_UNAVAILABLE';
+  if (
+    identifiers.some((value) => {
+      const statusCode = Number(value);
+      return (
+        Number.isInteger(statusCode) && statusCode >= 500 && statusCode <= 599
+      );
+    })
+  )
+    return 'SERVICE_UNAVAILABLE';
+  if (
+    identifiers.some((value) => {
+      const statusCode = Number(value);
+      return (
+        Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 499
+      );
+    })
+  )
+    return 'AI_PROVIDER_REJECTED';
   return 'UNKNOWN_ERROR';
+}
+
+/** Returns only a validated HTTP status for safe diagnostics. */
+export function getAiErrorProviderStatus(error: unknown): number | undefined {
+  const { status } = errorProperties(error);
+  const providerStatus = Number(status);
+  return isHttpStatus(providerStatus) ? providerStatus : undefined;
 }
