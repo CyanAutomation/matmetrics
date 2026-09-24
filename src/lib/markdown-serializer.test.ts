@@ -198,6 +198,33 @@ Notes.`;
   assert.equal(markdownToSession(markdown).id, 'session-a');
 });
 
+test('markdownToSession rejects a quoted scalar ending in a backslash', () => {
+  const markdown = String.raw`---
+id: "session-\"
+date: "2026-03-23"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdown),
+    /invalid quoted value for "id"/
+  );
+});
+
 test('sessionToMarkdown writes videoUrl in frontmatter when present', () => {
   const markdown = sessionToMarkdown({
     id: 'video-frontmatter-write',
