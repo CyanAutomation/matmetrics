@@ -1,8 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { subDays } from 'date-fns';
-import { parseDateOnly } from '@/lib/utils';
+import { addCalendarDays, parseDateOnly } from '@/lib/utils';
 import type {
   JudoSession,
   SessionCategory,
@@ -61,7 +60,7 @@ export function useDashboardStats(
     const distributionStart =
       distributionWindow === 'all'
         ? null
-        : subDays(now, distributionWindow - 1);
+        : addCalendarDays(now, -(distributionWindow - 1));
     const distributionSessions = distributionStart
       ? sortedSessions.filter(
           (session) => parseDateOnly(session.date) >= distributionStart
@@ -136,7 +135,7 @@ export function useDashboardStats(
       )
     );
 
-    const rollingStart = subDays(now, 29);
+    const rollingStart = addCalendarDays(now, -29);
     const sessionsInRollingWindowByCategory: Record<SessionCategory, number> =
       Object.fromEntries(
         (['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'] as const).map(
@@ -150,7 +149,7 @@ export function useDashboardStats(
       }
     });
 
-    const lastFortnight = subDays(now, 13);
+    const lastFortnight = addCalendarDays(now, -13);
     const sessionsInLastFortnight = sortedSessions.filter(
       (session) => parseDateOnly(session.date) >= lastFortnight
     ).length;

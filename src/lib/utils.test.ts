@@ -2,11 +2,98 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import {
+  addCalendarDays,
+  cn,
   compareDateOnlyDesc,
+  formatDateLabel,
+  formatRelativeDistanceToNowStrict,
   formatLocalDateInputValue,
   isSameMonthAndYear,
   parseDateOnly,
 } from './utils';
+
+test('cn flattens conditional class values before Tailwind conflict resolution', () => {
+  assert.equal(
+    cn('p-2', ['px-3', { hidden: false, block: true }, ['text-sm', null]]),
+    'p-2 px-3 block text-sm'
+  );
+  assert.equal(cn('p-2', 'p-4'), 'p-4');
+});
+
+test('calendar date helpers format the labels currently used by the app', () => {
+  const date = new Date(2025, 4, 2);
+
+  assert.equal(formatDateLabel(date, 'month-year'), 'May 2025');
+  assert.equal(formatDateLabel(date, 'weekday-month-day'), 'Friday, May 2nd');
+  assert.equal(
+    formatDateLabel(date, 'weekday-month-day-year'),
+    'Friday, May 2nd, 2025'
+  );
+  assert.equal(formatDateLabel(date, 'month-day-year'), 'May 2, 2025');
+  assert.equal(formatDateLabel(date, 'day-month-short'), '2 May');
+  assert.equal(
+    formatDateLabel(new Date(2025, 4, 11), 'weekday-month-day'),
+    'Sunday, May 11th'
+  );
+  assert.equal(
+    formatDateLabel(new Date(2025, 4, 23), 'weekday-month-day'),
+    'Friday, May 23rd'
+  );
+});
+
+test('calendar day arithmetic returns a new date and preserves local time', () => {
+  const original = new Date(2025, 2, 8, 12, 30);
+  const nextDay = addCalendarDays(original, 1);
+
+  assert.notEqual(nextDay, original);
+  assert.equal(original.getDate(), 8);
+  assert.equal(nextDay.getDate(), 9);
+  assert.equal(nextDay.getHours(), 12);
+  assert.equal(nextDay.getMinutes(), 30);
+});
+
+test('strict relative distances use rounded units and suffixes', () => {
+  const now = new Date('2025-06-01T12:00:00.000Z');
+  const ago = (milliseconds: number) =>
+    formatRelativeDistanceToNowStrict(
+      new Date(now.getTime() - milliseconds),
+      now
+    );
+
+  assert.equal(ago(0), '0 seconds ago');
+  assert.equal(ago(30_000), '30 seconds ago');
+  assert.equal(ago(60_000), '1 minute ago');
+  assert.equal(ago(86_400_000), '1 day ago');
+  assert.equal(ago(30 * 86_400_000), '1 month ago');
+  assert.equal(ago(365 * 86_400_000), '1 year ago');
+  assert.equal(
+    formatRelativeDistanceToNowStrict(
+      new Date(now.getTime() + 86_400_000),
+      now
+    ),
+    'in 1 day'
+  );
+});
+
+test('strict relative distance preserves elapsed-hour behavior across DST', () => {
+  const script = `
+    import utils from ${JSON.stringify(new URL('./utils.ts', import.meta.url).href)};
+    const target = new Date(2025, 2, 8, 12, 0);
+    const now = new Date(2025, 2, 9, 12, 0);
+    process.stdout.write(utils.formatRelativeDistanceToNowStrict(target, now));
+  `;
+  const child = spawnSync(
+    process.execPath,
+    ['--import', 'tsx', '--input-type=module', '--eval', script],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, TZ: 'America/New_York' },
+    }
+  );
+
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout, '23 hours ago');
+});
 
 test('date-only helpers preserve calendar semantics without timezone drift', () => {
   const parsed = parseDateOnly('2025-01-10');

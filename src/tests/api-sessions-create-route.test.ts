@@ -92,7 +92,7 @@ test('POST persists the session to local markdown storage when GitHub is not con
         'create-local-id'
       );
       const markdown = await readFile(filePath, 'utf8');
-      assert.match(markdown, /id: create-local-id/);
+      assert.match(markdown, /id: "create-local-id"/);
     });
   });
 });
