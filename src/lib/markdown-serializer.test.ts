@@ -200,7 +200,7 @@ Notes.`;
 
 test('markdownToSession rejects a quoted scalar ending in a backslash', () => {
   const markdown = String.raw`---
-id: "session-\"
+id: "session-\\"`
 date: "2026-03-23"
 effort: 3
 category: "Technical"
