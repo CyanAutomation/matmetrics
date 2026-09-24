@@ -1,4 +1,3 @@
-import matter from 'gray-matter';
 import {
   JudoSession,
   EffortLevel,
@@ -17,6 +16,162 @@ export const REQUIRED_SESSION_HEADINGS: readonly string[] = [
   '## Session Description',
   '## Notes',
 ];
+
+type SessionFrontmatter = Record<string, unknown>;
+
+function parseQuotedScalar(value: string, key: string): string {
+  if (value.startsWith("'") && value.endsWith("'")) {
+    let result = '';
+    const content = value.slice(1, -1);
+    for (let index = 0; index < content.length; index += 1) {
+      if (content[index] !== "'") {
+        result += content[index];
+        continue;
+      }
+      if (content[index + 1] !== "'") {
+        throw new Error(`invalid quoted value for "${key}"`);
+      }
+      result += "'";
+      index += 1;
+    }
+    return result;
+  }
+
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value) as string;
+    } catch {
+      const content = value.slice(1, -1);
+      let result = '';
+      for (let index = 0; index < content.length; index += 1) {
+        const character = content[index];
+        if (character !== '\\') {
+          if (character.charCodeAt(0) < 0x20 || character === '"') {
+            throw new Error(`invalid quoted value for "${key}"`);
+          }
+          result += character;
+          continue;
+        }
+
+        index += 1;
+        const escape = content[index];
+        const standardEscapes: Record<string, string> = {
+          a: '\u0007',
+          b: '\b',
+          f: '\f',
+          n: '\n',
+          r: '\r',
+          t: '\t',
+          v: '\u000b',
+          '\\': '\\',
+          '"': '"',
+          "'": "'",
+        };
+
+        if (escape in standardEscapes) {
+          result += standardEscapes[escape];
+          continue;
+        }
+
+        const escapeWidths: Record<string, number> = {
+          x: 2,
+          u: 4,
+          U: 8,
+        };
+        const width = escapeWidths[escape];
+        if (width) {
+          const digits = content.slice(index + 1, index + 1 + width);
+          if (digits.length !== width || !/^[\da-f]+$/i.test(digits)) {
+            throw new Error(`invalid quoted value for "${key}"`);
+          }
+          const codePoint = Number.parseInt(digits, 16);
+          if (
+            codePoint > 0x10ffff ||
+            (codePoint >= 0xd800 && codePoint <= 0xdfff)
+          ) {
+            throw new Error(`invalid quoted value for "${key}"`);
+          }
+          result += String.fromCodePoint(codePoint);
+          index += width;
+          continue;
+        }
+
+        if (escape >= '0' && escape <= '7') {
+          const digits = escape + content.slice(index + 1, index + 3);
+          if (
+            digits.length !== 3 ||
+            !/^[0-7]{3}$/.test(digits) ||
+            digits[0] > '3'
+          ) {
+            throw new Error(`invalid quoted value for "${key}"`);
+          }
+          result += String.fromCharCode(Number.parseInt(digits, 8));
+          index += 2;
+          continue;
+        }
+
+        throw new Error(`invalid quoted value for "${key}"`);
+      }
+      return result;
+    }
+  }
+
+  throw new Error(`invalid quoted value for "${key}"`);
+}
+
+function parseFrontmatterValue(value: string, key: string): unknown {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return parseQuotedScalar(value, key);
+  }
+
+  if (/^[+-]?\d+$/.test(value)) {
+    return Number(value);
+  }
+
+  if (value.startsWith('"') || value.startsWith("'")) {
+    throw new Error(`invalid quoted value for "${key}"`);
+  }
+
+  throw new Error(`unsupported frontmatter value for "${key}": "${value}"`);
+}
+
+function parseSessionMarkdown(markdown: string): {
+  data: SessionFrontmatter;
+  content: string;
+} {
+  const normalizedMarkdown = markdown.replace(/\r\n?/g, '\n');
+  if (!normalizedMarkdown.startsWith('---\n')) {
+    throw new Error('markdown is missing YAML frontmatter');
+  }
+
+  const frontmatterEnd = normalizedMarkdown.indexOf('\n---\n', 4);
+  if (frontmatterEnd < 0) {
+    throw new Error('markdown frontmatter terminator not found');
+  }
+
+  const frontmatter = normalizedMarkdown.slice(4, frontmatterEnd);
+  const content = normalizedMarkdown.slice(frontmatterEnd + 5);
+  const data: SessionFrontmatter = {};
+
+  for (const line of frontmatter.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const separator = trimmed.indexOf(':');
+    if (separator <= 0) {
+      throw new Error(`invalid frontmatter line "${trimmed}"`);
+    }
+
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim();
+    data[key] = parseFrontmatterValue(value, key);
+  }
+
+  return { data, content };
+}
 /**
  * Convert a JudoSession to a markdown string with YAML frontmatter
  * Format:
@@ -77,9 +232,20 @@ export function sessionToMarkdown(session: JudoSession): string {
   }
   content += '\n';
 
-  // Use gray-matter to create the complete markdown with frontmatter
-  const file = matter.stringify(content, frontmatter);
-  return file;
+  const frontmatterLines = [
+    `id: ${JSON.stringify(frontmatter.id)}`,
+    `date: ${JSON.stringify(frontmatter.date)}`,
+    `effort: ${frontmatter.effort}`,
+    `category: ${JSON.stringify(frontmatter.category)}`,
+    ...(frontmatter.duration !== undefined
+      ? [`duration: ${frontmatter.duration}`]
+      : []),
+    ...(frontmatter.videoUrl
+      ? [`videoUrl: ${JSON.stringify(frontmatter.videoUrl)}`]
+      : []),
+  ];
+
+  return `---\n${frontmatterLines.join('\n')}\n---\n\n${content}`;
 }
 
 /**
@@ -89,7 +255,7 @@ export function sessionToMarkdown(session: JudoSession): string {
  * Frontmatter is canonical. Title is informational and may be edited manually.
  */
 export function markdownToSession(markdown: string): JudoSession {
-  const { data, content } = matter(markdown);
+  const { data, content } = parseSessionMarkdown(markdown);
   const normalizedContent = content.replace(/\r\n?/g, '\n');
 
   const id = validateId(data.id);

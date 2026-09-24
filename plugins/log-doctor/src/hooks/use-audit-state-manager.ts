@@ -18,7 +18,7 @@ export const useAuditStateManager = (
 
   /**
    * Generic handler to update audit state for a session.
-   * Saves to Firebase and updates local state.
+   * Persists the audit change and updates local state.
    */
   const updateAuditResult = useCallback(
     async (
