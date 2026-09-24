@@ -47,6 +47,67 @@ test('AI routes reject malformed JSON without calling their flows', async () => 
   assert.equal(transformCalls, 0);
 });
 
+test('technique suggestions return only candidates accepted by JEV verification', async () => {
+  let verifiedInput: { description: string; candidates: string[] } | null =
+    null;
+  const suggest = createSuggestTechniquesPost(
+    async () => ['O-soto-gari', 'Uchi-mata'],
+    async (input) => {
+      verifiedInput = input;
+      return ['O-soto-gari'];
+    }
+  );
+
+  const response = await suggest(
+    request(JSON.stringify({ description: 'We drilled O-soto-gari.' }))
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { suggestions: ['O-soto-gari'] });
+  assert.deepEqual(verifiedInput, {
+    description: 'We drilled O-soto-gari.',
+    candidates: ['O-soto-gari', 'Uchi-mata'],
+  });
+});
+
+test('technique suggestions skip JEV verification when there are no candidates', async () => {
+  let verifyCalls = 0;
+  const suggest = createSuggestTechniquesPost(
+    async () => [],
+    async () => {
+      verifyCalls += 1;
+      return [];
+    }
+  );
+
+  const response = await suggest(
+    request(JSON.stringify({ description: 'A general session.' }))
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { suggestions: [] });
+  assert.equal(verifyCalls, 0);
+});
+
+test('technique suggestions preserve legacy behavior without an OpenRouter key', async () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  const suggest = createSuggestTechniquesPost(async () => ['O-soto-gari']);
+
+  try {
+    const response = await suggest(
+      request(JSON.stringify({ description: 'We drilled O-soto-gari.' }))
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      suggestions: ['O-soto-gari'],
+    });
+  } finally {
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});
+
 test('AI routes accept field values exactly at their UTF-8 limits', async () => {
   const description = 'd'.repeat(AI_DESCRIPTION_MAX_BYTES);
   const customPrompt = 'p'.repeat(AI_CUSTOM_PROMPT_MAX_BYTES);

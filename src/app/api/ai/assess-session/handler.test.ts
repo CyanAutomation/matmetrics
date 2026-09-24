@@ -19,7 +19,10 @@ function request(body: unknown) {
 
 test('assessment route authenticates, validates, and returns an assessment', async () => {
   const post = createAssessSessionPost(async (input) => {
-    assert.equal(input.description, 'Lots of uchi mata entries.');
+    assert.deepEqual(input, {
+      description: 'Lots of uchi mata entries.',
+      notes: 'Felt good.',
+    });
     return {
       suggestedCategory: 'Technical',
       categoryConfidence: 0.9,
@@ -30,7 +33,11 @@ test('assessment route authenticates, validates, and returns an assessment', asy
     };
   });
   const response = await post(
-    request({ description: 'Lots of uchi mata entries.', notes: 'Felt good.' })
+    request({
+      description: 'Lots of uchi mata entries.',
+      notes: 'Felt good.',
+      category: 'Randori',
+    })
   );
   assert.equal(response.status, 200);
   assert.equal(

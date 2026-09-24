@@ -5,13 +5,11 @@ import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getAiApiErrorMessage } from '@/lib/ai-api-error';
 import type { SessionAssessment } from '@/lib/jev-client';
-import type { SessionCategory } from '@/lib/types';
 import { useToast } from './use-toast';
 
 type AssessmentInput = {
   description: string;
   notes: string;
-  category: SessionCategory;
 };
 
 function isAssessment(value: unknown): value is SessionAssessment {
@@ -28,7 +26,9 @@ function isAssessment(value: unknown): value is SessionAssessment {
       'hasReflection',
       'fatigueSignal',
       'injurySignal',
-    ].every((key) => typeof result[key] === 'number')
+    ].every((key) => typeof result[key] === 'number') &&
+    (result.resolvedModel === undefined ||
+      typeof result.resolvedModel === 'string')
   );
 }
 

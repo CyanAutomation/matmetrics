@@ -191,7 +191,6 @@ export function SessionLogForm({
               sessionAssessment.assess({
                 description: formState.description,
                 notes: formState.notes,
-                category: formState.category,
               })
             }
             onApplyCategory={formState.setCategory}
