@@ -18,6 +18,11 @@ async function runJevSmokeCheck(): Promise<void> {
         resolvedModel: assessment.resolvedModel,
         suggestedCategory: assessment.suggestedCategory,
         categoryConfidence: assessment.categoryConfidence,
+        categoryFitProbability: assessment.categoryFitProbability,
+        hasTechniqueDetail: assessment.hasTechniqueDetail,
+        hasReflection: assessment.hasReflection,
+        fatigueSignal: assessment.fatigueSignal,
+        injurySignal: assessment.injurySignal,
       })
     );
   } catch (error) {

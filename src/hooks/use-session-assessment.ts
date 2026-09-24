@@ -15,18 +15,25 @@ type AssessmentInput = {
 function isAssessment(value: unknown): value is SessionAssessment {
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
+  const isProbability = (candidate: unknown): candidate is number =>
+    typeof candidate === 'number' &&
+    Number.isFinite(candidate) &&
+    candidate >= 0 &&
+    candidate <= 1;
   return (
     typeof result.suggestedCategory === 'string' &&
     ['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'].includes(
       result.suggestedCategory
     ) &&
-    [
-      'categoryConfidence',
-      'hasTechniqueDetail',
-      'hasReflection',
-      'fatigueSignal',
-      'injurySignal',
-    ].every((key) => typeof result[key] === 'number') &&
+    isProbability(result.categoryConfidence) &&
+    isProbability(result.categoryFitProbability) &&
+    isProbability(result.hasTechniqueDetail) &&
+    isProbability(result.hasReflection) &&
+    typeof result.fatigueSignal === 'number' &&
+    Number.isFinite(result.fatigueSignal) &&
+    result.fatigueSignal >= 0 &&
+    result.fatigueSignal <= 2 &&
+    isProbability(result.injurySignal) &&
     (result.resolvedModel === undefined ||
       typeof result.resolvedModel === 'string')
   );
