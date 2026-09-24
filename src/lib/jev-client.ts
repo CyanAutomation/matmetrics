@@ -130,8 +130,7 @@ function isTimeoutError(error: unknown): boolean {
 
 async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
   const token = process.env.OPENROUTER_API_KEY;
-  if (!token)
-    throw new Error('API key is not configured');
+  if (!token) throw new Error('API key is not configured');
 
   try {
     const response = await fetch(OPENROUTER_DECISIONS_URL, {
