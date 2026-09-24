@@ -14,7 +14,6 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { deleteSession, saveSession } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
-import { cn, parseDateOnly } from '@/lib/utils';
+import { cn, formatDateLabel, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
 import { PageShell } from '@/components/ui/page-shell';
 import { FilterBar } from '@/components/ui/filter-bar';
@@ -74,7 +73,7 @@ function groupSessionsByMonth(sessions: JudoSession[]): GroupedSessions[] {
 
   for (const session of sessions) {
     const date = parseDateOnly(session.date);
-    const monthLabel = format(date, 'MMMM yyyy');
+    const monthLabel = formatDateLabel(date, 'month-year');
     if (!groups.has(monthLabel)) {
       groups.set(monthLabel, []);
     }
@@ -105,9 +104,9 @@ function SessionRow({
   density,
 }: SessionRowProps) {
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
-  const sessionDateLabel = format(
+  const sessionDateLabel = formatDateLabel(
     parseDateOnly(session.date),
-    'EEEE, MMMM do, yyyy'
+    'weekday-month-day-year'
   );
   let safeVideoUrl: string | null = null;
 
@@ -140,7 +139,10 @@ function SessionRow({
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-base">
-                {format(parseDateOnly(session.date), 'EEEE, MMMM do')}
+                {formatDateLabel(
+                  parseDateOnly(session.date),
+                  'weekday-month-day'
+                )}
               </span>
               <Badge
                 variant={categoryBadgeVariants[session.category || 'Technical']}
@@ -675,9 +677,9 @@ export function SessionHistory({
             <DialogTitle>Delete this session?</DialogTitle>
             <DialogDescription>
               {sessionPendingDeletion
-                ? `This permanently removes the ${format(
+                ? `This permanently removes the ${formatDateLabel(
                     parseDateOnly(sessionPendingDeletion.date),
-                    'MMMM d, yyyy'
+                    'month-day-year'
                   )} training session from your history.`
                 : 'This permanently removes the training session from your history.'}
             </DialogDescription>

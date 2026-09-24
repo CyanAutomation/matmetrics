@@ -36,11 +36,6 @@ class LocalStorageMock implements Storage {
 
 const localStorageMock = new LocalStorageMock();
 
-process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
-process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test.firebaseapp.com';
-process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
-process.env.NEXT_PUBLIC_FIREBASE_APP_ID = 'test-app-id';
-
 // Setup jsdom for DOM-dependent tests
 const dom = new JSDOM();
 global.document = dom.window.document as any;
@@ -77,22 +72,6 @@ let useAuditStateManager: (
 let clearUserPreferencesState: () => void;
 
 before(async () => {
-  mock.module('firebase/firestore', {
-    namedExports: {
-      deleteField: () => undefined,
-      doc: () => ({}),
-      getDoc: async () => ({ exists: () => false }),
-      getFirestore: () => ({}),
-      serverTimestamp: () => undefined,
-      setDoc: async () => undefined,
-      updateDoc: async () => undefined,
-    },
-  });
-  mock.module('@/lib/firebase-client', {
-    namedExports: {
-      getFirebaseDb: () => ({}),
-    },
-  });
   mock.module('@/lib/user-preferences', {
     namedExports: {
       clearUserPreferencesState: () => {
