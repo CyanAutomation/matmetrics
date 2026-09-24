@@ -4,6 +4,7 @@ import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
+import { shouldOfferCategorySuggestion } from '@/lib/jev-policy';
 
 type Props = {
   canUseAi: boolean;
@@ -57,9 +58,10 @@ export function SessionCheckin({
             <span className="font-semibold text-foreground">
               {assessment.suggestedCategory}
             </span>{' '}
-            ({Math.round(assessment.categoryConfidence * 100)}% confidence).
+            (model confidence: {Math.round(assessment.categoryConfidence * 100)}
+            %).
           </p>
-          {assessment.categoryConfidence >= 0.8 ? (
+          {shouldOfferCategorySuggestion(assessment.categoryConfidence) ? (
             <Button
               type="button"
               variant="ghost"

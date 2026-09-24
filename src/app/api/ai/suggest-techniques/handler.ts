@@ -7,8 +7,13 @@ import {
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { callCloudflareAi } from '@/lib/cloudflare-ai-client';
+import { verifyTechniqueCandidatesWithJev } from '@/lib/jev-client';
 
 type SuggestFunction = (input: { description: string }) => Promise<string[]>;
+type VerifyFunction = (input: {
+  description: string;
+  candidates: string[];
+}) => Promise<string[]>;
 
 async function suggestTechniquesWithCloudflare(input: {
   description: string;
@@ -64,8 +69,17 @@ Rules:
   return [];
 }
 
+async function verifySuggestionsWithJevIfConfigured(input: {
+  description: string;
+  candidates: string[];
+}): Promise<string[]> {
+  if (!process.env.OPENROUTER_API_KEY) return input.candidates;
+  return verifyTechniqueCandidatesWithJev(input.description, input.candidates);
+}
+
 export function createSuggestTechniquesPost(
-  suggest: SuggestFunction = suggestTechniquesWithCloudflare
+  suggest: SuggestFunction = suggestTechniquesWithCloudflare,
+  verify: VerifyFunction = verifySuggestionsWithJevIfConfigured
 ) {
   return async function POST(request: NextRequest) {
     try {
@@ -103,9 +117,13 @@ export function createSuggestTechniquesPost(
         );
       }
 
-      const suggestions = await suggest({
+      const candidates = await suggest({
         description,
       });
+      const suggestions =
+        candidates.length === 0
+          ? []
+          : await verify({ description, candidates });
 
       return NextResponse.json({ suggestions });
     } catch (error) {
