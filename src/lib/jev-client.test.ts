@@ -198,6 +198,24 @@ test('OpenRouter JEV requests include the configured timeout and resolved model'
   }
 });
 
+test('OpenRouter JEV reports a generic error when its API key is missing', async () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+
+  try {
+    await assert.rejects(
+      assessSessionWithJev({ description: 'Practice.' }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === 'API key is not configured' &&
+        !error.message.includes('OPENROUTER_API_KEY')
+    );
+  } finally {
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});
+
 test('OpenRouter JEV timeouts become safe service-unavailable errors', async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.OPENROUTER_API_KEY;
