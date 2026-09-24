@@ -4,6 +4,8 @@ import test from 'node:test';
 import { classifyAiError } from './ai-api-error';
 import {
   assessSessionWithJev,
+  getTransformFidelityStatus,
+  verifyDescriptionFidelityWithJev,
   verifyTechniqueCandidatesWithJev,
   type JevDecisionClient,
 } from './jev-client';
@@ -17,6 +19,7 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
     );
     assert.equal('category' in request.state.session, false);
     assert.ok('suggested_category' in request.questions);
+    assert.equal(request.questions.category_fit?.type, 'noul');
     return {
       model: 'typesafe/jev-1.13-20260917',
       answers: {
@@ -25,6 +28,7 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
           choice: 'Technical',
           confidence: 0.91,
         },
+        category_fit: { type: 'noul', noul: 0.96 },
         has_technique_detail: { type: 'noul', noul: 0.96 },
         has_reflection: { type: 'noul', noul: 0.2 },
         fatigue_signal: { type: 'score', score: 0.4, confidence: 0.87 },
@@ -44,6 +48,7 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
     {
       suggestedCategory: 'Technical',
       categoryConfidence: 0.91,
+      categoryFitProbability: 0.96,
       resolvedModel: 'typesafe/jev-1.13-20260917',
       hasTechniqueDetail: 0.96,
       hasReflection: 0.2,
@@ -71,6 +76,7 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
           choice: 'Technical',
           confidence: 0.9,
         },
+        category_fit: { type: 'noul', noul: 0.9 },
         has_technique_detail: { type: 'noul', noul: 0.9 },
         has_reflection: { type: 'noul', noul: 0.4 },
         fatigue_signal: { type: 'score', score: 0.2 },
@@ -79,6 +85,42 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
     })),
     /invalid/i
   );
+});
+
+test('verifyDescriptionFidelityWithJev asks about unsupported facts in one request', async () => {
+  let seenRequest: Parameters<JevDecisionClient>[0] | undefined;
+  const probability = await verifyDescriptionFidelityWithJev(
+    'We practiced uchi mata entries.',
+    'We practiced uchi mata entries and improved our competition results.',
+    async (request) => {
+      seenRequest = request;
+      return {
+        model: 'typesafe/jev-1.13-20260917',
+        answers: {
+          unsupported_detail: { type: 'noul', noul: 0.82 },
+        },
+      };
+    }
+  );
+
+  assert.equal(probability, 0.82);
+  assert.equal(seenRequest?.model, '~typesafe/jev-latest');
+  assert.deepEqual(seenRequest?.state.session, {
+    description: 'We practiced uchi mata entries.',
+  });
+  assert.deepEqual(seenRequest?.state.transformation, {
+    description:
+      'We practiced uchi mata entries and improved our competition results.',
+  });
+  assert.equal(seenRequest?.questions.unsupported_detail?.type, 'noul');
+});
+
+test('getTransformFidelityStatus flags the provisional threshold and rejects invalid probabilities', () => {
+  assert.equal(getTransformFidelityStatus(0.49), 'clear');
+  assert.equal(getTransformFidelityStatus(0.5), 'flagged');
+  assert.equal(getTransformFidelityStatus(1), 'flagged');
+  assert.equal(getTransformFidelityStatus(Number.NaN), 'unavailable');
+  assert.equal(getTransformFidelityStatus(1.1), 'unavailable');
 });
 
 test('verifyTechniqueCandidatesWithJev checks candidates in one batched request', async () => {
@@ -170,6 +212,7 @@ test('OpenRouter JEV requests include the configured timeout and resolved model'
             choice: 'Technical',
             confidence: 0.91,
           },
+          category_fit: { type: 'noul', noul: 0.92 },
           has_technique_detail: { type: 'noul', noul: 0.96 },
           has_reflection: { type: 'noul', noul: 0.2 },
           fatigue_signal: { type: 'score', score: 0.4 },

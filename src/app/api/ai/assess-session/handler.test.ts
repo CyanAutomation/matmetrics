@@ -26,6 +26,7 @@ test('assessment route authenticates, validates, and returns an assessment', asy
     return {
       suggestedCategory: 'Technical',
       categoryConfidence: 0.9,
+      categoryFitProbability: 0.95,
       hasTechniqueDetail: 0.9,
       hasReflection: 0.4,
       fatigueSignal: 0.2,

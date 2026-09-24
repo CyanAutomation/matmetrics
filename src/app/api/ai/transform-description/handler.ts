@@ -15,6 +15,16 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { callCloudflareAi } from '@/lib/cloudflare-ai-client';
 import { DEFAULT_TRANSFORMER_PROMPT } from '@/lib/ai-prompts';
 import { normalizeAiProse } from '@/lib/ai-output-normalization';
+import {
+  getTransformFidelityStatus,
+  verifyDescriptionFidelityWithJev,
+  type TransformFidelityStatus,
+} from '@/lib/jev-client';
+
+export type TransformDescriptionFidelityVerifier = (input: {
+  sourceDescription: string;
+  transformedDescription: string;
+}) => Promise<number>;
 
 export const TRANSFORM_DESCRIPTION_FORMAT_INSTRUCTION = `INVARIANT OUTPUT FORMAT:
 Return plain prose only: no title, heading, Markdown, asterisks, emphasis, bullet lists, or code fences. Begin immediately with the session narrative. Do not append an "Overall" conclusion or any reflection not supported by the user's input. These requirements override any conflicting output-format direction above.`;
@@ -22,12 +32,25 @@ Return plain prose only: no title, heading, Markdown, asterisks, emphasis, bulle
 type TransformFunction = (input: {
   description: string;
   customPrompt?: string;
-}) => Promise<{ transformedDescription: string }>;
+}) => Promise<{
+  transformedDescription: string;
+  fidelityStatus?: TransformFidelityStatus;
+}>;
 
-export async function transformDescriptionWithCloudflare(input: {
-  description: string;
-  customPrompt?: string;
-}): Promise<{ transformedDescription: string }> {
+export async function transformDescriptionWithCloudflare(
+  input: {
+    description: string;
+    customPrompt?: string;
+  },
+  verifyFidelity: TransformDescriptionFidelityVerifier = ({
+    sourceDescription,
+    transformedDescription,
+  }) =>
+    verifyDescriptionFidelityWithJev(sourceDescription, transformedDescription)
+): Promise<{
+  transformedDescription: string;
+  fidelityStatus: TransformFidelityStatus;
+}> {
   const selectedPrompt = input.customPrompt ?? DEFAULT_TRANSFORMER_PROMPT;
   const systemPrompt = `${selectedPrompt}\n\n${TRANSFORM_DESCRIPTION_FORMAT_INSTRUCTION}`;
 
@@ -51,7 +74,20 @@ export async function transformDescriptionWithCloudflare(input: {
     throw new InvalidAiResponseError();
   }
 
-  return { transformedDescription };
+  let fidelityStatus: TransformFidelityStatus = 'not_checked';
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const unsupportedDetailProbability = await verifyFidelity({
+        sourceDescription: input.description,
+        transformedDescription,
+      });
+      fidelityStatus = getTransformFidelityStatus(unsupportedDetailProbability);
+    } catch {
+      fidelityStatus = 'unavailable';
+    }
+  }
+
+  return { transformedDescription, fidelityStatus };
 }
 
 export function createTransformDescriptionPost(

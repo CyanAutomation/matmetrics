@@ -2,8 +2,10 @@ import { readFile } from 'node:fs/promises';
 import {
   evaluateCategoryThresholds,
   evaluateNoulThresholds,
+  evaluateScoreThresholds,
   type CategoryPredictionOutcome,
   type NoulPredictionOutcome,
+  type ScorePredictionOutcome,
 } from '../src/lib/jev-evaluation';
 import { SESSION_CATEGORIES, type SessionCategory } from '../src/lib/types';
 
@@ -21,7 +23,9 @@ function parseCategoryOutcomes(value: unknown): CategoryPredictionOutcome[] {
       !isRecord(row) ||
       !SESSION_CATEGORIES.includes(row.predictedCategory as SessionCategory) ||
       !SESSION_CATEGORIES.includes(row.actualCategory as SessionCategory) ||
-      typeof row.confidence !== 'number'
+      typeof row.confidence !== 'number' ||
+      (row.categoryFitProbability !== undefined &&
+        typeof row.categoryFitProbability !== 'number')
     ) {
       throw new Error(`Invalid Choice outcome at row ${index + 1}`);
     }
@@ -29,6 +33,9 @@ function parseCategoryOutcomes(value: unknown): CategoryPredictionOutcome[] {
       predictedCategory: row.predictedCategory as SessionCategory,
       actualCategory: row.actualCategory as SessionCategory,
       confidence: row.confidence,
+      ...(typeof row.categoryFitProbability === 'number'
+        ? { categoryFitProbability: row.categoryFitProbability }
+        : {}),
     };
   });
 }
@@ -47,6 +54,23 @@ function parseNoulOutcomes(value: unknown): NoulPredictionOutcome[] {
       throw new Error(`Invalid Noul outcome at row ${index + 1}`);
     }
     return { probability: row.probability, actual: row.actual };
+  });
+}
+
+function parseScoreOutcomes(value: unknown): ScorePredictionOutcome[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Score outcomes must be a JSON array');
+  }
+
+  return value.map((row, index) => {
+    if (
+      !isRecord(row) ||
+      typeof row.score !== 'number' ||
+      typeof row.actual !== 'boolean'
+    ) {
+      throw new Error(`Invalid Score outcome at row ${index + 1}`);
+    }
+    return { score: row.score, actual: row.actual };
   });
 }
 
@@ -86,8 +110,11 @@ async function run(): Promise<void> {
       ? evaluateCategoryThresholds(parseCategoryOutcomes(value.outcomes))
       : value.kind === 'noul'
         ? evaluateNoulThresholds(parseNoulOutcomes(value.outcomes))
-        : undefined;
-  if (!results) throw new Error('Evaluation kind must be choice or noul');
+        : value.kind === 'score'
+          ? evaluateScoreThresholds(parseScoreOutcomes(value.outcomes))
+          : undefined;
+  if (!results)
+    throw new Error('Evaluation kind must be choice, noul, or score');
 
   console.log(JSON.stringify(results, null, 2));
 }

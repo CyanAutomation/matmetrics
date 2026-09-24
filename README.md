@@ -80,7 +80,7 @@ GITHUB_TOKEN=your_github_token
 # Cloudflare AI Gateway API - Get with: wrangler auth token
 CLOUDFLARE_API_TOKEN=your_cloudflare_token
 
-# OpenRouter API key for the server-side JEV training check-in
+# OpenRouter API key for server-side JEV check-ins and verification
 OPENROUTER_API_KEY=your_openrouter_key
 
 # Cloudflare D1 preference data Worker (server-only)
@@ -127,7 +127,8 @@ Firebase values come from:
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
-- `OPENROUTER_API_KEY` enables the optional JEV training check-in and verification of AI technique-tag candidates. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, technique suggestions retain their existing Cloudflare-only behavior.
+- `OPENROUTER_API_KEY` enables the optional JEV training check-in, verification of AI technique-tag candidates, and review-only checks for unsupported facts in transformed descriptions. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, check-ins and fidelity checks are skipped, and technique suggestions retain their existing Cloudflare-only behavior.
+- JEV check-ins send the session description and notes to OpenRouter/TypeSafe. Technique verification sends the description and candidate tags; transformation checks send the original and transformed descriptions. The form labels these provider handoffs next to the relevant AI actions.
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
@@ -284,7 +285,7 @@ Accepts `{ description: string }` and returns `{ suggestions: string[] }`. Analy
 
 ### POST /api/ai/transform-description
 
-Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt.
+Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string, fidelityStatus }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt. When `OPENROUTER_API_KEY` is configured, JEV checks for unsupported factual details; `fidelityStatus` is `clear`, `flagged`, or `unavailable`. Without the key, it is `not_checked`. The check only flags possible issues and never blocks the rewrite.
 
 ### Input Limits
 
