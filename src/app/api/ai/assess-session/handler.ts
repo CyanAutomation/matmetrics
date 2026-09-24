@@ -16,7 +16,6 @@ import {
 } from '@/lib/jev-client';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
-import { SESSION_CATEGORIES, type SessionCategory } from '@/lib/types';
 
 type Assess = (input: SessionAssessmentInput) => Promise<SessionAssessment>;
 
@@ -53,15 +52,9 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
         return NextResponse.json(aiApiError('INPUT_TOO_LARGE').body, {
           status: 413,
         });
-      const category = SESSION_CATEGORIES.includes(
-        body.category as SessionCategory
-      )
-        ? (body.category as SessionCategory)
-        : undefined;
       const assessment = await assess({
         description: body.description.trim(),
         notes,
-        category,
       });
       return NextResponse.json({ assessment });
     } catch (error) {
