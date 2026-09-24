@@ -54,6 +54,9 @@ function parseQuotedScalar(value: string, key: string): string {
         }
 
         index += 1;
+        if (index >= content.length) {
+          throw new Error(`invalid quoted value for "${key}"`);
+        }
         const escape = content[index];
         const standardEscapes: Record<string, string> = {
           a: '\u0007',
