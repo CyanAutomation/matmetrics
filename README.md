@@ -24,9 +24,9 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
 - **Data Storage**: GitHub-backed markdown files with local markdown fallback
 - **AI Integration**: Cloudflare AI Gateway with `dynamic/matmetrics` model routing
-- **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
+- **Forms and validation**: React form components with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
-- **Date Management**: [date-fns](https://date-fns.org/)
+- **Date Management**: Built-in TypeScript calendar and formatting helpers
 
 ## Design System
 

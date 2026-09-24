@@ -96,7 +96,7 @@ test(
       assert.equal(await findSessionFileById('session-1'), nextPath);
       await assert.rejects(access(originalPath));
       const markdown = await readFile(nextPath, 'utf8');
-      assert.match(markdown, /date: '2025-02-12'/);
+      assert.match(markdown, /date: "2025-02-12"/);
       assert.match(markdown, /moved to a new month/);
     });
   }
@@ -195,7 +195,7 @@ test(
       );
 
       const originalMarkdown = await readFile(originalPath, 'utf8');
-      assert.match(originalMarkdown, /date: '2025-01-10'/);
+      assert.match(originalMarkdown, /date: "2025-01-10"/);
       const conflictingAtNextPath = await readFile(nextPath, 'utf8');
       assert.match(conflictingAtNextPath, /id: 'session-other'/);
       const januaryFiles = await readdir(path.dirname(originalPath));
@@ -262,7 +262,7 @@ test(
       assert.equal(updatedPath, nextPath);
       await assert.rejects(access(originalPath));
       const nextMarkdown = await readFile(nextPath, 'utf8');
-      assert.match(nextMarkdown, /id: session-1/);
+      assert.match(nextMarkdown, /id: "session-1"/);
       assert.match(nextMarkdown, /same-id destination should still succeed/);
       assert.doesNotMatch(nextMarkdown, /stale destination content/);
     });
@@ -1169,8 +1169,8 @@ test(
       assert.equal(storedPath, winningPath);
 
       const storedMarkdown = await readFile(winningPath, 'utf8');
-      assert.match(storedMarkdown, /id: session-concurrent/);
-      assert.match(storedMarkdown, /date: '(2025-01-10|2025-02-11)'/);
+      assert.match(storedMarkdown, /id: "session-concurrent"/);
+      assert.match(storedMarkdown, /date: "(2025-01-10|2025-02-11)"/);
     });
   }
 );
