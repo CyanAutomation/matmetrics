@@ -10,12 +10,12 @@ async function runJevSmokeCheck(): Promise<void> {
       description:
         'Technical judo drilling with uchi mata entries and controlled movement.',
       notes: 'Synthetic smoke-check input.',
-      category: 'Technical',
     });
 
     console.log(
       JSON.stringify({
         ok: true,
+        resolvedModel: assessment.resolvedModel,
         suggestedCategory: assessment.suggestedCategory,
         categoryConfidence: assessment.categoryConfidence,
       })
