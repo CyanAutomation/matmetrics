@@ -1729,10 +1729,6 @@ Error refreshing sessions from API TypeError: fetch failed
 ℹ todo 0
 ℹ duration_ms 6463.818902
 
-> nextn@1.2.0 typecheck
-> rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};
-> ' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --check tsconfig.json
-
 Generating route types...
 ✓ Types generated successfully
 plugins/log-doctor/src/hooks/use-audit-state-manager.test.ts(1,23): error TS7016: Could not find a declaration file for module 'jsdom'. '/workspaces/matmetrics/node_modules/jsdom/lib/api.js' implicitly has an 'any' type.

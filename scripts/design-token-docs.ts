@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { format } from 'prettier';
 
 import {
   DESIGN_TOKEN_GROUPS,
@@ -16,21 +15,35 @@ const designDocumentPath = path.join(process.cwd(), 'DESIGN.md');
 const renderValue = (value: string): string =>
   value.replace(/#[0-9a-f]+/gi, (hex) => `\`${hex}\``);
 
-const renderTable = (tokens: readonly DesignTokenDefinition[]): string => {
+const renderTable = (
+  headers: readonly string[],
+  rows: readonly (readonly string[])[]
+): string => {
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index].length))
+  );
+  const renderRow = (cells: readonly string[]): string =>
+    `| ${cells.map((cell, index) => cell.padEnd(widths[index])).join(' | ')} |`;
+
+  return [
+    renderRow(headers),
+    `| ${widths.map((width) => '-'.repeat(width)).join(' | ')} |`,
+    ...rows.map(renderRow),
+  ].join('\n');
+};
+
+const renderTokenTable = (tokens: readonly DesignTokenDefinition[]): string => {
   const rows = tokens.map(
     ({ key, value, usage }) =>
-      `| \`${key}\` | ${renderValue(value)} | ${usage} |`
+      [`\`${key}\``, renderValue(value), usage]
   );
-  return [
-    '| Token | Value | Intended usage |',
-    '| --- | --- | --- |',
-    ...rows,
-  ].join('\n');
+  return renderTable(['Token', 'Value', 'Intended usage'], rows);
 };
 
 const renderGeneratedSection = (): string => {
   const lines = [
     START_MARKER,
+    '',
     '### Canonical Token Guidance',
     '',
     'This section is generated from `src/lib/design-tokens.ts`, the sole machine-readable source of canonical token keys. Do not edit the generated tables directly; run `npm run docs:design-tokens` after changing the source.',
@@ -40,13 +53,13 @@ const renderGeneratedSection = (): string => {
   for (const group of DESIGN_TOKEN_GROUPS as readonly DesignTokenGroup[]) {
     lines.push(`#### ${group.heading}`, '', group.description ?? '', '');
     if (group.tokens) {
-      lines.push(renderTable(group.tokens), '');
+      lines.push(renderTokenTable(group.tokens), '');
     }
     for (const subsection of group.subsections ?? []) {
       lines.push(
         `##### ${subsection.heading}`,
         '',
-        renderTable(subsection.tokens),
+        renderTokenTable(subsection.tokens),
         ''
       );
     }
@@ -61,11 +74,14 @@ const renderGeneratedSection = (): string => {
     '',
     'Use this mapping during migration for frontend and Go/CLI consumers so token lookups can be updated safely.',
     '',
-    '| Old token | Canonical token |',
-    '| --- | --- |',
-    ...Object.entries(LEGACY_DESIGN_TOKEN_MAPPINGS).map(
-      ([legacy, canonical]) => `| \`${legacy}\` | \`${canonical}\` |`
+    renderTable(
+      ['Old token', 'Canonical token'],
+      Object.entries(LEGACY_DESIGN_TOKEN_MAPPINGS).map(([legacy, canonical]) => [
+        `\`${legacy}\``,
+        `\`${canonical}\``,
+      ])
     ),
+    '',
     END_MARKER
   );
 
@@ -96,22 +112,15 @@ if (start === -1) {
   documentSuffix = currentDocument.slice(end + END_MARKER.length);
 }
 
-void format(generatedSection, { parser: 'markdown' })
-  .then((formattedGeneratedSection) => {
-    const updatedDocument = `${documentPrefix}${formattedGeneratedSection.trimEnd()}${documentSuffix}`;
-    if (process.argv.includes('--check')) {
-      if (updatedDocument !== currentDocument) {
-        console.error(
-          'DESIGN.md design-token tables are stale. Regenerate them with `npm run docs:design-tokens`.'
-        );
-        process.exitCode = 1;
-      }
-    } else {
-      writeFileSync(designDocumentPath, updatedDocument);
-      console.log('Generated design-token tables in DESIGN.md.');
-    }
-  })
-  .catch((error) => {
-    console.error('Failed to format generated documentation:', error);
+const updatedDocument = `${documentPrefix}${generatedSection}${documentSuffix}`;
+if (process.argv.includes('--check')) {
+  if (updatedDocument !== currentDocument) {
+    console.error(
+      'DESIGN.md design-token tables are stale. Regenerate them with `npm run docs:design-tokens`.'
+    );
     process.exitCode = 1;
-  });
+  }
+} else {
+  writeFileSync(designDocumentPath, updatedDocument);
+  console.log('Generated design-token tables in DESIGN.md.');
+}

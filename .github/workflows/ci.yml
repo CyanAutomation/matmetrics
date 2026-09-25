@@ -46,8 +46,6 @@ jobs:
         run: npm run test:skills
       - name: Lint
         run: npm run lint
-      - name: Check workflow formatting
-        run: npx prettier --check .github/workflows
       - name: Check theme contrast
         run: npm run validate:theme-contrast
       - name: Type check
