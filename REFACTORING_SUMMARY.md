@@ -231,7 +231,7 @@ Successfully implemented Phase 1 and Phase 2 of the planned refactoring to reduc
 - [x] No breaking changes to existing APIs
 - [x] All tests passing (51/51 maturity-specific tests)
 - [x] Full test suite still passes (668/670 overall, 2 out-of-scope)
-- [x] Code follows project style conventions (Prettier, ESLint)
+- [x] Code follows project style conventions and passes ESLint
 - [x] Imports use correct paths (@/lib/\* for shared, relative for local)
 
 ---
