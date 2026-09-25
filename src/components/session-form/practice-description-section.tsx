@@ -68,6 +68,11 @@ export function PracticeDescriptionSection({
         A sentence or two is enough. AI can polish the entry or suggest
         technique tags once you have added some detail.
       </p>
+      <p className="text-xs text-muted-foreground">
+        AI Transform sends your description to Cloudflare. When JEV is
+        configured, OpenRouter/TypeSafe also checks the rewrite against your
+        draft.
+      </p>
       {transformMessage ? (
         <p role="status" className="text-xs text-muted-foreground">
           {transformMessage}

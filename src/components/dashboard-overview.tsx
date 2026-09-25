@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { format, formatDistanceToNowStrict, subDays } from 'date-fns';
 import {
   JudoSession,
   SessionCategory,
@@ -26,7 +25,13 @@ import {
   resolveDashboardTechniqueBarClass,
   resolveSessionCategoryPresentation,
 } from '@/lib/ui-semantic';
-import { cn, parseDateOnly } from '@/lib/utils';
+import {
+  addCalendarDays,
+  cn,
+  formatDateLabel,
+  formatRelativeDistanceToNowStrict,
+  parseDateOnly,
+} from '@/lib/utils';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -248,7 +253,7 @@ export function DashboardOverview({
     const distributionStart =
       distributionWindow === 'all'
         ? null
-        : subDays(now, distributionWindow - 1);
+        : addCalendarDays(now, -(distributionWindow - 1));
     const distributionSessions = distributionStart
       ? sortedSessions.filter(
           (session) => parseDateOnly(session.date) >= distributionStart
@@ -314,7 +319,7 @@ export function DashboardOverview({
       )
     );
 
-    const rollingStart = subDays(now, 29);
+    const rollingStart = addCalendarDays(now, -29);
     const sessionsInRollingWindowByCategory: Record<SessionCategory, number> =
       Object.fromEntries(
         (['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'] as const).map(
@@ -326,7 +331,7 @@ export function DashboardOverview({
         sessionsInRollingWindowByCategory[session.category] += 1;
       }
     });
-    const lastFortnight = subDays(now, 13);
+    const lastFortnight = addCalendarDays(now, -13);
     const sessionsInLastFortnight = sortedSessions.filter(
       (session) => parseDateOnly(session.date) >= lastFortnight
     ).length;
@@ -373,7 +378,7 @@ export function DashboardOverview({
           0
         ) / effortSessionsInLastFortnight.length
       : null;
-    const priorFortnight = subDays(now, 27);
+    const priorFortnight = addCalendarDays(now, -27);
     const earlierEffortSessions = sortedSessions.filter((session) => {
       const date = parseDateOnly(session.date);
       return date >= priorFortnight && date < lastFortnight;
@@ -439,14 +444,12 @@ export function DashboardOverview({
       maxTechniqueCount,
       topCategory,
       recentEfforts,
-      rollingRangeLabel: `${format(rollingStart, 'd MMM')} – ${format(now, 'd MMM')}`,
+      rollingRangeLabel: `${formatDateLabel(rollingStart, 'day-month-short')} – ${formatDateLabel(now, 'day-month-short')}`,
       trainingDataRange:
         distributionWindow === 'all'
           ? `${firstSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${latestSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
           : `Last ${distributionWindow} days`,
-      latestSessionLabel: formatDistanceToNowStrict(latestSessionDate, {
-        addSuffix: true,
-      }),
+      latestSessionLabel: formatRelativeDistanceToNowStrict(latestSessionDate),
       needsTrainingNudge: daysSinceLatestSession >= 14,
       sessionsInLastFortnight,
       rollingPlan,

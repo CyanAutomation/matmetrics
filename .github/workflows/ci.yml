@@ -40,6 +40,10 @@ jobs:
           cache: npm
       - name: Install full dependencies (includes devDependencies)
         run: npm ci
+      - name: Validate repository skills
+        run: npm run validate:skills
+      - name: Test skill validator
+        run: npm run test:skills
       - name: Lint
         run: npm run lint
       - name: Check theme contrast

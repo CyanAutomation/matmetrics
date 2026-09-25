@@ -1,5 +1,8 @@
 import { InvalidAiResponseError } from './ai-api-error';
-import { JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD } from './jev-policy';
+import {
+  JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
+  shouldFlagTransformedDescription,
+} from './jev-policy';
 import type { SessionCategory } from './types';
 
 const OPENROUTER_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
@@ -37,6 +40,7 @@ type JevRequest = {
   state: {
     session: { description: string; notes?: string };
     technique_candidates?: Record<string, string>;
+    transformation?: { description: string };
   };
   questions: Record<string, JevQuestion>;
 };
@@ -56,6 +60,7 @@ export type SessionAssessmentInput = {
 export type SessionAssessment = {
   suggestedCategory: SessionCategory;
   categoryConfidence: number;
+  categoryFitProbability: number;
   hasTechniqueDetail: number;
   hasReflection: number;
   fatigueSignal: number;
@@ -173,6 +178,16 @@ const assessmentQuestions = {
       'S&C': 'Strength and conditioning training.',
     },
   },
+  category_fit: {
+    type: 'noul',
+    instructions:
+      'Does `session.description` clearly describe a session that fits at least one of the listed MatMetrics categories?',
+    criteria: {
+      true: 'The description clearly fits a listed category based on the primary training focus.',
+      false:
+        'The description is too vague, describes another activity, or does not clearly fit any listed category.',
+    },
+  },
   has_technique_detail: {
     type: 'noul',
     instructions:
@@ -227,6 +242,11 @@ export async function assessSessionWithJev(
   return {
     suggestedCategory: category(categoryAnswer.choice),
     categoryConfidence: numberInRange(categoryAnswer.confidence, 0, 1),
+    categoryFitProbability: numberInRange(
+      answer(response.answers, 'category_fit', 'noul').noul,
+      0,
+      1
+    ),
     hasTechniqueDetail: numberInRange(
       answer(response.answers, 'has_technique_detail', 'noul').noul,
       0,
@@ -249,6 +269,60 @@ export async function assessSessionWithJev(
     ),
     ...(model ? { resolvedModel: model } : {}),
   };
+}
+
+export async function verifyDescriptionFidelityWithJev(
+  sourceDescription: string,
+  transformedDescription: string,
+  client: JevDecisionClient = callOpenRouterJev
+): Promise<number> {
+  if (!sourceDescription.trim() || !transformedDescription.trim()) {
+    throw new InvalidAiResponseError();
+  }
+
+  const response = await client({
+    model: JEV_MODEL,
+    state: {
+      session: { description: sourceDescription.trim() },
+      transformation: { description: transformedDescription.trim() },
+    },
+    questions: {
+      unsupported_detail: {
+        type: 'noul',
+        instructions:
+          'Does `transformation.description` add a factual claim about techniques, drills, effort, outcomes, or personal reflection that is not supported by `session.description`?',
+        criteria: {
+          true: 'The transformed text adds at least one specific training fact or reflection absent from the source.',
+          false:
+            'The transformed text only reorganizes or clarifies information already supported by the source.',
+        },
+      },
+    },
+  });
+
+  return numberInRange(
+    answer(response.answers, 'unsupported_detail', 'noul').noul,
+    0,
+    1
+  );
+}
+
+export type TransformFidelityStatus =
+  'not_checked' | 'clear' | 'flagged' | 'unavailable';
+
+export function getTransformFidelityStatus(
+  unsupportedDetailProbability: number
+): TransformFidelityStatus {
+  if (
+    !Number.isFinite(unsupportedDetailProbability) ||
+    unsupportedDetailProbability < 0 ||
+    unsupportedDetailProbability > 1
+  ) {
+    return 'unavailable';
+  }
+  return shouldFlagTransformedDescription(unsupportedDetailProbability)
+    ? 'flagged'
+    : 'clear';
 }
 
 function normalizeTechniqueCandidates(candidates: string[]): string[] {

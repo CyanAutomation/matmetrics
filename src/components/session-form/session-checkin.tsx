@@ -4,7 +4,13 @@ import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
-import { shouldOfferCategorySuggestion } from '@/lib/jev-policy';
+import {
+  hasClearSessionCategoryFit,
+  shouldOfferCategorySuggestion,
+  shouldPromptForReflection,
+  shouldPromptForTechniqueDetail,
+  shouldShowRecoveryNudge,
+} from '@/lib/jev-policy';
 
 type Props = {
   canUseAi: boolean;
@@ -32,7 +38,8 @@ export function SessionCheckin({
         <div>
           <p className="text-sm font-semibold">Training check-in</p>
           <p className="text-xs text-muted-foreground">
-            Optional suggestions from your notes. Review before applying.
+            Your description and notes are sent to OpenRouter/TypeSafe for this
+            optional check-in. Review suggestions before applying.
           </p>
         </div>
         <Button
@@ -53,15 +60,25 @@ export function SessionCheckin({
       </div>
       {assessment ? (
         <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-          <p>
-            Suggested type:{' '}
-            <span className="font-semibold text-foreground">
-              {assessment.suggestedCategory}
-            </span>{' '}
-            (model confidence: {Math.round(assessment.categoryConfidence * 100)}
-            %).
-          </p>
-          {shouldOfferCategorySuggestion(assessment.categoryConfidence) ? (
+          {hasClearSessionCategoryFit(assessment.categoryFitProbability) ? (
+            <p>
+              Suggested type:{' '}
+              <span className="font-semibold text-foreground">
+                {assessment.suggestedCategory}
+              </span>{' '}
+              (model confidence:{' '}
+              {Math.round(assessment.categoryConfidence * 100)}%).
+            </p>
+          ) : (
+            <p>
+              JEV could not confidently match these notes to an existing session
+              type. Choose the type manually.
+            </p>
+          )}
+          {shouldOfferCategorySuggestion(
+            assessment.categoryConfidence,
+            assessment.categoryFitProbability
+          ) ? (
             <Button
               type="button"
               variant="ghost"
@@ -72,18 +89,21 @@ export function SessionCheckin({
               Apply session type
             </Button>
           ) : null}
-          {assessment.hasTechniqueDetail < 0.5 ? (
+          {shouldPromptForTechniqueDetail(assessment.hasTechniqueDetail) ? (
             <p>
               Add a named technique or drill to make this session easier to find
               later.
             </p>
           ) : null}
-          {assessment.hasReflection < 0.5 ? (
+          {shouldPromptForReflection(assessment.hasReflection) ? (
             <p>
               Add a brief reflection to record what worked or needs attention.
             </p>
           ) : null}
-          {assessment.fatigueSignal >= 1 || assessment.injurySignal >= 0.5 ? (
+          {shouldShowRecoveryNudge(
+            assessment.fatigueSignal,
+            assessment.injurySignal
+          ) ? (
             <p>
               Consider your recovery before the next hard session. This is a
               note from your text, not medical advice.
