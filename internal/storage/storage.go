@@ -24,7 +24,7 @@ func SessionRelativePath(session model.Session) (string, error) {
 		return "", fmt.Errorf("invalid session date %q", session.Date)
 	}
 
-	return fmt.Sprintf("%s/%s/%s-matmetrics-%s.md", parts[0], parts[1], parts[2], encodedID), nil
+	return fmt.Sprintf("%s/%s/%s%s%s-matmetrics-%s.md", parts[0], parts[1], parts[0], parts[1], parts[2], encodedID), nil
 }
 
 func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
