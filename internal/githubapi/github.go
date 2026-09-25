@@ -646,18 +646,11 @@ const (
 )
 
 func SessionGitHubPath(session model.Session) (string, error) {
-	encodedID, err := storage.EncodedSessionID(session.ID)
+	relativePath, err := storage.SessionRelativePath(session)
 	if err != nil {
 		return "", err
 	}
-
-	parts := strings.Split(session.Date, "-")
-	if len(parts) != 3 {
-		return "", fmt.Errorf("invalid session date %q", session.Date)
-	}
-
-	fileName := fmt.Sprintf("%s%s%s-matmetrics-%s.md", parts[0], parts[1], parts[2], encodedID)
-	return fmt.Sprintf("%s/%s/%s/%s", gitHubSessionRoot, parts[0], parts[1], fileName), nil
+	return fmt.Sprintf("%s/%s", gitHubSessionRoot, relativePath), nil
 }
 
 func (c *Client) findSessionPathOnGitHubByID(config model.GitHubConfig, sessionID string) (string, string, error) {

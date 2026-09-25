@@ -50,7 +50,7 @@ fallow dupes --format json --quiet
 fallow fix --dry-run --format json --quiet
 ```
 
-### Step 5: Apply fixes (after user confirmation)
+### Step 5: Apply requested fixes
 
 ```bash
 fallow fix --yes --format json --quiet
@@ -514,9 +514,9 @@ Parse the JSON `changes` array. Each entry shows:
 - `name`: the symbol or dependency being removed
 - `line`: the line number
 
-### Step 3: Confirm with user before applying
+### Step 3: Match the requested scope
 
-Show the proposed changes. Wait for user confirmation.
+If the task requested an audit only, report the preview and stop. If cleanup was requested, apply the reviewed changes.
 
 ### Step 4: Apply
 

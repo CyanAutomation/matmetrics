@@ -1,157 +1,70 @@
-# MatMetrics Skills Quick Reference
+# MatMetrics Skills
 
-## All 8 Skills (Organized by Use Case)
+Eight repository skills describe project-specific workflows. Start with the skill that matches the code or task being changed, then follow its links to the implementation and tests.
 
-### Storage & Multi-Backend Systems
+## Skills
 
-- **[storage-facade](/.github/skills/storage-facade/SKILL.md)** — Use when adding storage layers, caching strategy, or offline sync queue features
-  - Topics: 3-layer architecture, manifest caching, file locking, sync queue, fallback logic
-  - Reference files: `src/lib/session-storage.ts`, `src/lib/github-storage.ts`, `src/lib/file-storage.ts`
+### Storage and sync
 
-### Testing & Quality Assurance
+- [storage-facade](./storage-facade/SKILL.md) — session routing, persistence, caches, and offline queue.
 
-- **[cross-language-testing](/.github/skills/cross-language-testing/SKILL.md)** — Use when implementing dual-language features or validating parity
-  - Topics: fixture-driven testing, dual-mode auth, temp directories, type guards
-  - Reference files: `testdata/validation/session-validation-fixtures.json`, `src/lib/server-auth.ts`, `internal/sessionapi/validation_test.go`
+### APIs and contracts
 
-### API Development
+- [api-gateway-pattern](./api-gateway-pattern/SKILL.md) — authenticated TypeScript routes that proxy to Go.
+- [cross-language-testing](./cross-language-testing/SKILL.md) — shared TypeScript and Go behavior, fixtures, and parity tests.
+- [error-handling-patterns](./error-handling-patterns/SKILL.md) — subsystem errors and API response propagation.
 
-- **[api-gateway-pattern](/.github/skills/api-gateway-pattern/SKILL.md)** — Use when building TypeScript route handlers that proxy to Go
-  - Topics: request transformation, dual-mode auth, fallback logic, end-to-end testing
-  - Reference files: `src/app/api/sessions/create/route.ts`, `internal/httpapi/httpapi.go`
+### Go
 
-### Error Handling
+- [go-cli-development](./go-cli-development/SKILL.md) — CLI commands and supporting Go packages.
 
-- **[error-handling-patterns](/.github/skills/error-handling-patterns/SKILL.md)** — Use when adding errors that span TypeScript and Go
-  - Topics: custom error types, type guards, error classification, serialization
-  - Reference files: `src/lib/errors.ts`, `internal/sessionapi/errors.go`, `src/lib/github-storage.ts`
+### Plugins
 
-### Go Backend Development
+- [plugin-manager](./plugin-manager/SKILL.md) — plugin manifests, UI registration, validation, and maturity.
 
-- **[go-cli-development](/.github/skills/go-cli-development/SKILL.md)** — Use when building CLI subcommands or Go backend logic
-  - Topics: command routing, validation patterns, file locking, caching, markdown parsing
-  - Reference files: `go/cmd/matmetrics-cli/main.go`, `internal/sessionapi/validation.go`, `internal/storage/storage.go`
+### Code quality
 
-### Plugin Development
+- [fallow](./fallow/SKILL.md) — JavaScript and TypeScript static analysis with Fallow.
 
-- **[plugin-manager](/.github/skills/plugin-manager/SKILL.md)** — Use when creating/updating plugins or evaluating maturity
-  - Topics: manifest schema, UI extension types, maturity tiers (Bronze/Silver/Gold), validation
-  - Reference files: `plugins/prompt-settings/`, `plugins/github-sync/`, `docs/plugin-maturity-scorecards.json`
+### Interface design
 
-### Code Quality & Cleanup
+- [front-end-design](./front-end-design/SKILL.md) — visual hierarchy and interaction decisions for MatMetrics UI.
 
-- **[fallow](/.github/skills/fallow/SKILL.md)** — Use when auditing code health, finding dead code, or setting CI quality gates
-  - Topics: TypeScript/JavaScript analysis, duplication detection, complexity hotspots, CI integration
-  - Reference files: `.fallowrc.json` (matmetrics baseline), `run-lint.sh`, `test-runner.sh`
+## Choose a skill
 
-### Frontend Design
+| Task                                   | Start here             | Add when needed                                                                |
+| -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------ |
+| Session storage or offline sync        | storage-facade         | cross-language-testing if shared session behavior changes                      |
+| TypeScript API that proxies to Go      | api-gateway-pattern    | cross-language-testing and error-handling-patterns when those contracts change |
+| Shared TypeScript and Go behavior      | cross-language-testing | error-handling-patterns if error responses change                              |
+| Go CLI or backend package              | go-cli-development     | cross-language-testing for shared behavior                                     |
+| Plugin manifest or dashboard UI        | plugin-manager         | front-end-design for significant UI work                                       |
+| Code health, dead code, or duplication | fallow                 | —                                                                              |
+| Significant page or component design   | front-end-design       | plugin-manager for plugin surfaces                                             |
 
-- **[front-end-design](/.github/skills/front-end-design/SKILL.md)** — Use when building landing pages, apps, or visually strong UIs
-  - Topics: composition, hierarchy, imagery, motion, restraint
-  - Reference examples: [/src/components/](../src/components/)
+## Validate skills and project behavior
 
----
+Validate skill frontmatter and local Markdown links:
 
-## Decision Tree: Which Skill to Use?
+    npm run validate:skills
 
-```
-I'm working on...
+Run the validator’s regression tests:
 
-├─ Storage or offline sync
-│  └─ Use: storage-facade
-│
-├─ API route handler
-│  └─ Proxy to Go?
-│     ├─ Yes → api-gateway-pattern (+ cross-language-testing for parity)
-│     └─ No  → Use Next.js docs directly
-│
-├─ Go CLI or backend
-│  └─ Use: go-cli-development
-│
-├─ Testing or validation
-│  └─ TypeScript + Go parity?
-│     ├─ Yes → cross-language-testing
-│     └─ No  → Use language-specific test frameworks
-│
-├─ Error handling
-│  ├─ Spans TypeScript + Go? → error-handling-patterns
-│  └─ Single language → Language-specific patterns
-│
-├─ Plugin development
-│  └─ Use: plugin-manager
-│
-├─ Code cleanup or quality gates
-│  └─ Use: fallow
-│
-└─ Frontend UI / Landing page
-   └─ Use: front-end-design
-```
+    npm run test:skills
 
----
+Run the full TypeScript and Go suites:
 
-## Skill Cross-References
+    npm run test:all
+    npm run go:test
 
-### Used Together Frequently
+Validate plugin dashboard UI composition:
 
-| Scenario                               | Skills                                                                 | Purpose                                                     |
-| -------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Add new API endpoint (TypeScript → Go) | api-gateway-pattern + cross-language-testing + error-handling-patterns | Build and test the full round-trip                          |
-| Implement storage feature              | storage-facade + cross-language-testing (if validation parity needed)  | Design multi-backend logic; ensure TypeScript↔Go sync       |
-| Build CLI subcommand                   | go-cli-development + error-handling-patterns                           | Implement Go logic; handle errors consistently              |
-| Release plugin                         | plugin-manager + fallow                                                | Validate manifest, check code health, confirm maturity tier |
-| Debug sync queue issue                 | storage-facade + error-handling-patterns                               | Trace through sync logic; classify error origin             |
+    npm run validate:plugin-ui-contract
 
----
+The plugin UI command checks registered dashboard component composition; it is not a standalone manifest-schema command. Manifest validation behavior is covered by the plugin validator and tests.
 
-## Quick Commands
+## Metadata convention
 
-### Validate all skills
+Each skill has YAML frontmatter with a name matching its folder and a non-empty description. License is recommended. The validator also checks repository-local Markdown links in skill files and references.
 
-```bash
-npx tsx scripts/validate-skill-metadata.ts
-```
-
-### Check code quality (fallow)
-
-```bash
-npx -y fallow audit --changed-since main --ci
-```
-
-### Run tests (cross-language parity)
-
-```bash
-npm test
-go test ./internal/... ./api/go/...
-```
-
-### Validate plugin manifest
-
-```bash
-npx tsx scripts/validate-plugin-ui-contract.ts plugins/prompt-settings
-```
-
----
-
-## Next Steps
-
-1. **Pick a skill** using the decision tree above
-2. **Read the skill file** in `.github/skills/<skill-name>/SKILL.md`
-3. **Follow the patterns** shown in reference files
-4. **Write tests** using patterns from cross-language-testing or language-specific test frameworks
-5. **Verify code quality** with fallow or language-specific linters
-
----
-
-## Skill Metadata
-
-All skills include:
-
-- **Name, Description, License** — In YAML frontmatter
-- **Trigger Rules** — When to use this skill
-- **Architecture Overview** — How the pattern works
-- **Code Examples** — In TypeScript and/or Go
-- **Common Gotchas** — What to watch out for
-- **References** — Links to source code
-- **Next Steps** — How to apply the skill
-
-See [.github/skills/](/.github/skills/) for all skill files.
+Keep skill entrypoints focused on task-specific decisions and links to current implementation. Prefer contracts, source files, and tests as the authority for details that change with the application.

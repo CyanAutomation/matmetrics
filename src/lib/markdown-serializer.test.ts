@@ -135,6 +135,96 @@ test('Roundtrip preserves videoUrl when present', () => {
   assert.equal(parsed.videoUrl, 'https://example.com/videos/123');
 });
 
+test('frontmatter strings use canonical escaped double-quoted scalars', () => {
+  const session = {
+    id: 'session: "quoted" \\ path',
+    date: '2026-03-23',
+    effort: 3 as const,
+    category: 'Technical' as const,
+    techniques: [],
+  };
+
+  const markdown = sessionToMarkdown(session);
+
+  assert.equal(markdown.split('\n')[1], `id: ${JSON.stringify(session.id)}`);
+  assert.equal(markdownToSession(markdown).id, session.id);
+});
+
+test('markdownToSession accepts legacy single-quoted frontmatter scalars', () => {
+  const markdown = `---
+id: 'session: ''quoted'''
+date: '2026-03-23'
+effort: 3
+category: 'Technical'
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.equal(markdownToSession(markdown).id, "session: 'quoted'");
+});
+
+test('markdownToSession accepts Go-compatible hexadecimal string escapes', () => {
+  const markdown = String.raw`---
+id: "session-\x61"
+date: "2026-03-23"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.equal(markdownToSession(markdown).id, 'session-a');
+});
+
+test('markdownToSession rejects a quoted scalar ending in a backslash', () => {
+  const markdown = String.raw`---
+id: "session-\"
+date: "2026-03-23"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.throws(
+    () => markdownToSession(markdown),
+    /invalid quoted value for "id"/
+  );
+});
+
 test('sessionToMarkdown writes videoUrl in frontmatter when present', () => {
   const markdown = sessionToMarkdown({
     id: 'video-frontmatter-write',

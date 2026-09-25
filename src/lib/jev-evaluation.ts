@@ -1,3 +1,4 @@
+import { JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD } from './jev-policy';
 import { SESSION_CATEGORIES, type SessionCategory } from './types';
 
 export {
@@ -13,6 +14,7 @@ export type CategoryPredictionOutcome = {
   predictedCategory: SessionCategory;
   actualCategory: SessionCategory;
   confidence: number;
+  categoryFitProbability?: number;
 };
 
 export type CategoryThresholdEvaluation = {
@@ -28,7 +30,7 @@ export type NoulPredictionOutcome = {
   actual: boolean;
 };
 
-export type NoulThresholdEvaluation = {
+export type BinaryThresholdEvaluation = {
   threshold: number;
   accepted: number;
   truePositives: number;
@@ -37,6 +39,15 @@ export type NoulThresholdEvaluation = {
   recall: number | null;
   coverage: number;
 };
+
+export type NoulThresholdEvaluation = BinaryThresholdEvaluation;
+
+export type ScorePredictionOutcome = {
+  score: number;
+  actual: boolean;
+};
+
+export type ScoreThresholdEvaluation = BinaryThresholdEvaluation;
 
 function isSessionCategory(value: unknown): value is SessionCategory {
   return SESSION_CATEGORIES.includes(value as SessionCategory);
@@ -66,6 +77,21 @@ export function evaluateCategoryThresholds(
     ) {
       throw new Error('Category confidence must be between 0 and 1');
     }
+    if (
+      outcome.categoryFitProbability !== undefined &&
+      (!Number.isFinite(outcome.categoryFitProbability) ||
+        outcome.categoryFitProbability < 0 ||
+        outcome.categoryFitProbability > 1)
+    ) {
+      throw new Error('Category fit probability must be between 0 and 1');
+    }
+  }
+
+  const fitRows = outcomes.filter(
+    (outcome) => outcome.categoryFitProbability !== undefined
+  ).length;
+  if (fitRows > 0 && fitRows !== outcomes.length) {
+    throw new Error('Category fit probabilities must be present on every row');
   }
 
   for (const threshold of thresholds) {
@@ -76,7 +102,11 @@ export function evaluateCategoryThresholds(
 
   return thresholds.map((threshold) => {
     const accepted = outcomes.filter(
-      (outcome) => outcome.confidence >= threshold
+      (outcome) =>
+        outcome.confidence >= threshold &&
+        (outcome.categoryFitProbability === undefined ||
+          outcome.categoryFitProbability >=
+            JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD)
     );
     const correct = accepted.filter(
       (outcome) => outcome.predictedCategory === outcome.actualCategory
@@ -125,6 +155,54 @@ export function evaluateNoulThresholds(
     const accepted = outcomes.filter(
       (outcome) => outcome.probability >= threshold
     );
+    const truePositives = accepted.filter((outcome) => outcome.actual).length;
+    const falsePositives = accepted.length - truePositives;
+
+    return {
+      threshold,
+      accepted: accepted.length,
+      truePositives,
+      falsePositives,
+      precision: accepted.length === 0 ? null : truePositives / accepted.length,
+      recall: positiveCount === 0 ? null : truePositives / positiveCount,
+      coverage: accepted.length / outcomes.length,
+    };
+  });
+}
+
+export const DEFAULT_JEV_SCORE_THRESHOLDS = [0.5, 1, 1.5] as const;
+
+export function evaluateScoreThresholds(
+  outcomes: ScorePredictionOutcome[],
+  thresholds: readonly number[] = DEFAULT_JEV_SCORE_THRESHOLDS
+): ScoreThresholdEvaluation[] {
+  if (outcomes.length === 0) {
+    throw new Error('At least one Score evaluation example is required');
+  }
+
+  for (const outcome of outcomes) {
+    if (typeof outcome.actual !== 'boolean') {
+      throw new Error('Score evaluation labels must be boolean');
+    }
+    if (
+      !Number.isFinite(outcome.score) ||
+      outcome.score < 0 ||
+      outcome.score > 2
+    ) {
+      throw new Error('Score values must be between 0 and 2');
+    }
+  }
+
+  for (const threshold of thresholds) {
+    if (!Number.isFinite(threshold) || threshold < 0 || threshold > 2) {
+      throw new Error('Score threshold must be between 0 and 2');
+    }
+  }
+
+  const positiveCount = outcomes.filter((outcome) => outcome.actual).length;
+
+  return thresholds.map((threshold) => {
+    const accepted = outcomes.filter((outcome) => outcome.score >= threshold);
     const truePositives = accepted.filter((outcome) => outcome.actual).length;
     const falsePositives = accepted.length - truePositives;
 

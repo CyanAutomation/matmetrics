@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getTransformerPrompt } from '@/lib/storage';
+import type { TransformFidelityStatus } from '@/lib/jev-client';
 import { useToast } from './use-toast';
 
 interface UseSessionFormAiState {
@@ -116,6 +117,30 @@ const transformFailureDescriptions: Record<TransformFailure, string> = {
   'unusable-result': 'The AI returned an unusable result. Please try again.',
 };
 
+function readTransformFidelityStatus(value: unknown): TransformFidelityStatus {
+  return value === 'clear' ||
+    value === 'flagged' ||
+    value === 'unavailable' ||
+    value === 'not_checked'
+    ? value
+    : 'not_checked';
+}
+
+function transformSuccessMessage(
+  fidelityStatus: TransformFidelityStatus
+): string {
+  switch (fidelityStatus) {
+    case 'flagged':
+      return 'JEV flagged possible added details. Review the rewrite against your draft before saving.';
+    case 'clear':
+      return 'JEV found no likely added details. Review the rewrite before saving.';
+    case 'unavailable':
+      return 'JEV could not check for added details. Review the rewrite against your draft.';
+    case 'not_checked':
+      return 'Your notes are ready to review.';
+  }
+}
+
 /**
  * Hook that consolidates AI-powered form enhancements
  * Handles description transformation and technique suggestions with proper AbortController support
@@ -207,16 +232,22 @@ export function useSessionFormAi(
             ? (result as { transformedDescription?: unknown })
                 .transformedDescription
             : undefined;
+        const fidelityStatus =
+          result && typeof result === 'object'
+            ? readTransformFidelityStatus(
+                (result as { fidelityStatus?: unknown }).fidelityStatus
+              )
+            : 'not_checked';
         if (typeof transformed !== 'string' || transformed.trim() === '') {
           throw new TransformFailureError('unusable-result');
         }
         setTransformedDescription(transformed);
-        setTransformMessage('Your notes are ready to review.');
+        const successMessage = transformSuccessMessage(fidelityStatus);
+        setTransformMessage(successMessage);
         onSuccess(transformed);
         toast({
           title: 'Description Refined',
-          description:
-            'AI has polished your training notes based on your prompt settings.',
+          description: successMessage,
         });
       } catch (error) {
         // Ignore abort errors (expected when cancelling)

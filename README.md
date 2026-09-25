@@ -24,14 +24,14 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
 - **Data Storage**: GitHub-backed markdown files with local markdown fallback
 - **AI Integration**: Cloudflare AI Gateway with `dynamic/matmetrics` model routing
-- **Forms**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) validation
+- **Forms and validation**: React form components with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
-- **Date Management**: [date-fns](https://date-fns.org/)
+- **Date Management**: Built-in TypeScript calendar and formatting helpers
 
 ## Design System
 
 - **Primary Color**: MatMetrics Blue (#006BAB) in light mode, MatMetrics Blue (#296BCD) in dark mode
-- **Background**: Light desaturated blue (#ECF1F4) for a clean canvas
+- **Background**: App canvas surface (#F7FAFC) for a clean canvas
 - **Accent Color**: Semantic tokens for interactive elements; see [blueprint.md](docs/blueprint.md)
 - **Typography**: Inter (sans-serif) for clarity and modern appearance
 - **Icons**: Minimalist line-art icons from Lucide React
@@ -80,12 +80,17 @@ GITHUB_TOKEN=your_github_token
 # Cloudflare AI Gateway API - Get with: wrangler auth token
 CLOUDFLARE_API_TOKEN=your_cloudflare_token
 
-# OpenRouter API key for the server-side JEV training check-in
+# OpenRouter API key for server-side JEV check-ins and verification
 OPENROUTER_API_KEY=your_openrouter_key
 
 # Cloudflare D1 preference data Worker (server-only)
 CLOUDFLARE_DATA_WORKER_URL=https://matmetrics-data.example.workers.dev
 MATMETRICS_INTERNAL_API_SECRET=generate-a-long-random-secret
+
+# Cloudflare Queues background-job executor (server-only)
+# Use the public Vercel origin for the URL and generate a distinct long secret.
+MATMETRICS_BACKGROUND_EXECUTOR_URL=
+MATMETRICS_BACKGROUND_EXECUTOR_SECRET=
 
 # Firebase client SDK - Firebase console → Project Settings → Your web app
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
@@ -127,10 +132,12 @@ Firebase values come from:
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
-- `OPENROUTER_API_KEY` enables the optional JEV training check-in and verification of AI technique-tag candidates. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, technique suggestions retain their existing Cloudflare-only behavior.
+- `OPENROUTER_API_KEY` enables the optional JEV training check-in, verification of AI technique-tag candidates, and review-only checks for unsupported facts in transformed descriptions. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, check-ins and fidelity checks are skipped, and technique suggestions retain their existing Cloudflare-only behavior.
+- JEV check-ins send the session description and notes to OpenRouter/TypeSafe. Technique verification sends the description and candidate tags; transformation checks send the original and transformed descriptions. The form labels these provider handoffs next to the relevant AI actions.
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
+- `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
 - The browser still keeps a local cache and an offline sync queue so create/update/delete operations can be retried after reconnecting.
@@ -145,11 +152,11 @@ Firebase values come from:
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run ESLint
 - **`npm run typecheck`**: Run TypeScript type checking
-- **`npm run verify`**: Run the full verification suite sequentially (`test`, `typecheck`, `build`, `go:test`)
-- **`npm run test`**: Run TypeScript unit tests (runs `validate:plugin-ui-contract` contract validation first, then executes `.test.ts` files with Node's test runner under `NODE_ENV=test`)
-- **`npm test -- <file>`**: Run a specific TypeScript test file with Node's test runner (for example: `npm test -- src/lib/foo.test.ts`)
-- **Current API route test entry points**: `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts` (use `src/lib/plugins/validate.test.ts` for plugin validation behavior checks).
-- **`npm run test:all`**: Run all TypeScript tests under `src/**/*.test.ts`
+- **`npm run verify`**: Run the full verification suite sequentially (`test:all`, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
+- **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`)
+- **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)
+- **API route tests**: Live in `src/tests/` (for example `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts`) and are covered by `npm run test:all`; `src/lib/plugins/validate.test.ts` covers plugin validation behavior checks.
+- **`npm run test:all`**: Run all TypeScript tests under `plugins/` and `src/` (with `src/lib/storage.test.ts` executed separately), after `validate:plugin-ui-contract`, `validate:plugin-ui-migration-artifact`, `validate:docs`, and the tsx availability preflight
 
 `npm run build` and `npm run typecheck` both read and write `.next` artifacts. Run them sequentially, or prefer `npm run verify`, instead of launching them in parallel.
 
@@ -284,7 +291,7 @@ Accepts `{ description: string }` and returns `{ suggestions: string[] }`. Analy
 
 ### POST /api/ai/transform-description
 
-Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt.
+Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string, fidelityStatus }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt. When `OPENROUTER_API_KEY` is configured, JEV checks for unsupported factual details; `fidelityStatus` is `clear`, `flagged`, or `unavailable`. Without the key, it is `not_checked`. The check only flags possible issues and never blocks the rewrite.
 
 ### Input Limits
 
@@ -296,7 +303,7 @@ API routes enforce UTF-8 byte size limits to prevent oversized requests:
 | Description field | 8 KB  | The `description` string in `/api/ai/transform-description`           |
 | Custom prompt     | 2 KB  | The optional `customPrompt` string in `/api/ai/transform-description` |
 
-Requests exceeding these limits receive an `INPUT_TOO_LARGE` error response (HTTP 400).
+Requests exceeding these limits are rejected before calling the AI provider. `/api/ai/transform-description` returns an `INPUT_TOO_LARGE` error response (HTTP 413); `/api/ai/suggest-techniques` rejects oversized bodies with HTTP 413 and oversized descriptions with HTTP 400.
 
 ### Output Constraints
 
