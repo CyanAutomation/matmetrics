@@ -13,7 +13,7 @@ import (
 	"matmetrics/internal/model"
 )
 
-func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
+func SessionRelativePath(session model.Session) (string, error) {
 	encodedID, err := EncodedSessionID(session.ID)
 	if err != nil {
 		return "", err
@@ -24,8 +24,15 @@ func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
 		return "", fmt.Errorf("invalid session date %q", session.Date)
 	}
 
-	fileName := fmt.Sprintf("%s%s%s-matmetrics-%s.md", parts[0], parts[1], parts[2], encodedID)
-	return filepath.Join(dataDir, parts[0], parts[1], fileName), nil
+	return fmt.Sprintf("%s/%s/%s-matmetrics-%s.md", parts[0], parts[1], parts[2], encodedID), nil
+}
+
+func GetSessionFilePath(dataDir string, session model.Session) (string, error) {
+	relativePath, err := SessionRelativePath(session)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, relativePath), nil
 }
 
 func sanitizeSessionID(sessionID string) string {
