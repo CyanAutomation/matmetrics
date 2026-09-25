@@ -15,6 +15,8 @@
     "build": "NODE_ENV=production next build --webpack",
     "start": "next start",
     "lint": "npm run validate:plugin-ui-contract && eslint . --ext .js,.jsx,.ts,.tsx",
+    "validate:skills": "node --import tsx scripts/validate-skill-metadata.ts",
+    "test:skills": "node --import tsx --test scripts/validate-skill-metadata.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false && prettier --check tsconfig.json",
