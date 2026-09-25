@@ -29,7 +29,7 @@ Codebase intelligence for JavaScript and TypeScript. The free static layer repor
 
 - Runtime error analysis or debugging
 - Type checking (use `tsc` for that)
-- Linting style or formatting issues (use ESLint, Biome, Prettier)
+- Linting style or formatting issues (use ESLint or Biome)
 - Verified security vulnerability scanning or SAST. `fallow security` surfaces local, deterministic security _candidates_ for a downstream agent to verify; it does not prove exploitability. Use Snyk, CodeQL, or Semgrep for verified scanning, and an SCA tool for dependency CVEs.
 - Bundle size analysis
 - Projects that are not JavaScript or TypeScript

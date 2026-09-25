@@ -27,7 +27,7 @@ Describe how to verify the changes:
 ### Code Quality
 
 - [ ] My code follows the project's style guidelines
-- [ ] I have run `npm run format` and `npm run lint` locally
+- [ ] I have run `npm run lint` locally
 - [ ] I have run `npm run typecheck` and verified no new errors
 - [ ] Code changes are focused and minimal
 
