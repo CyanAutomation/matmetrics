@@ -12,7 +12,6 @@ npm run dev              # Dev server on port 9002 (Turbopack)
 npm run build            # Production build
 npm run lint             # ESLint
 npm run typecheck        # TypeScript type check
-npm run format           # Prettier
 npm run verify           # Full suite: test → typecheck → build → go:test (sequential)
 npm test                 # Run all TypeScript tests
 npm test -- src/lib/foo.test.ts  # Run a single test file
@@ -102,7 +101,7 @@ FIREBASE_SERVICE_ACCOUNT_KEY          # Full service account JSON on a single li
 
 ## Key Conventions
 
-- **Formatting**: Prettier — `semi: true`, `singleQuote: true`, `trailingComma: es5`
+- **Formatting**: Follow the surrounding code style; ESLint checks code quality.
 - **Path alias**: `@/*` → `./src/*`
 - **Go layout**: commands in `go/cmd/`, shared logic in `internal/`
 - **Design tokens**: CSS custom properties defined in `src/app/globals.css`; semantic token names in `src/lib/design-tokens.ts`; full spec in `docs/blueprint.md`

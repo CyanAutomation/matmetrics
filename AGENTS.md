@@ -4,8 +4,7 @@
 
 ### TypeScript/React
 
-- Files use [Prettier](/.prettierrc.json) for formatting: `semi: true`, `singleQuote: true`, `trailingComma: es5`
-- Linting: [ESLint with Next.js config](./eslint.config.mjs) (Next.js core web vitals, TypeScript) with relaxed rules for explicit any and require imports
+- Follow the surrounding code style. Linting uses [ESLint with Next.js config](./eslint.config.mjs) (Next.js core web vitals, TypeScript) with relaxed rules for explicit any and require imports.
 - Organize components in `src/components/`, hooks in `src/hooks/`, utilities in `src/lib/`
 - Use Radix UI primitives with Tailwind CSS for styling; see [design system](./docs/blueprint.md) for colors and typography
 
@@ -69,7 +68,6 @@ See [go/README.md](./go/README.md) for detailed command examples.
 
 ```bash
 npm run typecheck  # Regenerate Next.js types, run TypeScript check
-npm run format     # Format code with Prettier
 npm run lint       # Lint with ESLint
 ```
 
