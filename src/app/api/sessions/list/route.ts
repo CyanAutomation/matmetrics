@@ -11,22 +11,10 @@ import {
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
-
-const SESSION_LIST_CACHE_TTL_MS = 30_000;
-const sessionListCache = new Map<
-  string,
-  {
-    expiresAt: number;
-    payload: Awaited<ReturnType<typeof listSessionsForConfigWithIssues>>;
-  }
->();
-
-function sessionListCacheKey(
-  uid: string,
-  config: ReturnType<typeof normalizeGitHubConfig>
-): string {
-  return `${uid}:${config?.owner ?? 'local'}/${config?.repo ?? ''}:${config?.branch ?? ''}`;
-}
+import {
+  cacheSessionList,
+  getCachedSessionList,
+} from '@/lib/session-list-cache.server';
 
 function createResponseEtag(payload: unknown): string {
   return `"${createHash('sha256').update(JSON.stringify(payload)).digest('hex')}"`;
@@ -70,18 +58,14 @@ export async function GET(request: NextRequest) {
     }
 
     const force = request.nextUrl.searchParams.get('force') === '1';
-    const cacheKey = sessionListCacheKey(user.uid, gitHubConfig);
-    const cached = sessionListCache.get(cacheKey);
+    const cached = getCachedSessionList(user.uid, gitHubConfig);
     const result =
-      !force && cached && cached.expiresAt > Date.now()
-        ? cached.payload
+      !force && cached
+        ? cached
         : await listSessionsForConfigWithIssues(gitHubConfig);
 
-    if (!force && (!cached || cached.payload !== result)) {
-      sessionListCache.set(cacheKey, {
-        payload: result,
-        expiresAt: Date.now() + SESSION_LIST_CACHE_TTL_MS,
-      });
+    if (!force && !cached) {
+      cacheSessionList(user.uid, gitHubConfig, result);
     }
 
     const etag = createResponseEtag(result);

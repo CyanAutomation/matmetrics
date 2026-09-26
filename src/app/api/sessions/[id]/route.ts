@@ -20,6 +20,7 @@ import { validateSessionPayload } from '@/lib/session-validation';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { parseJsonObjectBody } from '@/lib/request-body';
+import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
 
 // TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
 // between this TypeScript route handler and the Go backend
@@ -140,14 +141,19 @@ export async function PUT(
     }
     const gitHubConfig = authzResult.config;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
-      return proxyGoFunction(request, {
+      const response = await proxyGoFunction(request, {
         path: '/api/go/sessions/update',
         method: 'PUT',
         body: buildGitHubSessionBody(session, gitHubConfig),
       });
+      if (response.ok) {
+        invalidateSessionListCache(user.uid, gitHubConfig);
+      }
+      return response;
     }
 
     await updateSessionForConfig(session, gitHubConfig);
+    invalidateSessionListCache(user.uid, gitHubConfig);
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
@@ -236,14 +242,19 @@ export async function DELETE(
     const revisionSha =
       typeof body.revisionSha === 'string' ? body.revisionSha : undefined;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
-      return proxyGoFunction(request, {
+      const response = await proxyGoFunction(request, {
         path: '/api/go/sessions/delete',
         method: 'DELETE',
         body: buildGitHubDeleteBody(id, gitHubConfig, revisionSha),
       });
+      if (response.ok) {
+        invalidateSessionListCache(user.uid, gitHubConfig);
+      }
+      return response;
     }
 
     await deleteSessionForConfig(id, gitHubConfig, revisionSha);
+    invalidateSessionListCache(user.uid, gitHubConfig);
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
