@@ -13,6 +13,7 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { validateSessionPayload } from '@/lib/session-validation';
 import { parseJsonObjectBody } from '@/lib/request-body';
+import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
 
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
@@ -63,14 +64,19 @@ export async function POST(request: NextRequest) {
     }
     const gitHubConfig = authzResult.config;
     if (gitHubConfig && shouldProxyGitHubRequests(gitHubConfig)) {
-      return proxyGoFunction(request, {
+      const response = await proxyGoFunction(request, {
         path: '/api/go/sessions/create',
         method: 'POST',
         body: buildGitHubSessionBody(session, gitHubConfig),
       });
+      if (response.ok) {
+        invalidateSessionListCache(user.uid, gitHubConfig);
+      }
+      return response;
     }
 
     await createSessionForConfig(session, gitHubConfig);
+    invalidateSessionListCache(user.uid, gitHubConfig);
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
