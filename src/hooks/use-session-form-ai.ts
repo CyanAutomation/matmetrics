@@ -131,11 +131,11 @@ function transformSuccessMessage(
 ): string {
   switch (fidelityStatus) {
     case 'flagged':
-      return 'JEV flagged possible added details. Review the rewrite against your draft before saving.';
+      return 'The rewrite may include added details. Review it against your draft before saving.';
     case 'clear':
-      return 'JEV found no likely added details. Review the rewrite before saving.';
+      return 'Your rewritten notes are ready to review.';
     case 'unavailable':
-      return 'JEV could not check for added details. Review the rewrite against your draft.';
+      return 'The rewrite could not be checked for added details. Review it against your draft before saving.';
     case 'not_checked':
       return 'Your notes are ready to review.';
   }

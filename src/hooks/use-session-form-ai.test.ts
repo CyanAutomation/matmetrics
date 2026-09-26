@@ -277,33 +277,52 @@ test('transform and suggest expose loading state while requests are pending', as
   assert.equal(harness.state().suggest, false);
 });
 
-test('transform keeps a JEV fidelity flag visible while applying the prose for review', async () => {
-  const harness = setup();
-  const applied: string[] = [];
-  let completed!: Promise<void>;
-  await act(async () => {
-    completed = harness.hook.transform('original draft', (value) =>
-      applied.push(value)
-    );
-  });
-  await act(async () => {
-    harness.calls[0].result.resolve(
-      response({
-        transformedDescription: 'A polished draft with a new claim.',
-        fidelityStatus: 'flagged',
-      })
-    );
-    await completed;
-  });
+const fidelityMessages = [
+  [
+    'flagged',
+    'The rewrite may include added details. Review it against your draft before saving.',
+  ],
+  ['clear', 'Your rewritten notes are ready to review.'],
+  [
+    'unavailable',
+    'The rewrite could not be checked for added details. Review it against your draft before saving.',
+  ],
+  ['not_checked', 'Your notes are ready to review.'],
+] as const;
 
-  assert.deepEqual(applied, ['A polished draft with a new claim.']);
-  assert.equal(
-    harness.state().description,
-    'A polished draft with a new claim.'
-  );
-  assert.match(harness.state().transformMessage, /JEV flagged/i);
-  assert.match(harness.state().transformMessage, /review/i);
-});
+for (const [fidelityStatus, expectedMessage] of fidelityMessages) {
+  test(`transform renders a provider-neutral message for ${fidelityStatus} fidelity`, async () => {
+    const harness = setup();
+    const applied: string[] = [];
+    let completed!: Promise<void>;
+    await act(async () => {
+      completed = harness.hook.transform('original draft', (value) =>
+        applied.push(value)
+      );
+    });
+    await act(async () => {
+      harness.calls[0].result.resolve(
+        response({
+          transformedDescription: 'A polished draft.',
+          fidelityStatus,
+        })
+      );
+      await completed;
+    });
+
+    assert.deepEqual(applied, ['A polished draft.']);
+    assert.equal(harness.state().description, 'A polished draft.');
+    assert.equal(harness.state().transformMessage, expectedMessage);
+    assert.equal(
+      harness.view.getByTestId('toast-description').textContent,
+      expectedMessage
+    );
+    assert.doesNotMatch(
+      `${harness.state().transformMessage} ${harness.view.getByTestId('toast-description').textContent}`,
+      /JEV|Cloudflare|OpenRouter|TypeSafe/i
+    );
+  });
+}
 
 test('a replacement request aborts and ignores the prior request late result', async () => {
   const harness = setup();

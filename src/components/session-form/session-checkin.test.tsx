@@ -50,7 +50,7 @@ test('category check-in exposes an apply action only when fit and confidence pas
   );
 });
 
-test('AI form sections disclose which providers receive session text', () => {
+test('AI form sections use the intended provider disclosure copy', () => {
   const disclosureProps = {
     description: 'Drilled uchi mata.',
     setDescription: () => undefined,
@@ -83,8 +83,7 @@ test('AI form sections disclose which providers receive session text', () => {
   );
   const checkinHtml = renderCheckin(sessionAssessment);
 
-  assert.match(transformHtml, /Cloudflare/);
-  assert.match(transformHtml, /OpenRouter/);
+  assert.doesNotMatch(transformHtml, /Cloudflare|JEV|OpenRouter|TypeSafe/);
   assert.match(tagsHtml, /Cloudflare/);
   assert.match(tagsHtml, /OpenRouter/);
   assert.match(checkinHtml, /OpenRouter/);
