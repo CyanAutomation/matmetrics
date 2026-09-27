@@ -44,7 +44,9 @@ if (scriptPath === fileURLToPath(import.meta.url)) {
     const runId = process.env.GITHUB_RUN_ID;
 
     if (!repository || !workflow || !runId) {
-      throw new TypeError("GITHUB_REPOSITORY, GITHUB_WORKFLOW, and GITHUB_RUN_ID environment variables are required");
+      throw new TypeError(
+        "GITHUB_REPOSITORY, GITHUB_WORKFLOW, and GITHUB_RUN_ID environment variables are required",
+      );
     }
 
     const key = createKasekiIdempotencyKey({
