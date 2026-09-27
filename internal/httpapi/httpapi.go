@@ -21,6 +21,13 @@ import (
 
 const firebaseCertsURL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 
+const (
+	defaultFirebaseCertLifetime = 5 * time.Minute
+	minFirebaseCertLifetime     = time.Minute
+	maxFirebaseCertLifetime     = 24 * time.Hour
+	firebaseCertStaleGrace      = time.Hour
+)
+
 type firebaseServiceAccount struct {
 	ProjectID   string `json:"project_id"`
 	ClientEmail string `json:"client_email"`
@@ -39,13 +46,19 @@ type firebaseTokenClaims struct {
 	Sub string `json:"sub"`
 }
 
-var (
-	firebaseCertsCache struct {
-		sync.RWMutex
-		certs     map[string]string
-		expiresAt time.Time
-	}
-)
+var firebaseCertsCache struct {
+	sync.RWMutex
+	certs      map[string]string
+	freshUntil time.Time
+	staleUntil time.Time
+}
+
+// firebaseCertsRefresh is deliberately separate from firebaseCertsCache. This
+// keeps refresh coordination from holding the cache lock during network I/O.
+var firebaseCertsRefresh struct {
+	sync.Mutex
+	done chan struct{}
+}
 
 func WriteJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -226,68 +239,138 @@ func verifyFirebaseIDToken(r *http.Request, token, projectID string) error {
 
 func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
 	now := time.Now()
+	if cached, fresh, _ := cachedFirebaseCerts(now); fresh {
+		return cached, nil
+	}
 
+	firebaseCertsRefresh.Lock()
+	if done := firebaseCertsRefresh.done; done != nil {
+		firebaseCertsRefresh.Unlock()
+		if cached, _, stale := cachedFirebaseCerts(now); stale {
+			return cached, nil
+		}
+		select {
+		case <-done:
+			if cached, fresh, stale := cachedFirebaseCerts(time.Now()); fresh || stale {
+				return cached, nil
+			}
+			return nil, errors.New("failed to refresh Firebase certs")
+		case <-r.Context().Done():
+			return nil, r.Context().Err()
+		}
+	}
+	if cached, fresh, _ := cachedFirebaseCerts(time.Now()); fresh {
+		firebaseCertsRefresh.Unlock()
+		return cached, nil
+	}
+	done := make(chan struct{})
+	firebaseCertsRefresh.done = done
+	firebaseCertsRefresh.Unlock()
+
+	certs, lifetime, err := requestFirebaseCerts(r)
+	if err == nil {
+		refreshedAt := time.Now()
+		firebaseCertsCache.Lock()
+		firebaseCertsCache.certs = cloneCerts(certs)
+		firebaseCertsCache.freshUntil = refreshedAt.Add(lifetime)
+		firebaseCertsCache.staleUntil = refreshedAt.Add(lifetime + firebaseCertStaleGrace)
+		firebaseCertsCache.Unlock()
+	}
+
+	firebaseCertsRefresh.Lock()
+	firebaseCertsRefresh.done = nil
+	close(done)
+	firebaseCertsRefresh.Unlock()
+
+	if err != nil {
+		if cached, _, stale := cachedFirebaseCerts(time.Now()); stale {
+			return cached, nil
+		}
+		return nil, err
+	}
+	return cloneCerts(certs), nil
+}
+
+func cachedFirebaseCerts(now time.Time) (map[string]string, bool, bool) {
 	firebaseCertsCache.RLock()
-	if now.Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
-		cached := firebaseCertsCache.certs
-		firebaseCertsCache.RUnlock()
-		return cached, nil
-	}
-	firebaseCertsCache.RUnlock()
+	defer firebaseCertsCache.RUnlock()
 
-	firebaseCertsCache.Lock()
-	defer firebaseCertsCache.Unlock()
-
-	// Double-check after acquiring write lock to avoid redundant remote fetches.
-	now = time.Now()
-	if now.Before(firebaseCertsCache.expiresAt) && len(firebaseCertsCache.certs) > 0 {
-		cached := firebaseCertsCache.certs
-		return cached, nil
+	if len(firebaseCertsCache.certs) == 0 {
+		return nil, false, false
 	}
+	return cloneCerts(firebaseCertsCache.certs), now.Before(firebaseCertsCache.freshUntil), now.Before(firebaseCertsCache.staleUntil)
+}
+
+func cloneCerts(certs map[string]string) map[string]string {
+	cloned := make(map[string]string, len(certs))
+	for key, cert := range certs {
+		cloned[key] = cert
+	}
+	return cloned
+}
+
+func requestFirebaseCerts(r *http.Request) (map[string]string, time.Duration, error) {
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, firebaseCertsURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch Firebase certs: %w", err)
+		return nil, 0, fmt.Errorf("failed to fetch Firebase certs: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch Firebase certs: status %d", resp.StatusCode)
+		return nil, 0, fmt.Errorf("failed to fetch Firebase certs: status %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read Firebase certs response: %w", err)
+		return nil, 0, fmt.Errorf("failed to read Firebase certs response: %w", err)
 	}
 
 	certs := map[string]string{}
 	if err := json.Unmarshal(body, &certs); err != nil {
-		return nil, fmt.Errorf("failed to decode Firebase certs: %w", err)
+		return nil, 0, fmt.Errorf("failed to decode Firebase certs: %w", err)
 	}
-
-	expiresAt := time.Now().Add(5 * time.Minute)
-	if cacheControl := resp.Header.Get("Cache-Control"); cacheControl != "" {
-		directives := strings.Split(cacheControl, ",")
-		for _, directive := range directives {
-			directive = strings.TrimSpace(directive)
-			if strings.HasPrefix(directive, "max-age=") {
-				seconds, parseErr := strconv.Atoi(strings.TrimPrefix(directive, "max-age="))
-				if parseErr == nil {
-					expiresAt = time.Now().Add(time.Duration(seconds) * time.Second)
-				}
-			}
+	if len(certs) == 0 {
+		return nil, 0, errors.New("Firebase certs response was empty")
+	}
+	for key, cert := range certs {
+		if strings.TrimSpace(key) == "" {
+			return nil, 0, errors.New("Firebase certs response contains an empty key ID")
+		}
+		if _, err := parseRSAPublicKeyFromCertPEM(cert); err != nil {
+			return nil, 0, fmt.Errorf("Firebase certs response contains an invalid certificate for %q: %w", key, err)
 		}
 	}
 
-	firebaseCertsCache.certs = certs
-	firebaseCertsCache.expiresAt = expiresAt
+	return certs, firebaseCertLifetime(resp.Header.Get("Cache-Control")), nil
+}
 
-	return certs, nil
+func firebaseCertLifetime(cacheControl string) time.Duration {
+	lifetime := defaultFirebaseCertLifetime
+	for _, directive := range strings.Split(cacheControl, ",") {
+		name, value, found := strings.Cut(strings.TrimSpace(directive), "=")
+		if !found || !strings.EqualFold(name, "max-age") {
+			continue
+		}
+		seconds, err := strconv.ParseInt(strings.Trim(strings.TrimSpace(value), `"`), 10, 64)
+		if err == nil && seconds > 0 && seconds <= int64(maxFirebaseCertLifetime/time.Second) {
+			lifetime = time.Duration(seconds) * time.Second
+		} else if err == nil && seconds > int64(maxFirebaseCertLifetime/time.Second) {
+			lifetime = maxFirebaseCertLifetime
+		} else {
+			lifetime = minFirebaseCertLifetime
+		}
+		break
+	}
+	if lifetime < minFirebaseCertLifetime {
+		return minFirebaseCertLifetime
+	}
+	return lifetime
 }
 
 func parseRSAPublicKeyFromCertPEM(certPEM string) (*rsa.PublicKey, error) {
