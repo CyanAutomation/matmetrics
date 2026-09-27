@@ -17,7 +17,11 @@ import {
   getSyncQueueStorageKey,
   type SyncOperation,
 } from './sync-queue';
-import { getScopedStorageKey, isGuestMode } from './client-identity';
+import {
+  getActiveUserId,
+  getScopedStorageKey,
+  isGuestMode,
+} from './client-identity';
 import { getAuthHeaders } from './auth-session';
 import {
   ensureGuestWorkspaceSeeded,
@@ -129,8 +133,15 @@ let queuedForcedRefresh = false;
 let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledRefreshAt = 0;
 let scheduledRefreshForce = false;
-let lastSuccessfulRemoteRefreshAt = 0;
-let sessionListEtag: string | null = null;
+interface SessionListRefreshMetadata {
+  lastSuccessfulRemoteRefreshAt: number;
+  etag: string | null;
+}
+
+const sessionListRefreshMetadata = new Map<
+  string,
+  SessionListRefreshMetadata
+>();
 let storageGeneration = 0;
 const syncOwnerId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -197,12 +208,41 @@ function shouldThrottleGitHubRefresh(): boolean {
   return !!getGitHubConfig() && isGitHubEnabled();
 }
 
+function getSessionListContextKey(): string {
+  const config = isGitHubEnabled() ? getGitHubConfig() : null;
+  const source = config
+    ? {
+        type: 'github',
+        owner: config.owner.trim().toLowerCase(),
+        repo: config.repo.trim().toLowerCase(),
+        branch: config.branch?.trim() || '',
+      }
+    : { type: 'local' };
+
+  return JSON.stringify([getActiveUserId().trim(), source]);
+}
+
+function getSessionListRefreshMetadata(
+  contextKey = getSessionListContextKey()
+): SessionListRefreshMetadata {
+  return (
+    sessionListRefreshMetadata.get(contextKey) ?? {
+      lastSuccessfulRemoteRefreshAt: 0,
+      etag: null,
+    }
+  );
+}
+
 function hasFreshRemoteRefresh(): boolean {
   if (!shouldThrottleGitHubRefresh()) {
     return false;
   }
 
-  return Date.now() - lastSuccessfulRemoteRefreshAt < gitHubRefreshCooldownMs;
+  return (
+    Date.now() -
+      getSessionListRefreshMetadata().lastSuccessfulRemoteRefreshAt <
+    gitHubRefreshCooldownMs
+  );
 }
 
 function scheduleRefresh(options?: {
@@ -217,6 +257,8 @@ function scheduleRefresh(options?: {
   const immediate = options?.immediate === true;
   const shouldThrottle = shouldThrottleGitHubRefresh() && !force;
 
+  const lastSuccessfulRemoteRefreshAt = getSessionListRefreshMetadata()
+    .lastSuccessfulRemoteRefreshAt;
   const cooldownRemainingMs = shouldThrottle
     ? Math.max(
         0,
@@ -355,6 +397,10 @@ export function initializeStorage(): void {
 
   // Increment generation to invalidate any in‑flight refreshes from a prior auth/config context
   nextStorageGeneration();
+  clearScheduledRefresh();
+  inFlightRefresh = null;
+  inFlightRefreshForce = false;
+  queuedForcedRefresh = false;
 
   sessionCache = null;
   isSyncing = false;
@@ -910,15 +956,20 @@ async function refreshSessionsFromAPI(options?: {
 
     try {
       const gitHubConfig = getGitHubConfig();
+      const contextKey = getSessionListContextKey();
+      const refreshMetadata = getSessionListRefreshMetadata(contextKey);
       const url = buildSessionListUrl(gitHubConfig, force);
       const headers = new Headers(await getAuthHeaders());
-      if (!force && sessionListEtag) {
-        headers.set('If-None-Match', sessionListEtag);
+      if (!force && refreshMetadata.etag) {
+        headers.set('If-None-Match', refreshMetadata.etag);
       }
       const res = await fetch(url.toString(), { headers });
 
       if (res.status === 304) {
-        lastSuccessfulRemoteRefreshAt = Date.now();
+        sessionListRefreshMetadata.set(contextKey, {
+          ...refreshMetadata,
+          lastSuccessfulRemoteRefreshAt: Date.now(),
+        });
         return;
       }
 
@@ -930,7 +981,10 @@ async function refreshSessionsFromAPI(options?: {
       }
 
       const payload = await res.json();
-      sessionListEtag = res.headers.get('ETag') ?? sessionListEtag;
+      sessionListRefreshMetadata.set(contextKey, {
+        etag: res.headers.get('ETag') ?? refreshMetadata.etag,
+        lastSuccessfulRemoteRefreshAt: Date.now(),
+      });
       const { sessions, issues } = parseSessionListResponse(payload);
 
       if (!isStorageGenerationCurrent(generation)) {
@@ -944,7 +998,6 @@ async function refreshSessionsFromAPI(options?: {
       reconcileDirtyMutations(sessions);
 
       latestAppliedSeq = seq;
-      lastSuccessfulRemoteRefreshAt = Date.now();
       sessionFileIssuesCache = issues;
       commitLocalSessions(mergedSessions);
       dispatchStorageSync(mergedSessions);
@@ -1124,7 +1177,7 @@ export function __resetStorageStateForTests(): void {
   inFlightRefreshForce = false;
   queuedForcedRefresh = false;
   clearScheduledRefresh();
-  lastSuccessfulRemoteRefreshAt = 0;
+  sessionListRefreshMetadata.clear();
   listenersInitialized = false;
   refreshSeq = 0;
   latestAppliedSeq = 0;

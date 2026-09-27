@@ -316,6 +316,100 @@ serialTest(
 );
 
 serialTest(
+  'switching users refreshes immediately without reusing the previous user ETag',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 60_000, debounceMs: 0 });
+
+    const requestEtags: Array<string | null> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname !== '/api/sessions/list') {
+        throw new Error(`Unexpected fetch: ${url}`);
+      }
+
+      requestEtags.push(new Headers(init?.headers).get('If-None-Match'));
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { ETag: `"user-${requestEtags.length}"` },
+      });
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      await flushAsyncWork();
+
+      setActiveUserId('user-2');
+      initializeStorage();
+      await flushAsyncWork();
+
+      assert.deepEqual(requestEtags, [null, null]);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'switching repositories refreshes immediately without reusing the previous repository ETag',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const preferences = installGitHubPreferencesOverride();
+    __setGitHubRefreshTimingForTests({ cooldownMs: 60_000, debounceMs: 0 });
+
+    const requests: Array<{ repo: string | null; etag: string | null }> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname !== '/api/sessions/list') {
+        throw new Error(`Unexpected fetch: ${url}`);
+      }
+
+      requests.push({
+        repo: url.searchParams.get('repo'),
+        etag: new Headers(init?.headers).get('If-None-Match'),
+      });
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { ETag: `"repo-${requests.length}"` },
+      });
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      await flushAsyncWork();
+
+      preferences.gitHub.config.repo = 'another-repo';
+      initializeStorage();
+      await flushAsyncWork();
+
+      assert.deepEqual(requests, [
+        { repo: 'hello-world', etag: null },
+        { repo: 'another-repo', etag: null },
+      ]);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'successful GitHub-backed mutations coalesce into one deferred refresh',
   async () => {
     installBrowserEnv();
