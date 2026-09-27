@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   createKasekiIdempotencyKey,
@@ -49,3 +51,34 @@ test("requires the repository, workflow, and run ID", () => {
     /repository, workflow, and runId are required/,
   );
 });
+
+for (const missingVariable of [
+  "GITHUB_REPOSITORY",
+  "GITHUB_WORKFLOW",
+  "GITHUB_RUN_ID",
+]) {
+  test(`reports a clear error when ${missingVariable} is missing`, () => {
+    const env = {
+      ...process.env,
+      GITHUB_REPOSITORY: "CyanAutomation/matmetrics",
+      GITHUB_WORKFLOW: "Kaseki Docs Sweep",
+      GITHUB_RUN_ID: "123456789",
+    };
+    delete env[missingVariable];
+
+    const scriptPath = fileURLToPath(
+      new URL("./kaseki-idempotency-key.mjs", import.meta.url),
+    );
+    const result = spawnSync(process.execPath, [scriptPath], {
+      encoding: "utf8",
+      env,
+    });
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(
+      result.stderr,
+      "GITHUB_REPOSITORY, GITHUB_WORKFLOW, and GITHUB_RUN_ID environment variables are required\n",
+    );
+  });
+}
