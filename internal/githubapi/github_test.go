@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -517,6 +518,94 @@ func TestFinishListSessionsCallDoesNotDeleteReplacement(t *testing.T) {
 		t.Fatal("finishing replaced call removed the replacement inflight entry")
 	}
 	finishListSessionsCall(cacheKey, replacement, nil, nil)
+}
+
+func TestForcedListSessionsReplacementSupersedesOlderCachePublication(t *testing.T) {
+	resetListSessionsCacheForTests()
+	defer resetListSessionsCacheForTests()
+
+	oldSession := model.Session{ID: "old", Date: "2026-03-18", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{}}
+	replacementSession := model.Session{ID: "replacement", Date: "2026-03-19", Effort: 3, Category: model.CategoryTechnical, Techniques: []string{}}
+	oldMarkdown, err := markdown.SessionToMarkdown(oldSession)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown(old) error = %v", err)
+	}
+	replacementMarkdown, err := markdown.SessionToMarkdown(replacementSession)
+	if err != nil {
+		t.Fatalf("SessionToMarkdown(replacement) error = %v", err)
+	}
+
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	var mu sync.Mutex
+	treeRequests := 0
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case strings.Contains(r.URL.Path, "/git/ref/heads/"):
+				return jsonResponse(http.StatusOK, `{"object":{"sha":"commit-sha"}}`), nil
+			case strings.Contains(r.URL.Path, "/git/commits/"):
+				return jsonResponse(http.StatusOK, `{"tree":{"sha":"tree-sha"}}`), nil
+			case strings.Contains(r.URL.Path, "/git/trees/"):
+				mu.Lock()
+				treeRequests++
+				requestNumber := treeRequests
+				mu.Unlock()
+				if requestNumber == 1 {
+					close(firstStarted)
+					<-releaseFirst
+					return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/old.md","type":"blob"}]}`), nil
+				}
+				return jsonResponse(http.StatusOK, `{"truncated":false,"tree":[{"path":"data/2026/03/replacement.md","type":"blob"}]}`), nil
+			case strings.HasSuffix(r.URL.Path, "/contents/data/2026/03/old.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "old-sha", "content": base64.StdEncoding.EncodeToString([]byte(oldMarkdown))}), nil
+			case strings.HasSuffix(r.URL.Path, "/contents/data/2026/03/replacement.md"):
+				return jsonBodyResponse(http.StatusOK, map[string]any{"sha": "replacement-sha", "content": base64.StdEncoding.EncodeToString([]byte(replacementMarkdown))}), nil
+			default:
+				return jsonResponse(http.StatusNotFound, `{"message":"Not Found"}`), nil
+			}
+		})},
+		Token: "test-token",
+	}
+	config := model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}
+
+	oldResult := make(chan []model.Session, 1)
+	oldError := make(chan error, 1)
+	go func() {
+		sessions, err := client.ListSessions(config, false)
+		oldResult <- sessions
+		oldError <- err
+	}()
+	<-firstStarted
+
+	replacement, err := client.ListSessions(config, true)
+	if err != nil {
+		t.Fatalf("forced ListSessions() error = %v", err)
+	}
+	if len(replacement) != 1 || replacement[0].ID != replacementSession.ID {
+		t.Fatalf("forced ListSessions() = %#v, want replacement", replacement)
+	}
+	close(releaseFirst)
+	if err := <-oldError; err != nil {
+		t.Fatalf("old ListSessions() error = %v", err)
+	}
+	if old := <-oldResult; len(old) != 1 || old[0].ID != oldSession.ID {
+		t.Fatalf("old ListSessions() = %#v, want old result", old)
+	}
+
+	cached, err := client.ListSessions(config, false)
+	if err != nil {
+		t.Fatalf("cached ListSessions() error = %v", err)
+	}
+	if len(cached) != 1 || cached[0].ID != replacementSession.ID {
+		t.Fatalf("cached ListSessions() = %#v, want replacement", cached)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if treeRequests != 2 {
+		t.Fatalf("tree request count = %d, want 2 (subsequent request should use cache)", treeRequests)
+	}
 }
 
 func TestListSessionsCacheExpiryCapacityAndIsolation(t *testing.T) {
