@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 import { beforeEach } from 'node:test';
 import test from 'node:test';
 import {
+  __configureGitHubCachesForTests,
+  __manifestCacheSnapshotForTests,
   __resetDefaultBranchCacheForTests,
   __resetManifestCacheForTests,
+  __setManifestEntryForTests,
   bulkPushSessions,
   createSessionOnGitHub,
   findSessionPathOnGitHubById,
@@ -21,8 +24,43 @@ import {
 } from './test-helpers/github-mock-builder';
 
 beforeEach(() => {
+  __configureGitHubCachesForTests();
   __resetDefaultBranchCacheForTests();
   __resetManifestCacheForTests();
+});
+
+test('manifest cache bounds scopes and entries with isolated LRU eviction', () => {
+  process.env.GITHUB_TOKEN = 'test-token';
+  __configureGitHubCachesForTests({ manifestMaxScopes: 2, manifestMaxEntries: 2 });
+  const main = { owner: 'o', repo: 'r', branch: 'main' };
+  const feature = { owner: 'o', repo: 'r', branch: 'feature' };
+  const other = { owner: 'o', repo: 'other', branch: 'main' };
+
+  __setManifestEntryForTests('one', main);
+  __setManifestEntryForTests('two', main);
+  __setManifestEntryForTests('three', main);
+  __setManifestEntryForTests('feature', feature);
+  __setManifestEntryForTests('touch', main);
+  __setManifestEntryForTests('other', other);
+
+  const scopes = Object.values(__manifestCacheSnapshotForTests());
+  assert.equal(scopes.length, 2);
+  assert.ok(scopes.some((entries) => entries.includes('touch')));
+  assert.ok(scopes.some((entries) => entries.includes('other')));
+  assert.ok(!scopes.some((entries) => entries.includes('feature')));
+  assert.ok(!scopes.some((entries) => entries.includes('one')));
+});
+
+test('manifest writes opportunistically prune expired scopes', () => {
+  process.env.GITHUB_TOKEN = 'test-token';
+  let now = 0;
+  __configureGitHubCachesForTests({ now: () => now, manifestMaxScopes: 2 });
+  __setManifestEntryForTests('old', { owner: 'o', repo: 'old', branch: 'main' });
+  now = 5 * 60 * 1000;
+  __setManifestEntryForTests('new', { owner: 'o', repo: 'new', branch: 'main' });
+
+  const scopes = Object.values(__manifestCacheSnapshotForTests());
+  assert.deepEqual(scopes, [['new']]);
 });
 
 test('getGitHubSessionPath encodes reserved characters and rejects oversized IDs', () => {

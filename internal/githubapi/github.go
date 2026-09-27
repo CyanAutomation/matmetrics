@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,10 +25,23 @@ import (
 var apiBaseURL = "https://api.github.com"
 
 const listSessionsCacheTTL = 30 * time.Second
+const defaultListSessionsCacheMaxEntries = 100
+
+var listSessionsCacheNow = time.Now
+var listSessionsCacheMaxEntries = positiveIntegerEnv("MATMETRICS_LIST_CACHE_MAX_ENTRIES", defaultListSessionsCacheMaxEntries)
+
+func positiveIntegerEnv(name string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(name))
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
+}
 
 type cachedSessionsEntry struct {
-	Sessions []model.Session
-	CachedAt time.Time
+	Sessions    []model.Session
+	CachedAt    time.Time
+	AccessOrder uint64
 }
 
 type listSessionsCall struct {
@@ -41,10 +55,13 @@ var listSessionsCacheState = struct {
 	mu          sync.Mutex
 	entries     map[string]cachedSessionsEntry
 	inflight    map[string]*listSessionsCall
+	active      map[string]int
 	generations map[string]uint64
+	accessOrder uint64
 }{
 	entries:     make(map[string]cachedSessionsEntry),
 	inflight:    make(map[string]*listSessionsCall),
+	active:      make(map[string]int),
 	generations: make(map[string]uint64),
 }
 
@@ -1085,7 +1102,11 @@ func (c *Client) invalidateListSessionsCache(config model.GitHubConfig, branch s
 	listSessionsCacheState.mu.Lock()
 	key := c.listSessionsCacheKey(config, branch)
 	delete(listSessionsCacheState.entries, key)
-	listSessionsCacheState.generations[key]++
+	if listSessionsCacheState.active[key] > 0 {
+		listSessionsCacheState.generations[key]++
+	} else {
+		delete(listSessionsCacheState.generations, key)
+	}
 	listSessionsCacheState.mu.Unlock()
 }
 
@@ -1109,22 +1130,23 @@ func cloneSessions(sessions []model.Session) []model.Session {
 func loadCachedSessions(key string) ([]model.Session, bool) {
 	listSessionsCacheState.mu.Lock()
 	defer listSessionsCacheState.mu.Unlock()
+	now := listSessionsCacheNow()
+	pruneListSessionsCacheLocked(now)
 
 	entry, ok := listSessionsCacheState.entries[key]
 	if !ok {
 		return nil, false
 	}
-	if time.Since(entry.CachedAt) >= listSessionsCacheTTL {
-		delete(listSessionsCacheState.entries, key)
-		return nil, false
-	}
-
+	listSessionsCacheState.accessOrder++
+	entry.AccessOrder = listSessionsCacheState.accessOrder
+	listSessionsCacheState.entries[key] = entry
 	return cloneSessions(entry.Sessions), true
 }
 
 func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
 	listSessionsCacheState.mu.Lock()
 	defer listSessionsCacheState.mu.Unlock()
+	pruneListSessionsCacheLocked(listSessionsCacheNow())
 
 	if !force {
 		if call, ok := listSessionsCacheState.inflight[key]; ok {
@@ -1137,31 +1159,79 @@ func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
 		generation: listSessionsCacheState.generations[key],
 	}
 	listSessionsCacheState.inflight[key] = call
+	listSessionsCacheState.active[key]++
 	return call, true
 }
 
 func finishListSessionsCall(key string, call *listSessionsCall, sessions []model.Session, err error) {
 	listSessionsCacheState.mu.Lock()
+	now := listSessionsCacheNow()
+	pruneListSessionsCacheLocked(now)
 	call.sessions = cloneSessions(sessions)
 	call.err = err
 	if err == nil && call.generation == listSessionsCacheState.generations[key] {
+		listSessionsCacheState.accessOrder++
 		listSessionsCacheState.entries[key] = cachedSessionsEntry{
-			Sessions: cloneSessions(sessions),
-			CachedAt: time.Now(),
+			Sessions:    cloneSessions(sessions),
+			CachedAt:    now,
+			AccessOrder: listSessionsCacheState.accessOrder,
 		}
+		evictListSessionsCacheLocked()
 	}
 	if listSessionsCacheState.inflight[key] == call {
 		delete(listSessionsCacheState.inflight, key)
 	}
+	listSessionsCacheState.active[key]--
+	if listSessionsCacheState.active[key] == 0 {
+		delete(listSessionsCacheState.active, key)
+	}
+	cleanupListSessionsGenerationLocked(key)
 	close(call.done)
 	listSessionsCacheState.mu.Unlock()
+}
+
+func pruneListSessionsCacheLocked(now time.Time) {
+	for key, entry := range listSessionsCacheState.entries {
+		if now.Sub(entry.CachedAt) >= listSessionsCacheTTL {
+			delete(listSessionsCacheState.entries, key)
+			cleanupListSessionsGenerationLocked(key)
+		}
+	}
+}
+
+func evictListSessionsCacheLocked() {
+	for len(listSessionsCacheState.entries) > listSessionsCacheMaxEntries {
+		var oldestKey string
+		var oldest uint64
+		for key, entry := range listSessionsCacheState.entries {
+			if oldestKey == "" || entry.AccessOrder < oldest {
+				oldestKey, oldest = key, entry.AccessOrder
+			}
+		}
+		delete(listSessionsCacheState.entries, oldestKey)
+		cleanupListSessionsGenerationLocked(oldestKey)
+	}
+}
+
+func cleanupListSessionsGenerationLocked(key string) {
+	if _, cached := listSessionsCacheState.entries[key]; cached {
+		return
+	}
+	if listSessionsCacheState.active[key] > 0 {
+		return
+	}
+	delete(listSessionsCacheState.generations, key)
 }
 
 func resetListSessionsCacheForTests() {
 	listSessionsCacheState.mu.Lock()
 	listSessionsCacheState.entries = make(map[string]cachedSessionsEntry)
 	listSessionsCacheState.inflight = make(map[string]*listSessionsCall)
+	listSessionsCacheState.active = make(map[string]int)
 	listSessionsCacheState.generations = make(map[string]uint64)
+	listSessionsCacheState.accessOrder = 0
+	listSessionsCacheNow = time.Now
+	listSessionsCacheMaxEntries = defaultListSessionsCacheMaxEntries
 	listSessionsCacheState.mu.Unlock()
 }
 
