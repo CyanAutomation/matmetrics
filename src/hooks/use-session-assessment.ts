@@ -45,6 +45,7 @@ export function useSessionAssessment() {
   const controller = useRef<AbortController | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [assessment, setAssessment] = useState<SessionAssessment | null>(null);
+  const assessmentRef = useRef<SessionAssessment | null>(null);
 
   const assess = useCallback(
     async (input: AssessmentInput) => {
@@ -73,9 +74,12 @@ export function useSessionAssessment() {
         }
         if (!isAssessment(candidate))
           throw new Error('Invalid assessment response');
+        if (nextController.signal.aborted) return;
+        assessmentRef.current = candidate;
         setAssessment(candidate);
       } catch {
         if (nextController.signal.aborted) return;
+        assessmentRef.current = null;
         setAssessment(null);
         toast({
           variant: 'destructive',
@@ -92,7 +96,22 @@ export function useSessionAssessment() {
     [canUseAi, toast]
   );
 
-  const clear = useCallback(() => setAssessment(null), []);
+  const invalidate = useCallback(() => {
+    const activeController = controller.current;
+    const hasAssessment = assessmentRef.current !== null;
 
-  return { assessment, assess, clear, isLoading };
+    if (!activeController && !hasAssessment) return;
+
+    if (activeController) {
+      activeController.abort();
+      controller.current = null;
+      setIsLoading(false);
+    }
+    if (hasAssessment) {
+      assessmentRef.current = null;
+      setAssessment(null);
+    }
+  }, []);
+
+  return { assessment, assess, invalidate, isLoading };
 }
