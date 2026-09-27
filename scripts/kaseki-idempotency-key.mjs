@@ -39,10 +39,18 @@ export function createKasekiIdempotencyKey({ repository, workflow, runId }) {
 const scriptPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (scriptPath === fileURLToPath(import.meta.url)) {
   try {
+    const repository = process.env.GITHUB_REPOSITORY;
+    const workflow = process.env.GITHUB_WORKFLOW;
+    const runId = process.env.GITHUB_RUN_ID;
+
+    if (!repository || !workflow || !runId) {
+      throw new TypeError("GITHUB_REPOSITORY, GITHUB_WORKFLOW, and GITHUB_RUN_ID environment variables are required");
+    }
+
     const key = createKasekiIdempotencyKey({
-      repository: process.env.GITHUB_REPOSITORY,
-      workflow: process.env.GITHUB_WORKFLOW,
-      runId: process.env.GITHUB_RUN_ID,
+      repository,
+      workflow,
+      runId,
     });
     process.stdout.write(`${key}\n`);
   } catch (error) {
