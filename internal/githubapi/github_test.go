@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"matmetrics/internal/markdown"
 	"matmetrics/internal/model"
@@ -516,6 +517,66 @@ func TestFinishListSessionsCallDoesNotDeleteReplacement(t *testing.T) {
 		t.Fatal("finishing replaced call removed the replacement inflight entry")
 	}
 	finishListSessionsCall(cacheKey, replacement, nil, nil)
+}
+
+func TestListSessionsCacheExpiryCapacityAndIsolation(t *testing.T) {
+	resetListSessionsCacheForTests()
+	defer resetListSessionsCacheForTests()
+	now := time.Unix(1_000, 0)
+	listSessionsCacheNow = func() time.Time { return now }
+	listSessionsCacheMaxEntries = 2
+
+	finish := func(key, id string) {
+		call, leader := beginListSessionsCall(key, false)
+		if !leader {
+			t.Fatalf("%s unexpectedly joined an in-flight call", key)
+		}
+		finishListSessionsCall(key, call, []model.Session{{ID: id}}, nil)
+	}
+	finish("one", "one")
+	now = now.Add(time.Second)
+	finish("two", "two")
+	now = now.Add(time.Second)
+	if _, ok := loadCachedSessions("one"); !ok { // Make one most recently used.
+		t.Fatal("one was not cached")
+	}
+	now = now.Add(time.Second)
+	finish("three", "three")
+
+	if _, ok := loadCachedSessions("two"); ok {
+		t.Fatal("least recently used entry was not evicted")
+	}
+	if sessions, ok := loadCachedSessions("one"); !ok || sessions[0].ID != "one" {
+		t.Fatalf("isolated entry one = %#v, %v", sessions, ok)
+	}
+	now = now.Add(listSessionsCacheTTL)
+	if _, ok := loadCachedSessions("missing"); ok {
+		t.Fatal("missing cache key unexpectedly existed")
+	}
+	if len(listSessionsCacheState.entries) != 0 {
+		t.Fatalf("expired unrelated entries were not pruned: %#v", listSessionsCacheState.entries)
+	}
+}
+
+func TestListSessionsGenerationCleanupPreservesStaleRequestProtection(t *testing.T) {
+	resetListSessionsCacheForTests()
+	client := &Client{Token: "token"}
+	config := model.GitHubConfig{Owner: "o", Repo: "r", Branch: "main"}
+	key := client.listSessionsCacheKey(config, config.Branch)
+	call, _ := beginListSessionsCall(key, false)
+
+	client.invalidateListSessionsCache(config, config.Branch)
+	finishListSessionsCall(key, call, []model.Session{{ID: "stale"}}, nil)
+
+	if _, ok := loadCachedSessions(key); ok {
+		t.Fatal("pre-mutation result repopulated the cache")
+	}
+	listSessionsCacheState.mu.Lock()
+	_, generationRemains := listSessionsCacheState.generations[key]
+	listSessionsCacheState.mu.Unlock()
+	if generationRemains {
+		t.Fatal("obsolete generation state was not removed")
+	}
 }
 
 func TestGetFileEncodesPathSegmentsAndRefQuery(t *testing.T) {

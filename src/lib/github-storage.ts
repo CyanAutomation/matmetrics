@@ -26,6 +26,7 @@ interface DefaultBranchCacheEntry {
 }
 
 const DEFAULT_BRANCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_BRANCH_CACHE_MAX_ENTRIES = 100;
 const defaultBranchCache = new Map<string, DefaultBranchCacheEntry>();
 const GITHUB_SESSION_ROOT = 'data';
 
@@ -36,11 +37,52 @@ interface SessionManifestEntry {
 }
 
 interface SessionManifest {
-  [sessionId: string]: SessionManifestEntry;
+  entries: Map<string, SessionManifestEntry>;
+  expiresAt: number;
 }
 
 const DEFAULT_MANIFEST_SCOPE = '__default__';
 const manifestCache = new Map<string, SessionManifest>();
+const MANIFEST_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_MANIFEST_MAX_SCOPES = 100;
+const DEFAULT_MANIFEST_MAX_ENTRIES = 1_000;
+let cacheNow = () => Date.now();
+let defaultBranchCacheMaxEntries = readPositiveInteger(
+  process.env.GITHUB_DEFAULT_BRANCH_CACHE_MAX_ENTRIES,
+  DEFAULT_BRANCH_CACHE_MAX_ENTRIES
+);
+let manifestMaxScopes = readPositiveInteger(
+  process.env.GITHUB_MANIFEST_CACHE_MAX_SCOPES,
+  DEFAULT_MANIFEST_MAX_SCOPES
+);
+let manifestMaxEntries = readPositiveInteger(
+  process.env.GITHUB_MANIFEST_CACHE_MAX_ENTRIES,
+  DEFAULT_MANIFEST_MAX_ENTRIES
+);
+
+function readPositiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function pruneExpiredCaches(now: number): void {
+  for (const [key, entry] of defaultBranchCache) {
+    if (now - entry.cachedAt >= DEFAULT_BRANCH_CACHE_TTL_MS) {
+      defaultBranchCache.delete(key);
+    }
+  }
+  for (const [key, manifest] of manifestCache) {
+    if (manifest.expiresAt <= now) manifestCache.delete(key);
+  }
+}
+
+function evictOldest<T>(cache: Map<string, T>, maximum: number): void {
+  while (cache.size > maximum) {
+    const key = cache.keys().next().value;
+    if (key === undefined) return;
+    cache.delete(key);
+  }
+}
 
 interface GitHubTreeEntry {
   path: string;
@@ -150,14 +192,23 @@ function getManifestScopeKeyForBranch(
 }
 
 function loadManifest(config: GitHubConfig): SessionManifest {
+  const now = cacheNow();
+  pruneExpiredCaches(now);
   const scopeKey = getManifestScopeKey(config);
   const existing = manifestCache.get(scopeKey);
   if (existing) {
+    existing.expiresAt = now + MANIFEST_CACHE_TTL_MS;
+    manifestCache.delete(scopeKey);
+    manifestCache.set(scopeKey, existing);
     return existing;
   }
 
-  const manifest: SessionManifest = {};
+  const manifest: SessionManifest = {
+    entries: new Map(),
+    expiresAt: now + MANIFEST_CACHE_TTL_MS,
+  };
   manifestCache.set(scopeKey, manifest);
+  evictOldest(manifestCache, manifestMaxScopes);
   return manifest;
 }
 
@@ -165,7 +216,13 @@ function getManifestEntry(
   sessionId: string,
   config: GitHubConfig
 ): SessionManifestEntry | undefined {
-  return loadManifest(config)[sessionId];
+  const manifest = loadManifest(config);
+  const entry = manifest.entries.get(sessionId);
+  if (entry) {
+    manifest.entries.delete(sessionId);
+    manifest.entries.set(sessionId, entry);
+  }
+  return entry;
 }
 
 function setManifestEntry(
@@ -174,15 +231,49 @@ function setManifestEntry(
   sha: string,
   config: GitHubConfig
 ): void {
-  loadManifest(config)[sessionId] = { path, sha };
+  const manifest = loadManifest(config);
+  manifest.entries.delete(sessionId);
+  manifest.entries.set(sessionId, { path, sha });
+  evictOldest(manifest.entries, manifestMaxEntries);
 }
 
 function removeManifestEntry(sessionId: string, config: GitHubConfig): void {
-  delete loadManifest(config)[sessionId];
+  loadManifest(config).entries.delete(sessionId);
 }
 
 export function __resetManifestCacheForTests(): void {
   manifestCache.clear();
+}
+
+export function __configureGitHubCachesForTests(options?: {
+  now?: () => number;
+  defaultBranchMaxEntries?: number;
+  manifestMaxScopes?: number;
+  manifestMaxEntries?: number;
+}): void {
+  defaultBranchCache.clear();
+  manifestCache.clear();
+  cacheNow = options?.now ?? (() => Date.now());
+  defaultBranchCacheMaxEntries =
+    options?.defaultBranchMaxEntries ?? DEFAULT_BRANCH_CACHE_MAX_ENTRIES;
+  manifestMaxScopes = options?.manifestMaxScopes ?? DEFAULT_MANIFEST_MAX_SCOPES;
+  manifestMaxEntries = options?.manifestMaxEntries ?? DEFAULT_MANIFEST_MAX_ENTRIES;
+}
+
+export function __manifestCacheSnapshotForTests(): Record<string, string[]> {
+  return Object.fromEntries(
+    [...manifestCache].map(([scope, manifest]) => [
+      scope,
+      [...manifest.entries.keys()],
+    ])
+  );
+}
+
+export function __setManifestEntryForTests(
+  sessionId: string,
+  config: GitHubConfig
+): void {
+  setManifestEntry(sessionId, sessionId, sessionId, config);
 }
 
 /**
@@ -458,12 +549,16 @@ async function resolveBranch(
   }
 
   const cacheKey = getDefaultBranchCacheKey(config.owner, config.repo);
+  const now = cacheNow();
+  pruneExpiredCaches(now);
   const cachedBranch = defaultBranchCache.get(cacheKey);
 
   if (!options?.forceRefresh) {
     if (cachedBranch) {
-      const ageMs = Date.now() - cachedBranch.cachedAt;
+      const ageMs = now - cachedBranch.cachedAt;
       if (ageMs < DEFAULT_BRANCH_CACHE_TTL_MS) {
+        defaultBranchCache.delete(cacheKey);
+        defaultBranchCache.set(cacheKey, cachedBranch);
         return cachedBranch.branch;
       }
 
@@ -484,8 +579,9 @@ async function resolveBranch(
 
     defaultBranchCache.set(cacheKey, {
       branch: defaultBranch,
-      cachedAt: Date.now(),
+      cachedAt: cacheNow(),
     });
+    evictOldest(defaultBranchCache, defaultBranchCacheMaxEntries);
 
     if (
       options?.forceRefresh &&
