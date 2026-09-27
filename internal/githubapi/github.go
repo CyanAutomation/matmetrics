@@ -45,10 +45,11 @@ type cachedSessionsEntry struct {
 }
 
 type listSessionsCall struct {
-	done       chan struct{}
-	sessions   []model.Session
-	err        error
-	generation uint64
+	done               chan struct{}
+	sessions           []model.Session
+	err                error
+	mutationGeneration uint64
+	requestSequence    uint64
 }
 
 var listSessionsCacheState = struct {
@@ -57,12 +58,15 @@ var listSessionsCacheState = struct {
 	inflight    map[string]*listSessionsCall
 	active      map[string]int
 	generations map[string]uint64
+	latest      map[string]uint64
+	sequence    uint64
 	accessOrder uint64
 }{
 	entries:     make(map[string]cachedSessionsEntry),
 	inflight:    make(map[string]*listSessionsCall),
 	active:      make(map[string]int),
 	generations: make(map[string]uint64),
+	latest:      make(map[string]uint64),
 }
 
 type Client struct {
@@ -1154,11 +1158,14 @@ func beginListSessionsCall(key string, force bool) (*listSessionsCall, bool) {
 		}
 	}
 
+	listSessionsCacheState.sequence++
 	call := &listSessionsCall{
-		done:       make(chan struct{}),
-		generation: listSessionsCacheState.generations[key],
+		done:               make(chan struct{}),
+		mutationGeneration: listSessionsCacheState.generations[key],
+		requestSequence:    listSessionsCacheState.sequence,
 	}
 	listSessionsCacheState.inflight[key] = call
+	listSessionsCacheState.latest[key] = call.requestSequence
 	listSessionsCacheState.active[key]++
 	return call, true
 }
@@ -1169,7 +1176,9 @@ func finishListSessionsCall(key string, call *listSessionsCall, sessions []model
 	pruneListSessionsCacheLocked(now)
 	call.sessions = cloneSessions(sessions)
 	call.err = err
-	if err == nil && call.generation == listSessionsCacheState.generations[key] {
+	if err == nil &&
+		call.mutationGeneration == listSessionsCacheState.generations[key] &&
+		call.requestSequence == listSessionsCacheState.latest[key] {
 		listSessionsCacheState.accessOrder++
 		listSessionsCacheState.entries[key] = cachedSessionsEntry{
 			Sessions:    cloneSessions(sessions),
@@ -1184,6 +1193,7 @@ func finishListSessionsCall(key string, call *listSessionsCall, sessions []model
 	listSessionsCacheState.active[key]--
 	if listSessionsCacheState.active[key] == 0 {
 		delete(listSessionsCacheState.active, key)
+		delete(listSessionsCacheState.latest, key)
 	}
 	cleanupListSessionsGenerationLocked(key)
 	close(call.done)
@@ -1229,6 +1239,8 @@ func resetListSessionsCacheForTests() {
 	listSessionsCacheState.inflight = make(map[string]*listSessionsCall)
 	listSessionsCacheState.active = make(map[string]int)
 	listSessionsCacheState.generations = make(map[string]uint64)
+	listSessionsCacheState.latest = make(map[string]uint64)
+	listSessionsCacheState.sequence = 0
 	listSessionsCacheState.accessOrder = 0
 	listSessionsCacheNow = time.Now
 	listSessionsCacheMaxEntries = defaultListSessionsCacheMaxEntries
