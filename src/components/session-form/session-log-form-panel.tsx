@@ -48,7 +48,7 @@ export function SessionLogForm({
   const shouldHideHeader = !!sessionToEdit || hideHeader;
   const aiForm = useSessionFormAi();
   const sessionAssessment = useSessionAssessment();
-  const clearSessionAssessment = sessionAssessment.clear;
+  const invalidateSessionAssessment = sessionAssessment.invalidate;
   const submitFeedback = useActionFeedback();
   const resetAiForm = aiForm.reset;
   const resetSubmitFeedback = submitFeedback.reset;
@@ -72,12 +72,12 @@ export function SessionLogForm({
   }, [sessionToEdit, resetAiForm, resetSubmitFeedback]);
 
   useEffect(() => {
-    clearSessionAssessment();
+    invalidateSessionAssessment();
   }, [
     formState.category,
     formState.description,
     formState.notes,
-    clearSessionAssessment,
+    invalidateSessionAssessment,
   ]);
 
   // Form submit hook
