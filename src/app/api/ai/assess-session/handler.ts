@@ -103,7 +103,9 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
         ...(body.techniques === undefined
           ? {}
           : {
-              techniques: (body.techniques as string[]).slice(0, 12),
+              techniques: (body.techniques as string[])
+                .map((technique) => technique.trim())
+                .slice(0, 12),
             }),
       });
       return NextResponse.json({ assessment });
