@@ -1,6 +1,6 @@
 # Evaluating JEV thresholds
 
-MatMetrics uses JEV decisions to suggest a session type, identify missing note details, flag fatigue or injury mentions, verify technique tags, and check transformed prose for unsupported details. The current category confidence (`0.8`), category-fit probability (`0.8`), technique-verification probability (`0.9`), note/injury probability (`0.5`), fatigue score (`1`), and transformation-fidelity probability (`0.5`) cutoffs are provisional. Evaluate them on representative, human-labeled examples before changing them or expanding their use.
+MatMetrics uses JEV decisions to suggest a session type, assess whether a log has useful category-relevant detail, flag clear conflicts between written effort and the selected effort rating, identify fatigue or injury mentions, review saved technique tags against the session text, and check transformed prose for unsupported details. The current category confidence (`0.8`), category-fit probability (`0.8`), technique-verification probability (`0.9`), useful-detail probability (`0.5`), effort-conflict probability (`0.8`), injury probability (`0.5`), fatigue score (`1`), and transformation-fidelity probability (`0.5`) cutoffs are provisional. Evaluate them on representative, human-labeled examples before changing them or expanding their use.
 
 ## Prepare labeled outcomes
 
@@ -38,7 +38,7 @@ Run the evaluator with the path to the labeled JSON file:
 npm run jev:evaluate-thresholds -- /path/to/labeled-predictions.json
 ```
 
-For Choice questions, each threshold reports:
+For Choice questions without category-fit scores, each confidence threshold reports:
 
 - `accepted`: predictions at or above the threshold
 - `accuracy`: the share of accepted predictions that match the reviewer label
@@ -46,6 +46,25 @@ For Choice questions, each threshold reports:
 
 For Noul questions, the output reports accepted count, precision, recall, and coverage. Precision helps measure false-positive tags; recall shows how many reviewer-positive candidates remain above the cutoff.
 
-For Score questions, the output reports the same binary metrics after applying each score cutoff. For category outcomes that include `categoryFitProbability` on every row, a row is counted as accepted only when both the Choice confidence cutoff and the current category-fit cutoff pass. Older category files without this field continue to evaluate confidence alone.
+For Score questions, the output reports the same binary metrics after applying each score cutoff. For category outcomes that include `categoryFitProbability` on every row, the evaluator reports a grid of confidence and category-fit cutoffs. A row is accepted only when both cutoffs pass. The default grid uses `0.5`, `0.6`, `0.7`, `0.8`, and `0.9` for both axes. To compare a smaller or different grid, include `confidenceThresholds` and/or `categoryFitThresholds` arrays in the JSON input. For example:
+
+```json
+{
+  "kind": "choice",
+  "confidenceThresholds": [0.7, 0.8, 0.9],
+  "categoryFitThresholds": [0.6, 0.8, 0.9],
+  "outcomes": [
+    {
+      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "predictedCategory": "Technical",
+      "actualCategory": "Technical",
+      "confidence": 0.91,
+      "categoryFitProbability": 0.94
+    }
+  ]
+}
+```
+
+The output includes both cutoffs, accepted count, accuracy, and coverage for every pair. Older category files without fit probabilities continue to evaluate confidence alone.
 
 Choose a threshold based on the tradeoff between accepted accuracy and coverage. The tool reports evaluation metrics; it does not choose or update a production threshold automatically.

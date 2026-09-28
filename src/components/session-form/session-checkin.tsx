@@ -6,10 +6,12 @@ import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
 import {
   hasClearSessionCategoryFit,
+  hasElevatedFatigueSignal,
+  hasInjurySignal,
   shouldOfferCategorySuggestion,
+  shouldFlagEffortConflict,
   shouldPromptForReflection,
-  shouldPromptForTechniqueDetail,
-  shouldShowRecoveryNudge,
+  shouldPromptForUsefulDetail,
 } from '@/lib/jev-policy';
 
 type Props = {
@@ -17,6 +19,7 @@ type Props = {
   disabled: boolean;
   isLoading: boolean;
   assessment: SessionAssessment | null;
+  currentCategory: SessionCategory;
   onAssess: () => void;
   onApplyCategory: (category: SessionCategory) => void;
 };
@@ -26,6 +29,7 @@ export function SessionCheckin({
   disabled,
   isLoading,
   assessment,
+  currentCategory,
   onAssess,
   onApplyCategory,
 }: Props) {
@@ -38,7 +42,8 @@ export function SessionCheckin({
         <div>
           <p className="text-sm font-semibold">Training check-in</p>
           <p className="text-xs text-muted-foreground">
-            Your description and notes are sent to OpenRouter/TypeSafe for this
+            Your description and notes, selected type, effort rating, and up to
+            12 saved technique tags are sent to OpenRouter/TypeSafe for this
             optional check-in. Review suggestions before applying.
           </p>
         </div>
@@ -89,10 +94,35 @@ export function SessionCheckin({
               Apply session type
             </Button>
           ) : null}
-          {shouldPromptForTechniqueDetail(assessment.hasTechniqueDetail) ? (
+          {shouldOfferCategorySuggestion(
+            assessment.categoryConfidence,
+            assessment.categoryFitProbability
+          ) && assessment.suggestedCategory !== currentCategory ? (
             <p>
-              Add a named technique or drill to make this session easier to find
-              later.
+              Possible type mismatch: the selected type is {currentCategory},
+              while the text may fit {assessment.suggestedCategory} better.
+              Review before changing it.
+            </p>
+          ) : null}
+          {shouldPromptForUsefulDetail(assessment.hasUsefulDetail) ? (
+            <p>
+              Add one concrete detail that makes this entry useful later; a
+              short entry can still be useful.
+            </p>
+          ) : null}
+          {shouldFlagEffortConflict(
+            assessment.effortConflictProbability ?? Number.NaN
+          ) ? (
+            <p>
+              The text may conflict with the effort rating you chose. Review
+              both if needed.
+            </p>
+          ) : null}
+          {assessment.unsupportedTechniqueTags.length > 0 ? (
+            <p>
+              JEV could not confirm these saved technique tags from the text:{' '}
+              {assessment.unsupportedTechniqueTags.join(', ')}. Review them
+              manually; they have not been removed.
             </p>
           ) : null}
           {shouldPromptForReflection(assessment.hasReflection) ? (
@@ -100,13 +130,16 @@ export function SessionCheckin({
               Add a brief reflection to record what worked or needs attention.
             </p>
           ) : null}
-          {shouldShowRecoveryNudge(
-            assessment.fatigueSignal,
-            assessment.injurySignal
-          ) ? (
+          {hasElevatedFatigueSignal(assessment.fatigueSignal) ? (
             <p>
-              Consider your recovery before the next hard session. This is a
-              note from your text, not medical advice.
+              Your text mentions fatigue or difficult recovery. This check-in
+              does not assess readiness to train.
+            </p>
+          ) : null}
+          {hasInjurySignal(assessment.injurySignal) ? (
+            <p>
+              JEV detected a possible pain or injury mention in your text. This
+              is not a diagnosis; review the note if this seems inaccurate.
             </p>
           ) : null}
         </div>
