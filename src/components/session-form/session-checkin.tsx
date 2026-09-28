@@ -2,6 +2,7 @@
 
 import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DataUseNotice } from '@/components/ui/data-use-notice';
 import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
 import {
@@ -36,16 +37,12 @@ export function SessionCheckin({
   return (
     <section
       className="rounded-lg border border-primary/15 bg-primary/5 p-3"
-      aria-label="AI training check-in"
+      aria-label="Training check-in"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Training check-in</p>
-          <p className="text-xs text-muted-foreground">
-            Your description and notes, selected type, effort rating, and up to
-            12 saved technique tags are sent to OpenRouter/TypeSafe for this
-            optional check-in. Review suggestions before applying.
-          </p>
+          <DataUseNotice variant="checkin" />
         </div>
         <Button
           type="button"
@@ -71,13 +68,12 @@ export function SessionCheckin({
               <span className="font-semibold text-foreground">
                 {assessment.suggestedCategory}
               </span>{' '}
-              (model confidence:{' '}
-              {Math.round(assessment.categoryConfidence * 100)}%).
+              ({Math.round(assessment.categoryConfidence * 100)}% confidence).
             </p>
           ) : (
             <p>
-              JEV could not confidently match these notes to an existing session
-              type. Choose the type manually.
+              The review could not confidently match these notes to an existing
+              session type. Choose the type manually.
             </p>
           )}
           {shouldOfferCategorySuggestion(
@@ -120,9 +116,9 @@ export function SessionCheckin({
           ) : null}
           {assessment.unsupportedTechniqueTags.length > 0 ? (
             <p>
-              JEV could not confirm these saved technique tags from the text:{' '}
-              {assessment.unsupportedTechniqueTags.join(', ')}. Review them
-              manually; they have not been removed.
+              The review could not confirm these saved technique tags from the
+              text: {assessment.unsupportedTechniqueTags.join(', ')}. Review
+              them manually; they have not been removed.
             </p>
           ) : null}
           {shouldPromptForReflection(assessment.hasReflection) ? (
@@ -138,8 +134,8 @@ export function SessionCheckin({
           ) : null}
           {hasInjurySignal(assessment.injurySignal) ? (
             <p>
-              JEV detected a possible pain or injury mention in your text. This
-              is not a diagnosis; review the note if this seems inaccurate.
+              Your text may mention pain or injury. This is not a diagnosis;
+              review the note if this seems inaccurate.
             </p>
           ) : null}
         </div>

@@ -41,6 +41,7 @@ const assessment: SessionAssessment = {
 };
 let initialAssessment: SessionAssessment | null = null;
 let invalidationCount = 0;
+let submissionCount = 0;
 let SessionLogForm: typeof import('./session-log-form-panel').SessionLogForm;
 
 const noOp = () => undefined;
@@ -93,33 +94,46 @@ before(async () => {
   mock.module('@/hooks/use-session-form', {
     namedExports: {
       useSessionFormState: () => {
+        const [date, setDate] = React.useState('');
+        const [duration, setDuration] = React.useState('');
         const [description, setDescription] = React.useState('');
+        const [techniques, setTechniques] = React.useState<string[]>([]);
+        const [newTech, setNewTech] = React.useState('');
         const [category, setCategory] = React.useState('Technical');
+        const [effort, setEffort] = React.useState(3);
         const [notes, setNotes] = React.useState('');
+        const [videoUrl, setVideoUrl] = React.useState('');
         return {
-          date: '',
-          setDate: noOp,
-          duration: '',
-          setDuration: noOp,
+          date,
+          setDate,
+          duration,
+          setDuration,
           description,
           setDescription,
-          techniques: [],
-          newTech: '',
-          setNewTech: noOp,
-          effort: 3,
-          setEffort: noOp,
+          techniques,
+          setTechniques,
+          newTech,
+          setNewTech,
+          effort,
+          setEffort,
           category,
           setCategory,
           notes,
           setNotes,
-          videoUrl: '',
-          setVideoUrl: noOp,
+          videoUrl,
+          setVideoUrl,
           reset: noOp,
           isEditing: false,
         };
       },
       useVideoUrlValidation: () => null,
-      useFormSubmit: () => ({ isSubmitting: false, submit: noOp }),
+      useFormSubmit: () => ({
+        isSubmitting: false,
+        submit: async () => {
+          submissionCount += 1;
+          return true;
+        },
+      }),
     },
   });
   mock.module('@/hooks/use-session-assessment', {
@@ -149,6 +163,7 @@ before(async () => {
 beforeEach(() => {
   initialAssessment = null;
   invalidationCount = 0;
+  submissionCount = 0;
 });
 
 afterEach(cleanup);
@@ -163,8 +178,19 @@ function renderForm() {
   );
 }
 
-test('typing in the mounted session form remains controlled without an update-depth error', () => {
+function assertCurrentStep(step: number) {
+  assert.match(
+    screen.getByRole('status').textContent ?? '',
+    new RegExp(`Step ${step} of 4`)
+  );
+}
+
+test('typing in the session description remains controlled without an update-depth error', () => {
   renderForm();
+  fireEvent.change(screen.getByLabelText('Session date *'), {
+    target: { value: '2026-09-28' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   const description = screen.getByRole('textbox', {
     name: 'What did you practise?',
   }) as HTMLTextAreaElement;
@@ -182,6 +208,10 @@ test('typing in the mounted session form remains controlled without an update-de
 test('editing assessed input clears the stale assessment exactly once', () => {
   initialAssessment = assessment;
   renderForm();
+  fireEvent.change(screen.getByLabelText('Session date *'), {
+    target: { value: '2026-09-28' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   const description = screen.getByRole('textbox', {
     name: 'What did you practise?',
   }) as HTMLTextAreaElement;
@@ -194,4 +224,89 @@ test('editing assessed input clears the stale assessment exactly once', () => {
 
   assert.equal(description.value, 'Second edit');
   assert.equal(invalidationCount, 1);
+});
+
+test('progresses through the session steps and submits only at the end', () => {
+  renderForm();
+
+  assertCurrentStep(1);
+  assert.equal(
+    screen.queryByRole('textbox', { name: 'What did you practise?' }),
+    null
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  assertCurrentStep(1);
+  fireEvent.submit(
+    screen
+      .getByRole('button', { name: 'Continue' })
+      .closest('form') as HTMLFormElement
+  );
+  assert.equal(submissionCount, 0);
+
+  fireEvent.change(screen.getByLabelText('Session date *'), {
+    target: { value: '2026-09-28' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  assertCurrentStep(2);
+
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'What did you practise?' }),
+    {
+      target: { value: 'Uchi mata entries and finishes' },
+    }
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  assertCurrentStep(3);
+  assert.ok(screen.getByText('Technique tags'));
+  assert.equal(submissionCount, 0);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  assertCurrentStep(4);
+  assert.ok(screen.getByText('Uchi mata entries and finishes'));
+  assert.equal(submissionCount, 0);
+
+  fireEvent.click(screen.getByText(/Add reflection or a relevant video/));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reflection' }), {
+    target: { value: 'Felt strong during the final rounds.' },
+  });
+  fireEvent.change(screen.getByLabelText('Relevant Video URL (Optional)'), {
+    target: { value: 'https://example.com/session-video' },
+  });
+  assert.ok(
+    screen.getByText('Felt strong during the final rounds.', {
+      selector: 'dd',
+    })
+  );
+  assert.ok(
+    screen.getByText('https://example.com/session-video', { selector: 'dd' })
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Save session' }));
+  assert.equal(submissionCount, 1);
+});
+
+test('back navigation preserves entered values', () => {
+  renderForm();
+  fireEvent.change(screen.getByLabelText('Session date *'), {
+    target: { value: '2026-09-28' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+  const description = screen.getByRole('textbox', {
+    name: 'What did you practise?',
+  }) as HTMLTextAreaElement;
+  fireEvent.change(description, { target: { value: 'Grip fighting rounds' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+  assertCurrentStep(2);
+  assert.equal(
+    (
+      screen.getByRole('textbox', {
+        name: 'What did you practise?',
+      }) as HTMLTextAreaElement
+    ).value,
+    'Grip fighting rounds'
+  );
 });

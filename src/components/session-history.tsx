@@ -29,6 +29,7 @@ import { SessionLogForm } from '@/components/session-log-form';
 import { RessaImage } from '@/components/ressa-image';
 import { cn, formatDateLabel, parseDateOnly } from '@/lib/utils';
 import { DataSurface } from '@/components/ui/data-display';
+import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { PageShell } from '@/components/ui/page-shell';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { Input } from '@/components/ui/input';
@@ -608,7 +609,7 @@ export function SessionHistory({
             {isReviewingHistory
               ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
               : hasUnreviewedDescriptions
-                ? 'Review next 5 with JEV'
+                ? 'Review up to 5 sessions'
                 : 'This view is reviewed'}
           </Button>
           <SegmentedControl
@@ -742,23 +743,17 @@ export function SessionHistory({
       </FilterBar>
 
       <section
-        aria-label="JEV history review"
-        className="mb-6 rounded-xl border border-primary/15 bg-primary/5 p-4"
+        aria-label="Optional training review"
+        className="mb-4 rounded-lg bg-primary/5 px-3 py-2"
       >
-        <p className="text-sm font-semibold">Optional JEV history review</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review sends the descriptions, notes, selected types, effort ratings,
-          and up to 12 saved technique tags for each of up to five sessions in
-          this view to OpenRouter/TypeSafe. JEV offers suggestions only; nothing
-          is changed unless you edit and save a session.
-        </p>
+        <DataUseNotice variant="history" />
         {!canUseAi ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Sign in and enable AI to review session history.
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sign in to review session history.
           </p>
         ) : null}
         {historyReviewEntries.length > 0 ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-3">
             {historyReviewEntries.map((entry) => {
               const session = sessions.find(
                 (item) => item.id === entry.sessionId
@@ -788,30 +783,25 @@ export function SessionHistory({
                       · {entry.currentCategory} ·{' '}
                       {EFFORT_LABELS[entry.currentEffort]} effort
                     </p>
-                    {assessment?.resolvedModel ? (
-                      <span className="text-xs text-muted-foreground">
-                        JEV {assessment.resolvedModel}
-                      </span>
-                    ) : null}
                   </div>
                   {entry.error ? (
                     <p className="mt-2 text-sm text-muted-foreground">
-                      JEV could not review this session. You can try again in a
-                      later review batch.
+                      This session could not be reviewed. You can try again in a
+                      later batch.
                     </p>
                   ) : assessment ? (
                     <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                       {findings.categoryMismatch ? (
                         <p>
-                          Possible type mismatch: JEV suggests{' '}
+                          Possible type mismatch: the review suggests{' '}
                           <strong>{findings.categoryMismatch}</strong> with{' '}
                           {Math.round(assessment.categoryConfidence * 100)}%
                           confidence. Review before changing the saved type.
                         </p>
                       ) : findings.categoryUnclear ? (
                         <p>
-                          JEV could not confidently match this description to an
-                          existing session type.
+                          The review could not confidently match this
+                          description to an existing session type.
                         </p>
                       ) : null}
                       {findings.needsUsefulDetail ? (
@@ -831,8 +821,8 @@ export function SessionHistory({
                       ) : null}
                       {assessment.unsupportedTechniqueTags.length > 0 ? (
                         <p>
-                          JEV could not confirm these saved technique tags from
-                          the text:{' '}
+                          The review could not confirm these saved technique
+                          tags from the text:{' '}
                           {assessment.unsupportedTechniqueTags.join(', ')}.
                           Review them manually; they have not been removed.
                         </p>
@@ -845,9 +835,8 @@ export function SessionHistory({
                       ) : null}
                       {findings.injuryMention ? (
                         <p>
-                          JEV detected a possible pain or injury mention. This
-                          is not a diagnosis; review the note if this seems
-                          inaccurate.
+                          The note may mention pain or injury. This is not a
+                          diagnosis; review the entry if this seems inaccurate.
                         </p>
                       ) : null}
                       {!findings.categoryMismatch &&

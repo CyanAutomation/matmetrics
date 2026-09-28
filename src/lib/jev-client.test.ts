@@ -63,7 +63,6 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       suggestedCategory: 'Technical',
       categoryConfidence: 0.91,
       categoryFitProbability: 0.96,
-      resolvedModel: 'typesafe/jev-1.13-20260917',
       hasUsefulDetail: 0.96,
       hasReflection: 0.2,
       fatigueSignal: 0.4,
@@ -103,7 +102,7 @@ test('assessSessionWithJev omits malformed resolved model identifiers', async ()
     })
   );
 
-  assert.equal(result.resolvedModel, undefined);
+  assert.equal('resolvedModel' in result, false);
 });
 
 test('assessSessionWithJev rejects answers whose primitive type is wrong', async () => {
@@ -272,7 +271,7 @@ test('verifyTechniqueCandidatesWithJev caps the batched question count', async (
   assert.deepEqual(verified, candidates.slice(0, 12));
 });
 
-test('OpenRouter JEV requests include the configured timeout and resolved model', async () => {
+test('assessment responses omit resolved model metadata', async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.OPENROUTER_API_KEY;
   let seenUrl = '';
@@ -313,7 +312,7 @@ test('OpenRouter JEV requests include the configured timeout and resolved model'
       (seenInit?.headers as Record<string, string>).Authorization,
       'Bearer unit-test-key'
     );
-    assert.equal(assessment.resolvedModel, 'typesafe/jev-test');
+    assert.equal('resolvedModel' in assessment, false);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;

@@ -43,6 +43,7 @@ export function PluginGallerySection({
       headerActions={headerActions}
       className={className}
       contentClassName={cn('space-y-4', contentClassName)}
+      surface="data"
     >
       {hasTiles ? (
         <div

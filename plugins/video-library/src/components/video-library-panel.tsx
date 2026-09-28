@@ -607,7 +607,7 @@ function VideoLibraryView({
         />
       ) : null}
 
-      <PluginSectionCard contentClassName="space-y-3" className="bg-card/70">
+      <PluginSectionCard surface="data" contentClassName="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SegmentedControl
             aria-label="Browse videos"
@@ -639,9 +639,9 @@ function VideoLibraryView({
             )}
           </SegmentedControl>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{summaryCounts.attached} saved</span>
+            <span>{summaryCounts.attached} videos saved</span>
             {summaryCounts.review > 0 ? (
-              <span>• {summaryCounts.review} need review</span>
+              <span>• {summaryCounts.review} sessions need review</span>
             ) : null}
           </div>
         </div>

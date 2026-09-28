@@ -275,13 +275,13 @@ export function buildVideoDomainRemovalConfirmationDescription(
 export function getTabLabel(tab: VideoLibraryTab) {
   switch (tab) {
     case 'watchable':
-      return 'Watchable';
+      return 'Watchable sessions';
     case 'attention':
-      return 'Needs attention';
+      return 'Sessions to review';
     case 'no_video':
       return 'No video';
     case 'all':
-      return 'All';
+      return 'All sessions';
   }
 }
 
