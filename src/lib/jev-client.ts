@@ -3,7 +3,7 @@ import {
   JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
   shouldFlagTransformedDescription,
 } from './jev-policy';
-import type { SessionCategory } from './types';
+import { EFFORT_LABELS, type EffortLevel, type SessionCategory } from './types';
 
 const OPENROUTER_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
 const JEV_MODEL = '~typesafe/jev-latest';
@@ -38,7 +38,12 @@ type JevQuestion =
 type JevRequest = {
   model: string;
   state: {
-    session: { description: string; notes?: string };
+    session: {
+      description: string;
+      notes?: string;
+      category?: SessionCategory;
+      effort?: EffortLevel;
+    };
     technique_candidates?: Record<string, string>;
     transformation?: { description: string };
   };
@@ -55,16 +60,21 @@ export type JevDecisionClient = (request: JevRequest) => Promise<JevResponse>;
 export type SessionAssessmentInput = {
   description: string;
   notes?: string;
+  category?: SessionCategory;
+  effort?: EffortLevel;
+  techniques?: string[];
 };
 
 export type SessionAssessment = {
   suggestedCategory: SessionCategory;
   categoryConfidence: number;
   categoryFitProbability: number;
-  hasTechniqueDetail: number;
+  hasUsefulDetail: number;
   hasReflection: number;
   fatigueSignal: number;
   injurySignal: number;
+  effortConflictProbability?: number;
+  unsupportedTechniqueTags: string[];
   resolvedModel?: string;
 };
 
@@ -120,10 +130,19 @@ function parseJevResponse(value: unknown): JevResponse {
   const answers = isRecord(value.answers)
     ? (value.answers as Record<string, JevAnswer>)
     : undefined;
+  const model =
+    typeof value.model === 'string'
+      ? normalizeResolvedModel(value.model)
+      : undefined;
   return {
-    ...(typeof value.model === 'string' ? { model: value.model } : {}),
+    ...(model ? { model } : {}),
     answers,
   };
+}
+
+function normalizeResolvedModel(value: string): string | undefined {
+  const model = value.trim();
+  return /^[a-zA-Z0-9._:/@~-]{1,128}$/.test(model) ? model : undefined;
 }
 
 function isTimeoutError(error: unknown): boolean {
@@ -136,6 +155,11 @@ function isTimeoutError(error: unknown): boolean {
 async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
   const token = process.env.OPENROUTER_API_KEY;
   if (!token) throw new Error('API key is not configured');
+
+  const startedAt = Date.now();
+  const operation = getJevOperation(request);
+  let outcome: 'success' | 'error' = 'error';
+  let resolvedModel: string | undefined;
 
   try {
     const response = await fetch(OPENROUTER_DECISIONS_URL, {
@@ -157,11 +181,49 @@ async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
       if (isTimeoutError(error)) throw error;
       throw new InvalidAiResponseError();
     }
-    return parseJevResponse(payload);
+    const parsed = parseJevResponse(payload);
+    resolvedModel = parsed.model;
+    outcome = 'success';
+    return parsed;
   } catch (error) {
     if (isTimeoutError(error)) throw new JevHttpError(504);
     if (error instanceof TypeError) throw new JevHttpError(503);
     throw error;
+  } finally {
+    recordJevObservability({
+      operation,
+      outcome,
+      requestedModel: request.model,
+      resolvedModel,
+      questionCount: Object.keys(request.questions).length,
+      durationMs: Math.max(0, Date.now() - startedAt),
+    });
+  }
+}
+
+function getJevOperation(request: JevRequest): string {
+  const questionNames = Object.keys(request.questions);
+  if (questionNames.includes('unsupported_detail'))
+    return 'description_fidelity';
+  if (questionNames.some((name) => name.startsWith('candidate_')))
+    return 'technique_verification';
+  return 'session_checkin';
+}
+
+function recordJevObservability(metadata: {
+  operation: string;
+  outcome: 'success' | 'error';
+  requestedModel: string;
+  resolvedModel?: string;
+  questionCount: number;
+  durationMs: number;
+}): void {
+  if (process.env.MATMETRICS_JEV_OBSERVABILITY !== 'true') return;
+
+  try {
+    console.info('JEV request metadata', metadata);
+  } catch {
+    // Observability must never change the result of an AI request.
   }
 }
 
@@ -169,7 +231,7 @@ const assessmentQuestions = {
   suggested_category: {
     type: 'choice',
     instructions:
-      'Which existing MatMetrics session category best describes `session.description`?',
+      'Which existing MatMetrics session category best describes `session.description`? Base this only on the session text; ignore `session.category`.',
     criteria: {
       Technical: 'Technique drills, instruction, or technical practice.',
       Randori: 'Live sparring or free practice.',
@@ -181,17 +243,17 @@ const assessmentQuestions = {
   category_fit: {
     type: 'noul',
     instructions:
-      'Does `session.description` clearly describe a session that fits at least one of the listed MatMetrics categories?',
+      'Does `session.description` clearly describe a session that fits at least one of the listed MatMetrics categories? Base this only on the session text; ignore `session.category`.',
     criteria: {
       true: 'The description clearly fits a listed category based on the primary training focus.',
       false:
         'The description is too vague, describes another activity, or does not clearly fit any listed category.',
     },
   },
-  has_technique_detail: {
+  has_useful_detail: {
     type: 'noul',
     instructions:
-      'Does `session.description` name a specific technique, drill, or technical focus?',
+      'Considering the chosen category in `session.category`, do `session.description` and `session.notes` contain at least one concrete, category-relevant detail that makes this entry useful to the athlete later? Ignore length, date, duration, and category labels as evidence. A short entry can be useful. For Technical, look for a technique, drill, or technical focus; for Randori, a specific exchange, grip, transition, or learning point; for Shiai, a contest moment, tactic, or result; for Cardio, the activity or a concrete training detail; for S&C, an exercise, movement, or training focus. Do not require a personal reflection.',
   },
   has_reflection: {
     type: 'noul',
@@ -215,19 +277,64 @@ const assessmentQuestions = {
   },
 } satisfies Record<string, JevQuestion>;
 
+function getAssessmentQuestions(input: SessionAssessmentInput) {
+  const questions: Record<string, JevQuestion> = { ...assessmentQuestions };
+  if (input.effort !== undefined) {
+    questions.effort_conflict = {
+      type: 'noul',
+      instructions:
+        'Do `session.description` or `session.notes` directly contradict the athlete’s selected effort rating of ' +
+        EFFORT_LABELS[input.effort] +
+        ' (`session.effort`)? Flag only an explicit contradiction, such as text saying the session was easy while the selected rating is Intense. Do not infer effort from exercise type, duration, sparse text, or missing notes. This is a consistency check, not a judgment of the athlete.',
+      criteria: {
+        true: 'The text explicitly describes effort that conflicts with the selected rating.',
+        false:
+          'There is no direct contradiction, or the text does not provide enough effort evidence.',
+      },
+    };
+  }
+
+  const candidates = normalizeTechniqueCandidates(input.techniques ?? []);
+  for (const [index] of candidates.entries()) {
+    const key = `saved_tag_${index}`;
+    questions[key] = {
+      type: 'noul',
+      instructions:
+        'Do `session.description` or `session.notes` clearly indicate that the athlete practiced the saved technique tag `technique_candidates.' +
+        key +
+        '`? A tag may be supported by a clear synonym or description of the movement.',
+      criteria: {
+        true: 'The session text clearly indicates the athlete practiced this technique.',
+        false:
+          'The tag is absent, hypothetical, or only describes someone else’s action.',
+      },
+    };
+  }
+  return { questions, candidates };
+}
+
 export async function assessSessionWithJev(
   input: SessionAssessmentInput,
   client: JevDecisionClient = callOpenRouterJev
 ): Promise<SessionAssessment> {
+  const { questions, candidates } = getAssessmentQuestions(input);
+  const techniqueCandidates = Object.fromEntries(
+    candidates.map((candidate, index) => [`saved_tag_${index}`, candidate])
+  );
   const response = await client({
     model: JEV_MODEL,
     state: {
       session: {
         description: input.description,
         notes: input.notes,
+        category: input.category,
+        effort: input.effort,
       },
+      ...(candidates.length > 0
+        ? { technique_candidates: techniqueCandidates }
+        : {}),
     },
-    questions: assessmentQuestions,
+    questions,
   });
   const categoryAnswer = answer(
     response.answers,
@@ -235,8 +342,8 @@ export async function assessSessionWithJev(
     'choice'
   );
   const model =
-    typeof response.model === 'string' && response.model.trim()
-      ? response.model.trim()
+    typeof response.model === 'string'
+      ? normalizeResolvedModel(response.model)
       : undefined;
 
   return {
@@ -247,8 +354,8 @@ export async function assessSessionWithJev(
       0,
       1
     ),
-    hasTechniqueDetail: numberInRange(
-      answer(response.answers, 'has_technique_detail', 'noul').noul,
+    hasUsefulDetail: numberInRange(
+      answer(response.answers, 'has_useful_detail', 'noul').noul,
       0,
       1
     ),
@@ -267,8 +374,30 @@ export async function assessSessionWithJev(
       0,
       1
     ),
+    ...(input.effort !== undefined
+      ? {
+          effortConflictProbability: numberInRange(
+            answer(response.answers, 'effort_conflict', 'noul').noul,
+            0,
+            1
+          ),
+        }
+      : {}),
+    unsupportedTechniqueTags: candidates.filter((_, index) =>
+      shouldFlagUnconfirmedTag(
+        numberInRange(
+          answer(response.answers, `saved_tag_${index}`, 'noul').noul,
+          0,
+          1
+        )
+      )
+    ),
     ...(model ? { resolvedModel: model } : {}),
   };
+}
+
+function shouldFlagUnconfirmedTag(probability: number): boolean {
+  return probability < JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD;
 }
 
 export async function verifyDescriptionFidelityWithJev(

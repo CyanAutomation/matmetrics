@@ -11,19 +11,26 @@ const sessionAssessment = {
   suggestedCategory: 'Technical' as const,
   categoryConfidence: 0.94,
   categoryFitProbability: 0.96,
-  hasTechniqueDetail: 0.9,
+  hasUsefulDetail: 0.9,
   hasReflection: 0.8,
   fatigueSignal: 0.2,
   injurySignal: 0.1,
+  effortConflictProbability: 0.1,
+  unsupportedTechniqueTags: [] as string[],
 };
 
-function renderCheckin(assessment: typeof sessionAssessment) {
+function renderCheckin(
+  assessment: typeof sessionAssessment,
+  currentCategory:
+    'Technical' | 'Randori' | 'Shiai' | 'Cardio' | 'S&C' = 'Technical'
+) {
   return renderToStaticMarkup(
     React.createElement(SessionCheckin, {
       canUseAi: true,
       disabled: false,
       isLoading: false,
       assessment,
+      currentCategory,
       onAssess: () => undefined,
       onApplyCategory: () => undefined,
     })
@@ -48,6 +55,66 @@ test('category check-in exposes an apply action only when fit and confidence pas
     renderCheckin({ ...sessionAssessment, categoryConfidence: 0.79 }),
     /Apply session type/
   );
+});
+
+test('check-in describes a possible mismatch with the currently selected category', () => {
+  const html = renderCheckin(sessionAssessment, 'Randori');
+  assert.match(html, /Possible type mismatch/i);
+  assert.match(html, /selected type is Randori/i);
+});
+
+test('check-in prompts for a useful detail without judging entry length', () => {
+  const html = renderCheckin({
+    ...sessionAssessment,
+    hasUsefulDetail: 0.49,
+  });
+
+  assert.match(html, /add one concrete detail/i);
+  assert.match(html, /short entry can still be useful/i);
+});
+
+test('check-in flags only high-confidence explicit effort conflicts', () => {
+  const flagged = renderCheckin({
+    ...sessionAssessment,
+    effortConflictProbability: 0.8,
+  });
+  const clear = renderCheckin({
+    ...sessionAssessment,
+    effortConflictProbability: 0.79,
+  });
+
+  assert.match(flagged, /may conflict with the effort rating you chose/i);
+  assert.doesNotMatch(clear, /may conflict with the effort rating you chose/i);
+});
+
+test('check-in labels saved technique tags for review without removing them', () => {
+  const html = renderCheckin({
+    ...sessionAssessment,
+    unsupportedTechniqueTags: ['O-soto-gari'],
+  });
+
+  assert.match(html, /could not confirm these saved technique tags/i);
+  assert.match(html, /O-soto-gari/);
+  assert.match(html, /they have not been removed/i);
+});
+
+test('check-in distinguishes fatigue from pain or injury mentions', () => {
+  const fatigueHtml = renderCheckin({
+    ...sessionAssessment,
+    fatigueSignal: 1,
+    injurySignal: 0.1,
+  });
+  const injuryHtml = renderCheckin({
+    ...sessionAssessment,
+    fatigueSignal: 0.2,
+    injurySignal: 0.8,
+  });
+
+  assert.match(fatigueHtml, /text mentions fatigue or difficult recovery/i);
+  assert.doesNotMatch(fatigueHtml, /pain or injury/i);
+  assert.match(injuryHtml, /JEV detected a possible pain or injury mention/i);
+  assert.match(injuryHtml, /not a diagnosis/i);
+  assert.doesNotMatch(injuryHtml, /next hard session/i);
 });
 
 test('AI form sections use the intended provider disclosure copy', () => {

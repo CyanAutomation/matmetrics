@@ -22,15 +22,20 @@ test('assessment route authenticates, validates, and returns an assessment', asy
     assert.deepEqual(input, {
       description: 'Lots of uchi mata entries.',
       notes: 'Felt good.',
+      category: 'Randori',
+      effort: 5,
+      techniques: ['Uchi-mata'],
     });
     return {
       suggestedCategory: 'Technical',
       categoryConfidence: 0.9,
       categoryFitProbability: 0.95,
-      hasTechniqueDetail: 0.9,
+      hasUsefulDetail: 0.9,
       hasReflection: 0.4,
       fatigueSignal: 0.2,
       injurySignal: 0.1,
+      effortConflictProbability: 0.9,
+      unsupportedTechniqueTags: [],
     };
   });
   const response = await post(
@@ -38,6 +43,8 @@ test('assessment route authenticates, validates, and returns an assessment', asy
       description: 'Lots of uchi mata entries.',
       notes: 'Felt good.',
       category: 'Randori',
+      effort: 5,
+      techniques: ['Uchi-mata'],
     })
   );
   assert.equal(response.status, 200);
@@ -45,6 +52,59 @@ test('assessment route authenticates, validates, and returns an assessment', asy
     (await response.json()).assessment.suggestedCategory,
     'Technical'
   );
+});
+
+test('assessment route rejects invalid category and effort context before calling JEV', async () => {
+  let calls = 0;
+  const post = createAssessSessionPost(async () => {
+    calls += 1;
+    throw new Error('not called');
+  });
+
+  assert.equal(
+    (await post(request({ description: 'Practice.', category: 'Other' })))
+      .status,
+    400
+  );
+  assert.equal(
+    (await post(request({ description: 'Practice.', effort: 6 }))).status,
+    400
+  );
+  assert.equal(
+    (
+      await post(
+        request({
+          description: 'Practice.',
+          techniques: Array.from({ length: 101 }, (_, index) => `Tag ${index}`),
+        })
+      )
+    ).status,
+    400
+  );
+  assert.equal(calls, 0);
+});
+
+test('assessment route caps technique-tag audit input at twelve tags', async () => {
+  const techniques = Array.from({ length: 15 }, (_, index) => `Tag ${index}`);
+  let receivedTechniques: string[] | undefined;
+  const post = createAssessSessionPost(async (input) => {
+    receivedTechniques = input.techniques;
+    return {
+      suggestedCategory: 'Technical',
+      categoryConfidence: 0.9,
+      categoryFitProbability: 0.9,
+      hasUsefulDetail: 0.9,
+      hasReflection: 0.9,
+      fatigueSignal: 0,
+      injurySignal: 0,
+      unsupportedTechniqueTags: [],
+    };
+  });
+
+  const response = await post(request({ description: 'Practice.', techniques }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(receivedTechniques, techniques.slice(0, 12));
 });
 
 test('assessment route rejects missing descriptions without calling the provider', async () => {
