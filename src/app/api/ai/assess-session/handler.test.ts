@@ -81,6 +81,22 @@ test('assessment route rejects invalid category and effort context before callin
     ).status,
     400
   );
+  assert.equal(
+    (
+      await post(
+        request({ description: 'Practice.', techniques: ['Uchi-mata', '  '] })
+      )
+    ).status,
+    400
+  );
+  assert.equal(
+    (
+      await post(
+        request({ description: 'Practice.', techniques: ['a'.repeat(121)] })
+      )
+    ).status,
+    400
+  );
   assert.equal(calls, 0);
 });
 
