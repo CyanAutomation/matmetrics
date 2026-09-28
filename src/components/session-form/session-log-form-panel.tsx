@@ -77,6 +77,8 @@ export function SessionLogForm({
     formState.category,
     formState.description,
     formState.notes,
+    formState.effort,
+    formState.techniques,
     invalidateSessionAssessment,
   ]);
 
@@ -187,10 +189,14 @@ export function SessionLogForm({
             disabled={isSubmitting || !formState.description}
             isLoading={sessionAssessment.isLoading}
             assessment={sessionAssessment.assessment}
+            currentCategory={formState.category}
             onAssess={() =>
               sessionAssessment.assess({
                 description: formState.description,
                 notes: formState.notes,
+                category: formState.category,
+                effort: formState.effort,
+                techniques: formState.techniques,
               })
             }
             onApplyCategory={formState.setCategory}

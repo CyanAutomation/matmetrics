@@ -10,6 +10,9 @@ async function runJevSmokeCheck(): Promise<void> {
       description:
         'Technical judo drilling with uchi mata entries and controlled movement.',
       notes: 'Synthetic smoke-check input.',
+      category: 'Technical',
+      effort: 3,
+      techniques: ['Uchi-mata'],
     });
 
     console.log(
@@ -19,8 +22,10 @@ async function runJevSmokeCheck(): Promise<void> {
         suggestedCategory: assessment.suggestedCategory,
         categoryConfidence: assessment.categoryConfidence,
         categoryFitProbability: assessment.categoryFitProbability,
-        hasTechniqueDetail: assessment.hasTechniqueDetail,
+        hasUsefulDetail: assessment.hasUsefulDetail,
         hasReflection: assessment.hasReflection,
+        effortConflictProbability: assessment.effortConflictProbability,
+        unsupportedTechniqueTagCount: assessment.unsupportedTechniqueTags.length,
         fatigueSignal: assessment.fatigueSignal,
         injurySignal: assessment.injurySignal,
       })

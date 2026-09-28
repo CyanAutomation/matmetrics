@@ -32,10 +32,12 @@ const assessment: SessionAssessment = {
   suggestedCategory: 'Technical',
   categoryConfidence: 0.9,
   categoryFitProbability: 0.9,
-  hasTechniqueDetail: 0.8,
+  hasUsefulDetail: 0.8,
   hasReflection: 0.7,
   fatigueSignal: 0,
   injurySignal: 0,
+  effortConflictProbability: 0.1,
+  unsupportedTechniqueTags: [],
 };
 let initialAssessment: SessionAssessment | null = null;
 let invalidationCount = 0;

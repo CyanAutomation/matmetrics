@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  evaluateCategoryThresholdGrid,
   evaluateCategoryThresholds,
   evaluateNoulThresholds,
   evaluateScoreThresholds,
@@ -13,13 +14,18 @@ import {
   JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD,
   JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD,
   JEV_FATIGUE_NUDGE_SCORE_THRESHOLD,
+  JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD,
+  JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD,
   JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD,
   JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
   JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD,
+  hasElevatedFatigueSignal,
+  hasInjurySignal,
+  shouldPromptForUsefulDetail,
+  shouldFlagEffortConflict,
   hasClearSessionCategoryFit,
   shouldFlagTransformedDescription,
   shouldPromptForReflection,
-  shouldPromptForTechniqueDetail,
   shouldShowRecoveryNudge,
 } from './jev-policy';
 
@@ -104,6 +110,69 @@ test('category threshold evaluation also gates on category fit when supplied', (
   );
 });
 
+test('category threshold grid compares confidence and fit cutoffs together', () => {
+  assert.deepEqual(
+    evaluateCategoryThresholdGrid(
+      [
+        {
+          predictedCategory: 'Technical',
+          actualCategory: 'Technical',
+          confidence: 0.95,
+          categoryFitProbability: 0.96,
+        },
+        {
+          predictedCategory: 'Randori',
+          actualCategory: 'Cardio',
+          confidence: 0.99,
+          categoryFitProbability: 0.42,
+        },
+        {
+          predictedCategory: 'Shiai',
+          actualCategory: 'Shiai',
+          confidence: 0.85,
+          categoryFitProbability: 0.8,
+        },
+      ],
+      [0.8, 0.9],
+      [0.5, 0.9]
+    ),
+    [
+      {
+        confidenceThreshold: 0.8,
+        categoryFitThreshold: 0.5,
+        accepted: 2,
+        correct: 2,
+        accuracy: 1,
+        coverage: 2 / 3,
+      },
+      {
+        confidenceThreshold: 0.8,
+        categoryFitThreshold: 0.9,
+        accepted: 1,
+        correct: 1,
+        accuracy: 1,
+        coverage: 1 / 3,
+      },
+      {
+        confidenceThreshold: 0.9,
+        categoryFitThreshold: 0.5,
+        accepted: 1,
+        correct: 1,
+        accuracy: 1,
+        coverage: 1 / 3,
+      },
+      {
+        confidenceThreshold: 0.9,
+        categoryFitThreshold: 0.9,
+        accepted: 1,
+        correct: 1,
+        accuracy: 1,
+        coverage: 1 / 3,
+      },
+    ]
+  );
+});
+
 test('category threshold evaluation rejects partially recorded fit probabilities', () => {
   assert.throws(
     () =>
@@ -140,6 +209,8 @@ test('category apply threshold is centralized and includes its exact boundary', 
   assert.equal(JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD, 0.5);
   assert.equal(JEV_FATIGUE_NUDGE_SCORE_THRESHOLD, 1);
   assert.equal(JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD, 0.5);
+  assert.equal(JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD, 0.5);
+  assert.equal(JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD, 0.8);
   assert.equal(JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD, 0.5);
   assert.equal(shouldOfferCategorySuggestion(0.8, 0.8), true);
   assert.equal(shouldOfferCategorySuggestion(0.799, 1), false);
@@ -149,13 +220,19 @@ test('category apply threshold is centralized and includes its exact boundary', 
   assert.equal(shouldOfferCategorySuggestion(1, Number.NaN), false);
   assert.equal(hasClearSessionCategoryFit(0.8), true);
   assert.equal(hasClearSessionCategoryFit(0.799), false);
-  assert.equal(shouldPromptForTechniqueDetail(0.49), true);
-  assert.equal(shouldPromptForTechniqueDetail(0.5), false);
   assert.equal(shouldPromptForReflection(0.49), true);
   assert.equal(shouldPromptForReflection(0.5), false);
+  assert.equal(shouldPromptForUsefulDetail(0.49), true);
+  assert.equal(shouldPromptForUsefulDetail(0.5), false);
+  assert.equal(shouldFlagEffortConflict(0.8), true);
+  assert.equal(shouldFlagEffortConflict(0.799), false);
   assert.equal(shouldShowRecoveryNudge(1, 0), true);
   assert.equal(shouldShowRecoveryNudge(0.99, 0.5), true);
   assert.equal(shouldShowRecoveryNudge(0.99, 0.49), false);
+  assert.equal(hasElevatedFatigueSignal(1), true);
+  assert.equal(hasElevatedFatigueSignal(0.99), false);
+  assert.equal(hasInjurySignal(0.5), true);
+  assert.equal(hasInjurySignal(0.49), false);
   assert.equal(shouldFlagTransformedDescription(0.5), true);
   assert.equal(shouldFlagTransformedDescription(0.49), false);
 });

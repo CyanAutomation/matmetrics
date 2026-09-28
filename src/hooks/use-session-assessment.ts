@@ -4,13 +4,13 @@ import { useCallback, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getAiApiErrorMessage } from '@/lib/ai-api-error';
-import type { SessionAssessment } from '@/lib/jev-client';
+import type {
+  SessionAssessment,
+  SessionAssessmentInput,
+} from '@/lib/jev-client';
 import { useToast } from './use-toast';
 
-type AssessmentInput = {
-  description: string;
-  notes: string;
-};
+type AssessmentInput = SessionAssessmentInput;
 
 function isAssessment(value: unknown): value is SessionAssessment {
   if (!value || typeof value !== 'object') return false;
@@ -27,13 +27,19 @@ function isAssessment(value: unknown): value is SessionAssessment {
     ) &&
     isProbability(result.categoryConfidence) &&
     isProbability(result.categoryFitProbability) &&
-    isProbability(result.hasTechniqueDetail) &&
+    isProbability(result.hasUsefulDetail) &&
     isProbability(result.hasReflection) &&
     typeof result.fatigueSignal === 'number' &&
     Number.isFinite(result.fatigueSignal) &&
     result.fatigueSignal >= 0 &&
     result.fatigueSignal <= 2 &&
     isProbability(result.injurySignal) &&
+    (result.effortConflictProbability === undefined ||
+      isProbability(result.effortConflictProbability)) &&
+    Array.isArray(result.unsupportedTechniqueTags) &&
+    result.unsupportedTechniqueTags.every(
+      (candidate) => typeof candidate === 'string'
+    ) &&
     (result.resolvedModel === undefined ||
       typeof result.resolvedModel === 'string')
   );

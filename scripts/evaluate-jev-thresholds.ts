@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import {
+  evaluateCategoryThresholdGrid,
   evaluateCategoryThresholds,
   evaluateNoulThresholds,
   evaluateScoreThresholds,
@@ -74,6 +75,14 @@ function parseScoreOutcomes(value: unknown): ScorePredictionOutcome[] {
   });
 }
 
+function parseThresholds(value: unknown, name: string): number[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'number')) {
+    throw new Error(`${name} must be an array of numbers`);
+  }
+  return value as number[];
+}
+
 function ensureSingleResolvedModel(value: unknown[]): void {
   const modelRows = value.filter(
     (row) => isRecord(row) && typeof row.resolvedModel === 'string'
@@ -107,7 +116,28 @@ async function run(): Promise<void> {
 
   const results =
     value.kind === 'choice'
-      ? evaluateCategoryThresholds(parseCategoryOutcomes(value.outcomes))
+      ? (() => {
+          const outcomes = parseCategoryOutcomes(value.outcomes);
+          const confidenceThresholds = parseThresholds(
+            value.confidenceThresholds,
+            'confidenceThresholds'
+          );
+          const categoryFitThresholds = parseThresholds(
+            value.categoryFitThresholds,
+            'categoryFitThresholds'
+          );
+          const hasFitProbability = outcomes.every(
+            (outcome) => outcome.categoryFitProbability !== undefined
+          );
+
+          return hasFitProbability
+            ? evaluateCategoryThresholdGrid(
+                outcomes,
+                confidenceThresholds,
+                categoryFitThresholds
+              )
+            : evaluateCategoryThresholds(outcomes, confidenceThresholds);
+        })()
       : value.kind === 'noul'
         ? evaluateNoulThresholds(parseNoulOutcomes(value.outcomes))
         : value.kind === 'score'

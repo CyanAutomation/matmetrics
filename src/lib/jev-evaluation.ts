@@ -25,6 +25,15 @@ export type CategoryThresholdEvaluation = {
   coverage: number;
 };
 
+export type CategoryThresholdGridEvaluation = {
+  confidenceThreshold: number;
+  categoryFitThreshold: number;
+  accepted: number;
+  correct: number;
+  accuracy: number | null;
+  coverage: number;
+};
+
 export type NoulPredictionOutcome = {
   probability: number;
   actual: boolean;
@@ -120,6 +129,45 @@ export function evaluateCategoryThresholds(
       coverage: accepted.length / outcomes.length,
     };
   });
+}
+
+export function evaluateCategoryThresholdGrid(
+  outcomes: CategoryPredictionOutcome[],
+  confidenceThresholds: readonly number[] = DEFAULT_JEV_EVALUATION_THRESHOLDS,
+  categoryFitThresholds: readonly number[] = DEFAULT_JEV_EVALUATION_THRESHOLDS
+): CategoryThresholdGridEvaluation[] {
+  // Reuse the single-cutoff validator, then require fit scores for every row.
+  evaluateCategoryThresholds(outcomes, confidenceThresholds);
+  if (outcomes.some((outcome) => outcome.categoryFitProbability === undefined)) {
+    throw new Error('Category fit probabilities are required for grid evaluation');
+  }
+  for (const threshold of categoryFitThresholds) {
+    if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+      throw new Error('Category fit threshold must be between 0 and 1');
+    }
+  }
+
+  return confidenceThresholds.flatMap((confidenceThreshold) =>
+    categoryFitThresholds.map((categoryFitThreshold) => {
+      const accepted = outcomes.filter(
+        (outcome) =>
+          outcome.confidence >= confidenceThreshold &&
+          outcome.categoryFitProbability! >= categoryFitThreshold
+      );
+      const correct = accepted.filter(
+        (outcome) => outcome.predictedCategory === outcome.actualCategory
+      ).length;
+
+      return {
+        confidenceThreshold,
+        categoryFitThreshold,
+        accepted: accepted.length,
+        correct,
+        accuracy: accepted.length === 0 ? null : correct / accepted.length,
+        coverage: accepted.length / outcomes.length,
+      };
+    })
+  );
 }
 
 export function evaluateNoulThresholds(
