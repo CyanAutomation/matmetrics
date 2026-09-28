@@ -131,6 +131,7 @@ export function PluginTableSection({
       headerActions={headerActions}
       className={className}
       contentClassName={cn('space-y-4', contentClassName)}
+      surface="data"
     >
       {hasRows ? (
         <div className="overflow-x-auto">{children}</div>

@@ -4,17 +4,26 @@ import { Badge } from '@/components/ui/badge';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { cn } from '@/lib/utils';
 
-type DataToolbarProps = ComponentPropsWithoutRef<'div'> & { label: string };
+type DataToolbarProps = ComponentPropsWithoutRef<'div'> & {
+  label: string;
+  layout?: 'responsive' | 'single';
+};
 
 /** Shared search, filter, and result-summary frame for data-heavy pages. */
 export function DataToolbar({
   children,
   className,
   label,
+  layout,
   ...props
 }: DataToolbarProps) {
   return (
-    <FilterBar {...props} label={label} className={cn('items-end', className)}>
+    <FilterBar
+      {...props}
+      label={label}
+      layout={layout}
+      className={cn('items-end', className)}
+    >
       {children}
     </FilterBar>
   );

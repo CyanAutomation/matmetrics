@@ -104,9 +104,7 @@ export function isSessionAssessment(
     Array.isArray(result.unsupportedTechniqueTags) &&
     result.unsupportedTechniqueTags.every(
       (candidate) => typeof candidate === 'string'
-    ) &&
-    (result.resolvedModel === undefined ||
-      typeof result.resolvedModel === 'string')
+    )
   );
 }
 

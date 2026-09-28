@@ -112,12 +112,12 @@ test('check-in distinguishes fatigue from pain or injury mentions', () => {
 
   assert.match(fatigueHtml, /text mentions fatigue or difficult recovery/i);
   assert.doesNotMatch(fatigueHtml, /pain or injury/i);
-  assert.match(injuryHtml, /JEV detected a possible pain or injury mention/i);
+  assert.match(injuryHtml, /text may mention pain or injury/i);
   assert.match(injuryHtml, /not a diagnosis/i);
   assert.doesNotMatch(injuryHtml, /next hard session/i);
 });
 
-test('AI form sections use the intended provider disclosure copy', () => {
+test('AI form sections disclose external processing without naming providers or models', () => {
   const disclosureProps = {
     description: 'Drilled uchi mata.',
     setDescription: () => undefined,
@@ -150,9 +150,12 @@ test('AI form sections use the intended provider disclosure copy', () => {
   );
   const checkinHtml = renderCheckin(sessionAssessment);
 
-  assert.doesNotMatch(transformHtml, /Cloudflare|JEV|OpenRouter|TypeSafe/);
-  assert.match(tagsHtml, /Cloudflare/);
-  assert.match(tagsHtml, /OpenRouter/);
-  assert.match(checkinHtml, /OpenRouter/);
+  const combinedHtml = `${transformHtml} ${tagsHtml} ${checkinHtml}`;
+  assert.match(tagsHtml, /external service/i);
+  assert.match(checkinHtml, /external service/i);
+  assert.doesNotMatch(
+    combinedHtml,
+    /JEV|TypeSafe|OpenRouter|Cloudflare|model/i
+  );
   assert.match(checkinHtml, /description and notes/i);
 });

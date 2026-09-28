@@ -137,6 +137,26 @@ test('PluginSectionCard renders header and content regions', () => {
   );
 });
 
+test('PluginSectionCard can use the shared soft surface for grouped data', () => {
+  const document = parse(
+    renderToStaticMarkup(
+      React.createElement(
+        PluginSectionCard,
+        { title: 'Training sessions', surface: 'data' },
+        React.createElement('p', null, 'Session rows')
+      )
+    )
+  );
+  const section = document.querySelector('[data-slot="plugin-section-card"]');
+
+  assert.match(
+    section?.getAttribute('class') ?? '',
+    /bg-\[hsl\(var\(--color-surface-container-low\)\)\]/
+  );
+  assert.equal(section?.querySelector('h3')?.textContent, 'Training sessions');
+  assert.match(section?.textContent ?? '', /Session rows/);
+});
+
 test('PluginToolbar renders named actions in their semantic regions', () => {
   const document = parse(
     renderToStaticMarkup(
