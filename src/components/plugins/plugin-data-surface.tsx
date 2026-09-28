@@ -12,16 +12,19 @@ import { cn } from '@/lib/utils';
 type PluginDataSurfaceFilterRowProps = {
   children: ReactNode;
   className?: string;
+  layout?: 'responsive' | 'single';
 };
 
 export function PluginDataSurfaceFilterRow({
   children,
   className,
+  layout,
 }: PluginDataSurfaceFilterRowProps) {
   return (
     <DataToolbar
       label="Filters"
       data-slot="plugin-filter-row"
+      layout={layout}
       className={cn('items-end', className)}
     >
       {children}

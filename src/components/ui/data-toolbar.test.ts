@@ -29,12 +29,29 @@ test('data toolbar provides a labelled filter region and a consistent result sum
     )
   );
 
-  assert.equal(
-    document.querySelector('[role="region"]')?.getAttribute('aria-label'),
-    'Filter techniques'
-  );
+  const toolbar = document.querySelector('[role="region"]');
+  assert.equal(toolbar?.getAttribute('aria-label'), 'Filter techniques');
+  assert.match(toolbar?.getAttribute('class') ?? '', /sm:grid-cols-2/);
+  assert.match(toolbar?.getAttribute('class') ?? '', /lg:grid-cols-5/);
   assert.match(document.textContent, /Showing 2 of 5 techniques/);
   assert.match(document.textContent, /Search: uchi/);
+});
+
+test('data toolbar supports a single-column layout without inherited responsive columns', () => {
+  const document = parse(
+    renderToStaticMarkup(
+      React.createElement(
+        DataToolbar,
+        { label: 'Filter technique tags', layout: 'single' },
+        React.createElement('input', { 'aria-label': 'Search tags' })
+      )
+    )
+  );
+  const toolbar = document.querySelector('[role="region"]');
+  const classes = toolbar?.getAttribute('class') ?? '';
+
+  assert.match(classes, /grid-cols-1/);
+  assert.doesNotMatch(classes, /sm:grid-cols-2|lg:grid-cols-5/);
 });
 
 test('data list gives rows a shared, accessible containment pattern', () => {

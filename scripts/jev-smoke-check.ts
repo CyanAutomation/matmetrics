@@ -18,7 +18,6 @@ async function runJevSmokeCheck(): Promise<void> {
     console.log(
       JSON.stringify({
         ok: true,
-        resolvedModel: assessment.resolvedModel,
         suggestedCategory: assessment.suggestedCategory,
         categoryConfidence: assessment.categoryConfidence,
         categoryFitProbability: assessment.categoryFitProbability,

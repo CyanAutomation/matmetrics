@@ -13,7 +13,7 @@ test('classifyAiError identifies provider request rejections by HTTP status', ()
   assert.equal(classifyAiError({ status: 404 }), 'AI_PROVIDER_REJECTED');
 });
 
-test('provider rejection responses preserve only the HTTP status', () => {
+test('provider rejection responses keep user-facing copy generic and preserve HTTP status', () => {
   assert.deepEqual(
     aiApiError('AI_PROVIDER_REJECTED', { providerStatus: 402 }),
     {
@@ -21,7 +21,7 @@ test('provider rejection responses preserve only the HTTP status', () => {
       body: {
         error: {
           code: 'AI_PROVIDER_REJECTED',
-          message: 'The AI provider rejected the check-in request.',
+          message: 'The training assistance request could not be accepted.',
           providerStatus: 402,
         },
       },
@@ -49,25 +49,40 @@ test('client error messages are selected by code and never echo provider text', 
     },
   });
 
-  assert.match(result, /HTTP 400/);
+  assert.match(result, /training assistance request could not be completed/i);
   assert.doesNotMatch(result, new RegExp(providerSecret));
   assert.match(
     getAiApiErrorMessage({
       error: { code: 'AUTH_REQUIRED', providerStatus: 401 },
     }),
-    /HTTP 401/
+    /temporarily unavailable/i
+  );
+});
+
+test('client error messages hide model and provider implementation details', () => {
+  const messages = [
+    { code: 'AUTH_REQUIRED', providerStatus: 401 },
+    { code: 'RATE_LIMITED', providerStatus: 429 },
+    { code: 'SERVICE_UNAVAILABLE', providerStatus: 503 },
+    { code: 'INVALID_AI_RESPONSE' },
+    { code: 'AI_PROVIDER_REJECTED', providerStatus: 502 },
+  ].map((error) => getAiApiErrorMessage({ error }));
+
+  assert.doesNotMatch(
+    messages.join(' '),
+    /JEV|TypeSafe|OpenRouter|Cloudflare|model|provider/i
   );
 });
 
 test('client falls back safely for unknown or malformed API errors', () => {
   assert.equal(
     getAiApiErrorMessage({ error: { code: 'UNKNOWN_ERROR' } }),
-    'The training check-in could not be completed. Please try again.'
+    'Training assistance could not be completed. Please try again.'
   );
   assert.equal(
     getAiApiErrorMessage({
       error: { code: 'AI_PROVIDER_REJECTED', providerStatus: 200 },
     }),
-    'The training check-in could not be completed. Please try again.'
+    'Training assistance could not be completed. Please try again.'
   );
 });
