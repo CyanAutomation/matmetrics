@@ -17,9 +17,20 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       request.state.session.description,
       'Worked uchi mata entries.'
     );
-    assert.equal('category' in request.state.session, false);
+    assert.equal(request.state.session.category, 'Technical');
+    assert.equal(request.state.session.effort, 4);
     assert.ok('suggested_category' in request.questions);
     assert.equal(request.questions.category_fit?.type, 'noul');
+    assert.equal(request.questions.has_useful_detail?.type, 'noul');
+    assert.match(
+      request.questions.has_useful_detail?.instructions ?? '',
+      /ignore length, date, duration, and category labels as evidence/i
+    );
+    assert.match(
+      request.questions.has_useful_detail?.instructions ?? '',
+      /a short entry can be useful/i
+    );
+    assert.equal(request.questions.effort_conflict?.type, 'noul');
     return {
       model: 'typesafe/jev-1.13-20260917',
       answers: {
@@ -29,10 +40,11 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
           confidence: 0.91,
         },
         category_fit: { type: 'noul', noul: 0.96 },
-        has_technique_detail: { type: 'noul', noul: 0.96 },
+        has_useful_detail: { type: 'noul', noul: 0.96 },
         has_reflection: { type: 'noul', noul: 0.2 },
         fatigue_signal: { type: 'score', score: 0.4, confidence: 0.87 },
         injury_signal: { type: 'noul', noul: 0.1 },
+        effort_conflict: { type: 'noul', noul: 0.87 },
       },
     };
   };
@@ -42,6 +54,8 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       {
         description: 'Worked uchi mata entries.',
         notes: '',
+        category: 'Technical',
+        effort: 4,
       },
       client
     ),
@@ -50,10 +64,12 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       categoryConfidence: 0.91,
       categoryFitProbability: 0.96,
       resolvedModel: 'typesafe/jev-1.13-20260917',
-      hasTechniqueDetail: 0.96,
+      hasUsefulDetail: 0.96,
       hasReflection: 0.2,
       fatigueSignal: 0.4,
       injurySignal: 0.1,
+      effortConflictProbability: 0.87,
+      unsupportedTechniqueTags: [],
     }
   );
 });
@@ -67,6 +83,29 @@ test('assessSessionWithJev rejects malformed provider answers', async () => {
   );
 });
 
+test('assessSessionWithJev omits malformed resolved model identifiers', async () => {
+  const result = await assessSessionWithJev(
+    { description: 'Practice.' },
+    async () => ({
+      model: 'typesafe/jev-test PRIVATE SESSION CONTENT',
+      answers: {
+        suggested_category: {
+          type: 'choice',
+          choice: 'Technical',
+          confidence: 0.9,
+        },
+        category_fit: { type: 'noul', noul: 0.9 },
+        has_useful_detail: { type: 'noul', noul: 0.9 },
+        has_reflection: { type: 'noul', noul: 0.8 },
+        fatigue_signal: { type: 'score', score: 0.2 },
+        injury_signal: { type: 'noul', noul: 0.1 },
+      },
+    })
+  );
+
+  assert.equal(result.resolvedModel, undefined);
+});
+
 test('assessSessionWithJev rejects answers whose primitive type is wrong', async () => {
   await assert.rejects(
     assessSessionWithJev({ description: 'Practice.' }, async () => ({
@@ -77,7 +116,7 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
           confidence: 0.9,
         },
         category_fit: { type: 'noul', noul: 0.9 },
-        has_technique_detail: { type: 'noul', noul: 0.9 },
+        has_useful_detail: { type: 'noul', noul: 0.9 },
         has_reflection: { type: 'noul', noul: 0.4 },
         fatigue_signal: { type: 'score', score: 0.2 },
         injury_signal: { type: 'noul', noul: 0.1 },
@@ -85,6 +124,47 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
     })),
     /invalid/i
   );
+});
+
+test('assessment audits saved technique tags in the same request and only flags unconfirmed tags', async () => {
+  let seenRequest: Parameters<JevDecisionClient>[0] | undefined;
+  const result = await assessSessionWithJev(
+    {
+      description: 'Practiced uchi mata entries.',
+      notes: 'Worked on timing.',
+      category: 'Technical',
+      effort: 3,
+      techniques: ['Uchi-mata', 'O-soto-gari', 'Uchi-mata'],
+    },
+    async (request) => {
+      seenRequest = request;
+      return {
+        answers: {
+          suggested_category: {
+            type: 'choice',
+            choice: 'Technical',
+            confidence: 0.9,
+          },
+          category_fit: { type: 'noul', noul: 0.9 },
+          has_useful_detail: { type: 'noul', noul: 0.9 },
+          has_reflection: { type: 'noul', noul: 0.8 },
+          fatigue_signal: { type: 'score', score: 0.2 },
+          injury_signal: { type: 'noul', noul: 0.1 },
+          effort_conflict: { type: 'noul', noul: 0.1 },
+          saved_tag_0: { type: 'noul', noul: 0.95 },
+          saved_tag_1: { type: 'noul', noul: 0.89 },
+        },
+      };
+    }
+  );
+
+  assert.deepEqual(seenRequest?.state.technique_candidates, {
+    saved_tag_0: 'Uchi-mata',
+    saved_tag_1: 'O-soto-gari',
+  });
+  assert.equal(seenRequest?.questions.saved_tag_0?.type, 'noul');
+  assert.equal(seenRequest?.questions.saved_tag_1?.type, 'noul');
+  assert.deepEqual(result.unsupportedTechniqueTags, ['O-soto-gari']);
 });
 
 test('verifyDescriptionFidelityWithJev asks about unsupported facts in one request', async () => {
@@ -213,7 +293,7 @@ test('OpenRouter JEV requests include the configured timeout and resolved model'
             confidence: 0.91,
           },
           category_fit: { type: 'noul', noul: 0.92 },
-          has_technique_detail: { type: 'noul', noul: 0.96 },
+          has_useful_detail: { type: 'noul', noul: 0.96 },
           has_reflection: { type: 'noul', noul: 0.2 },
           fatigue_signal: { type: 'score', score: 0.4 },
           injury_signal: { type: 'noul', noul: 0.1 },
@@ -238,6 +318,60 @@ test('OpenRouter JEV requests include the configured timeout and resolved model'
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
     else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});
+
+test('opt-in JEV observability logs model and outcome metadata without session text', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalLogging = process.env.MATMETRICS_JEV_OBSERVABILITY;
+  const originalInfo = console.info;
+  const logEntries: unknown[][] = [];
+  process.env.OPENROUTER_API_KEY = 'unit-test-key';
+  process.env.MATMETRICS_JEV_OBSERVABILITY = 'true';
+  console.info = (...args: unknown[]) => logEntries.push(args);
+  globalThis.fetch = (async () =>
+    ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        model: 'typesafe/jev-observability-test',
+        answers: {
+          suggested_category: {
+            type: 'choice',
+            choice: 'Technical',
+            confidence: 0.91,
+          },
+          category_fit: { type: 'noul', noul: 0.92 },
+          has_useful_detail: { type: 'noul', noul: 0.96 },
+          has_reflection: { type: 'noul', noul: 0.2 },
+          fatigue_signal: { type: 'score', score: 1.4 },
+          injury_signal: { type: 'noul', noul: 0.9 },
+        },
+      }),
+    }) as Response) as typeof fetch;
+
+  try {
+    await assessSessionWithJev({
+      description: 'PRIVATE DESCRIPTION TEXT',
+      notes: 'PRIVATE HEALTH NOTES',
+    });
+    const serialized = JSON.stringify(logEntries);
+
+    assert.match(serialized, /typesafe\/jev-observability-test/);
+    assert.match(serialized, /session_checkin/);
+    assert.match(serialized, /success/);
+    assert.doesNotMatch(serialized, /PRIVATE DESCRIPTION TEXT/);
+    assert.doesNotMatch(serialized, /PRIVATE HEALTH NOTES/);
+    assert.doesNotMatch(serialized, /1\.4|0\.9/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.info = originalInfo;
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+    if (originalLogging === undefined)
+      delete process.env.MATMETRICS_JEV_OBSERVABILITY;
+    else process.env.MATMETRICS_JEV_OBSERVABILITY = originalLogging;
   }
 });
 

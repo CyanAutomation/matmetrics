@@ -10,8 +10,10 @@ import {
   Edit2,
   ExternalLink,
   Filter,
+  Loader2,
   MoreHorizontal,
   Search,
+  Sparkles,
   X,
 } from 'lucide-react';
 import { deleteSession, saveSession } from '@/lib/storage';
@@ -40,6 +42,16 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { deferMenuDialogOpen } from '@/lib/interaction';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { useAuth } from '@/components/auth-provider';
+import { getAuthHeaders } from '@/lib/auth-session';
+import type { SessionAssessment } from '@/lib/jev-client';
+import {
+  HISTORY_REVIEW_BATCH_SIZE,
+  getHistoryReviewFindings,
+  isSessionAssessment,
+  reviewHistoryBatch,
+  type HistoryReviewResult,
+} from '@/lib/jev-history-review';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -298,6 +310,7 @@ export function SessionHistory({
   onRefresh,
   onLogSession,
 }: SessionHistoryProps) {
+  const { canUseAi } = useAuth();
   const { toast } = useToast();
   const [editingSession, setEditingSession] = useState<JudoSession | null>(
     null
@@ -314,6 +327,104 @@ export function SessionHistory({
   const [toDate, setToDate] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('compact');
+  const [historyReviewEntries, setHistoryReviewEntries] = useState<
+    HistoryReviewResult[]
+  >([]);
+  const [reviewedSessionIds, setReviewedSessionIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [isReviewingHistory, setIsReviewingHistory] = useState(false);
+  const [reviewProgress, setReviewProgress] = useState({
+    completed: 0,
+    total: 0,
+  });
+
+  const hasUnreviewedDescriptions = sessions.some(
+    (session) =>
+      !reviewedSessionIds.has(session.id) &&
+      Boolean(session.description?.trim())
+  );
+
+  const assessHistorySession = async (input: {
+    description: string;
+    notes?: string;
+    category: JudoSession['category'];
+    effort: JudoSession['effort'];
+    techniques: string[];
+  }): Promise<SessionAssessment> => {
+    const response = await fetch('/api/ai/assess-session', {
+      method: 'POST',
+      headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(input),
+    });
+    const payload: unknown = await response.json();
+    const assessment =
+      payload && typeof payload === 'object'
+        ? (payload as { assessment?: unknown }).assessment
+        : undefined;
+
+    if (!response.ok) {
+      throw new Error('History review request failed');
+    }
+    if (!isSessionAssessment(assessment)) {
+      throw new Error('History review response was invalid');
+    }
+    return assessment;
+  };
+
+  const handleReviewHistory = async () => {
+    if (!canUseAi || isReviewingHistory) return;
+    const pendingCount = sessions.filter(
+      (session) =>
+        !reviewedSessionIds.has(session.id) &&
+        Boolean(session.description?.trim())
+    ).length;
+    if (pendingCount === 0) return;
+
+    setIsReviewingHistory(true);
+    setReviewProgress({
+      completed: 0,
+      total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
+    });
+    let completed = 0;
+    try {
+      await reviewHistoryBatch(
+        sessions,
+        reviewedSessionIds,
+        assessHistorySession,
+        HISTORY_REVIEW_BATCH_SIZE,
+        (entry) => {
+          completed += 1;
+          setReviewProgress({
+            completed,
+            total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
+          });
+          if (!entry.error) {
+            setReviewedSessionIds((current) =>
+              new Set(current).add(entry.sessionId)
+            );
+          }
+          setHistoryReviewEntries((current) => [
+            entry,
+            ...current.filter((item) => item.sessionId !== entry.sessionId),
+          ]);
+        }
+      );
+    } finally {
+      setIsReviewingHistory(false);
+    }
+  };
+
+  const clearHistoryReview = (sessionId: string) => {
+    setHistoryReviewEntries((current) =>
+      current.filter((entry) => entry.sessionId !== sessionId)
+    );
+    setReviewedSessionIds((current) => {
+      const next = new Set(current);
+      next.delete(sessionId);
+      return next;
+    });
+  };
 
   const handleDelete = async (session: JudoSession) => {
     if (deletingSessionId) {
@@ -356,6 +467,7 @@ export function SessionHistory({
           </ToastAction>
         ),
       });
+      clearHistoryReview(session.id);
     } catch {
       toast({
         variant: 'destructive',
@@ -479,6 +591,26 @@ export function SessionHistory({
       description="Search, filter, and revisit your training sessions."
       actions={
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            onClick={() => void handleReviewHistory()}
+            disabled={
+              !canUseAi || isReviewingHistory || !hasUnreviewedDescriptions
+            }
+          >
+            {isReviewingHistory ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {isReviewingHistory
+              ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
+              : hasUnreviewedDescriptions
+                ? 'Review next 5 with JEV'
+                : 'This view is reviewed'}
+          </Button>
           <SegmentedControl
             aria-label="History display density"
             value={density}
@@ -609,6 +741,140 @@ export function SessionHistory({
         </p>
       </FilterBar>
 
+      <section
+        aria-label="JEV history review"
+        className="mb-6 rounded-xl border border-primary/15 bg-primary/5 p-4"
+      >
+        <p className="text-sm font-semibold">Optional JEV history review</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review sends the descriptions, notes, selected types, effort ratings,
+          and up to 12 saved technique tags for each of up to five sessions in
+          this view to OpenRouter/TypeSafe. JEV offers suggestions only; nothing
+          is changed unless you edit and save a session.
+        </p>
+        {!canUseAi ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Sign in and enable AI to review session history.
+          </p>
+        ) : null}
+        {historyReviewEntries.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {historyReviewEntries.map((entry) => {
+              const session = sessions.find(
+                (item) => item.id === entry.sessionId
+              );
+              const assessment = entry.assessment;
+              const findings = getHistoryReviewFindings(entry);
+              const hasOtherSuggestion =
+                assessment &&
+                (findings.needsUsefulDetail ||
+                  findings.needsReflection ||
+                  findings.effortMismatch ||
+                  findings.fatigueMention ||
+                  findings.injuryMention ||
+                  assessment.unsupportedTechniqueTags.length > 0);
+
+              return (
+                <div
+                  key={entry.sessionId}
+                  className="rounded-lg border border-border/70 bg-background p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {formatDateLabel(
+                        parseDateOnly(entry.sessionDate),
+                        'weekday-month-day-year'
+                      )}{' '}
+                      · {entry.currentCategory} ·{' '}
+                      {EFFORT_LABELS[entry.currentEffort]} effort
+                    </p>
+                    {assessment?.resolvedModel ? (
+                      <span className="text-xs text-muted-foreground">
+                        JEV {assessment.resolvedModel}
+                      </span>
+                    ) : null}
+                  </div>
+                  {entry.error ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      JEV could not review this session. You can try again in a
+                      later review batch.
+                    </p>
+                  ) : assessment ? (
+                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      {findings.categoryMismatch ? (
+                        <p>
+                          Possible type mismatch: JEV suggests{' '}
+                          <strong>{findings.categoryMismatch}</strong> with{' '}
+                          {Math.round(assessment.categoryConfidence * 100)}%
+                          confidence. Review before changing the saved type.
+                        </p>
+                      ) : findings.categoryUnclear ? (
+                        <p>
+                          JEV could not confidently match this description to an
+                          existing session type.
+                        </p>
+                      ) : null}
+                      {findings.needsUsefulDetail ? (
+                        <p>
+                          Consider adding one concrete, category-relevant
+                          detail; a short entry can still be useful.
+                        </p>
+                      ) : null}
+                      {findings.needsReflection ? (
+                        <p>Consider adding a short reflection.</p>
+                      ) : null}
+                      {findings.effortMismatch ? (
+                        <p>
+                          The text may conflict with the effort rating you
+                          chose. Review both if needed.
+                        </p>
+                      ) : null}
+                      {assessment.unsupportedTechniqueTags.length > 0 ? (
+                        <p>
+                          JEV could not confirm these saved technique tags from
+                          the text:{' '}
+                          {assessment.unsupportedTechniqueTags.join(', ')}.
+                          Review them manually; they have not been removed.
+                        </p>
+                      ) : null}
+                      {findings.fatigueMention ? (
+                        <p>
+                          The text mentions fatigue or difficult recovery; this
+                          check-in does not assess readiness to train.
+                        </p>
+                      ) : null}
+                      {findings.injuryMention ? (
+                        <p>
+                          JEV detected a possible pain or injury mention. This
+                          is not a diagnosis; review the note if this seems
+                          inaccurate.
+                        </p>
+                      ) : null}
+                      {!findings.categoryMismatch &&
+                      !findings.categoryUnclear &&
+                      !hasOtherSuggestion ? (
+                        <p>No review suggestions met the current thresholds.</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {session ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="mt-2 h-8 px-2"
+                      onClick={() => setEditingSession(session)}
+                    >
+                      Edit session
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
+
       {filteredSessions.length === 0 ? (
         <div className="rounded-xl bg-muted/45 p-8 text-center">
           <p className="font-semibold">No sessions match these filters.</p>
@@ -655,6 +921,7 @@ export function SessionHistory({
               <SessionLogForm
                 sessionToEdit={editingSession}
                 onSuccess={() => {
+                  clearHistoryReview(editingSession.id);
                   setEditingSession(null);
                   onRefresh();
                 }}
