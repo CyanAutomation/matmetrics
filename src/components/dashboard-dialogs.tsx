@@ -50,7 +50,8 @@ export function DashboardDialogs({
           <DialogHeader className="sticky top-0 z-20 border-b bg-card/95 px-5 py-4 backdrop-blur sm:px-6">
             <DialogTitle>Log session</DialogTitle>
             <DialogDescription>
-              Capture the essentials first. Reflection and media are optional.
+              Add session details and practice notes, then review before saving.
+              Techniques, reflection, and video are optional.
             </DialogDescription>
           </DialogHeader>
           {isLogModalOpen && (

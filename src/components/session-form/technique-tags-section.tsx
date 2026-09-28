@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { Brain, X, Sparkles, Loader2 } from 'lucide-react';
 
 interface TechniqueTagsSectionProps {
@@ -62,11 +63,7 @@ export function TechniqueTagsSection({
           Suggest tags
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Suggestions are generated with Cloudflare. When JEV is configured, your
-        description and suggested tags are also sent to OpenRouter/TypeSafe for
-        verification.
-      </p>
+      <DataUseNotice variant="tag-suggestions" />
       <div className="flex min-h-[48px] flex-wrap gap-2 rounded-lg bg-muted/45 p-4 [[data-contrast='high']_&]:outline [[data-contrast='high']_&]:outline-[hsl(var(--color-outline-variant)/0.9)]">
         {techniques.length === 0 && (
           <span className="text-sm text-muted-foreground/60 flex items-center gap-1.5">

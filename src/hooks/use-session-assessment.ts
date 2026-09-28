@@ -39,9 +39,7 @@ function isAssessment(value: unknown): value is SessionAssessment {
     Array.isArray(result.unsupportedTechniqueTags) &&
     result.unsupportedTechniqueTags.every(
       (candidate) => typeof candidate === 'string'
-    ) &&
-    (result.resolvedModel === undefined ||
-      typeof result.resolvedModel === 'string')
+    )
   );
 }
 

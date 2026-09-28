@@ -21,7 +21,7 @@ export interface AiApiErrorResponse {
 
 export class InvalidAiResponseError extends Error {
   constructor() {
-    super('The AI model returned an empty or invalid response');
+    super('The training service returned an empty or invalid response');
     this.name = 'InvalidAiResponseError';
   }
 }
@@ -54,7 +54,7 @@ const ERROR_DETAILS: Record<
   },
   AI_PROVIDER_REJECTED: {
     status: 502,
-    message: 'The AI provider rejected the check-in request.',
+    message: 'The training assistance request could not be accepted.',
   },
   UNKNOWN_ERROR: {
     status: 500,
@@ -93,7 +93,7 @@ function isHttpStatus(value: unknown): value is number {
 }
 
 const CHECKIN_FALLBACK_MESSAGE =
-  'The training check-in could not be completed. Please try again.';
+  'Training assistance could not be completed. Please try again.';
 
 /**
  * Maps only allow-listed API error codes to user-facing copy. Provider text is
@@ -106,29 +106,20 @@ export function getAiApiErrorMessage(value: unknown): string {
   const details = error as { code?: unknown; providerStatus?: unknown };
 
   switch (details.code) {
-    case 'AUTH_REQUIRED': {
-      if (isHttpStatus(details.providerStatus)) {
-        return `OpenRouter rejected the JEV credential or denied access (HTTP ${details.providerStatus}). Check OPENROUTER_API_KEY in the Production environment.`;
-      }
-      return 'The JEV credential is missing or was rejected. Check OPENROUTER_API_KEY in the Production environment.';
-    }
+    case 'AUTH_REQUIRED':
+      return 'Training assistance is temporarily unavailable. Please try again later.';
     case 'RATE_LIMITED':
-      return isHttpStatus(details.providerStatus)
-        ? `OpenRouter rate limited the JEV check-in (HTTP ${details.providerStatus}). Wait a moment and try again.`
-        : 'OpenRouter rate limited the JEV check-in. Wait a moment and try again.';
+      return 'Too many requests were made. Wait a moment and try again.';
     case 'SERVICE_UNAVAILABLE':
-      return isHttpStatus(details.providerStatus)
-        ? `OpenRouter is temporarily unavailable (HTTP ${details.providerStatus}). Please try again shortly.`
-        : 'OpenRouter is temporarily unavailable. Please try again shortly.';
+      return 'Training assistance is temporarily unavailable. Please try again shortly.';
     case 'INPUT_TOO_LARGE':
       return 'The check-in text is too long. Shorten the description or notes and try again.';
     case 'INVALID_AI_RESPONSE':
-      return 'JEV returned an unexpected response. Please try again.';
-    case 'AI_PROVIDER_REJECTED': {
-      const status = details.providerStatus;
-      if (!isHttpStatus(status)) return CHECKIN_FALLBACK_MESSAGE;
-      return `OpenRouter rejected the JEV request (HTTP ${status}). Check the Vercel function logs for the same status.`;
-    }
+      return 'The training suggestion could not be completed. Please try again.';
+    case 'AI_PROVIDER_REJECTED':
+      return isHttpStatus(details.providerStatus)
+        ? 'The training assistance request could not be completed. Please try again later.'
+        : CHECKIN_FALLBACK_MESSAGE;
     default:
       return CHECKIN_FALLBACK_MESSAGE;
   }

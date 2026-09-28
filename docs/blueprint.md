@@ -42,6 +42,10 @@ For data display, prefer:
 - **Section + Separator**: Whitespace and thin dividers between related items
 - **Row layout**: Session lists use dividers and section grouping
 
+Plugin table and gallery sections use the shared `DataSurface` treatment through
+`PluginSectionCard surface="data"`. Form sections keep the default card surface;
+direct `PluginSectionCard` usage should choose the surface that matches its role.
+
 ## Color System
 
 The design system uses a comprehensive semantic token approach. Colors are defined through semantic meanings, not raw hex values.
@@ -127,12 +131,18 @@ The system uses **Inter** as the primary typographic engine, leveraging mathemat
 - **Labels**: Uppercase with increased letter spacing (+0.05em) for metadata
 - **Body**: `body-lg` for coaching tips to give text more "weight" and authority
 
-### Plugin Heading Hierarchy
+### Page Heading Hierarchy
 
-Plugin dashboard content follows the shared plugin UI contract: the application
-owns the page-level `h1`, `PluginPageShell` renders the plugin title as `h2`, and
-each titled `PluginSectionCard` renders its section title as `h3`. Plugins must
-not skip these levels or use heading elements for descriptive copy or actions.
+The application shell owns one `h1` product heading. `PageShell` and
+`PluginPageShell` render page titles as `h2`, and each titled
+`PluginSectionCard` renders its section title as `h3`. Pages must not skip these
+levels or use heading elements for descriptive copy or actions.
+
+### Assisted Features
+
+Keep model and provider names internal. User-facing copy may describe a training
+check-in, review, or suggestion, while `DataUseNotice` explains which session
+details are sent to an external service.
 
 ## Component Patterns
 

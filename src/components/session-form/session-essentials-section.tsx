@@ -55,9 +55,9 @@ export function SessionEssentialsSection({
         Session essentials
       </legend>
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
-        {/* Avatar - Hidden on mobile, visible on lg and above */}
+        {/* Keep the illustration beside the fields only when the full row fits. */}
         {showAvatar && (
-          <div className="hidden md:flex shrink-0">
+          <div className="hidden lg:flex shrink-0">
             <RessaImage
               pose={1}
               size="medium"

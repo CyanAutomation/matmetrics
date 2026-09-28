@@ -75,7 +75,6 @@ export type SessionAssessment = {
   injurySignal: number;
   effortConflictProbability?: number;
   unsupportedTechniqueTags: string[];
-  resolvedModel?: string;
 };
 
 class JevHttpError extends Error {
@@ -341,11 +340,6 @@ export async function assessSessionWithJev(
     'suggested_category',
     'choice'
   );
-  const model =
-    typeof response.model === 'string'
-      ? normalizeResolvedModel(response.model)
-      : undefined;
-
   return {
     suggestedCategory: category(categoryAnswer.choice),
     categoryConfidence: numberInRange(categoryAnswer.confidence, 0, 1),
@@ -392,7 +386,6 @@ export async function assessSessionWithJev(
         )
       )
     ),
-    ...(model ? { resolvedModel: model } : {}),
   };
 }
 

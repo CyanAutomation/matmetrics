@@ -356,7 +356,8 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     >
       <DataToolbar
         label="Filter technique tags"
-        className="grid-cols-1 p-3 sm:p-4"
+        layout="single"
+        className="p-3 sm:p-4"
       >
         <InputWithIcon
           icon={<Search className="h-4 w-4" />}
