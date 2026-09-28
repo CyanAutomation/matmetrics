@@ -78,7 +78,12 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
         body.techniques !== undefined &&
         (!Array.isArray(body.techniques) ||
           body.techniques.length > 100 ||
-          body.techniques.some((technique) => typeof technique !== 'string'))
+          body.techniques.some(
+            (technique) =>
+              typeof technique !== 'string' ||
+              technique.trim().length === 0 ||
+              technique.trim().length > 120
+          ))
       ) {
         return NextResponse.json(aiApiError('INVALID_REQUEST').body, {
           status: 400,
@@ -98,13 +103,7 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
         ...(body.techniques === undefined
           ? {}
           : {
-              techniques: (body.techniques as string[])
-                .filter(
-                  (technique) =>
-                    technique.trim().length > 0 &&
-                    technique.trim().length <= 120
-                )
-                .slice(0, 12),
+              techniques: (body.techniques as string[]).slice(0, 12),
             }),
       });
       return NextResponse.json({ assessment });
