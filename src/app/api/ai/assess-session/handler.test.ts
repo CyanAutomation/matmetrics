@@ -44,7 +44,7 @@ test('assessment route authenticates, validates, and returns an assessment', asy
       notes: 'Felt good.',
       category: 'Randori',
       effort: 5,
-      techniques: ['Uchi-mata'],
+      techniques: ['  Uchi-mata  '],
     })
   );
   assert.equal(response.status, 200);
