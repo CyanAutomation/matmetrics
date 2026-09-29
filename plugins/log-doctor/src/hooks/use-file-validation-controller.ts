@@ -240,7 +240,7 @@ export const useFileValidationController = (
                 )) as ScanResult)
               : (initial as ScanResult);
           if (response.status >= 400) {
-            throw new Error('Log Doctor scan request failed');
+            throw new Error('Training data scan request failed');
           }
           if (!isCurrentRequest()) {
             return;

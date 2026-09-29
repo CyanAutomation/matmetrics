@@ -13,20 +13,15 @@ import {
 import {
   JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD,
   JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD,
-  JEV_FATIGUE_NUDGE_SCORE_THRESHOLD,
   JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD,
   JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD,
-  JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD,
   JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
   JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD,
-  hasElevatedFatigueSignal,
-  hasInjurySignal,
   shouldPromptForUsefulDetail,
   shouldFlagEffortConflict,
   hasClearSessionCategoryFit,
   shouldFlagTransformedDescription,
   shouldPromptForReflection,
-  shouldShowRecoveryNudge,
 } from './jev-policy';
 
 const outcomes: CategoryPredictionOutcome[] = [
@@ -207,8 +202,6 @@ test('category apply threshold is centralized and includes its exact boundary', 
   assert.equal(JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD, 0.8);
   assert.equal(JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD, 0.9);
   assert.equal(JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD, 0.5);
-  assert.equal(JEV_FATIGUE_NUDGE_SCORE_THRESHOLD, 1);
-  assert.equal(JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD, 0.5);
   assert.equal(JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD, 0.5);
   assert.equal(JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD, 0.8);
   assert.equal(JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD, 0.5);
@@ -226,13 +219,6 @@ test('category apply threshold is centralized and includes its exact boundary', 
   assert.equal(shouldPromptForUsefulDetail(0.5), false);
   assert.equal(shouldFlagEffortConflict(0.8), true);
   assert.equal(shouldFlagEffortConflict(0.799), false);
-  assert.equal(shouldShowRecoveryNudge(1, 0), true);
-  assert.equal(shouldShowRecoveryNudge(0.99, 0.5), true);
-  assert.equal(shouldShowRecoveryNudge(0.99, 0.49), false);
-  assert.equal(hasElevatedFatigueSignal(1), true);
-  assert.equal(hasElevatedFatigueSignal(0.99), false);
-  assert.equal(hasInjurySignal(0.5), true);
-  assert.equal(hasInjurySignal(0.49), false);
   assert.equal(shouldFlagTransformedDescription(0.5), true);
   assert.equal(shouldFlagTransformedDescription(0.49), false);
 });

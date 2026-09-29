@@ -31,6 +31,8 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       /a short entry can be useful/i
     );
     assert.equal(request.questions.effort_conflict?.type, 'noul');
+    assert.equal('fatigue_signal' in request.questions, false);
+    assert.equal('injury_signal' in request.questions, false);
     return {
       model: 'typesafe/jev-1.13-20260917',
       answers: {
@@ -42,8 +44,6 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
         category_fit: { type: 'noul', noul: 0.96 },
         has_useful_detail: { type: 'noul', noul: 0.96 },
         has_reflection: { type: 'noul', noul: 0.2 },
-        fatigue_signal: { type: 'score', score: 0.4, confidence: 0.87 },
-        injury_signal: { type: 'noul', noul: 0.1 },
         effort_conflict: { type: 'noul', noul: 0.87 },
       },
     };
@@ -65,8 +65,6 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
       categoryFitProbability: 0.96,
       hasUsefulDetail: 0.96,
       hasReflection: 0.2,
-      fatigueSignal: 0.4,
-      injurySignal: 0.1,
       effortConflictProbability: 0.87,
       unsupportedTechniqueTags: [],
     }
@@ -96,8 +94,6 @@ test('assessSessionWithJev omits malformed resolved model identifiers', async ()
         category_fit: { type: 'noul', noul: 0.9 },
         has_useful_detail: { type: 'noul', noul: 0.9 },
         has_reflection: { type: 'noul', noul: 0.8 },
-        fatigue_signal: { type: 'score', score: 0.2 },
-        injury_signal: { type: 'noul', noul: 0.1 },
       },
     })
   );
@@ -117,8 +113,6 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
         category_fit: { type: 'noul', noul: 0.9 },
         has_useful_detail: { type: 'noul', noul: 0.9 },
         has_reflection: { type: 'noul', noul: 0.4 },
-        fatigue_signal: { type: 'score', score: 0.2 },
-        injury_signal: { type: 'noul', noul: 0.1 },
       },
     })),
     /invalid/i
@@ -147,8 +141,6 @@ test('assessment audits saved technique tags in the same request and only flags 
           category_fit: { type: 'noul', noul: 0.9 },
           has_useful_detail: { type: 'noul', noul: 0.9 },
           has_reflection: { type: 'noul', noul: 0.8 },
-          fatigue_signal: { type: 'score', score: 0.2 },
-          injury_signal: { type: 'noul', noul: 0.1 },
           effort_conflict: { type: 'noul', noul: 0.1 },
           saved_tag_0: { type: 'noul', noul: 0.95 },
           saved_tag_1: { type: 'noul', noul: 0.89 },
@@ -294,8 +286,6 @@ test('assessment responses omit resolved model metadata', async () => {
           category_fit: { type: 'noul', noul: 0.92 },
           has_useful_detail: { type: 'noul', noul: 0.96 },
           has_reflection: { type: 'noul', noul: 0.2 },
-          fatigue_signal: { type: 'score', score: 0.4 },
-          injury_signal: { type: 'noul', noul: 0.1 },
         },
       }),
     } as Response;
@@ -344,8 +334,6 @@ test('opt-in JEV observability logs model and outcome metadata without session t
           category_fit: { type: 'noul', noul: 0.92 },
           has_useful_detail: { type: 'noul', noul: 0.96 },
           has_reflection: { type: 'noul', noul: 0.2 },
-          fatigue_signal: { type: 'score', score: 1.4 },
-          injury_signal: { type: 'noul', noul: 0.9 },
         },
       }),
     }) as Response) as typeof fetch;
@@ -353,7 +341,7 @@ test('opt-in JEV observability logs model and outcome metadata without session t
   try {
     await assessSessionWithJev({
       description: 'PRIVATE DESCRIPTION TEXT',
-      notes: 'PRIVATE HEALTH NOTES',
+      notes: 'PRIVATE SESSION NOTES',
     });
     const serialized = JSON.stringify(logEntries);
 
@@ -361,7 +349,7 @@ test('opt-in JEV observability logs model and outcome metadata without session t
     assert.match(serialized, /session_checkin/);
     assert.match(serialized, /success/);
     assert.doesNotMatch(serialized, /PRIVATE DESCRIPTION TEXT/);
-    assert.doesNotMatch(serialized, /PRIVATE HEALTH NOTES/);
+    assert.doesNotMatch(serialized, /PRIVATE SESSION NOTES/);
     assert.doesNotMatch(serialized, /1\.4|0\.9/);
   } finally {
     globalThis.fetch = originalFetch;

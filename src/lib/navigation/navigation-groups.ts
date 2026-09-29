@@ -23,7 +23,7 @@ const tabGroupByTitle: Record<string, NavigationGroup['label']> = {
   'Session Types': 'Plan',
   'Prompt Settings': 'Settings',
   'GitHub Sync': 'Settings',
-  'Log Doctor': 'Settings',
+  'Data check': 'Settings',
   Plugins: 'Settings',
 };
 

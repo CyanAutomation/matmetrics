@@ -765,8 +765,6 @@ export function SessionHistory({
                 (findings.needsUsefulDetail ||
                   findings.needsReflection ||
                   findings.effortMismatch ||
-                  findings.fatigueMention ||
-                  findings.injuryMention ||
                   assessment.unsupportedTechniqueTags.length > 0);
 
               return (
@@ -825,18 +823,6 @@ export function SessionHistory({
                           tags from the text:{' '}
                           {assessment.unsupportedTechniqueTags.join(', ')}.
                           Review them manually; they have not been removed.
-                        </p>
-                      ) : null}
-                      {findings.fatigueMention ? (
-                        <p>
-                          The text mentions fatigue or difficult recovery; this
-                          check-in does not assess readiness to train.
-                        </p>
-                      ) : null}
-                      {findings.injuryMention ? (
-                        <p>
-                          The note may mention pain or injury. This is not a
-                          diagnosis; review the entry if this seems inaccurate.
                         </p>
                       ) : null}
                       {!findings.categoryMismatch &&

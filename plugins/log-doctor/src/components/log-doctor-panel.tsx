@@ -28,14 +28,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Stethoscope } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFileValidationController } from '../hooks/use-file-validation-controller';
 import { useLogDoctorAudit } from '../hooks/use-log-doctor-audit';
 import { useLogDoctorValidationActions } from '../hooks/use-log-doctor-validation-actions';
 import { useLogDoctorReset } from '../hooks/use-log-doctor-reset';
 import { useLogDoctorRepositoryTarget } from '../hooks/use-log-doctor-repository-target';
-import { DrLogImage } from './drlog-image';
+import { RessaImage } from '@/components/ressa-image';
 import { getSessions } from '@/lib/storage';
 import { createDomSafePathId } from './dom-safe-id';
 import { AuditResults } from './log-doctor-audit-results';
@@ -395,7 +395,7 @@ function LogDoctorView({
     <PluginPageShell
       title="Data check"
       description="Find missing or inconsistent training data, review it, then apply only the fixes you approve."
-      icon={<Stethoscope className="h-6 w-6" />}
+      icon={<ClipboardCheck className="h-6 w-6" />}
     >
       {!hasStartedDiagnosis ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -432,10 +432,10 @@ function LogDoctorView({
       {hasStartedDiagnosis ? (
         <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-start">
           <div className="hidden shrink-0 lg:flex">
-            <DrLogImage
+            <RessaImage
               pose={1}
               size="medium"
-              alt="Dr. Log in diagnostic mode, ready to scan and fix your session logs"
+              alt="Ressa reviewing training data"
             />
           </div>
 
@@ -915,7 +915,7 @@ function LogDoctorView({
                   This will commit normalization fixes for {selectedCount}{' '}
                   selected file(s) on{' '}
                   <strong>{branch.trim() || 'the default branch'}</strong>. Undo
-                  is not available in Log Doctor.
+                  is not available in this workspace.
                 </>
               }
               confirmLabel="Confirm apply fixes"
@@ -939,7 +939,7 @@ function LogDoctorView({
                 else resetDiagnostics.cancel();
               }}
               title="Reset diagnostics state?"
-              description="This clears current scan findings, fix previews, and selected files from the Log Doctor panel. You can undo this reset from the toast after confirming."
+              description="This clears current scan findings, fix previews, and selected files from the Data check panel. You can undo this reset from the toast after confirming."
               confirmLabel="Reset diagnostics state"
               cancelLabel="Cancel"
               onCancel={resetDiagnostics.cancel}

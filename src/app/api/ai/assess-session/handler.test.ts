@@ -32,8 +32,6 @@ test('assessment route authenticates, validates, and returns an assessment', asy
       categoryFitProbability: 0.95,
       hasUsefulDetail: 0.9,
       hasReflection: 0.4,
-      fatigueSignal: 0.2,
-      injurySignal: 0.1,
       effortConflictProbability: 0.9,
       unsupportedTechniqueTags: [],
     };
@@ -111,8 +109,6 @@ test('assessment route caps technique-tag audit input at twelve tags', async () 
       categoryFitProbability: 0.9,
       hasUsefulDetail: 0.9,
       hasReflection: 0.9,
-      fatigueSignal: 0,
-      injurySignal: 0,
       unsupportedTechniqueTags: [],
     };
   });
