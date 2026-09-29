@@ -88,6 +88,34 @@ test('rejects malformed inputs with useful row and field context', () => {
         outcomes: [{
           predictedCategory: 'Technical',
           actualCategory: 'Technical',
+          confidence: Number.NaN,
+        }],
+      }),
+    /Invalid Choice outcome at row 1/
+  );
+  assert.throws(
+    () =>
+      evaluateThresholdInput({
+        kind: 'noul',
+        outcomes: [{ probability: Number.POSITIVE_INFINITY, actual: true }],
+      }),
+    /Invalid Noul outcome at row 1/
+  );
+  assert.throws(
+    () =>
+      evaluateThresholdInput({
+        kind: 'score',
+        outcomes: [{ score: Number.NEGATIVE_INFINITY, actual: false }],
+      }),
+    /Invalid Score outcome at row 1/
+  );
+  assert.throws(
+    () =>
+      evaluateThresholdInput({
+        kind: 'choice',
+        outcomes: [{
+          predictedCategory: 'Technical',
+          actualCategory: 'Technical',
           confidence: 0.9,
         }],
         confidenceThresholds: [1.1],

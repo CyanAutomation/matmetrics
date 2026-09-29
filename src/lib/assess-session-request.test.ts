@@ -55,7 +55,7 @@ test('assessment input rejects invalid fields before calling the provider', () =
   }
 });
 
-test('assessment input preserves description and notes size response codes', () => {
+test('assessment input reports oversized descriptions and notes', () => {
   const description = 'é'.repeat(
     Math.floor(AI_DESCRIPTION_MAX_BYTES / 2) + 1
   );
@@ -63,8 +63,8 @@ test('assessment input preserves description and notes size response codes', () 
 
   assert.deepEqual(parseAssessSessionInput({ description }), {
     ok: false,
-    code: 'INVALID_REQUEST',
-    status: 400,
+    code: 'INPUT_TOO_LARGE',
+    status: 413,
   });
   assert.deepEqual(parseAssessSessionInput({ description: 'Practice.', notes }), {
     ok: false,
