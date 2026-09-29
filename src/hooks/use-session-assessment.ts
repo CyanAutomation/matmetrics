@@ -5,41 +5,13 @@ import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getAiApiErrorMessage } from '@/lib/ai-api-error';
 import {
-  isSessionThemeAssessment,
+  isSessionAssessment,
   type SessionAssessment,
   type SessionAssessmentInput,
 } from '@/lib/jev-client';
 import { useToast } from './use-toast';
 
 type AssessmentInput = SessionAssessmentInput;
-
-function isAssessment(value: unknown): value is SessionAssessment {
-  if (!value || typeof value !== 'object') return false;
-  const result = value as Record<string, unknown>;
-  const isProbability = (candidate: unknown): candidate is number =>
-    typeof candidate === 'number' &&
-    Number.isFinite(candidate) &&
-    candidate >= 0 &&
-    candidate <= 1;
-  return (
-    typeof result.suggestedCategory === 'string' &&
-    ['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'].includes(
-      result.suggestedCategory
-    ) &&
-    isProbability(result.categoryConfidence) &&
-    isProbability(result.categoryFitProbability) &&
-    isProbability(result.hasUsefulDetail) &&
-    isProbability(result.hasReflection) &&
-    (result.effortConflictProbability === undefined ||
-      isProbability(result.effortConflictProbability)) &&
-    Array.isArray(result.unsupportedTechniqueTags) &&
-    result.unsupportedTechniqueTags.every(
-      (candidate) => typeof candidate === 'string'
-    ) &&
-    (result.trainingThemes === undefined ||
-      isSessionThemeAssessment(result.trainingThemes))
-  );
-}
 
 export function useSessionAssessment() {
   const { canUseAi } = useAuth();
@@ -74,7 +46,7 @@ export function useSessionAssessment() {
           failureMessage = getAiApiErrorMessage(payload);
           throw new Error('Assessment request failed');
         }
-        if (!isAssessment(candidate))
+        if (!isSessionAssessment(candidate))
           throw new Error('Invalid assessment response');
         if (nextController.signal.aborted) return;
         assessmentRef.current = candidate;

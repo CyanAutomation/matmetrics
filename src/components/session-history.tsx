@@ -1,59 +1,22 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { JudoSession, EFFORT_LABELS, SESSION_CATEGORIES } from '@/lib/types';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import type { JudoSession } from '@/lib/types';
+import { formatDateLabel, parseDateOnly } from '@/lib/utils';
+import { useSessionHistoryReview } from '@/hooks/use-session-history-review';
+import { useSessionHistoryActions } from '@/hooks/use-session-history-actions';
 import {
-  Trash2,
-  Calendar,
-  Edit2,
-  ExternalLink,
-  Filter,
-  Loader2,
-  MoreHorizontal,
-  Search,
-  Sparkles,
-  X,
-} from 'lucide-react';
-import { deleteSession, saveSession } from '@/lib/storage';
-import { useToast } from '@/hooks/use-toast';
+  filterSessionHistory,
+  getSessionHistoryActiveFilterCount,
+  getSessionHistoryStats,
+  getSessionQuickFilterRange,
+  type SessionHistoryQuickFilter,
+} from '@/lib/session-history-filter';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { SessionLogForm } from '@/components/session-log-form';
-import { RessaImage } from '@/components/ressa-image';
-import { cn, formatDateLabel, parseDateOnly } from '@/lib/utils';
-import { DataSurface } from '@/components/ui/data-display';
-import { DataUseNotice } from '@/components/ui/data-use-notice';
-import { PageShell } from '@/components/ui/page-shell';
-import { FilterBar } from '@/components/ui/filter-bar';
-import { Input } from '@/components/ui/input';
-import { InputWithIcon } from '@/components/ui/input-with-icon';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ToastAction } from '@/components/ui/toast';
-import { deferMenuDialogOpen } from '@/lib/interaction';
-import { SegmentedControl } from '@/components/ui/segmented-control';
-import { useAuth } from '@/components/auth-provider';
-import { getAuthHeaders } from '@/lib/auth-session';
-import type { SessionAssessment, TrainingTheme } from '@/lib/jev-client';
-import {
-  HISTORY_REVIEW_BATCH_SIZE,
-  getRecurringTrainingThemeSummary,
-  getHistoryReviewFindings,
-  isSessionAssessment,
-  reviewHistoryBatch,
-  type HistoryReviewResult,
-} from '@/lib/jev-history-review';
+  SessionHistoryContent,
+  SessionHistoryEmptyState,
+  type SessionHistoryDensity,
+} from './session-history-content';
 
 interface SessionHistoryProps {
   sessions: JudoSession[];
@@ -66,38 +29,13 @@ type GroupedSessions = {
   sessions: JudoSession[];
 };
 
-const trainingThemeLabels: Record<TrainingTheme, string> = {
-  kumi_kata: 'Kumi-kata',
-  ne_waza: 'Ne-waza',
-  transitions: 'Transitions',
-  competition_tactics: 'Competition tactics',
-};
-
-const categoryBadgeVariants = {
-  Technical: 'technical',
-  Randori: 'randori',
-  Shiai: 'shiai',
-  Cardio: 'cardio',
-  'S&C': 'strengthConditioning',
-} as const;
-
-const effortBadgeVariants = {
-  1: 'effortEasy',
-  2: 'effortLight',
-  3: 'effortNormal',
-  4: 'effortHard',
-  5: 'effortIntense',
-} as const;
-
 function groupSessionsByMonth(sessions: JudoSession[]): GroupedSessions[] {
   const groups: Map<string, JudoSession[]> = new Map();
 
   for (const session of sessions) {
     const date = parseDateOnly(session.date);
     const monthLabel = formatDateLabel(date, 'month-year');
-    if (!groups.has(monthLabel)) {
-      groups.set(monthLabel, []);
-    }
+    if (!groups.has(monthLabel)) groups.set(monthLabel, []);
     groups.get(monthLabel)!.push(session);
   }
 
@@ -107,226 +45,17 @@ function groupSessionsByMonth(sessions: JudoSession[]): GroupedSessions[] {
   }));
 }
 
-interface SessionRowProps {
-  session: JudoSession;
-  onDelete: (id: string) => void;
-  onEdit: (session: JudoSession) => void;
-  onFilterTechnique: (technique: string) => void;
-  deletingSessionId: string | null;
-  density: 'comfortable' | 'compact';
-}
-
-function SessionRow({
-  session,
-  onDelete,
-  onEdit,
-  onFilterTechnique,
-  deletingSessionId,
-  density,
-}: SessionRowProps) {
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
-  const sessionDateLabel = formatDateLabel(
-    parseDateOnly(session.date),
-    'weekday-month-day-year'
-  );
-  let safeVideoUrl: string | null = null;
-
-  if (session.videoUrl) {
-    try {
-      const parsedUrl = new URL(session.videoUrl);
-      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-        safeVideoUrl = parsedUrl.toString();
-      }
-    } catch {
-      safeVideoUrl = null;
-    }
-  }
-  const notePreview = [session.description, session.notes]
-    .filter((value): value is string => Boolean(value?.trim()))
-    .join(' · ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return (
-    <div
-      className={cn(
-        'rounded-xl bg-card/42 px-4 reveal-fade transition-colors hover:bg-card sm:px-5',
-        density === 'compact' ? 'py-3' : 'py-4'
-      )}
-    >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-base">
-                {formatDateLabel(
-                  parseDateOnly(session.date),
-                  'weekday-month-day'
-                )}
-              </span>
-              <Badge
-                variant={categoryBadgeVariants[session.category || 'Technical']}
-              >
-                {session.category || 'Technical'}
-              </Badge>
-              {session.duration ? (
-                <span className="text-xs font-medium text-muted-foreground">
-                  {session.duration} min
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {session.techniques.slice(0, 3).map((tech, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => onFilterTechnique(tech)}
-                className="rounded-full bg-[hsl(var(--color-surface-container-high))] px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                title={`Show sessions tagged ${tech}`}
-              >
-                {tech}
-              </button>
-            ))}
-            {session.techniques.length > 3 ? (
-              <Badge variant="secondary">
-                +{session.techniques.length - 3} more
-              </Badge>
-            ) : null}
-          </div>
-          {notePreview ? (
-            <p
-              className={cn(
-                'max-w-2xl text-sm leading-6 text-muted-foreground',
-                density === 'compact' ? 'line-clamp-1' : 'line-clamp-2'
-              )}
-            >
-              {notePreview}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
-          <div className="flex flex-col items-end mr-1 md:mr-3">
-            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
-              Effort
-            </span>
-            <Badge variant={effortBadgeVariants[session.effort]}>
-              {EFFORT_LABELS[session.effort]}
-            </Badge>
-          </div>
-
-          <DropdownMenu
-            open={isActionsMenuOpen}
-            onOpenChange={setIsActionsMenuOpen}
-          >
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                aria-label={`Actions for session from ${sessionDateLabel}`}
-                title="Session actions"
-              >
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsActionsMenuOpen(false);
-                  deferMenuDialogOpen(() => onEdit(session));
-                }}
-              >
-                <Edit2 className="mr-2 h-4 w-4" />
-                Edit session
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={deletingSessionId === session.id}
-                onSelect={() => {
-                  setIsActionsMenuOpen(false);
-                  deferMenuDialogOpen(() => onDelete(session.id));
-                }}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete session
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {(session.description || session.notes || safeVideoUrl) && (
-        <details className="group mt-4 pl-7">
-          <summary className="cursor-pointer select-none text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm">
-            <span className="group-open:hidden">View session details</span>
-            <span className="hidden group-open:inline">
-              Hide session details
-            </span>
-          </summary>
-          <div className="mt-3 space-y-3">
-            {safeVideoUrl &&
-              (() => {
-                let videoHostname = '';
-                try {
-                  videoHostname = new URL(safeVideoUrl).hostname.replace(
-                    /^www\./,
-                    ''
-                  );
-                } catch {
-                  videoHostname = '';
-                }
-
-                return (
-                  <a
-                    href={safeVideoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex max-w-full items-center gap-2 rounded-lg bg-[hsl(var(--color-surface-container-high))] px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.16)]"
-                  >
-                    <ExternalLink className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Watch relevant video</span>
-                    {videoHostname && (
-                      <span className="truncate text-xs font-normal text-muted-foreground">
-                        ({videoHostname})
-                      </span>
-                    )}
-                  </a>
-                );
-              })()}
-            {session.description && (
-              <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                {session.description}
-              </p>
-            )}
-            {session.notes && (
-              <p className="text-sm text-muted-foreground italic">
-                "{session.notes}"
-              </p>
-            )}
-          </div>
-        </details>
-      )}
-    </div>
-  );
-}
-
 export function SessionHistory({
   sessions,
   onRefresh,
   onLogSession,
 }: SessionHistoryProps) {
-  const { canUseAi } = useAuth();
-  const { toast } = useToast();
-  const [editingSession, setEditingSession] = useState<JudoSession | null>(
-    null
+  const historyReview = useSessionHistoryReview(sessions);
+  const { deletingSessionId, handleDelete } = useSessionHistoryActions(
+    onRefresh,
+    historyReview.clearHistoryReview
   );
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
-    null
-  );
+  const [editingSession, setEditingSession] = useState<JudoSession | null>(null);
   const [sessionPendingDeletion, setSessionPendingDeletion] =
     useState<JudoSession | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -335,214 +64,28 @@ export function SessionHistory({
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [density, setDensity] = useState<'comfortable' | 'compact'>('compact');
-  const [historyReviewEntries, setHistoryReviewEntries] = useState<
-    HistoryReviewResult[]
-  >([]);
-  const [reviewedSessionIds, setReviewedSessionIds] = useState<Set<string>>(
-    () => new Set()
+  const [density, setDensity] = useState<SessionHistoryDensity>('compact');
+
+  const filteredSessions = useMemo(
+    () =>
+      filterSessionHistory(sessions, {
+        searchQuery,
+        categoryFilter,
+        effortFilter,
+        fromDate,
+        toDate,
+      }),
+    [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]
   );
-  const [isReviewingHistory, setIsReviewingHistory] = useState(false);
-  const [reviewProgress, setReviewProgress] = useState({
-    completed: 0,
-    total: 0,
-  });
-  const recurringThemeSummary = useMemo(
-    () => getRecurringTrainingThemeSummary(historyReviewEntries),
-    [historyReviewEntries]
-  );
-
-  const hasUnreviewedDescriptions = sessions.some(
-    (session) =>
-      !reviewedSessionIds.has(session.id) &&
-      Boolean(session.description?.trim())
-  );
-
-  const assessHistorySession = async (input: {
-    description: string;
-    notes?: string;
-    category: JudoSession['category'];
-    effort: JudoSession['effort'];
-    techniques: string[];
-  }): Promise<SessionAssessment> => {
-    const response = await fetch('/api/ai/assess-session', {
-      method: 'POST',
-      headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ ...input, includeTrainingThemes: true }),
-    });
-    const payload: unknown = await response.json();
-    const assessment =
-      payload && typeof payload === 'object'
-        ? (payload as { assessment?: unknown }).assessment
-        : undefined;
-
-    if (!response.ok) {
-      throw new Error('History review request failed');
-    }
-    if (!isSessionAssessment(assessment)) {
-      throw new Error('History review response was invalid');
-    }
-    return assessment;
-  };
-
-  const handleReviewHistory = async () => {
-    if (!canUseAi || isReviewingHistory) return;
-    const pendingCount = sessions.filter(
-      (session) =>
-        !reviewedSessionIds.has(session.id) &&
-        Boolean(session.description?.trim())
-    ).length;
-    if (pendingCount === 0) return;
-
-    setIsReviewingHistory(true);
-    setReviewProgress({
-      completed: 0,
-      total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
-    });
-    let completed = 0;
-    try {
-      await reviewHistoryBatch(
-        sessions,
-        reviewedSessionIds,
-        assessHistorySession,
-        HISTORY_REVIEW_BATCH_SIZE,
-        (entry) => {
-          completed += 1;
-          setReviewProgress({
-            completed,
-            total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
-          });
-          if (!entry.error) {
-            setReviewedSessionIds((current) =>
-              new Set(current).add(entry.sessionId)
-            );
-          }
-          setHistoryReviewEntries((current) => [
-            entry,
-            ...current.filter((item) => item.sessionId !== entry.sessionId),
-          ]);
-        }
-      );
-    } finally {
-      setIsReviewingHistory(false);
-    }
-  };
-
-  const clearHistoryReview = (sessionId: string) => {
-    setHistoryReviewEntries((current) =>
-      current.filter((entry) => entry.sessionId !== sessionId)
-    );
-    setReviewedSessionIds((current) => {
-      const next = new Set(current);
-      next.delete(sessionId);
-      return next;
-    });
-  };
-
-  const handleDelete = async (session: JudoSession) => {
-    if (deletingSessionId) {
-      return;
-    }
-
-    setDeletingSessionId(session.id);
-    try {
-      const result = await deleteSession(session.id);
-      onRefresh();
-      toast({
-        title: 'Session deleted',
-        description:
-          result.status === 'queued'
-            ? 'The change is saved locally and queued to sync when the connection is ready.'
-            : 'The training session has been removed from your history.',
-        action: (
-          <ToastAction
-            altText="Restore deleted session"
-            onClick={() => {
-              void saveSession(session)
-                .then(() => {
-                  onRefresh();
-                  toast({
-                    title: 'Session restored',
-                    description:
-                      'The training session is back in your history.',
-                  });
-                })
-                .catch(() => {
-                  toast({
-                    variant: 'destructive',
-                    title: 'Restore failed',
-                    description: 'The training session could not be restored.',
-                  });
-                });
-            }}
-          >
-            Undo
-          </ToastAction>
-        ),
-      });
-      clearHistoryReview(session.id);
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Delete failed',
-        description: 'The session could not be deleted.',
-      });
-    } finally {
-      setDeletingSessionId(null);
-    }
-  };
-
-  const requestDelete = (session: JudoSession) => {
-    if (!deletingSessionId) setSessionPendingDeletion(session);
-  };
-
-  const filteredSessions = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
-
-    return sessions.filter((session) => {
-      if (categoryFilter !== 'all' && session.category !== categoryFilter) {
-        return false;
-      }
-      if (effortFilter !== 'all' && session.effort !== Number(effortFilter)) {
-        return false;
-      }
-      if (fromDate && session.date < fromDate) {
-        return false;
-      }
-      if (toDate && session.date > toDate) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return [
-        ...session.techniques,
-        session.category,
-        session.description,
-        session.notes,
-        session.date,
-      ]
-        .filter((value): value is string => typeof value === 'string')
-        .some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
-    });
-  }, [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]);
-
   const grouped = groupSessionsByMonth(filteredSessions);
-  const filteredDuration = filteredSessions.reduce(
-    (total, session) => total + (session.duration ?? 0),
-    0
-  );
-  const filteredAverageEffort = filteredSessions.length
-    ? filteredSessions.reduce((total, session) => total + session.effort, 0) /
-      filteredSessions.length
-    : 0;
-  const activeFilterCount = [
-    categoryFilter !== 'all',
-    effortFilter !== 'all',
-    !!fromDate,
-    !!toDate,
-  ].filter(Boolean).length;
+  const { averageEffort, duration } = getSessionHistoryStats(filteredSessions);
+  const activeFilterCount = getSessionHistoryActiveFilterCount({
+    categoryFilter,
+    effortFilter,
+    fromDate,
+    toDate,
+  });
+
   const clearFilters = () => {
     setSearchQuery('');
     setCategoryFilter('all');
@@ -554,455 +97,75 @@ export function SessionHistory({
     setSearchQuery(technique);
     setFiltersOpen(false);
   };
-  const applyQuickFilter = (kind: 'week' | 'month' | 'high-effort') => {
-    if (kind === 'high-effort') {
-      setEffortFilter('4');
-      setFromDate('');
-      setToDate('');
-      return;
-    }
-    const today = new Date();
-    const start = new Date(today);
-    start.setDate(today.getDate() - (kind === 'week' ? 6 : 29));
-    setFromDate(start.toISOString().slice(0, 10));
-    setToDate(today.toISOString().slice(0, 10));
-    setEffortFilter('all');
+  const applyQuickFilter = (kind: SessionHistoryQuickFilter) => {
+    const range = getSessionQuickFilterRange(kind);
+    setEffortFilter(range.effortFilter);
+    setFromDate(range.fromDate);
+    setToDate(range.toDate);
+  };
+  const requestDelete = (session: JudoSession) => {
+    if (!deletingSessionId) setSessionPendingDeletion(session);
   };
 
   if (sessions.length === 0) {
-    return (
-      <PageShell
-        title="Training history"
-        description="Search and revisit your training sessions."
-        actions={
-          onLogSession ? (
-            <Button onClick={onLogSession}>Log session</Button>
-          ) : undefined
-        }
-      >
-        <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl bg-muted/45">
-          <RessaImage
-            pose={2}
-            size="medium"
-            alt="Ressa encouraging you to log your first session"
-          />
-          <p className="text-center font-semibold mt-4 mb-1">No sessions yet</p>
-          <p className="text-center text-sm text-muted-foreground mb-6">
-            Log your first training session and it will appear here.
-          </p>
-          {onLogSession && (
-            <Button onClick={onLogSession}>Log your first session</Button>
-          )}
-        </div>
-      </PageShell>
-    );
+    return <SessionHistoryEmptyState onLogSession={onLogSession} />;
   }
 
   return (
-    <PageShell
-      title="Training history"
-      description="Search, filter, and revisit your training sessions."
-      actions={
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void handleReviewHistory()}
-            disabled={
-              !canUseAi || isReviewingHistory || !hasUnreviewedDescriptions
-            }
-          >
-            {isReviewingHistory ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {isReviewingHistory
-              ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
-              : hasUnreviewedDescriptions
-                ? 'Review up to 5 sessions'
-                : 'This view is reviewed'}
-          </Button>
-          <SegmentedControl
-            aria-label="History display density"
-            value={density}
-            onValueChange={(value) =>
-              setDensity(value as 'comfortable' | 'compact')
-            }
-          >
-            <SegmentedControl.Item value="compact">
-              Compact
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="comfortable">
-              Comfortable
-            </SegmentedControl.Item>
-          </SegmentedControl>
-        </div>
-      }
-      className="reveal-fade-up"
-    >
-      <FilterBar
-        label="Filter training history"
-        className="sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
-      >
-        <div className="flex gap-2">
-          <InputWithIcon
-            icon={<Search className="h-4 w-4" />}
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search techniques or notes"
-            aria-label="Search training history"
-            wrapperClassName="flex-1"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 shrink-0"
-            onClick={() => setFiltersOpen((open) => !open)}
-            aria-expanded={filtersOpen}
-          >
-            <Filter className="h-4 w-4" />
-            Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
-          </Button>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick filters">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => applyQuickFilter('week')}
-          >
-            This week
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => applyQuickFilter('month')}
-          >
-            Last 30 days
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => applyQuickFilter('high-effort')}
-          >
-            High effort
-          </Button>
-        </div>
-        <div
-          className={cn(
-            'mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5',
-            filtersOpen ? 'grid' : 'hidden'
-          )}
-        >
-          <select
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value)}
-            aria-label="Filter by session type"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="all">All session types</option>
-            {SESSION_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <select
-            value={effortFilter}
-            onChange={(event) => setEffortFilter(event.target.value)}
-            aria-label="Filter by effort level"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="all">All effort levels</option>
-            {[1, 2, 3, 4, 5].map((effort) => (
-              <option key={effort} value={effort}>
-                {EFFORT_LABELS[effort as keyof typeof EFFORT_LABELS]}
-              </option>
-            ))}
-          </select>
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(event) => setFromDate(event.target.value)}
-            aria-label="Sessions from date"
-            className="h-11"
-          />
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(event) => setToDate(event.target.value)}
-            aria-label="Sessions to date"
-            className="h-11"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11"
-            onClick={clearFilters}
-          >
-            <X className="h-4 w-4" /> Clear filters
-          </Button>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Showing {filteredSessions.length} of {sessions.length} sessions ·
-          average effort {filteredAverageEffort.toFixed(1)}/5
-          {filteredDuration ? ` · ${filteredDuration} minutes` : ''}
-        </p>
-      </FilterBar>
-
-      <section
-        aria-label="Optional training review"
-        className="mb-4 rounded-lg bg-primary/5 px-3 py-2"
-      >
-        <DataUseNotice variant="history" />
-        {!canUseAi ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Sign in to review session history.
-          </p>
-        ) : null}
-        {historyReviewEntries.length > 0 ? (
-          <div className="mt-3 space-y-3">
-            {recurringThemeSummary.consideredSessions > 0 ? (
-              <section
-                aria-label="Recurring training themes"
-                className="rounded-lg border border-primary/20 bg-background p-3"
-              >
-                <h3 className="text-sm font-semibold">Recurring themes</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Based on up to the {HISTORY_REVIEW_BATCH_SIZE} most recent
-                  sessions reviewed with
-                  AI. Themes are shown after appearing in at least two
-                  sessions.
-                </p>
-                {recurringThemeSummary.themes.length > 0 ? (
-                  <ul className="mt-3 space-y-2">
-                    {recurringThemeSummary.themes.map((theme) => (
-                      <li
-                        key={theme.theme}
-                        className="flex items-center justify-between gap-3 text-sm"
-                      >
-                        <span className="font-medium">
-                          {trainingThemeLabels[theme.theme]}
-                        </span>
-                        <span className="text-muted-foreground tabular-nums">
-                          {theme.matchingSessions} of {theme.consideredSessions}{' '}
-                          sessions
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    No theme has appeared in at least two of the{' '}
-                    {recurringThemeSummary.consideredSessions} reviewed
-                    {recurringThemeSummary.consideredSessions === 1
-                      ? ' session.'
-                      : ' sessions.'}
-                  </p>
-                )}
-              </section>
-            ) : null}
-            {historyReviewEntries.map((entry) => {
-              const session = sessions.find(
-                (item) => item.id === entry.sessionId
-              );
-              const assessment = entry.assessment;
-              const findings = getHistoryReviewFindings(entry);
-              const hasOtherSuggestion =
-                assessment &&
-                (findings.needsUsefulDetail ||
-                  findings.needsReflection ||
-                  findings.effortMismatch ||
-                  assessment.unsupportedTechniqueTags.length > 0);
-
-              return (
-                <div
-                  key={entry.sessionId}
-                  className="rounded-lg border border-border/70 bg-background p-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {formatDateLabel(
-                        parseDateOnly(entry.sessionDate),
-                        'weekday-month-day-year'
-                      )}{' '}
-                      · {entry.currentCategory} ·{' '}
-                      {EFFORT_LABELS[entry.currentEffort]} effort
-                    </p>
-                  </div>
-                  {entry.error ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      This session could not be reviewed. You can try again in a
-                      later batch.
-                    </p>
-                  ) : assessment ? (
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {findings.categoryMismatch ? (
-                        <p>
-                          Possible type mismatch: the review suggests{' '}
-                          <strong>{findings.categoryMismatch}</strong> with{' '}
-                          {Math.round(assessment.categoryConfidence * 100)}%
-                          confidence. Review before changing the saved type.
-                        </p>
-                      ) : findings.categoryUnclear ? (
-                        <p>
-                          The review could not confidently match this
-                          description to an existing session type.
-                        </p>
-                      ) : null}
-                      {findings.needsUsefulDetail ? (
-                        <p>
-                          Consider adding one concrete, category-relevant
-                          detail; a short entry can still be useful.
-                        </p>
-                      ) : null}
-                      {findings.needsReflection ? (
-                        <p>Consider adding a short reflection.</p>
-                      ) : null}
-                      {findings.effortMismatch ? (
-                        <p>
-                          The text may conflict with the effort rating you
-                          chose. Review both if needed.
-                        </p>
-                      ) : null}
-                      {assessment.unsupportedTechniqueTags.length > 0 ? (
-                        <p>
-                          The review could not confirm these saved technique
-                          tags from the text:{' '}
-                          {assessment.unsupportedTechniqueTags.join(', ')}.
-                          Review them manually; they have not been removed.
-                        </p>
-                      ) : null}
-                      {!findings.categoryMismatch &&
-                      !findings.categoryUnclear &&
-                      !hasOtherSuggestion ? (
-                        <p>No review suggestions met the current thresholds.</p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {session ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="mt-2 h-8 px-2"
-                      onClick={() => setEditingSession(session)}
-                    >
-                      Edit session
-                    </Button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-      </section>
-
-      {filteredSessions.length === 0 ? (
-        <div className="rounded-xl bg-muted/45 p-8 text-center">
-          <p className="font-semibold">No sessions match these filters.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Try a different technique, date range, or effort level.
-          </p>
-        </div>
-      ) : null}
-      {grouped.map(({ monthLabel, sessions: monthSessions }) => (
-        <div key={monthLabel} className="mb-8 last:mb-0">
-          <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
-          <DataSurface className="space-y-3" padding="sm" variant="subtle">
-            {monthSessions.map((session) => (
-              <div key={session.id}>
-                <SessionRow
-                  session={session}
-                  onDelete={() => requestDelete(session)}
-                  onEdit={setEditingSession}
-                  onFilterTechnique={filterByTechnique}
-                  deletingSessionId={deletingSessionId}
-                  density={density}
-                />
-              </div>
-            ))}
-          </DataSurface>
-        </div>
-      ))}
-
-      <Dialog
-        open={!!editingSession}
-        onOpenChange={(open) => !open && setEditingSession(null)}
-      >
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-2xl font-bold">
-              Edit Practice Session
-            </DialogTitle>
-            <DialogDescription>
-              Update your practice description, techniques, effort, or notes.
-            </DialogDescription>
-          </DialogHeader>
-          {editingSession && (
-            <div className="py-2">
-              <SessionLogForm
-                sessionToEdit={editingSession}
-                onSuccess={() => {
-                  clearHistoryReview(editingSession.id);
-                  setEditingSession(null);
-                  onRefresh();
-                }}
-                onCancel={() => setEditingSession(null)}
-                showAvatar={false}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!sessionPendingDeletion}
-        onOpenChange={(open) => {
-          if (!open && !deletingSessionId) setSessionPendingDeletion(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this session?</DialogTitle>
-            <DialogDescription>
-              {sessionPendingDeletion
-                ? `This permanently removes the ${formatDateLabel(
-                    parseDateOnly(sessionPendingDeletion.date),
-                    'month-day-year'
-                  )} training session from your history.`
-                : 'This permanently removes the training session from your history.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!!deletingSessionId}
-              onClick={() => setSessionPendingDeletion(null)}
-            >
-              Keep session
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={!!deletingSessionId}
-              onClick={() => {
-                if (!sessionPendingDeletion) return;
-                void handleDelete(sessionPendingDeletion).then(() =>
-                  setSessionPendingDeletion(null)
-                );
-              }}
-            >
-              {deletingSessionId ? 'Deleting…' : 'Delete session'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </PageShell>
+    <SessionHistoryContent
+      grouped={grouped}
+      filteredSessions={filteredSessions}
+      deletingSessionId={deletingSessionId}
+      density={density}
+      onDensityChange={setDensity}
+      onReviewHistory={historyReview.handleReviewHistory}
+      hasUnreviewedDescriptions={historyReview.hasUnreviewedDescriptions}
+      isReviewingHistory={historyReview.isReviewingHistory}
+      reviewProgress={historyReview.reviewProgress}
+      onRequestDelete={requestDelete}
+      onEditSession={setEditingSession}
+      onFilterTechnique={filterByTechnique}
+      filterBarProps={{
+        searchQuery,
+        categoryFilter,
+        effortFilter,
+        fromDate,
+        toDate,
+        filtersOpen,
+        activeFilterCount,
+        filteredCount: filteredSessions.length,
+        sessionCount: sessions.length,
+        averageEffort,
+        duration,
+        onSearchQueryChange: setSearchQuery,
+        onCategoryFilterChange: setCategoryFilter,
+        onEffortFilterChange: setEffortFilter,
+        onFromDateChange: setFromDate,
+        onToDateChange: setToDate,
+        onToggleFilters: () => setFiltersOpen((open) => !open),
+        onQuickFilter: applyQuickFilter,
+        onClearFilters: clearFilters,
+      }}
+      reviewPanelProps={{
+        canUseAi: historyReview.canUseAi,
+        entries: historyReview.historyReviewEntries,
+        sessions,
+        recurringThemeSummary: historyReview.recurringThemeSummary,
+        onEditSession: setEditingSession,
+      }}
+      dialogProps={{
+        editingSession,
+        sessionPendingDeletion,
+        deletingSessionId,
+        onCloseEdit: () => setEditingSession(null),
+        onEditSaved: (session) => {
+          historyReview.clearHistoryReview(session.id);
+          setEditingSession(null);
+          onRefresh();
+        },
+        onCloseDelete: () => setSessionPendingDeletion(null),
+        onDelete: handleDelete,
+      }}
+    />
   );
 }
