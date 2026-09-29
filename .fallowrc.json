@@ -1,0 +1,24 @@
+{
+  "minimumVersion": "3.22.0",
+  "entry": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.test.js",
+    "**/*.test.mjs",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ],
+  "ignorePatterns": ["scripts/__fixtures__/**"],
+  "ignoreDependencies": ["react-dom", "tailwindcss-animate"],
+  "dynamicallyLoaded": ["tailwind.config.ts", "postcss.config.mjs"],
+  "ignoreExports": [
+    {
+      "file": "plugins/**/src/index.ts",
+      "exports": ["initPlugin"]
+    }
+  ],
+  "health": {
+    "maxCognitive": 15,
+    "coverage": "coverage/coverage-final.json"
+  }
+}

@@ -18,14 +18,9 @@ import {
 } from '@/hooks/use-session-form';
 import { SessionLogFormFooter } from './session-log-form-footer';
 import { AiUnavailableBanner } from './ai-unavailable-banner';
-import { SessionEssentialsSection } from './session-essentials-section';
-import { PracticeDescriptionSection } from './practice-description-section';
-import { TechniqueTagsSection } from './technique-tags-section';
-import { OptionalFieldsSection } from './optional-fields-section';
-import { SessionCheckin } from './session-checkin';
 import { useSessionAssessment } from '@/hooks/use-session-assessment';
 import { LinearStepProgress } from '@/components/ui/linear-step-progress';
-import { SessionReviewSummary } from './session-review-summary';
+import { SessionLogFormStepContent } from './session-log-form-step-content';
 
 const SESSION_FORM_STEPS = [
   'Session details',
@@ -143,8 +138,7 @@ export function SessionLogForm({
     }
   );
 
-  const { handleAddTech, handleTransform, handleSuggest, handleRemoveTech } =
-    useSessionLogFormActions(formState, aiForm);
+  const formActions = useSessionLogFormActions(formState, aiForm);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -201,144 +195,20 @@ export function SessionLogForm({
             authAvailable={authAvailable}
           />
 
-          {currentStep === 0 ? (
-            <section aria-labelledby={fid('step-details-title')}>
-              <h2
-                ref={activeStepHeadingRef}
-                id={fid('step-details-title')}
-                tabIndex={-1}
-                className="mb-4 text-lg font-semibold"
-              >
-                Session details
-              </h2>
-              <SessionEssentialsSection
-                date={formState.date}
-                duration={formState.duration}
-                category={formState.category}
-                availableCategories={availableCategories}
-                effort={formState.effort}
-                showAvatar={showAvatar}
-                shouldHideHeader
-                fid={fid}
-                setDate={formState.setDate}
-                setDuration={formState.setDuration}
-                setCategory={formState.setCategory}
-                setEffort={formState.setEffort}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === 1 ? (
-            <section
-              aria-labelledby={fid('step-description-title')}
-              className="space-y-5"
-            >
-              <h2
-                ref={activeStepHeadingRef}
-                id={fid('step-description-title')}
-                tabIndex={-1}
-                className="text-lg font-semibold"
-              >
-                Describe your practice
-              </h2>
-              <PracticeDescriptionSection
-                description={formState.description}
-                setDescription={formState.setDescription}
-                canUseAi={canUseAi}
-                isSubmitting={isSubmitting}
-                transformLoading={aiForm.isLoadingTransform}
-                transformMessage={aiForm.transformMessage}
-                fid={fid}
-                onTransform={handleTransform}
-              />
-              <SessionCheckin
-                canUseAi={canUseAi}
-                disabled={isSubmitting || !formState.description}
-                isLoading={sessionAssessment.isLoading}
-                assessment={sessionAssessment.assessment}
-                currentCategory={formState.category}
-                onAssess={() =>
-                  sessionAssessment.assess({
-                    description: formState.description,
-                    notes: formState.notes,
-                    category: formState.category,
-                    effort: formState.effort,
-                    techniques: formState.techniques,
-                  })
-                }
-                onApplyCategory={formState.setCategory}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === 2 ? (
-            <section
-              aria-labelledby={fid('step-techniques-title')}
-              className="space-y-4"
-            >
-              <h2
-                ref={activeStepHeadingRef}
-                id={fid('step-techniques-title')}
-                tabIndex={-1}
-                className="text-lg font-semibold"
-              >
-                Techniques practiced
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Add technique tags to make this session easier to find later.
-                You can continue without adding any.
-              </p>
-              <TechniqueTagsSection
-                techniques={formState.techniques}
-                newTech={formState.newTech}
-                setNewTech={formState.setNewTech}
-                canUseAi={canUseAi}
-                isSubmitting={isSubmitting}
-                suggestLoading={aiForm.isLoadingSuggest}
-                suggestMessage={aiForm.suggestMessage}
-                description={formState.description}
-                fid={fid}
-                onSuggest={handleSuggest}
-                onAddTech={handleAddTech}
-                onRemoveTech={handleRemoveTech}
-              />
-            </section>
-          ) : null}
-
-          {currentStep === 3 ? (
-            <section
-              aria-labelledby={fid('step-review-title')}
-              className="space-y-5"
-            >
-              <h2
-                ref={activeStepHeadingRef}
-                id={fid('step-review-title')}
-                tabIndex={-1}
-                className="text-lg font-semibold"
-              >
-                Review and finish
-              </h2>
-              <OptionalFieldsSection
-                videoUrl={formState.videoUrl}
-                notes={formState.notes}
-                setVideoUrl={formState.setVideoUrl}
-                setNotes={formState.setNotes}
-                videoUrlValidationMessage={videoUrlValidationMessage}
-                isSubmitting={isSubmitting}
-                fid={fid}
-              />
-              <SessionReviewSummary
-                date={formState.date}
-                duration={formState.duration}
-                description={formState.description}
-                notes={formState.notes}
-                videoUrl={formState.videoUrl}
-                techniques={formState.techniques}
-                effort={formState.effort}
-                category={formState.category}
-              />
-            </section>
-          ) : null}
+          <SessionLogFormStepContent
+            step={currentStep}
+            fid={fid}
+            activeStepHeadingRef={activeStepHeadingRef}
+            formState={formState}
+            availableCategories={availableCategories}
+            showAvatar={showAvatar}
+            canUseAi={canUseAi}
+            isSubmitting={isSubmitting}
+            aiForm={aiForm}
+            sessionAssessment={sessionAssessment}
+            formActions={formActions}
+            videoUrlValidationMessage={videoUrlValidationMessage}
+          />
         </CardContent>
 
         <SessionLogFormFooter

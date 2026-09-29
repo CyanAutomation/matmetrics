@@ -21,105 +21,136 @@ type SessionFrontmatter = Record<string, unknown>;
 
 function parseQuotedScalar(value: string, key: string): string {
   if (value.startsWith("'") && value.endsWith("'")) {
-    let result = '';
-    const content = value.slice(1, -1);
-    for (let index = 0; index < content.length; index += 1) {
-      if (content[index] !== "'") {
-        result += content[index];
-        continue;
-      }
-      if (content[index + 1] !== "'") {
-        throw new Error(`invalid quoted value for "${key}"`);
-      }
-      result += "'";
-      index += 1;
-    }
-    return result;
+    return parseSingleQuotedScalar(value.slice(1, -1), key);
   }
 
   if (value.startsWith('"') && value.endsWith('"')) {
     try {
       return JSON.parse(value) as string;
     } catch {
-      const content = value.slice(1, -1);
-      let result = '';
-      for (let index = 0; index < content.length; index += 1) {
-        const character = content[index];
-        if (character !== '\\') {
-          if (character.charCodeAt(0) < 0x20 || character === '"') {
-            throw new Error(`invalid quoted value for "${key}"`);
-          }
-          result += character;
-          continue;
-        }
-
-        index += 1;
-        if (index >= content.length) {
-          throw new Error(`invalid quoted value for "${key}"`);
-        }
-        const escape = content[index];
-        const standardEscapes: Record<string, string> = {
-          a: '\u0007',
-          b: '\b',
-          f: '\f',
-          n: '\n',
-          r: '\r',
-          t: '\t',
-          v: '\u000b',
-          '\\': '\\',
-          '"': '"',
-          "'": "'",
-        };
-
-        if (escape in standardEscapes) {
-          result += standardEscapes[escape];
-          continue;
-        }
-
-        const escapeWidths: Record<string, number> = {
-          x: 2,
-          u: 4,
-          U: 8,
-        };
-        const width = escapeWidths[escape];
-        if (width) {
-          const digits = content.slice(index + 1, index + 1 + width);
-          if (digits.length !== width || !/^[\da-f]+$/i.test(digits)) {
-            throw new Error(`invalid quoted value for "${key}"`);
-          }
-          const codePoint = Number.parseInt(digits, 16);
-          if (
-            codePoint > 0x10ffff ||
-            (codePoint >= 0xd800 && codePoint <= 0xdfff)
-          ) {
-            throw new Error(`invalid quoted value for "${key}"`);
-          }
-          result += String.fromCodePoint(codePoint);
-          index += width;
-          continue;
-        }
-
-        if (escape >= '0' && escape <= '7') {
-          const digits = escape + content.slice(index + 1, index + 3);
-          if (
-            digits.length !== 3 ||
-            !/^[0-7]{3}$/.test(digits) ||
-            digits[0] > '3'
-          ) {
-            throw new Error(`invalid quoted value for "${key}"`);
-          }
-          result += String.fromCharCode(Number.parseInt(digits, 8));
-          index += 2;
-          continue;
-        }
-
-        throw new Error(`invalid quoted value for "${key}"`);
-      }
-      return result;
+      return parseLegacyDoubleQuotedScalar(value.slice(1, -1), key);
     }
   }
 
   throw new Error(`invalid quoted value for "${key}"`);
+}
+
+function parseSingleQuotedScalar(content: string, key: string): string {
+  let result = '';
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] !== "'") {
+      result += content[index];
+      continue;
+    }
+    if (content[index + 1] !== "'") {
+      throw invalidQuotedValue(key);
+    }
+    result += "'";
+    index += 1;
+  }
+  return result;
+}
+
+function parseLegacyDoubleQuotedScalar(content: string, key: string): string {
+  let result = '';
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    if (character !== '\\') {
+      if (character.charCodeAt(0) < 0x20 || character === '"') {
+        throw invalidQuotedValue(key);
+      }
+      result += character;
+      continue;
+    }
+
+    const escape = decodeLegacyEscape(content, index, key);
+    result += escape.value;
+    index = escape.lastIndex;
+  }
+  return result;
+}
+
+function decodeLegacyEscape(
+  content: string,
+  slashIndex: number,
+  key: string
+): { value: string; lastIndex: number } {
+  const escapeIndex = slashIndex + 1;
+  const escape = content[escapeIndex];
+  if (escape === undefined) throw invalidQuotedValue(key);
+
+  const standardEscapes: Record<string, string> = {
+    a: '\u0007',
+    b: '\b',
+    f: '\f',
+    n: '\n',
+    r: '\r',
+    t: '\t',
+    v: '\u000b',
+    '\\': '\\',
+    '"': '"',
+    "'": "'",
+  };
+  const standardEscape = standardEscapes[escape];
+  if (standardEscape !== undefined) {
+    return { value: standardEscape, lastIndex: escapeIndex };
+  }
+
+  const escapeWidths: Record<string, number> = { x: 2, u: 4, U: 8 };
+  const width = escapeWidths[escape];
+  if (width !== undefined) {
+    return parseHexEscape(content, escapeIndex, width, key);
+  }
+
+  if (escape >= '0' && escape <= '7') {
+    return parseOctalEscape(content, escapeIndex, key);
+  }
+
+  throw invalidQuotedValue(key);
+}
+
+function parseHexEscape(
+  content: string,
+  escapeIndex: number,
+  width: number,
+  key: string
+): { value: string; lastIndex: number } {
+  const digits = content.slice(escapeIndex + 1, escapeIndex + 1 + width);
+  if (digits.length !== width || !/^[\da-f]+$/i.test(digits)) {
+    throw invalidQuotedValue(key);
+  }
+
+  const codePoint = Number.parseInt(digits, 16);
+  if (
+    codePoint > 0x10ffff ||
+    (codePoint >= 0xd800 && codePoint <= 0xdfff)
+  ) {
+    throw invalidQuotedValue(key);
+  }
+  return { value: String.fromCodePoint(codePoint), lastIndex: escapeIndex + width };
+}
+
+function parseOctalEscape(
+  content: string,
+  escapeIndex: number,
+  key: string
+): { value: string; lastIndex: number } {
+  const digits = content.slice(escapeIndex, escapeIndex + 3);
+  if (
+    digits.length !== 3 ||
+    !/^[0-7]{3}$/.test(digits) ||
+    digits[0] > '3'
+  ) {
+    throw invalidQuotedValue(key);
+  }
+  return {
+    value: String.fromCharCode(Number.parseInt(digits, 8)),
+    lastIndex: escapeIndex + 2,
+  };
+}
+
+function invalidQuotedValue(key: string): Error {
+  return new Error(`invalid quoted value for "${key}"`);
 }
 
 function parseFrontmatterValue(value: string, key: string): unknown {

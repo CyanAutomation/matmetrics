@@ -5,10 +5,37 @@ import { classifyAiError } from './ai-api-error';
 import {
   assessSessionWithJev,
   getTransformFidelityStatus,
+  isSessionAssessment,
   verifyDescriptionFidelityWithJev,
   verifyTechniqueCandidatesWithJev,
   type JevDecisionClient,
 } from './jev-client';
+
+test('isSessionAssessment accepts valid values and rejects malformed probabilities', () => {
+  const valid = {
+    suggestedCategory: 'Technical',
+    categoryConfidence: 0.9,
+    categoryFitProbability: 0.8,
+    hasUsefulDetail: 0.7,
+    hasReflection: 0.6,
+    effortConflictProbability: 0.2,
+    unsupportedTechniqueTags: ['Harai-goshi'],
+    trainingThemes: {
+      kumi_kata: 0.9,
+      ne_waza: 0.1,
+      transitions: 0.5,
+      competition_tactics: 0.4,
+    },
+  };
+
+  assert.equal(isSessionAssessment(valid), true);
+  assert.equal(isSessionAssessment({ ...valid, categoryConfidence: 1.1 }), false);
+  assert.equal(isSessionAssessment({ ...valid, hasReflection: Number.NaN }), false);
+  assert.equal(isSessionAssessment({ ...valid, unsupportedTechniqueTags: [1] }), false);
+  assert.equal(isSessionAssessment({ ...valid, trainingThemes: undefined }), true);
+  assert.equal(isSessionAssessment(null), false);
+  assert.equal(isSessionAssessment([]), false);
+});
 
 test('assessSessionWithJev turns typed Jev answers into a safe assessment', async () => {
   const client: JevDecisionClient = async (request) => {
