@@ -1,8 +1,8 @@
 {
   "id": "log-doctor",
-  "name": "Log Doctor Plugin",
+  "name": "Training Data Check",
   "version": "1.1.0",
-  "description": "Provides a dashboard tab for log health checks, diagnostics, and automated session auditing.",
+  "description": "Checks training files for data issues and reviews session records for completeness.",
   "maturity": {
     "tier": "silver",
     "notes": "Silver maturity. Comprehensive plugin with two feature tabs (file validation and session audit), audit rule detection engine with 31 tests, Firebase persistence, rule configuration UI, and full UX state coverage (loading, error, empty, destructive actions).",
@@ -61,7 +61,7 @@
       "config": {
         "tabId": "log-doctor",
         "headerTitle": "Data check",
-        "icon": "stethoscope",
+        "icon": "clipboard-check",
         "component": "log_doctor"
       }
     }

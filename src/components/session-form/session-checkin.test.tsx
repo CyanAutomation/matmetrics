@@ -13,8 +13,6 @@ const sessionAssessment = {
   categoryFitProbability: 0.96,
   hasUsefulDetail: 0.9,
   hasReflection: 0.8,
-  fatigueSignal: 0.2,
-  injurySignal: 0.1,
   effortConflictProbability: 0.1,
   unsupportedTechniqueTags: [] as string[],
 };
@@ -98,23 +96,10 @@ test('check-in labels saved technique tags for review without removing them', ()
   assert.match(html, /they have not been removed/i);
 });
 
-test('check-in distinguishes fatigue from pain or injury mentions', () => {
-  const fatigueHtml = renderCheckin({
-    ...sessionAssessment,
-    fatigueSignal: 1,
-    injurySignal: 0.1,
-  });
-  const injuryHtml = renderCheckin({
-    ...sessionAssessment,
-    fatigueSignal: 0.2,
-    injurySignal: 0.8,
-  });
+test('check-in keeps its feedback focused on training details', () => {
+  const html = renderCheckin(sessionAssessment);
 
-  assert.match(fatigueHtml, /text mentions fatigue or difficult recovery/i);
-  assert.doesNotMatch(fatigueHtml, /pain or injury/i);
-  assert.match(injuryHtml, /text may mention pain or injury/i);
-  assert.match(injuryHtml, /not a diagnosis/i);
-  assert.doesNotMatch(injuryHtml, /next hard session/i);
+  assert.doesNotMatch(html, /pain|injur|fatigue|recovery|diagnos/i);
 });
 
 test('AI form sections disclose external processing without naming providers or models', () => {

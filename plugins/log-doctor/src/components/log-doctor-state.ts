@@ -154,7 +154,7 @@ export const createUiState = (
     return {
       phase,
       operation: null,
-      message: 'Select a source, then run Log Doctor.',
+      message: 'Select a source, then run a data check.',
     };
   }
 

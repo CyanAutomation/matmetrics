@@ -6,8 +6,6 @@ import {
 import type { EffortLevel, JudoSession } from './types';
 import {
   hasClearSessionCategoryFit,
-  hasElevatedFatigueSignal,
-  hasInjurySignal,
   shouldFlagEffortConflict,
   shouldOfferCategorySuggestion,
   shouldPromptForReflection,
@@ -63,12 +61,6 @@ export function getHistoryReviewFindings(entry: HistoryReviewResult) {
           assessment.effortConflictProbability ?? Number.NaN
         )
       : false,
-    fatigueMention: assessment
-      ? hasElevatedFatigueSignal(assessment.fatigueSignal)
-      : false,
-    injuryMention: assessment
-      ? hasInjurySignal(assessment.injurySignal)
-      : false,
   };
 }
 
@@ -94,11 +86,6 @@ export function isSessionAssessment(
     isProbability(result.categoryFitProbability) &&
     isProbability(result.hasUsefulDetail) &&
     isProbability(result.hasReflection) &&
-    typeof result.fatigueSignal === 'number' &&
-    Number.isFinite(result.fatigueSignal) &&
-    result.fatigueSignal >= 0 &&
-    result.fatigueSignal <= 2 &&
-    isProbability(result.injurySignal) &&
     (result.effortConflictProbability === undefined ||
       isProbability(result.effortConflictProbability)) &&
     Array.isArray(result.unsupportedTechniqueTags) &&

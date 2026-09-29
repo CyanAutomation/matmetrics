@@ -14,6 +14,7 @@ type SessionLogFormFooterProps = {
   totalSteps: number;
   onPrevious: () => void;
   onNext: () => void;
+  onFinish: () => void;
   onCancel?: () => void;
 };
 
@@ -26,6 +27,7 @@ export function SessionLogFormFooter({
   totalSteps,
   onPrevious,
   onNext,
+  onFinish,
   onCancel,
 }: SessionLogFormFooterProps) {
   const isLastStep = currentStep === totalSteps - 1;
@@ -67,7 +69,8 @@ export function SessionLogFormFooter({
       </div>
       {isLastStep ? (
         <Button
-          type="submit"
+          type="button"
+          onClick={onFinish}
           disabled={isSubmitting}
           interaction="primary-action"
           feedbackState={isSubmitting ? 'loading' : feedbackState}

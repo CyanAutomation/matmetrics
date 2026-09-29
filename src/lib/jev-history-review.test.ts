@@ -30,8 +30,6 @@ const assessment = {
   categoryFitProbability: 0.9,
   hasUsefulDetail: 0.9,
   hasReflection: 0.9,
-  fatigueSignal: 0.2,
-  injurySignal: 0.1,
   effortConflictProbability: 0.1,
   unsupportedTechniqueTags: [],
 };
@@ -140,8 +138,6 @@ test('history review findings keep category, effort, and detail suggestions dist
     needsUsefulDetail: true,
     needsReflection: true,
     effortMismatch: true,
-    fatigueMention: false,
-    injuryMention: false,
   });
 });
 
