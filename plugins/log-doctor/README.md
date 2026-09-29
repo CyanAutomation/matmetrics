@@ -1,19 +1,19 @@
-# Log Doctor Plugin
+# Training Data Check
 
 ## Purpose and capabilities
 
 - UI contract baseline: [docs/plugin-ui-contract.md](../../docs/plugin-ui-contract.md).
 - UX guardrails: [docs/log-doctor-ux-principles.md](../../docs/log-doctor-ux-principles.md).
 
-The Log Doctor plugin adds a **dashboard tab** for plugin-focused log diagnostics and future health checks.
+The Training Data Check plugin adds a **dashboard tab** for validating training files and reviewing session records.
 
 - **Dashboard tab extension metadata:**
   - extension type: `dashboard_tab`
   - extension id: `log-doctor-dashboard-tab`
   - tab id: `log-doctor`
-  - tab title: `Log Doctor`
-  - header title: `Log Doctor`
-  - icon: `stethoscope`
+  - tab title: `Data check`
+  - header title: `Data check`
+  - icon: `clipboard-check`
   - component id: `log_doctor`
 
 This metadata is declared in `plugins/log-doctor/plugin.json` and must stay aligned with runtime registration in `plugins/log-doctor/src/index.ts`.
@@ -28,7 +28,7 @@ This metadata is declared in `plugins/log-doctor/plugin.json` and must stay alig
 ## Usage
 
 1. Ensure the plugin is discoverable and enabled in Dashboard → Plugins.
-2. Open Dashboard → Log Doctor.
+2. Open Dashboard → Data check.
 3. The panel has two tabs: **File Validation** and **Session Audit**.
 
 ### File Validation tab
@@ -79,7 +79,7 @@ npm test -- src/lib/plugins/plugin-contract-gate.test.ts
 Manual verification:
 
 1. Start the app with `npm run dev`.
-2. Open Dashboard and verify the **Log Doctor** tab appears.
+2. Open Dashboard and verify the **Data check** tab appears.
 3. Open the tab and confirm the **File Validation** and **Session Audit** tabs render.
 4. Click **Run Audit** and verify flagged sessions appear.
 5. Open a review dialog and confirm ignore/mark-reviewed actions persist across page reloads.
@@ -100,7 +100,7 @@ For any PR touching `plugins/log-doctor/src/components/log-doctor-audit-settings
 
 ## Copy review pass (support consistency)
 
-When updating user-facing text in Log Doctor, run a copy review pass to keep wording consistent across product and support responses.
+When updating user-facing text in Data check, run a copy review pass to keep wording consistent across product and support responses.
 
 ### Approved terms and intended meaning
 

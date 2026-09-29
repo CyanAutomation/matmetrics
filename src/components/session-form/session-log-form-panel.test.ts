@@ -34,8 +34,6 @@ const assessment: SessionAssessment = {
   categoryFitProbability: 0.9,
   hasUsefulDetail: 0.8,
   hasReflection: 0.7,
-  fatigueSignal: 0,
-  injurySignal: 0,
   effortConflictProbability: 0.1,
   unsupportedTechniqueTags: [],
 };

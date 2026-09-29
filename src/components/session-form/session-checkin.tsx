@@ -7,8 +7,6 @@ import type { SessionAssessment } from '@/lib/jev-client';
 import type { SessionCategory } from '@/lib/types';
 import {
   hasClearSessionCategoryFit,
-  hasElevatedFatigueSignal,
-  hasInjurySignal,
   shouldOfferCategorySuggestion,
   shouldFlagEffortConflict,
   shouldPromptForReflection,
@@ -124,18 +122,6 @@ export function SessionCheckin({
           {shouldPromptForReflection(assessment.hasReflection) ? (
             <p>
               Add a brief reflection to record what worked or needs attention.
-            </p>
-          ) : null}
-          {hasElevatedFatigueSignal(assessment.fatigueSignal) ? (
-            <p>
-              Your text mentions fatigue or difficult recovery. This check-in
-              does not assess readiness to train.
-            </p>
-          ) : null}
-          {hasInjurySignal(assessment.injurySignal) ? (
-            <p>
-              Your text may mention pain or injury. This is not a diagnosis;
-              review the note if this seems inaccurate.
             </p>
           ) : null}
         </div>

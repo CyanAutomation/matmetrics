@@ -24,7 +24,7 @@ export function detectNoTechniquesHighEffort(
     return {
       code: 'no_techniques_high_effort',
       severity: 'error',
-      message: `High intensity session (effort ${session.effort}) with no techniques logged. Verify if this was a conditioning or recovery session.`,
+      message: `High-effort session (effort ${session.effort}) with no techniques logged. Verify whether it was a conditioning or light technical session.`,
     };
   }
 

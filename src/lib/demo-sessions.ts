@@ -63,7 +63,7 @@ export const DEMO_SESSIONS: JudoSession[] = [
     'Shiai',
     88,
     ['Seoi-nage', 'Uchi-mata', 'Ne-waza'],
-    'Match-paced rounds with short recovery and scoreboard pressure.',
+    'Match-paced rounds with brief breaks and scoreboard pressure.',
     'Reset earlier after a defended attack near the edge.'
   ),
   session(
@@ -104,7 +104,7 @@ export const DEMO_SESSIONS: JudoSession[] = [
     'Technical',
     45,
     ['Ukemi', 'Tai-sabaki', 'Uchi-komi'],
-    'Light recovery: breakfalls, footwork, and low-volume Uchi-komi.',
+    'Light technical practice: breakfalls, footwork, and low-volume Uchi-komi.',
     'Keeping the head upright makes the first step cleaner.'
   ),
   session(
@@ -135,7 +135,7 @@ export const DEMO_SESSIONS: JudoSession[] = [
     94,
     ['Uchi-mata', 'Tani-otoshi', 'Osaekomi-waza'],
     'Long rounds with golden-score scenarios and immediate ground follow-ups.',
-    'Decision-making improved under fatigue; avoid defensive grips.'
+    'Decision-making improved late in the rounds; avoid defensive grips.'
   ),
   session(
     'demo-technical-grip-sequencing',
@@ -236,7 +236,7 @@ export const DEMO_SESSIONS: JudoSession[] = [
     50,
     ['Ukemi', 'Kuzushi', 'Tai-sabaki'],
     'Low-intensity movement, balance, and posture work after a hard week.',
-    'Recovery sessions are worth logging.'
+    'Light technical sessions are worth logging.'
   ),
   session(
     'demo-randori-neutral-grips',

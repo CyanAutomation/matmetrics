@@ -29,11 +29,6 @@ function isAssessment(value: unknown): value is SessionAssessment {
     isProbability(result.categoryFitProbability) &&
     isProbability(result.hasUsefulDetail) &&
     isProbability(result.hasReflection) &&
-    typeof result.fatigueSignal === 'number' &&
-    Number.isFinite(result.fatigueSignal) &&
-    result.fatigueSignal >= 0 &&
-    result.fatigueSignal <= 2 &&
-    isProbability(result.injurySignal) &&
     (result.effortConflictProbability === undefined ||
       isProbability(result.effortConflictProbability)) &&
     Array.isArray(result.unsupportedTechniqueTags) &&
