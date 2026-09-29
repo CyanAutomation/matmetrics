@@ -17,6 +17,7 @@ test('data use notices explain each optional review without exposing implementat
   assert.match(html[1], /suggestions/i);
   assert.match(html[1], /external service/i);
   assert.match(html[2], /up to five sessions/i);
+  assert.match(html[2], /classifies recurring training themes/i);
   assert.match(html[2], /don&#x27;t change anything/i);
   assert.doesNotMatch(copy, /JEV|TypeSafe|OpenRouter|Cloudflare|model/i);
   assert.match(copy, /data-slot="data-use-notice"/);

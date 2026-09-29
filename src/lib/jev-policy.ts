@@ -5,6 +5,8 @@ export const JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD = 0.5;
 export const JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD = 0.5;
 export const JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD = 0.8;
 export const JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD = 0.5;
+// Provisional until each theme has enough human-labeled evaluation examples.
+export const JEV_RECURRING_THEME_PROBABILITY_THRESHOLD = 0.7;
 
 function isProbability(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= 1;
@@ -55,5 +57,12 @@ export function shouldFlagTransformedDescription(
   return (
     isProbability(unsupportedDetailProbability) &&
     unsupportedDetailProbability >= JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD
+  );
+}
+
+export function shouldIncludeRecurringTheme(probability: number): boolean {
+  return (
+    isProbability(probability) &&
+    probability >= JEV_RECURRING_THEME_PROBABILITY_THRESHOLD
   );
 }

@@ -68,3 +68,45 @@ For Score questions, the output reports the same binary metrics after applying e
 The output includes both cutoffs, accepted count, accuracy, and coverage for every pair. Older category files without fit probabilities continue to evaluate confidence alone.
 
 Choose a threshold based on the tradeoff between accepted accuracy and coverage. The tool reports evaluation metrics; it does not choose or update a production threshold automatically.
+
+## Evaluate recurring training themes
+
+The optional history review asks JEV four bounded Noul questions for each reviewed session: kumi-kata, ne-waza, transitions, and competition tactics. JEV returns one probability per theme. MatMetrics applies the provisional `0.7` probability threshold in policy code, then deterministically counts matches across the five most recent successfully assessed sessions. The UI only labels a theme recurring when it appears in at least two of those sessions. Counts and session ordering are application logic; JEV does not calculate them.
+
+Theme probabilities and counts exist only in the current history-review UI state. They are not written to session files, preferences, or analytics records; re-running the review derives them again from the selected sessions.
+
+Use a separate `kind: "noul"` evaluation file for each theme so one theme's calibration does not hide another's. Label examples from the session description and notes, using the theme definition in `src/lib/jev-client.ts`. Positive labels include successful practice as well as difficulty. Theme presence is separate from whether the athlete reports a problem; difficulty classification is not part of this first implementation.
+
+```json
+{
+  "kind": "noul",
+  "outcomes": [
+    {
+      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "probability": 0.88,
+      "actual": true
+    },
+    {
+      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "probability": 0.24,
+      "actual": false
+    }
+  ]
+}
+```
+
+Keep descriptions, notes, names, and session IDs out of evaluation files. The existing Noul evaluator reports precision, recall, and coverage over its threshold grid. The production theme threshold remains provisional until reviewed examples show a useful precision/coverage tradeoff for each theme.
+
+## Future semantic opportunities
+
+### Training-goal relevance
+
+Current training-plan preferences set weekly or monthly targets for broad session categories; they do not represent an athlete-defined technical goal such as improving left-v-right grip fighting. If MatMetrics later adds explicit goals, the existing session assessment path could add a bounded per-session goal-relevance probability and let application code aggregate the recent matches. Do not infer personal goals from category targets.
+
+### Log Doctor semantic review
+
+Log Doctor's file validation and audit rules are deterministic checks. Markdown structure, frontmatter, dates, categories, IDs, schemas, empty fields, and arithmetic checks must continue to work without JEV. A future optional semantic review could run only after a file parses into a valid session, reuse the existing category-fit, useful-detail, and saved-technique assessments, and show review findings without changing the session. Before connecting the plugin, verify that its UI can use the authenticated assessment endpoint and preserve the existing opt-in data notice.
+
+### Semantic history search
+
+History search currently performs literal matching over techniques, categories, descriptions, notes, and dates. If broader search is added, retrieve a small candidate set with text or embedding search first, then use JEV as a bounded relevance judge for a query such as “When did I struggle with taller opponents?”. Do not send the full archive as one prompt or use JEV as the initial search engine. A relevance threshold, candidate cap, and any decision caching need evaluation before this becomes a product feature.
