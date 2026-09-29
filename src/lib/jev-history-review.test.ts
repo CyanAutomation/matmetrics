@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { SessionThemeAssessment } from './jev-client';
 import type { JudoSession } from './types';
 import {
+  getRecurringTrainingThemeSummary,
   getHistoryReviewFindings,
   reviewHistoryBatch,
+  type HistoryReviewResult,
 } from './jev-history-review';
 
 function session(
@@ -33,6 +36,20 @@ const assessment = {
   effortConflictProbability: 0.1,
   unsupportedTechniqueTags: [],
 };
+
+function reviewedThemeSession(
+  sessionId: string,
+  sessionDate: string,
+  trainingThemes: SessionThemeAssessment
+): HistoryReviewResult {
+  return {
+    sessionId,
+    sessionDate,
+    currentCategory: 'Technical',
+    currentEffort: 3,
+    assessment: { ...assessment, trainingThemes },
+  };
+}
 
 test('history review processes the next five newest described sessions without sending IDs', async () => {
   const calls: unknown[] = [];
@@ -156,4 +173,88 @@ test('history review does not call a short but specific entry incomplete', () =>
 
   assert.equal(findings.needsUsefulDetail, false);
   assert.equal(findings.effortMismatch, false);
+});
+
+test('recurring-theme summary counts the latest five successful assessments deterministically', () => {
+  const summary = getRecurringTrainingThemeSummary([
+    {
+      sessionId: 'failed-newest',
+      sessionDate: '2026-09-29',
+      currentCategory: 'Technical',
+      currentEffort: 3,
+      error: true,
+    },
+    reviewedThemeSession('newest', '2026-09-28', {
+      kumi_kata: 0.7,
+      ne_waza: 0.4,
+      transitions: 0.1,
+      competition_tactics: 0.1,
+    }),
+    reviewedThemeSession('second', '2026-09-27', {
+      kumi_kata: 0.95,
+      ne_waza: 0.8,
+      transitions: 0.1,
+      competition_tactics: 0.1,
+    }),
+    reviewedThemeSession('third', '2026-09-26', {
+      kumi_kata: 0.69,
+      ne_waza: 0.75,
+      transitions: 0.9,
+      competition_tactics: 0.1,
+    }),
+    reviewedThemeSession('fourth', '2026-09-25', {
+      kumi_kata: 0.8,
+      ne_waza: 0.1,
+      transitions: 0.1,
+      competition_tactics: 0.9,
+    }),
+    reviewedThemeSession('fifth', '2026-09-24', {
+      kumi_kata: 0.1,
+      ne_waza: 0.1,
+      transitions: 0.1,
+      competition_tactics: 0.1,
+    }),
+    reviewedThemeSession('outside-window', '2026-09-23', {
+      kumi_kata: 1,
+      ne_waza: 1,
+      transitions: 1,
+      competition_tactics: 1,
+    }),
+  ]);
+
+  assert.equal(summary.consideredSessions, 5);
+  assert.deepEqual(summary.themes, [
+    {
+      theme: 'kumi_kata',
+      matchingSessions: 3,
+      consideredSessions: 5,
+      recentSessionIds: ['newest', 'second', 'fourth'],
+    },
+    {
+      theme: 'ne_waza',
+      matchingSessions: 2,
+      consideredSessions: 5,
+      recentSessionIds: ['second', 'third'],
+    },
+  ]);
+});
+
+test('recurring-theme summary requires two matching sessions', () => {
+  const summary = getRecurringTrainingThemeSummary([
+    reviewedThemeSession('only-match', '2026-09-28', {
+      kumi_kata: 0.99,
+      ne_waza: 0.1,
+      transitions: 0.1,
+      competition_tactics: 0.1,
+    }),
+    reviewedThemeSession('no-match', '2026-09-27', {
+      kumi_kata: 0.4,
+      ne_waza: 0.1,
+      transitions: 0.1,
+      competition_tactics: 0.1,
+    }),
+  ]);
+
+  assert.equal(summary.consideredSessions, 2);
+  assert.deepEqual(summary.themes, []);
 });
