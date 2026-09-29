@@ -45,9 +45,10 @@ import { deferMenuDialogOpen } from '@/lib/interaction';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
-import type { SessionAssessment } from '@/lib/jev-client';
+import type { SessionAssessment, TrainingTheme } from '@/lib/jev-client';
 import {
   HISTORY_REVIEW_BATCH_SIZE,
+  getRecurringTrainingThemeSummary,
   getHistoryReviewFindings,
   isSessionAssessment,
   reviewHistoryBatch,
@@ -63,6 +64,13 @@ interface SessionHistoryProps {
 type GroupedSessions = {
   monthLabel: string;
   sessions: JudoSession[];
+};
+
+const trainingThemeLabels: Record<TrainingTheme, string> = {
+  kumi_kata: 'Kumi-kata',
+  ne_waza: 'Ne-waza',
+  transitions: 'Transitions',
+  competition_tactics: 'Competition tactics',
 };
 
 const categoryBadgeVariants = {
@@ -339,6 +347,10 @@ export function SessionHistory({
     completed: 0,
     total: 0,
   });
+  const recurringThemeSummary = useMemo(
+    () => getRecurringTrainingThemeSummary(historyReviewEntries),
+    [historyReviewEntries]
+  );
 
   const hasUnreviewedDescriptions = sessions.some(
     (session) =>
@@ -356,7 +368,7 @@ export function SessionHistory({
     const response = await fetch('/api/ai/assess-session', {
       method: 'POST',
       headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, includeTrainingThemes: true }),
     });
     const payload: unknown = await response.json();
     const assessment =
@@ -754,6 +766,46 @@ export function SessionHistory({
         ) : null}
         {historyReviewEntries.length > 0 ? (
           <div className="mt-3 space-y-3">
+            {recurringThemeSummary.consideredSessions > 0 ? (
+              <section
+                aria-label="Recurring training themes"
+                className="rounded-lg border border-primary/20 bg-background p-3"
+              >
+                <h3 className="text-sm font-semibold">Recurring themes</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Based on up to the {HISTORY_REVIEW_BATCH_SIZE} most recent
+                  sessions reviewed with
+                  AI. Themes are shown after appearing in at least two
+                  sessions.
+                </p>
+                {recurringThemeSummary.themes.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {recurringThemeSummary.themes.map((theme) => (
+                      <li
+                        key={theme.theme}
+                        className="flex items-center justify-between gap-3 text-sm"
+                      >
+                        <span className="font-medium">
+                          {trainingThemeLabels[theme.theme]}
+                        </span>
+                        <span className="text-muted-foreground tabular-nums">
+                          {theme.matchingSessions} of {theme.consideredSessions}{' '}
+                          sessions
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    No theme has appeared in at least two of the{' '}
+                    {recurringThemeSummary.consideredSessions} reviewed
+                    {recurringThemeSummary.consideredSessions === 1
+                      ? ' session.'
+                      : ' sessions.'}
+                  </p>
+                )}
+              </section>
+            ) : null}
             {historyReviewEntries.map((entry) => {
               const session = sessions.find(
                 (item) => item.id === entry.sessionId

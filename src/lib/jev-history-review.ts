@@ -1,4 +1,9 @@
-import type { SessionAssessment } from './jev-client';
+import {
+  TRAINING_THEMES,
+  isSessionThemeAssessment,
+  type SessionAssessment,
+  type TrainingTheme,
+} from './jev-client';
 import {
   AI_DESCRIPTION_MAX_BYTES,
   exceedsUtf8Limit,
@@ -10,6 +15,7 @@ import {
   shouldOfferCategorySuggestion,
   shouldPromptForReflection,
   shouldPromptForUsefulDetail,
+  shouldIncludeRecurringTheme,
 } from './jev-policy';
 
 export const HISTORY_REVIEW_BATCH_SIZE = 5;
@@ -34,6 +40,62 @@ export type HistoryReviewResult = {
   assessment?: SessionAssessment;
   error?: true;
 };
+
+export type RecurringTrainingTheme = {
+  theme: TrainingTheme;
+  matchingSessions: number;
+  consideredSessions: number;
+  recentSessionIds: string[];
+};
+
+export type RecurringTrainingThemeSummary = {
+  consideredSessions: number;
+  themes: RecurringTrainingTheme[];
+};
+
+const MINIMUM_RECURRING_THEME_SESSIONS = 2;
+
+export function getRecurringTrainingThemeSummary(
+  entries: HistoryReviewResult[]
+): RecurringTrainingThemeSummary {
+  const uniqueEntries = new Map<string, HistoryReviewResult>();
+  for (const entry of entries) uniqueEntries.set(entry.sessionId, entry);
+
+  const recentAssessments = [...uniqueEntries.values()]
+    .flatMap((entry) => {
+      const trainingThemes = entry.assessment?.trainingThemes;
+      return isSessionThemeAssessment(trainingThemes)
+        ? [{ entry, trainingThemes }]
+        : [];
+    })
+    .sort(
+      (left, right) =>
+        right.entry.sessionDate.localeCompare(left.entry.sessionDate) ||
+        right.entry.sessionId.localeCompare(left.entry.sessionId)
+    )
+    .slice(0, HISTORY_REVIEW_BATCH_SIZE);
+
+  const themes = TRAINING_THEMES.flatMap((theme) => {
+    const matchingSessionIds = recentAssessments
+      .filter(({ trainingThemes }) =>
+        shouldIncludeRecurringTheme(trainingThemes[theme])
+      )
+      .map(({ entry }) => entry.sessionId);
+    if (matchingSessionIds.length < MINIMUM_RECURRING_THEME_SESSIONS) {
+      return [];
+    }
+    return [
+      {
+        theme,
+        matchingSessions: matchingSessionIds.length,
+        consideredSessions: recentAssessments.length,
+        recentSessionIds: matchingSessionIds,
+      },
+    ];
+  });
+
+  return { consideredSessions: recentAssessments.length, themes };
+}
 
 export function getHistoryReviewFindings(entry: HistoryReviewResult) {
   const assessment = entry.assessment;
@@ -91,7 +153,9 @@ export function isSessionAssessment(
     Array.isArray(result.unsupportedTechniqueTags) &&
     result.unsupportedTechniqueTags.every(
       (candidate) => typeof candidate === 'string'
-    )
+    ) &&
+    (result.trainingThemes === undefined ||
+      isSessionThemeAssessment(result.trainingThemes))
   );
 }
 
