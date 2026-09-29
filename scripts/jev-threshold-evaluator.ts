@@ -28,7 +28,9 @@ function parseSessionCategory(
 }
 
 function parseOutcomeNumber(value: unknown, kind: string, index: number): number {
-  if (typeof value !== 'number') throw invalidOutcome(kind, index);
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw invalidOutcome(kind, index);
+  }
   return value;
 }
 
