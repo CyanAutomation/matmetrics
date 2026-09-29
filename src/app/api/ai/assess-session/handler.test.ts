@@ -119,6 +119,57 @@ test('assessment route caps technique-tag audit input at twelve tags', async () 
   assert.deepEqual(receivedTechniques, techniques.slice(0, 12));
 });
 
+test('assessment route forwards the explicit training-theme review opt-in', async () => {
+  let receivedInput: unknown;
+  const post = createAssessSessionPost(async (input) => {
+    receivedInput = input;
+    return {
+      suggestedCategory: 'Technical',
+      categoryConfidence: 0.9,
+      categoryFitProbability: 0.9,
+      hasUsefulDetail: 0.9,
+      hasReflection: 0.8,
+      unsupportedTechniqueTags: [],
+      trainingThemes: {
+        kumi_kata: 0.8,
+        ne_waza: 0.6,
+        transitions: 0.7,
+        competition_tactics: 0.2,
+      },
+    };
+  });
+
+  const response = await post(
+    request({
+      description: 'Worked on grip fighting.',
+      includeTrainingThemes: true,
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(receivedInput, {
+    description: 'Worked on grip fighting.',
+    notes: undefined,
+    includeTrainingThemes: true,
+  });
+  assert.equal((await response.json()).assessment.trainingThemes.kumi_kata, 0.8);
+});
+
+test('assessment route rejects a malformed training-theme opt-in before calling JEV', async () => {
+  let calls = 0;
+  const post = createAssessSessionPost(async () => {
+    calls += 1;
+    throw new Error('not called');
+  });
+
+  const response = await post(
+    request({ description: 'Practice.', includeTrainingThemes: 'true' })
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(calls, 0);
+});
+
 test('assessment route rejects missing descriptions without calling the provider', async () => {
   let calls = 0;
   const post = createAssessSessionPost(async () => {

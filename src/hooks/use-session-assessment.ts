@@ -4,9 +4,10 @@ import { useCallback, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getAiApiErrorMessage } from '@/lib/ai-api-error';
-import type {
-  SessionAssessment,
-  SessionAssessmentInput,
+import {
+  isSessionThemeAssessment,
+  type SessionAssessment,
+  type SessionAssessmentInput,
 } from '@/lib/jev-client';
 import { useToast } from './use-toast';
 
@@ -34,7 +35,9 @@ function isAssessment(value: unknown): value is SessionAssessment {
     Array.isArray(result.unsupportedTechniqueTags) &&
     result.unsupportedTechniqueTags.every(
       (candidate) => typeof candidate === 'string'
-    )
+    ) &&
+    (result.trainingThemes === undefined ||
+      isSessionThemeAssessment(result.trainingThemes))
   );
 }
 

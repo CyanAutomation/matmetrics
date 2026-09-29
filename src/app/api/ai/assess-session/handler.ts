@@ -54,6 +54,14 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
           status: 413,
         });
       if (
+        body.includeTrainingThemes !== undefined &&
+        typeof body.includeTrainingThemes !== 'boolean'
+      ) {
+        return NextResponse.json(aiApiError('INVALID_REQUEST').body, {
+          status: 400,
+        });
+      }
+      if (
         body.category !== undefined &&
         !SESSION_CATEGORIES.includes(
           body.category as (typeof SESSION_CATEGORIES)[number]
@@ -107,6 +115,9 @@ export function createAssessSessionPost(assess: Assess = assessSessionWithJev) {
                 .map((technique) => technique.trim())
                 .slice(0, 12),
             }),
+        ...(body.includeTrainingThemes === true
+          ? { includeTrainingThemes: true }
+          : {}),
       });
       return NextResponse.json({ assessment });
     } catch (error) {

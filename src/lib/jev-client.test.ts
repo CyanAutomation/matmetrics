@@ -22,6 +22,7 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
     assert.ok('suggested_category' in request.questions);
     assert.equal(request.questions.category_fit?.type, 'noul');
     assert.equal(request.questions.has_useful_detail?.type, 'noul');
+    assert.equal('training_theme_kumi_kata' in request.questions, false);
     assert.match(
       request.questions.has_useful_detail?.instructions ?? '',
       /ignore length, date, duration, and category labels as evidence/i
@@ -115,6 +116,114 @@ test('assessSessionWithJev rejects answers whose primitive type is wrong', async
         has_reflection: { type: 'noul', noul: 0.4 },
       },
     })),
+    /invalid/i
+  );
+});
+
+test('assessSessionWithJev classifies opted-in training themes in the same request', async () => {
+  let seenRequest: Parameters<JevDecisionClient>[0] | undefined;
+  let calls = 0;
+  const result = await assessSessionWithJev(
+    {
+      description: 'Worked on grip sequences and transitions to groundwork.',
+      notes: 'The grip exchanges felt more controlled.',
+      includeTrainingThemes: true,
+    },
+    async (request) => {
+      calls += 1;
+      seenRequest = request;
+      return {
+        answers: {
+          suggested_category: {
+            type: 'choice',
+            choice: 'Technical',
+            confidence: 0.91,
+          },
+          category_fit: { type: 'noul', noul: 0.94 },
+          has_useful_detail: { type: 'noul', noul: 0.88 },
+          has_reflection: { type: 'noul', noul: 0.75 },
+          training_theme_kumi_kata: { type: 'noul', noul: 0.92 },
+          training_theme_ne_waza: { type: 'noul', noul: 0.68 },
+          training_theme_transitions: { type: 'noul', noul: 0.81 },
+          training_theme_competition_tactics: {
+            type: 'noul',
+            noul: 0.12,
+          },
+        },
+      };
+    }
+  );
+
+  assert.equal(calls, 1);
+  assert.equal(
+    seenRequest?.state.session.description,
+    'Worked on grip sequences and transitions to groundwork.'
+  );
+  assert.equal(
+    seenRequest?.state.session.notes,
+    'The grip exchanges felt more controlled.'
+  );
+  for (const key of [
+    'training_theme_kumi_kata',
+    'training_theme_ne_waza',
+    'training_theme_transitions',
+    'training_theme_competition_tactics',
+  ]) {
+    assert.equal(seenRequest?.questions[key]?.type, 'noul');
+    assert.match(
+      seenRequest?.questions[key]?.instructions ?? '',
+      /session\.description.*session\.notes/s
+    );
+    assert.match(
+      seenRequest?.questions[key]?.instructions ?? '',
+      /successful (work|transitions) as well as difficulty|generic sparring/i
+    );
+  }
+  assert.deepEqual(result.trainingThemes, {
+    kumi_kata: 0.92,
+    ne_waza: 0.68,
+    transitions: 0.81,
+    competition_tactics: 0.12,
+  });
+});
+
+test('assessSessionWithJev rejects missing or out-of-range theme probabilities', async () => {
+  const baseAnswers = {
+    suggested_category: {
+      type: 'choice',
+      choice: 'Technical',
+      confidence: 0.9,
+    },
+    category_fit: { type: 'noul', noul: 0.9 },
+    has_useful_detail: { type: 'noul', noul: 0.9 },
+    has_reflection: { type: 'noul', noul: 0.8 },
+    training_theme_kumi_kata: { type: 'noul', noul: 0.8 },
+    training_theme_ne_waza: { type: 'noul', noul: 0.8 },
+    training_theme_transitions: { type: 'noul', noul: 0.8 },
+    training_theme_competition_tactics: { type: 'noul', noul: 0.8 },
+  };
+  const answersWithoutNeWaza = { ...baseAnswers };
+  Reflect.deleteProperty(answersWithoutNeWaza, 'training_theme_ne_waza');
+
+  await assert.rejects(
+    assessSessionWithJev(
+      { description: 'Practice.', includeTrainingThemes: true },
+      async () => ({
+        answers: answersWithoutNeWaza,
+      })
+    ),
+    /invalid/i
+  );
+  await assert.rejects(
+    assessSessionWithJev(
+      { description: 'Practice.', includeTrainingThemes: true },
+      async () => ({
+        answers: {
+          ...baseAnswers,
+          training_theme_transitions: { type: 'noul', noul: 1.01 },
+        },
+      })
+    ),
     /invalid/i
   );
 });
