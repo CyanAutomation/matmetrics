@@ -62,7 +62,7 @@ export function parseAssessSessionInput(
     return INVALID_REQUEST;
   }
   if (exceedsUtf8Limit(description, AI_DESCRIPTION_MAX_BYTES)) {
-    return INVALID_REQUEST;
+    return INPUT_TOO_LARGE;
   }
 
   const notes = typeof body.notes === 'string' ? body.notes.trim() : undefined;
