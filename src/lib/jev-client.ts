@@ -9,13 +9,14 @@ const OPENROUTER_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
 const JEV_MODEL = '~typesafe/jev-latest';
 const JEV_REQUEST_TIMEOUT_MS = 15_000;
 const MAX_TECHNIQUE_CANDIDATES = 12;
+const TRAINING_ONLY_ASSESSMENT_SCOPE =
+  'Assess training details only. Ignore mentions of physical symptoms, pain, injury, illness, treatment, or recovery; do not classify, infer, summarize, or advise on them.';
 
 type JevAnswer = {
   type: unknown;
   choice?: unknown;
   confidence?: unknown;
   noul?: unknown;
-  score?: unknown;
 };
 
 type JevQuestion =
@@ -28,11 +29,6 @@ type JevQuestion =
       type: 'noul';
       instructions: string;
       criteria?: { true: string; false: string };
-    }
-  | {
-      type: 'score';
-      instructions: string;
-      criteria: string[];
     };
 
 type JevRequest = {
@@ -71,8 +67,6 @@ export type SessionAssessment = {
   categoryFitProbability: number;
   hasUsefulDetail: number;
   hasReflection: number;
-  fatigueSignal: number;
-  injurySignal: number;
   effortConflictProbability?: number;
   unsupportedTechniqueTags: string[];
 };
@@ -257,27 +251,17 @@ const assessmentQuestions = {
   has_reflection: {
     type: 'noul',
     instructions:
-      'Do `session.description` and `session.notes` include a personal reflection about what worked, felt difficult, or needs improvement?',
-  },
-  fatigue_signal: {
-    type: 'score',
-    instructions:
-      'How strongly do `session.description` and `session.notes` indicate fatigue or unusually difficult recovery? This is not a medical diagnosis.',
-    criteria: [
-      'No fatigue signal.',
-      'Some fatigue or difficult recovery mentioned.',
-      'Strong fatigue or unable-to-train signal.',
-    ],
-  },
-  injury_signal: {
-    type: 'noul',
-    instructions:
-      'Do `session.description` or `session.notes` mention pain, injury, or a need to stop or modify training? This is not a medical diagnosis.',
+      'Do `session.description` and `session.notes` include a reflection about a technique, tactic, or training choice?',
   },
 } satisfies Record<string, JevQuestion>;
 
 function getAssessmentQuestions(input: SessionAssessmentInput) {
-  const questions: Record<string, JevQuestion> = { ...assessmentQuestions };
+  const questions: Record<string, JevQuestion> = Object.fromEntries(
+    Object.entries(assessmentQuestions).map(([key, question]) => [
+      key,
+      { ...question },
+    ])
+  );
   if (input.effort !== undefined) {
     questions.effort_conflict = {
       type: 'noul',
@@ -308,6 +292,9 @@ function getAssessmentQuestions(input: SessionAssessmentInput) {
           'The tag is absent, hypothetical, or only describes someone else’s action.',
       },
     };
+  }
+  for (const question of Object.values(questions)) {
+    question.instructions = `${question.instructions} ${TRAINING_ONLY_ASSESSMENT_SCOPE}`;
   }
   return { questions, candidates };
 }
@@ -355,16 +342,6 @@ export async function assessSessionWithJev(
     ),
     hasReflection: numberInRange(
       answer(response.answers, 'has_reflection', 'noul').noul,
-      0,
-      1
-    ),
-    fatigueSignal: numberInRange(
-      answer(response.answers, 'fatigue_signal', 'score').score,
-      0,
-      2
-    ),
-    injurySignal: numberInRange(
-      answer(response.answers, 'injury_signal', 'noul').noul,
       0,
       1
     ),

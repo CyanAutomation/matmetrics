@@ -20,7 +20,7 @@ test('LogDoctorStatusAlerts exposes one actionable alert, retry control, and rec
   );
 
   const actionableAlerts =
-    markup.match(/<h3[^>]*>Log Doctor error<\/h3>/g) ?? [];
+    markup.match(/<h3[^>]*>Data check error<\/h3>/g) ?? [];
 
   assert.equal(
     actionableAlerts.length,
@@ -31,7 +31,7 @@ test('LogDoctorStatusAlerts exposes one actionable alert, retry control, and rec
     markup,
     /An actionable error is shown below\. Use Retry to run the scan again\./
   );
-  assert.match(markup, /Log Doctor error/);
-  assert.match(markup, /<button[^>]*aria-label="Retry log doctor scan"[^>]*>/);
+  assert.match(markup, /Data check error/);
+  assert.match(markup, /<button[^>]*aria-label="Retry data check"[^>]*>/);
   assert.match(markup, />Retry<\/button>/);
 });

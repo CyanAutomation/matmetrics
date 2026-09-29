@@ -3,8 +3,6 @@ export const JEV_CATEGORY_FIT_PROBABILITY_THRESHOLD = 0.8;
 export const JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD = 0.9;
 export const JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD = 0.5;
 export const JEV_USEFUL_DETAIL_PROBABILITY_THRESHOLD = 0.5;
-export const JEV_FATIGUE_NUDGE_SCORE_THRESHOLD = 1;
-export const JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD = 0.5;
 export const JEV_EFFORT_CONFLICT_PROBABILITY_THRESHOLD = 0.8;
 export const JEV_TRANSFORM_FIDELITY_CONCERN_THRESHOLD = 0.5;
 
@@ -48,30 +46,6 @@ export function shouldPromptForReflection(probability: number): boolean {
   return (
     isProbability(probability) &&
     probability < JEV_CHECKIN_NUDGE_PROBABILITY_THRESHOLD
-  );
-}
-
-export function shouldShowRecoveryNudge(
-  fatigueSignal: number,
-  injurySignal: number
-): boolean {
-  return (
-    hasElevatedFatigueSignal(fatigueSignal) || hasInjurySignal(injurySignal)
-  );
-}
-
-export function hasElevatedFatigueSignal(fatigueSignal: number): boolean {
-  return (
-    Number.isFinite(fatigueSignal) &&
-    fatigueSignal >= JEV_FATIGUE_NUDGE_SCORE_THRESHOLD &&
-    fatigueSignal <= 2
-  );
-}
-
-export function hasInjurySignal(injurySignal: number): boolean {
-  return (
-    isProbability(injurySignal) &&
-    injurySignal >= JEV_INJURY_NUDGE_PROBABILITY_THRESHOLD
   );
 }
 

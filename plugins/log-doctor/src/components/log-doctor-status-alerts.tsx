@@ -24,9 +24,9 @@ export const LogDoctorStatusAlerts = ({
   const hasDetailedError = Boolean(errorMessage);
   const statusTitle =
     uiState.phase === 'loading'
-      ? 'Log Doctor is running'
+      ? 'Data check is running'
       : uiState.phase === 'error' && !hasDetailedError
-        ? 'Recovery available'
+        ? 'Ready to retry'
         : 'Status';
   const statusMessage =
     uiState.phase === 'error' && hasDetailedError
@@ -43,11 +43,11 @@ export const LogDoctorStatusAlerts = ({
 
       {errorMessage ? (
         <PluginErrorState
-          title="Log Doctor error"
+          title="Data check error"
           message={errorMessage}
           onRetry={onRetry}
           retryLabel="Retry"
-          retryAriaLabel="Retry log doctor scan"
+          retryAriaLabel="Retry data check"
         />
       ) : null}
     </>

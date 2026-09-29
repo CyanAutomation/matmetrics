@@ -25,8 +25,6 @@ async function runJevSmokeCheck(): Promise<void> {
         hasReflection: assessment.hasReflection,
         effortConflictProbability: assessment.effortConflictProbability,
         unsupportedTechniqueTagCount: assessment.unsupportedTechniqueTags.length,
-        fatigueSignal: assessment.fatigueSignal,
-        injurySignal: assessment.injurySignal,
       })
     );
   } catch (error) {

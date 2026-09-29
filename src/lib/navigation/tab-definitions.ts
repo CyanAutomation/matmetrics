@@ -6,7 +6,7 @@ import {
   Tags,
   BrainCircuit,
   GitBranch,
-  Stethoscope,
+  ClipboardCheck,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -129,7 +129,7 @@ const pluginTabIcons: Record<string, LucideIcon> = {
   tags: Tags,
   brain: BrainCircuit,
   github: GitBranch,
-  stethoscope: Stethoscope,
+  'clipboard-check': ClipboardCheck,
   sliders: SlidersHorizontal,
 };
 

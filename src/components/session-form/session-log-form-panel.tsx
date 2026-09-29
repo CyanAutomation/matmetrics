@@ -160,6 +160,10 @@ export function SessionLogForm({
     setCurrentStep((step) => Math.min(step + 1, SESSION_FORM_STEPS.length - 1));
   }, []);
 
+  const handleFinish = useCallback(() => {
+    formRef.current?.requestSubmit();
+  }, []);
+
   const handlePrevious = useCallback(() => {
     setCurrentStep((step) => Math.max(step - 1, 0));
   }, []);
@@ -346,6 +350,7 @@ export function SessionLogForm({
           totalSteps={SESSION_FORM_STEPS.length}
           onPrevious={handlePrevious}
           onNext={handleNext}
+          onFinish={handleFinish}
           onCancel={onCancel}
         />
       </form>
