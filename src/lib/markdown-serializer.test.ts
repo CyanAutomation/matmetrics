@@ -198,6 +198,45 @@ Notes.`;
   assert.equal(markdownToSession(markdown).id, 'session-a');
 });
 
+test('markdownToSession accepts Go-compatible quoted string escapes', () => {
+  const markdown = String.raw`---
+id: "bell:\a backspace:\b form-feed:\f line:\n carriage:\r tab:\t vertical:\v slash:\\ quote:\" apostrophe:\' hex:\x41 bmp:\u0042 astral:\U0001F981 octal:\101"
+date: "2026-03-23"
+effort: 3
+category: "Technical"
+---
+
+# 2026-03-23 - Judo Session: Technical
+
+## Techniques Practiced
+- Uchi mata
+
+## Session Description
+
+Description.
+
+## Notes
+
+Notes.`;
+
+  assert.equal(
+    markdownToSession(markdown).id,
+    'bell:\u0007 backspace:\b form-feed:\f line:\n carriage:\r tab:\t vertical:\u000b slash:\\ quote:" apostrophe:\' hex:A bmp:B astral:\u{1f981} octal:A'
+  );
+});
+
+test('markdownToSession rejects malformed legacy quoted escapes', () => {
+  const invalidEscapes = [String.raw`"bad-\xG1"`, String.raw`"bad-\400"`];
+
+  for (const id of invalidEscapes) {
+    const markdown = `---\nid: ${id}\ndate: "2026-03-23"\neffort: 3\ncategory: "Technical"\n---\n\n# 2026-03-23 - Judo Session: Technical\n\n## Techniques Practiced\n- Uchi mata\n\n## Session Description\n\nDescription.\n\n## Notes\n\nNotes.`;
+    assert.throws(
+      () => markdownToSession(markdown),
+      /invalid quoted value for "id"/
+    );
+  }
+});
+
 test('markdownToSession rejects a quoted scalar ending in a backslash', () => {
   const markdown = String.raw`---
 id: "session-\"

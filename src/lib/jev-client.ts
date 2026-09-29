@@ -3,7 +3,12 @@ import {
   JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
   shouldFlagTransformedDescription,
 } from './jev-policy';
-import { EFFORT_LABELS, type EffortLevel, type SessionCategory } from './types';
+import {
+  EFFORT_LABELS,
+  SESSION_CATEGORIES,
+  type EffortLevel,
+  type SessionCategory,
+} from './types';
 
 const OPENROUTER_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
 const JEV_MODEL = '~typesafe/jev-latest';
@@ -469,6 +474,33 @@ export function isSessionThemeAssessment(
       probability <= 1
     );
   });
+}
+
+export function isSessionAssessment(value: unknown): value is SessionAssessment {
+  if (!isRecord(value)) return false;
+
+  const isProbability = (candidate: unknown): candidate is number =>
+    typeof candidate === 'number' &&
+    Number.isFinite(candidate) &&
+    candidate >= 0 &&
+    candidate <= 1;
+
+  return (
+    typeof value.suggestedCategory === 'string' &&
+    SESSION_CATEGORIES.includes(value.suggestedCategory as SessionCategory) &&
+    isProbability(value.categoryConfidence) &&
+    isProbability(value.categoryFitProbability) &&
+    isProbability(value.hasUsefulDetail) &&
+    isProbability(value.hasReflection) &&
+    (value.effortConflictProbability === undefined ||
+      isProbability(value.effortConflictProbability)) &&
+    Array.isArray(value.unsupportedTechniqueTags) &&
+    value.unsupportedTechniqueTags.every(
+      (candidate) => typeof candidate === 'string'
+    ) &&
+    (value.trainingThemes === undefined ||
+      isSessionThemeAssessment(value.trainingThemes))
+  );
 }
 
 function shouldFlagUnconfirmedTag(probability: number): boolean {
