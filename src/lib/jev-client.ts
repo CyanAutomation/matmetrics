@@ -12,6 +12,17 @@ const MAX_TECHNIQUE_CANDIDATES = 12;
 const TRAINING_ONLY_ASSESSMENT_SCOPE =
   'Assess training details only. Ignore mentions of physical symptoms, pain, injury, illness, treatment, or recovery; do not classify, infer, summarize, or advise on them.';
 
+export const TRAINING_THEMES = [
+  'kumi_kata',
+  'ne_waza',
+  'transitions',
+  'competition_tactics',
+] as const;
+
+export type TrainingTheme = (typeof TRAINING_THEMES)[number];
+
+export type SessionThemeAssessment = Record<TrainingTheme, number>;
+
 type JevAnswer = {
   type: unknown;
   choice?: unknown;
@@ -59,6 +70,7 @@ export type SessionAssessmentInput = {
   category?: SessionCategory;
   effort?: EffortLevel;
   techniques?: string[];
+  includeTrainingThemes?: boolean;
 };
 
 export type SessionAssessment = {
@@ -69,6 +81,7 @@ export type SessionAssessment = {
   hasReflection: number;
   effortConflictProbability?: number;
   unsupportedTechniqueTags: string[];
+  trainingThemes?: SessionThemeAssessment;
 };
 
 class JevHttpError extends Error {
@@ -198,6 +211,8 @@ function getJevOperation(request: JevRequest): string {
   const questionNames = Object.keys(request.questions);
   if (questionNames.includes('unsupported_detail'))
     return 'description_fidelity';
+  if (questionNames.some((name) => name.startsWith('training_theme_')))
+    return 'training_theme_review';
   if (questionNames.some((name) => name.startsWith('candidate_')))
     return 'technique_verification';
   return 'session_checkin';
@@ -255,6 +270,49 @@ const assessmentQuestions = {
   },
 } satisfies Record<string, JevQuestion>;
 
+const trainingThemeQuestions = {
+  training_theme_kumi_kata: {
+    type: 'noul',
+    instructions:
+      'Do `session.description` or `session.notes` contain meaningful training or reflection about kumi-kata (grip fighting, establishing or breaking grips, grip sequences, or controlling sleeve/lapel grips)? Use the text only; do not infer this from the session category or saved technique tags. A positive answer includes successful work as well as difficulty.',
+    criteria: {
+      true: 'The text describes or reflects on meaningful grip-fighting practice or a specific grip exchange.',
+      false:
+        'Grip fighting is absent, only named without meaningful context, or not supported by the text.',
+    },
+  },
+  training_theme_ne_waza: {
+    type: 'noul',
+    instructions:
+      'Do `session.description` or `session.notes` contain meaningful ne-waza (groundwork) training or reflection, such as pins, escapes, turnovers, submissions, or groundwork sequences? Use the text only; do not infer this from the session category or saved technique tags. A positive answer includes successful work as well as difficulty.',
+    criteria: {
+      true: 'The text describes or reflects on meaningful groundwork practice or a specific ground exchange.',
+      false:
+        'Groundwork is absent, only named without meaningful context, or not supported by the text.',
+    },
+  },
+  training_theme_transitions: {
+    type: 'noul',
+    instructions:
+      'Do `session.description` or `session.notes` contain meaningful training or reflection about transitions, such as moving from standing into groundwork, chaining attacks, or continuing after an initial attack? Use the text only; do not infer this from the session category or saved technique tags. A positive answer includes successful transitions as well as difficulty.',
+    criteria: {
+      true: 'The text describes or reflects on practicing a transition, combination, or continuation between actions.',
+      false:
+        'Transitions are absent, only named without meaningful context, or not supported by the text.',
+    },
+  },
+  training_theme_competition_tactics: {
+    type: 'noul',
+    instructions:
+      'Do `session.description` or `session.notes` contain meaningful competition-specific tactical training or reflection, such as match strategy, score or time decisions, rule-aware choices, or a competition game plan? Use the text only; do not infer this from the session category or saved technique tags. Generic sparring without a competition context is not enough.',
+    criteria: {
+      true: 'The text describes or reflects on a specific competition tactic, match decision, or competition-focused drill.',
+      false:
+        'Competition tactics are absent, only named without meaningful context, or not supported by the text.',
+    },
+  },
+} satisfies Record<string, JevQuestion>;
+
 function getAssessmentQuestions(input: SessionAssessmentInput) {
   const questions: Record<string, JevQuestion> = Object.fromEntries(
     Object.entries(assessmentQuestions).map(([key, question]) => [
@@ -262,6 +320,9 @@ function getAssessmentQuestions(input: SessionAssessmentInput) {
       { ...question },
     ])
   );
+  if (input.includeTrainingThemes) {
+    Object.assign(questions, trainingThemeQuestions);
+  }
   if (input.effort !== undefined) {
     questions.effort_conflict = {
       type: 'noul',
@@ -327,6 +388,34 @@ export async function assessSessionWithJev(
     'suggested_category',
     'choice'
   );
+  const trainingThemes = input.includeTrainingThemes
+    ? {
+        kumi_kata: numberInRange(
+          answer(response.answers, 'training_theme_kumi_kata', 'noul').noul,
+          0,
+          1
+        ),
+        ne_waza: numberInRange(
+          answer(response.answers, 'training_theme_ne_waza', 'noul').noul,
+          0,
+          1
+        ),
+        transitions: numberInRange(
+          answer(response.answers, 'training_theme_transitions', 'noul').noul,
+          0,
+          1
+        ),
+        competition_tactics: numberInRange(
+          answer(
+            response.answers,
+            'training_theme_competition_tactics',
+            'noul'
+          ).noul,
+          0,
+          1
+        ),
+      }
+    : undefined;
   return {
     suggestedCategory: category(categoryAnswer.choice),
     categoryConfidence: numberInRange(categoryAnswer.confidence, 0, 1),
@@ -363,7 +452,23 @@ export async function assessSessionWithJev(
         )
       )
     ),
+    ...(trainingThemes ? { trainingThemes } : {}),
   };
+}
+
+export function isSessionThemeAssessment(
+  value: unknown
+): value is SessionThemeAssessment {
+  if (!isRecord(value)) return false;
+  return TRAINING_THEMES.every((theme) => {
+    const probability = value[theme];
+    return (
+      typeof probability === 'number' &&
+      Number.isFinite(probability) &&
+      probability >= 0 &&
+      probability <= 1
+    );
+  });
 }
 
 function shouldFlagUnconfirmedTag(probability: number): boolean {
