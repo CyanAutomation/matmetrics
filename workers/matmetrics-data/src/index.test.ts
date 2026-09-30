@@ -828,11 +828,26 @@ async function updateJobStatus(
 // TEST SUITE
 // ============================================================================
 
-test('safeParseJSON helper - parses valid JSON', () => {
-  const payload = { type: 'log-doctor-scan', config: { owner: 'test' } };
-  const result = safeParseJSON(JSON.stringify(payload), 'test-payload');
-  assert.deepEqual(result, payload);
-});
+const validJSONCases: Array<{
+  name: string;
+  input: string;
+  expected: unknown;
+}> = [
+  {
+    name: 'object',
+    input: '{"type":"log-doctor-scan","config":{"owner":"test"}}',
+    expected: { type: 'log-doctor-scan', config: { owner: 'test' } },
+  },
+  { name: 'number', input: '123', expected: 123 },
+  { name: 'boolean', input: 'true', expected: true },
+  { name: 'array', input: '["a","b"]', expected: ['a', 'b'] },
+];
+
+for (const { name, input, expected } of validJSONCases) {
+  test(`safeParseJSON helper - parses ${name} JSON`, () => {
+    assert.deepEqual(safeParseJSON(input, name), expected);
+  });
+}
 
 test('safeParseJSON helper - returns null for invalid JSON', () => {
   const result = safeParseJSON('{ invalid json', 'bad-json');
@@ -842,27 +857,6 @@ test('safeParseJSON helper - returns null for invalid JSON', () => {
 test('safeParseJSON helper - returns null for empty string', () => {
   const result = safeParseJSON('', 'empty');
   assert.strictEqual(result, null);
-});
-
-test('safeParseJSON helper - handles number types', () => {
-  const result = safeParseJSON<{ count: number }>('{"count": 123}', 'count');
-  assert.strictEqual(result?.count, 123);
-});
-
-test('safeParseJSON helper - handles boolean types', () => {
-  const result = safeParseJSON<{ active: boolean }>(
-    '{"active": true}',
-    'active'
-  );
-  assert.strictEqual(result?.active, true);
-});
-
-test('safeParseJSON helper - handles array types', () => {
-  const result = safeParseJSON<{ items: string[] }>(
-    '{"items": ["a", "b"]}',
-    'items'
-  );
-  assert.deepEqual(result?.items, ['a', 'b']);
 });
 
 test('updateJobStatus helper - updates job status without error message', async () => {
