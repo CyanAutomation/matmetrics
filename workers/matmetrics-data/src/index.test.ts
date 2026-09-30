@@ -843,11 +843,11 @@ const validJSONCases: Array<{
   { name: 'array', input: '["a","b"]', expected: ['a', 'b'] },
 ];
 
-for (const { name, input, expected } of validJSONCases) {
-  test(`safeParseJSON helper - parses ${name} JSON`, () => {
+test('safeParseJSON helper - returns successfully parsed JSON', () => {
+  for (const { name, input, expected } of validJSONCases) {
     assert.deepEqual(safeParseJSON(input, name), expected);
-  });
-}
+  }
+});
 
 test('safeParseJSON helper - returns null for invalid JSON', () => {
   const result = safeParseJSON('{ invalid json', 'bad-json');
