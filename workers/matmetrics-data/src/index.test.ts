@@ -844,11 +844,6 @@ test('safeParseJSON helper - returns null for empty string', () => {
   assert.strictEqual(result, null);
 });
 
-test('safeParseJSON helper - parses and type-casts correctly', () => {
-  const result = safeParseJSON<{ value: number }>('{"value": 42}', 'number');
-  assert.strictEqual(result?.value, 42);
-});
-
 test('safeParseJSON helper - handles number types', () => {
   const result = safeParseJSON<{ count: number }>('{"count": 123}', 'count');
   assert.strictEqual(result?.count, 123);
