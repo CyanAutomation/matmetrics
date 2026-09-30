@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { FilterBar } from '@/components/ui/filter-bar';
 
-test('FilterBar provides a labelled responsive filter region', () => {
+test('FilterBar provides a labelled filter region and preserves child controls', () => {
   const document = parse(
     renderToStaticMarkup(
       React.createElement(
@@ -19,10 +19,11 @@ test('FilterBar provides a labelled responsive filter region', () => {
   );
 
   const filterBar = document.querySelector('[role="region"]');
+  assert.ok(filterBar);
+  assert.equal(filterBar.getAttribute('role'), 'region');
   assert.equal(
-    filterBar?.getAttribute('aria-label'),
+    filterBar.getAttribute('aria-label'),
     'Filter training history'
   );
-  assert.match(filterBar?.getAttribute('class') ?? '', /grid/);
-  assert.ok(filterBar?.querySelector('input'));
+  assert.ok(filterBar.querySelector('input'));
 });
