@@ -20,7 +20,7 @@ const domGlobals = [
 const originalGlobalDescriptors = Object.fromEntries(
   domGlobals.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)])
 );
-let dom: InstanceType<typeof JSDOM>;
+let dom: InstanceType<typeof JSDOM> | undefined;
 
 beforeEach(() => {
   dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -37,7 +37,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  dom.window.close();
+  dom?.window.close();
+  dom = undefined;
 
   for (const name of domGlobals) {
     const descriptor = originalGlobalDescriptors[name];
