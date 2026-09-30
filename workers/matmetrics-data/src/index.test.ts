@@ -35,6 +35,22 @@ interface StoredJob {
   updated_at: number;
 }
 
+function makeStoredJob(overrides: Partial<StoredJob> = {}): StoredJob {
+  return {
+    id: 'job-1',
+    user_id: 'user-1',
+    type: 'log-doctor-scan',
+    status: 'queued',
+    payload_json: '{}',
+    result_json: null,
+    error_message: null,
+    attempts: 0,
+    created_at: 1_700_000_000_000,
+    updated_at: 1_700_000_000_000,
+    ...overrides,
+  };
+}
+
 // ============================================================================
 // MOCKS & TEST HELPERS
 // ============================================================================
@@ -86,21 +102,16 @@ class MockD1Database {
       const job = this.data.get(idMatch as string);
       if (!job) return { success: false };
 
-      // Parse the UPDATE clause based on status value
-      const status = params[0] as JobStatus;
-      job.status = status;
-      job.updated_at = params[params.length - 2] as number;
-
-      // Handle status-specific updates
-      if (status === 'running') {
-        job.attempts = params[1] as number;
-        job.error_message = null;
-      } else if (status === 'completed') {
-        job.result_json = params[1] as string;
-        job.error_message = null;
-      } else if (status === 'failed' || status === 'queued') {
-        job.error_message = params[1] as string;
-      }
+      let paramIndex = 0;
+      job.status = params[paramIndex++] as JobStatus;
+      if (sql.includes('result_json = ?'))
+        job.result_json = params[paramIndex++] as string;
+      if (sql.includes('error_message = ?'))
+        job.error_message = params[paramIndex++] as string;
+      else if (sql.includes('error_message = NULL')) job.error_message = null;
+      if (sql.includes('attempts = ?'))
+        job.attempts = params[paramIndex++] as number;
+      job.updated_at = params[paramIndex] as number;
 
       return { success: true };
     }
@@ -857,18 +868,7 @@ test('safeParseJSON helper - returns null for empty string', () => {
 
 test('updateJobStatus helper - updates job status without error message', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
-    id: 'job-1',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
-    status: 'queued',
-    payload_json: '{}',
-    result_json: null,
-    error_message: null,
-    attempts: 0,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+  const job = makeStoredJob();
   db._setJob(job);
 
   const success = await updateJobStatus(db, 'job-1', 'running', {
@@ -882,18 +882,11 @@ test('updateJobStatus helper - updates job status without error message', async 
 
 test('updateJobStatus helper - updates job status with error message', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
+  const job = makeStoredJob({
     id: 'job-2',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{}',
-    result_json: null,
-    error_message: null,
     attempts: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+  });
   db._setJob(job);
 
   const success = await updateJobStatus(db, 'job-2', 'failed', {
@@ -907,18 +900,11 @@ test('updateJobStatus helper - updates job status with error message', async () 
 
 test('updateJobStatus helper - updates job status with result JSON', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
+  const job = makeStoredJob({
     id: 'job-3',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{}',
-    result_json: null,
-    error_message: null,
     attempts: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+  });
   db._setJob(job);
 
   const resultJson = '{"issues": []}';
@@ -941,18 +927,10 @@ test('updateJobStatus helper - returns false for non-existent job', async () => 
 
 test('updateJobStatus helper - clears error message when transitioning to running', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
+  const job = makeStoredJob({
     id: 'job-4',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
-    status: 'queued',
-    payload_json: '{}',
-    result_json: null,
     error_message: 'Previous error',
-    attempts: 0,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+  });
   db._setJob(job);
 
   await updateJobStatus(db, 'job-4', 'running', { attempts: 1 });
@@ -960,46 +938,45 @@ test('updateJobStatus helper - clears error message when transitioning to runnin
   assert.strictEqual(updated?.error_message, null);
 });
 
-test('updateJobStatus helper - supports multiple options simultaneously', async () => {
+test('updateJobStatus helper - atomically updates multiple fields', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
+  const job = makeStoredJob({
     id: 'job-5',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{}',
-    result_json: null,
-    error_message: null,
-    attempts: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+    payload_json: '{"original":true}',
+    result_json: '{"stale":true}',
+    error_message: 'Previous attempt failed',
+    attempts: 2,
+  });
+  const originalJob = { ...job };
   db._setJob(job);
 
+  const resultJson = '{"success":true,"records":7}';
   const success = await updateJobStatus(db, 'job-5', 'completed', {
-    resultJson: '{"success": true}',
-    attempts: 1,
+    resultJson,
+    attempts: 3,
   });
   assert.strictEqual(success, true);
   const updated = db._getJob('job-5');
   assert.strictEqual(updated?.status, 'completed');
-  assert.strictEqual(updated?.result_json, '{"success": true}');
+  assert.strictEqual(updated?.result_json, resultJson);
+  assert.strictEqual(updated?.attempts, 3);
+  assert.strictEqual(updated?.error_message, null);
+  assert.strictEqual(updated?.id, originalJob.id);
+  assert.strictEqual(updated?.user_id, originalJob.user_id);
+  assert.strictEqual(updated?.type, originalJob.type);
+  assert.strictEqual(updated?.payload_json, originalJob.payload_json);
+  assert.strictEqual(updated?.created_at, originalJob.created_at);
+  assert.ok(updated.updated_at > originalJob.updated_at);
 });
 
 test('updateJobStatus helper - updates to queued with error message for retry', async () => {
   const db = new MockD1Database();
-  const job: StoredJob = {
+  const job = makeStoredJob({
     id: 'job-6',
-    user_id: 'user-1',
-    type: 'log-doctor-scan',
     status: 'running',
-    payload_json: '{}',
-    result_json: null,
-    error_message: null,
     attempts: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  };
+  });
   db._setJob(job);
 
   const success = await updateJobStatus(db, 'job-6', 'queued', {
