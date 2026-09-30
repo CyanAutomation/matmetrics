@@ -828,24 +828,20 @@ async function updateJobStatus(
 // TEST SUITE
 // ============================================================================
 
-const validJSONCases: Array<{
-  name: string;
-  input: string;
-  expected: unknown;
-}> = [
-  {
-    name: 'object',
-    input: '{"type":"log-doctor-scan","config":{"owner":"test"}}',
-    expected: { type: 'log-doctor-scan', config: { owner: 'test' } },
-  },
-  { name: 'number', input: '123', expected: 123 },
-  { name: 'boolean', input: 'true', expected: true },
-  { name: 'array', input: '["a","b"]', expected: ['a', 'b'] },
+const validJSONCases: ReadonlyArray<readonly [string, string, unknown]> = [
+  [
+    'object',
+    '{"type":"log-doctor-scan","config":{"owner":"test"}}',
+    { type: 'log-doctor-scan', config: { owner: 'test' } },
+  ],
+  ['number', '123', 123],
+  ['boolean', 'true', true],
+  ['array', '["a","b"]', ['a', 'b']],
 ];
 
 test('safeParseJSON helper - returns successfully parsed JSON', () => {
-  for (const { name, input, expected } of validJSONCases) {
-    assert.deepEqual(safeParseJSON(input, name), expected);
+  for (const [name, input, expected] of validJSONCases) {
+    assert.deepStrictEqual(safeParseJSON(input, name), expected);
   }
 });
 
