@@ -28,8 +28,15 @@ test('validator covers supported static JSX expression forms', async (t) => {
       expression: "{ 'bg-red-500': true, ['text-primary']: active }",
     },
     {
-      name: 'computed property concatenation',
+      name: 'simple computed property concatenation',
       expression: "{ ['bg-' + 'red-500']: true, ['text-primary']: active }",
+    },
+    {
+      name: 'nested computed property concatenation',
+      expression:
+        "{ ['text-' + ('pink' + '-500')]: true, ['text-primary']: active }",
+      token: 'text-pink-500',
+      replacement: 'text-destructive',
     },
     {
       name: 'helper call',
@@ -49,8 +56,11 @@ test('validator covers supported static JSX expression forms', async (t) => {
       assert.deepEqual(diagnostics[0], {
         file,
         line: 2,
-        token: 'bg-red-500',
-        replacement: 'bg-destructive/10',
+        token: 'token' in fixture ? fixture.token : 'bg-red-500',
+        replacement:
+          'replacement' in fixture
+            ? fixture.replacement
+            : 'bg-destructive/10',
       });
     });
   }
