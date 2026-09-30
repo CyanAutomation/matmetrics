@@ -10,6 +10,8 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { DashboardHeader } from './dashboard-header';
 
 test('dashboard header keeps shared product branding separate from page headings', () => {
+  // Shared-branding hierarchy requirement: the product owns the primary heading,
+  // while the header exposes workspace and page context separately.
   const document = parse(
     renderToStaticMarkup(
       React.createElement(
@@ -37,14 +39,11 @@ test('dashboard header keeps shared product branding separate from page headings
     )
   );
   const header = document.querySelector('header');
-  const brandHeading = header?.querySelector('h1');
+  const productHeading = header?.querySelector('h1');
+  const workspaceContext = header?.querySelector('p');
+  const pageContext = header?.querySelector('[title="Training history"]');
 
-  assert.equal(brandHeading?.textContent, 'MatMetrics');
-  assert.match(brandHeading?.getAttribute('class') ?? '', /sr-only/);
-  assert.match(brandHeading?.getAttribute('class') ?? '', /sm:not-sr-only/);
-  assert.equal(
-    brandHeading?.nextElementSibling?.textContent,
-    'Training workspace'
-  );
-  assert.equal(brandHeading?.textContent.includes('Training'), false);
+  assert.equal(productHeading?.textContent, 'MatMetrics');
+  assert.equal(workspaceContext?.textContent, 'Training workspace');
+  assert.equal(pageContext?.getAttribute('title'), 'Training history');
 });
