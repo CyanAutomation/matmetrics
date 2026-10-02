@@ -23,7 +23,7 @@ import {
   normalizeAuditConfigShape,
   type AuditStrictnessPreset,
 } from '@/lib/audit-presets';
-import type { AuditConfig, AuditMode } from '@/lib/types';
+import type { AuditConfig, AuditFlagCode, AuditMode } from '@/lib/types';
 
 export type AuditSettingsProps = {
   mode: AuditMode;
@@ -33,7 +33,7 @@ export type AuditSettingsProps = {
 };
 
 const RULE_DESCRIPTIONS: Record<
-  string,
+  AuditFlagCode,
   { label: string; description: string }
 > = {
   no_techniques_high_effort: {
@@ -54,6 +54,31 @@ const RULE_DESCRIPTIONS: Record<
     label: 'Session time looks off',
     description:
       'Flags sessions with very different durations so you can confirm the time entry is correct. Requires at least 3 sessions with duration data.',
+  },
+  category_mismatch: {
+    label: 'Possible session type mismatch',
+    description:
+      'Suggests a different type when the session text clearly fits it better.',
+  },
+  unsupported_technique_tags: {
+    label: 'Saved techniques not supported by the entry',
+    description:
+      'Checks whether saved technique tags are supported by the description or notes.',
+  },
+  effort_conflict: {
+    label: 'Effort does not match the text',
+    description:
+      'Flags a clear conflict between the written description and selected effort.',
+  },
+  low_information: {
+    label: 'Little reusable training detail',
+    description:
+      'Suggests a concrete technique, drill, or training focus when an entry is too vague to be useful later.',
+  },
+  missing_reflection: {
+    label: 'Reflection suggestion',
+    description:
+      'Suggests recording what worked, what was difficult, or what to try next time.',
   },
 };
 
@@ -114,7 +139,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
     return 'custom';
   }, [selectedPreset]);
 
-  const handleRuleToggle = (code: string, enabled: boolean): void => {
+  const handleRuleToggle = (code: AuditFlagCode, enabled: boolean): void => {
     setSelectedPreset(null);
     setLocalConfig((prev) => ({
       rules: prev.rules.map((rule) =>
@@ -124,7 +149,7 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
   };
 
   const handleParamChange = (
-    code: string,
+    code: AuditFlagCode,
     paramName: string,
     value: number
   ): void => {
@@ -223,7 +248,21 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
             </p>
           </div>
 
-          {normalizeAuditConfigShape(localConfig).rules.map((rule) => {
+          {selectedPreset !== null ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                setLocalConfig(effectiveConfig);
+                setSelectedPreset(null);
+              }}
+            >
+              Customize each check
+            </Button>
+          ) : (
+            normalizeAuditConfigShape(localConfig).rules.map((rule) => {
             const desc = RULE_DESCRIPTIONS[rule.code];
             const isDurationOutlier = rule.code === 'duration_outlier';
             const showDurationWarning =
@@ -262,11 +301,11 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
 
                 {rule.enabled && rule.code === 'no_techniques_high_effort' ? (
                   <div className="mt-2 space-y-2">
-                    <Label htmlFor={`effort-${rule.code}`} className="text-sm">
+                    <Label htmlFor="audit-effort-threshold" className="text-sm">
                       When should this check apply? (effort 1-5)
                     </Label>
                     <Input
-                      id={`effort-${rule.code}`}
+                      id="audit-effort-threshold"
                       type="number"
                       min="1"
                       max="5"
@@ -289,13 +328,13 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                 {rule.enabled && rule.code === 'duration_outlier' ? (
                   <div className="mt-2 space-y-2">
                     <Label
-                      htmlFor={`duration-${rule.code}`}
+                      htmlFor="audit-duration-threshold"
                       className="text-sm"
                     >
                       How different should session time be before it is flagged?
                     </Label>
                     <Input
-                      id={`duration-${rule.code}`}
+                      id="audit-duration-threshold"
                       type="number"
                       min="0.5"
                       max="5"
@@ -317,7 +356,8 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
                 ) : null}
               </div>
             );
-          })}
+            })
+          )}
         </div>
 
         {hasChanges && (

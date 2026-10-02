@@ -26,6 +26,7 @@ import { PluginSectionCard } from '@/components/plugins/plugin-section-card';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ClipboardCheck } from 'lucide-react';
@@ -164,6 +165,7 @@ export const LogDoctor = (): React.ReactElement => {
     activeTab,
     auditConfig,
     auditMode,
+    semanticAudit,
     auditResults,
     reviewSessionId,
     auditRanAt,
@@ -309,6 +311,7 @@ export const LogDoctor = (): React.ReactElement => {
       getSessions: getSessions,
       auditMode: auditMode,
       auditConfig: auditConfig,
+      semanticAudit: semanticAudit,
       handleUpdateAuditConfig: handleUpdateAuditConfig,
       reviewSession: reviewSession,
       reviewSessionId: reviewSessionId,
@@ -374,6 +377,7 @@ function LogDoctorView({
     getSessions,
     auditMode,
     auditConfig,
+    semanticAudit,
     handleUpdateAuditConfig,
     reviewSession,
     reviewSessionId,
@@ -815,6 +819,9 @@ function LogDoctorView({
                         Recommended and safe: run with default settings first.
                       </span>
                     ) : null}
+                    {auditStep === 'run-check' ? (
+                      <DataUseNotice variant="audit" className="basis-full" />
+                    ) : null}
                     {auditRanAt ? (
                       <span
                         className={`text-xs ${getPluginUiTokenClassNames('text.subtle')}`}
@@ -857,15 +864,26 @@ function LogDoctorView({
                     auditResults.length > 0 ? (
                       <AuditResults
                         results={auditResults}
+                        semanticAudit={semanticAudit}
                         onReview={handleReviewSession}
                       />
                     ) : auditRanAt ? (
-                      <PluginStatusPanel
-                        variant="success"
-                        title="All sessions passed quality checks!"
-                        description="No issues detected."
-                        className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
-                      />
+                      semanticAudit?.status === 'partial' ||
+                      semanticAudit?.status === 'unavailable' ? (
+                        <PluginStatusPanel
+                          variant="warning"
+                          title="Deterministic checks complete"
+                          description="Semantic checks were unavailable for some or all sessions. Exact checks still ran for every session."
+                          className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
+                        />
+                      ) : (
+                        <PluginStatusPanel
+                          variant="success"
+                          title="All sessions passed quality checks!"
+                          description="No issues detected."
+                          className={`border-dashed ${getPluginUiTokenClassNames('surface.log-doctor')}`}
+                        />
+                      )
                     ) : (
                       <PluginStatusPanel
                         variant="warning"

@@ -7,6 +7,8 @@ const DATA_USE_COPY = {
     'When you request tag suggestions, your description is sent to an external service to generate them. Suggested tags may also be sent for optional verification.',
   history:
     "Optional review sends descriptions, notes, session types, effort ratings, and up to 12 saved technique tags from up to five sessions in this view to an external service. It also classifies recurring training themes. Suggestions don't change anything unless you edit and save a session.",
+  audit:
+    'When semantic checks are enabled, each session with a description sends its description, notes, selected type, effort rating, and up to 12 saved technique tags to an external service. These checks are advisory and never change a session; exact checks still run if semantic review is unavailable.',
 } as const;
 
 export type DataUseNoticeVariant = keyof typeof DATA_USE_COPY;
