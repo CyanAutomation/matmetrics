@@ -177,6 +177,32 @@ test('session assessments use a small fixed concurrency bound and preserve sourc
   assert.equal(result.sessions[1].flags[0].message.includes('Shiai'), true);
 });
 
+test('concurrent assessment workers report exact success and failure totals', async () => {
+  const sessions = Array.from({ length: 9 }, (_, index) =>
+    makeSession({
+      id: `session-${index}`,
+      description: `Session ${index}`,
+    })
+  );
+
+  const result = await runSessionAudit(
+    sessions,
+    DEFAULT_AUDIT_CONFIG,
+    async (input) => {
+      const index = Number(input.description.replace('Session ', ''));
+      await new Promise((resolve) => setTimeout(resolve, index % 3));
+      if (index % 2 === 0) throw new Error('redacted failure');
+      return makeAssessment();
+    }
+  );
+
+  assert.deepEqual(result.semanticAudit, {
+    status: 'partial',
+    assessedSessions: 4,
+    failedSessions: 5,
+  });
+});
+
 test('disabled semantic rules skip JEV and keep deterministic audit enabled', async () => {
   const config = {
     rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) =>

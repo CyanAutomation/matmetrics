@@ -95,43 +95,55 @@ export async function runSessionAudit(
     };
   }
 
-  let nextCandidateIndex = 0;
-  let assessedSessions = 0;
-  let failedSessions = 0;
   const workerCount = Math.min(
     AUDIT_ASSESSMENT_CONCURRENCY,
     candidates.length
   );
 
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (nextCandidateIndex < candidates.length) {
-      const candidate = candidates[nextCandidateIndex++];
-      const result = results[candidate.index];
-      try {
-        const assessment = await assess(
-          createAssessmentInput(candidate.session)
-        );
-        assessedSessions += 1;
-        result.flags.push(
-          ...semanticAssessmentToAuditFlags(
-            candidate.session,
-            assessment,
-            config
-          )
-        );
-      } catch {
-        // Keep deterministic findings and continue assessing other sessions.
-        failedSessions += 1;
-      }
-    }
-  });
+  const workerMetrics = await Promise.all(
+    Array.from({ length: workerCount }, async (_, workerIndex) => {
+      const metrics = { assessedSessions: 0, failedSessions: 0 };
 
-  await Promise.all(workers);
+      for (
+        let candidateIndex = workerIndex;
+        candidateIndex < candidates.length;
+        candidateIndex += workerCount
+      ) {
+        const candidate = candidates[candidateIndex];
+        const result = results[candidate.index];
+        try {
+          const assessment = await assess(
+            createAssessmentInput(candidate.session)
+          );
+          metrics.assessedSessions += 1;
+          result.flags.push(
+            ...semanticAssessmentToAuditFlags(
+              candidate.session,
+              assessment,
+              config
+            )
+          );
+        } catch {
+          // Keep deterministic findings and continue assessing other sessions.
+          metrics.failedSessions += 1;
+        }
+      }
+
+      return metrics;
+    })
+  );
+  const metrics = workerMetrics.reduce(
+    (total, worker) => ({
+      assessedSessions: total.assessedSessions + worker.assessedSessions,
+      failedSessions: total.failedSessions + worker.failedSessions,
+    }),
+    { assessedSessions: 0, failedSessions: 0 }
+  );
 
   const status: SemanticAuditRunSummary['status'] =
-    failedSessions === 0
+    metrics.failedSessions === 0
       ? 'complete'
-      : assessedSessions === 0
+      : metrics.assessedSessions === 0
         ? 'unavailable'
         : 'partial';
 
@@ -139,8 +151,8 @@ export async function runSessionAudit(
     sessions: toFlaggedResults(results),
     semanticAudit: createSemanticRunSummary(
       status,
-      assessedSessions,
-      failedSessions
+      metrics.assessedSessions,
+      metrics.failedSessions
     ),
   };
 }
