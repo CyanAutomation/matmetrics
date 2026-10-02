@@ -6,7 +6,7 @@ export {
   shouldOfferCategorySuggestion,
 } from './jev-policy';
 
-export const DEFAULT_JEV_EVALUATION_THRESHOLDS = [
+const DEFAULT_JEV_EVALUATION_THRESHOLDS = [
   0.5, 0.6, 0.7, 0.8, 0.9,
 ] as const;
 
@@ -218,7 +218,7 @@ export function evaluateNoulThresholds(
   });
 }
 
-export const DEFAULT_JEV_SCORE_THRESHOLDS = [0.5, 1, 1.5] as const;
+const DEFAULT_JEV_SCORE_THRESHOLDS = [0.5, 1, 1.5] as const;
 
 export function evaluateScoreThresholds(
   outcomes: ScorePredictionOutcome[],

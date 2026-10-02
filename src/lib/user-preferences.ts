@@ -48,7 +48,7 @@ export const DEFAULT_VIDEO_LIBRARY_PREFERENCES: VideoLibraryPreferences = {
   expectedVideoCategories: [...DEFAULT_EXPECTED_VIDEO_CATEGORIES],
 };
 
-export const DEFAULT_SESSION_TYPE_PREFERENCES: SessionTypePreferences = {
+const DEFAULT_SESSION_TYPE_PREFERENCES: SessionTypePreferences = {
   enabledCategories: [...DEFAULT_ENABLED_SESSION_CATEGORIES],
 };
 

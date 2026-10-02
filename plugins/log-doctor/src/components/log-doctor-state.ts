@@ -54,7 +54,7 @@ export type LogDoctorUiState = {
   message: string;
 };
 
-export type { AuditRunResult, AuditSessionResult } from '@/lib/types';
+export type { AuditSessionResult } from '@/lib/types';
 
 export type DiagnosticsSnapshot = {
   scanResult: ScanResult | null;

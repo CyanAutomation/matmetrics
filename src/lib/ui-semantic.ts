@@ -4,7 +4,7 @@ import type {
 } from '@/lib/plugins/types';
 import type { SessionCategory } from '@/lib/types';
 
-export const pluginSeverityToneClass: Record<PluginValidationSeverity, string> =
+const pluginSeverityToneClass: Record<PluginValidationSeverity, string> =
   {
     error: 'ui-pill-error',
     warning: 'ui-pill-warning',
@@ -95,7 +95,7 @@ const sessionCategoryPresentation: Record<
   },
 };
 
-export function resolveSessionCategoryTone(
+function resolveSessionCategoryTone(
   categoryName: string
 ): SessionCategoryTone {
   return sessionCategoryTone[categoryName as SessionCategory] ?? 'fallback';

@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Shared UI primitive retained for future forms; usage is documented by the component's API.
 'use client';
 
 import * as React from 'react';
