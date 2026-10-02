@@ -4,13 +4,18 @@ import type {
   AuditMode,
   AuditRuleConfig,
 } from './types';
-import { DEFAULT_AUDIT_CONFIG, STRICT_AUDIT_CONFIG } from './types';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  SEMANTIC_AUDIT_FLAG_CODES,
+  STRICT_AUDIT_CONFIG,
+} from './types';
 
 const RULE_ORDER: AuditFlagCode[] = [
   'no_techniques_high_effort',
   'empty_description',
   'empty_notes',
   'duration_outlier',
+  ...SEMANTIC_AUDIT_FLAG_CODES,
 ];
 
 export type AuditStrictnessPreset = 'gentle' | 'balanced' | 'thorough';
@@ -34,6 +39,26 @@ const GENTLE_AUDIT_CONFIG: AuditConfig = {
       code: 'duration_outlier',
       enabled: true,
       durationStdDevMultiplier: 2.5,
+    },
+    {
+      code: 'category_mismatch',
+      enabled: true,
+    },
+    {
+      code: 'unsupported_technique_tags',
+      enabled: true,
+    },
+    {
+      code: 'effort_conflict',
+      enabled: true,
+    },
+    {
+      code: 'low_information',
+      enabled: true,
+    },
+    {
+      code: 'missing_reflection',
+      enabled: true,
     },
   ],
 };

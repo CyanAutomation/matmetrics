@@ -185,6 +185,31 @@ describe('useAuditStateManager', () => {
     expectPersistedResultSurvivesRemount(persisted);
   });
 
+  it('ignores a semantic finding using the existing per-session review state', async () => {
+    const semanticFinding: AuditSessionResult = {
+      ...mockAuditResult,
+      flags: [
+        {
+          code: 'category_mismatch',
+          severity: 'warning',
+          message: 'This session may fit Randori better than Technical.',
+        },
+      ],
+    };
+    const { result } = renderHook(() =>
+      useAuditStateManager(mockUserId, [semanticFinding])
+    );
+
+    await act(() =>
+      result.current.ignoreRule(mockSessionId, 'category_mismatch')
+    );
+
+    assert.deepEqual(result.current.auditResults[0].ignoredRules, [
+      'category_mismatch',
+    ]);
+    assert.deepEqual(readPersistedAudit()?.ignoredRules, ['category_mismatch']);
+  });
+
   for (const {
     name,
     initialIgnoredRules,

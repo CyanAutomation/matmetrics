@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   DEFAULT_VIDEO_LIBRARY_PREFERENCES,
+  normalizeLastAuditRun,
   normalizeSessionTypePreferences,
   normalizeExpectedVideoCategories,
   normalizeTrainingPlanPreferences,
@@ -115,4 +116,43 @@ test('normalizeExpectedVideoCategories falls back to default when invalid or emp
     DEFAULT_VIDEO_LIBRARY_PREFERENCES.expectedVideoCategories,
     defaultBeforeMutation
   );
+});
+
+test('normalizeLastAuditRun preserves valid semantic availability summaries', () => {
+  assert.deepEqual(
+    normalizeLastAuditRun({
+      sessions: [],
+      ranAt: '2026-10-02T12:00:00.000Z',
+      semanticAudit: {
+        status: 'partial',
+        assessedSessions: 4,
+        failedSessions: 1,
+      },
+    }),
+    {
+      sessions: [],
+      ranAt: '2026-10-02T12:00:00.000Z',
+      semanticAudit: {
+        status: 'partial',
+        assessedSessions: 4,
+        failedSessions: 1,
+      },
+    }
+  );
+});
+
+test('normalizeLastAuditRun ignores malformed or legacy semantic summaries', () => {
+  const legacy = normalizeLastAuditRun({ sessions: [], ranAt: '2026-10-02' });
+  assert.deepEqual(legacy, { sessions: [], ranAt: '2026-10-02' });
+
+  const malformed = normalizeLastAuditRun({
+    sessions: [],
+    ranAt: '2026-10-02',
+    semanticAudit: {
+      status: 'failed',
+      assessedSessions: -1,
+      failedSessions: Number.NaN,
+    },
+  });
+  assert.deepEqual(malformed, { sessions: [], ranAt: '2026-10-02' });
 });

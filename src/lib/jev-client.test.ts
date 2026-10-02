@@ -257,6 +257,7 @@ test('assessSessionWithJev rejects missing or out-of-range theme probabilities',
 
 test('assessment audits saved technique tags in the same request and only flags unconfirmed tags', async () => {
   let seenRequest: Parameters<JevDecisionClient>[0] | undefined;
+  let calls = 0;
   const result = await assessSessionWithJev(
     {
       description: 'Practiced uchi mata entries.',
@@ -266,6 +267,7 @@ test('assessment audits saved technique tags in the same request and only flags 
       techniques: ['Uchi-mata', 'O-soto-gari', 'Uchi-mata'],
     },
     async (request) => {
+      calls += 1;
       seenRequest = request;
       return {
         answers: {
@@ -285,6 +287,18 @@ test('assessment audits saved technique tags in the same request and only flags 
     }
   );
 
+  assert.equal(calls, 1);
+  for (const key of [
+    'suggested_category',
+    'category_fit',
+    'has_useful_detail',
+    'has_reflection',
+    'effort_conflict',
+    'saved_tag_0',
+    'saved_tag_1',
+  ]) {
+    assert.ok(seenRequest?.questions[key], `${key} should share one request`);
+  }
   assert.deepEqual(seenRequest?.state.technique_candidates, {
     saved_tag_0: 'Uchi-mata',
     saved_tag_1: 'O-soto-gari',

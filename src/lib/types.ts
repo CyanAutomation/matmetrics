@@ -135,6 +135,19 @@ export interface AuditSessionResult {
 export interface AuditRunResult {
   sessions: AuditSessionResult[];
   ranAt: string; // ISO timestamp
+  semanticAudit?: SemanticAuditRunSummary;
+}
+
+export type SemanticAuditRunStatus =
+  | 'complete'
+  | 'partial'
+  | 'unavailable'
+  | 'disabled';
+
+export interface SemanticAuditRunSummary {
+  status: SemanticAuditRunStatus;
+  assessedSessions: number;
+  failedSessions: number;
 }
 
 export interface UserPreferences {
@@ -164,7 +177,20 @@ export type AuditFlagCode =
   | 'no_techniques_high_effort'
   | 'empty_description'
   | 'empty_notes'
-  | 'duration_outlier';
+  | 'duration_outlier'
+  | 'category_mismatch'
+  | 'unsupported_technique_tags'
+  | 'effort_conflict'
+  | 'low_information'
+  | 'missing_reflection';
+
+export const SEMANTIC_AUDIT_FLAG_CODES = [
+  'category_mismatch',
+  'unsupported_technique_tags',
+  'effort_conflict',
+  'low_information',
+  'missing_reflection',
+] as const satisfies readonly AuditFlagCode[];
 
 export type AuditSeverity = 'info' | 'warning' | 'error';
 
@@ -217,6 +243,26 @@ export const DEFAULT_AUDIT_CONFIG: AuditConfig = {
       enabled: true,
       durationStdDevMultiplier: 2,
     },
+    {
+      code: 'category_mismatch',
+      enabled: true,
+    },
+    {
+      code: 'unsupported_technique_tags',
+      enabled: true,
+    },
+    {
+      code: 'effort_conflict',
+      enabled: true,
+    },
+    {
+      code: 'low_information',
+      enabled: true,
+    },
+    {
+      code: 'missing_reflection',
+      enabled: true,
+    },
   ],
 };
 
@@ -242,6 +288,26 @@ export const STRICT_AUDIT_CONFIG: AuditConfig = {
       code: 'duration_outlier',
       enabled: true,
       durationStdDevMultiplier: 1.5,
+    },
+    {
+      code: 'category_mismatch',
+      enabled: true,
+    },
+    {
+      code: 'unsupported_technique_tags',
+      enabled: true,
+    },
+    {
+      code: 'effort_conflict',
+      enabled: true,
+    },
+    {
+      code: 'low_information',
+      enabled: true,
+    },
+    {
+      code: 'missing_reflection',
+      enabled: true,
     },
   ],
 };

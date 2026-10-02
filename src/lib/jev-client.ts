@@ -1,6 +1,7 @@
 import { InvalidAiResponseError } from './ai-api-error';
 import {
-  JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD,
+  hasSufficientTechniqueSupport,
+  shouldFlagUnsupportedTechniqueTag,
   shouldFlagTransformedDescription,
 } from './jev-policy';
 import {
@@ -449,7 +450,7 @@ export async function assessSessionWithJev(
         }
       : {}),
     unsupportedTechniqueTags: candidates.filter((_, index) =>
-      shouldFlagUnconfirmedTag(
+      shouldFlagUnsupportedTechniqueTag(
         numberInRange(
           answer(response.answers, `saved_tag_${index}`, 'noul').noul,
           0,
@@ -501,10 +502,6 @@ export function isSessionAssessment(value: unknown): value is SessionAssessment 
     (value.trainingThemes === undefined ||
       isSessionThemeAssessment(value.trainingThemes))
   );
-}
-
-function shouldFlagUnconfirmedTag(probability: number): boolean {
-  return probability < JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD;
 }
 
 export async function verifyDescriptionFidelityWithJev(
@@ -627,6 +624,6 @@ export async function verifyTechniqueCandidatesWithJev(
       0,
       1
     );
-    return probability >= JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD;
+    return hasSufficientTechniqueSupport(probability);
   });
 }

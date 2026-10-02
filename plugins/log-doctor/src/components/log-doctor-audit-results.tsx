@@ -5,6 +5,8 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PluginStatusPanel } from '@/components/plugins/plugin-kit';
+import type { AuditRunResult } from '@/lib/types';
 
 import {
   AUDIT_FLAG_PRESENTATION,
@@ -14,11 +16,13 @@ import type { AuditSessionResult } from './log-doctor-state';
 
 type AuditResultsProps = {
   results: AuditSessionResult[];
+  semanticAudit?: AuditRunResult['semanticAudit'];
   onReview: (sessionId: string) => void;
 };
 
 export const AuditResults = ({
   results,
+  semanticAudit,
   onReview,
 }: AuditResultsProps): React.ReactElement => {
   const totalFlags = results.reduce((sum, r) => sum + r.flags.length, 0);
@@ -63,6 +67,19 @@ export const AuditResults = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {semanticAudit?.status === 'partial' ? (
+          <PluginStatusPanel
+            variant="warning"
+            title="Some semantic checks could not be completed"
+            description={`Semantic checks failed for ${semanticAudit.failedSessions} session${semanticAudit.failedSessions === 1 ? '' : 's'}. Exact checks still ran for every session.`}
+          />
+        ) : semanticAudit?.status === 'unavailable' ? (
+          <PluginStatusPanel
+            variant="warning"
+            title="Semantic checks were unavailable"
+            description="Exact checks still ran for every session."
+          />
+        ) : null}
         {results.map((result) => {
           const activeFlags = result.flags.filter(
             (f) => !result.ignoredRules.includes(f.code)
@@ -128,7 +145,9 @@ export const AuditResults = ({
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               <span className="font-medium text-foreground">
-                                How to fix this:
+                                {flag.severity === 'info'
+                                  ? 'Consider:'
+                                  : 'How to fix this:'}
                               </span>{' '}
                               {AUDIT_FLAG_PRESENTATION[flag.code].helperText}
                             </p>
