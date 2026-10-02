@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// Design-system layout primitive documented in DESIGN.md for page section spacing.
 import { cn } from '@/lib/utils';
 
 interface SectionProps {

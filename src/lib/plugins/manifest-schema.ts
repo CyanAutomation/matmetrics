@@ -80,6 +80,3 @@ export const pluginManifestSchema = z.object({
 });
 
 export type PluginManifestSchema = z.infer<typeof pluginManifestSchema>;
-export type PluginExtensionBaseSchema = z.infer<
-  typeof pluginExtensionBaseSchema
->;

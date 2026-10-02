@@ -115,10 +115,13 @@ test('AI routes accept field values exactly at their UTF-8 limits', async () => 
   let transformedInput: { description: string; customPrompt?: string } | null =
     null;
 
-  const suggest = createSuggestTechniquesPost(async (input) => {
-    suggestedDescription = input.description;
-    return ['uchi-mata'];
-  });
+  const suggest = createSuggestTechniquesPost(
+    async (input) => {
+      suggestedDescription = input.description;
+      return ['uchi-mata'];
+    },
+    async ({ candidates }) => candidates
+  );
   const transform = createTransformDescriptionPost(async (input) => {
     transformedInput = input;
     return { transformedDescription: input.description };

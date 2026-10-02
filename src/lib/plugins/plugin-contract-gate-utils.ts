@@ -1,6 +1,6 @@
 import type { PluginManifest } from '@/lib/plugins/types';
 
-export const COMPONENT_REGISTRATION_PATTERN =
+const COMPONENT_REGISTRATION_PATTERN =
   /registerPluginComponent(?:\?\.|\.)?\(\s*['\"]([^'\"]+)['\"]/g;
 
 export const UX_STATE_EVIDENCE_CRITERIA = {
@@ -47,7 +47,7 @@ export const hasRequiredReadmeSections = (content: string): boolean =>
   /^#{1,6}\s*usage\b/im.test(content) &&
   /^#{1,6}\s*verification\b/im.test(content);
 
-export const isDisallowedEntrypointComponentImport = (
+const isDisallowedEntrypointComponentImport = (
   source: string
 ): boolean =>
   source.startsWith('@/components/') &&

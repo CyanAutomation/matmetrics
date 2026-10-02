@@ -42,4 +42,4 @@ const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
 );
 Surface.displayName = 'Surface';
 
-export { Surface, surfaceVariants };
+export { Surface };

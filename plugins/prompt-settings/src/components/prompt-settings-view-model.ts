@@ -17,7 +17,7 @@ export type PromptSettingsViewState = PromptSettingsUiState & {
   hasSaveSuccess: boolean;
 };
 
-export type PromptSettingsToast = {
+type PromptSettingsToast = {
   variant?: 'destructive';
   title?: string;
   description: string;

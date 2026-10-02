@@ -1,12 +1,22 @@
 {
   "minimumVersion": "3.22.0",
-  "entry": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.test.js",
-    "**/*.test.mjs",
-    "**/*.spec.ts",
-    "**/*.spec.tsx"
+  "framework": [
+    {
+      "name": "matmetrics-tests",
+      "detection": {
+        "type": "fileExists",
+        "pattern": "package.json"
+      },
+      "entryPoints": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.test.js",
+        "**/*.test.mjs",
+        "**/*.spec.ts",
+        "**/*.spec.tsx"
+      ],
+      "entryPointRole": "test"
+    }
   ],
   "ignorePatterns": ["scripts/__fixtures__/**"],
   "ignoreDependencies": ["react-dom", "tailwindcss-animate"],

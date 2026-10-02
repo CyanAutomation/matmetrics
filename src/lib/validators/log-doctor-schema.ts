@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { isSafeLogPath } from './path-validators';
 
-export const logDoctorFixOptionsSchema = z.object({
+const logDoctorFixOptionsSchema = z.object({
   normalizeFrontmatter: z.boolean().default(true),
   enforceSectionOrder: z.boolean().default(true),
   preserveUserContent: z.boolean().default(true),

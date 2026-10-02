@@ -1,21 +1,31 @@
 # Test Coverage Audit: workers/matmetrics-data/src/index.ts
 
-**Date**: 2026-09-16  
-**Status**: Phase 1 Complete  
-**Maintainability Score**: 70/100 (significant gaps in critical paths)
+**Original audit date**: 2026-09-16
+**Current status**: Runtime tests were added on 2026-10-01 and are included in `npm run test:all`.
+
+`src/index.runtime.test.ts` imports the real default worker and covers signed
+request rejection, signed preferences routing, background-job payload
+validation, and queue success/retry behavior. The older `src/index.test.ts`
+contains copied helper implementations; those tests do not execute
+`src/index.ts` and are not included in the canonical suite or counted as
+production coverage. The detailed audit below is the original implementation
+plan; use the fresh Fallow coverage report for current gaps.
 
 ---
 
 ## Executive Summary
 
-The worker file contains **17 core functions** with **13 existing tests** covering only **2 functions** (safeParseJSON, updateJobStatus). This leaves **15 functions untested**, including critical paths like authentication, job consumption with retry logic, and preference conflict detection.
+The original audit found gaps around authentication, job retries, preferences,
+and the worker entry point. The current runtime tests cover representative
+production paths, while the existing helper-level mirror suite is not source
+coverage.
 
 **Risk Level**: HIGH  
 **Recommended Priority**: Add tests for CRITICAL and HIGH functions before modifying retry logic or auth flows.
 
 ---
 
-## Function Coverage Matrix
+## Historical Function Coverage Matrix (2026-09-16)
 
 ### ✅ TESTED (2 functions, 13 test cases)
 
@@ -79,7 +89,7 @@ The worker file contains **17 core functions** with **13 existing tests** coveri
 
 ---
 
-## Recommended Test Implementation Order
+## Historical Test Implementation Plan (2026-09-16)
 
 ### Phase 2a: Crypto & Auth (Foundational, 3–4 days)
 
@@ -210,28 +220,19 @@ class MockMessage<T> {
 
 ## Success Criteria
 
-✅ **Phase 1 Complete**: This audit document  
-✅ **Phase 2 Complete**:
-
-- All 15 untested functions have at least 1 test case per scenario (30+ new tests)
-- Critical functions (authenticate, consumeMessage, handlePreferences) have 3+ scenario tests each
-- All tests pass locally: `npm test -- workers/matmetrics-data/src/index.test.ts`
-- No regressions in existing 13 tests
-
-✅ **Phase 3 Complete (Optional)**:
-
-- Code coverage ≥85% on workers/matmetrics-data/src/index.ts
-- Coverage report committed to repo
+The original Phase 2 and Phase 3 criteria describe the 2026-09-16 test plan,
+not current verification results. Review current worker source coverage with
+`npm run health:coverage` before treating any production path as covered.
 
 ---
 
 ## Next Steps
 
-1. **Implement mock infrastructure** (Request, Response, Message builders) — Shared across all Phase 2 tests
-2. **Start Phase 2a** (crypto/auth) — Highest security priority
-3. **Parallelize Phase 2b/c** (validation/DB) — Lower complexity, can start immediately
-4. **Sequence Phase 2d** (network/retry) — Depends on mocks and DB tests
-5. **Integrate Phase 2e** (routing/worker entry) — Validates entire flow
+1. Add route-level tests for `worker.fetch` preferences and plugin-override writes.
+2. Extend queue integration coverage for terminal errors, invalid executor JSON,
+   and exhausted retries.
+3. Use `npm run health:coverage` to review source-mapped coverage before
+   expanding this suite.
 
 ---
 

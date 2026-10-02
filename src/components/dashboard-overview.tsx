@@ -25,13 +25,11 @@ import {
   resolveDashboardTechniqueBarClass,
   resolveSessionCategoryPresentation,
 } from '@/lib/ui-semantic';
+import { cn } from '@/lib/utils';
 import {
-  addCalendarDays,
-  cn,
-  formatDateLabel,
-  formatRelativeDistanceToNowStrict,
-  parseDateOnly,
-} from '@/lib/utils';
+  calculateDashboardOverviewStats,
+  type DashboardDistributionWindow,
+} from '@/lib/dashboard-overview-stats';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -173,9 +171,10 @@ export function DashboardOverview({
 }: DashboardOverviewProps) {
   const { canSavePreferences, preferences, user } = useAuth();
   const enabledCategories = preferences.sessionTypes.enabledCategories;
-  const [distributionWindow, setDistributionWindow] = useState<30 | 90 | 'all'>(
+  const [distributionWindow, setDistributionWindow] =
+    useState<DashboardDistributionWindow>(
     30
-  );
+    );
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isPlanDetailsOpen, setIsPlanDetailsOpen] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
@@ -238,235 +237,16 @@ export function DashboardOverview({
     }
   };
 
-  const stats = useMemo(() => {
-    if (sessions.length === 0) return null;
-
-    const sortedSessions = [...sessions].sort(
-      (left, right) =>
-        parseDateOnly(right.date).getTime() - parseDateOnly(left.date).getTime()
-    );
-
-    const avgEffort =
-      sessions.reduce((acc, s) => acc + s.effort, 0) / sessions.length;
-
-    const now = new Date();
-    const distributionStart =
-      distributionWindow === 'all'
-        ? null
-        : addCalendarDays(now, -(distributionWindow - 1));
-    const distributionSessions = distributionStart
-      ? sortedSessions.filter(
-          (session) => parseDateOnly(session.date) >= distributionStart
-        )
-      : sortedSessions;
-    const techniqueCount: Record<string, number> = {};
-    const categoryCount: Record<string, number> = Object.fromEntries(
-      enabledCategories.map((category) => [category, 0])
-    );
-
-    distributionSessions.forEach((s) => {
-      const techniques = Array.isArray(s.techniques) ? s.techniques : [];
-      techniques.forEach((t) => {
-        techniqueCount[t] = (techniqueCount[t] || 0) + 1;
-      });
-      if (enabledCategories.includes(s.category)) {
-        categoryCount[s.category] += 1;
-      }
-    });
-
-    const topTechniques = Object.entries(techniqueCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
-
-    const categoryStats = Object.entries(categoryCount).map(
-      ([name, count]) => ({ name, count })
-    );
-
-    const maxCategoryCount = Math.max(
-      ...categoryStats.map((category) => category.count),
-      1
-    );
-    const maxTechniqueCount = Math.max(
-      ...topTechniques.map((technique) => technique.count),
-      1
-    );
-
-    const recentEfforts = sortedSessions
-      .slice(0, 7)
-      .reverse()
-      .map((s) => ({
-        date: parseDateOnly(s.date).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-        }),
-        timestamp: s.date,
-        effort: s.effort,
-      }));
-
-    const topCategory =
-      Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0]?.[0] ??
-      'Technical';
-    const sessionDates = sortedSessions
-      .map((session) => parseDateOnly(session.date))
-      .sort((a, b) => a.getTime() - b.getTime());
-    const firstSessionDate = sessionDates[0];
-    const latestSessionDate = sessionDates[sessionDates.length - 1];
-    const daysSinceLatestSession = Math.max(
-      0,
-      Math.floor(
-        (Date.now() - latestSessionDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
-    );
-
-    const rollingStart = addCalendarDays(now, -29);
-    const sessionsInRollingWindowByCategory: Record<SessionCategory, number> =
-      Object.fromEntries(
-        (['Technical', 'Randori', 'Shiai', 'Cardio', 'S&C'] as const).map(
-          (category) => [category, 0]
-        )
-      ) as Record<SessionCategory, number>;
-    sortedSessions.forEach((session) => {
-      if (parseDateOnly(session.date) >= rollingStart) {
-        sessionsInRollingWindowByCategory[session.category] += 1;
-      }
-    });
-    const lastFortnight = addCalendarDays(now, -13);
-    const sessionsInLastFortnight = sortedSessions.filter(
-      (session) => parseDateOnly(session.date) >= lastFortnight
-    ).length;
-
-    const rollingPlan = enabledCategories.map((category) => {
-      const plan = preferences.trainingPlan.categories[category];
-      const effectiveTarget =
-        plan.cadence === 'week'
-          ? Math.round(plan.targetSessions * (30 / 7))
-          : plan.targetSessions;
-      const completed = sessionsInRollingWindowByCategory[category];
-      const remaining = Math.max(0, effectiveTarget - completed);
-      return {
-        category,
-        completed,
-        cadence: plan.cadence,
-        effectiveTarget,
-        remaining,
-        isComplete: completed >= effectiveTarget,
-      };
-    });
-    const nextPlanItem = [...rollingPlan]
-      .filter((item) => item.remaining > 0)
-      .sort((left, right) => right.remaining - left.remaining)[0];
-    const completedRollingTarget = rollingPlan.reduce(
-      (total, item) => total + Math.min(item.completed, item.effectiveTarget),
-      0
-    );
-    const effectiveRollingTarget = rollingPlan.reduce(
-      (total, item) => total + item.effectiveTarget,
-      0
-    );
-    const remainingPlanSessions = Math.max(
-      0,
-      effectiveRollingTarget - completedRollingTarget
-    );
-    const expectedFortnightSessions = effectiveRollingTarget / 2;
-    const effortSessionsInLastFortnight = sortedSessions.filter(
-      (session) => parseDateOnly(session.date) >= lastFortnight
-    );
-    const recentEffortAverage = effortSessionsInLastFortnight.length
-      ? effortSessionsInLastFortnight.reduce(
-          (total, session) => total + session.effort,
-          0
-        ) / effortSessionsInLastFortnight.length
-      : null;
-    const priorFortnight = addCalendarDays(now, -27);
-    const earlierEffortSessions = sortedSessions.filter((session) => {
-      const date = parseDateOnly(session.date);
-      return date >= priorFortnight && date < lastFortnight;
-    });
-    const earlierEffortAverage = earlierEffortSessions.length
-      ? earlierEffortSessions.reduce(
-          (total, session) => total + session.effort,
-          0
-        ) / earlierEffortSessions.length
-      : null;
-    const effortInsight = (() => {
-      if (effortSessionsInLastFortnight.length < 2) {
-        return {
-          title: 'Build the rhythm first',
-          detail:
-            'There are not enough recent sessions to judge your training load yet. Focus on the next planned session.',
-        };
-      }
-      if (
-        earlierEffortAverage !== null &&
-        recentEffortAverage !== null &&
-        recentEffortAverage >= earlierEffortAverage + 0.8
-      ) {
-        return {
-          title: 'Recent effort is higher than usual',
-          detail:
-            'Your reported effort is noticeably above the previous two weeks. A lighter technical session may help keep the plan sustainable.',
-        };
-      }
-      if (sessionsInLastFortnight < expectedFortnightSessions * 0.7) {
-        return {
-          title: 'Training is below your planned rhythm',
-          detail:
-            'Your recent session count is lower than your plan suggests. Add a focused session before increasing intensity.',
-        };
-      }
-      return {
-        title: 'Your recent effort looks sustainable',
-        detail:
-          'Your reported effort and session rhythm are broadly in line with your recent training pattern.',
-      };
-    })();
-    const coachingInsight =
-      remainingPlanSessions === 0
-        ? {
-            eyebrow: 'Plan complete',
-            title: 'Your 30-day plan is on track.',
-            detail:
-              'Keep the rhythm steady, or adjust the plan if your availability has changed.',
-          }
-        : {
-            eyebrow: 'Next best step',
-            title: `${nextPlanItem?.category ?? 'A training'} session is the clearest next move.`,
-            detail: `${remainingPlanSessions} planned ${remainingPlanSessions === 1 ? 'session remains' : 'sessions remain'} in this 30-day window. ${nextPlanItem?.remaining ?? 0} ${nextPlanItem?.category ?? ''} ${nextPlanItem?.remaining === 1 ? 'session is' : 'sessions are'} still to go.`,
-          };
-
-    return {
-      totalSessions: sessions.length,
-      avgEffort: avgEffort.toFixed(1),
-      topTechniques,
-      categoryStats,
-      maxCategoryCount,
-      maxTechniqueCount,
-      topCategory,
-      recentEfforts,
-      rollingRangeLabel: `${formatDateLabel(rollingStart, 'day-month-short')} – ${formatDateLabel(now, 'day-month-short')}`,
-      trainingDataRange:
-        distributionWindow === 'all'
-          ? `${firstSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${latestSessionDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
-          : `Last ${distributionWindow} days`,
-      latestSessionLabel: formatRelativeDistanceToNowStrict(latestSessionDate),
-      needsTrainingNudge: daysSinceLatestSession >= 14,
-      sessionsInLastFortnight,
-      rollingPlan,
-      completedRollingTarget,
-      effectiveRollingTarget,
-      nextFocus: nextPlanItem?.category ?? 'Consistency',
-      remainingPlanSessions,
-      coachingInsight,
-      effortInsight,
-      recentEffortAverage,
-    };
-  }, [
-    distributionWindow,
-    enabledCategories,
-    preferences.trainingPlan,
-    sessions,
-  ]);
+  const stats = useMemo(
+    () =>
+      calculateDashboardOverviewStats({
+        sessions,
+        enabledCategories,
+        trainingPlan: preferences.trainingPlan,
+        distributionWindow,
+      }),
+    [distributionWindow, enabledCategories, preferences.trainingPlan, sessions]
+  );
 
   if (!stats) {
     return (

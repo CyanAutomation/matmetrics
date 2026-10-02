@@ -17,7 +17,7 @@ type Props = {
   isClearing: boolean;
 };
 
-export function GitHubSettingsDangerZone({
+function GitHubSettingsDangerZone({
   controlState,
   handleDisable,
   setIsClearDialogOpen,
