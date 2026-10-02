@@ -23,7 +23,7 @@ type Props = {
   isSyncing: boolean;
 };
 
-export function GitHubSettingsHistoryPanel({
+function GitHubSettingsHistoryPanel({
   migrationDone,
   handleBulkSync,
   handleLoadSyncHistory,

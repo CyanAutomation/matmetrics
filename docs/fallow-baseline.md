@@ -12,6 +12,18 @@ test data. It verifies that the plugin UI contract validator handles cycles
 without skipping reachable imports. The fixture must remain unchanged; its
 cycle should be excluded from production health scoring if Fallow reports it.
 
+Fallow treats the following source files as available internal building blocks
+or direct-invocation tools even though application code does not import them:
+
+- `src/components/ui/radio-group.tsx` is a shared UI primitive.
+- `src/components/ui/section.tsx` is the documented page-section layout
+  primitive in `DESIGN.md`.
+- `scripts/convert-images.js` is a manual image conversion command run directly
+  with Node.
+
+Each carries a file-level `unused-file` suppression for that reason. Keep the
+reason current if these files change ownership or usage.
+
 ## Triage rules
 
 - Production complexity and duplicate logic are implementation work.
@@ -28,23 +40,35 @@ cycle should be excluded from production health scoring if Fallow reports it.
 3. Do not introduce new findings in changed production areas.
 4. Lower the accepted hotspot count after the LogDoctor and maturity phases.
 5. Require the full project verification commands before removing a baseline
-   entry.
+entry.
 
-The current report that prompted this document identified LogDoctor validation,
-LogDoctor rendering, plugin maturity scoring, and several large plugin UI
-components as the first production targets.
+## Latest measured snapshot
 
-## Dynamic test discovery
+On 2026-10-01, Fallow 3.22.0 reported 0 unused files, 0 unused value exports,
+and 14 unused type exports. The type-only findings are retained at plugin,
+schema, scoring, and component API boundaries until their contract owners
+confirm they can be removed. Maintainability averaged 92.4; 166 functions still
+exceed at least one configured threshold (28 critical, 48 high, and 90 moderate).
+Coverage gaps are 28 of 284 runtime files (90.1% file coverage), with 59
+untested exports. Clone detection found 30 groups and 2.40% duplicated lines.
 
-The JavaScript test command discovers `*.test.ts`, `*.test.tsx`, `*.spec.ts`,
-and `*.spec.tsx` files dynamically. Fallow's static entrypoint analysis may
-therefore report covered test files as unused files. These findings require
-test-runner verification before deletion; they are not production dead-code
-targets. In particular, `src/lib/github-storage.test.ts` is covered by the
-project test command and must be preserved while it is split into focused
-behavior suites.
+The highest-churn files remain `src/lib/storage.ts` (score 51, cooling),
+`workers/matmetrics-data/src/index.ts` (33.6, cooling),
+`src/components/session-history.tsx` (27.1, accelerating), and
+`src/components/dashboard-overview.tsx` (25.7, accelerating). The dashboard
+stats calculation has been extracted and tested, and the worker now has direct
+integration coverage through its production entry point. Continue with focused
+refactoring in storage, session history, and the worker; the complexity backlog
+is still large, and split each hotspot behind tests rather than suppressing its
+findings.
 
-The file also carries a file-scoped `unused-file` suppression because Fallow's
-static entrypoint graph cannot see the test runner's dynamic `find` expansion.
-The suppression is intentionally limited to this known suite and should be
-removed if test entrypoints become statically discoverable.
+Session-history row and review-panel render tests already execute, and their
+Istanbul statement counters show hits. Fallow still sees zero function coverage
+for those component functions, so check the C8/source-map function mapping
+before adding duplicate render tests to address those CRAP findings.
+
+The custom `matmetrics-tests` framework plugin in `.fallowrc.json` marks the
+project's dynamically discovered test files as test roots. This lets Fallow
+exclude test code from runtime coverage gaps while still using Istanbul data
+to score production functions. Run `npm run health:coverage` to execute the
+suite and produce the report from `coverage/coverage-final.json`.

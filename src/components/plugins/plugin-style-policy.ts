@@ -1,4 +1,4 @@
-export const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
+const PLUGIN_SAFE_UTILITY_CLASS_ALLOWLIST = [
   'ui-tone-inline-warning',
   'ui-tone-inline-success',
   'ui-tone-warning-soft',

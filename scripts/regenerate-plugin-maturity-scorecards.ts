@@ -2,6 +2,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import {
+  digestStableArtifact,
+  serializeStableArtifact,
+} from './stable-artifact';
 import { scorePluginMaturity } from '@/lib/plugins/maturity';
 import type { PluginManifest } from '@/lib/plugins/types';
 import { validatePluginManifest } from '@/lib/plugins/validate';
@@ -46,35 +50,9 @@ const pluginManifests: Record<PluginId, unknown> = {
   'session-types': sessionTypesManifest,
 };
 
-const stableNormalize = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value.map(stableNormalize);
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .reduce<Record<string, unknown>>((acc, [key, nestedValue]) => {
-        acc[key] = stableNormalize(nestedValue);
-        return acc;
-      }, {});
-  }
-
-  return value;
-};
-
 /** Canonical serialization used for both artifact output and freshness checks. */
 export const serializeScoreArtifact = (value: unknown): string =>
-  `${JSON.stringify(stableNormalize(value), null, 2)}\n`;
-
-const digest = async (value: unknown): Promise<string> => {
-  const normalized = JSON.stringify(stableNormalize(value));
-  const bytes = new TextEncoder().encode(normalized);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-};
+  serializeStableArtifact(value);
 
 export const buildScoreArtifact = async (
   generatedAt = new Date().toISOString()
@@ -108,7 +86,7 @@ export const buildScoreArtifact = async (
             declaredTier: scorecard.declaredTier,
             manifestLastReviewedAt:
               validation.manifest.maturity?.lastReviewedAt ?? undefined,
-            manifestEvidenceHash: await digest(
+            manifestEvidenceHash: await digestStableArtifact(
               validation.manifest.maturity ?? null
             ),
           } satisfies ScoreArtifactRow;
@@ -117,7 +95,7 @@ export const buildScoreArtifact = async (
     )
   ).sort((a, b) => a.id.localeCompare(b.id));
 
-  const cacheKey = await digest(
+  const cacheKey = await digestStableArtifact(
     plugins.map((plugin) => ({
       id: plugin.id,
       score: plugin.score,

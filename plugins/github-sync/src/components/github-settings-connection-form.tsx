@@ -30,7 +30,7 @@ type Props = {
   controlState: any;
 };
 
-export function GitHubSettingsConnectionForm({
+function GitHubSettingsConnectionForm({
   owner,
   repo,
   branch,

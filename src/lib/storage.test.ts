@@ -183,6 +183,42 @@ function installGitHubPreferencesOverride() {
   return preferenceState;
 }
 
+serialTest('storage events refresh the cached sessions across tabs', () => {
+  const { localStorage } = installBrowserEnv();
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { onLine: false },
+  });
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  initializeStorage();
+
+  const sessions = [makeSession('session-from-another-tab')];
+  const sessionsStorageKey = getScopedStorageKey('matmetrics_sessions');
+  localStorage.setItem(sessionsStorageKey, JSON.stringify(sessions));
+  let eventSessions: JudoSession[] | undefined;
+  const onStorageSync = (event: Event) => {
+    eventSessions = (event as CustomEvent<{ sessions: JudoSession[] }>).detail
+      .sessions;
+  };
+  window.addEventListener('storageSync', onStorageSync);
+
+  try {
+    dispatchStorageMutationEvent(
+      sessionsStorageKey,
+      JSON.stringify(sessions),
+      localStorage
+    );
+
+    assert.deepEqual(getSessions(), sessions);
+    assert.deepEqual(eventSessions, sessions);
+  } finally {
+    window.removeEventListener('storageSync', onStorageSync);
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
 serialTest(
   'refresh startup does not re-enter when a storage sync listener reads sessions',
   async () => {

@@ -50,15 +50,12 @@ import {
   getInvalidFiles,
   toggleSelectedPath,
 } from './log-doctor-file-selection';
-export {
-  createAuditSummaryAction,
-  type AuditSummaryAction,
-} from './log-doctor-view-model';
+export { createAuditSummaryAction } from './log-doctor-view-model';
 import { createAuditSummaryAction } from './log-doctor-view-model';
 
 type LogDoctorDestructiveAction = 'apply-fixes' | 'reset-diagnostics-state';
 type LogDoctorDestructiveStage = 'opened' | 'confirmed' | 'canceled' | 'undone';
-export const emitDestructiveActionEvent = (
+const emitDestructiveActionEvent = (
   action: LogDoctorDestructiveAction,
   stage: LogDoctorDestructiveStage,
   metadata?: Record<string, string | number | boolean>
