@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 
 test('data use notices explain each optional review without exposing implementation names', () => {
-  const notices = ['checkin', 'tag-suggestions', 'history'] as const;
+  const notices = ['checkin', 'tag-suggestions', 'history', 'audit'] as const;
   const html = notices.map((variant) =>
     renderToStaticMarkup(React.createElement(DataUseNotice, { variant }))
   );
@@ -19,6 +19,9 @@ test('data use notices explain each optional review without exposing implementat
   assert.match(html[2], /up to five sessions/i);
   assert.match(html[2], /classifies recurring training themes/i);
   assert.match(html[2], /don&#x27;t change anything/i);
+  assert.match(html[3], /description, notes, selected type, effort rating/i);
+  assert.match(html[3], /up to 12 saved technique tags/i);
+  assert.match(html[3], /exact checks still run/i);
   assert.doesNotMatch(copy, /JEV|TypeSafe|OpenRouter|Cloudflare|model/i);
   assert.match(copy, /data-slot="data-use-notice"/);
 });

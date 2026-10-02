@@ -10,6 +10,7 @@ import type {
   GitHubSettings,
   SessionCategory,
   SessionAudit,
+  SemanticAuditRunSummary,
   SessionTypePreferences,
   TrainingPlanPreferences,
   UserPreferences,
@@ -278,6 +279,11 @@ function normalizeAuditConfig(value: unknown): AuditConfig {
           'empty_description',
           'empty_notes',
           'duration_outlier',
+          'category_mismatch',
+          'unsupported_technique_tags',
+          'effort_conflict',
+          'low_information',
+          'missing_reflection',
         ].includes(rule.code)
           ? rule.code
           : 'no_techniques_high_effort',
@@ -438,7 +444,9 @@ function normalizeSessionAudits(value: unknown): Record<string, SessionAudit> {
   return audits;
 }
 
-function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
+export function normalizeLastAuditRun(
+  value: unknown
+): AuditRunResult | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
   }
@@ -448,6 +456,10 @@ function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
   if (!Array.isArray(input.sessions) || typeof input.ranAt !== 'string') {
     return undefined;
   }
+
+  const normalizedSemanticAudit = normalizeSemanticAuditRunSummary(
+    input.semanticAudit
+  );
 
   return {
     sessions: input.sessions.map((session) => ({
@@ -473,7 +485,37 @@ function normalizeLastAuditRun(value: unknown): AuditRunResult | undefined {
         : [],
     })),
     ranAt: input.ranAt,
+    ...(normalizedSemanticAudit
+      ? { semanticAudit: normalizedSemanticAudit }
+      : {}),
   };
+}
+
+function normalizeSemanticAuditRunSummary(
+  value: unknown
+): SemanticAuditRunSummary | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+
+  const input = value as Record<string, unknown>;
+  const status = input.status;
+  const assessedSessions = input.assessedSessions;
+  const failedSessions = input.failedSessions;
+  if (
+    (status !== 'complete' &&
+      status !== 'partial' &&
+      status !== 'unavailable' &&
+      status !== 'disabled') ||
+    typeof assessedSessions !== 'number' ||
+    !Number.isInteger(assessedSessions) ||
+    assessedSessions < 0 ||
+    typeof failedSessions !== 'number' ||
+    !Number.isInteger(failedSessions) ||
+    failedSessions < 0
+  ) {
+    return undefined;
+  }
+
+  return { status, assessedSessions, failedSessions };
 }
 
 function normalizePreferences(value: unknown): UserPreferences {

@@ -44,6 +44,24 @@ export function shouldFlagEffortConflict(probability: number): boolean {
   );
 }
 
+export function shouldFlagUnsupportedTechniqueTag(
+  supportProbability: number
+): boolean {
+  return (
+    isProbability(supportProbability) &&
+    supportProbability < JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD
+  );
+}
+
+export function hasSufficientTechniqueSupport(
+  supportProbability: number
+): boolean {
+  return (
+    isProbability(supportProbability) &&
+    supportProbability >= JEV_TECHNIQUE_VERIFY_PROBABILITY_THRESHOLD
+  );
+}
+
 export function shouldPromptForReflection(probability: number): boolean {
   return (
     isProbability(probability) &&

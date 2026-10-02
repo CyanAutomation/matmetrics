@@ -55,6 +55,7 @@ test('per-rule toggles and thresholds stay hidden until Advanced/custom path is 
   assert.doesNotMatch(defaultMarkup, /Toggle Missing session summary/);
   assert.doesNotMatch(defaultMarkup, /Effort level threshold/);
   assert.doesNotMatch(defaultMarkup, /Outlier threshold/);
+  assert.match(defaultMarkup, /Customize each check/);
 
   const customConfig = {
     rules: DEFAULT_AUDIT_CONFIG.rules.map((rule) =>
@@ -66,6 +67,8 @@ test('per-rule toggles and thresholds stay hidden until Advanced/custom path is 
   assert.match(customMarkup, /Using custom advanced settings\./);
   assert.match(customMarkup, /Toggle Missing techniques in hard sessions/);
   assert.match(customMarkup, /Toggle Missing session summary/);
+  assert.match(customMarkup, /Toggle Possible session type mismatch/);
+  assert.match(customMarkup, /Toggle Reflection suggestion/);
   assert.match(customMarkup, /Effort level threshold/);
   assert.match(customMarkup, /Outlier threshold/);
 });

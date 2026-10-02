@@ -1,0 +1,185 @@
+{
+  "description": "Synthetic labeled cases for evaluating semantic Session Audit decisions. No athlete data is included.",
+  "cases": [
+    {
+      "id": "vague-good-session",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": [],
+        "description": "Good session."
+      },
+      "labels": {
+        "categoryFit": false,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      }
+    },
+    {
+      "id": "vague-normal-judo",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": [],
+        "description": "Normal judo."
+      },
+      "labels": {
+        "categoryFit": false,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      }
+    },
+    {
+      "id": "broad-throws",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": [],
+        "description": "Worked on throws."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      },
+      "rationale": "The broad focus is not specific enough to justify a mismatch or reusable-detail finding with high confidence."
+    },
+    {
+      "id": "mixed-randori-and-technique",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": [],
+        "description": "Some randori and technique."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      },
+      "rationale": "The primary session type is ambiguous, so do not flag a confident category mismatch."
+    },
+    {
+      "id": "hard-but-straightforward",
+      "session": {
+        "category": "Technical",
+        "effort": 4,
+        "techniques": [],
+        "description": "Hard session but felt straightforward."
+      },
+      "labels": {
+        "categoryFit": false,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      },
+      "rationale": "A straightforward session is not a contradiction of hard effort, and the primary activity is too vague to classify."
+    },
+    {
+      "id": "technical-then-randori",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": [],
+        "description": "Technical session then some randori."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      },
+      "rationale": "Both activities fit the stored type; no primary focus is clear enough to suggest a replacement."
+    },
+    {
+      "id": "watched-saved-technique",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": ["uchi-mata", "o-uchi-gari"],
+        "description": "Practised uchi-mata but mostly watched others doing o-uchi-gari."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "actualCategory": "Technical",
+        "usefulDetail": true,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": ["o-uchi-gari"]
+      }
+    },
+    {
+      "id": "clear-randori-focus",
+      "session": {
+        "category": "Technical",
+        "effort": 4,
+        "techniques": [],
+        "description": "Three rounds of live randori, focusing on sleeve grip and attacking as soon as I broke posture."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": true,
+        "suggestedCategory": "Randori",
+        "actualCategory": "Randori",
+        "usefulDetail": true,
+        "reflection": false,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      }
+    },
+    {
+      "id": "explicit-effort-conflict",
+      "session": {
+        "category": "Technical",
+        "effort": 5,
+        "techniques": [],
+        "description": "Very light technical session. Barely broke a sweat."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "actualCategory": "Technical",
+        "usefulDetail": false,
+        "reflection": false,
+        "effortConflict": true,
+        "unsupportedTechniqueTags": []
+      }
+    },
+    {
+      "id": "specific-reflection",
+      "session": {
+        "category": "Technical",
+        "effort": 3,
+        "techniques": ["uchi-mata"],
+        "description": "Worked on uchi-mata entries.",
+        "notes": "I waited until my partner stepped in and the timing worked better."
+      },
+      "labels": {
+        "categoryFit": true,
+        "categoryMismatch": false,
+        "actualCategory": "Technical",
+        "usefulDetail": true,
+        "reflection": true,
+        "effortConflict": false,
+        "unsupportedTechniqueTags": []
+      }
+    }
+  ]
+}

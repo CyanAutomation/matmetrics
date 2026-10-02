@@ -1,6 +1,18 @@
 # Evaluating JEV thresholds
 
-MatMetrics uses JEV decisions to suggest a session type, assess whether a log has useful category-relevant detail, flag clear conflicts between written effort and the selected effort rating, identify fatigue or injury mentions, review saved technique tags against the session text, and check transformed prose for unsupported details. The current category confidence (`0.8`), category-fit probability (`0.8`), technique-verification probability (`0.9`), useful-detail probability (`0.5`), effort-conflict probability (`0.8`), injury probability (`0.5`), fatigue score (`1`), and transformation-fidelity probability (`0.5`) cutoffs are provisional. Evaluate them on representative, human-labeled examples before changing them or expanding their use.
+MatMetrics uses JEV decisions to suggest a session type, assess whether a log has useful category-relevant detail, flag clear conflicts between written effort and the selected effort rating, review saved technique tags against the session text, check transformed prose for unsupported details, and review recurring training themes. The current category confidence (`0.8`), category-fit probability (`0.8`), technique-verification probability (`0.9`), useful-detail probability (`0.5`), effort-conflict probability (`0.8`), reflection probability (`0.5`), recurring-theme probability (`0.7`), and transformation-fidelity probability (`0.5`) cutoffs are provisional. Evaluate them on representative, human-labeled examples before changing them or expanding their use.
+
+## Session Audit semantic checks
+
+Session Audit combines deterministic checks with optional semantic checks. Deterministic checks inspect saved fields and session statistics and work without JEV. Semantic checks reuse the existing session assessment for category mismatch, saved-technique support, effort conflict, useful detail, and reflection. The provider returns these decisions together in one request for each described session; MatMetrics applies the thresholds in `src/lib/jev-policy.ts` and converts the results into advisory findings.
+
+When a semantic audit runs, it sends the session description, notes, selected category, effort rating, and up to 12 saved technique tags. It does not send the session ID, date, duration, or video URL. The assessment uses the existing training-only scope instruction: it ignores mentions of symptoms, pain, injury, illness, treatment, and recovery. Findings never edit a session. If an assessment fails, deterministic findings remain available and other sessions continue to be assessed.
+
+The current model setting is the moving alias `~typesafe/jev-latest`. Thresholds can therefore behave differently if the alias resolves to a newer model. Evaluation files must record the resolved model returned for each prediction; compare thresholds using one resolved model version at a time before changing production policy.
+
+The repository includes synthetic reference labels in [`testdata/jev/semantic-audit-examples.json`](../testdata/jev/semantic-audit-examples.json), including intentionally vague and mixed-category entries. Use these cases to collect model probabilities, then record the sanitized numeric predictions in the existing threshold-evaluation format below. Keep descriptions, notes, names, and session IDs out of prediction files.
+
+For category calibration, use only cases with an `actualCategory` label in a `kind: "choice"` file, recording the suggested category, confidence, and category-fit probability. For useful detail, reflection, effort conflict, and each saved-technique support question, create separate `kind: "noul"` files with a human `actual` label and the corresponding probability. The existing evaluator reports the precision, recall, and coverage tradeoffs; semantic audit continues to use the existing policy cutoffs until labeled results justify a change.
 
 ## Prepare labeled outcomes
 
@@ -103,9 +115,9 @@ Keep descriptions, notes, names, and session IDs out of evaluation files. The ex
 
 Current training-plan preferences set weekly or monthly targets for broad session categories; they do not represent an athlete-defined technical goal such as improving left-v-right grip fighting. If MatMetrics later adds explicit goals, the existing session assessment path could add a bounded per-session goal-relevance probability and let application code aggregate the recent matches. Do not infer personal goals from category targets.
 
-### Log Doctor semantic review
+### Log Doctor file validation
 
-Log Doctor's file validation and audit rules are deterministic checks. Markdown structure, frontmatter, dates, categories, IDs, schemas, empty fields, and arithmetic checks must continue to work without JEV. A future optional semantic review could run only after a file parses into a valid session, reuse the existing category-fit, useful-detail, and saved-technique assessments, and show review findings without changing the session. Before connecting the plugin, verify that its UI can use the authenticated assessment endpoint and preserve the existing opt-in data notice.
+Log Doctor's file validation remains deterministic. Markdown structure, frontmatter, dates, categories, IDs, schemas, empty fields, and arithmetic checks continue to work without JEV. Session Audit may add optional findings after a file parses into a valid session, using the authenticated session-assessment endpoint and preserving the external data-use notice. Semantic findings are advisory and do not change session files.
 
 ### Semantic history search
 

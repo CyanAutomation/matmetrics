@@ -8,6 +8,7 @@ import {
   type AuditRuleConfig,
   type JudoSession,
   DEFAULT_AUDIT_CONFIG,
+  SEMANTIC_AUDIT_FLAG_CODES,
 } from '@/lib/types';
 
 /**
@@ -146,6 +147,9 @@ export function runAuditRules(
 
     const detector = ruleDetectors[rule.code];
     if (!detector) {
+      if (SEMANTIC_AUDIT_FLAG_CODES.some((code) => code === rule.code)) {
+        continue;
+      }
       console.warn(`Unknown audit rule: ${rule.code}`);
       continue;
     }
