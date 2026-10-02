@@ -158,5 +158,3 @@ export async function runLoadGitHubSyncHistory(
     });
   }
 }
-
-export { normalizeHistoryData };

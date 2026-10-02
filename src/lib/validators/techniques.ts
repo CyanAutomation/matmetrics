@@ -38,11 +38,3 @@ export function validateTechniques(
   // Deduplicate while preserving order
   return { ok: true, value: [...new Set(validated)] };
 }
-
-/**
- * Deduplicate techniques array, removing consecutive and non-consecutive duplicates
- * while preserving the original order of first occurrence.
- */
-export function deduplicateTechniques(techniques: string[]): string[] {
-  return [...new Set(techniques)];
-}

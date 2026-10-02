@@ -33,28 +33,3 @@ export type TierEvaluationResult = {
   /** Actions required to advance tier */
   nextActions: string[];
 };
-
-/**
- * Shared types for intermediate computation states.
- * These help decompose large functions into focused, testable pieces.
- */
-
-export type PluginFileDiscoveryState = {
-  hasReadme: boolean;
-  hasTests: boolean;
-  hasEntry: boolean;
-  components: { id: string; file: string }[];
-  additionalDocs: string[];
-};
-
-export type UxVerificationDetail = {
-  criterion: string;
-  met: boolean;
-  evidence?: string[];
-};
-
-export type ComponentVerificationResult = {
-  componentId: string;
-  met: UxVerificationDetail[];
-  missing: UxVerificationDetail[];
-};

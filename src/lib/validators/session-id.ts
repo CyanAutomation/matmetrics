@@ -7,7 +7,7 @@ import crypto from 'crypto';
 const SAFE_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_SESSION_ID_LENGTH = 100;
 
-export function generateSessionId(): string {
+function generateSessionId(): string {
   return `session-${Date.now()}-${crypto.randomUUID()}`;
 }
 

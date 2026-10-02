@@ -1,15 +1,12 @@
-export const AI_API_ERROR_CODES = [
-  'INVALID_REQUEST',
-  'RATE_LIMITED',
-  'SERVICE_UNAVAILABLE',
-  'AUTH_REQUIRED',
-  'INPUT_TOO_LARGE',
-  'INVALID_AI_RESPONSE',
-  'AI_PROVIDER_REJECTED',
-  'UNKNOWN_ERROR',
-] as const;
-
-export type AiApiErrorCode = (typeof AI_API_ERROR_CODES)[number];
+export type AiApiErrorCode =
+  | 'INVALID_REQUEST'
+  | 'RATE_LIMITED'
+  | 'SERVICE_UNAVAILABLE'
+  | 'AUTH_REQUIRED'
+  | 'INPUT_TOO_LARGE'
+  | 'INVALID_AI_RESPONSE'
+  | 'AI_PROVIDER_REJECTED'
+  | 'UNKNOWN_ERROR';
 
 export interface AiApiErrorResponse {
   error: {

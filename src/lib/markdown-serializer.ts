@@ -11,7 +11,7 @@ import {
 
 const SESSION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export const REQUIRED_SESSION_HEADINGS: readonly string[] = [
+const REQUIRED_SESSION_HEADINGS: readonly string[] = [
   '## Techniques Practiced',
   '## Session Description',
   '## Notes',

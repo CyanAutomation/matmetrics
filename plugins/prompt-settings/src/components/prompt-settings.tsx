@@ -40,8 +40,6 @@ import { getPluginThemeTokens } from '@/components/plugins/plugin-theme';
 export {
   derivePromptSettingsUiState,
   derivePromptSettingsViewState,
-  PROMPT_SETTINGS_DESTRUCTIVE_CANCEL_LABEL,
-  PROMPT_SETTINGS_DESTRUCTIVE_CONFIRM_LABEL,
   PROMPT_SETTINGS_EMPTY_STATE_CTA_ACTION,
   PROMPT_SETTINGS_EMPTY_STATE_CTA_TEXT,
   PROMPT_SETTINGS_ERROR_RETRY_LABEL,

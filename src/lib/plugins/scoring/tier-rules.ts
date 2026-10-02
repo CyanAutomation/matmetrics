@@ -3,7 +3,7 @@ import type {
   PluginMaturityTier,
 } from '@/lib/plugins/types';
 
-export const GOLD_THRESHOLDS: Record<PluginMaturityCategory, number> = {
+const GOLD_THRESHOLDS: Record<PluginMaturityCategory, number> = {
   contract_metadata: 10,
   runtime_integration: 18,
   feature_quality: 20,

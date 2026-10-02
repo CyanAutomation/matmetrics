@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-export const PAGE_SHELL_CLASS_PATTERNS = {
+const PAGE_SHELL_CLASS_PATTERNS = {
   container: 'mx-auto w-full max-w-5xl',
   content: 'space-y-6',
   heading: 'space-y-1',

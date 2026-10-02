@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// fallow-ignore-file unused-file
+// Manual CLI utility; invoked directly with `node scripts/convert-images.js`.
 
 /**
  * Convert character PNG images to WebP for better web delivery

@@ -94,7 +94,6 @@ import {
   runVideoLinkCheck,
   saveExpectedVideoCategory,
 } from './video-library-actions';
-export { runVideoLinkCheck } from './video-library-actions';
 
 export {
   VIDEO_LIBRARY_LOADING_LABEL,
