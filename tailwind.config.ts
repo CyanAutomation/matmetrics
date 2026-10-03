@@ -13,7 +13,7 @@ type ConfigWithSafelist = Config & {
 };
 
 export default {
-  darkMode: ['class'] as unknown as Config['darkMode'],
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
