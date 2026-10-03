@@ -6,7 +6,15 @@ import ts from 'typescript';
 const pageUrl = new URL('./page.tsx', import.meta.url);
 
 test('dashboard page remains a single, syntactically complete module', async () => {
-  const source = await readFile(pageUrl, 'utf8');
+  let source: string;
+  try {
+    source = await readFile(pageUrl, 'utf8');
+  } catch (error) {
+    throw new Error(`Failed to read dashboard page at ${pageUrl.href}`, {
+      cause: error,
+    });
+  }
+
   const result = ts.transpileModule(source, {
     compilerOptions: {
       jsx: ts.JsxEmit.ReactJSX,
@@ -27,6 +35,32 @@ test('dashboard page remains a single, syntactically complete module', async () 
     ),
     []
   );
-  assert.equal(source.match(/^'use client';$/gm)?.length, 1);
-  assert.equal(source.match(/^export default function Home\(\) \{$/gm)?.length, 1);
+
+  const sourceFile = ts.createSourceFile(
+    'page.tsx',
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.TSX
+  );
+  const useClientDirectives = sourceFile.statements.filter(
+    (statement) =>
+      ts.isExpressionStatement(statement) &&
+      ts.isStringLiteral(statement.expression) &&
+      statement.expression.text === 'use client'
+  );
+  const defaultHomeDeclarations = sourceFile.statements.filter(
+    (statement) =>
+      ts.isFunctionDeclaration(statement) &&
+      statement.name?.text === 'Home' &&
+      statement.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword
+      ) &&
+      statement.modifiers.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+      )
+  );
+
+  assert.equal(useClientDirectives.length, 1);
+  assert.equal(defaultHomeDeclarations.length, 1);
 });
