@@ -9,9 +9,17 @@ test('globals.css declares Tailwind config and reference directives', () => {
 
   assert.match(css, /^@config "..\/..\/tailwind\.config\.ts";/m);
   assert.match(css, /^@reference "tailwindcss";/m);
+  assert.ok(css.includes('@tailwind base;'), 'expected @tailwind base; to be present');
+
+  const configIndex = css.indexOf('@config "../../tailwind.config.ts";');
+  const referenceIndex = css.indexOf('@reference "tailwindcss";');
+  const tailwindBaseIndex = css.indexOf('@tailwind base;');
+
+  assert.ok(configIndex >= 0, 'expected @config directive to be present');
+  assert.ok(referenceIndex >= 0, 'expected @reference directive to be present');
+  assert.ok(tailwindBaseIndex >= 0, 'expected @tailwind base; directive to be present');
   assert.ok(
-    css.indexOf('@config "../../tailwind.config.ts";') <
-      css.indexOf('@tailwind base;'),
+    configIndex < tailwindBaseIndex,
   );
-  assert.ok(css.indexOf('@reference "tailwindcss";') < css.indexOf('@tailwind base;'));
+  assert.ok(referenceIndex < tailwindBaseIndex);
 });
