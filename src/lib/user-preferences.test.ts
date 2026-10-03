@@ -7,6 +7,9 @@ import {
   normalizeSessionTypePreferences,
   normalizeExpectedVideoCategories,
   normalizeTrainingPlanPreferences,
+  clearUserPreferencesState,
+  initializeUserPreferences,
+  PreferenceRequestError,
 } from '@/lib/user-preferences';
 
 test('normalizeSessionTypePreferences preserves valid enabled types and always enables Technical', () => {
@@ -155,4 +158,101 @@ test('normalizeLastAuditRun ignores malformed or legacy semantic summaries', () 
     },
   });
   assert.deepEqual(malformed, { sessions: [], ranAt: '2026-10-02' });
+});
+
+test('preference initialization retries a failed GET instead of caching the failure', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+
+  let getRequests = 0;
+  let putRequests = 0;
+  globalThis.fetch = async (_input, init) => {
+    if (init?.method === 'PUT') {
+      putRequests += 1;
+      return Response.json({ preferences: {}, revision: 1 });
+    }
+
+    getRequests += 1;
+    if (getRequests === 1) {
+      return Response.json(
+        { error: 'temporarily unavailable' },
+        { status: 503 }
+      );
+    }
+    return Response.json({ preferences: null, revision: 0 });
+  };
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('retry-get-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.method, 'GET');
+        assert.equal(error.stage, 'response');
+        assert.equal(error.status, 503);
+        assert.equal(error.diagnostic, 'Preferences GET request returned HTTP 503');
+        return true;
+      }
+    );
+
+    await initializeUserPreferences('retry-get-user');
+
+    assert.equal(getRequests, 2);
+    assert.equal(putRequests, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});
+
+test('preference initialization reloads and retries a failed initial save for the same user', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+
+  let getRequests = 0;
+  let putRequests = 0;
+  globalThis.fetch = async (_input, init) => {
+    if (init?.method === 'PUT') {
+      putRequests += 1;
+      if (putRequests === 1) {
+        return Response.json(
+          { error: 'temporarily unavailable' },
+          { status: 503 }
+        );
+      }
+      return Response.json({ preferences: {}, revision: 1 });
+    }
+
+    getRequests += 1;
+    return Response.json({ preferences: null, revision: 0 });
+  };
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('retry-put-user'),
+      (error) => error instanceof PreferenceRequestError && error.status === 503
+    );
+
+    await initializeUserPreferences('retry-put-user');
+
+    assert.equal(getRequests, 2);
+    assert.equal(putRequests, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
 });
