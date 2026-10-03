@@ -32,7 +32,7 @@ Do not sign users out for an unrecognized error. Unknown failures should follow 
 
 ## References
 
-- [Session create route](../../../src/app/api/sessions/create/route.ts)
+- [API route handler](../../../src/app/api/[...path]/route.ts)
 - [Go session create handler](../../../api/go/sessions/create/index.go)
 - [Go HTTP response helpers](../../../internal/httpapi/httpapi.go)
 - [GitHub storage errors](../../../src/lib/github-storage.ts)
