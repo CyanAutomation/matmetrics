@@ -10,7 +10,7 @@ Use this skill for changes to the TypeScript API routes that forward work to Go.
 
 ## Current request path
 
-For session mutations, start with the current implementation in [create route](../../../src/app/api/sessions/create/route.ts), [proxy helper](../../../src/lib/go-function-proxy.ts), and [GitHub authorization helper](../../../src/lib/server-github-authz.ts).
+For session mutations, start with the current implementation in the [API route handler](../../../src/app/api/[...path]/route.ts), [proxy helper](../../../src/lib/go-function-proxy.ts), and [GitHub authorization helper](../../../src/lib/server-github-authz.ts).
 
 Preserve the route’s existing order and response behavior:
 
@@ -32,8 +32,7 @@ proxyGoFunction uses MATMETRICS_GO_PROXY_BASE_URL when set and otherwise targets
 
 ## References
 
-- [Session create route](../../../src/app/api/sessions/create/route.ts)
-- [Session item routes](../../../src/app/api/sessions/[id]/route.ts)
+- [API route handler](../../../src/app/api/[...path]/route.ts)
 - [Go proxy helper](../../../src/lib/go-function-proxy.ts)
 - [Server authentication](../../../src/lib/server-auth.ts)
 - [GitHub config authorization](../../../src/lib/server-github-authz.ts)
