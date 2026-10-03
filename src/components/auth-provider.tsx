@@ -29,6 +29,7 @@ import {
   clearUserPreferencesState,
   getCurrentPreferences,
   initializeUserPreferences,
+  PreferenceRequestError,
   subscribeToPreferences,
 } from '@/lib/user-preferences';
 import type { AuthenticatedUser, UserPreferences } from '@/lib/types';
@@ -155,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await authClient.token();
         return result.data?.token ?? null;
-      } catch (error) {
+      } catch {
         console.error('Failed to read Better Auth API token');
         return null;
       }
@@ -164,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseConfigured) return null;
     try {
       return getFirebaseAuth().currentUser?.getIdToken() ?? null;
-    } catch (error) {
+    } catch {
       console.error('Failed to read Firebase ID token');
       return null;
     }
@@ -181,6 +182,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       } catch (error) {
         if (authLoadGenerationRef.current === generation) {
+          if (error instanceof PreferenceRequestError) {
+            console.error('Saved preferences request failed', {
+              method: error.method,
+              stage: error.stage,
+              status: error.status,
+            });
+          }
           setPreferencesError(
             error instanceof Error
               ? error
