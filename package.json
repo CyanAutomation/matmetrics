@@ -8,6 +8,7 @@
     "npm": ">=11 <12"
   },
   "overrides": {
+    "@grpc/grpc-js": "1.14.5",
     "jose": "5.10.0"
   },
   "scripts": {
