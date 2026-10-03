@@ -1,3 +1,4 @@
+// Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextResponse } from 'next/server';
 
 import { APP_VERSION } from '@/lib/app-version';

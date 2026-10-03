@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { GET } from '@/app/api/releases/recent/route';
+import { GET } from '@/app/api/releases/recent/api-handler';
 import { APP_VERSION } from '@/lib/app-version';
 import { parseChangelog } from '@/lib/releases';
 

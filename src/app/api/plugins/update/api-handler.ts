@@ -1,10 +1,11 @@
+// Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
 
 import { createContractPayload } from '@/lib/plugins/api-contract';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const DEPRECATION_MESSAGE =
-  'Plugin creation via /api/plugins/create has been deprecated for standard UI clients.';
+  'Plugin updates via /api/plugins/update have been deprecated for standard UI clients.';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuthenticatedUser(request);

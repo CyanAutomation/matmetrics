@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
-import { GET, PUT } from './route';
+import { GET, PUT } from './api-handler';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
 
