@@ -118,7 +118,7 @@ function SessionRowTechniques({
           key={`${technique}-${index}`}
           type="button"
           onClick={() => onFilterTechnique(technique)}
-          className="rounded-full bg-[hsl(var(--color-surface-container-high))] px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="max-w-full break-words rounded-full bg-[hsl(var(--color-surface-container-high))] px-2.5 py-1 text-left text-xs font-medium transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           title={`Show sessions tagged ${technique}`}
         >
           {technique}
@@ -189,12 +189,12 @@ export function SessionHistoryRow({
   return (
     <div
       className={cn(
-        'rounded-xl bg-card/42 px-4 reveal-fade transition-colors hover:bg-card sm:px-5',
+        '@container/session-row rounded-xl bg-card/42 px-4 reveal-fade transition-colors hover:bg-card sm:px-5',
         density === 'compact' ? 'py-3' : 'py-4'
       )}
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="space-y-2">
+      <div className="flex flex-col justify-between gap-3 @min-[44rem]/session-row:flex-row @min-[44rem]/session-row:items-center">
+        <div className="min-w-0 space-y-2">
           <div className="flex items-center gap-3">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="flex items-center gap-2 flex-wrap">
@@ -226,8 +226,8 @@ export function SessionHistoryRow({
             </p>
           ) : null}
         </div>
-        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
-          <div className="flex flex-col items-end mr-1 md:mr-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 @min-[44rem]/session-row:w-auto @min-[44rem]/session-row:shrink-0 @min-[44rem]/session-row:justify-end">
+          <div className="mr-1 flex flex-col items-end @min-[44rem]/session-row:mr-3">
             <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
               Effort
             </span>

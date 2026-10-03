@@ -327,7 +327,7 @@ export function DashboardOverview({
               sessions complete
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -477,7 +477,7 @@ export function DashboardOverview({
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-8 @min-[64rem]/main:grid-cols-2">
         <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h3 className="text-headline-sm">Training load</h3>
@@ -494,8 +494,8 @@ export function DashboardOverview({
         </DataSurface>
 
         {/* Training Distribution — surface, not card */}
-        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DataSurface className="@container/distribution bg-[hsl(var(--color-surface-container-low))]">
+          <div className="mb-6 flex flex-col gap-3 @min-[32rem]/distribution:flex-row @min-[32rem]/distribution:items-center @min-[32rem]/distribution:justify-between">
             <div>
               <h3 className="text-headline-sm">Training Distribution</h3>
               <span className="text-xs text-muted-foreground">
@@ -503,6 +503,7 @@ export function DashboardOverview({
               </span>
             </div>
             <SegmentedControl
+              className="flex w-full flex-wrap @min-[32rem]/distribution:w-fit"
               aria-label="Training distribution timeframe"
               value={String(distributionWindow)}
               onValueChange={(value) =>
@@ -512,7 +513,11 @@ export function DashboardOverview({
               }
             >
               {([30, 90, 'all'] as const).map((window) => (
-                <SegmentedControl.Item key={window} value={String(window)}>
+                <SegmentedControl.Item
+                  key={window}
+                  value={String(window)}
+                  className="min-w-fit flex-1 whitespace-nowrap"
+                >
                   {window === 'all' ? 'All time' : `${window} days`}
                 </SegmentedControl.Item>
               ))}

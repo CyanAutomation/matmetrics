@@ -32,7 +32,10 @@ test('session essentials keeps the coach illustration out of the tablet-only sta
   const responsiveFrame = illustration?.parentNode?.parentNode?.parentNode;
 
   assert.ok(illustration);
-  assert.match(responsiveFrame?.getAttribute('class') ?? '', /hidden lg:flex/);
+  assert.match(
+    responsiveFrame?.getAttribute('class') ?? '',
+    /hidden shrink-0 @min-\[56rem\]\/essentials:flex/
+  );
   assert.doesNotMatch(
     responsiveFrame?.getAttribute('class') ?? '',
     /hidden md:flex/
