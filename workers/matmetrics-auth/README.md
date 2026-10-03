@@ -56,3 +56,10 @@ destination and set `MATMETRICS_AUTH_JWKS_URL` to the same-origin
 share production passkeys; use a stable preview hostname with isolated
 credentials or keep passkey UI disabled there. Never use wildcard trusted
 origins.
+
+Keep `NEXT_PUBLIC_BETTER_AUTH_ENABLED` false in Production until the account
+recovery policy is decided. Passkey-only accounts do not currently have
+self-service recovery, and an audited administrative recovery process remains
+an open product decision. The registration-context endpoint also checks this
+flag server-side so direct requests cannot create accounts while the feature
+is disabled.
