@@ -20,6 +20,10 @@ test('globals.css declares Tailwind config and reference directives', () => {
   assert.ok(tailwindBaseIndex >= 0, 'expected @tailwind base; directive to be present');
   assert.ok(
     configIndex < tailwindBaseIndex,
+    'expected @config directive to be before @tailwind base;',
   );
-  assert.ok(referenceIndex < tailwindBaseIndex);
+  assert.ok(
+    referenceIndex < tailwindBaseIndex,
+    'expected @reference directive to be before @tailwind base;',
+  );
 });
