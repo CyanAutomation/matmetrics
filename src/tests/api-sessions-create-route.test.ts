@@ -97,6 +97,46 @@ test('POST persists the session to local markdown storage when GitHub is not con
   });
 });
 
+test('POST returns 503 instead of falling back to local files on Vercel Preview', async () => {
+  const previousVercel = process.env.VERCEL;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousGitHubToken = process.env.GITHUB_TOKEN;
+
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'preview';
+  delete process.env.GITHUB_TOKEN;
+
+  try {
+    await withStoredGitHubConfig('null', async () => {
+      await withTempDataDir(async () => {
+        const response = await POST(
+          new NextRequest('http://localhost/api/sessions/create', {
+            method: 'POST',
+            headers: {
+              authorization: 'Bearer test-token',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify(makeSession('create-vercel-unconfigured')),
+          })
+        );
+
+        assert.equal(response.status, 503);
+        assert.deepEqual(await response.json(), {
+          error:
+            'Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel.',
+        });
+      });
+    });
+  } finally {
+    if (previousVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = previousVercel;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousGitHubToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previousGitHubToken;
+  }
+});
+
 test('POST returns 500 when GitHub create fails in primary mode', async () => {
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = global.fetch;

@@ -28,6 +28,16 @@ import { compareDateOnlyDesc } from './utils';
 
 export { GitHubRevisionConflictError } from './github-storage';
 
+export class PersistentSessionStorageUnavailableError extends Error {
+  constructor() {
+    super(
+      'Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel.'
+    );
+    this.name = 'PersistentSessionStorageUnavailableError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 const GITHUB_SESSION_ROOT = 'data';
 const GITHUB_SESSION_PATH_REGEX = new RegExp(
   `^${GITHUB_SESSION_ROOT}/(\\d{4})/(\\d{2})/\\1\\2\\d{2}-matmetrics(?:-(?:[A-Za-z0-9_-]+|\\d+))?\\.md$`
@@ -129,6 +139,12 @@ function shouldUseGitHubStorage(
   config: GitHubConfig | undefined
 ): config is GitHubConfig {
   return !!config && isGitHubConfigured();
+}
+
+function assertLocalStorageAllowed(): void {
+  if (process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development') {
+    throw new PersistentSessionStorageUnavailableError();
+  }
 }
 
 export function isSessionNotFoundStorageError(error: unknown): boolean {
@@ -456,6 +472,7 @@ export async function listSessionsForConfigWithIssues(
     return scanSessionsFromGitHub(config);
   }
 
+  assertLocalStorageAllowed();
   const sessions = await listLocalSessions();
   sessions.sort((a, b) => compareDateOnlyDesc(a.date, b.date));
   return {
@@ -485,6 +502,7 @@ export async function readSessionByIdForConfig(
     return readSessionByIdFromGitHub(id, config);
   }
 
+  assertLocalStorageAllowed();
   const filePath = await findLocalSessionFileById(id);
   if (!filePath) {
     return null;
@@ -505,6 +523,7 @@ export async function createSessionForConfig(
     return result;
   }
 
+  assertLocalStorageAllowed();
   await createLocalSession(session);
   return null;
 }
@@ -524,6 +543,7 @@ export async function updateSessionForConfig(
     return result;
   }
 
+  assertLocalStorageAllowed();
   await updateLocalSession(session);
   return null;
 }
@@ -548,6 +568,7 @@ export async function deleteSessionForConfig(
     return result;
   }
 
+  assertLocalStorageAllowed();
   await deleteLocalSession(id);
   return null;
 }

@@ -7,6 +7,8 @@ import { checkGitHubHealth } from '@/lib/github-health';
 import { scanTrainingDataWithNext } from '@/lib/log-doctor-fallback';
 import { parseJsonObjectBody } from '@/lib/request-body';
 
+export const maxDuration = 60;
+
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.MATMETRICS_BACKGROUND_EXECUTOR_SECRET;
   const value = request.headers.get('authorization');
