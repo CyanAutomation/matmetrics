@@ -15,6 +15,7 @@ import { useSessionsData } from '@/hooks/use-sessions-data';
 import { usePluginTabs } from '@/hooks/use-plugin-tabs';
 import { useGuestImport } from '@/hooks/use-guest-import';
 import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
+import { PreferenceRequestError } from '@/lib/user-preferences';
 import {
   getUserInitials,
   getSyncStatusText,
@@ -150,10 +151,20 @@ export default function Home() {
                   <Info className="h-4 w-4" />
                   <AlertTitle>Preferences could not be refreshed</AlertTitle>
                   <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>
-                      Your saved preferences are temporarily unavailable. You
-                      can continue using MatMetrics and retry when the data
-                      service is available.
+                    <span className="flex flex-col gap-1">
+                      <span>
+                        Your saved preferences are temporarily unavailable. You
+                        can continue using MatMetrics and retry when the data
+                        service is available.
+                      </span>
+                      {preferencesError instanceof PreferenceRequestError && (
+                        <span
+                          className="text-xs text-muted-foreground"
+                          role="status"
+                        >
+                          {preferencesError.diagnostic}
+                        </span>
+                      )}
                     </span>
                     <Button
                       size="sm"
