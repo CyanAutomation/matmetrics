@@ -12,15 +12,15 @@ import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
-import { POST as CREATE } from '@/app/api/plugins/create/route';
+import { POST as CREATE } from '@/app/api/plugins/create/api-handler';
 import {
   GET as LIST,
   dynamic as LIST_DYNAMIC,
   revalidate as LIST_REVALIDATE,
-} from '@/app/api/plugins/list/route';
-import { POST as TOGGLE } from '@/app/api/plugins/toggle/route';
-import { POST as UPDATE } from '@/app/api/plugins/update/route';
-import { POST as VALIDATE } from '@/app/api/plugins/validate/route';
+} from '@/app/api/plugins/list/api-handler';
+import { POST as TOGGLE } from '@/app/api/plugins/toggle/api-handler';
+import { POST as UPDATE } from '@/app/api/plugins/update/api-handler';
+import { POST as VALIDATE } from '@/app/api/plugins/validate/api-handler';
 import { resetPluginEnabledOverridesForTests } from '@/lib/plugins/state.server';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';

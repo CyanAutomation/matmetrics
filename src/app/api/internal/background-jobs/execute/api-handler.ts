@@ -1,3 +1,4 @@
+// Internal handler dispatched by app/api/[...path]/route.ts.
 import { timingSafeEqual } from 'node:crypto';
 
 import { NextRequest, NextResponse } from 'next/server';

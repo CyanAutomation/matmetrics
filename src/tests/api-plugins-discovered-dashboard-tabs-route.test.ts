@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 
 // biome-ignore lint/security/noCommonJs: Test runtime exposes Next route modules through CommonJS interop.
 const routeModule =
-  require('@/app/api/plugins/discovered-dashboard-tabs/route') as typeof import('@/app/api/plugins/discovered-dashboard-tabs/route');
+  require('@/app/api/plugins/discovered-dashboard-tabs/api-handler') as typeof import('@/app/api/plugins/discovered-dashboard-tabs/api-handler');
 // biome-ignore lint/security/noCommonJs: Test runtime exposes server-only modules through CommonJS interop.
 const stateModule =
   require('@/lib/plugins/state.server') as typeof import('@/lib/plugins/state.server');

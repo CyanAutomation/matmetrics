@@ -1,4 +1,6 @@
+// Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
+
 import { enqueueBackgroundJob } from '@/lib/background-job-store.server';
 import {
   DataWorkerError,
@@ -6,35 +8,31 @@ import {
 } from '@/lib/data-worker-client.server';
 import { validateGitHubRoute } from '@/lib/github-route-helpers';
 
-/**
- * POST /api/github/log-doctor
- * Diagnose markdown logs in a GitHub repository
- */
 export async function POST(request: NextRequest) {
   const validation = await validateGitHubRoute(request);
   if (!validation.ok) return validation.response;
   if (!isDataWorkerConfigured()) {
     return NextResponse.json(
-      { success: false, message: 'Background jobs are not configured' },
+      { error: 'Background jobs are not configured' },
       { status: 503 }
     );
   }
   try {
     const job = await enqueueBackgroundJob(validation.userId, {
-      type: 'log-doctor-scan',
+      type: 'github-health',
       config: validation.config,
     });
     return NextResponse.json(job, { status: 202 });
   } catch (error) {
     if (error instanceof DataWorkerError) {
       return NextResponse.json(
-        { success: false, message: error.message },
+        { error: error.message },
         { status: error.status }
       );
     }
-    console.error('Failed to queue log diagnosis', error);
+    console.error('Failed to queue GitHub health check', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to queue log diagnosis' },
+      { error: 'Failed to queue GitHub health check' },
       { status: 500 }
     );
   }

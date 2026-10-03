@@ -1,30 +1,31 @@
+// Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { validateGitHubRoute } from '@/lib/github-route-helpers';
 
 /**
- * POST /api/github/sync-all
- * Bulk push all existing sessions to GitHub
+ * POST /api/github/validate
+ * Test GitHub credentials
  */
 export async function POST(request: NextRequest) {
   try {
     const validation = await validateGitHubRoute(request, {
-      parseMode: 'strict',
+      parseMode: 'loose',
     });
     if (!validation.ok) {
       return validation.response;
     }
 
     return proxyGoFunction(request, {
-      path: '/api/go/github/sync-all',
+      path: '/api/go/github/validate',
       method: 'POST',
       body: validation.config,
     });
   } catch (error) {
-    console.error('Error in bulk sync', error);
+    console.error('Error validating GitHub credentials', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, message: `Bulk sync failed: ${message}` },
+      { success: false, message: `Validation failed: ${message}` },
       { status: 500 }
     );
   }

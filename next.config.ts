@@ -23,12 +23,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   outputFileTracingIncludes: {
-    '/api/plugins/list': [
-      './plugins/**/plugin.json',
-      './plugins/**/src/index.ts',
-      './plugins/**/README.md',
-    ],
-    '/api/plugins/validate': [
+    '/api/\\[\\.\\.\\.path\\]': [
       './plugins/**/plugin.json',
       './plugins/**/src/index.ts',
       './plugins/**/README.md',

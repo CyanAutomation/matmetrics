@@ -5,7 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
-import { POST } from '@/app/api/video-library/check-links/route';
+import { POST } from '@/app/api/video-library/check-links/api-handler';
 import {
   __resetDataDirForTests,
   __setDataDirForTests,

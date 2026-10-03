@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
-import { DELETE, PUT } from '@/app/api/sessions/[id]/route';
-import { POST } from '@/app/api/sessions/create/route';
-import { GET as LIST } from '@/app/api/sessions/list/route';
+import { DELETE, PUT } from '@/app/api/sessions/[id]/api-handler';
+import { POST } from '@/app/api/sessions/create/api-handler';
+import { GET as LIST } from '@/app/api/sessions/list/api-handler';
 import {
   __resetDataDirForTests,
   __setDataDirForTests,

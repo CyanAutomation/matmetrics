@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
-import { POST } from './route';
+import { POST } from './api-handler';
 import { buildLogDoctorFixErrorResponse } from './error-response';
 
 const INVALID_PROXY_ERROR =
