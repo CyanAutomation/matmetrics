@@ -1,9 +1,8 @@
 @config "../../tailwind.config.ts";
-@reference "tailwindcss";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@source "../";
+@source "../../plugins";
+@source inline("bg-chart-1 bg-chart-2 bg-chart-3 bg-chart-4 bg-chart-5");
 
 @layer base {
   :root {
