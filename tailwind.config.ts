@@ -1,7 +1,19 @@
 import type { Config } from 'tailwindcss';
 
+// Tailwind's current Config type in this repo does not include `safelist`,
+// but we rely on safelisted utility classes outside static content discovery.
+type ConfigWithSafelist = Config & {
+  safelist?: Array<
+    | string
+    | {
+        pattern: RegExp;
+        variants?: string[];
+      }
+  >;
+};
+
 export default {
-  darkMode: ['class'],
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -138,4 +150,4 @@ export default {
     },
   },
   plugins: [require('tailwindcss-animate')],
-} satisfies Config;
+} satisfies ConfigWithSafelist;
