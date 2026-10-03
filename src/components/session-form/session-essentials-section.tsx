@@ -47,17 +47,17 @@ export function SessionEssentialsSection({
   return (
     <fieldset
       className={cn(
-        'bg-secondary/25 rounded-lg p-4 lg:-mx-0 lg:rounded-lg lg:p-5 lg:bg-secondary/25',
+        '@container/essentials bg-secondary/25 rounded-lg p-4 @min-[56rem]/essentials:-mx-0 @min-[56rem]/essentials:rounded-lg @min-[56rem]/essentials:p-5 @min-[56rem]/essentials:bg-secondary/25',
         !shouldHideHeader && '-mx-6 -mt-6'
       )}
     >
       <legend className="px-1 text-sm font-semibold text-foreground">
         Session essentials
       </legend>
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+      <div className="flex flex-col items-start gap-4 @min-[56rem]/essentials:flex-row @min-[56rem]/essentials:gap-6">
         {/* Keep the illustration beside the fields only when the full row fits. */}
         {showAvatar && (
-          <div className="hidden lg:flex shrink-0">
+          <div className="hidden shrink-0 @min-[56rem]/essentials:flex">
             <RessaImage
               pose={1}
               size="medium"
@@ -70,7 +70,7 @@ export function SessionEssentialsSection({
         {/* Session Control Fields */}
         <div className="flex-1 w-full space-y-4">
           {/* Row 1: Date, Duration, Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
+          <div className="grid grid-cols-1 items-start gap-4 @min-[34rem]/essentials:grid-cols-2 @min-[48rem]/essentials:grid-cols-3 @min-[56rem]/essentials:gap-6">
             {/* Session Date */}
             <div className="space-y-2.5">
               <Label
@@ -162,7 +162,7 @@ export function SessionEssentialsSection({
               </span>
             </div>
             <div
-              className="flex gap-2 rounded-md bg-background/90 p-1.5"
+              className="grid grid-cols-2 gap-2 rounded-md bg-background/90 p-1.5 @min-[30rem]/essentials:grid-cols-5"
               role="group"
               aria-label="Perceived session effort, from easy to intense"
             >
@@ -175,7 +175,7 @@ export function SessionEssentialsSection({
                     type="button"
                     onClick={() => setEffort(effortVal)}
                     className={cn(
-                      'min-h-10 flex-1 px-1 text-[11px] font-semibold leading-none transition-all duration-200 sm:px-2 sm:text-sm',
+                      'min-h-10 min-w-0 px-1 text-[11px] font-semibold leading-none transition-all duration-200 @min-[30rem]/essentials:px-2 @min-[30rem]/essentials:text-sm',
                       isSelected
                         ? 'border border-primary bg-primary text-primary-foreground shadow-sm'
                         : 'border border-input bg-background text-foreground hover:bg-muted'

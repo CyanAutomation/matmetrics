@@ -136,7 +136,7 @@ export default function Home() {
             onOpenAuth={() => setIsAuthDialogOpen(true)}
           />
 
-          <main className="mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
+          <main className="@container/main mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
             <div className="space-y-6">
               {preferencesError && user && (
                 <Alert className="ui-alert-warning">

@@ -246,7 +246,7 @@ export function PluginManagerInstalledContent(props: {
 
   return (
     <div
-      className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2"
+      className="@container/plugin-grid grid grid-cols-1 gap-3 p-4 @min-[52rem]/plugin-grid:grid-cols-2"
       data-testid="plugins-table-state"
     >
       {installedPlugins.map((plugin) => {
@@ -259,7 +259,7 @@ export function PluginManagerInstalledContent(props: {
             className="flex flex-col gap-3 border border-border bg-card/60 p-4"
           >
             {/* Header row: user-facing health + toggle */}
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold">{plugin.name}</span>
@@ -304,7 +304,7 @@ export function PluginManagerInstalledContent(props: {
                   {plugin.id} · v{plugin.version}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   {plugin.enabled ? 'Enabled' : 'Disabled'}
                 </span>
@@ -694,7 +694,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     >
       {accessAlert}
 
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-headline-sm">Installed extensions</h3>
           {canManagePlugins && lastUpdatedAt && (
@@ -789,9 +789,9 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
                     key={`validate-${plugin.id}`}
                     className="py-4 first:pt-0 border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)] first:border-0"
                   >
-                    <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold">{plugin.id}</div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {plugin.maturity ? (
                           <Badge
                             variant="outline"
