@@ -1,5 +1,7 @@
 import type { Config } from 'tailwindcss';
 
+// Tailwind's current Config type in this repo does not include `safelist`,
+// but we rely on safelisted utility classes outside static content discovery.
 type ConfigWithSafelist = Config & {
   safelist?: Array<
     | string
@@ -11,7 +13,7 @@ type ConfigWithSafelist = Config & {
 };
 
 export default {
-  darkMode: ['class', '.dark'],
+  darkMode: ['class'] as unknown as Config['darkMode'],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
