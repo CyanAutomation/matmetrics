@@ -67,6 +67,35 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
 
 type PreferencesListener = (preferences: UserPreferences) => void;
 
+type PreferenceRequestFailureStage = 'authentication' | 'network' | 'response';
+
+export class PreferenceRequestError extends Error {
+  constructor(
+    readonly method: string,
+    readonly stage: PreferenceRequestFailureStage,
+    readonly status?: number
+  ) {
+    super(
+      stage === 'authentication'
+        ? `Preferences ${method} request could not be authenticated`
+        : stage === 'network'
+          ? `Preferences ${method} request could not reach the server`
+          : `Preference request failed (${status})`
+    );
+    this.name = 'PreferenceRequestError';
+  }
+
+  get diagnostic(): string {
+    if (this.stage === 'authentication') {
+      return `Could not authenticate preferences ${this.method} request`;
+    }
+    if (this.stage === 'network') {
+      return `Could not reach the server for preferences ${this.method} request`;
+    }
+    return `Preferences ${this.method} request returned HTTP ${this.status}`;
+  }
+}
+
 let currentPreferences: UserPreferences = DEFAULT_USER_PREFERENCES;
 let loadedUserId: string | null = null;
 let currentPreferencesRevision = 0;
@@ -76,12 +105,22 @@ async function requestPreferences<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: await getAuthHeaders(init?.headers),
-  });
+  const method = (init?.method ?? 'GET').toUpperCase();
+  let headers: HeadersInit;
+  try {
+    headers = await getAuthHeaders(init?.headers);
+  } catch {
+    throw new PreferenceRequestError(method, 'authentication');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(path, { ...init, headers });
+  } catch {
+    throw new PreferenceRequestError(method, 'network');
+  }
   if (!response.ok) {
-    throw new Error(`Preference request failed (${response.status})`);
+    throw new PreferenceRequestError(method, 'response', response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -626,6 +665,8 @@ export async function initializeUserPreferences(
     return currentPreferences;
   }
 
+  loadedUserId = null;
+  currentPreferencesRevision = 0;
   currentPreferences = readCachedPreferences();
   notifyPreferencesChanged();
 
@@ -633,7 +674,6 @@ export async function initializeUserPreferences(
     preferences: unknown;
     revision: number;
   }>('/api/preferences');
-  currentPreferencesRevision = stored.revision;
   const remotePreferences = stored.preferences
     ? normalizePreferences(stored.preferences)
     : cloneDefaults();
@@ -655,12 +695,17 @@ export async function initializeUserPreferences(
     return mergedPreferences;
   }
 
+  currentPreferencesRevision = stored.revision;
   currentPreferences = mergedPreferences;
-  loadedUserId = uid;
   writeCachedPreferences(mergedPreferences);
   notifyPreferencesChanged();
 
   await persistCurrentPreferences();
+
+  if (options?.shouldApply && !options.shouldApply()) {
+    return mergedPreferences;
+  }
+  loadedUserId = uid;
 
   return mergedPreferences;
 }
