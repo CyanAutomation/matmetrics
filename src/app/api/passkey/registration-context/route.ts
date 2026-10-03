@@ -32,7 +32,18 @@ function configurationError(): NextResponse {
   );
 }
 
+function featureDisabledError(): NextResponse {
+  return NextResponse.json(
+    { error: 'Passkey registration is disabled' },
+    { status: 503, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED !== 'true') {
+    return featureDisabledError();
+  }
+
   const secret = contextSecret();
   if (!secret || !isFirebaseAdminConfigured()) return configurationError();
 
