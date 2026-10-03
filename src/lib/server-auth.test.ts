@@ -12,6 +12,12 @@ const requestForAuthorization = (authorization?: string) =>
     headers: authorization ? { authorization } : undefined,
   });
 
+const structurallyValidToken = (algorithm: string) => {
+  const encode = (value: unknown) =>
+    Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${encode({ alg: algorithm, kid: 'test-key' })}.${encode({})}.signature`;
+};
+
 const setEnvVar = (key: string, value: string | undefined): void => {
   if (value === undefined) {
     Reflect.deleteProperty(process.env, key);
@@ -66,12 +72,13 @@ test('test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization', 
         assert.fail('Expected decoded token in test mode');
       }
 
-      assert.equal(result.uid, 'test-user');
+      assert.equal(result.appUserId, 'test-user');
+      assert.equal(result.provider, 'test');
     }
   );
 });
 
-test('non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal auth path', async () => {
+test('test shortcut is unavailable outside NODE_ENV=test', async () => {
   await withEnv(
     { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'development' },
     async () => {
@@ -86,19 +93,19 @@ test('non-test env + MATMETRICS_AUTH_TEST_MODE rejects shortcut and uses normal 
         );
       }
 
-      assert.equal(result.status, 500);
+      assert.equal(result.status, 401);
       const body = await result.json();
-      assert.deepEqual(body, { error: 'Firebase admin is not configured' });
+      assert.deepEqual(body, { error: 'Invalid authentication token' });
     }
   );
 });
 
-test('normal auth path unchanged when test mode is disabled', async () => {
+test('Firebase token path reports missing server configuration', async () => {
   await withEnv(
     { [AUTH_TEST_MODE_ENV]: 'false', [NODE_ENV_VAR]: 'test' },
     async () => {
       const result = await requireAuthenticatedUser(
-        requestForAuthorization('Bearer test-token')
+        requestForAuthorization(`Bearer ${structurallyValidToken('RS256')}`)
       );
 
       assert.equal('status' in result, true);
@@ -146,4 +153,29 @@ test('requireAuthenticatedUser rejects invalid test-mode token in test env', asy
       await assertUnauthorizedResponse(result, 'Invalid authentication token');
     }
   );
+});
+
+test('Better Auth token path reports missing JWKS configuration', async () => {
+  const jwksUrl = process.env.MATMETRICS_AUTH_JWKS_URL;
+  const issuer = process.env.MATMETRICS_AUTH_ISSUER;
+  const audience = process.env.MATMETRICS_AUTH_AUDIENCE;
+  Reflect.deleteProperty(process.env, 'MATMETRICS_AUTH_JWKS_URL');
+  Reflect.deleteProperty(process.env, 'MATMETRICS_AUTH_ISSUER');
+  Reflect.deleteProperty(process.env, 'MATMETRICS_AUTH_AUDIENCE');
+
+  try {
+    const result = await requireAuthenticatedUser(
+      requestForAuthorization(`Bearer ${structurallyValidToken('EdDSA')}`)
+    );
+    assert.equal('status' in result, true);
+    if (!('status' in result)) assert.fail('Expected configuration response');
+    assert.equal(result.status, 500);
+    assert.deepEqual(await result.json(), {
+      error: 'MATMETRICS_AUTH_JWKS_URL is not configured',
+    });
+  } finally {
+    if (jwksUrl !== undefined) process.env.MATMETRICS_AUTH_JWKS_URL = jwksUrl;
+    if (issuer !== undefined) process.env.MATMETRICS_AUTH_ISSUER = issuer;
+    if (audience !== undefined) process.env.MATMETRICS_AUTH_AUDIENCE = audience;
+  }
 });

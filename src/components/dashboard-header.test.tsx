@@ -30,10 +30,12 @@ test('dashboard header keeps shared product branding separate from page headings
           guestWorkspaceLabel: 'Guest Workspace',
           hasUser: true,
           authAvailable: true,
+          canManagePasskeys: false,
           onLogSession: () => undefined,
           onOpenVersionHistory: () => undefined,
           onSignOut: () => undefined,
           onOpenAuth: () => undefined,
+          onManagePasskeys: () => undefined,
         })
       )
     )

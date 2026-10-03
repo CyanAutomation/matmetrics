@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      enabledOverrides = await loadPluginEnabledOverrides(authResult.uid);
+      enabledOverrides = await loadPluginEnabledOverrides(authResult.appUserId);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error('Error loading plugin enabled overrides:', errMsg);

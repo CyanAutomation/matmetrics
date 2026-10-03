@@ -53,7 +53,7 @@ export async function GET(
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -139,7 +139,7 @@ export async function PUT(
       body.gitHubConfig as GitHubConfig | undefined
     );
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -153,13 +153,13 @@ export async function PUT(
         body: buildGitHubSessionBody(session, gitHubConfig),
       });
       if (response.ok) {
-        invalidateSessionListCache(user.uid, gitHubConfig);
+        invalidateSessionListCache(user.appUserId, gitHubConfig);
       }
       return response;
     }
 
     await updateSessionForConfig(session, gitHubConfig);
-    invalidateSessionListCache(user.uid, gitHubConfig);
+    invalidateSessionListCache(user.appUserId, gitHubConfig);
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
@@ -242,7 +242,7 @@ export async function DELETE(
       body.gitHubConfig as GitHubConfig | undefined
     );
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -258,13 +258,13 @@ export async function DELETE(
         body: buildGitHubDeleteBody(id, gitHubConfig, revisionSha),
       });
       if (response.ok) {
-        invalidateSessionListCache(user.uid, gitHubConfig);
+        invalidateSessionListCache(user.appUserId, gitHubConfig);
       }
       return response;
     }
 
     await deleteSessionForConfig(id, gitHubConfig, revisionSha);
-    invalidateSessionListCache(user.uid, gitHubConfig);
+    invalidateSessionListCache(user.appUserId, gitHubConfig);
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
