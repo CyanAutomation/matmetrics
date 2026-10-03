@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await persistPluginEnabledOverride(authResult.uid, pluginId, enabled);
+    await persistPluginEnabledOverride(authResult.appUserId, pluginId, enabled);
 
     return NextResponse.json(
       {
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             mode: 'applied',
             files: [
               {
-                path: `d1:user/${authResult.uid}/pluginConfig`,
+                path: `d1:user/${authResult.appUserId}/pluginConfig`,
                 changeType: 'modified',
               },
             ],

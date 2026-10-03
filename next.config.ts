@@ -29,6 +29,25 @@ const nextConfig: NextConfig = {
       './plugins/**/README.md',
     ],
   },
+  async rewrites() {
+    const authWorkerUrl = process.env.CLOUDFLARE_AUTH_WORKER_URL?.replace(
+      /\/$/,
+      ''
+    );
+
+    return {
+      beforeFiles: authWorkerUrl
+        ? [
+            {
+              source: '/api/auth/:path*',
+              destination: `${authWorkerUrl}/api/auth/:path*`,
+            },
+          ]
+        : [],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   images: {
     remotePatterns: [
       {

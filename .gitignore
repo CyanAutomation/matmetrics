@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.js
 
@@ -8,6 +9,7 @@
 
 # next.js
 /.next/
+**/.wrangler/
 /out/
 
 # production
@@ -28,6 +30,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.dev.vars*
 
 # vercel
 .vercel

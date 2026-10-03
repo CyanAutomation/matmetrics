@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const user = await requireAuthenticatedUser(request);
   if (user instanceof NextResponse) return user;
   try {
-    return NextResponse.json(await loadStoredPreferences(user.uid), {
+    return NextResponse.json(await loadStoredPreferences(user.appUserId), {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest) {
   try {
     return NextResponse.json(
       await saveStoredPreferences(
-        user.uid,
+        user.appUserId,
         body.value.preferences as Record<string, unknown>,
         body.value.revision as number
       ),

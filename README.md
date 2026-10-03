@@ -122,6 +122,11 @@ Firebase values come from:
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase console → Project Settings → Your web app                                |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase console → Project Settings → Your web app                                |
 | `FIREBASE_SERVICE_ACCOUNT_KEY`             | Firebase console → Project Settings → Service accounts → Generate new private key |
+| `CLOUDFLARE_AUTH_WORKER_URL`                | Cloudflare dashboard → `matmetrics-auth` Worker URL (server-side rewrite destination) |
+| `MATMETRICS_AUTH_JWKS_URL`                  | Same-origin JWKS endpoint, usually `https://<app-origin>/api/auth/jwks` |
+| `MATMETRICS_AUTH_ISSUER`                    | Public MatMetrics frontend origin used by Better Auth JWTs |
+| `MATMETRICS_AUTH_AUDIENCE`                  | Better Auth JWT audience; defaults to `matmetrics-api` |
+| `MATMETRICS_AUTH_CONTEXT_SECRET`            | Shared Vercel/Cloudflare secret for short-lived registration contexts |
 | `SENTRY_DSN`                               | Sentry dashboard → Project settings → Client keys (DSN)                           |
 | `SENTRY_AUTH_TOKEN`                        | sentry.io → User settings → Auth tokens                                           |
 
@@ -139,6 +144,7 @@ Firebase values come from:
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
+- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, `MATMETRICS_AUTH_AUDIENCE`, and `MATMETRICS_AUTH_CONTEXT_SECRET` configure the incremental Better Auth passkey migration. `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` enables the browser passkey UI after the Cloudflare auth Worker is deployed. Keep `BETTER_AUTH_SECRET` only in Cloudflare; it is not needed by Vercel.
 - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
@@ -191,6 +197,35 @@ The primary authentication method uses Firebase with the following configuration
 - **Admin SDK**: `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable
 - **Token Validation**: Firebase ID tokens are verified using Firebase's public certificates
 - **Header Format**: `Authorization: Bearer <firebase-id-token>`
+
+### Better Auth passkey migration
+
+The migration adds Better Auth in a dedicated Cloudflare Worker bound directly
+to the existing D1 database. The Vercel application proxies `/api/auth/*` to
+that Worker through a same-origin rewrite; the browser keeps a host-only
+session cookie on the MatMetrics origin. Better Auth issues normal browser
+sessions and separate JWKS-verifiable JWTs for protected application APIs.
+
+The current stage keeps Firebase available. A Firebase-authenticated user can
+request a short-lived, signed registration context at
+`/api/passkey/registration-context`; Better Auth then creates a passkey for the
+same canonical MatMetrics user ID. New passkey accounts use a random
+MatMetrics ID. Emails identify accounts but do not establish ownership or
+provide recovery; passkeys are the only Better Auth sign-in credential.
+
+Configure the Cloudflare Worker secrets `BETTER_AUTH_SECRET` and
+`MATMETRICS_AUTH_CONTEXT_SECRET`. Set the same context secret in Vercel, along
+with the Worker URL, JWT issuer/audience, and same-origin JWKS URL. Never put
+either secret in a `NEXT_PUBLIC_*` variable. Apply the additive auth schema
+through the existing D1 migration owner before enabling the browser flag; see
+[`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md) and
+[`docs/better-auth-passkey-migration.md`](docs/better-auth-passkey-migration.md).
+
+Set the passkey RP ID to the deployed frontend hostname and the WebAuthn
+origin/trusted origin to that exact origin. Local development uses `localhost`
+as the RP ID. Vercel preview deployments need a stable explicit hostname; do
+not wildcard preview origins. Firebase verification remains the migration
+fallback until the API and Go verifier migration is complete.
 
 ### Test Mode Authentication
 

@@ -3,21 +3,25 @@
 ## Scope
 
 This migration replaces Firestore persistence for user preferences and plugin
-overrides. Firebase Authentication remains the identity provider in this phase.
-Session records remain GitHub-backed Markdown files (with their existing local
-fallback) and are deliberately out of scope.
+overrides. Firebase Authentication remains the active provider during its
+staged migration to Better Auth passkeys. Session records remain GitHub-backed
+Markdown files (with their existing local fallback) and are deliberately out
+of scope.
 
 ## Architecture
 
 ```text
-Browser -> Vercel Next.js API -> signed Cloudflare Worker -> D1
+Browser -> Vercel Next.js API -> signed Cloudflare data Worker -> D1
+Browser -> same-origin /api/auth/* -> Cloudflare Better Auth Worker -> D1
 ```
 
 The browser only calls same-origin Next.js routes. Vercel verifies the Firebase
-ID token, then signs each Worker request with the target path, HTTP method,
-timestamp, and SHA-256 of the request body. The Worker rejects signatures older
-than 60 seconds. Do not expose the Worker secret to the browser or use D1's
-administrative REST API from Vercel.
+ID token, then signs each data Worker request with the target path, HTTP method,
+timestamp, and SHA-256 of the request body. The data Worker rejects signatures
+older than 60 seconds. The Better Auth Worker uses its own native D1 binding
+and auth tables in the same database; it does not use the signed data API. Do
+not expose either Worker secret to the browser or use D1's administrative REST
+API from Vercel.
 
 ## Deployment
 
@@ -38,6 +42,17 @@ administrative REST API from Vercel.
 5. Set `CLOUDFLARE_DATA_WORKER_URL` in Vercel to the deployed Worker URL.
 6. Deploy the Next.js application. Until both variables are present, it retains
    the Firestore server-side fallback, which permits a controlled cutover.
+
+The incremental Better Auth passkey Worker shares the environment's D1 database
+but owns a separate native D1 binding for auth reads and writes. Its additive
+tables are in `0003_better_auth_identity.sql`; the data Worker remains the
+owner of D1 migration history. For local setup, apply migrations with
+`npm run migrate:local` under `workers/matmetrics-data`. For deployment, apply
+the migration through the existing environment-specific migration process
+before deploying `workers/matmetrics-auth`. Configure the auth Worker's exact
+frontend origin, RP ID, issuer, audience, and server-only secrets as described
+in [`workers/matmetrics-auth/README.md`](../workers/matmetrics-auth/README.md).
+Do not enable passkeys on arbitrary Vercel preview hostnames.
 
 ## Background Jobs and Queues
 

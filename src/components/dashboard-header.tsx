@@ -2,6 +2,7 @@
 
 import {
   History,
+  KeyRound,
   Loader2,
   LogIn,
   LogOut,
@@ -34,10 +35,12 @@ type DashboardHeaderProps = {
   guestWorkspaceLabel: string;
   hasUser: boolean;
   authAvailable: boolean;
+  canManagePasskeys: boolean;
   onLogSession: () => void;
   onOpenVersionHistory: () => void;
   onSignOut: () => void;
   onOpenAuth: () => void;
+  onManagePasskeys: () => void;
 };
 
 export function DashboardHeader({
@@ -53,10 +56,12 @@ export function DashboardHeader({
   guestWorkspaceLabel,
   hasUser,
   authAvailable,
+  canManagePasskeys,
   onLogSession,
   onOpenVersionHistory,
   onSignOut,
   onOpenAuth,
+  onManagePasskeys,
 }: DashboardHeaderProps) {
   return (
     <header className="glass-surface min-h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
@@ -121,6 +126,12 @@ export function DashboardHeader({
               <History className="mr-2 h-4 w-4" />
               Version History
             </DropdownMenuItem>
+            {hasUser && canManagePasskeys ? (
+              <DropdownMenuItem onClick={onManagePasskeys}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                Manage Passkeys
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             {hasUser ? (
               <DropdownMenuItem
