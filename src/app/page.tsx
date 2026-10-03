@@ -103,7 +103,7 @@ export default function Home() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--color-surface-container-low))]">
+      <div className="flex h-screen w-full bg-[hsl(var(--color-surface-container-low))]">
         <DashboardNav
           activeTab={activeTab}
           visibleTabs={visibleTabs}
@@ -112,7 +112,7 @@ export default function Home() {
           guestWorkspaceSource={guestWorkspace.source}
         />
 
-        <SidebarInset className="flex-1 flex flex-col bg-background overflow-hidden relative">
+        <SidebarInset className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
           <DashboardHeader
             title={selectedTab?.headerTitle ?? 'MatMetrics'}
             pageIcon={selectedTab?.icon ?? Info}
@@ -136,7 +136,7 @@ export default function Home() {
             onOpenAuth={() => setIsAuthDialogOpen(true)}
           />
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
+          <main className="mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
             <div className="space-y-6">
               {preferencesError && user && (
                 <Alert className="ui-alert-warning">
