@@ -21,6 +21,7 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
+import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 
 // TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
 // between this TypeScript route handler and the Go backend
@@ -77,6 +78,10 @@ export async function GET(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     console.error('Error retrieving session', error);
     return NextResponse.json(
       { error: 'Failed to retrieve session' },
@@ -157,6 +162,10 @@ export async function PUT(
 
     return NextResponse.json(session, { status: 200 });
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     if (error instanceof GitHubRevisionConflictError) {
       return NextResponse.json(
         { error: error.message, type: 'revision_conflict' },
@@ -258,6 +267,10 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Session deleted' }, { status: 200 });
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     if (isSessionNotFoundStorageError(error)) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }

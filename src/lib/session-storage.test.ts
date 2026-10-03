@@ -1,16 +1,27 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import {
+  createSessionForConfig,
+  deleteSessionForConfig,
   isSessionNotFoundStorageError,
   isSessionOperationalStorageError,
   listSessionsFromGitHub,
+  listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
+  readSessionByIdForConfig,
   scanSessionsFromGitHub,
+  updateSessionForConfig,
 } from './session-storage';
 import {
+  __resetDataDirForTests,
+  __setDataDirForTests,
   SessionLookupOperationalError,
   SessionNotFoundError,
 } from './file-storage';
+import type { JudoSession } from './types';
 import { withMockedGitHub } from './test-helpers/github-mock-builder';
 
 function toContentsPayload(markdown: string) {
@@ -587,4 +598,75 @@ test('session-storage error helpers classify typed local storage errors', () => 
   );
   assert.equal(isSessionNotFoundStorageError(new Error('other')), false);
   assert.equal(isSessionOperationalStorageError(new Error('other')), false);
+});
+
+test('session storage refuses local-file fallback on Vercel preview deployments', async () => {
+  const previousVercel = process.env.VERCEL;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousGitHubToken = process.env.GITHUB_TOKEN;
+
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'preview';
+  delete process.env.GITHUB_TOKEN;
+
+  try {
+    await assert.rejects(
+      listSessionsForConfigWithIssues(undefined),
+      /Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel\./
+    );
+  } finally {
+    if (previousVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = previousVercel;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousGitHubToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previousGitHubToken;
+  }
+});
+
+test('all session operations reject local-file fallback on Vercel production', async () => {
+  const previousVercel = process.env.VERCEL;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousGitHubToken = process.env.GITHUB_TOKEN;
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'matmetrics-vercel-'));
+  const session: JudoSession = {
+    id: 'vercel-local-fallback',
+    date: '2025-01-10',
+    techniques: ['uchi-mata'],
+    effort: 3,
+    category: 'Technical',
+  };
+
+  __setDataDirForTests(dataDir);
+  process.env.VERCEL = '1';
+  process.env.VERCEL_ENV = 'production';
+  delete process.env.GITHUB_TOKEN;
+
+  try {
+    const localFallbackOperations = [
+      () => listSessionsForConfigWithIssues(undefined),
+      () => readSessionByIdForConfig('missing-session', undefined),
+      () => createSessionForConfig(session, undefined),
+      () => updateSessionForConfig(session, undefined),
+      () => deleteSessionForConfig('missing-session', undefined),
+      () =>
+        listSessionsForConfigWithIssues({ owner: 'owner', repo: 'repo' }),
+    ];
+
+    for (const operation of localFallbackOperations) {
+      await assert.rejects(
+        operation(),
+        /Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel\./
+      );
+    }
+  } finally {
+    __resetDataDirForTests();
+    await rm(dataDir, { recursive: true, force: true });
+    if (previousVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = previousVercel;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousGitHubToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previousGitHubToken;
+  }
 });
