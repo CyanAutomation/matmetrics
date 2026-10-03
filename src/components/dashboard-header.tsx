@@ -61,7 +61,7 @@ export function DashboardHeader({
   return (
     <header className="glass-surface min-h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 border-b border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.12,transparent)]">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="h-11 w-11 md:hidden" />
+        <SidebarTrigger className="h-11 w-11 xl:hidden" />
         <span
           title={title}
           className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--color-surface-container-low))] text-primary"
