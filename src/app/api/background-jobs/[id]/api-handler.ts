@@ -16,7 +16,7 @@ export async function GET(
   if (user instanceof NextResponse) return user;
   const { id } = await context.params;
   try {
-    return NextResponse.json(await getBackgroundJob(user.uid, id), {
+    return NextResponse.json(await getBackgroundJob(user.appUserId, id), {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {

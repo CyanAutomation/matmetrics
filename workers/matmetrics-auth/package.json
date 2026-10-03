@@ -1,0 +1,20 @@
+{
+  "name": "matmetrics-auth-worker",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --persist-to ../matmetrics-data/.wrangler/state",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types --env-interface Env"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "1.7.7",
+    "better-auth": "1.7.7",
+    "jose": "6.2.12"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260915.1",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.143.1"
+  }
+}

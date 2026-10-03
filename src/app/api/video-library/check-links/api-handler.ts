@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
       body.gitHubConfig as GitHubConfig | undefined
     );
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
     const { sessions } = await listSessionsForConfigWithIssues(
       authzResult.config
     );
-    const customAllowedDomains = await getAllowedDomainsForUser(user.uid);
+    const customAllowedDomains = await getAllowedDomainsForUser(user.appUserId);
 
     const matchingSessions = sessions.filter((session) => {
       if (!session.videoUrl) {

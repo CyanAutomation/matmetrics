@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuthenticatedUser(request);
     if (user instanceof NextResponse) return user;
     const extensions = await discoverEnabledDashboardTabExtensions({
-      userId: user.uid,
+      userId: user.appUserId,
     });
     return NextResponse.json(
       { extensions },

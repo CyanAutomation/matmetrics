@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "matmetrics-auth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "MATMETRICS_AUTH_PUBLIC_URL": "http://localhost:9002",
+    "MATMETRICS_AUTH_FRONTEND_ORIGIN": "http://localhost:9002",
+    "MATMETRICS_AUTH_RP_ID": "localhost",
+    "MATMETRICS_AUTH_ISSUER": "http://localhost:9002",
+    "MATMETRICS_AUTH_AUDIENCE": "matmetrics-api"
+  },
+  "observability": {
+    "logs": { "enabled": true, "invocation_logs": true, "persist": true }
+  },
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRET", "MATMETRICS_AUTH_CONTEXT_SECRET"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "matmetrics-data",
+      "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c"
+    }
+  ]
+}

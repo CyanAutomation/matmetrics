@@ -22,6 +22,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
+import { authClient } from '@/lib/auth-client';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase-client';
 import { setActiveUserId } from '@/lib/client-identity';
 import {
@@ -39,6 +40,9 @@ type AuthContextValue = {
   user: AuthenticatedUser | null;
   preferences: UserPreferences;
   isConfigured: boolean;
+  firebaseConfigured: boolean;
+  betterAuthConfigured: boolean;
+  isPasskeySession: boolean;
   authMode: 'authenticated' | 'guest';
   authAvailable: boolean;
   canUseAi: boolean;
@@ -46,6 +50,9 @@ type AuthContextValue = {
   canSavePreferences: boolean;
   getIdToken: () => Promise<string | null>;
   retryPreferencesLoad: () => Promise<void>;
+  signInWithPasskey: () => Promise<void>;
+  signUpWithPasskey: (name: string, email: string) => Promise<void>;
+  addPasskey: (name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -60,6 +67,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const betterAuthConfigured =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED === 'true';
+
 function toAuthenticatedUser(user: User): AuthenticatedUser {
   return {
     uid: user.uid,
@@ -69,19 +79,96 @@ function toAuthenticatedUser(user: User): AuthenticatedUser {
   };
 }
 
+function toBetterAuthUser(user: {
+  id: string;
+  email: string;
+  name: string;
+  image?: string | null;
+}): AuthenticatedUser {
+  return {
+    // This remains the stable MatMetrics account key for existing consumers.
+    // For Firebase migrations the Better Auth user ID is deliberately the
+    // original Firebase UID; new accounts use a random canonical ID.
+    uid: user.id,
+    email: user.email,
+    displayName: user.name,
+    photoURL: user.image ?? null,
+  };
+}
+
+async function requestRegistrationContext(
+  body: Record<string, string>,
+  token?: string
+): Promise<string> {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch('/api/passkey/registration-context', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  const result = (await response.json()) as {
+    context?: unknown;
+    error?: unknown;
+  };
+  if (!response.ok || typeof result.context !== 'string') {
+    throw new Error(
+      typeof result.error === 'string'
+        ? result.error
+        : 'Could not start passkey registration'
+    );
+  }
+  return result.context;
+}
+
+async function assertAuthClientResult(
+  result: { error?: { message?: string } | null },
+  fallback: string
+): Promise<void> {
+  if (result.error) throw new Error(result.error.message || fallback);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [authReady, setAuthReady] = useState(false);
+  const firebaseConfigured = isFirebaseConfigured();
+  const [firebaseReady, setFirebaseReady] = useState(!firebaseConfigured);
+  const [firebaseUser, setFirebaseUser] = useState<AuthenticatedUser | null>(
+    null
+  );
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [preferencesError, setPreferencesError] = useState<Error | null>(null);
-  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [preferences, setPreferences] = useState(getCurrentPreferences());
-  const isConfigured = isFirebaseConfigured();
+  const { data: passkeySession, isPending: passkeySessionPending } =
+    authClient.useSession();
   const authLoadGenerationRef = useRef(0);
 
+  const user = passkeySession?.user
+    ? toBetterAuthUser(passkeySession.user)
+    : firebaseUser;
+  const isConfigured = firebaseConfigured || betterAuthConfigured;
+  const authReady =
+    firebaseReady && (!betterAuthConfigured || !passkeySessionPending);
+
   const getIdToken = useCallback(async (): Promise<string | null> => {
-    if (!isConfigured) return null;
-    return getFirebaseAuth().currentUser?.getIdToken() ?? null;
-  }, [isConfigured]);
+    if (betterAuthConfigured && passkeySession?.user) {
+      try {
+        const result = await authClient.token();
+        return result.data?.token ?? null;
+      } catch (error) {
+        console.error('Failed to read Better Auth API token');
+        return null;
+      }
+    }
+
+    if (!firebaseConfigured) return null;
+    try {
+      return getFirebaseAuth().currentUser?.getIdToken() ?? null;
+    } catch (error) {
+      console.error('Failed to read Firebase ID token');
+      return null;
+    }
+  }, [firebaseConfigured, passkeySession?.user]);
 
   const loadPreferencesForUser = useCallback(
     async (uid: string, generation: number): Promise<void> => {
@@ -103,7 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         if (authLoadGenerationRef.current === generation) {
           setPreferencesReady(true);
-          setAuthReady(true);
         }
       }
     },
@@ -111,55 +197,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    const unsubscribePreferences = subscribeToPreferences((nextPreferences) => {
-      setPreferences(nextPreferences);
-    });
-
-    if (!isConfigured) {
-      setAuthReady(true);
-      setPreferencesReady(true);
-      return () => {
-        unsubscribePreferences();
-      };
+    if (!firebaseConfigured) {
+      setFirebaseReady(true);
+      return;
     }
 
-    const auth = getFirebaseAuth();
-    const unsubscribeAuth = onAuthStateChanged(
-      auth,
-      async (nextUser) => {
-        const generation = ++authLoadGenerationRef.current;
-
-        if (!nextUser) {
-          setActiveUserId(null);
-          clearUserPreferencesState();
-          setUser(null);
-          setPreferencesError(null);
-          setPreferencesReady(true);
-          setAuthReady(true);
-          return;
-        }
-
-        setActiveUserId(nextUser.uid);
-        setUser(toAuthenticatedUser(nextUser));
-        await loadPreferencesForUser(nextUser.uid, generation);
+    const unsubscribe = onAuthStateChanged(
+      getFirebaseAuth(),
+      (nextUser) => {
+        setFirebaseUser(nextUser ? toAuthenticatedUser(nextUser) : null);
+        setFirebaseReady(true);
       },
       (error) => {
-        authLoadGenerationRef.current += 1;
+        setFirebaseUser(null);
         setPreferencesError(
           error instanceof Error
             ? error
             : new Error('Failed to initialize authentication')
         );
-        setPreferencesReady(true);
-        setAuthReady(true);
+        setFirebaseReady(true);
       }
     );
 
-    return () => {
-      unsubscribeAuth();
-      unsubscribePreferences();
-    };
-  }, [isConfigured, loadPreferencesForUser]);
+    return unsubscribe;
+  }, [firebaseConfigured]);
+
+  useEffect(() => {
+    const unsubscribePreferences = subscribeToPreferences((nextPreferences) => {
+      setPreferences(nextPreferences);
+    });
+    return unsubscribePreferences;
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    const generation = ++authLoadGenerationRef.current;
+    if (!user) {
+      setActiveUserId(null);
+      if (isConfigured) clearUserPreferencesState();
+      setPreferencesError(null);
+      setPreferencesReady(true);
+      return;
+    }
+
+    setActiveUserId(user.uid);
+    void loadPreferencesForUser(user.uid, generation);
+  }, [authReady, isConfigured, loadPreferencesForUser, user?.uid]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -169,6 +252,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       preferences,
       isConfigured,
+      firebaseConfigured,
+      betterAuthConfigured,
+      isPasskeySession: Boolean(passkeySession?.user),
       authMode: user ? 'authenticated' : 'guest',
       authAvailable: isConfigured,
       canUseAi: !!user && isConfigured,
@@ -176,23 +262,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canSavePreferences: !!user && isConfigured,
       getIdToken,
       async retryPreferencesLoad() {
-        if (!user) {
-          return;
-        }
-
+        if (!user) return;
         const generation = ++authLoadGenerationRef.current;
         await loadPreferencesForUser(user.uid, generation);
       },
+      async signInWithPasskey() {
+        if (!betterAuthConfigured) {
+          throw new Error('Passkey authentication is not configured');
+        }
+        const result = await authClient.signIn.passkey();
+        await assertAuthClientResult(result, 'Passkey sign-in failed');
+      },
+      async signUpWithPasskey(name, email) {
+        if (!betterAuthConfigured) {
+          throw new Error('Passkey authentication is not configured');
+        }
+        const context = await requestRegistrationContext({
+          mode: 'new',
+          name,
+          email,
+        });
+        const result = await authClient.passkey.addPasskey({
+          name: 'Primary passkey',
+          context,
+          createSession: true,
+        });
+        await assertAuthClientResult(result, 'Passkey registration failed');
+      },
+      async addPasskey(name) {
+        if (!betterAuthConfigured) {
+          throw new Error('Passkey authentication is not configured');
+        }
+        let context: string | undefined;
+        let createSession = false;
+        if (!passkeySession?.user) {
+          if (!firebaseConfigured) {
+            throw new Error('Sign in before adding a passkey');
+          }
+          const token = await getFirebaseAuth().currentUser?.getIdToken();
+          if (!token) throw new Error('Sign in to your existing account first');
+          context = await requestRegistrationContext(
+            { mode: 'firebase' },
+            token
+          );
+          createSession = true;
+        }
+        const result = await authClient.passkey.addPasskey({
+          name: name.trim() || 'Passkey',
+          ...(context ? { context } : {}),
+          createSession,
+        });
+        await assertAuthClientResult(result, 'Passkey registration failed');
+      },
       async signInWithGoogle() {
+        if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
       },
       async signInWithGitHub() {
+        if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithPopup(getFirebaseAuth(), new GithubAuthProvider());
       },
-      async signInWithEmail(email: string, password: string) {
+      async signInWithEmail(email, password) {
+        if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
       },
-      async signUpWithEmail(name: string, email: string, password: string) {
+      async signUpWithEmail(name, email, password) {
+        if (!firebaseConfigured) throw new Error('Firebase is not configured');
         const credentials = await createUserWithEmailAndPassword(
           getFirebaseAuth(),
           email,
@@ -201,25 +336,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (name.trim()) {
           await updateProfile(credentials.user, { displayName: name.trim() });
           await reload(credentials.user);
-          setUser(toAuthenticatedUser(credentials.user));
+          setFirebaseUser(toAuthenticatedUser(credentials.user));
         }
       },
-      async sendPasswordReset(email: string) {
+      async sendPasswordReset(email) {
+        if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await sendPasswordResetEmail(getFirebaseAuth(), email);
       },
       async signOutUser() {
-        await signOut(getFirebaseAuth());
+        if (betterAuthConfigured) {
+          const result = await authClient.signOut();
+          await assertAuthClientResult(result, 'Could not sign out');
+        }
+        if (firebaseConfigured) await signOut(getFirebaseAuth());
       },
     }),
     [
       authReady,
+      firebaseConfigured,
       getIdToken,
       isConfigured,
+      loadPreferencesForUser,
+      passkeySession?.user,
       preferences,
       preferencesError,
       preferencesReady,
       user,
-      loadPreferencesForUser,
     ]
   );
 

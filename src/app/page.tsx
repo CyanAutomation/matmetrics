@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { DashboardDialogs } from '@/components/dashboard-dialogs';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { PasskeyManagementDialog } from '@/components/passkey-management-dialog';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { useSessionsData } from '@/hooks/use-sessions-data';
 import { usePluginTabs } from '@/hooks/use-plugin-tabs';
@@ -35,6 +36,7 @@ export default function Home() {
     getIdToken,
     authMode,
     authAvailable,
+    betterAuthConfigured,
   } = useAuth();
 
   // Custom hooks for state management
@@ -80,6 +82,9 @@ export default function Home() {
     refreshSessions();
     setIsLogModalOpen(false);
   };
+
+  const [isPasskeyManagementOpen, setIsPasskeyManagementOpen] =
+    React.useState(false);
 
   const isGuest = authMode === 'guest';
   const initials = getUserInitials(user?.displayName, user?.email, isGuest);
@@ -130,10 +135,12 @@ export default function Home() {
             }
             hasUser={Boolean(user)}
             authAvailable={authAvailable}
+            canManagePasskeys={betterAuthConfigured}
             onLogSession={() => setIsLogModalOpen(true)}
             onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
             onSignOut={() => void signOutUser()}
             onOpenAuth={() => setIsAuthDialogOpen(true)}
+            onManagePasskeys={() => setIsPasskeyManagementOpen(true)}
           />
 
           <main className="@container/main mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
@@ -238,6 +245,10 @@ export default function Home() {
         onSessionAdded={handleSessionAdded}
         onDismissGuestImport={handleDismissGuestImport}
         onImportGuestData={() => void handleImportGuestData()}
+      />
+      <PasskeyManagementDialog
+        open={isPasskeyManagementOpen}
+        onOpenChange={setIsPasskeyManagementOpen}
       />
     </SidebarProvider>
   );

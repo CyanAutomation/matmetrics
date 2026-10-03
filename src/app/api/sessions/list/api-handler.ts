@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       branch: request.nextUrl.searchParams.get('branch') ?? undefined,
     });
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -60,14 +60,14 @@ export async function GET(request: NextRequest) {
     }
 
     const force = request.nextUrl.searchParams.get('force') === '1';
-    const cached = getCachedSessionList(user.uid, gitHubConfig);
+    const cached = getCachedSessionList(user.appUserId, gitHubConfig);
     const result =
       !force && cached
         ? cached
         : await listSessionsForConfigWithIssues(gitHubConfig);
 
     if (!force && !cached) {
-      cacheSessionList(user.uid, gitHubConfig, result);
+      cacheSessionList(user.appUserId, gitHubConfig, result);
     }
 
     const etag = createResponseEtag(result);

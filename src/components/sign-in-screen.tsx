@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { GitBranch, Loader2 } from 'lucide-react';
+import { Fingerprint, GitBranch, Loader2 } from 'lucide-react';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 
-type AuthMode = 'sign-in' | 'sign-up' | 'reset';
+type AuthMode = 'sign-in' | 'sign-up' | 'passkey-sign-up' | 'reset';
 
 type SignInScreenProps = {
   onContinueAsGuest?: () => void;
@@ -25,6 +25,10 @@ export function SignInScreen({
   const { toast } = useToast();
   const {
     isConfigured,
+    firebaseConfigured,
+    betterAuthConfigured,
+    signInWithPasskey,
+    signUpWithPasskey,
     signInWithGoogle,
     signInWithGitHub,
     signInWithEmail,
@@ -39,9 +43,10 @@ export function SignInScreen({
   const googleFeedback = useActionFeedback();
   const githubFeedback = useActionFeedback();
   const emailFeedback = useActionFeedback();
+  const passkeyFeedback = useActionFeedback();
 
   const title =
-    mode === 'sign-up'
+    mode === 'sign-up' || mode === 'passkey-sign-up'
       ? 'Create your account'
       : mode === 'reset'
         ? 'Reset your password'
@@ -65,6 +70,12 @@ export function SignInScreen({
         return;
       }
 
+      if (mode === 'passkey-sign-up') {
+        await signUpWithPasskey(name, email);
+        onAuthenticated?.();
+        return;
+      }
+
       await sendPasswordReset(email);
       emailFeedback.showSuccess();
       toast({
@@ -79,6 +90,25 @@ export function SignInScreen({
       toast({
         title: 'Authentication error',
         description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasskeySignIn = async () => {
+    setIsSubmitting(true);
+    passkeyFeedback.startLoading();
+    try {
+      await signInWithPasskey();
+      onAuthenticated?.();
+    } catch (error) {
+      passkeyFeedback.showError();
+      toast({
+        title: 'Passkey sign-in failed',
+        description:
+          error instanceof Error ? error.message : 'Could not sign in with a passkey',
         variant: 'destructive',
       });
     } finally {
@@ -146,10 +176,10 @@ export function SignInScreen({
 
         {!isConfigured && (
           <Alert className="mb-6 ui-alert-warning">
-            <AlertTitle>Firebase is not configured</AlertTitle>
+            <AlertTitle>Authentication is not configured</AlertTitle>
             <AlertDescription>
-              Add the `NEXT_PUBLIC_FIREBASE_*` variables and
-              `FIREBASE_SERVICE_ACCOUNT_KEY` to enable authentication.
+              Configure Better Auth or Firebase to enable sign-in. You can
+              still explore the app in guest mode.
             </AlertDescription>
           </Alert>
         )}
@@ -169,6 +199,30 @@ export function SignInScreen({
 
           {isConfigured && (
             <>
+              {betterAuthConfigured && mode === 'sign-in' && (
+                <Button
+                  type="button"
+                  className="w-full"
+                  feedbackState={passkeyFeedback.feedbackState}
+                  onClick={handlePasskeySignIn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Fingerprint className="h-4 w-4" />
+                  )}
+                  Use a passkey
+                </Button>
+              )}
+
+              {betterAuthConfigured && mode === 'sign-in' && firebaseConfigured && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Existing accounts can continue with Firebase while passkeys
+                  are being linked.
+                </p>
+              )}
+
               {onContinueAsGuest && (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -182,7 +236,7 @@ export function SignInScreen({
                 </div>
               )}
 
-              <Button
+              {firebaseConfigured && <Button
                 type="button"
                 variant="outline"
                 className="w-full"
@@ -196,9 +250,9 @@ export function SignInScreen({
                   <GoogleMark className="h-4 w-4" />
                 )}
                 Google
-              </Button>
+              </Button>}
 
-              <Button
+              {firebaseConfigured && <Button
                 type="button"
                 variant="outline"
                 className="w-full"
@@ -212,9 +266,9 @@ export function SignInScreen({
                   <GitBranch className="h-4 w-4" />
                 )}
                 GitHub
-              </Button>
+              </Button>}
 
-              <div className="relative">
+              {firebaseConfigured && <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
                 </div>
@@ -223,10 +277,10 @@ export function SignInScreen({
                     or use email
                   </span>
                 </div>
-              </div>
+              </div>}
 
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                {mode === 'sign-up' && (
+              {mode !== 'sign-in' || firebaseConfigured ? <form className="space-y-4" onSubmit={handleSubmit}>
+                {(mode === 'sign-up' || mode === 'passkey-sign-up') && (
                   <div className="space-y-2">
                     <Label htmlFor="name">Display name</Label>
                     <Input
@@ -249,7 +303,7 @@ export function SignInScreen({
                   />
                 </div>
 
-                {mode !== 'reset' && (
+                {mode !== 'reset' && mode !== 'passkey-sign-up' && (
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <Input
@@ -265,6 +319,13 @@ export function SignInScreen({
                   </div>
                 )}
 
+                {mode === 'passkey-sign-up' && (
+                  <p className="text-xs text-muted-foreground">
+                    Your email is an account label, not a recovery method.
+                    Passkeys are the only sign-in credential for this account.
+                  </p>
+                )}
+
                 <Button
                   feedbackState={emailFeedback.feedbackState}
                   type="submit"
@@ -276,24 +337,30 @@ export function SignInScreen({
                   ) : null}
                   {mode === 'sign-up'
                     ? 'Create account'
+                    : mode === 'passkey-sign-up'
+                      ? 'Create account with a passkey'
                     : mode === 'reset'
                       ? 'Send reset email'
                       : 'Sign in'}
                 </Button>
-              </form>
+              </form> : null}
 
               <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
                   className="text-primary"
-                  onClick={() =>
-                    setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
-                  }
+                  onClick={() => {
+                    if (mode === 'passkey-sign-up' || mode === 'reset') {
+                      setMode('sign-in');
+                    } else {
+                      setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
+                    }
+                  }}
                 >
                   {mode === 'sign-in' ? 'Create account' : 'Back to sign in'}
                 </button>
 
-                {mode === 'sign-in' && (
+                {mode === 'sign-in' && firebaseConfigured && (
                   <button
                     type="button"
                     className="text-primary"
@@ -303,6 +370,18 @@ export function SignInScreen({
                   </button>
                 )}
               </div>
+
+              {betterAuthConfigured && mode === 'sign-in' && (
+                <button
+                  type="button"
+                  className="w-full text-sm text-primary"
+                  onClick={() => setMode('passkey-sign-up')}
+                  disabled={isSubmitting}
+                >
+                  Create an account with a passkey
+                </button>
+              )}
+
             </>
           )}
         </div>

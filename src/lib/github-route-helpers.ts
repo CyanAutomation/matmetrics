@@ -124,5 +124,5 @@ export async function validateGitHubRoute(
     };
   }
 
-  return { ok: true, config, request, userId: authResult.uid };
+  return { ok: true, config, request, userId: authResult.appUserId };
 }

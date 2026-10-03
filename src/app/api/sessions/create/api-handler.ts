@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       body.gitHubConfig as GitHubConfig | undefined
     );
     const authzResult = await resolveAuthorizedGitHubConfig(
-      user.uid,
+      user.appUserId,
       requestedGitHubConfig
     );
     if (authzResult.forbiddenResponse) {
@@ -72,13 +72,13 @@ export async function POST(request: NextRequest) {
         body: buildGitHubSessionBody(session, gitHubConfig),
       });
       if (response.ok) {
-        invalidateSessionListCache(user.uid, gitHubConfig);
+        invalidateSessionListCache(user.appUserId, gitHubConfig);
       }
       return response;
     }
 
     await createSessionForConfig(session, gitHubConfig);
-    invalidateSessionListCache(user.uid, gitHubConfig);
+    invalidateSessionListCache(user.appUserId, gitHubConfig);
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
