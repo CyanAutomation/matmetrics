@@ -91,7 +91,7 @@ function SessionHistoryAdvancedFilters({
 >) {
   return (
     <div
-      className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden'}`}
+      className={`mt-3 grid gap-3 @min-[32rem]/filters:grid-cols-2 @min-[62rem]/filters:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden'}`}
     >
       <select
         value={categoryFilter}
@@ -149,21 +149,21 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
   return (
     <FilterBar
       label="Filter training history"
-      className="sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
+      className="@container/filters sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
     >
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 @min-[30rem]/filters:flex-row">
         <InputWithIcon
           icon={<Search className="h-4 w-4" />}
           value={props.searchQuery}
           onChange={(event) => props.onSearchQueryChange(event.target.value)}
           placeholder="Search techniques or notes"
           aria-label="Search training history"
-          wrapperClassName="flex-1"
+          wrapperClassName="min-w-0 flex-1"
         />
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 shrink-0"
+          className="min-h-11 w-full shrink-0 @min-[30rem]/filters:w-auto"
           onClick={props.onToggleFilters}
           aria-expanded={props.filtersOpen}
         >
