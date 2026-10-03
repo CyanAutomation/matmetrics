@@ -1,7 +1,13 @@
 import type { Config } from 'tailwindcss';
 
 type ConfigWithSafelist = Config & {
-  safelist?: string[];
+  safelist?: Array<
+    | string
+    | {
+        pattern: RegExp;
+        variants?: string[];
+      }
+  >;
 };
 
 export default {
