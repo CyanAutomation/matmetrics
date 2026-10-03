@@ -257,18 +257,33 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
    - Click "Import"
 
 3. **Configure Environment Variables**:
-   - In the "Environment Variables" section, add:
-     - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
-     - `CLOUDFLARE_API_TOKEN`: Your Cloudflare API token (get with: `wrangler auth token`)
+   - Add the required Firebase client values:
+     - `NEXT_PUBLIC_FIREBASE_API_KEY`
+     - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+     - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+     - `NEXT_PUBLIC_FIREBASE_APP_ID`
+   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` and `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` are optional client settings.
+   - Add `FIREBASE_SERVICE_ACCOUNT_KEY` with the service account JSON. Keep it server-only; do not give it a `NEXT_PUBLIC_` prefix.
+   - Add the server-side integrations used by your deployment:
+     - `GITHUB_TOKEN`: Fine-grained token with repository contents read and write access to each user-configured repository
+     - `CLOUDFLARE_API_TOKEN`: Cloudflare API token for AI-assisted suggestions and transforms (get with: `wrangler auth token`)
+   - Optional integrations:
      - `OPENROUTER_API_KEY`: OpenRouter API key for the optional server-side JEV training check-in
      - `SENTRY_DSN`: Your Sentry DSN for error monitoring
-     - `SENTRY_AUTH_TOKEN`: Your Sentry auth token for source map uploads
+     - `SENTRY_AUTH_TOKEN`: A Sentry auth token for source map uploads
+     - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` when using D1-backed preferences
+     - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` when using the Cloudflare Queues executor
+   - Set credentials for Production and for Preview if preview deployments need authenticated features. Keep server credentials server-only.
 
 4. **Deploy**:
    - Click "Deploy"
    - Vercel will automatically build and deploy your application
 
-**Data Storage**: Sessions are stored as markdown files. Before GitHub is configured they are written to local markdown storage; after GitHub setup the configured repository becomes the primary backend.
+5. **Gate production deployments**:
+   - Protect the `main` branch in GitHub, require pull requests, and require the `CI / release-readiness` status check before merging.
+   - Set the Vercel Production Branch to `main`. This keeps production deployments on commits that passed the required CI checks.
+
+**Data Storage**: Hosted Vercel Preview and Production deployments do not use local markdown files for session storage. Each user must configure a GitHub repository, and Vercel must have `GITHUB_TOKEN` with access to that repository. The API returns `503` when this persistent backend is unavailable instead of writing to an ephemeral function filesystem. Migrate any existing local `data/` sessions to the configured repository before deploying.
 
 ## Project Structure
 

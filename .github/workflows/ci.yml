@@ -106,6 +106,38 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
+  release-readiness:
+    name: release-readiness
+    if: always()
+    needs:
+      - build
+      - quality
+      - go
+      - dependency-review
+      - workflow-lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require deployment checks to pass
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          GO_RESULT: ${{ needs.go.result }}
+          DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
+          WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          for result in "$BUILD_RESULT" "$QUALITY_RESULT" "$GO_RESULT" "$WORKFLOW_LINT_RESULT"; do
+            if [[ "$result" != "success" ]]; then
+              echo "A required deployment check did not succeed."
+              exit 1
+            fi
+          done
+
+          if [[ "$EVENT_NAME" == "pull_request" && "$DEPENDENCY_REVIEW_RESULT" != "success" ]]; then
+            echo "Dependency review must succeed for pull requests."
+            exit 1
+          fi
+
   release-please:
     name: Release Please
     if: >-
@@ -116,6 +148,7 @@ jobs:
       - quality
       - go
       - workflow-lint
+      - release-readiness
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

@@ -11,6 +11,7 @@ import {
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
+import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 import {
   cacheSessionList,
   getCachedSessionList,
@@ -79,6 +80,10 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(result, { status: 200, headers: responseHeaders });
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     console.error('Error listing sessions', error);
     return NextResponse.json(
       { error: 'Failed to list sessions' },

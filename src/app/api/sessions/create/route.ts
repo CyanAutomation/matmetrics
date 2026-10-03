@@ -14,6 +14,7 @@ import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { validateSessionPayload } from '@/lib/session-validation';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
+import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
@@ -80,6 +81,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     const errorMessage =
       error instanceof Error ? error.message : String(error ?? '');
 
