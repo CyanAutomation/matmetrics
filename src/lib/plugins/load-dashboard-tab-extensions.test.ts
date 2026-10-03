@@ -31,15 +31,18 @@ test('loadDashboardTabExtensions uses discovery API response when available', as
   const fallbackLoader = () => [];
   let fallbackCalls = 0;
   let requestedCacheMode: RequestCache | undefined;
+  let requestedAuthorization: string | null = null;
 
   const result = await loadDashboardTabExtensions({
     useLegacyRegistryFallback: false,
+    authorizationToken: 'firebase-id-token',
     fallbackLoader: () => {
       fallbackCalls += 1;
       return fallbackLoader();
     },
     fetchImpl: async (_input, init) => {
       requestedCacheMode = init?.cache;
+      requestedAuthorization = new Headers(init?.headers).get('Authorization');
       return new Response(
         JSON.stringify({ extensions: [discoveredExtension] }),
         {
@@ -53,6 +56,35 @@ test('loadDashboardTabExtensions uses discovery API response when available', as
   assert.deepEqual(result, [discoveredExtension]);
   assert.equal(fallbackCalls, 0);
   assert.equal(requestedCacheMode, 'no-store');
+  assert.equal(requestedAuthorization, 'Bearer firebase-id-token');
+});
+
+test('loadDashboardTabExtensions uses local discovery without making an unauthenticated request', async () => {
+  const fallbackResult = [discoveredExtension];
+  let fallbackCalls = 0;
+  let fetchCalls = 0;
+
+  const result = await loadDashboardTabExtensions({
+    useLegacyRegistryFallback: false,
+    fallbackLoader: () => {
+      fallbackCalls += 1;
+      return fallbackResult;
+    },
+    fetchImpl: async () => {
+      fetchCalls += 1;
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    },
+  });
+
+  assert.deepEqual(result, fallbackResult);
+  assert.equal(fallbackCalls, 1);
+  assert.equal(fetchCalls, 0);
 });
 
 test('loadDashboardTabExtensions falls back to local registry when discovery fails', async () => {
@@ -67,6 +99,7 @@ test('loadDashboardTabExtensions falls back to local registry when discovery fai
   try {
     const result = await loadDashboardTabExtensions({
       useLegacyRegistryFallback: false,
+      authorizationToken: 'firebase-id-token',
       fallbackLoader: () => {
         fallbackCalls += 1;
         return fallbackResult;
@@ -99,6 +132,7 @@ test('loadDashboardTabExtensions logs API error payload before falling back', as
   try {
     const result = await loadDashboardTabExtensions({
       useLegacyRegistryFallback: false,
+      authorizationToken: 'firebase-id-token',
       fallbackLoader: () => fallbackResult,
       fetchImpl: async () =>
         new Response(

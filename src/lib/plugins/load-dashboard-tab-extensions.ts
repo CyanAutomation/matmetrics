@@ -2,6 +2,7 @@ import { type ResolvedDashboardTabExtension } from '@/lib/plugins/types';
 
 export type LoadDashboardTabExtensionsOptions = {
   useLegacyRegistryFallback: boolean;
+  authorizationToken?: string | null;
   fallbackLoader: () => ResolvedDashboardTabExtension[];
   fetchImpl?: typeof fetch;
   endpoint?: string;
@@ -10,6 +11,7 @@ export type LoadDashboardTabExtensionsOptions = {
 
 export const loadDashboardTabExtensions = async ({
   useLegacyRegistryFallback,
+  authorizationToken,
   fallbackLoader,
   fetchImpl = fetch,
   endpoint = '/api/plugins/discovered-dashboard-tabs',
@@ -17,7 +19,7 @@ export const loadDashboardTabExtensions = async ({
 }: LoadDashboardTabExtensionsOptions): Promise<
   ResolvedDashboardTabExtension[]
 > => {
-  if (useLegacyRegistryFallback) {
+  if (useLegacyRegistryFallback || !authorizationToken) {
     return fallbackLoader();
   }
 
@@ -27,6 +29,7 @@ export const loadDashboardTabExtensions = async ({
     let response: Response;
     try {
       response = await fetchImpl(endpoint, {
+        headers: { Authorization: `Bearer ${authorizationToken}` },
         signal: controller.signal,
         cache: 'no-store',
       });

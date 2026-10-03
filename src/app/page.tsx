@@ -32,6 +32,7 @@ export default function Home() {
     retryPreferencesLoad,
     user,
     signOutUser,
+    getIdToken,
     authMode,
     authAvailable,
   } = useAuth();
@@ -56,10 +57,12 @@ export default function Home() {
   } = useDashboardState();
   const { visibleTabs, selectedTab, refreshPluginExtensions } = usePluginTabs({
     legacyPluginRegistryFallbackEnabled,
+    authReady,
     activeTab,
     hasUser: Boolean(user),
     isGuest: authMode === 'guest',
     authAvailable,
+    getIdToken,
   });
   const {
     isImportDialogOpen,

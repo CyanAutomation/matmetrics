@@ -44,6 +44,7 @@ type AuthContextValue = {
   canUseAi: boolean;
   canUseGitHubSync: boolean;
   canSavePreferences: boolean;
+  getIdToken: () => Promise<string | null>;
   retryPreferencesLoad: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
@@ -76,6 +77,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState(getCurrentPreferences());
   const isConfigured = isFirebaseConfigured();
   const authLoadGenerationRef = useRef(0);
+
+  const getIdToken = useCallback(async (): Promise<string | null> => {
+    if (!isConfigured) return null;
+    return getFirebaseAuth().currentUser?.getIdToken() ?? null;
+  }, [isConfigured]);
 
   const loadPreferencesForUser = useCallback(
     async (uid: string, generation: number): Promise<void> => {
@@ -168,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canUseAi: !!user && isConfigured,
       canUseGitHubSync: !!user && isConfigured,
       canSavePreferences: !!user && isConfigured,
+      getIdToken,
       async retryPreferencesLoad() {
         if (!user) {
           return;
@@ -206,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       authReady,
+      getIdToken,
       isConfigured,
       preferences,
       preferencesError,
