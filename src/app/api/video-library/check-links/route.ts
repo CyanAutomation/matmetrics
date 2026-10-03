@@ -6,6 +6,7 @@ import {
 } from '@/lib/network-safety';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
+import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 import {
   listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
@@ -313,6 +314,10 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    const storageResponse =
+      persistentSessionStorageUnavailableResponse(error);
+    if (storageResponse) return storageResponse;
+
     console.error('Error checking video links', error);
     return NextResponse.json(
       { error: 'Failed to check video links' },
