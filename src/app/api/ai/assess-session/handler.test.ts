@@ -223,7 +223,7 @@ test('assessment route returns a retryable message when the OpenRouter key is mi
     assert.deepEqual(await response.json(), {
       error: {
         code: 'AUTH_REQUIRED',
-        message: 'Training assistance is temporarily unavailable. Please try again later.',
+        message: 'AI features are temporarily unavailable. Please try again later.',
       },
     });
   } finally {
@@ -251,7 +251,7 @@ test('assessment route treats an expired OpenRouter key as unavailable service',
     assert.deepEqual(await response.json(), {
       error: {
         code: 'AUTH_REQUIRED',
-        message: 'Training assistance is temporarily unavailable. Please try again later.',
+        message: 'AI features are temporarily unavailable. Please try again later.',
         providerStatus: 401,
       },
     });
