@@ -33,12 +33,23 @@ type ParsedNode = {
   childNodes: ParsedNode[];
 };
 
-test('PluginAuthGateNotice switches copy based on auth availability', () => {
-  const signedOut = normalizeMarkup(
+test('PluginAuthGateNotice distinguishes signed-out and unavailable auth states', () => {
+  const authUnavailable = normalizeMarkup(
     renderToStaticMarkup(
       React.createElement(PluginAuthGateNotice, {
         isAuthenticated: false,
         authAvailable: false,
+        authUnavailableDescription: 'Authentication is not configured here.',
+      })
+    )
+  );
+
+  const signedOut = normalizeMarkup(
+    renderToStaticMarkup(
+      React.createElement(PluginAuthGateNotice, {
+        isAuthenticated: false,
+        authAvailable: true,
+        signedOutDescription: 'Sign in to save these settings.',
       })
     )
   );
@@ -52,7 +63,9 @@ test('PluginAuthGateNotice switches copy based on auth availability', () => {
     )
   );
 
-  assert.match(signedOut, /Authentication is currently unavailable/i);
+  assert.match(authUnavailable, /Authentication is not configured here/i);
+  assert.match(signedOut, /Sign in to save these settings/i);
+  assert.doesNotMatch(signedOut, /not configured/i);
   assert.match(signedIn, /requires an active session/i);
 });
 
