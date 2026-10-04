@@ -20,6 +20,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Failed to load user preferences', error);
+    if (error instanceof DataWorkerError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to load preferences' },
       { status: 500 }
@@ -58,6 +64,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error('Failed to save user preferences', error);
+    if (error instanceof DataWorkerError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to save preferences' },
       { status: 500 }

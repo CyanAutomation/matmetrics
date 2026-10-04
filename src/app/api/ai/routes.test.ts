@@ -63,7 +63,10 @@ test('technique suggestions return only candidates accepted by JEV verification'
   );
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { suggestions: ['O-soto-gari'] });
+  assert.deepEqual(await response.json(), {
+    suggestions: ['O-soto-gari'],
+    verificationStatus: 'verified',
+  });
   assert.deepEqual(verifiedInput, {
     description: 'We drilled O-soto-gari.',
     candidates: ['O-soto-gari', 'Uchi-mata'],
@@ -85,7 +88,10 @@ test('technique suggestions skip JEV verification when there are no candidates',
   );
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { suggestions: [] });
+  assert.deepEqual(await response.json(), {
+    suggestions: [],
+    verificationStatus: 'not_needed',
+  });
   assert.equal(verifyCalls, 0);
 });
 
@@ -101,8 +107,37 @@ test('technique suggestions preserve legacy behavior without an OpenRouter key',
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       suggestions: ['O-soto-gari'],
+      verificationStatus: 'not_configured',
     });
   } finally {
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});
+
+test('technique suggestions keep candidates when the optional OpenRouter key is expired', async () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleWarn = console.warn;
+  process.env.OPENROUTER_API_KEY = 'expired-openrouter-key';
+  globalThis.fetch = async () =>
+    Response.json({ error: { message: 'invalid api key' } }, { status: 401 });
+  console.warn = () => {};
+
+  try {
+    const suggest = createSuggestTechniquesPost(async () => ['O-soto-gari']);
+    const response = await suggest(
+      request(JSON.stringify({ description: 'We drilled O-soto-gari.' }))
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      suggestions: ['O-soto-gari'],
+      verificationStatus: 'unavailable',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalConsoleWarn;
     if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
     else process.env.OPENROUTER_API_KEY = originalKey;
   }
@@ -255,6 +290,89 @@ test('transform route never leaks internal provider error text', async () => {
     );
   } finally {
     console.error = originalConsoleError;
+  }
+});
+
+test('transform route degrades clearly when Cloudflare credentials are missing or rejected', async () => {
+  const originalToken = process.env.CLOUDFLARE_API_TOKEN;
+  const originalOpenRouterKey = process.env.OPENROUTER_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  process.env.OPENROUTER_API_KEY = '';
+  console.error = () => {};
+
+  try {
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    globalThis.fetch = async () => {
+      throw new Error('The missing key must prevent a request');
+    };
+    const missingKeyResponse = await createTransformDescriptionPost()(
+      request(JSON.stringify({ description: 'practice' }))
+    );
+    assert.equal(missingKeyResponse.status, 503);
+    assert.deepEqual(await missingKeyResponse.json(), {
+      error: {
+        code: 'AUTH_REQUIRED',
+        message: 'AI features are temporarily unavailable. Please try again later.',
+      },
+    });
+
+    process.env.CLOUDFLARE_API_TOKEN = 'expired-test-token';
+    globalThis.fetch = async () =>
+      Response.json({ error: { message: 'invalid token' } }, { status: 401 });
+    const expiredKeyResponse = await createTransformDescriptionPost()(
+      request(JSON.stringify({ description: 'practice' }))
+    );
+    assert.equal(expiredKeyResponse.status, 503);
+    assert.deepEqual(await expiredKeyResponse.json(), {
+      error: {
+        code: 'AUTH_REQUIRED',
+        message: 'AI features are temporarily unavailable. Please try again later.',
+        providerStatus: 401,
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+    if (originalToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = originalToken;
+    if (originalOpenRouterKey === undefined)
+      delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalOpenRouterKey;
+  }
+});
+
+test('transform route maps a disconnected AI endpoint to a retryable response', async () => {
+  const originalToken = process.env.CLOUDFLARE_API_TOKEN;
+  const originalOpenRouterKey = process.env.OPENROUTER_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+  delete process.env.OPENROUTER_API_KEY;
+  globalThis.fetch = async () => {
+    throw new TypeError('fetch failed');
+  };
+  console.error = () => {};
+
+  try {
+    const response = await createTransformDescriptionPost()(
+      request(JSON.stringify({ description: 'practice' }))
+    );
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'The AI service is temporarily unavailable. Please try again later.',
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+    if (originalToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = originalToken;
+    if (originalOpenRouterKey === undefined)
+      delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalOpenRouterKey;
   }
 });
 

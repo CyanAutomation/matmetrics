@@ -141,9 +141,13 @@ test('log-doctor route reports an unavailable queue configuration', async () => 
   const originalFetch = global.fetch;
   const originalToken = process.env.GITHUB_TOKEN;
   const originalAuthMode = process.env.MATMETRICS_AUTH_TEST_MODE;
+  const originalWorkerUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+  const originalWorkerSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
 
   process.env.GITHUB_TOKEN = 'ghs_test_token';
   process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
+  delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+  delete process.env.MATMETRICS_INTERNAL_API_SECRET;
 
   global.fetch = async () => {
     throw new Error('must not fetch');
@@ -157,7 +161,8 @@ test('log-doctor route reports an unavailable queue configuration', async () => 
     assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), {
       success: false,
-      message: 'Background jobs are not configured',
+      message:
+        'Background jobs are unavailable because the background data service is not configured.',
     });
   } finally {
     global.fetch = originalFetch;
@@ -171,6 +176,12 @@ test('log-doctor route reports an unavailable queue configuration', async () => 
     } else {
       process.env.MATMETRICS_AUTH_TEST_MODE = originalAuthMode;
     }
+    if (originalWorkerUrl === undefined)
+      delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    else process.env.CLOUDFLARE_DATA_WORKER_URL = originalWorkerUrl;
+    if (originalWorkerSecret === undefined)
+      delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+    else process.env.MATMETRICS_INTERNAL_API_SECRET = originalWorkerSecret;
   }
 });
 

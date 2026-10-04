@@ -8,6 +8,7 @@ import {
 import {
   aiApiError,
   classifyAiError,
+  getAiErrorProviderStatus,
   InvalidAiResponseError,
 } from '@/lib/ai-api-error';
 import { parseJsonObjectBody } from '@/lib/request-body';
@@ -146,8 +147,13 @@ export function createTransformDescriptionPost(
 
       return NextResponse.json(result);
     } catch (error) {
-      console.error('Error transforming description', error);
-      const response = aiApiError(classifyAiError(error));
+      const code = classifyAiError(error);
+      const providerStatus = getAiErrorProviderStatus(error);
+      console.error('Error transforming description', {
+        code,
+        ...(providerStatus === undefined ? {} : { providerStatus }),
+      });
+      const response = aiApiError(code, { providerStatus });
       return NextResponse.json(response.body, { status: response.status });
     }
   };

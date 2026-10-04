@@ -26,6 +26,12 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (error instanceof DataWorkerError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
     console.error('Failed to load background job', error);
     return NextResponse.json(
       { error: 'Failed to load background job' },

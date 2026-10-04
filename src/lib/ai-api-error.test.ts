@@ -13,6 +13,24 @@ test('classifyAiError identifies provider request rejections by HTTP status', ()
   assert.equal(classifyAiError({ status: 404 }), 'AI_PROVIDER_REJECTED');
 });
 
+test('classifyAiError treats missing or rejected provider keys as unavailable service', () => {
+  assert.equal(classifyAiError(new Error('API key is not configured')), 'AUTH_REQUIRED');
+  assert.equal(
+    classifyAiError(new Error('CLOUDFLARE_API_TOKEN environment variable is not set')),
+    'AUTH_REQUIRED'
+  );
+  assert.equal(classifyAiError({ status: 401 }), 'AUTH_REQUIRED');
+  assert.equal(classifyAiError({ status: 403 }), 'AUTH_REQUIRED');
+});
+
+test('classifyAiError treats disconnected and timed-out API endpoints as unavailable', () => {
+  assert.equal(classifyAiError(new TypeError('fetch failed')), 'SERVICE_UNAVAILABLE');
+  assert.equal(
+    classifyAiError(new DOMException('The request timed out', 'TimeoutError')),
+    'SERVICE_UNAVAILABLE'
+  );
+});
+
 test('provider rejection responses keep user-facing copy generic and preserve HTTP status', () => {
   assert.deepEqual(
     aiApiError('AI_PROVIDER_REJECTED', { providerStatus: 402 }),
@@ -28,11 +46,11 @@ test('provider rejection responses keep user-facing copy generic and preserve HT
     }
   );
   assert.deepEqual(aiApiError('AUTH_REQUIRED', { providerStatus: 401 }), {
-    status: 401,
+    status: 503,
     body: {
       error: {
         code: 'AUTH_REQUIRED',
-        message: 'AI service authentication is required.',
+        message: 'AI features are temporarily unavailable. Please try again later.',
         providerStatus: 401,
       },
     },
