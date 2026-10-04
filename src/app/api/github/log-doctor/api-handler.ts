@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
   if (!validation.ok) return validation.response;
   if (!isDataWorkerConfigured()) {
     return NextResponse.json(
-      { success: false, message: 'Background jobs are not configured' },
+      {
+        success: false,
+        message:
+          'Background jobs are unavailable because the background data service is not configured.',
+      },
       { status: 503 }
     );
   }

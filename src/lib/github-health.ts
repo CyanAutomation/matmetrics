@@ -18,7 +18,9 @@ export async function checkGitHubHealth(
   config: GitHubConfig
 ): Promise<GitHubHealthResult> {
   const token = process.env.GITHUB_TOKEN;
-  if (!token) throw new Error('GITHUB_TOKEN environment variable not set');
+  if (!token) {
+    throw new Error('GitHub repository access is not configured for this deployment');
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -43,6 +45,9 @@ export async function checkGitHubHealth(
     if (controller.signal.aborted) {
       throw new Error('GitHub API request timed out');
     }
+    if (error instanceof TypeError) {
+      throw new Error('GitHub could not be reached. Please try again shortly.');
+    }
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -52,6 +57,16 @@ export async function checkGitHubHealth(
     default_branch?: unknown;
   } | null;
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(
+        `GitHub rejected repository access (${response.status}). Check that the repository connection is still authorized.`
+      );
+    }
+    if (response.status >= 500) {
+      throw new Error(
+        `GitHub is temporarily unavailable (${response.status}). Please try again later.`
+      );
+    }
     const detail =
       typeof payload?.message === 'string'
         ? payload.message

@@ -28,6 +28,50 @@ beforeEach(() => {
   __resetManifestCacheForTests();
 });
 
+test('createSessionOnGitHub gives actionable guidance for an expired token', async () => {
+  await withMockedGitHub(
+    (async (_url, init) => {
+      assert.equal(
+        (init?.headers as Record<string, string>).Authorization,
+        'token test-token'
+      );
+      return Response.json({ message: 'Bad credentials' }, { status: 401 });
+    }) as typeof fetch,
+    async () => {
+      const result = await createSessionOnGitHub(makeTestSession('expired-token'), {
+        owner: 'o',
+        repo: 'r',
+        branch: 'main',
+      });
+
+      assert.equal(result.success, false);
+      assert.match(result.message, /GitHub rejected the repository connection \(401\)/);
+      assert.match(result.message, /Check that it is still authorized/);
+      assert.doesNotMatch(result.message, /Bad credentials/);
+    }
+  );
+});
+
+test('createSessionOnGitHub reports a disconnected endpoint without raw fetch errors', async () => {
+  await withMockedGitHub(
+    (async () => {
+      throw new TypeError('fetch failed with internal socket details');
+    }) as typeof fetch,
+    async () => {
+      const result = await createSessionOnGitHub(makeTestSession('offline'), {
+        owner: 'o',
+        repo: 'r',
+        branch: 'main',
+      });
+
+      assert.equal(result.success, false);
+      assert.match(result.message, /GitHub could not be reached/);
+      assert.match(result.message, /try again shortly/i);
+      assert.doesNotMatch(result.message, /internal socket details/);
+    }
+  );
+});
+
 test('manifest cache bounds scopes and entries with isolated LRU eviction', () => {
   process.env.GITHUB_TOKEN = 'test-token';
   __configureGitHubCachesForTests({ manifestMaxScopes: 2, manifestMaxEntries: 2 });

@@ -12,6 +12,7 @@ type GitHubConfigLike = Partial<GitHubConfig> | null | undefined;
 
 export const INVALID_GO_PROXY_BASE_URL_MESSAGE =
   'Invalid MATMETRICS_GO_PROXY_BASE_URL; expected absolute URL such as https://host:port';
+const GO_PROXY_REQUEST_TIMEOUT_MS = 15_000;
 
 function isJsonContentType(contentType: string | null): boolean {
   if (!contentType) {
@@ -73,11 +74,34 @@ export async function proxyGoFunction(
     headers.set('authorization', authorization);
   }
 
-  const response = await fetch(targetURL.toString(), {
-    method: options.method || 'POST',
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(targetURL.toString(), {
+      method: options.method || 'POST',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: AbortSignal.timeout(GO_PROXY_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const errorName = error instanceof Error ? error.name : '';
+    if (errorName === 'AbortError' || errorName === 'TimeoutError') {
+      return NextResponse.json(
+        {
+          error: 'The storage service did not respond in time. Please try again.',
+        },
+        { status: 504 }
+      );
+    }
+    if (error instanceof TypeError) {
+      return NextResponse.json(
+        {
+          error: 'The storage service is temporarily unavailable. Please try again later.',
+        },
+        { status: 503 }
+      );
+    }
+    throw error;
+  }
 
   const contentType = response.headers.get('content-type');
 

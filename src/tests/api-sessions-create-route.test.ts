@@ -123,7 +123,7 @@ test('POST returns 503 instead of falling back to local files on Vercel Preview'
         assert.equal(response.status, 503);
         assert.deepEqual(await response.json(), {
           error:
-            'Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel.',
+            'Session storage is unavailable because persistent GitHub storage is not configured for this deployment. Please contact the site administrator.',
         });
       });
     });

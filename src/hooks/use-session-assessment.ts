@@ -51,8 +51,12 @@ export function useSessionAssessment() {
         if (nextController.signal.aborted) return;
         assessmentRef.current = candidate;
         setAssessment(candidate);
-      } catch {
+      } catch (error) {
         if (nextController.signal.aborted) return;
+        if (error instanceof TypeError) {
+          failureMessage =
+            'Could not reach training assistance. Check your connection and try again.';
+        }
         assessmentRef.current = null;
         setAssessment(null);
         toast({

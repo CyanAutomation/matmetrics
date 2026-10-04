@@ -88,6 +88,27 @@ test('proxyGoFunction preserves empty non-JSON responses', async () => {
   }
 });
 
+test('proxyGoFunction turns endpoint disconnectivity into a useful retryable response', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    throw new TypeError('fetch failed with internal socket details');
+  };
+
+  try {
+    const response = await proxyGoFunction(buildRequest(), {
+      path: '/api/go/sessions/list',
+      method: 'GET',
+    });
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: 'The storage service is temporarily unavailable. Please try again later.',
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('proxyGoFunction throws a controlled error for malformed MATMETRICS_GO_PROXY_BASE_URL', async () => {
   const originalBaseUrl = process.env.MATMETRICS_GO_PROXY_BASE_URL;
   process.env.MATMETRICS_GO_PROXY_BASE_URL = '://invalid-base-url';

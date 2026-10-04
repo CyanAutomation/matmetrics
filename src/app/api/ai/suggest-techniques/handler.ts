@@ -8,12 +8,22 @@ import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { callCloudflareAi } from '@/lib/cloudflare-ai-client';
 import { verifyTechniqueCandidatesWithJev } from '@/lib/jev-client';
+import {
+  aiApiError,
+  classifyAiError,
+  getAiErrorProviderStatus,
+} from '@/lib/ai-api-error';
 
 type SuggestFunction = (input: { description: string }) => Promise<string[]>;
 type VerifyFunction = (input: {
   description: string;
   candidates: string[];
 }) => Promise<string[]>;
+type VerificationStatus =
+  | 'verified'
+  | 'not_configured'
+  | 'unavailable'
+  | 'not_needed';
 
 async function suggestTechniquesWithCloudflare(input: {
   description: string;
@@ -120,18 +130,39 @@ export function createSuggestTechniquesPost(
       const candidates = await suggest({
         description,
       });
-      const suggestions =
-        candidates.length === 0
-          ? []
-          : await verify({ description, candidates });
+      let suggestions = candidates;
+      let verificationStatus: VerificationStatus =
+        candidates.length === 0 ? 'not_needed' : 'verified';
+      if (candidates.length > 0) {
+        if (
+          verify === verifySuggestionsWithJevIfConfigured &&
+          !process.env.OPENROUTER_API_KEY
+        ) {
+          verificationStatus = 'not_configured';
+        } else {
+          try {
+            suggestions = await verify({ description, candidates });
+          } catch {
+            // Verification is optional. Keep the generated candidates usable,
+            // but tell the user to review them before saving.
+            verificationStatus = 'unavailable';
+            console.warn(
+              'Technique suggestions returned without the optional accuracy check'
+            );
+          }
+        }
+      }
 
-      return NextResponse.json({ suggestions });
+      return NextResponse.json({ suggestions, verificationStatus });
     } catch (error) {
-      console.error('Error suggesting techniques', error);
-      return NextResponse.json(
-        { error: 'Failed to suggest techniques' },
-        { status: 500 }
-      );
+      const code = classifyAiError(error);
+      const providerStatus = getAiErrorProviderStatus(error);
+      console.error('Error suggesting techniques', {
+        code,
+        ...(providerStatus === undefined ? {} : { providerStatus }),
+      });
+      const response = aiApiError(code, { providerStatus });
+      return NextResponse.json(response.body, { status: response.status });
     }
   };
 }

@@ -76,3 +76,64 @@ test('checkGitHubHealth reports an aborted GitHub request as a timeout', async (
     else process.env.GITHUB_TOKEN = originalToken;
   }
 });
+
+test('checkGitHubHealth explains missing GitHub repository access without naming a secret', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  delete process.env.GITHUB_TOKEN;
+
+  try {
+    await assert.rejects(
+      checkGitHubHealth({ owner: 'owner', repo: 'repo' }),
+      /GitHub repository access is not configured for this deployment/
+    );
+  } finally {
+    if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
+test('checkGitHubHealth gives actionable guidance when GitHub rejects an expired token', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'expired-test-token';
+  globalThis.fetch = async () =>
+    Response.json({ message: 'Bad credentials' }, { status: 401 });
+
+  try {
+    await assert.rejects(
+      checkGitHubHealth({ owner: 'owner', repo: 'repo' }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('GitHub rejected repository access (401)') &&
+        error.message.includes('repository connection is still authorized') &&
+        !error.message.includes('Bad credentials')
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
+test('checkGitHubHealth reports a disconnected GitHub endpoint safely', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+  globalThis.fetch = async () => {
+    throw new TypeError('fetch failed with internal socket details');
+  };
+
+  try {
+    await assert.rejects(
+      checkGitHubHealth({ owner: 'owner', repo: 'repo' }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message ===
+          'GitHub could not be reached. Please try again shortly.'
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = originalToken;
+  }
+});

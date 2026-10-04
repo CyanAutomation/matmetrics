@@ -185,6 +185,54 @@ test('transform handles a non-JSON error response using its status', async () =>
   );
 });
 
+test('suggestions show a review reminder when the optional accuracy check is unavailable', async () => {
+  const harness = setup();
+  let completed!: Promise<void>;
+  await act(async () => {
+    completed = harness.hook.suggest('uchi mata entries', [], () => undefined);
+  });
+  await act(async () => {
+    harness.calls[0].result.resolve(
+      response({
+        suggestions: ['Uchi-mata'],
+        verificationStatus: 'unavailable',
+      })
+    );
+    await completed;
+  });
+
+  assert.equal(
+    harness.state().suggestMessage,
+    'Added 1 suggested technique. These suggestions have not been checked for accuracy. Review them before saving.'
+  );
+  assert.equal(
+    harness.view.getByTestId('toast-description').textContent,
+    harness.state().suggestMessage
+  );
+});
+
+test('suggestions report provider credential failures as service outages, not expired user sessions', async () => {
+  const harness = setup();
+  let completed!: Promise<void>;
+  await act(async () => {
+    completed = harness.hook.suggest('draft', [], () => undefined);
+  });
+  await act(async () => {
+    harness.calls[0].result.resolve(
+      response(
+        { error: { code: 'AUTH_REQUIRED' } },
+        { ok: false, status: 503 }
+      )
+    );
+    await completed;
+  });
+
+  assert.equal(
+    harness.view.getByTestId('toast-description').textContent,
+    'The AI service is temporarily unavailable. Please try again later.'
+  );
+});
+
 test('transform reports network failures without exposing the rejection', async () => {
   const harness = setup();
   let completed!: Promise<void>;
