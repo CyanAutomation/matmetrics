@@ -62,7 +62,8 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 
 - `GITHUB_TOKEN` (required)
   - Used by server-side GitHub API calls.
-  - If missing, validation/sync endpoints return an error (`GITHUB_TOKEN environment variable not configured`).
+  - If repository access is not configured, validation/sync endpoints return `503` and explain that GitHub features are unavailable for this deployment.
+  - Expired tokens return an authorization message asking the user to check the repository connection.
 - Firebase admin configuration (required outside test mode)
   - Needed by server auth verification and user preference retrieval.
 - Optional auth test mode variables (for automated tests only):

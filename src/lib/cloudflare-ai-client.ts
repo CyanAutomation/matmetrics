@@ -30,6 +30,11 @@ interface CloudflareAiResponse {
 // Cloudflare AI Gateway endpoint (OpenAI-compatible)
 const CLOUDFLARE_GATEWAY_URL =
   'https://gateway.ai.cloudflare.com/v1/c40f3cb30efbf8c6d081cf9e50a61931/default/compat/chat/completions';
+const CLOUDFLARE_REQUEST_TIMEOUT_MS = 15_000;
+
+function createProviderHttpError(message: string, status: number): Error {
+  return Object.assign(new Error(message), { status });
+}
 
 /**
  * Parse Cloudflare Gateway content which can be either:
@@ -72,6 +77,7 @@ export async function callCloudflareAi(
       messages: request.messages,
       max_tokens: request.maxTokens ?? 1024,
     }),
+    signal: AbortSignal.timeout(CLOUDFLARE_REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -82,17 +88,27 @@ export async function callCloudflareAi(
       body: errorText,
     });
 
-    if (response.status === 401) {
-      throw new Error('Cloudflare AI authentication failed');
+    if (response.status === 401 || response.status === 403) {
+      throw createProviderHttpError(
+        'Cloudflare AI authentication failed',
+        response.status
+      );
     }
     if (response.status === 429) {
-      throw new Error('Cloudflare AI rate limit exceeded');
+      throw createProviderHttpError(
+        'Cloudflare AI rate limit exceeded',
+        response.status
+      );
     }
     if (response.status === 503) {
-      throw new Error('Cloudflare AI service unavailable');
+      throw createProviderHttpError(
+        'Cloudflare AI service unavailable',
+        response.status
+      );
     }
-    throw new Error(
-      `Cloudflare AI request failed with status ${response.status}`
+    throw createProviderHttpError(
+      `Cloudflare AI request failed with status ${response.status}`,
+      response.status
     );
   }
 

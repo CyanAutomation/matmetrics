@@ -76,12 +76,11 @@ async function readTransformError(
   const normalizedCode = code?.toUpperCase();
   if (
     normalizedCode &&
-    ['UNAUTHORIZED', 'FORBIDDEN', 'AUTH_REQUIRED', 'SESSION_EXPIRED'].includes(
-      normalizedCode
-    )
+    ['UNAUTHORIZED', 'FORBIDDEN', 'SESSION_EXPIRED'].includes(normalizedCode)
   ) {
     return 'authentication';
   }
+  if (normalizedCode === 'AUTH_REQUIRED') return 'unavailable';
   if (
     normalizedCode === 'PAYLOAD_TOO_LARGE' ||
     normalizedCode === 'TOO_LARGE'
@@ -330,7 +329,7 @@ export function useSessionFormAi(
         });
 
         if (!response.ok) {
-          throw new Error('Failed to suggest techniques');
+          throw new TransformFailureError(await readTransformError(response));
         }
         const payload = await response.json();
         if (controller.signal.aborted) return;
@@ -344,24 +343,40 @@ export function useSessionFormAi(
         const uniqueNew = suggestions.filter(
           (s) => !existingTechniques.includes(s)
         );
+        const verificationStatus =
+          payload && typeof payload === 'object'
+            ? (payload as { verificationStatus?: unknown }).verificationStatus
+            : undefined;
+        const verificationNote =
+          verificationStatus === 'not_configured' ||
+          verificationStatus === 'unavailable'
+            ? 'These suggestions have not been checked for accuracy. Review them before saving.'
+            : '';
 
         if (uniqueNew.length > 0) {
           setSuggestedTechniques(uniqueNew);
-          setSuggestMessage(
+          const message = [
             `Added ${uniqueNew.length} suggested ${
               uniqueNew.length === 1 ? 'technique' : 'techniques'
-            }.`
-          );
+            }.`,
+            verificationNote,
+          ]
+            .filter(Boolean)
+            .join(' ');
+          setSuggestMessage(message);
           onSuccess(uniqueNew);
           toast({
             title: 'AI Suggestions Added',
-            description: `Identified ${uniqueNew.length} techniques from your description.`,
+            description: message,
           });
         } else {
-          const message =
+          const resultMessage =
             suggestions.length > 0
               ? 'All suggested techniques are already tagged.'
               : 'No specific techniques were identified in these notes.';
+          const message = [resultMessage, verificationNote]
+            .filter(Boolean)
+            .join(' ');
           setSuggestMessage(message);
           toast({
             description: message,
@@ -375,13 +390,13 @@ export function useSessionFormAi(
         ) {
           return;
         }
-        setSuggestMessage(
-          'The AI helper could not suggest techniques. Please try again.'
-        );
+        const failure =
+          error instanceof TransformFailureError ? error.failure : 'network';
+        setSuggestMessage(transformFailureDescriptions[failure]);
         toast({
           variant: 'destructive',
           title: 'AI Suggestion Failed',
-          description: 'There was an error connecting to the AI helper.',
+          description: transformFailureDescriptions[failure],
         });
       } finally {
         if (suggestControllerRef.current === controller) {

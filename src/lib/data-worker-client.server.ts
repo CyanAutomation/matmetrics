@@ -15,8 +15,8 @@ export class DataWorkerError extends Error {
 
 export function isDataWorkerConfigured(): boolean {
   return Boolean(
-    process.env.CLOUDFLARE_DATA_WORKER_URL &&
-    process.env.MATMETRICS_INTERNAL_API_SECRET
+    process.env.CLOUDFLARE_DATA_WORKER_URL?.trim() &&
+    process.env.MATMETRICS_INTERNAL_API_SECRET?.trim()
   );
 }
 
@@ -43,15 +43,27 @@ export async function requestDataWorker<T>(
     body?: unknown;
   }
 ): Promise<T> {
-  const baseUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
-  const secret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+  const baseUrl = process.env.CLOUDFLARE_DATA_WORKER_URL?.trim();
+  const configuredSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+  const secret = configuredSecret?.trim() ? configuredSecret : undefined;
   if (!baseUrl || !secret) {
     throw new Error('Cloudflare data Worker is not configured');
   }
 
-  const url = new URL(path, baseUrl);
+  let url: URL;
+  try {
+    url = new URL(path, baseUrl);
+  } catch {
+    throw new DataWorkerError(
+      'The background data service is not configured correctly. Please contact the site administrator.',
+      503
+    );
+  }
   if (url.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
-    throw new Error('Cloudflare data Worker URL must use HTTPS in production');
+    throw new DataWorkerError(
+      'The background data service is not configured securely. Please contact the site administrator.',
+      503
+    );
   }
 
   const body = options.body === undefined ? '' : JSON.stringify(options.body);
@@ -79,8 +91,14 @@ export async function requestDataWorker<T>(
   } catch (error) {
     if (controller.signal.aborted) {
       throw new DataWorkerError(
-        `Cloudflare data Worker request timed out after ${DATA_WORKER_REQUEST_TIMEOUT_MS}ms`,
+        'The background data service did not respond in time. Please try again.',
         504
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new DataWorkerError(
+        'The background data service is temporarily unavailable. Please try again.',
+        503
       );
     }
     throw error;
@@ -90,6 +108,16 @@ export async function requestDataWorker<T>(
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      response.status >= 500
+    ) {
+      throw new DataWorkerError(
+        'The background data service is temporarily unavailable. Please try again.',
+        503
+      );
+    }
     throw new DataWorkerError(
       typeof payload?.error === 'string'
         ? payload.error

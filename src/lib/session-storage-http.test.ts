@@ -12,7 +12,7 @@ test('persistent storage configuration failures return a service-unavailable res
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), {
     error:
-      'Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel.',
+      'Session storage is unavailable because persistent GitHub storage is not configured for this deployment. Please contact the site administrator.',
   });
 });
 

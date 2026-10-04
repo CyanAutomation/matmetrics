@@ -38,8 +38,8 @@ const ERROR_DETAILS: Record<
       'The AI service is temporarily unavailable. Please try again later.',
   },
   AUTH_REQUIRED: {
-    status: 401,
-    message: 'AI service authentication is required.',
+    status: 503,
+    message: 'AI features are temporarily unavailable. Please try again later.',
   },
   INPUT_TOO_LARGE: {
     status: 413,
@@ -154,6 +154,7 @@ export function classifyAiError(error: unknown): AiApiErrorCode {
   if (error instanceof InvalidAiResponseError) return 'INVALID_AI_RESPONSE';
 
   const { code, message = '', status } = errorProperties(error);
+  const errorName = error instanceof Error ? error.name : '';
   const identifiers = [code, status]
     .map((value) => String(value ?? '').toUpperCase())
     .filter(Boolean);
@@ -162,9 +163,17 @@ export function classifyAiError(error: unknown): AiApiErrorCode {
   if (
     /cloudflare ai authentication failed/i.test(message) ||
     /CLOUDFLARE_API_TOKEN.*not set/i.test(message) ||
-    /OPENROUTER_API_KEY.*not set/i.test(message)
+    /OPENROUTER_API_KEY.*not set/i.test(message) ||
+    /API key is not configured/i.test(message)
   ) {
     return 'AUTH_REQUIRED';
+  }
+  if (
+    error instanceof TypeError ||
+    errorName === 'AbortError' ||
+    errorName === 'TimeoutError'
+  ) {
+    return 'SERVICE_UNAVAILABLE';
   }
   if (/cloudflare ai rate limit/i.test(message)) {
     return 'RATE_LIMITED';

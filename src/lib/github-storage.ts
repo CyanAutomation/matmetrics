@@ -109,11 +109,11 @@ function getActionableGitHubErrorMessage(
 ): string {
   if (error instanceof GitHubApiError) {
     if (error.status === 401) {
-      return `${action} failed: GitHub authentication failed (401). Verify GITHUB_TOKEN is valid and has repository access.`;
+      return `${action} failed: GitHub rejected the repository connection (401). Check that it is still authorized.`;
     }
 
     if (error.status === 403) {
-      return `${action} failed: GitHub access is forbidden (403). Check token permissions and repository visibility.`;
+      return `${action} failed: GitHub denied repository access (403). Check that the connected account can access the repository.`;
     }
 
     if (error.status === 429) {
@@ -125,6 +125,10 @@ function getActionableGitHubErrorMessage(
     }
 
     return `${action} failed: ${error.message}`;
+  }
+
+  if (error instanceof TypeError) {
+    return `${action} failed: GitHub could not be reached. Please try again shortly.`;
   }
 
   if (error instanceof Error) {

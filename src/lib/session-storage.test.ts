@@ -612,7 +612,7 @@ test('session storage refuses local-file fallback on Vercel preview deployments'
   try {
     await assert.rejects(
       listSessionsForConfigWithIssues(undefined),
-      /Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel\./
+      /Session storage is unavailable because persistent GitHub storage is not configured for this deployment\. Please contact the site administrator\./
     );
   } finally {
     if (previousVercel === undefined) delete process.env.VERCEL;
@@ -656,7 +656,7 @@ test('all session operations reject local-file fallback on Vercel production', a
     for (const operation of localFallbackOperations) {
       await assert.rejects(
         operation(),
-        /Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel\./
+        /Session storage is unavailable because persistent GitHub storage is not configured for this deployment\. Please contact the site administrator\./
       );
     }
   } finally {

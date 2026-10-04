@@ -27,9 +27,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'GITHUB_TOKEN environment variable not configured',
+          message:
+            'GitHub features are unavailable because repository access is not configured for this deployment.',
         },
-        { status: 400 }
+        { status: 503 }
       );
     }
 

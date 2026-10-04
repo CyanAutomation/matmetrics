@@ -207,3 +207,58 @@ test('assessment route returns a safe provider HTTP diagnostic without provider 
     console.error = originalConsoleError;
   }
 });
+
+test('assessment route returns a retryable message when the OpenRouter key is missing', async () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalConsoleError = console.error;
+  delete process.env.OPENROUTER_API_KEY;
+  console.error = () => {};
+
+  try {
+    const response = await createAssessSessionPost()(
+      request({ description: 'Practice.' })
+    );
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: 'AUTH_REQUIRED',
+        message: 'Training assistance is temporarily unavailable. Please try again later.',
+      },
+    });
+  } finally {
+    console.error = originalConsoleError;
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});
+
+test('assessment route treats an expired OpenRouter key as unavailable service', async () => {
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  process.env.OPENROUTER_API_KEY = 'expired-openrouter-key';
+  globalThis.fetch = async () =>
+    Response.json({ error: { message: 'invalid api key' } }, { status: 401 });
+  console.error = () => {};
+
+  try {
+    const response = await createAssessSessionPost()(
+      request({ description: 'Practice.' })
+    );
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: 'AUTH_REQUIRED',
+        message: 'Training assistance is temporarily unavailable. Please try again later.',
+        providerStatus: 401,
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
+  }
+});

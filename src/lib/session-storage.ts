@@ -31,7 +31,7 @@ export { GitHubRevisionConflictError } from './github-storage';
 export class PersistentSessionStorageUnavailableError extends Error {
   constructor() {
     super(
-      'Session storage requires a configured GitHub repository and GITHUB_TOKEN on Vercel.'
+      'Session storage is unavailable because persistent GitHub storage is not configured for this deployment. Please contact the site administrator.'
     );
     this.name = 'PersistentSessionStorageUnavailableError';
     Object.setPrototypeOf(this, new.target.prototype);
