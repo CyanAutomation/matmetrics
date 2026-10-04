@@ -137,7 +137,8 @@ export function PromptSettings() {
           isAuthenticated={Boolean(user)}
           authAvailable={authAvailable}
           signedInDescription="Custom AI prompts are only available for signed-in accounts because prompt preferences are stored per user."
-          signedOutDescription="Custom AI prompts are unavailable because Firebase authentication is not configured for this deployment."
+          signedOutDescription="Sign in to save custom AI prompts for your account."
+          authUnavailableDescription="Custom AI prompts are unavailable because authentication is not configured for this deployment."
         />
       )}
 

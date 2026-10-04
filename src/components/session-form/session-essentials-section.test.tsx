@@ -41,3 +41,33 @@ test('session essentials keeps the coach illustration out of the tablet-only sta
     /hidden md:flex/
   );
 });
+
+test('effort options use a neutral surface until selected', () => {
+  const document = parse(
+    renderToStaticMarkup(
+      React.createElement(SessionEssentialsSection, {
+        date: '2026-09-28',
+        duration: '',
+        category: 'Technical',
+        availableCategories: ['Technical'],
+        effort: 3,
+        showAvatar: false,
+        shouldHideHeader: false,
+        fid: (suffix: string) => suffix,
+        setDate: () => undefined,
+        setDuration: () => undefined,
+        setCategory: () => undefined,
+        setEffort: () => undefined,
+      })
+    )
+  );
+  const options = document.querySelectorAll('[aria-label^="Effort level:"]');
+  const selected = document.querySelector('[aria-label="Effort level: Normal"]');
+  const unselected = document.querySelector('[aria-label="Effort level: Easy"]');
+
+  assert.equal(options.length, 5);
+  assert.equal(selected?.getAttribute('aria-pressed'), 'true');
+  assert.equal(unselected?.getAttribute('aria-pressed'), 'false');
+  assert.match(selected?.getAttribute('class') ?? '', /bg-\[linear-gradient/);
+  assert.doesNotMatch(unselected?.getAttribute('class') ?? '', /bg-\[linear-gradient/);
+});

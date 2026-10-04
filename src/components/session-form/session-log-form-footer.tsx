@@ -48,10 +48,10 @@ export function SessionLogFormFooter({
             aria-label="Cancel"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="h-11 gap-2 px-3 sm:px-5"
+            className="h-11 gap-1 px-2 sm:gap-2 sm:px-5"
           >
             <Undo2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Cancel</span>
+            <span>Cancel</span>
           </Button>
         )}
         {currentStep > 0 ? (
@@ -60,7 +60,7 @@ export function SessionLogFormFooter({
             variant="outline"
             onClick={onPrevious}
             disabled={isSubmitting}
-            className="h-11 gap-2 px-3 sm:px-5"
+            className="h-11 gap-1 px-2 sm:gap-2 sm:px-5"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -78,7 +78,7 @@ export function SessionLogFormFooter({
             'gap-2 font-bold shadow-lg',
             !shouldHideHeader
               ? 'px-10 py-6 text-lg h-14'
-              : 'px-5 py-5 h-12 sm:px-8'
+              : 'px-3 py-5 h-12 sm:px-8'
           )}
         >
           {isSubmitting ? (

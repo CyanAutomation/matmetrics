@@ -99,6 +99,7 @@ export function SessionTypes() {
           authAvailable={authAvailable}
           signedInDescription="Session-type preferences are stored securely for your account."
           signedOutDescription="Sign in to customise the session types available in your workspace."
+          authUnavailableDescription="Session-type preferences are unavailable because authentication is not configured for this deployment."
         />
       )}
 

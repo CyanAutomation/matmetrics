@@ -352,6 +352,7 @@ export function TagManager({ onRefresh }: TagManagerProps) {
     <PluginPageShell
       title="Tag Manager"
       description="Search, rename, merge, or remove tagged techniques."
+      tone="info"
       icon={<Tags className="h-6 w-6" />}
     >
       <DataToolbar

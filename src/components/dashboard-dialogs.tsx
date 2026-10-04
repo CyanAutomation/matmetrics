@@ -47,7 +47,7 @@ export function DashboardDialogs({
     <>
       <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="sticky top-0 z-20 border-b bg-card/95 px-5 py-4 backdrop-blur sm:px-6">
+          <DialogHeader className="sticky top-0 z-20 border-b bg-card/95 px-5 py-4 pr-12 backdrop-blur sm:px-6 sm:pr-12">
             <DialogTitle>Log session</DialogTitle>
             <DialogDescription>
               Add session details and practice notes, then review before saving.
