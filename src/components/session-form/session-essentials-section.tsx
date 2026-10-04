@@ -173,11 +173,12 @@ export function SessionEssentialsSection({
                   <Button
                     key={fid(`effort-${val}`)}
                     type="button"
+                    variant={isSelected ? 'default' : 'outline'}
                     onClick={() => setEffort(effortVal)}
                     className={cn(
                       'min-h-10 min-w-0 px-1 text-[11px] font-semibold leading-none transition-all duration-200 @min-[30rem]/essentials:px-2 @min-[30rem]/essentials:text-sm',
                       isSelected
-                        ? 'border border-primary bg-primary text-primary-foreground shadow-sm'
+                        ? 'border border-primary text-primary-foreground shadow-sm'
                         : 'border border-input bg-background text-foreground hover:bg-muted'
                     )}
                     title={EFFORT_LABELS[effortVal]}

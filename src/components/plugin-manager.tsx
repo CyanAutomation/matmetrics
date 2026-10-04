@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, Info, RefreshCw } from 'lucide-react';
+import { AlertCircle, Info, Puzzle, RefreshCw } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -690,6 +690,8 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
     <PluginPageShell
       title="Extensions"
       description="Enable or disable installed extensions, and review any issues."
+      tone="info"
+      icon={<Puzzle className="h-6 w-6" />}
       contentClassName={PLUGIN_PAGE_CLASS_PATTERNS.verticalSpacing}
     >
       {accessAlert}

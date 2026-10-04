@@ -179,7 +179,8 @@ export function GitHubSettings() {
           isAuthenticated={Boolean(user)}
           authAvailable={authAvailable}
           signedInDescription="GitHub sync is only available for signed-in accounts because repository settings are stored per user."
-          signedOutDescription="GitHub sync is unavailable because Firebase authentication is not configured for this deployment."
+          signedOutDescription="Sign in to configure GitHub backup for your account."
+          authUnavailableDescription="GitHub backup is unavailable because authentication is not configured for this deployment."
         />
       )}
 

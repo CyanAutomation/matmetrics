@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
+import { getAuthErrorMessage } from '@/lib/auth-error-message';
 
 type AuthMode = 'sign-in' | 'sign-up' | 'passkey-sign-up' | 'reset';
 
@@ -85,11 +86,9 @@ export function SignInScreen({
       setMode('sign-in');
     } catch (error) {
       emailFeedback.showError();
-      const message =
-        error instanceof Error ? error.message : 'Authentication failed';
       toast({
         title: 'Authentication error',
-        description: message,
+        description: getAuthErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -107,8 +106,10 @@ export function SignInScreen({
       passkeyFeedback.showError();
       toast({
         title: 'Passkey sign-in failed',
-        description:
-          error instanceof Error ? error.message : 'Could not sign in with a passkey',
+        description: getAuthErrorMessage(
+          error,
+          'Could not sign in with a passkey. Please try again.'
+        ),
         variant: 'destructive',
       });
     } finally {
@@ -124,11 +125,12 @@ export function SignInScreen({
       onAuthenticated?.();
     } catch (error) {
       googleFeedback.showError();
-      const message =
-        error instanceof Error ? error.message : 'Google sign-in failed';
       toast({
         title: 'Authentication error',
-        description: message,
+        description: getAuthErrorMessage(
+          error,
+          'Google sign-in failed. Please try again.'
+        ),
         variant: 'destructive',
       });
     } finally {
@@ -144,11 +146,12 @@ export function SignInScreen({
       onAuthenticated?.();
     } catch (error) {
       githubFeedback.showError();
-      const message =
-        error instanceof Error ? error.message : 'GitHub sign-in failed';
       toast({
         title: 'Authentication error',
-        description: message,
+        description: getAuthErrorMessage(
+          error,
+          'GitHub sign-in failed. Please try again.'
+        ),
         variant: 'destructive',
       });
     } finally {

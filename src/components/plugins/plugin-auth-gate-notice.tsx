@@ -11,6 +11,7 @@ type PluginAuthGateNoticeProps = {
   title?: ReactNode;
   signedInDescription?: ReactNode;
   signedOutDescription?: ReactNode;
+  authUnavailableDescription?: ReactNode;
   tone?: PluginThemeTone;
   className?: string;
 };
@@ -20,12 +21,14 @@ export function PluginAuthGateNotice({
   authAvailable,
   title = 'Sign-in required',
   signedInDescription = 'Authentication is available, but this plugin requires an active session before running protected actions.',
-  signedOutDescription = 'Authentication is currently unavailable. Sign in to unlock plugin actions that require secure API access.',
+  signedOutDescription = 'Sign in to unlock plugin actions that require secure API access.',
+  authUnavailableDescription = 'Authentication is not configured for this deployment.',
   tone = 'warning',
   className,
 }: PluginAuthGateNoticeProps) {
-  const description =
-    authAvailable && isAuthenticated
+  const description = !authAvailable
+    ? authUnavailableDescription
+    : isAuthenticated
       ? signedInDescription
       : signedOutDescription;
 
