@@ -120,20 +120,9 @@ test('formatLocalDateInputValue uses local components and zero-pads values', () 
   });
 });
 
-test('formatLocalDateInputValue stays stable near midnight local boundaries', () => {
-  const justAfterMidnight = formatLocalDateInputValue(
-    new Date(2025, 6, 15, 0, 0, 0)
-  );
-  const justBeforeMidnight = formatLocalDateInputValue(
-    new Date(2025, 6, 15, 23, 59, 59)
-  );
-
-  assert.equal(justAfterMidnight, '2025-07-15');
-  assert.equal(justBeforeMidnight, '2025-07-15');
-});
-
 type DateFixture = {
   components: [number, number, number];
+  time?: [number, number, number];
   expected: string;
   expectedOffset: number;
 };
@@ -146,8 +135,9 @@ function formatFixturesInTimezone(fixtures: DateFixture[], timezone: string) {
 
     const { formatLocalDateInputValue } = utils;
     const fixtures = ${JSON.stringify(fixtures)};
-    const results = fixtures.map(({ components }) => {
-      const date = new Date(...components, 12, 0, 0);
+    const results = fixtures.map(({ components, time }) => {
+      const [hour, minute, second] = time ?? [12, 0, 0];
+      const date = new Date(...components, hour, minute, second);
       return {
         formatted: formatLocalDateInputValue(date),
         offset: date.getTimezoneOffset(),
@@ -172,6 +162,8 @@ function formatFixturesInTimezone(fixtures: DateFixture[], timezone: string) {
 }
 
 test('formatLocalDateInputValue uses deterministic New York transition fixtures', () => {
+  // Session dates are local calendar dates in the shared session contract:
+  // docs/go-contract.md#session-shape.
   const fixtures: DateFixture[] = [
     // Immediately before, on, and after the 2025 spring-forward date.
     { components: [2025, 2, 8], expected: '2025-03-08', expectedOffset: 300 },
@@ -181,6 +173,18 @@ test('formatLocalDateInputValue uses deterministic New York transition fixtures'
     { components: [2025, 10, 1], expected: '2025-11-01', expectedOffset: 240 },
     { components: [2025, 10, 2], expected: '2025-11-02', expectedOffset: 300 },
     { components: [2025, 10, 3], expected: '2025-11-03', expectedOffset: 300 },
+    {
+      components: [2025, 6, 15],
+      time: [0, 0, 0],
+      expected: '2025-07-15',
+      expectedOffset: 240,
+    },
+    {
+      components: [2025, 6, 15],
+      time: [23, 59, 59],
+      expected: '2025-07-15',
+      expectedOffset: 240,
+    },
   ];
   const results = formatFixturesInTimezone(fixtures, 'America/New_York');
 
