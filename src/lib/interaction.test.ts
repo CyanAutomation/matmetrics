@@ -71,9 +71,6 @@ function createSchedulerHarness() {
     getClearCalls() {
       return clearCalls;
     },
-    getScheduledDelays() {
-      return tasks.filter((task) => !task.canceled).map((task) => task.dueAt);
-    },
   };
 }
 
@@ -107,27 +104,40 @@ test('action feedback controller eventually transitions success and error to idl
   assert.deepEqual(errorStates, ['error', 'idle']);
 });
 
-test('error reset is scheduled later than success reset', () => {
-  const scheduler = createSchedulerHarness();
-  const states: string[] = [];
+// Transient feedback timing is a user-facing contract; see
+// docs/blueprint.md#feedback-states.
+test(
+  'success and error feedback each return to idle after their visible interval',
+  () => {
+    const successStates: string[] = [];
+    const successScheduler = createSchedulerHarness();
+    const successController = createActionFeedbackController(
+      (state) => successStates.push(state),
+      successScheduler.schedule,
+      successScheduler.clear
+    );
 
-  const controller = createActionFeedbackController(
-    (state) => states.push(state),
-    scheduler.schedule,
-    scheduler.clear
-  );
+    successController.showSuccess();
+    successScheduler.advanceBy(1399);
+    assert.deepEqual(successStates, ['success']);
+    successScheduler.advanceBy(1);
+    assert.deepEqual(successStates, ['success', 'idle']);
 
-  controller.showSuccess();
-  const [successDueAt] = scheduler.getScheduledDelays();
+    const errorStates: string[] = [];
+    const errorScheduler = createSchedulerHarness();
+    const errorController = createActionFeedbackController(
+      (state) => errorStates.push(state),
+      errorScheduler.schedule,
+      errorScheduler.clear
+    );
 
-  controller.reset();
-  controller.showError();
-  const scheduledDelays = scheduler.getScheduledDelays();
-  const errorDueAt = scheduledDelays[scheduledDelays.length - 1];
-
-  assert.ok(errorDueAt > successDueAt);
-  assert.deepEqual(states, ['success', 'idle', 'error']);
-});
+    errorController.showError();
+    errorScheduler.advanceBy(1799);
+    assert.deepEqual(errorStates, ['error']);
+    errorScheduler.advanceBy(1);
+    assert.deepEqual(errorStates, ['error', 'idle']);
+  }
+);
 
 test('reset() and dispose() cancel pending idle resets', () => {
   const resetStates: string[] = [];

@@ -129,11 +129,13 @@ export function randomBackoffMs(
   );
 }
 
-export function randomVerifyDelayMs(): number {
+export function randomVerifyDelayMs(
+  randomSource: () => number = Math.random
+): number {
   return (
     SYNC_LOCK_VERIFY_DELAY_MIN_MS +
     Math.floor(
-      Math.random() *
+      randomSource() *
         (SYNC_LOCK_VERIFY_DELAY_MAX_MS - SYNC_LOCK_VERIFY_DELAY_MIN_MS + 1)
     )
   );

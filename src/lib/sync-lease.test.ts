@@ -107,27 +107,28 @@ test('sync-lease module', async (t) => {
   });
 
   await t.test('randomVerifyDelayMs', async (t) => {
-    await t.test('returns a value within expected range', () => {
-      for (let i = 0; i < 100; i++) {
-        const value = randomVerifyDelayMs();
-        assert(value >= SYNC_LOCK_VERIFY_DELAY_MIN_MS);
-        assert(value <= SYNC_LOCK_VERIFY_DELAY_MAX_MS);
+    await t.test(
+      'maps injected random values to deterministic boundaries',
+      () => {
+        assert.equal(
+          randomVerifyDelayMs(() => 0),
+          SYNC_LOCK_VERIFY_DELAY_MIN_MS
+        );
+        assert.equal(
+          randomVerifyDelayMs(() => 0.999999),
+          SYNC_LOCK_VERIFY_DELAY_MAX_MS
+        );
       }
-    });
+    );
   });
 
   await t.test('createSyncLeaseNonce', async (t) => {
     await t.test('creates unique nonces', () => {
-      const nonces = new Set(
-        Array.from({ length: 10 }, () => createSyncLeaseNonce())
-      );
-      assert.equal(nonces.size, 10);
-    });
+      const values = Array.from({ length: 10 }, () => createSyncLeaseNonce());
+      const nonces = new Set(values);
 
-    await t.test('creates strings', () => {
-      const nonce = createSyncLeaseNonce();
-      assert.equal(typeof nonce, 'string');
-      assert(nonce.length > 0);
+      assert.equal(values.every((nonce) => nonce.length > 0), true);
+      assert.equal(nonces.size, 10);
     });
   });
 
@@ -142,14 +143,20 @@ test('sync-lease module', async (t) => {
       assert(epoch3 > epoch2);
     });
 
-    await t.test('ensures epoch is not less than current timestamp', () => {
-      const before = Date.now();
-      const epoch = getNextSyncLeaseEpoch(0);
-      const after = Date.now();
+    await t.test(
+      'uses the current timestamp when it exceeds the prior epoch',
+      () => {
+        const originalNow = Date.now;
+        const fixedNow = originalNow() + 100;
 
-      assert(epoch >= before);
-      assert(epoch <= after + 1000); // small buffer
-    });
+        Date.now = () => fixedNow;
+        try {
+          assert.equal(getNextSyncLeaseEpoch(0), fixedNow);
+        } finally {
+          Date.now = originalNow;
+        }
+      }
+    );
   });
 
   await t.test('readSyncLease', async (t) => {

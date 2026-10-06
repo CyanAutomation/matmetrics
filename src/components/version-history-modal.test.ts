@@ -1,16 +1,59 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { createRequire } from 'node:module';
+import test, { after, afterEach } from 'node:test';
 
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+const require = createRequire(import.meta.url);
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost',
+});
+const domGlobalNames = [
+  'window',
+  'document',
+  'navigator',
+  'HTMLElement',
+  'Node',
+  'NodeFilter',
+  'Event',
+  'CustomEvent',
+  'MutationObserver',
+  'getComputedStyle',
+  'IS_REACT_ACT_ENVIRONMENT',
+] as const;
+const originalDomGlobals = new Map(
+  domGlobalNames.map((name) => [
+    name,
+    Object.getOwnPropertyDescriptor(globalThis, name),
+  ])
+);
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+  HTMLElement: dom.window.HTMLElement,
+  Node: dom.window.Node,
+  NodeFilter: dom.window.NodeFilter,
+  Event: dom.window.Event,
+  CustomEvent: dom.window.CustomEvent,
+  MutationObserver: dom.window.MutationObserver,
+  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+  IS_REACT_ACT_ENVIRONMENT: true,
+});
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator,
+});
+
+const React = require('react') as typeof import('react');
+const { cleanup, render } =
+  require('@testing-library/react') as typeof import('@testing-library/react');
+const { VersionHistoryModal } =
+  require('./version-history-modal') as typeof import('./version-history-modal');
 
 type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
   reject: (reason?: unknown) => void;
 };
-
-type EffectCallback = () => void | (() => void);
 
 function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
@@ -23,100 +66,37 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-function flushMicrotasks() {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
+afterEach(cleanup);
+after(() => {
+  cleanup();
+  dom.window.close();
+  for (const name of domGlobalNames) {
+    const descriptor = originalDomGlobals.get(name);
+    if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+    else Reflect.deleteProperty(globalThis, name);
+  }
+});
 
-async function renderWithMockedHooks(params: { fetchImpl: typeof fetch }) {
-  const stateStore: unknown[] = [];
-  const setters: Array<(value: unknown) => void> = [];
-  const pendingEffects: EffectCallback[] = [];
-
-  let hookIndex = 0;
-  test.mock.method(React, 'useState', (<T>(initialValue: T | (() => T)) => {
-    const currentIndex = hookIndex;
-    hookIndex += 1;
-
-    if (!(currentIndex in stateStore)) {
-      stateStore[currentIndex] =
-        typeof initialValue === 'function'
-          ? (initialValue as () => T)()
-          : initialValue;
-    }
-
-    if (!setters[currentIndex]) {
-      setters[currentIndex] = (value: unknown) => {
-        const prev = stateStore[currentIndex];
-        stateStore[currentIndex] =
-          typeof value === 'function'
-            ? (value as (prev: unknown) => unknown)(prev)
-            : value;
-      };
-    }
-
-    return [
-      stateStore[currentIndex] as T,
-      setters[currentIndex] as React.Dispatch<React.SetStateAction<T>>,
-    ] as const;
-  }) as typeof React.useState);
-
-  test.mock.method(React, 'useEffect', ((callback: EffectCallback) => {
-    pendingEffects.push(callback);
-  }) as typeof React.useEffect);
-
+test('VersionHistoryModal shows release content after a successful fetch', async () => {
+  const response = createDeferred<Response>();
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = params.fetchImpl;
+  globalThis.fetch = (() => response.promise) as typeof fetch;
 
-  const { VersionHistoryModal } = await import('./version-history-modal');
-
-  const render = () => {
-    hookIndex = 0;
-    return renderToStaticMarkup(
+  try {
+    const view = render(
       React.createElement(VersionHistoryModal, {
         open: true,
         onOpenChange: () => undefined,
         disableDialogWrapper: true,
       })
     );
-  };
 
-  const runEffects = () => {
-    const effects = [...pendingEffects];
-    pendingEffects.length = 0;
-    const cleanups: Array<void | (() => void)> = [];
-    for (const effect of effects) {
-      const cleanup = effect();
-      if (cleanup) cleanups.push(cleanup);
-    }
-    return () =>
-      cleanups.forEach((cleanup) => typeof cleanup === 'function' && cleanup());
-  };
+    assert.equal(
+      (await view.findByText('Loading recent releases...')).textContent,
+      'Loading recent releases...'
+    );
 
-  const cleanup = () => {
-    globalThis.fetch = originalFetch;
-    test.mock.restoreAll();
-  };
-
-  return { render, runEffects, cleanup };
-}
-
-test('VersionHistoryModal clears loading and renders release content after a successful fetch', async () => {
-  const deferred = createDeferred<Response>();
-  const harness = await renderWithMockedHooks({
-    fetchImpl: ((_: RequestInfo | URL, __?: RequestInit) =>
-      deferred.promise) as typeof fetch,
-  });
-
-  try {
-    harness.render();
-    harness.runEffects();
-
-    const loadingMarkup = harness.render();
-    assert.match(loadingMarkup, /Loading recent releases\.\.\./);
-
-    deferred.resolve({
+    response.resolve({
       ok: true,
       json: async () => ({
         currentVersion: '1.2.3',
@@ -132,42 +112,47 @@ test('VersionHistoryModal clears loading and renders release content after a suc
       }),
     } as Response);
 
-    await flushMicrotasks();
-
-    const successMarkup = harness.render();
-    assert.doesNotMatch(successMarkup, /Loading recent releases\.\.\./);
-    assert.match(successMarkup, /v1\.2\.3/);
-    assert.match(successMarkup, /Resolved loading state race/);
-
-    const regressionMarkup = harness.render();
-    assert.doesNotMatch(regressionMarkup, /Loading recent releases\.\.\./);
+    assert.equal(
+      (await view.findByText('Resolved loading state race')).textContent,
+      'Resolved loading state race'
+    );
+    assert.equal(view.queryByText('Loading recent releases...'), null);
+    assert.ok(view.getByRole('heading', { name: 'v1.2.3' }));
   } finally {
-    harness.cleanup();
+    cleanup();
+    globalThis.fetch = originalFetch;
   }
 });
 
-test('VersionHistoryModal clears loading and surfaces an error message after a failed fetch', async () => {
-  const deferred = createDeferred<Response>();
-  const harness = await renderWithMockedHooks({
-    fetchImpl: ((_: RequestInfo | URL, __?: RequestInit) =>
-      deferred.promise) as typeof fetch,
-  });
+test(
+  'VersionHistoryModal clears loading and shows a recovery message after a failed fetch',
+  async () => {
+    const response = createDeferred<Response>();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (() => response.promise) as typeof fetch;
 
-  try {
-    harness.render();
-    harness.runEffects();
+    try {
+      const view = render(
+        React.createElement(VersionHistoryModal, {
+          open: true,
+          onOpenChange: () => undefined,
+          disableDialogWrapper: true,
+        })
+      );
 
-    const loadingMarkup = harness.render();
-    assert.match(loadingMarkup, /Loading recent releases\.\.\./);
+      assert.equal(
+        (await view.findByText('Loading recent releases...')).textContent,
+        'Loading recent releases...'
+      );
 
-    deferred.reject(new Error('Network unavailable'));
-    await flushMicrotasks();
+      response.reject(new Error('Network unavailable'));
 
-    const errorMarkup = harness.render();
-    assert.doesNotMatch(errorMarkup, /Loading recent releases\.\.\./);
-    assert.match(errorMarkup, /Unable to load release history\./);
-    assert.match(errorMarkup, /Network unavailable/);
-  } finally {
-    harness.cleanup();
+      const error = await view.findByText(/Unable to load release history\./);
+      assert.match(error.textContent ?? '', /Network unavailable/);
+      assert.equal(view.queryByText('Loading recent releases...'), null);
+    } finally {
+      cleanup();
+      globalThis.fetch = originalFetch;
+    }
   }
-});
+);

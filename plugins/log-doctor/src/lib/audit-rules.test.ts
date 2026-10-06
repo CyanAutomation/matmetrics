@@ -296,9 +296,21 @@ test('detectDurationOutlier: respects custom std dev multiplier', () => {
     durationStdDevMultiplier: 1,
   };
 
-  const flag = detectDurationOutlier(sessions[3], sessions, config);
+  // Log Doctor surfaces duration anomalies for manual review; a narrower
+  // multiplier should flag this case while the default threshold should not.
+  // See docs/plugin-design-principles.md (Session Review & Audit Plugin).
+  const flagAtCustomMultiplier = detectDurationOutlier(
+    sessions[3],
+    sessions,
+    config
+  );
+  const flagAtDefaultMultiplier = detectDurationOutlier(sessions[3], sessions, {
+    ...config,
+    durationStdDevMultiplier: 2,
+  });
 
-  assert(flag !== null);
+  assert.equal(flagAtCustomMultiplier?.code, 'duration_outlier');
+  assert.equal(flagAtDefaultMultiplier, null);
 });
 
 test('runAuditRules: runs all enabled rules', () => {

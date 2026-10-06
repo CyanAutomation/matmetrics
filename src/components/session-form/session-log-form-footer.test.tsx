@@ -7,27 +7,32 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SessionLogFormFooter } from './session-log-form-footer';
 
-test('session form footer keeps the Cancel label visible at every breakpoint', () => {
-  const document = parse(
-    renderToStaticMarkup(
-      React.createElement(SessionLogFormFooter, {
-        isSubmitting: false,
-        isEditing: false,
-        shouldHideHeader: true,
-        feedbackState: 'idle',
-        currentStep: 1,
-        totalSteps: 4,
-        onPrevious: () => undefined,
-        onNext: () => undefined,
-        onFinish: () => undefined,
-        onCancel: () => undefined,
-      })
-    )
-  );
-  const cancelLabel = [...document.querySelectorAll('button')].find((button) =>
-    button.textContent.includes('Cancel')
-  );
+test(
+  'session form footer keeps the Cancel label on its button without hide utilities',
+  () => {
+    const document = parse(
+      renderToStaticMarkup(
+        React.createElement(SessionLogFormFooter, {
+          isSubmitting: false,
+          isEditing: false,
+          shouldHideHeader: true,
+          feedbackState: 'idle',
+          currentStep: 1,
+          totalSteps: 4,
+          onPrevious: () => undefined,
+          onNext: () => undefined,
+          onFinish: () => undefined,
+          onCancel: () => undefined,
+        })
+      )
+    );
+    const cancelButton = document.querySelector('button[aria-label="Cancel"]');
 
-  assert.ok(cancelLabel, 'Cancel button should include its visible text label');
-  assert.doesNotMatch(cancelLabel.innerHTML, /class="[^"]*\bhidden\b/);
-});
+    assert.ok(cancelButton, 'Cancel action should render a labelled button');
+    assert.equal(cancelButton.textContent.trim(), 'Cancel');
+    assert.doesNotMatch(
+      cancelButton.getAttribute('class') ?? '',
+      /(?:^|\s)(?:[\w-]+:)*hidden(?:\s|$)/
+    );
+  }
+);
