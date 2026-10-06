@@ -340,6 +340,8 @@ Uses asymmetrical layout with `headline-lg` titles and `DataStrip` components fo
 - Reinforce semantic tones with an icon and the corresponding semantic color
   token; warning notices use `warning`, while informational notices use `info`.
 - Do not rely on passed-in copy or color alone to communicate a notice's state.
+- Transient action feedback returns to idle after 1.4 seconds for success and
+  1.8 seconds for errors.
 
 ### Version Control
 
