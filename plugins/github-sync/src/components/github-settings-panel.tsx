@@ -171,7 +171,7 @@ export function GitHubSettings() {
       description="Keep a safe copy of your training diary in GitHub."
       tone="info"
       icon={<GitBranch className="h-6 w-6" />}
-      className="animate-in slide-in-from-bottom-4 fade-in duration-500"
+              className="animate-in slide-in-from-bottom-4 fade-in duration-500 animate-duration-500"
     >
       {!canUseGitHubSync && (
         <PluginAuthGateNotice

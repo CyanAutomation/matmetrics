@@ -1,38 +1,39 @@
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
-import { cva, type VariantProps } from 'class-variance-authority';
 
 import { type FeedbackState, type InteractionTone } from '@/lib/interaction';
 import { cn } from '@/lib/utils';
+import {
+  createVariantClasses,
+  type VariantProps,
+} from '@/lib/variant-classes';
 
-const buttonVariants = cva(
+const buttonVariants = createVariantClasses(
   'ui-button inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[transform,box-shadow,background-color,color,border-color,opacity] duration-200 ease-snappy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:transition-transform [&_svg]:duration-200 [&_svg]:ease-snappy',
   {
-    variants: {
-      variant: {
-        default:
-          'border-0 bg-[linear-gradient(135deg,hsl(var(--primary))_0%,hsl(var(--primary-container))_100%)] text-primary-foreground hover:bg-[linear-gradient(135deg,hsl(var(--color-primary-hover))_0%,hsl(var(--primary-container))_100%)]',
-        destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline:
-          'border border-[hsl(var(--color-outline-variant)/0.48)] bg-card shadow-[0_8px_18px_-18px_hsl(var(--foreground)/0.32)] hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
-        secondary:
-          'border-0 bg-secondary text-secondary-foreground hover:bg-[hsl(var(--color-surface-container-high))]',
-        ghost:
-          'hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
-      },
-      size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-        icon: 'h-10 w-10',
-      },
+    variant: {
+      default:
+        'border-0 bg-[linear-gradient(135deg,hsl(var(--primary))_0%,hsl(var(--primary-container))_100%)] text-primary-foreground hover:bg-[linear-gradient(135deg,hsl(var(--color-primary-hover))_0%,hsl(var(--primary-container))_100%)]',
+      destructive:
+        'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+      outline:
+        'border border-[hsl(var(--color-outline-variant)/0.48)] bg-card shadow-[0_8px_18px_-18px_hsl(var(--foreground)/0.32)] hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
+      secondary:
+        'border-0 bg-secondary text-secondary-foreground hover:bg-[hsl(var(--color-surface-container-high))]',
+      ghost:
+        'hover:bg-[hsl(var(--color-surface-container-low))] hover:text-foreground',
+      link: 'text-primary underline-offset-4 hover:underline',
     },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
+    size: {
+      default: 'h-10 px-4 py-2',
+      sm: 'h-9 rounded-md px-3',
+      lg: 'h-11 rounded-md px-8',
+      icon: 'h-10 w-10',
     },
+  },
+  {
+    variant: 'default',
+    size: 'default',
   }
 );
 
@@ -63,7 +64,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : 'button';
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size }), className)}
         data-feedback={feedbackState}
         data-interaction={interaction}
         data-pulse={feedbackPulse ? 'true' : undefined}
