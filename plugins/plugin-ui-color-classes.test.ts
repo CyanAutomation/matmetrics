@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { globSync } from 'glob';
 import {
   derivePluginAllowedClassTokens,
   PLUGIN_UI_REQUIRED_VARIANT_SEMANTIC_ROLE_MAP,
