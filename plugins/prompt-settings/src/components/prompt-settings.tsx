@@ -129,7 +129,7 @@ export function PromptSettings() {
           description='The "AI Transform" button in the log form uses these instructions to rewrite your notes. You can change the tone (e.g., "be more formal" or "be very brief") or define terminology preferences (e.g., Judo terms like "uchi mata" or BJJ terms like "armbar") here.'
         />
       }
-      className="animate-in slide-in-from-bottom-4 fade-in duration-500"
+          className="animate-in slide-in-from-bottom-4 fade-in duration-500 animate-duration-500"
     >
       {!canSavePreferences && (
         <PluginAuthGateNotice

@@ -1,10 +1,14 @@
 import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
+import {
+  createVariantClasses,
+  type VariantProps,
+} from '@/lib/variant-classes';
 
-const surfaceVariants = cva('rounded-2xl text-card-foreground', {
-  variants: {
+const surfaceVariants = createVariantClasses(
+  'rounded-2xl text-card-foreground',
+  {
     variant: {
       default: 'bg-card shadow-[0_18px_32px_-30px_hsl(var(--foreground)/0.32)]',
       subtle: 'bg-[hsl(var(--color-surface-container-low))]',
@@ -20,11 +24,11 @@ const surfaceVariants = cva('rounded-2xl text-card-foreground', {
       lg: 'p-6 sm:p-8',
     },
   },
-  defaultVariants: {
+  {
     variant: 'default',
     padding: 'default',
-  },
-});
+  }
+);
 
 export interface SurfaceProps
   extends
