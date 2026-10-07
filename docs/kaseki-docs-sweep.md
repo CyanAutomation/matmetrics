@@ -29,10 +29,10 @@ The same environment is used by `.github/workflows/kaseki-dry.yaml`.
 ## Workflow behavior
 
 The workflow checks controller health and readiness, authenticates with
-`GET /api/gateway-test?stage=1`, submits a draft pull request task, and polls
-`GET /api/runs/:id/status` for up to 185 minutes. The job timeout is 200 minutes.
+`GET /api/v1/gateway-test?stage=1`, submits a draft pull request task, and polls
+`GET /api/v1/runs/:id/status` for up to 185 minutes. The job timeout is 200 minutes.
 The controller must support `GET /health`, `GET /ready`, the authenticated
-gateway check, `POST /api/runs`, and the run status endpoint.
+gateway check, `POST /api/v1/runs`, and the run status endpoint.
 
 The submitted task is limited to `README.md` and `docs/**/*.md`, has a 100 KiB
 diff limit, disables scouting and goal checks, and validates with

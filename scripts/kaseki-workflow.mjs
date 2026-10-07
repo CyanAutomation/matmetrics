@@ -153,7 +153,7 @@ export async function verifyKasekiController({
     throw new Error("Kaseki readiness check failed");
   }
 
-  const gateway = await requestJson(`${baseUrl}/api/gateway-test?stage=1`, {
+  const gateway = await requestJson(`${baseUrl}/api/v1/gateway-test?stage=1`, {
     fetchImpl,
     headers: {
       Accept: "application/json",
@@ -185,7 +185,7 @@ export async function submitKasekiRun({
     throw new TypeError("Kaseki run payload must be a JSON object");
   }
 
-  const response = await requestJson(`${baseUrl}/api/runs`, {
+  const response = await requestJson(`${baseUrl}/api/v1/runs`, {
     fetchImpl,
     headers: {
       Accept: "application/json",
@@ -225,7 +225,7 @@ export async function waitForKasekiRun({
   while (now() < deadline) {
     let response;
     try {
-      response = await requestJson(`${baseUrl}/api/runs/${runId}/status`, {
+      response = await requestJson(`${baseUrl}/api/v1/runs/${runId}/status`, {
         fetchImpl,
         headers: {
           Accept: "application/json",
