@@ -50,6 +50,15 @@ test("keeps both Kaseki workflows on main and pins the DRY run to its commit", (
   assert.match(dryWorkflow, /runs-on: ubuntu-24\.04/);
 });
 
+test("pins the Kaseki health action to a commit in upstream main history", () => {
+  const action =
+    "CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@0400e036f8bd03d3c6a8ad1dd68ee74d85ac0aa6";
+
+  for (const workflow of [dryWorkflow, docsWorkflow]) {
+    assert.ok(workflow.includes(action));
+  }
+});
+
 test("routes both Kaseki workflows through the shared API and poll helper", () => {
   for (const workflow of [dryWorkflow, docsWorkflow]) {
     assert.match(workflow, /node scripts\/kaseki-workflow\.mjs preflight/);
