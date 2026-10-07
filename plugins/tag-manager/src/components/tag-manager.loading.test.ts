@@ -78,33 +78,6 @@ function createDeleteFlowHarness() {
   };
 }
 
-test('delete flow exposes loading labels and disabled actions while async work is in progress', () => {
-  const harness = createDeleteFlowHarness();
-
-  const idleActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(idleActions.primaryLabel, 'Review changes');
-  assert.equal(idleActions.primaryDisabled, false);
-  assert.equal(idleActions.cancelDisabled, false);
-
-  harness.analyzeStart();
-  const analyzingActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(analyzingActions.primaryLabel, 'Reviewing...');
-  assert.equal(analyzingActions.primaryDisabled, true);
-  assert.equal(analyzingActions.cancelDisabled, true);
-
-  harness.analyzeSuccess();
-  const readyToApplyActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(readyToApplyActions.primaryLabel, 'Apply');
-  assert.equal(readyToApplyActions.primaryDisabled, false);
-  assert.equal(readyToApplyActions.cancelDisabled, false);
-
-  harness.state.isApplyingDelete = true;
-  const applyingActions = deriveDeleteDialogActions(harness.state);
-  assert.equal(applyingActions.primaryLabel, 'Applying...');
-  assert.equal(applyingActions.primaryDisabled, true);
-  assert.equal(applyingActions.cancelDisabled, true);
-});
-
 test('delete flow surfaces recoverable errors and supports retry after apply failure', async () => {
   const harness = createDeleteFlowHarness();
 

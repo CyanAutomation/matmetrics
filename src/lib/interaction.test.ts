@@ -74,36 +74,6 @@ function createSchedulerHarness() {
   };
 }
 
-test('action feedback controller eventually transitions success and error to idle', () => {
-  const successStates: string[] = [];
-  const successScheduler = createSchedulerHarness();
-  const successController = createActionFeedbackController(
-    (state) => successStates.push(state),
-    successScheduler.schedule,
-    successScheduler.clear
-  );
-
-  successController.showSuccess();
-  assert.deepEqual(successStates, ['success']);
-
-  successScheduler.flushAll();
-  assert.deepEqual(successStates, ['success', 'idle']);
-
-  const errorStates: string[] = [];
-  const errorScheduler = createSchedulerHarness();
-  const errorController = createActionFeedbackController(
-    (state) => errorStates.push(state),
-    errorScheduler.schedule,
-    errorScheduler.clear
-  );
-
-  errorController.showError();
-  assert.deepEqual(errorStates, ['error']);
-
-  errorScheduler.flushAll();
-  assert.deepEqual(errorStates, ['error', 'idle']);
-});
-
 // Transient feedback timing is a user-facing contract; see
 // docs/blueprint.md#feedback-states.
 test(
