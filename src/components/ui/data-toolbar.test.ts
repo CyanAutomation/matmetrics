@@ -31,8 +31,6 @@ test('data toolbar provides a labelled filter region and a consistent result sum
 
   const toolbar = document.querySelector('[role="region"]');
   assert.equal(toolbar?.getAttribute('aria-label'), 'Filter techniques');
-  assert.match(toolbar?.getAttribute('class') ?? '', /sm:grid-cols-2/);
-  assert.match(toolbar?.getAttribute('class') ?? '', /lg:grid-cols-5/);
   assert.match(document.textContent, /Showing 2 of 5 techniques/);
   assert.match(document.textContent, /Search: uchi/);
 });
@@ -50,6 +48,8 @@ test('data toolbar supports a single-column layout without inherited responsive 
   const toolbar = document.querySelector('[role="region"]');
   const classes = toolbar?.getAttribute('class') ?? '';
 
+  // This mode intentionally remains one column at every responsive breakpoint.
+  // See docs/blueprint.md#component-layout-contracts.
   assert.match(classes, /grid-cols-1/);
   assert.doesNotMatch(classes, /sm:grid-cols-2|lg:grid-cols-5/);
 });

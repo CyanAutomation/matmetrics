@@ -30,25 +30,45 @@ function createDeleteSummary(
   };
 }
 
-test('loading state is reflected as disabled actions and loading labels during async destructive flow', () => {
-  const analyzingState: DeleteDialogState = {
+test('loading criterion anchor: destructive actions expose disabled loading labels and recover to apply state', () => {
+  const idleState: DeleteDialogState = {
     deletingTag: 'uchi-mata',
     deleteAnalysis: null,
-    isAnalyzingDelete: true,
+    isAnalyzingDelete: false,
     isApplyingDelete: false,
   };
 
+  const idleActions = deriveDeleteDialogActions(idleState);
+  assert.equal(idleActions.mode, 'analyze');
+  assert.equal(idleActions.primaryLabel, 'Review changes');
+  assert.equal(idleActions.cancelDisabled, false);
+  assert.equal(idleActions.primaryDisabled, false);
+
+  const analyzingState: DeleteDialogState = {
+    ...idleState,
+    isAnalyzingDelete: true,
+  };
   const analyzingActions = deriveDeleteDialogActions(analyzingState);
 
   assert.equal(analyzingActions.mode, 'analyze');
-  assert.equal(analyzingActions.primaryLabel, 'Analyzing...');
+  assert.equal(analyzingActions.primaryLabel, 'Reviewing...');
   assert.equal(analyzingActions.cancelDisabled, true);
   assert.equal(analyzingActions.primaryDisabled, true);
 
-  const applyingState: DeleteDialogState = {
+  const readyState: DeleteDialogState = {
     deletingTag: 'uchi-mata',
     deleteAnalysis: createDeleteSummary(),
     isAnalyzingDelete: false,
+    isApplyingDelete: false,
+  };
+  const readyActions = deriveDeleteDialogActions(readyState);
+  assert.equal(readyActions.mode, 'apply');
+  assert.equal(readyActions.primaryLabel, 'Apply');
+  assert.equal(readyActions.cancelDisabled, false);
+  assert.equal(readyActions.primaryDisabled, false);
+
+  const applyingState: DeleteDialogState = {
+    ...readyState,
     isApplyingDelete: true,
   };
 
