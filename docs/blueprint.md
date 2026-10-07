@@ -221,6 +221,8 @@ segmented control when users can select more than one option.
 - **Layering Principle**: Depth is achieved by stacking tones
 - **Ambient Shadows**: Use `shadow-ambient` with 24px blur and 6% opacity
 - **Ghost Borders**: Only in high-contrast modes using `outline-variant` at 15% opacity
+- Dialog close controls remain above sticky content inside the dialog so the
+  dismissal action stays available while scrolling.
 
 ### "Glass & Gradient" Rule
 
@@ -234,6 +236,17 @@ segmented control when users can select more than one option.
 - **Mobile (< 640px)**: Single-column, symmetric gutters, 1-column stack
 - **Tablet (640px-1023px)**: Flexible 8-column grid, mixed single/double-span
 - **Desktop (>= 1024px)**: Full editorial layout with asymmetrical margins permitted
+
+### Component Layout Contracts
+
+- Sidebar content can shrink beside navigation without forcing horizontal
+  overflow, and desktop navigation reserves its configured width.
+- A toolbar configured for a single-column layout stays in one column at every
+  breakpoint.
+- The session essentials illustration remains hidden until its container is at
+  least 56rem wide, so the form and illustration fit side by side.
+- Effort controls expose their selected level through an accessible pressed
+  state.
 
 ### Spacing Scale
 

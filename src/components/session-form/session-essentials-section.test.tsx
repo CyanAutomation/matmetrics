@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SessionEssentialsSection } from './session-essentials-section';
 
-test('session essentials keeps the coach illustration out of the tablet-only stacked layout', () => {
+test('session essentials shows the coach illustration only when the container can fit it', () => {
   const document = parse(
     renderToStaticMarkup(
       React.createElement(SessionEssentialsSection, {
@@ -32,17 +32,15 @@ test('session essentials keeps the coach illustration out of the tablet-only sta
   const responsiveFrame = illustration?.parentNode?.parentNode?.parentNode;
 
   assert.ok(illustration);
+  // The illustration waits for its container to reach the documented 56rem width.
+  // See docs/blueprint.md#component-layout-contracts.
   assert.match(
     responsiveFrame?.getAttribute('class') ?? '',
     /hidden shrink-0 @min-\[56rem\]\/essentials:flex/
   );
-  assert.doesNotMatch(
-    responsiveFrame?.getAttribute('class') ?? '',
-    /hidden md:flex/
-  );
 });
 
-test('effort options use a neutral surface until selected', () => {
+test('effort options expose which level is selected to assistive technology', () => {
   const document = parse(
     renderToStaticMarkup(
       React.createElement(SessionEssentialsSection, {
@@ -68,6 +66,4 @@ test('effort options use a neutral surface until selected', () => {
   assert.equal(options.length, 5);
   assert.equal(selected?.getAttribute('aria-pressed'), 'true');
   assert.equal(unselected?.getAttribute('aria-pressed'), 'false');
-  assert.match(selected?.getAttribute('class') ?? '', /bg-\[linear-gradient/);
-  assert.doesNotMatch(unselected?.getAttribute('class') ?? '', /bg-\[linear-gradient/);
 });

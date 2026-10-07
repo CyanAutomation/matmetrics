@@ -52,8 +52,18 @@ test('dialog close control is layered above sticky content', () => {
     )
   );
   const close = screen.getByRole('button', { name: 'Close' });
+  const stickyContent = document.querySelector('[class*="sticky"]');
+  const zIndex = (element: Element | null) => {
+    const layer = element?.getAttribute('class')?.match(/\bz-(\d+)\b/);
+    return layer ? Number(layer[1]) : Number.NaN;
+  };
 
-  assert.match(close.getAttribute('class') ?? '', /\bz-30\b/);
-  assert.ok(document.querySelector('[class*="sticky"][class*="z-20"]'));
+  // The close control stays above sticky dialog content by design.
+  // See docs/blueprint.md#elevation--depth.
+  assert.ok(stickyContent);
+  assert.ok(
+    zIndex(close) > zIndex(stickyContent),
+    'the close control should layer above sticky content'
+  );
   cleanup();
 });

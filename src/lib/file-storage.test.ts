@@ -480,7 +480,7 @@ test(
 );
 
 test(
-  'deleteSession rejects after the bounded retry window when a lock remains active',
+  'deleteSession rejects after its retry deadline when a lock remains active',
   { concurrency: false },
   async () => {
     await withTempDataDir(async () => {
@@ -495,19 +495,43 @@ test(
         crypto.randomUUID()
       );
 
-      const startedAt = Date.now();
+      let virtualNow = 10_000;
+      const retryDelays: number[] = [];
+      const originalNow = Date.now;
+      const originalSetTimeout = globalThis.setTimeout;
+      Date.now = () => virtualNow;
+      globalThis.setTimeout = ((
+        callback: (...args: unknown[]) => void,
+        delay = 0,
+        ...args: unknown[]
+      ) => {
+        const delayMs = Number(delay) || 0;
+        retryDelays.push(delayMs);
+        if (retryDelays.length > 100) {
+          throw new Error('deleteSession exceeded the simulated retry budget');
+        }
+        virtualNow += delayMs;
+        queueMicrotask(() => callback(...args));
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout;
+
       try {
         await assert.rejects(
           deleteSession(session.id),
           SessionUpdateConflictError
         );
       } finally {
+        Date.now = originalNow;
+        globalThis.setTimeout = originalSetTimeout;
         await releaseLock();
       }
-      const elapsedMs = Date.now() - startedAt;
 
-      assert.ok(elapsedMs >= 900, `retry window was only ${elapsedMs}ms`);
-      assert.ok(elapsedMs < 3000, `retry window took ${elapsedMs}ms`);
+      assert.ok(retryDelays.length > 0, 'the active lock should be retried');
+      assert.equal(
+        retryDelays.reduce((total, delay) => total + delay, 0),
+        1000,
+        'retry waits should stop at the configured deadline'
+      );
       assert.equal(await findSessionFileById(session.id), sessionPath);
     });
   }
