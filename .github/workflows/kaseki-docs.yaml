@@ -29,7 +29,7 @@ jobs:
     env:
       KASEKI_BASE_URL: ${{ vars.KASEKI_BASE_URL }}
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-      REF: ${{ github.sha }}
+      REF: main
       TASK_DESCRIPTION: Keep README.md and docs/ accurate against the current implementation.
       ALLOWLIST: README.md,docs/**/*.md
       VALIDATION_COMMAND: "npm run test:all && npm run lint"
