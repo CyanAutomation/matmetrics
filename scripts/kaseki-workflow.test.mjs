@@ -98,7 +98,7 @@ test("checks readiness before authenticated gateway connectivity", async () => {
 
   assert.equal(requests[0].url, `${baseUrl}/ready`);
   assert.equal(requests[0].options.headers.Authorization, undefined);
-  assert.equal(requests[1].url, `${baseUrl}/api/gateway-test?stage=1`);
+  assert.equal(requests[1].url, `${baseUrl}/api/v1/gateway-test?stage=1`);
   assert.equal(requests[1].options.headers.Authorization, `Bearer ${token}`);
 });
 
@@ -134,7 +134,7 @@ test("submits JSON and validates the returned run ID", async () => {
   });
 
   assert.equal(submittedRunId, runId);
-  assert.equal(request.url, `${baseUrl}/api/runs`);
+  assert.equal(request.url, `${baseUrl}/api/v1/runs`);
   assert.equal(request.options.method, "POST");
   assert.equal(request.options.headers.Authorization, `Bearer ${token}`);
   assert.deepEqual(JSON.parse(request.options.body), payload);
