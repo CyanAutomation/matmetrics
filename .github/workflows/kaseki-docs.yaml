@@ -35,63 +35,29 @@ jobs:
       VALIDATION_COMMAND: "npm run test:all && npm run lint"
 
     steps:
-      - name: Validate Kaseki configuration and required tools
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          : "${KASEKI_BASE_URL:?KASEKI_BASE_URL is not configured}"
-          [[ "$KASEKI_BASE_URL" == "https://kaseki-tunnel.scheimann.xyz" ]] || {
-            echo "::error title=Invalid Kaseki controller URL::Use the approved HTTPS controller URL."
-            exit 1
-          }
-
-          for command_name in curl jq node; do
-            command -v "$command_name" >/dev/null
-          done
-
       - name: Check out the workflow commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Validate Kaseki configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/kaseki-workflow.mjs validate
+          command -v jq >/dev/null
+
       - name: Verify controller health
         uses: CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@30db5d15e117b8d8de13eb66766d48cf6b7d618b
         with:
           base-url: ${{ vars.KASEKI_BASE_URL }}
 
-      - name: Verify controller readiness
-        shell: bash
-        run: |
-          set -euo pipefail
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-all-errors \
-            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 20 \
-            --max-filesize 1048576 --output "$response_file" \
-            "$KASEKI_BASE_URL/ready"
-          jq -e '.status == "ready"' "$response_file" >/dev/null
-
-      - name: Verify gateway connectivity and authentication
+      - name: Verify Kaseki readiness and gateway authentication
         shell: bash
         env:
           KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          : "${KASEKI_API_TOKEN:?KASEKI_API_TOKEN is not configured}"
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-all-errors \
-            --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 \
-            --max-filesize 1048576 --output "$response_file" \
-            --header "Authorization: Bearer $KASEKI_API_TOKEN" \
-            "$KASEKI_BASE_URL/api/gateway-test?stage=1"
-          jq -e '.status == "ok"' "$response_file" >/dev/null
+        run: node scripts/kaseki-workflow.mjs preflight
 
       - name: Submit documentation sweep
         id: submit
@@ -100,7 +66,6 @@ jobs:
           KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
         run: |
           set -euo pipefail
-          : "${KASEKI_API_TOKEN:?KASEKI_API_TOKEN is not configured}"
 
           idempotency_key="$(node scripts/kaseki-idempotency-key.mjs)"
           payload="$(
@@ -145,28 +110,7 @@ jobs:
               }'
           )"
 
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          http_status="$(
-            curl --silent --show-error \
-              --retry 3 --retry-all-errors \
-              --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 \
-              --max-filesize 1048576 --output "$response_file" \
-              --write-out '%{http_code}' \
-              --request POST "$KASEKI_BASE_URL/api/runs" \
-              --header "Authorization: Bearer $KASEKI_API_TOKEN" \
-              --header 'Content-Type: application/json' \
-              --data "$payload"
-          )"
-
-          if [[ ! "$http_status" =~ ^2 ]]; then
-            echo "::error title=Kaseki submission failed::Kaseki returned HTTP $http_status"
-            echo "Kaseki returned HTTP \`$http_status\`. Response body omitted." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-
-          run_id="$(jq -er '.id | strings | select(test("^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"))' "$response_file")"
-          printf 'run_id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
+          printf '%s' "$payload" | node scripts/kaseki-workflow.mjs submit
 
       - name: Wait for Kaseki completion
         id: wait
@@ -174,58 +118,7 @@ jobs:
         env:
           KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
           RUN_ID: ${{ steps.submit.outputs.run_id }}
-        run: |
-          set -euo pipefail
-          : "${KASEKI_API_TOKEN:?KASEKI_API_TOKEN is not configured}"
-          : "${RUN_ID:?Kaseki run ID is missing}"
-          deadline=$((SECONDS + 11100))
-
-          while (( SECONDS < deadline )); do
-            response_file="$(mktemp)"
-            trap 'rm -f "$response_file"' EXIT
-
-            curl --fail-with-body --silent --show-error \
-              --retry 3 --retry-all-errors \
-              --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 60 \
-              --max-filesize 1048576 --output "$response_file" \
-              --header "Authorization: Bearer $KASEKI_API_TOKEN" \
-              "$KASEKI_BASE_URL/api/runs/$RUN_ID/status"
-            run_status="$(jq -er '.status | strings' "$response_file")"
-
-            case "$run_status" in
-              completed)
-                exit_code="$(jq -er '.exitCode // 0 | numbers' "$response_file")"
-                if [[ "$exit_code" == 0 ]]; then
-                  printf 'status=completed\n' >> "$GITHUB_OUTPUT"
-                  echo "Kaseki run $RUN_ID completed successfully."
-                  exit 0
-                fi
-                printf 'status=failed (exit code %s)\n' "$exit_code" >> "$GITHUB_OUTPUT"
-                echo "::error::Kaseki run $RUN_ID completed with exit code $exit_code."
-                exit 1
-                ;;
-              failed|cancelled)
-                printf 'status=%s\n' "$run_status" >> "$GITHUB_OUTPUT"
-                echo "::error::Kaseki run $RUN_ID ended with status $run_status."
-                exit 1
-                ;;
-              queued|running)
-                echo "Kaseki run $RUN_ID is $run_status; checking again in 60 seconds."
-                rm -f "$response_file"
-                trap - EXIT
-                sleep 60
-                ;;
-              *)
-                printf 'status=unexpected\n' >> "$GITHUB_OUTPUT"
-                echo "::error::Kaseki run $RUN_ID returned an unexpected status."
-                exit 1
-                ;;
-            esac
-          done
-
-          printf 'status=timed out\n' >> "$GITHUB_OUTPUT"
-          echo "::error::Kaseki run $RUN_ID did not complete within 185 minutes."
-          exit 1
+        run: node scripts/kaseki-workflow.mjs wait
 
       - name: Publish run details
         if: always()
