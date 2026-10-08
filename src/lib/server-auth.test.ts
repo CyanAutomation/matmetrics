@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
@@ -6,6 +7,7 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const AUTH_TEST_MODE_ENV = 'MATMETRICS_AUTH_TEST_MODE';
 const NODE_ENV_VAR = 'NODE_ENV';
+const requireFromTest = createRequire(import.meta.url);
 
 const requestForAuthorization = (authorization?: string) =>
   new NextRequest('http://localhost/api/test', {
@@ -59,6 +61,11 @@ const assertUnauthorizedResponse = async (
   assert.deepEqual(body, { error: expectedError });
 };
 
+test('server auth does not eagerly load Firebase Admin Auth', () => {
+  const firebaseAuthPath = requireFromTest.resolve('firebase-admin/auth');
+  assert.equal(requireFromTest.cache[firebaseAuthPath], undefined);
+});
+
 test('test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization', async () => {
   await withEnv(
     { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'test' },
@@ -105,7 +112,8 @@ test('Firebase token path reports missing server configuration', async () => {
     { [AUTH_TEST_MODE_ENV]: 'false', [NODE_ENV_VAR]: 'test' },
     async () => {
       const result = await requireAuthenticatedUser(
-        requestForAuthorization(`Bearer ${structurallyValidToken('RS256')}`)
+        requestForAuthorization(`Bearer ${structurallyValidToken('RS256')}`),
+        { includeErrorCode: true }
       );
 
       assert.equal('status' in result, true);
@@ -115,7 +123,11 @@ test('Firebase token path reports missing server configuration', async () => {
 
       assert.equal(result.status, 500);
       const body = await result.json();
-      assert.deepEqual(body, { error: 'Firebase admin is not configured' });
+      assert.deepEqual(body, {
+        error:
+          'Authentication service is not configured. Contact the site administrator.',
+        code: 'AUTH_CONFIGURATION',
+      });
     }
   );
 });
@@ -165,17 +177,55 @@ test('Better Auth token path reports missing JWKS configuration', async () => {
 
   try {
     const result = await requireAuthenticatedUser(
-      requestForAuthorization(`Bearer ${structurallyValidToken('EdDSA')}`)
+      requestForAuthorization(`Bearer ${structurallyValidToken('EdDSA')}`),
+      { includeErrorCode: true }
     );
     assert.equal('status' in result, true);
     if (!('status' in result)) assert.fail('Expected configuration response');
     assert.equal(result.status, 500);
     assert.deepEqual(await result.json(), {
-      error: 'MATMETRICS_AUTH_JWKS_URL is not configured',
+      error:
+        'Authentication service is not configured. Contact the site administrator.',
+      code: 'AUTH_CONFIGURATION',
     });
   } finally {
     if (jwksUrl !== undefined) process.env.MATMETRICS_AUTH_JWKS_URL = jwksUrl;
     if (issuer !== undefined) process.env.MATMETRICS_AUTH_ISSUER = issuer;
     if (audience !== undefined) process.env.MATMETRICS_AUTH_AUDIENCE = audience;
+  }
+});
+
+test('Better Auth token path reports malformed JWKS configuration safely', async () => {
+  const previous = {
+    jwks: process.env.MATMETRICS_AUTH_JWKS_URL,
+    issuer: process.env.MATMETRICS_AUTH_ISSUER,
+    audience: process.env.MATMETRICS_AUTH_AUDIENCE,
+  };
+  process.env.MATMETRICS_AUTH_JWKS_URL = 'not-a-url';
+  process.env.MATMETRICS_AUTH_ISSUER = 'https://auth.example.test';
+  process.env.MATMETRICS_AUTH_AUDIENCE = 'matmetrics-api';
+
+  try {
+    const result = await requireAuthenticatedUser(
+      requestForAuthorization(`Bearer ${structurallyValidToken('EdDSA')}`),
+      { includeErrorCode: true }
+    );
+    assert.equal('status' in result, true);
+    if (!('status' in result)) assert.fail('Expected configuration response');
+    assert.equal(result.status, 500);
+    assert.deepEqual(await result.json(), {
+      error:
+        'Authentication service is not configured. Contact the site administrator.',
+      code: 'AUTH_CONFIGURATION',
+    });
+  } finally {
+    if (previous.jwks === undefined) delete process.env.MATMETRICS_AUTH_JWKS_URL;
+    else process.env.MATMETRICS_AUTH_JWKS_URL = previous.jwks;
+    if (previous.issuer === undefined)
+      delete process.env.MATMETRICS_AUTH_ISSUER;
+    else process.env.MATMETRICS_AUTH_ISSUER = previous.issuer;
+    if (previous.audience === undefined)
+      delete process.env.MATMETRICS_AUTH_AUDIENCE;
+    else process.env.MATMETRICS_AUTH_AUDIENCE = previous.audience;
   }
 });
