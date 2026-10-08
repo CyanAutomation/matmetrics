@@ -31,7 +31,7 @@ The same environment is used by `.github/workflows/kaseki-dry.yaml`.
 ## Workflow behavior
 
 The workflow checks controller health and readiness, authenticates with
-`GET /api/v1/gateway-test?stage=1`, submits a draft pull request task, and polls
+`GET /api/v1/gateway-test?stage=1`, submits a normal pull request task, and polls
 `GET /api/v1/runs/:id/status` for up to 185 minutes. The job timeout is 200 minutes.
 The controller must support `GET /health`, `GET /ready`, the authenticated
 gateway check, `POST /api/v1/runs`, and the run status endpoint.
@@ -44,9 +44,10 @@ Kaseki should make no changes and open no pull request. GitHub checks out the
 in the checkout. This checkout supplies the workflow helper code; the `ref`
 sent in the Kaseki request independently tells Kaseki to use `main`.
 
-The idempotency key is a deterministic UUIDv5 derived from the repository,
-workflow name, and GitHub Actions run ID. A retry or rerun therefore replays the
-same Kaseki task. Both Kaseki workflows use a concurrency group that permits one
+The workflow generates a UUIDv4 idempotency key for each submission. The request
+client sends the same key in the request body and `Idempotency-Key` header and
+reuses it for transient request retries. Both Kaseki workflows explicitly
+request normal pull requests. They use a concurrency group that permits one
 active and one pending run; GitHub replaces an older pending run when a newer
 one queues. That latest-pending-wins behavior is intentional because each task
 follows the latest `main` branch. The commit Kaseki resolves can be newer than
@@ -64,7 +65,7 @@ run starts, record the resolved commit SHA in the run details, and use that same
 snapshot for analysis, validation, and the patch base. If `main` moves before
 the patch is published, the controller should detect that and revalidate or
 stop rather than silently applying work against a different base. Enforce the
-changed-file policy and a post-run diff check, publish only a draft
+changed-file policy and a post-run diff check, publish only a normal
 branch-based pull request, and use least-privilege, short-lived GitHub
 credentials. If the controller cannot record and preserve the resolved
 snapshot, describe the sweep as mutable latest-`main` work rather than claiming
