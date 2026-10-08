@@ -187,6 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               method: error.method,
               stage: error.stage,
               status: error.status,
+              code: error.code,
+              category: error.category,
             });
           }
           setPreferencesError(

@@ -153,9 +153,9 @@ export default function Home() {
                   <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="flex flex-col gap-1">
                       <span>
-                        Your saved preferences are temporarily unavailable. You
-                        can continue using MatMetrics and retry when the data
-                        service is available.
+                        {preferencesError instanceof PreferenceRequestError
+                          ? preferencesError.message
+                          : 'Saved preferences could not be refreshed. Reload the page or contact support if the issue continues.'}
                       </span>
                       {preferencesError instanceof PreferenceRequestError && (
                         <span
@@ -166,13 +166,16 @@ export default function Home() {
                         </span>
                       )}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void retryPreferencesLoad()}
-                    >
-                      Retry
-                    </Button>
+                    {(!(preferencesError instanceof PreferenceRequestError) ||
+                      preferencesError.canRetry) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void retryPreferencesLoad()}
+                      >
+                        Retry
+                      </Button>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
