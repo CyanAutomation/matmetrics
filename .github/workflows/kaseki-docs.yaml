@@ -81,7 +81,7 @@ jobs:
                 ref: $ref,
                 idempotencyKey: $idempotencyKey,
                 taskMode: "patch",
-                publishMode: "draft_pr",
+                publishMode: "pr",
                 timeoutSeconds: 10800,
                 maxDiffBytes: 102400,
                 scouting: { enabled: false },

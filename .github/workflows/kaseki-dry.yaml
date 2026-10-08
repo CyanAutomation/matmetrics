@@ -93,6 +93,7 @@ jobs:
                 repoUrl: $repoUrl,
                 ref: $ref,
                 taskMode: "patch",
+                publishMode: "pr",
                 timeoutSeconds: 10800,
                 idempotencyKey: $idempotencyKey,
 

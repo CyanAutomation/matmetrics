@@ -42,13 +42,17 @@ test("accepts only the approved Kaseki controller URL", () => {
   assert.throws(() => validateKasekiBaseUrl(`${baseUrl}/`));
 });
 
-test("keeps both Kaseki workflows on main and submits main as the Kaseki ref", () => {
+test("keeps both Kaseki workflows on main and uses a normal PR publish mode", () => {
   for (const workflow of [dryWorkflow, docsWorkflow]) {
     assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/);
     assert.match(workflow, /REF: main/);
   }
   assert.match(dryWorkflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(dryWorkflow, /runs-on: ubuntu-24\.04/);
+  for (const workflow of [dryWorkflow, docsWorkflow]) {
+    assert.match(workflow, /publishMode: "pr"/);
+    assert.doesNotMatch(workflow, /publishMode: "draft_pr"/);
+  }
 });
 
 test("pins the Kaseki health action to a commit in upstream main history", () => {
@@ -121,7 +125,8 @@ test("stops preflight when readiness is not ready", async () => {
 });
 
 test("submits JSON and validates the returned run ID", async () => {
-  const payload = { ref: "abc123", idempotencyKey: "stable-key" };
+  const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
+  const payload = { ref: "abc123", idempotencyKey };
   let request;
 
   const submittedRunId = await submitKasekiRun({
@@ -138,7 +143,133 @@ test("submits JSON and validates the returned run ID", async () => {
   assert.equal(request.url, `${baseUrl}/api/v1/runs`);
   assert.equal(request.options.method, "POST");
   assert.equal(request.options.headers.Authorization, `Bearer ${token}`);
+  assert.equal(request.options.headers["Idempotency-Key"], idempotencyKey);
   assert.deepEqual(JSON.parse(request.options.body), payload);
+});
+
+test("rejects a non-v4 idempotency key before making a request", async () => {
+  let requests = 0;
+
+  await assert.rejects(
+    submitKasekiRun({
+      baseUrl,
+      token,
+      payload: { idempotencyKey: "123e4567-e89b-52d3-a456-426614174000" },
+      fetchImpl: async () => {
+        requests += 1;
+        return jsonResponse({ id: runId });
+      },
+    }),
+    /Kaseki idempotencyKey must be a UUID v4/,
+  );
+
+  assert.equal(requests, 0);
+});
+
+test("fails once on a permanent HTTP error and reports bounded problem details", async () => {
+  let requests = 0;
+  let sleeps = 0;
+
+  await assert.rejects(
+    submitKasekiRun({
+      baseUrl,
+      token,
+      payload: {
+        repoUrl: "https://github.com/example/repo",
+        idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+      },
+      fetchImpl: async () => {
+        requests += 1;
+        return new Response(
+          JSON.stringify({
+            title: "Bad Request",
+            detail: "publishMode must be pr",
+            requestId: "request-123",
+            privateDiagnostic: "must not be logged",
+          }),
+          {
+            status: 400,
+            headers: {
+              "content-type": "application/problem+json",
+              "x-request-id": "request-123",
+            },
+          },
+        );
+      },
+      sleep: async () => {
+        sleeps += 1;
+      },
+    }),
+    (error) => {
+      assert.match(error.message, /HTTP 400.*publishMode must be pr.*request-123/);
+      assert.doesNotMatch(error.message, /must not be logged/);
+      return true;
+    },
+  );
+
+  assert.equal(requests, 1);
+  assert.equal(sleeps, 0);
+});
+
+test("reuses the UUIDv4 idempotency key across transient submission retries", async () => {
+  const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
+  const requests = [];
+
+  const submittedRunId = await submitKasekiRun({
+    baseUrl,
+    token,
+    payload: {
+      repoUrl: "https://github.com/example/repo",
+      idempotencyKey,
+    },
+    fetchImpl: async (_url, options) => {
+      requests.push(options);
+      if (requests.length === 1) {
+        return jsonResponse({ title: "Unavailable", detail: "Retry" }, 503);
+      }
+      return jsonResponse({ id: runId });
+    },
+    sleep: async () => {},
+  });
+
+  assert.equal(submittedRunId, runId);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].headers["Idempotency-Key"], idempotencyKey);
+  assert.equal(requests[1].headers["Idempotency-Key"], idempotencyKey);
+  assert.equal(requests[0].body, requests[1].body);
+});
+
+test("preserves the final transient HTTP diagnostic after exhausting retries", async () => {
+  let requests = 0;
+  const delays = [];
+
+  await assert.rejects(
+    submitKasekiRun({
+      baseUrl,
+      token,
+      payload: {
+        repoUrl: "https://github.com/example/repo",
+        idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+      },
+      fetchImpl: async () => {
+        requests += 1;
+        return new Response(
+          JSON.stringify({ title: "Unavailable", detail: "Queue is offline" }),
+          {
+            status: 503,
+            headers: { "content-type": "application/problem+json" },
+          },
+        );
+      },
+      sleep: async (duration) => {
+        delays.push(duration);
+      },
+    }),
+    /failed after 4 attempts.*HTTP 503.*Queue is offline/,
+  );
+
+  assert.equal(requests, 4);
+  assert.deepEqual(delays, [1_000, 2_000, 4_000]);
 });
 
 test("rejects unsafe run IDs before using them in a URL", async () => {

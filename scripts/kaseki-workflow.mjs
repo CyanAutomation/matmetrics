@@ -16,6 +16,34 @@ const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 class KasekiResponseError extends Error {}
 class KasekiDeadlineError extends Error {}
 
+class KasekiHttpError extends Error {
+  constructor({ status, statusText, title, detail, requestId }) {
+    const parts = [
+      `HTTP ${status}${statusText ? ` ${statusText}` : ""}`,
+      title,
+      detail,
+      requestId ? `request ID ${requestId}` : undefined,
+    ].filter(Boolean);
+
+    super(`Kaseki request returned ${parts.join(": ")}`);
+    this.status = status;
+    this.retryable =
+      status === 408 ||
+      status === 425 ||
+      status === 429 ||
+      status >= 500;
+  }
+}
+
+function safeDiagnosticText(value, maxLength = 512) {
+  if (typeof value !== "string") return undefined;
+  const safeValue = value
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, maxLength);
+  return safeValue || undefined;
+}
+
 export function validateKasekiBaseUrl(baseUrl) {
   if (baseUrl !== KASEKI_BASE_URL) {
     throw new Error(
@@ -71,6 +99,31 @@ async function readResponseText(response) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+async function createHttpError(response) {
+  let problemDetails;
+  try {
+    const responseText = await readResponseText(response);
+    problemDetails = responseText ? JSON.parse(responseText) : undefined;
+  } catch {
+    // Keep the HTTP status even if the body is missing, oversized, or malformed.
+  }
+
+  const details =
+    problemDetails && typeof problemDetails === "object"
+      ? problemDetails
+      : {};
+
+  return new KasekiHttpError({
+    status: response.status,
+    statusText: safeDiagnosticText(response.statusText, 80),
+    title: safeDiagnosticText(details.title, 160),
+    detail: safeDiagnosticText(details.detail),
+    requestId:
+      safeDiagnosticText(response.headers.get("x-request-id"), 128) ??
+      safeDiagnosticText(details.requestId, 128),
+  });
+}
+
 async function requestJson(
   url,
   {
@@ -102,8 +155,7 @@ async function requestJson(
       });
 
       if (!response.ok) {
-        await response.body?.cancel();
-        throw new Error(`Kaseki request returned HTTP ${response.status}`);
+        throw await createHttpError(response);
       }
 
       const responseText = await readResponseText(response);
@@ -114,11 +166,18 @@ async function requestJson(
       }
     } catch (error) {
       if (error instanceof KasekiResponseError) throw error;
+      if (error instanceof KasekiHttpError && !error.retryable) throw error;
       if (deadline !== undefined && now() >= deadline) {
         throw new KasekiDeadlineError("Kaseki polling deadline reached");
       }
       if (attempt === MAX_ATTEMPTS - 1) {
-        throw new Error(`Kaseki request failed after ${MAX_ATTEMPTS} attempts`);
+        const lastError = safeDiagnosticText(
+          error instanceof Error ? error.message : String(error),
+        );
+        throw new Error(
+          `Kaseki request failed after ${MAX_ATTEMPTS} attempts${lastError ? `: ${lastError}` : ""}`,
+          { cause: error },
+        );
       }
 
       const delay = RETRY_DELAYS_MS[attempt];
@@ -184,6 +243,16 @@ export async function submitKasekiRun({
   ) {
     throw new TypeError("Kaseki run payload must be a JSON object");
   }
+  const idempotencyKey = payload.idempotencyKey;
+  if (
+    idempotencyKey !== undefined &&
+    (typeof idempotencyKey !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        idempotencyKey,
+      ))
+  ) {
+    throw new TypeError("Kaseki idempotencyKey must be a UUID v4");
+  }
 
   const response = await requestJson(`${baseUrl}/api/v1/runs`, {
     fetchImpl,
@@ -191,6 +260,7 @@ export async function submitKasekiRun({
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     method: "POST",
     body: JSON.stringify(payload),
