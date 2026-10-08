@@ -1,6 +1,7 @@
 export const PREFERENCE_API_ERROR_CODES = {
   authenticationRequired: 'AUTHENTICATION_REQUIRED',
   authenticationFailed: 'AUTHENTICATION_FAILED',
+  authenticationUnavailable: 'AUTHENTICATION_UNAVAILABLE',
   authenticationConfiguration: 'AUTH_CONFIGURATION',
   storeConfiguration: 'PREFERENCE_STORE_CONFIGURATION',
   unavailable: 'PREFERENCES_UNAVAILABLE',
