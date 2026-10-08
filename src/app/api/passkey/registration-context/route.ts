@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPasskeyRegistrationContext } from '@/lib/passkey-registration-context';
 import {
-  getFirebaseAdminAuth,
   isFirebaseAdminConfigured,
 } from '@/lib/firebase-admin';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin-auth';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export const runtime = 'nodejs';

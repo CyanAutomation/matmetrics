@@ -256,3 +256,109 @@ test('preference initialization reloads and retries a failed initial save for th
     }
   }
 });
+
+test('preference request errors classify temporary failures as retryable', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+  globalThis.fetch = async () =>
+    Response.json(
+      {
+        error: 'internal worker detail must not be shown',
+        code: 'PREFERENCES_UNAVAILABLE',
+      },
+      { status: 503 }
+    );
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('classified-unavailable-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.category, 'unavailable');
+        assert.equal(error.canRetry, true);
+        assert.equal(error.message.includes('internal worker detail'), false);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});
+
+test('preference request errors make permanent auth configuration failures actionable and non-retryable', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+  globalThis.fetch = async () =>
+    Response.json(
+      {
+        error: 'MATMETRICS_AUTH_ISSUER leaked detail',
+        code: 'AUTH_CONFIGURATION',
+      },
+      { status: 500 }
+    );
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('classified-auth-config-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.category, 'configuration');
+        assert.equal(error.canRetry, false);
+        assert.match(error.message, /contact the site administrator/i);
+        assert.equal(error.message.includes('MATMETRICS_AUTH_ISSUER'), false);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});
+
+test('preference request errors do not offer retry for permanent request failures', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+  globalThis.fetch = async () =>
+    Response.json(
+      { error: 'worker detail', code: 'PREFERENCE_REQUEST_FAILED' },
+      { status: 422 }
+    );
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('permanent-preference-request-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.category, 'request');
+        assert.equal(error.canRetry, false);
+        assert.equal(error.message.includes('worker detail'), false);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});

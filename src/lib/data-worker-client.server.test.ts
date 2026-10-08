@@ -167,8 +167,9 @@ test('an expired data Worker secret is reported as a server-side connection prob
       (error: unknown) =>
         error instanceof DataWorkerError &&
         error.status === 503 &&
+        error.category === 'configuration' &&
         error.message ===
-          'The background data service is temporarily unavailable. Please try again.'
+          'The background data service is not configured correctly. Contact the site administrator.'
     );
   } finally {
     globalThis.fetch = originalFetch;

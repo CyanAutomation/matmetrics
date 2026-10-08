@@ -12,6 +12,13 @@ export type StoredPreferences = {
   revision: number;
 };
 
+export class PreferencesStoreConfigurationError extends Error {
+  constructor() {
+    super('No preference data store is configured');
+    this.name = 'PreferencesStoreConfigurationError';
+  }
+}
+
 function preferencesDocument(uid: string) {
   return getFirebaseAdminDb()
     .collection('users')
@@ -30,7 +37,7 @@ export async function loadStoredPreferences(
     });
   }
   if (!isFirebaseAdminConfigured()) {
-    throw new Error('No preference data store is configured');
+    throw new PreferencesStoreConfigurationError();
   }
   const snapshot = await preferencesDocument(uid).get();
   return {
@@ -54,7 +61,7 @@ export async function saveStoredPreferences(
     });
   }
   if (!isFirebaseAdminConfigured()) {
-    throw new Error('No preference data store is configured');
+    throw new PreferencesStoreConfigurationError();
   }
   await preferencesDocument(uid).set(
     { ...preferences, updatedAt: new Date().toISOString() },
