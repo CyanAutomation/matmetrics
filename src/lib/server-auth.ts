@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isFirebaseAdminConfigured } from './firebase-admin';
+import { isFirebaseAuthConfigured } from './firebase-admin';
 import { PREFERENCE_API_ERROR_CODES } from './preference-api-errors';
-import { AuthConfigurationError } from './server-auth-errors';
+import {
+  AuthConfigurationError,
+  AuthVerificationUnavailableError,
+} from './server-auth-errors';
 import type { AuthenticatedPrincipal } from './server-auth-types';
 
 export type { AuthenticatedPrincipal } from './server-auth-types';
@@ -55,6 +58,21 @@ function getTokenAlgorithm(token: string): string {
   return header.alg;
 }
 
+function getSafeVerifierErrorDetails(error: unknown): {
+  errorName: string;
+  errorCode?: string;
+} {
+  const errorName = error instanceof Error ? error.name : 'UnknownError';
+  const errorCode =
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof error.code === 'string'
+      ? error.code
+      : undefined;
+  return { errorName, ...(errorCode ? { errorCode } : {}) };
+}
+
 async function verifyToken(token: string): Promise<AuthenticatedPrincipal> {
   if (isAuthTestModeEnabled()) {
     if (token !== 'test-token') throw new Error('Invalid test token');
@@ -76,7 +94,7 @@ async function verifyToken(token: string): Promise<AuthenticatedPrincipal> {
     return verifyBetterAuthToken(token);
   }
   if (alg === 'RS256') {
-    if (!isFirebaseAdminConfigured()) throw new AuthConfigurationError();
+    if (!isFirebaseAuthConfigured()) throw new AuthConfigurationError();
     const { verifyFirebaseToken } = await import(
       './firebase-token-verifier.server'
     );
@@ -105,6 +123,18 @@ export async function requireAuthenticatedUser(
   try {
     return await verifyToken(token);
   } catch (error) {
+    if (error instanceof AuthVerificationUnavailableError) {
+      console.error('Authentication verification service is unavailable');
+      return NextResponse.json(
+        {
+          error: error.message,
+          ...(options.includeErrorCode
+            ? { code: PREFERENCE_API_ERROR_CODES.authenticationUnavailable }
+            : {}),
+        },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
     if (error instanceof AuthConfigurationError) {
       return NextResponse.json(
         {
@@ -116,7 +146,10 @@ export async function requireAuthenticatedUser(
         { status: 500, headers: { 'Cache-Control': 'no-store' } }
       );
     }
-    console.error('Failed to verify authentication token');
+    console.error(
+      'Failed to verify authentication token',
+      getSafeVerifierErrorDetails(error)
+    );
     return NextResponse.json(
       {
         error: 'Invalid authentication token',

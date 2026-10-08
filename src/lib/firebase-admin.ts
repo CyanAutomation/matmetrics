@@ -92,6 +92,25 @@ function getServiceAccount(): ServiceAccountShape | null {
   return parseServiceAccountKey(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 }
 
+export function getFirebaseAuthProjectId(): string | null {
+  const clientProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  const serviceAccount = getServiceAccount();
+
+  if (
+    clientProjectId &&
+    serviceAccount &&
+    clientProjectId !== serviceAccount.project_id
+  ) {
+    return null;
+  }
+
+  return clientProjectId || serviceAccount?.project_id || null;
+}
+
+export function isFirebaseAuthConfigured(): boolean {
+  return getFirebaseAuthProjectId() !== null;
+}
+
 export function isFirebaseAdminConfigured(): boolean {
   return getServiceAccount() !== null;
 }

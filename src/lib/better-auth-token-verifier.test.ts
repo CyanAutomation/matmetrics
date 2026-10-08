@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { mock, test } from 'node:test';
+import test from 'node:test';
 import { NextRequest } from 'next/server';
 import { requireAuthenticatedUser } from './server-auth';
+import { createPreferencesApiHandlers } from '@/app/api/preferences/api-handler';
 
 test('Better Auth EdDSA tokens load and validate through the isolated verifier', async () => {
   const { exportJWK, generateKeyPair, SignJWT } = await import('jose');
@@ -33,8 +34,12 @@ test('Better Auth EdDSA tokens load and validate through the isolated verifier',
   process.env.MATMETRICS_AUTH_AUDIENCE = audience;
   process.env.MATMETRICS_AUTH_TEST_MODE = 'false';
   Reflect.set(process.env, 'NODE_ENV', 'test');
-  globalThis.fetch = async () =>
-    Response.json({ keys: [publicJwk] }, { headers: { 'Cache-Control': 'max-age=60' } });
+  const fetchJwks = async () =>
+    Response.json(
+      { keys: [publicJwk] },
+      { headers: { 'Cache-Control': 'max-age=60' } }
+    );
+  globalThis.fetch = fetchJwks;
 
   try {
     const token = await new SignJWT({
@@ -50,6 +55,27 @@ test('Better Auth EdDSA tokens load and validate through the isolated verifier',
       .setIssuedAt()
       .setExpirationTime('5m')
       .sign(privateKey);
+
+    globalThis.fetch = async () => {
+      throw new TypeError('fetch failed');
+    };
+    const unavailable = await requireAuthenticatedUser(
+      new NextRequest('http://localhost/api/preferences', {
+        headers: { authorization: `Bearer ${token}` },
+      }),
+      { includeErrorCode: true }
+    );
+    assert.equal('status' in unavailable, true);
+    if (!('status' in unavailable)) {
+      assert.fail('Expected an authentication-service availability response');
+    }
+    assert.equal(unavailable.status, 503);
+    assert.deepEqual(await unavailable.json(), {
+      error:
+        'Authentication service is temporarily unavailable. Please try again.',
+      code: 'AUTHENTICATION_UNAVAILABLE',
+    });
+    globalThis.fetch = fetchJwks;
 
     const valid = await requireAuthenticatedUser(
       new NextRequest('http://localhost/api/preferences', {
@@ -67,24 +93,16 @@ test('Better Auth EdDSA tokens load and validate through the isolated verifier',
       emailVerified: true,
     });
 
-    mock.module('@/lib/preferences-store.server', {
-      exports: {
-        loadStoredPreferences: async (uid: string) => {
-          loadedUsers.push(uid);
-          return { preferences: { auditMode: 'standard' }, revision: 7 };
-        },
-        saveStoredPreferences: async (
-          uid: string,
-          preferences: Record<string, unknown>,
-          revision: number
-        ) => {
-          savedUsers.push(uid);
-          return { preferences, revision: revision + 1 };
-        },
-        PreferencesStoreConfigurationError: class extends Error {},
+    const { GET, PUT } = createPreferencesApiHandlers({
+      loadStoredPreferences: async (uid) => {
+        loadedUsers.push(uid);
+        return { preferences: { auditMode: 'standard' }, revision: 7 };
       },
-    } as never);
-    const { GET, PUT } = await import('@/app/api/preferences/api-handler');
+      saveStoredPreferences: async (uid, preferences, revision) => {
+        savedUsers.push(uid);
+        return { preferences, revision: revision + 1 };
+      },
+    });
     const getResponse = await GET(
       new NextRequest('http://localhost/api/preferences', {
         headers: { authorization: `Bearer ${token}` },
@@ -117,7 +135,10 @@ test('Better Auth EdDSA tokens load and validate through the isolated verifier',
     assert.deepEqual(loadedUsers, ['canonical-better-user']);
     assert.deepEqual(savedUsers, ['canonical-better-user']);
 
-    const invalidToken = `${token.slice(0, -1)}${token.endsWith('a') ? 'b' : 'a'}`;
+    const [header, payload, signature] = token.split('.');
+    const changedSignature =
+      `${signature?.startsWith('A') ? 'B' : 'A'}${signature?.slice(1)}`;
+    const invalidToken = `${header}.${payload}.${changedSignature}`;
     const invalid = await requireAuthenticatedUser(
       new NextRequest('http://localhost/api/preferences', {
         headers: { authorization: `Bearer ${invalidToken}` },

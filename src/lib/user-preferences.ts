@@ -125,6 +125,9 @@ function getPreferenceFailureCategory(
   ) {
     return 'authentication';
   }
+  if (code === PREFERENCE_API_ERROR_CODES.authenticationUnavailable) {
+    return 'unavailable';
+  }
   if (
     code === PREFERENCE_API_ERROR_CODES.authenticationConfiguration ||
     code === PREFERENCE_API_ERROR_CODES.storeConfiguration
