@@ -42,11 +42,12 @@ test("accepts only the approved Kaseki controller URL", () => {
   assert.throws(() => validateKasekiBaseUrl(`${baseUrl}/`));
 });
 
-test("keeps both Kaseki workflows on main and pins the DRY run to its commit", () => {
+test("keeps both Kaseki workflows on main and submits main as the Kaseki ref", () => {
   for (const workflow of [dryWorkflow, docsWorkflow]) {
     assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/);
+    assert.match(workflow, /REF: main/);
   }
-  assert.match(dryWorkflow, /REF: \$\{\{ github\.sha \}\}/);
+  assert.match(dryWorkflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(dryWorkflow, /runs-on: ubuntu-24\.04/);
 });
 
