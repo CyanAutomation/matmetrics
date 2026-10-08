@@ -1,25 +1,10 @@
-import { decodeProtectedHeader, createRemoteJWKSet, jwtVerify } from 'jose';
-import { NextRequest, NextResponse } from 'next/server';
-import {
-  getFirebaseAdminAuth,
-  isFirebaseAdminConfigured,
-} from './firebase-admin';
+import { NextResponse, type NextRequest } from 'next/server';
+import { isFirebaseAdminConfigured } from './firebase-admin';
+import { PREFERENCE_API_ERROR_CODES } from './preference-api-errors';
+import { AuthConfigurationError } from './server-auth-errors';
+import type { AuthenticatedPrincipal } from './server-auth-types';
 
-export type AuthenticatedPrincipal = {
-  /** Provider-specific subject. */
-  userId: string;
-  /** Stable MatMetrics account key used to scope application data. */
-  appUserId: string;
-  provider: 'firebase' | 'better-auth' | 'test';
-  email: string | null;
-  displayName: string | null;
-  emailVerified: boolean;
-};
-
-class AuthConfigurationError extends Error {}
-
-let remoteJwksUrl: string | null = null;
-let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+export type { AuthenticatedPrincipal } from './server-auth-types';
 
 function getBearerToken(request: NextRequest): string | null {
   const authorization = request.headers.get('authorization');
@@ -44,65 +29,30 @@ function isAuthTestModeEnabled(): boolean {
   );
 }
 
-function requiredBetterAuthConfig(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new AuthConfigurationError(`${name} is not configured`);
-  return value;
-}
-
-function getBetterAuthJwks(): ReturnType<typeof createRemoteJWKSet> {
-  const url = requiredBetterAuthConfig('MATMETRICS_AUTH_JWKS_URL');
-  if (!remoteJwks || remoteJwksUrl !== url) {
-    remoteJwksUrl = url;
-    remoteJwks = createRemoteJWKSet(new URL(url));
-  }
-  return remoteJwks;
-}
-
-async function verifyBetterAuthToken(
-  token: string
-): Promise<AuthenticatedPrincipal> {
-  const { payload } = await jwtVerify(token, getBetterAuthJwks(), {
-    algorithms: ['EdDSA'],
-    issuer: requiredBetterAuthConfig('MATMETRICS_AUTH_ISSUER'),
-    audience: requiredBetterAuthConfig('MATMETRICS_AUTH_AUDIENCE'),
-  });
-  const appUserId = payload.appUserId;
+function getTokenAlgorithm(token: string): string {
+  const [encodedHeader, payload, signature, extra] = token.split('.');
   if (
-    typeof payload.sub !== 'string' ||
-    !payload.sub ||
-    typeof appUserId !== 'string' ||
-    !appUserId ||
-    payload.sub !== appUserId
+    !encodedHeader ||
+    !payload ||
+    !signature ||
+    extra !== undefined ||
+    encodedHeader.length > 8192
   ) {
-    throw new Error('Better Auth token subject is invalid');
+    throw new Error('Malformed authentication token');
   }
 
-  return {
-    userId: payload.sub,
-    appUserId,
-    provider: 'better-auth',
-    email: typeof payload.email === 'string' ? payload.email : null,
-    displayName: typeof payload.name === 'string' ? payload.name : null,
-    emailVerified: payload.emailVerified === true,
-  };
-}
-
-async function verifyFirebaseToken(
-  token: string
-): Promise<AuthenticatedPrincipal> {
-  if (!isFirebaseAdminConfigured()) {
-    throw new AuthConfigurationError('Firebase admin is not configured');
+  const header: unknown = JSON.parse(
+    Buffer.from(encodedHeader, 'base64url').toString('utf8')
+  );
+  if (
+    !header ||
+    typeof header !== 'object' ||
+    !('alg' in header) ||
+    typeof header.alg !== 'string'
+  ) {
+    throw new Error('Malformed authentication token header');
   }
-  const decoded = await getFirebaseAdminAuth().verifyIdToken(token);
-  return {
-    userId: decoded.uid,
-    appUserId: decoded.uid,
-    provider: 'firebase',
-    email: typeof decoded.email === 'string' ? decoded.email : null,
-    displayName: typeof decoded.name === 'string' ? decoded.name : null,
-    emailVerified: decoded.email_verified === true,
-  };
+  return header.alg;
 }
 
 async function verifyToken(token: string): Promise<AuthenticatedPrincipal> {
@@ -118,19 +68,36 @@ async function verifyToken(token: string): Promise<AuthenticatedPrincipal> {
     };
   }
 
-  const { alg } = decodeProtectedHeader(token);
-  if (alg === 'EdDSA') return verifyBetterAuthToken(token);
-  if (alg === 'RS256') return verifyFirebaseToken(token);
+  const alg = getTokenAlgorithm(token);
+  if (alg === 'EdDSA') {
+    const { verifyBetterAuthToken } = await import(
+      './better-auth-token-verifier.server'
+    );
+    return verifyBetterAuthToken(token);
+  }
+  if (alg === 'RS256') {
+    if (!isFirebaseAdminConfigured()) throw new AuthConfigurationError();
+    const { verifyFirebaseToken } = await import(
+      './firebase-token-verifier.server'
+    );
+    return verifyFirebaseToken(token);
+  }
   throw new Error('Unsupported authentication token algorithm');
 }
 
 export async function requireAuthenticatedUser(
-  request: NextRequest
+  request: NextRequest,
+  options: { includeErrorCode?: boolean } = {}
 ): Promise<AuthenticatedPrincipal | NextResponse> {
   const token = getBearerToken(request);
   if (!token) {
     return NextResponse.json(
-      { error: 'Authentication required' },
+      {
+        error: 'Authentication required',
+        ...(options.includeErrorCode
+          ? { code: PREFERENCE_API_ERROR_CODES.authenticationRequired }
+          : {}),
+      },
       { status: 401, headers: { 'Cache-Control': 'no-store' } }
     );
   }
@@ -140,13 +107,23 @@ export async function requireAuthenticatedUser(
   } catch (error) {
     if (error instanceof AuthConfigurationError) {
       return NextResponse.json(
-        { error: error.message },
+        {
+          error: error.message,
+          ...(options.includeErrorCode
+            ? { code: PREFERENCE_API_ERROR_CODES.authenticationConfiguration }
+            : {}),
+        },
         { status: 500, headers: { 'Cache-Control': 'no-store' } }
       );
     }
     console.error('Failed to verify authentication token');
     return NextResponse.json(
-      { error: 'Invalid authentication token' },
+      {
+        error: 'Invalid authentication token',
+        ...(options.includeErrorCode
+          ? { code: PREFERENCE_API_ERROR_CODES.authenticationFailed }
+          : {}),
+      },
       { status: 401, headers: { 'Cache-Control': 'no-store' } }
     );
   }

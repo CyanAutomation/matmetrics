@@ -6,7 +6,8 @@ export const DATA_WORKER_REQUEST_TIMEOUT_MS = 8_000;
 export class DataWorkerError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    readonly category: 'configuration' | 'unavailable' = 'unavailable'
   ) {
     super(message);
     this.name = 'DataWorkerError';
@@ -56,13 +57,15 @@ export async function requestDataWorker<T>(
   } catch {
     throw new DataWorkerError(
       'The background data service is not configured correctly. Please contact the site administrator.',
-      503
+      503,
+      'configuration'
     );
   }
   if (url.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
     throw new DataWorkerError(
       'The background data service is not configured securely. Please contact the site administrator.',
-      503
+      503,
+      'configuration'
     );
   }
 
@@ -108,11 +111,14 @@ export async function requestDataWorker<T>(
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    if (
-      response.status === 401 ||
-      response.status === 403 ||
-      response.status >= 500
-    ) {
+    if (response.status === 401 || response.status === 403) {
+      throw new DataWorkerError(
+        'The background data service is not configured correctly. Contact the site administrator.',
+        503,
+        'configuration'
+      );
+    }
+    if (response.status >= 500) {
       throw new DataWorkerError(
         'The background data service is temporarily unavailable. Please try again.',
         503

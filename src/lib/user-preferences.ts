@@ -30,6 +30,12 @@ import {
   inferAuditModeFromConfig,
   normalizeAuditConfigShape,
 } from './audit-presets';
+import {
+  PREFERENCE_API_ERROR_CODES,
+  isPreferenceApiErrorCode,
+  type PreferenceApiErrorCode,
+  type PreferenceFailureCategory,
+} from './preference-api-errors';
 
 export { DEFAULT_TRANSFORMER_PROMPT };
 
@@ -73,16 +79,28 @@ export class PreferenceRequestError extends Error {
   constructor(
     readonly method: string,
     readonly stage: PreferenceRequestFailureStage,
-    readonly status?: number
+    readonly status?: number,
+    readonly code?: PreferenceApiErrorCode,
+    readonly category: PreferenceFailureCategory = getPreferenceFailureCategory(
+      stage,
+      status,
+      code
+    )
   ) {
     super(
-      stage === 'authentication'
-        ? `Preferences ${method} request could not be authenticated`
-        : stage === 'network'
-          ? `Preferences ${method} request could not reach the server`
-          : `Preference request failed (${status})`
+      category === 'authentication'
+        ? 'Your session could not be verified. Sign in again to refresh saved preferences.'
+        : category === 'configuration'
+          ? 'Saved preferences are not configured. Contact the site administrator.'
+          : category === 'unavailable'
+            ? 'Your saved preferences are temporarily unavailable. You can continue using MatMetrics and try again.'
+            : 'Saved preferences could not be refreshed. Reload the page or contact support if the issue continues.'
     );
     this.name = 'PreferenceRequestError';
+  }
+
+  get canRetry(): boolean {
+    return this.category === 'unavailable';
   }
 
   get diagnostic(): string {
@@ -94,6 +112,33 @@ export class PreferenceRequestError extends Error {
     }
     return `Preferences ${this.method} request returned HTTP ${this.status}`;
   }
+}
+
+function getPreferenceFailureCategory(
+  stage: PreferenceRequestFailureStage,
+  status?: number,
+  code?: PreferenceApiErrorCode
+): PreferenceFailureCategory {
+  if (
+    code === PREFERENCE_API_ERROR_CODES.authenticationRequired ||
+    code === PREFERENCE_API_ERROR_CODES.authenticationFailed
+  ) {
+    return 'authentication';
+  }
+  if (
+    code === PREFERENCE_API_ERROR_CODES.authenticationConfiguration ||
+    code === PREFERENCE_API_ERROR_CODES.storeConfiguration
+  ) {
+    return 'configuration';
+  }
+  if (code === PREFERENCE_API_ERROR_CODES.unavailable) return 'unavailable';
+  if (code) return 'request';
+  if (stage === 'authentication') return 'authentication';
+  if (stage === 'network' || (status !== undefined && status >= 500)) {
+    return 'unavailable';
+  }
+  if (status === 401) return 'authentication';
+  return 'request';
 }
 
 let currentPreferences: UserPreferences = DEFAULT_USER_PREFERENCES;
@@ -120,7 +165,18 @@ async function requestPreferences<T>(
     throw new PreferenceRequestError(method, 'network');
   }
   if (!response.ok) {
-    throw new PreferenceRequestError(method, 'response', response.status);
+    const payload = (await response.json().catch(() => null)) as
+      | { code?: unknown }
+      | null;
+    const code = isPreferenceApiErrorCode(payload?.code)
+      ? payload.code
+      : undefined;
+    throw new PreferenceRequestError(
+      method,
+      'response',
+      response.status,
+      code
+    );
   }
   return response.json() as Promise<T>;
 }
