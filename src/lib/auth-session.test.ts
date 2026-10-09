@@ -1,12 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  after,
-  afterEach,
-  before,
-  beforeEach,
-  mock,
-  test,
-} from 'node:test';
+import { after, afterEach, before, beforeEach, mock, test } from 'node:test';
 
 type AuthSessionResult = {
   data?: { user?: { id: string } } | null;
@@ -23,6 +16,7 @@ let tokenResult: AuthTokenResult = { data: { token: 'better-auth-token' } };
 let sessionError: Error | null = null;
 let tokenError: Error | null = null;
 let firebaseToken: string | null = 'firebase-token';
+let firebaseUserId: string | null = null;
 let sessionCalls = 0;
 let tokenCalls = 0;
 let firebaseCalls = 0;
@@ -33,7 +27,7 @@ const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
 
 before(async () => {
   mock.module('./auth-client', {
-    exports: {
+    namedExports: {
       authClient: {
         getSession: async () => {
           sessionCalls += 1;
@@ -49,10 +43,11 @@ before(async () => {
     },
   } as never);
   mock.module('./firebase-client', {
-    exports: {
+    namedExports: {
       isFirebaseConfigured: () => true,
       getFirebaseAuth: () => ({
         currentUser: {
+          uid: firebaseUserId ?? undefined,
           getIdToken: async () => {
             firebaseCalls += 1;
             return firebaseToken;
@@ -74,6 +69,7 @@ beforeEach(() => {
   sessionError = null;
   tokenError = null;
   firebaseToken = 'firebase-token';
+  firebaseUserId = null;
   sessionCalls = 0;
   tokenCalls = 0;
   firebaseCalls = 0;
@@ -93,7 +89,10 @@ after(() => {
 
 test('does not fall back to Firebase when a Better Auth session has no API token', async () => {
   sessionResult = { data: { user: { id: 'passkey-user' } } };
-  tokenResult = { data: null, error: { message: 'token endpoint unavailable' } };
+  tokenResult = {
+    data: null,
+    error: { message: 'token endpoint unavailable' },
+  };
 
   await assert.rejects(getAuthHeaders(), /Better Auth API token/);
 
@@ -110,6 +109,26 @@ test('uses the Better Auth API token for an active passkey session', async () =>
   assert.equal(headers.get('Authorization'), 'Bearer better-auth-token');
   assert.equal(sessionCalls, 1);
   assert.equal(tokenCalls, 1);
+  assert.equal(firebaseCalls, 0);
+});
+
+test('fails closed when active provider sessions identify different users', async () => {
+  sessionResult = { data: { user: { id: 'passkey-user' } } };
+  firebaseUserId = 'different-firebase-user';
+
+  await assert.rejects(getAuthHeaders(), /different active users/);
+
+  assert.equal(tokenCalls, 0);
+  assert.equal(firebaseCalls, 0);
+});
+
+test('uses Better Auth when both active sessions share the canonical user ID', async () => {
+  sessionResult = { data: { user: { id: 'firebase-user' } } };
+  firebaseUserId = 'firebase-user';
+
+  const headers = new Headers(await getAuthHeaders());
+
+  assert.equal(headers.get('Authorization'), 'Bearer better-auth-token');
   assert.equal(firebaseCalls, 0);
 });
 

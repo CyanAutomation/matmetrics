@@ -23,10 +23,17 @@ import {
   type User,
 } from 'firebase/auth';
 import { authClient } from '@/lib/auth-client';
+import { getCurrentIdToken } from '@/lib/auth-session';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase-client';
 import { setActiveUserId } from '@/lib/client-identity';
 import {
+  selectActiveAuthIdentity,
+  selectUserScopedValue,
+} from '@/lib/auth-identity-selection';
+import { isPasskeyRegistrationAllowed } from '@/lib/passkey-policy';
+import {
   clearUserPreferencesState,
+  DEFAULT_USER_PREFERENCES,
   getCurrentPreferences,
   initializeUserPreferences,
   PreferenceRequestError,
@@ -43,6 +50,8 @@ type AuthContextValue = {
   isConfigured: boolean;
   firebaseConfigured: boolean;
   betterAuthConfigured: boolean;
+  passkeyEnrolmentEnabled: boolean;
+  passkeySignupEnabled: boolean;
   isPasskeySession: boolean;
   authMode: 'authenticated' | 'guest';
   authAvailable: boolean;
@@ -70,6 +79,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const betterAuthConfigured =
   process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED === 'true';
+const passkeyRegistrationPolicy = {
+  enrolmentEnabled:
+    process.env.NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED === 'true',
+  signupEnabled: process.env.NEXT_PUBLIC_PASSKEY_SIGNUP_ENABLED === 'true',
+};
+const passkeyEnrolmentEnabled =
+  betterAuthConfigured &&
+  isPasskeyRegistrationAllowed(
+    'authenticated-enrolment',
+    passkeyRegistrationPolicy
+  );
+const passkeySignupEnabled =
+  betterAuthConfigured &&
+  isPasskeyRegistrationAllowed('new-account', passkeyRegistrationPolicy);
 
 function toAuthenticatedUser(user: User): AuthenticatedUser {
   return {
@@ -140,36 +163,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [preferencesError, setPreferencesError] = useState<Error | null>(null);
   const [preferences, setPreferences] = useState(getCurrentPreferences());
-  const { data: passkeySession, isPending: passkeySessionPending } =
-    authClient.useSession();
+  const [preferencesOwnerId, setPreferencesOwnerId] = useState<string | null>(
+    null
+  );
+  const preferencesIdentityRef = useRef<string | null>(null);
+  const {
+    data: passkeySession,
+    isPending: passkeySessionPending,
+    error: passkeySessionError,
+  } = authClient.useSession();
   const authLoadGenerationRef = useRef(0);
 
-  const user = passkeySession?.user
+  const betterAuthUser = passkeySession?.user
     ? toBetterAuthUser(passkeySession.user)
-    : firebaseUser;
+    : null;
+  const activeIdentity = selectActiveAuthIdentity({
+    betterAuthEnabled: betterAuthConfigured,
+    betterAuthState: !betterAuthConfigured
+      ? 'disabled'
+      : passkeySessionPending
+        ? 'pending'
+        : passkeySessionError
+          ? 'unavailable'
+          : betterAuthUser
+            ? 'authenticated'
+            : 'anonymous',
+    betterAuthUser,
+    firebaseUser,
+  });
+  const user = activeIdentity.user;
+  const isPasskeySession = activeIdentity.provider === 'better-auth';
   const isConfigured = firebaseConfigured || betterAuthConfigured;
-  const authReady =
-    firebaseReady && (!betterAuthConfigured || !passkeySessionPending);
+  const authReady = firebaseReady && activeIdentity.status !== 'pending';
 
   const getIdToken = useCallback(async (): Promise<string | null> => {
-    if (betterAuthConfigured && passkeySession?.user) {
-      try {
-        const result = await authClient.token();
-        return result.data?.token ?? null;
-      } catch {
-        console.error('Failed to read Better Auth API token');
-        return null;
-      }
-    }
-
-    if (!firebaseConfigured) return null;
-    try {
-      return getFirebaseAuth().currentUser?.getIdToken() ?? null;
-    } catch {
-      console.error('Failed to read Firebase ID token');
-      return null;
-    }
-  }, [firebaseConfigured, passkeySession?.user]);
+    return getCurrentIdToken();
+  }, []);
 
   const loadPreferencesForUser = useCallback(
     async (uid: string, generation: number): Promise<void> => {
@@ -180,6 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await initializeUserPreferences(uid, {
           shouldApply: () => authLoadGenerationRef.current === generation,
         });
+        if (authLoadGenerationRef.current === generation) {
+          setPreferencesOwnerId(uid);
+        }
       } catch (error) {
         if (authLoadGenerationRef.current === generation) {
           if (error instanceof PreferenceRequestError) {
@@ -242,17 +274,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authReady) return;
     const generation = ++authLoadGenerationRef.current;
-    if (!user) {
+    const currentUserId = user?.uid ?? null;
+    if (!currentUserId) {
+      preferencesIdentityRef.current = null;
       setActiveUserId(null);
       if (isConfigured) clearUserPreferencesState();
+      setPreferencesOwnerId(null);
       setPreferencesError(null);
       setPreferencesReady(true);
       return;
     }
 
-    setActiveUserId(user.uid);
-    void loadPreferencesForUser(user.uid, generation);
+    if (preferencesIdentityRef.current !== currentUserId) {
+      preferencesIdentityRef.current = currentUserId;
+      setPreferencesOwnerId(null);
+      clearUserPreferencesState();
+    }
+    setActiveUserId(currentUserId);
+    void loadPreferencesForUser(currentUserId, generation);
   }, [authReady, isConfigured, loadPreferencesForUser, user?.uid]);
+
+  const visiblePreferences = selectUserScopedValue({
+    activeUserId: user?.uid ?? null,
+    ownerUserId: preferencesOwnerId,
+    ready: preferencesReady,
+    value: preferences,
+    fallback: DEFAULT_USER_PREFERENCES,
+  });
+
+  const clearBetterAuthSession = useCallback(async () => {
+    if (!betterAuthConfigured) return;
+    const result = await authClient.signOut();
+    await assertAuthClientResult(
+      result,
+      'Could not switch authentication accounts'
+    );
+  }, []);
+
+  const clearFirebaseSession = useCallback(async () => {
+    if (!firebaseConfigured || !getFirebaseAuth().currentUser) return;
+    await signOut(getFirebaseAuth());
+  }, [firebaseConfigured]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -260,11 +322,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       preferencesReady,
       preferencesError,
       user,
-      preferences,
+      preferences: visiblePreferences,
       isConfigured,
       firebaseConfigured,
       betterAuthConfigured,
-      isPasskeySession: Boolean(passkeySession?.user),
+      passkeyEnrolmentEnabled,
+      passkeySignupEnabled,
+      isPasskeySession,
       authMode: user ? 'authenticated' : 'guest',
       authAvailable: isConfigured,
       canUseAi: !!user && isConfigured,
@@ -282,10 +346,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const result = await authClient.signIn.passkey();
         await assertAuthClientResult(result, 'Passkey sign-in failed');
+        await clearFirebaseSession();
       },
       async signUpWithPasskey(name, email) {
-        if (!betterAuthConfigured) {
-          throw new Error('Passkey authentication is not configured');
+        if (!passkeySignupEnabled) {
+          throw new Error('New passkey registration is disabled');
         }
         const context = await requestRegistrationContext({
           mode: 'new',
@@ -298,14 +363,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createSession: true,
         });
         await assertAuthClientResult(result, 'Passkey registration failed');
+        await clearFirebaseSession();
       },
       async addPasskey(name) {
-        if (!betterAuthConfigured) {
-          throw new Error('Passkey authentication is not configured');
+        if (!passkeyEnrolmentEnabled) {
+          throw new Error('Passkey enrolment is disabled');
         }
         let context: string | undefined;
         let createSession = false;
-        if (!passkeySession?.user) {
+        if (!isPasskeySession) {
           if (!firebaseConfigured) {
             throw new Error('Sign in before adding a passkey');
           }
@@ -327,14 +393,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signInWithGoogle() {
         if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
+        await clearBetterAuthSession();
       },
       async signInWithGitHub() {
         if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithPopup(getFirebaseAuth(), new GithubAuthProvider());
+        await clearBetterAuthSession();
       },
       async signInWithEmail(email, password) {
         if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+        await clearBetterAuthSession();
       },
       async signUpWithEmail(name, email, password) {
         if (!firebaseConfigured) throw new Error('Firebase is not configured');
@@ -348,27 +417,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await reload(credentials.user);
           setFirebaseUser(toAuthenticatedUser(credentials.user));
         }
+        await clearBetterAuthSession();
       },
       async sendPasswordReset(email) {
         if (!firebaseConfigured) throw new Error('Firebase is not configured');
         await sendPasswordResetEmail(getFirebaseAuth(), email);
       },
       async signOutUser() {
-        if (betterAuthConfigured) {
-          const result = await authClient.signOut();
-          await assertAuthClientResult(result, 'Could not sign out');
-        }
-        if (firebaseConfigured) await signOut(getFirebaseAuth());
+        const results = await Promise.allSettled([
+          clearBetterAuthSession(),
+          clearFirebaseSession(),
+        ]);
+        const failed = results.find((result) => result.status === 'rejected');
+        if (failed?.status === 'rejected') throw failed.reason;
       },
     }),
     [
       authReady,
       firebaseConfigured,
       getIdToken,
+      clearBetterAuthSession,
+      clearFirebaseSession,
       isConfigured,
       loadPreferencesForUser,
-      passkeySession?.user,
-      preferences,
+      isPasskeySession,
+      visiblePreferences,
       preferencesError,
       preferencesReady,
       user,

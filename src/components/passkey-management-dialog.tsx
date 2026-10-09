@@ -26,7 +26,12 @@ export function PasskeyManagementDialog({
   open,
   onOpenChange,
 }: PasskeyManagementDialogProps) {
-  const { betterAuthConfigured, isPasskeySession, addPasskey } = useAuth();
+  const {
+    betterAuthConfigured,
+    passkeyEnrolmentEnabled,
+    isPasskeySession,
+    addPasskey,
+  } = useAuth();
   const { refetch } = authClient.useSession();
   const [passkeys, setPasskeys] = useState<PasskeySummary[]>([]);
   const [newName, setNewName] = useState('');
@@ -217,37 +222,43 @@ export function PasskeyManagementDialog({
               <p className="text-sm text-muted-foreground">
                 No passkeys are registered yet.
               </p>
-            ) : (
+            ) : passkeyEnrolmentEnabled ? (
               <p className="text-sm text-muted-foreground">
                 Add your first passkey to link this Firebase account. You will
                 remain signed in to the same MatMetrics account.
               </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Passkey enrolment is currently disabled.
+              </p>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="new-passkey-name">Name for the new passkey</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="new-passkey-name"
-                  value={newName}
-                  onChange={(event) => setNewName(event.target.value)}
-                  placeholder="e.g. iPhone or YubiKey"
-                  maxLength={80}
-                />
-                <Button
-                  type="button"
-                  onClick={() => void handleAdd()}
-                  disabled={pendingId === 'new'}
-                >
-                  {pendingId === 'new' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  <span className="sr-only sm:not-sr-only">Add</span>
-                </Button>
+            {passkeyEnrolmentEnabled ? (
+              <div className="space-y-2">
+                <Label htmlFor="new-passkey-name">Name for the new passkey</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="new-passkey-name"
+                    value={newName}
+                    onChange={(event) => setNewName(event.target.value)}
+                    placeholder="e.g. iPhone or YubiKey"
+                    maxLength={80}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void handleAdd()}
+                    disabled={pendingId === 'new'}
+                  >
+                    {pendingId === 'new' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    <span className="sr-only sm:not-sr-only">Add</span>
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {passkeys.length === 1 && isPasskeySession ? (
               <p className="text-xs text-muted-foreground">

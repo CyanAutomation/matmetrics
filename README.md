@@ -144,7 +144,7 @@ Firebase values come from:
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
-- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, `MATMETRICS_AUTH_AUDIENCE`, and `MATMETRICS_AUTH_CONTEXT_SECRET` configure the incremental Better Auth passkey migration. `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` enables the browser passkey UI after the Cloudflare auth Worker is deployed. Keep `BETTER_AUTH_SECRET` only in Cloudflare; it is not needed by Vercel.
+- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, `MATMETRICS_AUTH_AUDIENCE`, and `MATMETRICS_AUTH_CONTEXT_SECRET` configure the incremental Better Auth passkey migration. Passkey sign-in uses `NEXT_PUBLIC_BETTER_AUTH_ENABLED` and Worker `MATMETRICS_PASSKEY_SIGNIN_ENABLED`. Existing-user enrolment uses `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` plus server-side `MATMETRICS_PASSKEY_ENROLMENT_ENABLED` in Vercel and Cloudflare. Public passkey-only signup has separate `NEXT_PUBLIC_PASSKEY_SIGNUP_ENABLED` and server-side `MATMETRICS_PASSKEY_SIGNUP_ENABLED` flags and must stay disabled for the pilot. Keep `BETTER_AUTH_SECRET` only in Cloudflare; it is not needed by Vercel. See [the rollout guide](docs/better-auth-passkey-migration.md).
 - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
@@ -160,7 +160,7 @@ Firebase values come from:
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run the plugin UI contract validator, then ESLint
 - **`npm run typecheck`**: Clear `.next/types` and `tsconfig.tsbuildinfo`, regenerate Next.js route types with `next typegen`, write a placeholder `.next/types/cache-life.d.ts`, then run `tsc --noEmit`
-- **`npm run verify`**: Run the full verification suite sequentially (`test:all`, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
+- **`npm run verify`**: Run the full verification suite sequentially (`test:all`, auth Worker tests/typecheck, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
 - **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`, followed by `npm run test:styles`)
 - **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)
 - **API route tests**: Live in `src/tests/` (for example `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts`) and are covered by `npm run test:all`; `src/lib/plugins/validate.test.ts` covers plugin validation behavior checks.
@@ -208,10 +208,11 @@ sessions and separate JWKS-verifiable JWTs for protected application APIs.
 
 The current stage keeps Firebase available. A Firebase-authenticated user can
 request a short-lived, signed registration context at
-`/api/passkey/registration-context`; Better Auth then creates a passkey for the
-same canonical MatMetrics user ID. New passkey accounts use a random
-MatMetrics ID. Emails identify accounts but do not establish ownership or
-provide recovery; passkeys are the only Better Auth sign-in credential.
+`/api/passkey/registration-context`; Better Auth links the verified passkey to
+the same canonical MatMetrics user ID. Public passkey-only signup is disabled
+by default and is not part of the pilot. Emails identify accounts but do not
+establish ownership or provide recovery; passkeys are the only Better Auth
+sign-in credential.
 
 Configure the Cloudflare Worker secrets `BETTER_AUTH_SECRET` and
 `MATMETRICS_AUTH_CONTEXT_SECRET`. Set the same context secret in Vercel, along
@@ -220,6 +221,12 @@ either secret in a `NEXT_PUBLIC_*` variable. Apply the additive auth schema
 through the existing D1 migration owner before enabling the browser flag; see
 [`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md) and
 [`docs/better-auth-passkey-migration.md`](docs/better-auth-passkey-migration.md).
+
+For the existing-user pilot, enable passkey sign-in and Firebase-user
+enrolment explicitly in both UI and server configuration while leaving both
+signup flags false. Production Worker defaults keep all three capabilities
+disabled. The rollout guide includes the controlled-account smoke test,
+recovery limitations, rate-limit setup, and Firebase rollback procedure.
 
 Set the passkey RP ID to the deployed frontend hostname and the WebAuthn
 origin/trusted origin to that exact origin. Local development uses `localhost`

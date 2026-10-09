@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPasskeyRegistrationContext } from '@/lib/passkey-registration-context';
-import {
-  isFirebaseAdminConfigured,
-} from '@/lib/firebase-admin';
+import { isFirebaseAdminConfigured } from '@/lib/firebase-admin';
 import { getFirebaseAdminAuth } from '@/lib/firebase-admin-auth';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { isPasskeyRegistrationAllowed } from '@/lib/passkey-policy';
 
 export const runtime = 'nodejs';
 
@@ -39,17 +38,62 @@ function featureDisabledError(): NextResponse {
   );
 }
 
+function registrationDisabledError(): NextResponse {
+  return NextResponse.json(
+    { error: 'Passkey registration is disabled' },
+    { status: 503, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
+
+async function readBoundedJson(request: NextRequest): Promise<unknown> {
+  const declaredLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > 4096) {
+    throw new Error('Request body is too large');
+  }
+  if (
+    !request.headers
+      .get('content-type')
+      ?.toLowerCase()
+      .includes('application/json')
+  ) {
+    throw new Error('Expected a JSON request');
+  }
+
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error('Request body is missing');
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    byteLength += value.byteLength;
+    if (byteLength > 4096) {
+      await reader.cancel();
+      throw new Error('Request body is too large');
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(body));
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED !== 'true') {
     return featureDisabledError();
   }
 
   const secret = contextSecret();
-  if (!secret || !isFirebaseAdminConfigured()) return configurationError();
+  if (!secret) return configurationError();
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = await readBoundedJson(request);
   } catch {
     return NextResponse.json(
       { error: 'Invalid registration request' },
@@ -66,6 +110,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   let claims: Parameters<typeof createPasskeyRegistrationContext>[0];
   if (parsed.data.mode === 'firebase') {
+    if (
+      !isPasskeyRegistrationAllowed('firebase-enrolment', {
+        enrolmentEnabled:
+          process.env.MATMETRICS_PASSKEY_ENROLMENT_ENABLED === 'true',
+        signupEnabled: process.env.MATMETRICS_PASSKEY_SIGNUP_ENABLED === 'true',
+      })
+    ) {
+      return registrationDisabledError();
+    }
+    if (!isFirebaseAdminConfigured()) return configurationError();
+
     const verified = await requireAuthenticatedUser(request);
     if ('status' in verified) return verified;
     if (verified.provider !== 'firebase') {
@@ -95,6 +150,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       emailVerified: verified.emailVerified,
     };
   } else {
+    if (
+      !isPasskeyRegistrationAllowed('new-account', {
+        enrolmentEnabled:
+          process.env.MATMETRICS_PASSKEY_ENROLMENT_ENABLED === 'true',
+        signupEnabled: process.env.MATMETRICS_PASSKEY_SIGNUP_ENABLED === 'true',
+      })
+    ) {
+      return registrationDisabledError();
+    }
+    if (!isFirebaseAdminConfigured()) return configurationError();
+
     const email = parsed.data.email.trim().toLowerCase();
     let firebaseUserExists = false;
     try {
