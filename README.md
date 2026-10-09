@@ -158,10 +158,10 @@ Firebase values come from:
 - **`npm run dev`**: Start the development server on port 9002 (with Turbopack)
 - **`npm run build`**: Build for production
 - **`npm run start`**: Start the production server
-- **`npm run lint`**: Run ESLint
-- **`npm run typecheck`**: Run TypeScript type checking
+- **`npm run lint`**: Run the plugin UI contract validator, then ESLint
+- **`npm run typecheck`**: Clear `.next/types` and `tsconfig.tsbuildinfo`, regenerate Next.js route types with `next typegen`, write a placeholder `.next/types/cache-life.d.ts`, then run `tsc --noEmit`
 - **`npm run verify`**: Run the full verification suite sequentially (`test:all`, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
-- **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`)
+- **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`, followed by `npm run test:styles`)
 - **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)
 - **API route tests**: Live in `src/tests/` (for example `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts`) and are covered by `npm run test:all`; `src/lib/plugins/validate.test.ts` covers plugin validation behavior checks.
 - **`npm run test:all`**: Run all TypeScript tests under `plugins/` and `src/` (with `src/lib/storage.test.ts` executed separately), after `validate:plugin-ui-contract`, `validate:plugin-ui-migration-artifact`, `validate:docs`, and the tsx availability preflight
@@ -325,7 +325,8 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 ```text
 src/
 ├── app/               # Next.js app directory
-│   └── api/          # API routes including AI endpoints
+│   └── api/          # API routes, emitted through one catch-all handler
+│       └── ai/       # AI endpoints (suggest-techniques, transform-description)
 ├── components/        # Reusable React components
 │   └── ui/           # Base UI components from Radix UI
 ├── hooks/            # Custom React hooks
@@ -334,6 +335,8 @@ src/
     ├── ai-api-error.ts          # AI error handling
     └── ai-prompts.ts            # AI prompt templates
 ```
+
+API handlers live in `api-handler.ts` modules (each exports `POST` and `maxDuration`) that are registered in `src/app/api/[...path]/route.ts`, which emits the API surface as a single Next.js route handler. The AI endpoints are at `src/app/api/ai/suggest-techniques/api-handler.ts` and `src/app/api/ai/transform-description/api-handler.ts`.
 
 ## AI Features
 
@@ -360,8 +363,6 @@ Requests exceeding these limits are rejected before calling the AI provider. `/a
 ### Output Constraints
 
 The `/api/ai/transform-description` endpoint enforces strict output formatting: the model returns plain prose only — no title, heading, Markdown syntax, asterisks, emphasis markers, bullet lists, or code fences. The narrative begins immediately without any introductory phrase. No "Overall" conclusion or reflection is appended unless supported by the user's input.
-
-## Contributing
 
 ## Contributing
 

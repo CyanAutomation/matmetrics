@@ -41,11 +41,11 @@ Current required mappings:
 
 - `layout.standard` → plugin surface uses the standard shell width token (`max-w-4xl`).
 - `layout.wide` → plugin surface uses the wide shell width token (`max-w-6xl`).
-- `surface.github-sync` → use shared plugin info/surface tokens (for example `bg-primary/5`, `border-primary/25`).
-- `surface.prompt-settings` → use shared card/surface tokens (for example `bg-card/95`, `border-primary/20`).
-- `surface.tag-manager` → use shared tag-manager tokens (for example `bg-card/95`, `bg-primary`).
-- `surface.video-library` → use shared video-library typography/surface tokens (for example `bg-card/95`, `text-muted-foreground`).
-- `surface.log-doctor` → use shared diagnostics surface tokens (for example `bg-secondary/20`, `border-ghost`).
+- `surface.github-sync` → use shared card/surface tokens (`bg-card/95`, `border-border`).
+- `surface.prompt-settings` → use shared card/surface tokens (`bg-card/95`, `border-border`).
+- `surface.tag-manager` → use shared card/surface tokens (`bg-card/95`, `border-border`).
+- `surface.video-library` → use shared card/surface tokens (`bg-card/95`, `border-border`).
+- `surface.log-doctor` → use shared card/surface tokens (`bg-card/95`, `border-border`).
 
 When adding a new `designTokenVariants` value:
 
