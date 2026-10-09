@@ -1,7 +1,18 @@
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
 import { authClient } from './auth-client';
 
-async function getCurrentIdToken(): Promise<string | null> {
+export async function getCurrentIdToken(): Promise<string | null> {
+  const firebaseConfigured = isFirebaseConfigured();
+  let firebaseUserId: string | null = null;
+  if (firebaseConfigured) {
+    try {
+      firebaseUserId = getFirebaseAuth().currentUser?.uid ?? null;
+    } catch {
+      console.error('Failed to check the active Firebase identity');
+      throw new Error('Firebase identity could not be checked');
+    }
+  }
+
   if (process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED === 'true') {
     let session: Awaited<ReturnType<typeof authClient.getSession>>;
     try {
@@ -17,6 +28,11 @@ async function getCurrentIdToken(): Promise<string | null> {
     }
 
     if (session.data?.user) {
+      if (firebaseUserId && firebaseUserId !== session.data.user.id) {
+        console.error('Firebase and Better Auth identities do not match');
+        throw new Error('Authentication providers have different active users');
+      }
+
       try {
         const token = await authClient.token();
         if (
@@ -35,7 +51,7 @@ async function getCurrentIdToken(): Promise<string | null> {
     }
   }
 
-  if (!isFirebaseConfigured()) return null;
+  if (!firebaseConfigured) return null;
 
   try {
     const currentUser = getFirebaseAuth().currentUser;
