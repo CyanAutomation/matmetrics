@@ -50,7 +50,12 @@ export default function Home() {
     guestWorkspace,
     refreshSessions,
     retrySessionListRefresh,
-  } = useSessionsData({ userId: user?.uid, authMode });
+  } = useSessionsData({
+    userId: user?.uid,
+    authMode,
+    authReady,
+    preferencesReady,
+  });
   const {
     isLogModalOpen,
     setIsLogModalOpen,
