@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getSessions,
   getSessionFileIssues,
@@ -17,11 +17,19 @@ import { getGuestWorkspaceSummary } from '@/lib/guest-mode';
  * Manages session data loading, sync status, and guest workspace info
  * Handles storage initialization, listener setup, and periodic sync updates
  */
-export function useSessionsData(deps?: {
+export function useSessionsData(deps: {
   userId?: string | null;
   authMode?: string;
+  authReady: boolean;
+  preferencesReady: boolean;
 }) {
+  const contextKey = JSON.stringify([
+    deps.userId?.trim() ?? '',
+    deps.authMode ?? 'guest',
+  ]);
+  const lastForcedRefreshContextRef = useRef<string | null>(null);
   const [sessions, setSessions] = useState<JudoSession[]>([]);
+  const [loadedContextKey, setLoadedContextKey] = useState<string | null>(null);
   const [sessionFileIssues, setSessionFileIssues] = useState<
     SessionFileIssue[]
   >([]);
@@ -39,7 +47,8 @@ export function useSessionsData(deps?: {
     setSessionListRefreshError(getSessionListRefreshError());
     setSyncStatus(getSyncStatus());
     setGuestWorkspace(getGuestWorkspaceSummary());
-  }, []);
+    setLoadedContextKey(contextKey);
+  }, [contextKey]);
 
   const retrySessionListRefresh = useCallback(
     () => forceRefreshSessionList(),
@@ -47,8 +56,19 @@ export function useSessionsData(deps?: {
   );
 
   useEffect(() => {
+    if (!deps.authReady || !deps.preferencesReady) return;
+
     initializeStorage();
     refreshSessions();
+
+    if (
+      deps.authMode !== 'guest' &&
+      deps.userId &&
+      lastForcedRefreshContextRef.current !== contextKey
+    ) {
+      lastForcedRefreshContextRef.current = contextKey;
+      void forceRefreshSessionList();
+    }
 
     const handleStorageSync = () => {
       refreshSessions();
@@ -72,12 +92,23 @@ export function useSessionsData(deps?: {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(statusInterval);
     };
-  }, [refreshSessions, deps?.userId, deps?.authMode]);
+  }, [
+    contextKey,
+    deps.authMode,
+    deps.authReady,
+    deps.preferencesReady,
+    deps.userId,
+    refreshSessions,
+  ]);
+
+  const isCurrentContextLoaded = loadedContextKey === contextKey;
 
   return {
-    sessions,
-    sessionFileIssues,
-    sessionListRefreshError,
+    sessions: isCurrentContextLoaded ? sessions : [],
+    sessionFileIssues: isCurrentContextLoaded ? sessionFileIssues : [],
+    sessionListRefreshError: isCurrentContextLoaded
+      ? sessionListRefreshError
+      : null,
     syncStatus,
     guestWorkspace,
     refreshSessions,

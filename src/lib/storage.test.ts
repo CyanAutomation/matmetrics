@@ -7,7 +7,7 @@ import {
   __renewSyncLeaseForTests,
   __setSyncLeaseTimingForTests,
   __setStorageDependencyOverridesForTests,
-  __resetStorageStateForTests,
+  __resetStorageStateForTests as resetStorageStateForTests,
   __tryAcquireSyncLeaseForTests,
   clearAllData,
   getSessionFileIssues,
@@ -35,6 +35,15 @@ import { DEFAULT_USER_PREFERENCES } from './user-preferences';
 
 function serialTest(name: string, fn: any): ReturnType<typeof test> {
   return test(name, { concurrency: false }, fn);
+}
+
+function __resetStorageStateForTests(): void {
+  resetStorageStateForTests();
+  __setStorageDependencyOverridesForTests({
+    getSessionRefreshAuthHeaders: async () => ({
+      Authorization: 'Bearer storage-test-token',
+    }),
+  });
 }
 
 function assertCreateOperation(
@@ -923,6 +932,112 @@ serialTest(
 );
 
 serialTest(
+  'authenticated session refresh does not send a request without a bearer token',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const preferences = installGitHubPreferencesOverride();
+    __setStorageDependencyOverridesForTests({
+      readPreferences: () => preferences,
+      getSessionRefreshAuthHeaders: async () => ({}),
+    });
+
+    let listRequests = 0;
+    const originalFetch = global.fetch;
+    const originalError = console.error;
+    const errorDiagnostics: unknown[][] = [];
+    global.fetch = (async () => {
+      listRequests += 1;
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as typeof fetch;
+    console.error = (...args: unknown[]) => {
+      errorDiagnostics.push(args);
+    };
+
+    try {
+      await forceRefreshSessionList();
+
+      assert.equal(listRequests, 0);
+      assert.ok(getSessionListRefreshError());
+      assert.ok(
+        errorDiagnostics.some(([event, details]) => {
+          const diagnostic = details as { stage?: string; errorName?: string };
+          return (
+            event === 'session_list_refresh_failed' &&
+            diagnostic.stage === 'auth_headers' &&
+            diagnostic.errorName === 'MissingSessionRefreshAuthError'
+          );
+        })
+      );
+    } finally {
+      console.error = originalError;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'session refresh response is discarded when active user changes in flight',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-2');
+    const userTwoCacheKey = getScopedStorageKey('matmetrics_sessions');
+    const userTwoSession = makeSession('user-two-session');
+    localStorage.setItem(userTwoCacheKey, JSON.stringify([userTwoSession]));
+
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const preferences = installGitHubPreferencesOverride();
+    __setStorageDependencyOverridesForTests({
+      readPreferences: () => preferences,
+      getSessionRefreshAuthHeaders: async () => ({
+        Authorization: 'Bearer firebase-token',
+      }),
+    });
+
+    let resolveList: ((response: Response) => void) | undefined;
+    const listPending = new Promise<Response>((resolve) => {
+      resolveList = resolve;
+    });
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname !== '/api/sessions/list') {
+        throw new Error(`Unexpected fetch: ${url}`);
+      }
+      return listPending;
+    }) as typeof fetch;
+
+    try {
+      const refresh = forceRefreshSessionList();
+      await flushAsyncWork();
+
+      setActiveUserId('user-2');
+      resolveList?.(
+        new Response(JSON.stringify([makeSession('user-one-session')]), {
+          status: 200,
+        })
+      );
+      await refresh;
+
+      assert.deepEqual(
+        JSON.parse(localStorage.getItem(userTwoCacheKey) ?? '[]').map(
+          (session: JudoSession) => session.id
+        ),
+        ['user-two-session']
+      );
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
   'failed history refresh keeps cached sessions visible and retry clears the warning',
   async () => {
     const { localStorage } = installBrowserEnv();
@@ -945,13 +1060,21 @@ serialTest(
     let listStatus = 401;
     const originalFetch = global.fetch;
     const originalWarn = console.warn;
-    console.warn = () => undefined;
+    const warningDiagnostics: unknown[][] = [];
+    console.warn = (...args: unknown[]) => {
+      warningDiagnostics.push(args);
+    };
     global.fetch = (async (input: string | URL | Request) => {
       const url = new URL(String(input), window.location.origin);
       if (url.pathname !== '/api/sessions/list') {
         throw new Error(`Unexpected fetch: ${url}`);
       }
-      if (listStatus !== 200) return new Response(null, { status: listStatus });
+      if (listStatus !== 200) {
+        return new Response(null, {
+          status: listStatus,
+          headers: { 'x-vercel-id': 'sfo1::history-401' },
+        });
+      }
       return new Response(JSON.stringify([latestSession]), { status: 200 });
     }) as typeof fetch;
 
@@ -965,6 +1088,21 @@ serialTest(
         ['cached-session']
       );
       assert.deepEqual(getSessionListRefreshError(), { status: 401 });
+      assert.ok(
+        warningDiagnostics.some(([event, details]) => {
+          const diagnostic = details as {
+            status?: number;
+            source?: string;
+            requestId?: string;
+          };
+          return (
+            event === 'session_list_refresh_http_failed' &&
+            diagnostic.status === 401 &&
+            diagnostic.source === 'github' &&
+            diagnostic.requestId === 'sfo1::history-401'
+          );
+        })
+      );
 
       listStatus = 200;
       await forceRefreshSessionList();

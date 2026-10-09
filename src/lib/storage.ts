@@ -160,6 +160,13 @@ export type SessionListRefreshError = {
   status?: number;
 };
 
+class MissingSessionRefreshAuthError extends Error {
+  constructor() {
+    super('Authenticated session refresh requires a bearer token');
+    this.name = 'MissingSessionRefreshAuthError';
+  }
+}
+
 let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
   try {
     return getFirebaseAuth().currentUser?.uid ?? null;
@@ -227,6 +234,29 @@ function getSessionListContextKey(): string {
     : { type: 'local' };
 
   return JSON.stringify([getActiveUserId().trim(), source]);
+}
+
+function isSessionListContextCurrent(
+  contextKey: string,
+  userId: string
+): boolean {
+  return (
+    getActiveUserId() === userId &&
+    getSessionListContextKey() === contextKey
+  );
+}
+
+function getSessionListRefreshSource(): 'github' | 'local' {
+  return shouldThrottleGitHubRefresh() ? 'github' : 'local';
+}
+
+function getDiagnosticRequestId(response: Response): string | undefined {
+  const requestId =
+    response.headers.get('x-vercel-id') ??
+    response.headers.get('x-request-id');
+  return requestId && /^[a-zA-Z0-9:._-]{1,128}$/.test(requestId)
+    ? requestId
+    : undefined;
 }
 
 function getSessionListRefreshMetadata(
@@ -937,6 +967,41 @@ async function refreshSessionsFromAPI(options?: {
     return;
   }
 
+  const requestUserId = getActiveUserId();
+  const contextKey = getSessionListContextKey();
+  const generation = storageGeneration;
+  const seq = ++refreshSeq;
+  const source = getSessionListRefreshSource();
+  const startedAt = Date.now();
+  let stage: 'auth_headers' | 'request' | 'parse_response' = 'auth_headers';
+
+  console.debug('session_list_refresh_started', {
+    event: 'session_list_refresh_started',
+    requestSeq: seq,
+    source,
+    force,
+  });
+
+  const isCurrentRequest = (): boolean => {
+    if (!isStorageGenerationCurrent(generation)) {
+      console.debug('session_list_refresh_discarded', {
+        event: 'session_list_refresh_discarded',
+        requestSeq: seq,
+        reason: 'storage_generation_changed',
+      });
+      return false;
+    }
+    if (!isSessionListContextCurrent(contextKey, requestUserId)) {
+      console.debug('session_list_refresh_discarded', {
+        event: 'session_list_refresh_discarded',
+        requestSeq: seq,
+        reason: 'session_context_changed',
+      });
+      return false;
+    }
+    return true;
+  };
+
   // Install an in-flight guard before broadcasting. storageSync listeners read
   // sessions synchronously; without the guard, that read starts another refresh
   // which broadcasts again before its own promise is assigned.
@@ -952,22 +1017,21 @@ async function refreshSessionsFromAPI(options?: {
   dispatchStorageSync(sessionCache ?? getLocalStorageCache());
 
   const refresh = (async () => {
-    const generation = storageGeneration;
-    const seq = ++refreshSeq;
-
     try {
       const gitHubConfig = getGitHubConfig();
-      const contextKey = getSessionListContextKey();
       const refreshMetadata = getSessionListRefreshMetadata(contextKey);
       const url = buildSessionListUrl(gitHubConfig, force);
       const headers = new Headers(await getSessionRefreshAuthHeaders());
+      if (!isCurrentRequest()) return;
+      if (!/^Bearer\s+\S+$/i.test(headers.get('Authorization')?.trim() ?? '')) {
+        throw new MissingSessionRefreshAuthError();
+      }
       if (!force && refreshMetadata.etag) {
         headers.set('If-None-Match', refreshMetadata.etag);
       }
+      stage = 'request';
       const res = await fetch(url.toString(), { headers });
-      if (!isStorageGenerationCurrent(generation)) {
-        return;
-      }
+      if (!isCurrentRequest()) return;
 
       if (res.status === 304) {
         sessionListRefreshError = null;
@@ -975,25 +1039,42 @@ async function refreshSessionsFromAPI(options?: {
           ...refreshMetadata,
           lastSuccessfulRemoteRefreshAt: Date.now(),
         });
+        if (force) {
+          console.info('session_list_refresh_completed', {
+            event: 'session_list_refresh_completed',
+            requestSeq: seq,
+            source,
+            force,
+            status: res.status,
+            durationMs: Date.now() - startedAt,
+          });
+        }
         dispatchStorageSync(sessionCache ?? getLocalStorageCache());
         return;
       }
 
       if (!res.ok) {
         sessionListRefreshError = { status: res.status };
-        console.warn(
-          `Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`
-        );
+        const requestId = getDiagnosticRequestId(res);
+        console.warn('session_list_refresh_http_failed', {
+          event: 'session_list_refresh_http_failed',
+          requestSeq: seq,
+          source,
+          force,
+          stage: 'response',
+          status: res.status,
+          durationMs: Date.now() - startedAt,
+          ...(requestId ? { requestId } : {}),
+        });
         dispatchStorageSync(sessionCache ?? getLocalStorageCache());
         return;
       }
 
+      stage = 'parse_response';
       const payload = await res.json();
       const { sessions, issues } = parseSessionListResponse(payload);
 
-      if (!isStorageGenerationCurrent(generation)) {
-        return;
-      }
+      if (!isCurrentRequest()) return;
       if (seq < latestAppliedSeq) {
         return;
       }
@@ -1009,13 +1090,41 @@ async function refreshSessionsFromAPI(options?: {
       latestAppliedSeq = seq;
       sessionFileIssuesCache = issues;
       commitLocalSessions(mergedSessions);
+      if (force) {
+        const requestId = getDiagnosticRequestId(res);
+        console.info('session_list_refresh_completed', {
+          event: 'session_list_refresh_completed',
+          requestSeq: seq,
+          source,
+          force,
+          status: res.status,
+          sessionCount: sessions.length,
+          issueCount: issues.length,
+          durationMs: Date.now() - startedAt,
+          ...(requestId ? { requestId } : {}),
+        });
+      }
       dispatchStorageSync(mergedSessions);
     } catch (error) {
-      if (!isStorageGenerationCurrent(generation)) {
-        return;
-      }
+      if (!isCurrentRequest()) return;
       sessionListRefreshError = {};
-      console.error('Error refreshing sessions from API', error);
+      console.error('session_list_refresh_failed', {
+        event: 'session_list_refresh_failed',
+        requestSeq: seq,
+        source,
+        force,
+        stage,
+        reason:
+          error instanceof MissingSessionRefreshAuthError
+            ? 'missing_bearer_token'
+            : stage === 'auth_headers'
+              ? 'auth_header_generation_failed'
+              : stage === 'request'
+                ? 'network_request_failed'
+                : 'invalid_response',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        durationMs: Date.now() - startedAt,
+      });
       dispatchStorageSync(sessionCache ?? getLocalStorageCache());
     } finally {
       if (!isStorageGenerationCurrent(generation)) {
@@ -1026,7 +1135,9 @@ async function refreshSessionsFromAPI(options?: {
       const shouldRunQueuedForce = queuedForcedRefresh;
       queuedForcedRefresh = false;
       inFlightRefreshForce = false;
-      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+      if (isSessionListContextCurrent(contextKey, requestUserId)) {
+        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+      }
       inFlightRefresh = null;
 
       if (
