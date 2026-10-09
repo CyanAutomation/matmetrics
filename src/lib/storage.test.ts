@@ -11,10 +11,12 @@ import {
   __tryAcquireSyncLeaseForTests,
   clearAllData,
   getSessionFileIssues,
+  getSessionListRefreshError,
   getGitHubSyncStatus,
   getSyncStatus,
   getSessions,
   initializeStorage,
+  forceRefreshSessionList,
   retryCloudSync,
   saveSession,
   setGitHubSyncStatus,
@@ -841,6 +843,139 @@ serialTest(
         },
       ]);
     } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'GitHub history refresh uses the active auth provider without requiring a Firebase user',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('passkey-user');
+    __resetStorageStateForTests();
+    const preferences = installGitHubPreferencesOverride();
+    __setStorageDependencyOverridesForTests({
+      readPreferences: () => preferences,
+      getSessionRefreshAuthHeaders: async () => ({
+        Authorization: 'Bearer better-auth-token',
+      }),
+    });
+
+    const envKeys = [
+      'NEXT_PUBLIC_BETTER_AUTH_ENABLED',
+      'NEXT_PUBLIC_FIREBASE_API_KEY',
+      'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+      'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+      'NEXT_PUBLIC_FIREBASE_APP_ID',
+    ] as const;
+    const originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
+    process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test.firebaseapp.com';
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
+    process.env.NEXT_PUBLIC_FIREBASE_APP_ID = 'test-app-id';
+
+    const originalFetch = global.fetch;
+    let listRequests = 0;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname !== '/api/sessions/list') {
+        throw new Error(`Unexpected fetch: ${url}`);
+      }
+
+      listRequests += 1;
+      assert.equal(
+        new Headers(init?.headers).get('Authorization'),
+        'Bearer better-auth-token'
+      );
+      return new Response(JSON.stringify([makeSession('latest-session')]), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      await flushAsyncWork();
+
+      assert.equal(listRequests, 1);
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['latest-session']
+      );
+      assert.equal(getSessionListRefreshError(), null);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+      for (const key of envKeys) {
+        const value = originalEnv.get(key);
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  }
+);
+
+serialTest(
+  'failed history refresh keeps cached sessions visible and retry clears the warning',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const preferences = installGitHubPreferencesOverride();
+    __setStorageDependencyOverridesForTests({
+      readPreferences: () => preferences,
+      getSessionRefreshAuthHeaders: async () => ({
+        Authorization: 'Bearer firebase-token',
+      }),
+    });
+    const cachedSession = makeSession('cached-session');
+    const latestSession = { ...makeSession('latest-session'), date: '2026-10-08' };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([cachedSession])
+    );
+
+    let listStatus = 401;
+    const originalFetch = global.fetch;
+    const originalWarn = console.warn;
+    console.warn = () => undefined;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname !== '/api/sessions/list') {
+        throw new Error(`Unexpected fetch: ${url}`);
+      }
+      if (listStatus !== 200) return new Response(null, { status: listStatus });
+      return new Response(JSON.stringify([latestSession]), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      getSessions();
+      await flushAsyncWork();
+
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['cached-session']
+      );
+      assert.deepEqual(getSessionListRefreshError(), { status: 401 });
+
+      listStatus = 200;
+      await forceRefreshSessionList();
+
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['latest-session']
+      );
+      assert.equal(getSessionListRefreshError(), null);
+    } finally {
+      console.warn = originalWarn;
       teardownStorageListeners();
       __resetStorageStateForTests();
       global.fetch = originalFetch;
