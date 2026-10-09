@@ -88,6 +88,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  auth-worker:
+    name: auth-worker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            workers/matmetrics-auth/package-lock.json
+      - name: Install shared repository dependencies
+        run: npm ci
+      - name: Install auth Worker dependencies
+        run: npm ci
+        working-directory: workers/matmetrics-auth
+      - name: Run auth Worker integration tests
+        run: npm test
+        working-directory: workers/matmetrics-auth
+      - name: Type check auth Worker
+        run: npm run typecheck
+        working-directory: workers/matmetrics-auth
+
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -127,6 +154,7 @@ jobs:
       - build
       - quality
       - go
+      - auth-worker
       - dependency-review
       - workflow-lint
     runs-on: ubuntu-24.04
@@ -136,11 +164,12 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           GO_RESULT: ${{ needs.go.result }}
+          AUTH_WORKER_RESULT: ${{ needs.auth-worker.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          for result in "$BUILD_RESULT" "$QUALITY_RESULT" "$GO_RESULT" "$WORKFLOW_LINT_RESULT"; do
+          for result in "$BUILD_RESULT" "$QUALITY_RESULT" "$GO_RESULT" "$AUTH_WORKER_RESULT" "$WORKFLOW_LINT_RESULT"; do
             if [[ "$result" != "success" ]]; then
               echo "A required deployment check did not succeed."
               exit 1
@@ -161,6 +190,7 @@ jobs:
       - build
       - quality
       - go
+      - auth-worker
       - workflow-lint
       - release-readiness
     runs-on: ubuntu-24.04

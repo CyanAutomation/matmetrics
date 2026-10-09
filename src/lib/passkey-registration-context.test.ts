@@ -72,3 +72,19 @@ test('Firebase subject must equal the canonical user ID in a signed context', as
     /Invalid or expired passkey registration context/
   );
 });
+
+test('Better Auth subject must equal the canonical user ID in a signed context', async () => {
+  const token = await createPasskeyRegistrationContext(
+    {
+      ...baseClaims,
+      provider: 'better-auth',
+      providerSubject: 'different-auth-user',
+    },
+    secret
+  );
+
+  await assert.rejects(
+    verifyPasskeyRegistrationContext(token, secret),
+    /Invalid or expired passkey registration context/
+  );
+});

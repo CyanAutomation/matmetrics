@@ -78,10 +78,10 @@ test("runs zizmor in CI and disables persisted checkout credentials", () => {
     /zizmorcore\/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482/,
   );
   assert.match(ciWorkflow, /advanced-security: false/);
-  assert.equal((ciWorkflow.match(/uses: actions\/checkout@/g) ?? []).length, 4);
+  assert.equal((ciWorkflow.match(/uses: actions\/checkout@/g) ?? []).length, 5);
   assert.equal(
     (ciWorkflow.match(/persist-credentials: false/g) ?? []).length,
-    4,
+    5,
   );
 });
 
