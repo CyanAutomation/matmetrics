@@ -1,5 +1,9 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { AuthConfigurationError } from './server-auth-errors';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import {
+  AuthConfigurationError,
+  AuthVerificationUnavailableError,
+  isRemoteJwksUnavailable,
+} from './server-auth-errors';
 import type { AuthenticatedPrincipal } from './server-auth-types';
 
 let remoteJwksUrl: string | null = null;
@@ -30,11 +34,19 @@ function getBetterAuthJwks(): ReturnType<typeof createRemoteJWKSet> {
 export async function verifyBetterAuthToken(
   token: string
 ): Promise<AuthenticatedPrincipal> {
-  const { payload } = await jwtVerify(token, getBetterAuthJwks(), {
-    algorithms: ['EdDSA'],
-    issuer: requiredBetterAuthConfig('MATMETRICS_AUTH_ISSUER'),
-    audience: requiredBetterAuthConfig('MATMETRICS_AUTH_AUDIENCE'),
-  });
+  let payload: JWTPayload;
+  try {
+    ({ payload } = await jwtVerify(token, getBetterAuthJwks(), {
+      algorithms: ['EdDSA'],
+      issuer: requiredBetterAuthConfig('MATMETRICS_AUTH_ISSUER'),
+      audience: requiredBetterAuthConfig('MATMETRICS_AUTH_AUDIENCE'),
+    }));
+  } catch (error) {
+    if (isRemoteJwksUnavailable(error)) {
+      throw new AuthVerificationUnavailableError();
+    }
+    throw error;
+  }
   const appUserId = payload.appUserId;
   if (
     typeof payload.sub !== 'string' ||

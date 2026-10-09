@@ -13,6 +13,11 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
+type PreferencesStore = Pick<
+  typeof import('@/lib/preferences-store.server'),
+  'loadStoredPreferences' | 'saveStoredPreferences'
+>;
+
 function preferencesFailure(error: unknown): NextResponse {
   if (
     error instanceof PreferencesStoreConfigurationError ||
@@ -65,50 +70,63 @@ function preferencesFailure(error: unknown): NextResponse {
   );
 }
 
-export async function GET(request: NextRequest) {
-  const user = await requireAuthenticatedUser(request, { includeErrorCode: true });
-  if (user instanceof NextResponse) return user;
-  try {
-    return NextResponse.json(await loadStoredPreferences(user.appUserId), {
-      headers: { 'Cache-Control': 'no-store' },
+export function createPreferencesApiHandlers(
+  store: PreferencesStore = { loadStoredPreferences, saveStoredPreferences }
+) {
+  async function GET(request: NextRequest) {
+    const user = await requireAuthenticatedUser(request, {
+      includeErrorCode: true,
     });
-  } catch (error) {
-    console.error('Failed to load user preferences', error);
-    return preferencesFailure(error);
+    if (user instanceof NextResponse) return user;
+    try {
+      return NextResponse.json(
+        await store.loadStoredPreferences(user.appUserId),
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
+    } catch (error) {
+      console.error('Failed to load user preferences', error);
+      return preferencesFailure(error);
+    }
   }
+
+  async function PUT(request: NextRequest) {
+    const user = await requireAuthenticatedUser(request, {
+      includeErrorCode: true,
+    });
+    if (user instanceof NextResponse) return user;
+    const body = await parseJsonObjectBody(request);
+    if (
+      !body.ok ||
+      !body.value.preferences ||
+      typeof body.value.preferences !== 'object' ||
+      Array.isArray(body.value.preferences) ||
+      !Number.isInteger(body.value.revision) ||
+      (body.value.revision as number) < 0
+    ) {
+      return NextResponse.json(
+        {
+          error: 'Invalid preference payload',
+          code: PREFERENCE_API_ERROR_CODES.invalidPayload,
+        },
+        { status: 400 }
+      );
+    }
+    try {
+      return NextResponse.json(
+        await store.saveStoredPreferences(
+          user.appUserId,
+          body.value.preferences as Record<string, unknown>,
+          body.value.revision as number
+        ),
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
+    } catch (error) {
+      console.error('Failed to save user preferences', error);
+      return preferencesFailure(error);
+    }
+  }
+
+  return { GET, PUT };
 }
 
-export async function PUT(request: NextRequest) {
-  const user = await requireAuthenticatedUser(request, { includeErrorCode: true });
-  if (user instanceof NextResponse) return user;
-  const body = await parseJsonObjectBody(request);
-  if (
-    !body.ok ||
-    !body.value.preferences ||
-    typeof body.value.preferences !== 'object' ||
-    Array.isArray(body.value.preferences) ||
-    !Number.isInteger(body.value.revision) ||
-    (body.value.revision as number) < 0
-  ) {
-    return NextResponse.json(
-      {
-        error: 'Invalid preference payload',
-        code: PREFERENCE_API_ERROR_CODES.invalidPayload,
-      },
-      { status: 400 }
-    );
-  }
-  try {
-    return NextResponse.json(
-      await saveStoredPreferences(
-        user.appUserId,
-        body.value.preferences as Record<string, unknown>,
-        body.value.revision as number
-      ),
-      { headers: { 'Cache-Control': 'no-store' } }
-    );
-  } catch (error) {
-    console.error('Failed to save user preferences', error);
-    return preferencesFailure(error);
-  }
-}
+export const { GET, PUT } = createPreferencesApiHandlers();

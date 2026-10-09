@@ -293,6 +293,43 @@ test('preference request errors classify temporary failures as retryable', async
   }
 });
 
+test('preference verifier outages are reported as retryable instead of expired sessions', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+  globalThis.fetch = async () =>
+    Response.json(
+      {
+        error:
+          'Authentication service is temporarily unavailable. Please try again.',
+        code: 'AUTHENTICATION_UNAVAILABLE',
+      },
+      { status: 503 }
+    );
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('classified-verifier-outage-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.category, 'unavailable');
+        assert.equal(error.canRetry, true);
+        assert.match(error.message, /temporarily unavailable/i);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});
+
 test('preference request errors make permanent auth configuration failures actionable and non-retryable', async () => {
   const originalFetch = globalThis.fetch;
   const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
