@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  isUserScopedValueReady,
   selectActiveAuthIdentity,
   selectUserScopedValue,
 } from './auth-identity-selection';
@@ -130,6 +131,33 @@ test('account switches hide preferences owned by the previous identity', () => {
       fallback: defaults,
     }),
     defaults
+  );
+});
+
+test('preferences readiness belongs to the active identity, not the prior owner', () => {
+  assert.equal(
+    isUserScopedValueReady({
+      activeUserId: 'next-account',
+      ownerUserId: 'previous-account',
+      ready: true,
+    }),
+    false
+  );
+  assert.equal(
+    isUserScopedValueReady({
+      activeUserId: 'active-account',
+      ownerUserId: 'active-account',
+      ready: true,
+    }),
+    true
+  );
+  assert.equal(
+    isUserScopedValueReady({
+      activeUserId: null,
+      ownerUserId: null,
+      ready: true,
+    }),
+    true
   );
 });
 

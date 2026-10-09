@@ -109,3 +109,90 @@ test('GET list returns 403 when requested repo does not match user preferences',
       'Forbidden: requested GitHub repository does not match your configured repository.',
   });
 });
+
+test('GET list logs a safe diagnostic when authentication is rejected', async () => {
+  const originalWarn = console.warn;
+  const diagnostics: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    diagnostics.push(args);
+  };
+
+  try {
+    const response = await GET(
+      new NextRequest('http://localhost/api/sessions/list', {
+        headers: { 'x-vercel-id': 'iad1::request-123' },
+      })
+    );
+
+    assert.equal(response.status, 401);
+    assert.ok(
+      diagnostics.some(([event, details]) => {
+        const diagnostic = details as {
+          status?: number;
+          authorizationHeaderPresent?: boolean;
+          bearerAuthorizationPresent?: boolean;
+          requestId?: string;
+        };
+        return (
+          event === 'session_list_auth_rejected' &&
+          diagnostic.status === 401 &&
+          diagnostic.authorizationHeaderPresent === false &&
+          diagnostic.bearerAuthorizationPresent === false &&
+          diagnostic.requestId === 'iad1::request-123'
+        );
+      })
+    );
+    assert.equal(JSON.stringify(diagnostics).includes('test-token'), false);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test('forced GET list logs the result count without session content', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(makeSession('private-session-id', '2026-10-08'));
+      const originalInfo = console.info;
+      const diagnostics: unknown[][] = [];
+      console.info = (...args: unknown[]) => {
+        diagnostics.push(args);
+      };
+
+      try {
+        const response = await GET(
+          new NextRequest('http://localhost/api/sessions/list?force=1', {
+            headers: {
+              authorization: 'Bearer test-token',
+              'x-vercel-id': 'iad1::complete-456',
+            },
+          })
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(
+          diagnostics.some(([event, details]) => {
+            const diagnostic = details as {
+              source?: string;
+              status?: number;
+              sessionCount?: number;
+              requestId?: string;
+            };
+            return (
+              event === 'session_list_completed' &&
+              diagnostic.source === 'storage' &&
+              diagnostic.status === 200 &&
+              diagnostic.sessionCount === 1 &&
+              diagnostic.requestId === 'iad1::complete-456'
+            );
+          }),
+          JSON.stringify(diagnostics)
+        );
+        const serializedDiagnostics = JSON.stringify(diagnostics);
+        assert.equal(serializedDiagnostics.includes('private-session-id'), false);
+        assert.equal(serializedDiagnostics.includes('test-token'), false);
+      } finally {
+        console.info = originalInfo;
+      }
+    });
+  });
+});
