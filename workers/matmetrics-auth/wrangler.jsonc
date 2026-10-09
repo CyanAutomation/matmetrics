@@ -9,20 +9,35 @@
     "MATMETRICS_AUTH_FRONTEND_ORIGIN": "http://localhost:9002",
     "MATMETRICS_AUTH_RP_ID": "localhost",
     "MATMETRICS_AUTH_ISSUER": "http://localhost:9002",
-    "MATMETRICS_AUTH_AUDIENCE": "matmetrics-api"
+    "MATMETRICS_AUTH_AUDIENCE": "matmetrics-api",
+    "MATMETRICS_PASSKEY_SIGNIN_ENABLED": "true",
+    "MATMETRICS_PASSKEY_ENROLMENT_ENABLED": "true",
+    "MATMETRICS_PASSKEY_SIGNUP_ENABLED": "false",
   },
+  "ratelimits": [
+    {
+      "name": "PASSKEY_SIGNIN_LIMITER",
+      "namespace_id": "844221",
+      "simple": { "limit": 30, "period": 60 },
+    },
+    {
+      "name": "PASSKEY_REGISTRATION_LIMITER",
+      "namespace_id": "844222",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
   "observability": {
-    "logs": { "enabled": true, "invocation_logs": true, "persist": true }
+    "logs": { "enabled": true, "invocation_logs": true, "persist": true },
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRET", "MATMETRICS_AUTH_CONTEXT_SECRET"]
+    "required": ["BETTER_AUTH_SECRET", "MATMETRICS_AUTH_CONTEXT_SECRET"],
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "matmetrics-data",
-      "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c"
-    }
+      "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c",
+    },
   ],
   "env": {
     "production": {
@@ -32,18 +47,33 @@
         "MATMETRICS_AUTH_FRONTEND_ORIGIN": "https://matmetrics-teal.vercel.app",
         "MATMETRICS_AUTH_RP_ID": "matmetrics-teal.vercel.app",
         "MATMETRICS_AUTH_ISSUER": "https://matmetrics-teal.vercel.app",
-        "MATMETRICS_AUTH_AUDIENCE": "matmetrics-api"
+        "MATMETRICS_AUTH_AUDIENCE": "matmetrics-api",
+        "MATMETRICS_PASSKEY_SIGNIN_ENABLED": "false",
+        "MATMETRICS_PASSKEY_ENROLMENT_ENABLED": "false",
+        "MATMETRICS_PASSKEY_SIGNUP_ENABLED": "false",
       },
+      "ratelimits": [
+        {
+          "name": "PASSKEY_SIGNIN_LIMITER",
+          "namespace_id": "844221",
+          "simple": { "limit": 30, "period": 60 },
+        },
+        {
+          "name": "PASSKEY_REGISTRATION_LIMITER",
+          "namespace_id": "844222",
+          "simple": { "limit": 10, "period": 60 },
+        },
+      ],
       "secrets": {
-        "required": ["BETTER_AUTH_SECRET", "MATMETRICS_AUTH_CONTEXT_SECRET"]
+        "required": ["BETTER_AUTH_SECRET", "MATMETRICS_AUTH_CONTEXT_SECRET"],
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "matmetrics-data",
-          "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c"
-        }
-      ]
-    }
-  }
+          "database_id": "f5bd4a58-dc03-4282-b6c2-1c356daa613c",
+        },
+      ],
+    },
+  },
 }

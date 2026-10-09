@@ -28,6 +28,7 @@ export function SignInScreen({
     isConfigured,
     firebaseConfigured,
     betterAuthConfigured,
+    passkeySignupEnabled,
     signInWithPasskey,
     signUpWithPasskey,
     signInWithGoogle,
@@ -202,7 +203,7 @@ export function SignInScreen({
 
           {isConfigured && (
             <>
-              {betterAuthConfigured && mode === 'sign-in' && (
+              {passkeySignupEnabled && mode === 'sign-in' && (
                 <Button
                   type="button"
                   className="w-full"

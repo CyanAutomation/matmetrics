@@ -25,7 +25,9 @@ export class InvalidPasskeyRegistrationContextError extends Error {
 
 function secretKey(secret: string): Uint8Array {
   if (secret.length < 32) {
-    throw new Error('MATMETRICS_AUTH_CONTEXT_SECRET must be at least 32 characters');
+    throw new Error(
+      'MATMETRICS_AUTH_CONTEXT_SECRET must be at least 32 characters'
+    );
   }
   return new TextEncoder().encode(secret);
 }
@@ -82,8 +84,7 @@ export async function verifyPasskeyRegistrationContext(
       typeof payload.emailVerified !== 'boolean' ||
       typeof payload.nonce !== 'string' ||
       !payload.nonce ||
-      (payload.provider === 'firebase' &&
-        payload.providerSubject !== payload.appUserId)
+      payload.providerSubject !== payload.appUserId
     ) {
       throw new InvalidPasskeyRegistrationContextError();
     }

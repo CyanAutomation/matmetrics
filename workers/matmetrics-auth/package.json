@@ -1,11 +1,18 @@
 {
   "name": "matmetrics-auth-worker",
   "private": true,
+  "type": "module",
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "dev": "wrangler dev --persist-to ../matmetrics-data/.wrangler/state",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types --env-interface Env"
+    "cf-typegen": "wrangler types --env-interface Env",
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.7",
@@ -13,8 +20,10 @@
     "jose": "6.2.12"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.0",
     "@cloudflare/workers-types": "^5.20260915.1",
     "typescript": "^5.0.0",
+    "vitest": "^4.1.11",
     "wrangler": "^4.143.1"
   }
 }
