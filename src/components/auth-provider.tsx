@@ -27,6 +27,7 @@ import { getCurrentIdToken } from '@/lib/auth-session';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase-client';
 import { setActiveUserId } from '@/lib/client-identity';
 import {
+  isUserScopedValueReady,
   selectActiveAuthIdentity,
   selectUserScopedValue,
 } from '@/lib/auth-identity-selection';
@@ -231,6 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (authLoadGenerationRef.current === generation) {
+          setPreferencesOwnerId(uid);
           setPreferencesReady(true);
         }
       }
@@ -301,6 +303,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     value: preferences,
     fallback: DEFAULT_USER_PREFERENCES,
   });
+  const preferencesReadyForActiveUser = isUserScopedValueReady({
+    activeUserId: user?.uid ?? null,
+    ownerUserId: preferencesOwnerId,
+    ready: preferencesReady,
+  });
 
   const clearBetterAuthSession = useCallback(async () => {
     if (!betterAuthConfigured) return;
@@ -319,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       authReady,
-      preferencesReady,
+      preferencesReady: preferencesReadyForActiveUser,
       preferencesError,
       user,
       preferences: visiblePreferences,
@@ -443,7 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isPasskeySession,
       visiblePreferences,
       preferencesError,
-      preferencesReady,
+      preferencesReadyForActiveUser,
       user,
     ]
   );

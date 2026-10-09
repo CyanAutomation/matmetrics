@@ -64,9 +64,15 @@ export function selectUserScopedValue<T>(input: {
   value: T;
   fallback: T;
 }): T {
-  return input.ready &&
-    input.activeUserId !== null &&
-    input.ownerUserId === input.activeUserId
-    ? input.value
-    : input.fallback;
+  const isReadyForActiveUser =
+    isUserScopedValueReady(input) && input.activeUserId !== null;
+  return isReadyForActiveUser ? input.value : input.fallback;
+}
+
+export function isUserScopedValueReady(input: {
+  activeUserId: string | null;
+  ownerUserId: string | null;
+  ready: boolean;
+}): boolean {
+  return input.ready && input.ownerUserId === input.activeUserId;
 }
