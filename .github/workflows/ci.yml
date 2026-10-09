@@ -100,7 +100,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: workers/matmetrics-auth/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            workers/matmetrics-auth/package-lock.json
+      - name: Install shared repository dependencies
+        run: npm ci
       - name: Install auth Worker dependencies
         run: npm ci
         working-directory: workers/matmetrics-auth

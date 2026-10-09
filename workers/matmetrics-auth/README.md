@@ -23,12 +23,15 @@ npm run migrate:local
 ```
 
 Then start the data Worker migration owner and the auth Worker (`npm run dev`)
-and Next.js app. The auth Worker package commands are:
+and Next.js app. The auth Worker imports the registration-context verifier
+from the repository's shared `src/lib` code, so install both dependency sets
+from the repository root:
 
 ```bash
 npm ci
-npm test
-npm run typecheck
+npm --prefix workers/matmetrics-auth ci
+npm --prefix workers/matmetrics-auth test
+npm --prefix workers/matmetrics-auth run typecheck
 ```
 
 The Vitest suite uses Cloudflare's Worker runtime and D1, loads the real data
@@ -89,10 +92,11 @@ trusted by the Worker. A rate-limit service failure fails closed with HTTP 503. 
 Confirm the configured namespace IDs are unique in the target Cloudflare
 account before deployment.
 
-Apply production D1 migrations through `workers/matmetrics-data`, then deploy
-the Worker with production flags off:
+Install the repository dependencies, apply production D1 migrations through
+`workers/matmetrics-data`, then deploy the Worker with production flags off:
 
 ```bash
+npm ci
 cd workers/matmetrics-data
 npm run migrate:remote
 cd ../matmetrics-auth
