@@ -33,7 +33,7 @@ import {
   getCurrentPreferences,
   saveGitHubSettingsPreference,
 } from './user-preferences';
-import { getFirebaseAuth, isFirebaseConfigured } from './firebase-client';
+import { getFirebaseAuth } from './firebase-client';
 import type { UserPreferences } from './types';
 import { normalizeSessionList } from './session-normalization';
 import {
@@ -154,6 +154,11 @@ type GitHubSettingsSaver = (
   uid: string,
   gitHub: GitHubSettings
 ) => Promise<void>;
+type SessionRefreshAuthHeaders = () => Promise<HeadersInit>;
+
+export type SessionListRefreshError = {
+  status?: number;
+};
 
 let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
   try {
@@ -170,6 +175,8 @@ let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
 let readPreferences: PreferenceReader = () => getCurrentPreferences();
 let persistGitHubSettingsPreference: GitHubSettingsSaver =
   saveGitHubSettingsPreference;
+let getSessionRefreshAuthHeaders: SessionRefreshAuthHeaders = getAuthHeaders;
+let sessionListRefreshError: SessionListRefreshError | null = null;
 
 function emitLeaseTakeoverDiagnostic(
   payload: LeaseTakeoverDiagnosticPayload
@@ -303,6 +310,10 @@ function dispatchStorageSync(sessions: JudoSession[]): void {
   );
 }
 
+export function getSessionListRefreshError(): SessionListRefreshError | null {
+  return sessionListRefreshError;
+}
+
 async function syncRequest(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -403,6 +414,7 @@ export function initializeStorage(): void {
   queuedForcedRefresh = false;
 
   sessionCache = null;
+  sessionListRefreshError = null;
   isSyncing = false;
   hydrateDirtyMutationsFromQueue();
 
@@ -913,17 +925,6 @@ function reconcileDirtyMutations(sessions: JudoSession[]): void {
 async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
-  // Guard: when GitHub sync is enabled and Firebase is configured, skip refresh without Firebase auth.
-  if (isGitHubEnabled() && getGitHubConfig() && isFirebaseConfigured()) {
-    try {
-      const auth = getFirebaseAuth();
-      if (!auth.currentUser) {
-        return;
-      }
-    } catch {
-      return;
-    }
-  }
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
   const force = options?.force === true;
   if (inFlightRefresh) {
@@ -959,32 +960,35 @@ async function refreshSessionsFromAPI(options?: {
       const contextKey = getSessionListContextKey();
       const refreshMetadata = getSessionListRefreshMetadata(contextKey);
       const url = buildSessionListUrl(gitHubConfig, force);
-      const headers = new Headers(await getAuthHeaders());
+      const headers = new Headers(await getSessionRefreshAuthHeaders());
       if (!force && refreshMetadata.etag) {
         headers.set('If-None-Match', refreshMetadata.etag);
       }
       const res = await fetch(url.toString(), { headers });
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
 
       if (res.status === 304) {
+        sessionListRefreshError = null;
         sessionListRefreshMetadata.set(contextKey, {
           ...refreshMetadata,
           lastSuccessfulRemoteRefreshAt: Date.now(),
         });
+        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
         return;
       }
 
       if (!res.ok) {
+        sessionListRefreshError = { status: res.status };
         console.warn(
           `Skipping cache refresh from /api/sessions/list due to non-OK status ${res.status}`
         );
+        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
         return;
       }
 
       const payload = await res.json();
-      sessionListRefreshMetadata.set(contextKey, {
-        etag: res.headers.get('ETag') ?? refreshMetadata.etag,
-        lastSuccessfulRemoteRefreshAt: Date.now(),
-      });
       const { sessions, issues } = parseSessionListResponse(payload);
 
       if (!isStorageGenerationCurrent(generation)) {
@@ -994,6 +998,11 @@ async function refreshSessionsFromAPI(options?: {
         return;
       }
 
+      sessionListRefreshError = null;
+      sessionListRefreshMetadata.set(contextKey, {
+        etag: res.headers.get('ETag') ?? refreshMetadata.etag,
+        lastSuccessfulRemoteRefreshAt: Date.now(),
+      });
       const mergedSessions = getOptimisticSessions(sessions);
       reconcileDirtyMutations(sessions);
 
@@ -1002,7 +1011,12 @@ async function refreshSessionsFromAPI(options?: {
       commitLocalSessions(mergedSessions);
       dispatchStorageSync(mergedSessions);
     } catch (error) {
+      if (!isStorageGenerationCurrent(generation)) {
+        return;
+      }
+      sessionListRefreshError = {};
       console.error('Error refreshing sessions from API', error);
+      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
     } finally {
       if (!isStorageGenerationCurrent(generation)) {
         return;
@@ -1170,6 +1184,7 @@ export function __resetStorageStateForTests(): void {
   storageGeneration += 1;
   sessionCache = null;
   sessionFileIssuesCache = [];
+  sessionListRefreshError = null;
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
@@ -1208,6 +1223,7 @@ export function __resetStorageStateForTests(): void {
   };
   readPreferences = () => getCurrentPreferences();
   persistGitHubSettingsPreference = saveGitHubSettingsPreference;
+  getSessionRefreshAuthHeaders = getAuthHeaders;
   if (typeof window !== 'undefined') {
     localStorage.removeItem(getSyncLockStorageKey());
   }
@@ -1217,6 +1233,7 @@ export function __setStorageDependencyOverridesForTests(overrides: {
   resolveAuthenticatedUserId?: AuthenticatedUserIdResolver;
   readPreferences?: PreferenceReader;
   persistGitHubSettingsPreference?: GitHubSettingsSaver;
+  getSessionRefreshAuthHeaders?: SessionRefreshAuthHeaders;
 }): void {
   if (overrides.resolveAuthenticatedUserId) {
     resolveAuthenticatedUserId = overrides.resolveAuthenticatedUserId;
@@ -1229,6 +1246,14 @@ export function __setStorageDependencyOverridesForTests(overrides: {
   if (overrides.persistGitHubSettingsPreference) {
     persistGitHubSettingsPreference = overrides.persistGitHubSettingsPreference;
   }
+
+  if (overrides.getSessionRefreshAuthHeaders) {
+    getSessionRefreshAuthHeaders = overrides.getSessionRefreshAuthHeaders;
+  }
+}
+
+export function forceRefreshSessionList(): Promise<void> {
+  return refreshSessionsFromAPI({ force: true });
 }
 
 export async function __tryAcquireSyncLeaseForTests(): Promise<boolean> {

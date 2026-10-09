@@ -45,9 +45,11 @@ export default function Home() {
   const {
     sessions,
     sessionFileIssues,
+    sessionListRefreshError,
     syncStatus,
     guestWorkspace,
     refreshSessions,
+    retrySessionListRefresh,
   } = useSessionsData({ userId: user?.uid, authMode });
   const {
     isLogModalOpen,
@@ -203,6 +205,29 @@ export default function Home() {
                       variant="outline"
                     >
                       {signInButtonText}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!isGuest && sessionListRefreshError && (
+                <Alert className="ui-alert-warning">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Training history may be out of date</AlertTitle>
+                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      The saved history could not be refreshed
+                      {sessionListRefreshError.status
+                        ? ` (HTTP ${sessionListRefreshError.status})`
+                        : ''}
+                      . You may be seeing cached sessions.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void retrySessionListRefresh()}
+                      disabled={syncStatus.isSyncing}
+                    >
+                      Retry
                     </Button>
                   </AlertDescription>
                 </Alert>

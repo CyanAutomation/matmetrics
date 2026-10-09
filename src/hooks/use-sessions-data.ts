@@ -4,10 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getSessions,
   getSessionFileIssues,
+  getSessionListRefreshError,
+  forceRefreshSessionList,
   initializeStorage,
   getSyncStatus,
+  type SessionListRefreshError,
 } from '@/lib/storage';
-import { JudoSession, SessionFileIssue } from '@/lib/types';
+import type { JudoSession, SessionFileIssue } from '@/lib/types';
 import { getGuestWorkspaceSummary } from '@/lib/guest-mode';
 
 /**
@@ -22,6 +25,9 @@ export function useSessionsData(deps?: {
   const [sessionFileIssues, setSessionFileIssues] = useState<
     SessionFileIssue[]
   >([]);
+  const [sessionListRefreshError, setSessionListRefreshError] = useState<
+    SessionListRefreshError | null
+  >(getSessionListRefreshError());
   const [syncStatus, setSyncStatus] = useState(getSyncStatus());
   const [guestWorkspace, setGuestWorkspace] = useState(() =>
     getGuestWorkspaceSummary()
@@ -30,9 +36,15 @@ export function useSessionsData(deps?: {
   const refreshSessions = useCallback(() => {
     setSessions(getSessions());
     setSessionFileIssues(getSessionFileIssues());
+    setSessionListRefreshError(getSessionListRefreshError());
     setSyncStatus(getSyncStatus());
     setGuestWorkspace(getGuestWorkspaceSummary());
   }, []);
+
+  const retrySessionListRefresh = useCallback(
+    () => forceRefreshSessionList(),
+    []
+  );
 
   useEffect(() => {
     initializeStorage();
@@ -65,8 +77,10 @@ export function useSessionsData(deps?: {
   return {
     sessions,
     sessionFileIssues,
+    sessionListRefreshError,
     syncStatus,
     guestWorkspace,
     refreshSessions,
+    retrySessionListRefresh,
   };
 }
