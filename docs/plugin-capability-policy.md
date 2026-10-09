@@ -7,6 +7,8 @@ surfaces require explicit manifest capabilities.
 
 - `dashboard_tab` with `config.component: "tag_manager"` requires
   `tag_mutation`.
+- `dashboard_tab` with `config.component: "video_library"` requires
+  `video_audit`.
 - `session_action` with `config.actionId: "tag-session"` requires
   `tag_mutation`.
 - `settings_panel` with `config.component: "tag_settings"` requires

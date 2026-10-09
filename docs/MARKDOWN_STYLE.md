@@ -253,7 +253,7 @@ Use for examples, notes, or important information:
 
 ## Line Length
 
-Target **100 characters** for readability; hard limit is **120 characters**. Exceptions:
+Target **100 characters** for readability; hard limit is **120 characters** — convention only, since MD013 is disabled in `.markdownlint.json`. Exceptions:
 
 - URLs (may exceed limit)
 - Code blocks (preserve indentation)
@@ -317,10 +317,12 @@ All markdown files are validated using `.markdownlint.json` with these key rules
 | `first-line-h1`          | First heading must be H1                              |
 | `heading-increment`      | No skipped heading levels (H1 → H2 → H3, not H1 → H3) |
 | `fenced-code-language`   | Code blocks must have language tag                    |
-| `line-length`            | Lines should not exceed 120 characters                |
+| `line-length`            | Convention only: MD013 is disabled in `.markdownlint.json`, so line length is not lint-enforced |
 | `no-bare-urls`           | URLs must be in markdown links                        |
 | `blanks-around-headings` | Blank lines before/after headings                     |
 | `no-multiple-blanks`     | Max 1 consecutive blank line                          |
+
+> **Note:** MD013 (line-length) and MD024 (duplicate headings) are disabled in `.markdownlint.json`. The line-length guidance in this guide is a convention, not a lint-enforced rule.
 
 ### Running Linting
 
@@ -341,7 +343,7 @@ markdownlint -c .markdownlint.json docs/MARKDOWN_STYLE.md
 - [ ] Heading hierarchy uses H2 → H3 → H4 (no skips)
 - [ ] All code blocks have language tags (` ```bash `)
 - [ ] Internal links use relative paths (`[text](../path/file.md)`)
-- [ ] No line exceeds 120 characters (except URLs)
+- [ ] No line exceeds 120 characters (except URLs) — convention only; not enforced by lint (MD013 disabled)
 - [ ] No emoji in headings
 - [ ] Consistent list markers (all `-` or all numbered)
 - [ ] Tables have consistent column counts
