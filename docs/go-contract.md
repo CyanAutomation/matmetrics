@@ -27,14 +27,14 @@ Validation rules:
   - Update/proxy/go mutation: id is required and trimmed; empty fails with `missing required field: id`.
   - Max length 100; pattern `^[A-Za-z0-9_-]+$`.
 - `date`
-  - Required, format must match `YYYY-MM-DD` exactly or fail with `invalid date: expected YYYY-MM-DD format`.
-  - Calendar-invalid dates fail with `invalid date: must be a real calendar date`.
+  - Required, format must match `YYYY-MM-DD` exactly or fail with `Invalid date: expected YYYY-MM-DD format`.
+  - Calendar-invalid dates fail with `Invalid date: must be a real calendar date`.
 - `effort`
-  - Must be integer in range 1..5 or fail with `invalid effort level (must be an integer 1-5)`.
+  - Must be integer in range 1..5 or fail with `Invalid effort level (must be an integer 1-5)`.
 - `category`
-  - Must be one of `Technical`, `Randori`, `Shiai`, `Cardio`, `S&C`; else `invalid category`.
+  - Must be one of `Technical`, `Randori`, `Shiai`, `Cardio`, `S&C`; else `Invalid category`.
 - `techniques`
-  - Must be array of strings; each item is trimmed and non-empty, with index-specific errors like `invalid techniques[0]: value cannot be empty`.
+  - Must be array of strings; each item is trimmed and non-empty, with index-specific errors like `Invalid techniques[0]: value cannot be empty`.
   - Values are deduplicated after trimming in TS route persistence.
 - `description`, `notes`
   - Optional; if present must be strings.
@@ -90,12 +90,13 @@ Notes text
 ## Local file layout
 
 - Base directory: `data/`
-- Relative path: `YYYY/MM/YYYYMMDD-matmetrics-<sanitized-id>.md`
-- Local filename sanitization replaces every non `[a-zA-Z0-9-_]` character with `-`.
+- Relative path: `YYYY/MM/YYYYMMDD-matmetrics-<encoded-id>.md`
+- Local path encoding matches the GitHub encoding (URL path escaping, equivalent to JavaScript `encodeURIComponent`).
 
 Example:
 
-- Session ID `a/b` becomes local filename suffix `a-b`
+- Session ID `a/b` becomes local filename suffix `a%2Fb`
+- Legacy files written with a sanitized suffix (every non `[a-zA-Z0-9-_]` character replaced by `-`) are still read as a fallback: session ID `a/b` is also matched as suffix `a-b`
 
 ## GitHub file layout
 
