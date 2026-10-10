@@ -6,7 +6,9 @@ This phase hardens the existing Firebase-to-passkey migration. Firebase remains
 available for sign-in, API verification, and the Firestore preferences fallback.
 The production Worker defaults keep passkey sign-in, enrolment, and public
 passkey-only signup disabled until an operator explicitly enables the pilot.
-No production migration or browser smoke test is claimed by this document.
+No production account journey or browser passkey smoke test is claimed by this
+document. The read-only production checks and infrastructure audit are recorded
+in [Better Auth production readiness](better-auth-production-readiness.md).
 
 The implementation keeps existing Firebase UIDs as canonical MatMetrics user
 IDs. It does not remove Firebase, change GitHub Markdown ownership, or migrate
@@ -95,18 +97,21 @@ The Vercel registration-context route requires a valid JSON content type,
 limits request bodies to 4 KiB, validates a strict schema, requires Firebase
 Admin verification for existing-user enrolment, and checks Firebase email
 collisions before the optional new-account path. The new-account path remains
-disabled by default. Configure Vercel Firewall rate-limit rules on the
-browser-facing host and verify them against production: 30 requests per minute
-per client IP for `/api/auth/passkey/generate-authenticate-options` and
-`/api/auth/passkey/verify-authentication`, plus 10 requests per minute per
-client IP for `/api/auth/passkey/generate-register-options`,
-`/api/auth/passkey/verify-registration`, and
+disabled by default. Configure Vercel Firewall rate-limit rules on the exact
+production host and verify them against production: 30 requests per 60 seconds
+per client IP for `GET /api/auth/passkey/generate-authenticate-options`,
+`POST /api/auth/passkey/verify-authentication`, and `GET /api/auth/token`; 10
+requests per 60 seconds per client IP for
+`GET /api/auth/passkey/generate-register-options`,
+`POST /api/auth/passkey/verify-registration`, and
 `POST /api/passkey/registration-context`. Use the Firewall's rate-limit action
-with a 429 response. Vercel overwrites forwarded-IP headers when it receives
-the browser request directly; the internal Worker rewrite then sees Vercel as
-its network peer. Do not treat the Worker-observed IP as the original browser
-IP on that path. See [Vercel Firewall custom rules](https://vercel.com/docs/vercel-firewall/vercel-waf/custom-rules).
-Keep public signup off during the pilot.
+with the over-limit response set to HTTP 429. Vercel overwrites forwarded-IP
+headers when it receives the browser request directly; the internal Worker
+rewrite then sees Vercel as its network peer. Do not treat the Worker-observed
+IP as the original browser IP on that path. See [Vercel Firewall custom
+rules](https://vercel.com/docs/vercel-firewall/vercel-waf/custom-rules) and
+[Better Auth production readiness](better-auth-production-readiness.md) for
+the operator steps. Keep public signup off during the pilot.
 
 Registration failures return safe JSON errors with `no-store` caching where
 credentials or registration state are involved. Registration contexts contain
@@ -148,11 +153,15 @@ fallback for existing users and public passkey-only signup remains off.
    npm run migrate:remote
    ```
 
-   Review the pending migration list first. Migration `0004` adds isolated
-   registration claims/completions and the final-passkey delete trigger. It
-   clears legacy pre-verification registration reservations and orphaned
-   Better Auth identity rows that have no Better Auth user; it preserves
-   Firebase mappings and existing application data.
+   Review the pending migration list and cleanup counts first. Migration
+   `0004` adds isolated registration claims/completions and the final-passkey
+   delete trigger. It deletes all rows from the legacy pre-verification
+   reservation table, removes Better Auth identity mappings without a Better
+   Auth user, and deletes `app_users` rows left without any provider mapping.
+   It does not modify `user_preferences` or GitHub-backed session files. Follow
+   the read-only preflight, backup, and verification procedure in
+   [Better Auth production readiness](better-auth-production-readiness.md)
+   before applying any pending remote migration.
 
 3. Configure the auth Worker secrets `BETTER_AUTH_SECRET` and
    `MATMETRICS_AUTH_CONTEXT_SECRET`. Use a distinct random secret for Better
