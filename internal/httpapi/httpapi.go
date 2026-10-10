@@ -83,54 +83,6 @@ func MethodNotAllowed(w http.ResponseWriter, allowed string) {
 	WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
 }
 
-func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
-	token, ok := bearerToken(r)
-	if !ok {
-		WriteError(w, http.StatusUnauthorized, "Authentication required")
-		return false
-	}
-
-	if os.Getenv("MATMETRICS_AUTH_TEST_MODE") == "true" {
-		if token != "test-token" {
-			WriteError(w, http.StatusUnauthorized, "Invalid test token")
-			return false
-		}
-		return true
-	}
-
-	serviceAccount, ok := serviceAccountFromEnv()
-	if !ok {
-		WriteError(w, http.StatusInternalServerError, "Firebase admin is not configured")
-		return false
-	}
-
-	if err := verifyFirebaseIDToken(r, token, serviceAccount.ProjectID); err != nil {
-		WriteError(w, http.StatusUnauthorized, "Invalid authentication token")
-		return false
-	}
-
-	return true
-}
-
-func bearerToken(r *http.Request) (string, bool) {
-	header := strings.TrimSpace(r.Header.Get("Authorization"))
-	if header == "" {
-		return "", false
-	}
-
-	parts := strings.SplitN(header, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return "", false
-	}
-
-	token := strings.TrimSpace(parts[1])
-	if token == "" {
-		return "", false
-	}
-
-	return token, true
-}
-
 // ValidateFirebaseConfig checks that the FIREBASE_SERVICE_ACCOUNT_KEY environment
 // variable is set and contains valid project_id and client_email fields.
 // Call this at application startup to fail fast.
@@ -173,68 +125,72 @@ func serviceAccountFromEnv() (firebaseServiceAccount, bool) {
 	return account, true
 }
 
-func verifyFirebaseIDToken(r *http.Request, token, projectID string) error {
+func verifyFirebaseIDToken(r *http.Request, token, projectID string) (AuthenticatedPrincipal, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return errors.New("token has invalid format")
+		return AuthenticatedPrincipal{}, errors.New("token has invalid format")
 	}
 
 	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return fmt.Errorf("failed to decode token header: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("failed to decode token header: %w", err)
 	}
 	var header jwtHeader
 	if err := json.Unmarshal(headerBytes, &header); err != nil {
-		return fmt.Errorf("failed to parse token header: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("failed to parse token header: %w", err)
 	}
 	if header.Alg != "RS256" || header.Kid == "" {
-		return errors.New("token header is invalid")
+		return AuthenticatedPrincipal{}, errors.New("token header is invalid")
 	}
 
 	claimsBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return fmt.Errorf("failed to decode token claims: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("failed to decode token claims: %w", err)
 	}
 	var claims firebaseTokenClaims
 	if err := json.Unmarshal(claimsBytes, &claims); err != nil {
-		return fmt.Errorf("failed to parse token claims: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("failed to parse token claims: %w", err)
 	}
 
 	now := time.Now().Unix()
 	expectedIssuer := "https://securetoken.google.com/" + projectID
-	if claims.Aud != projectID || claims.Iss != expectedIssuer || claims.Sub == "" {
-		return errors.New("token claims are invalid")
+	if claims.Aud != projectID || claims.Iss != expectedIssuer || claims.Sub == "" || len(claims.Sub) > 128 {
+		return AuthenticatedPrincipal{}, errors.New("token claims are invalid")
 	}
 	if claims.Exp <= now || claims.Iat > now {
-		return errors.New("token timing claims are invalid")
+		return AuthenticatedPrincipal{}, errors.New("token timing claims are invalid")
 	}
 
 	certs, err := fetchFirebaseCerts(r)
 	if err != nil {
-		return err
+		return AuthenticatedPrincipal{}, fmt.Errorf("%w: Firebase signing keys could not be fetched", errAuthVerificationUnavailable)
 	}
 	pemCert, ok := certs[header.Kid]
 	if !ok {
-		return errors.New("token certificate key not found")
+		return AuthenticatedPrincipal{}, errors.New("token certificate key not found")
 	}
 
 	publicKey, err := parseRSAPublicKeyFromCertPEM(pemCert)
 	if err != nil {
-		return err
+		return AuthenticatedPrincipal{}, err
 	}
 
 	signingInput := parts[0] + "." + parts[1]
 	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
-		return fmt.Errorf("failed to decode token signature: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("failed to decode token signature: %w", err)
 	}
 
 	hash := sha256.Sum256([]byte(signingInput))
 	if err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash[:], signature); err != nil {
-		return fmt.Errorf("token signature verification failed: %w", err)
+		return AuthenticatedPrincipal{}, fmt.Errorf("token signature verification failed: %w", err)
 	}
 
-	return nil
+	return AuthenticatedPrincipal{
+		Provider:  "firebase",
+		UserID:    claims.Sub,
+		AppUserID: claims.Sub,
+	}, nil
 }
 
 func fetchFirebaseCerts(r *http.Request) (map[string]string, error) {
