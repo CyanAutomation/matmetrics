@@ -2,6 +2,10 @@ import { env } from 'cloudflare:workers';
 import { verifyPasskeyRegistrationContext } from '../../../src/lib/passkey-registration-context';
 import { isPasskeyRegistrationAllowed } from '../../../src/lib/passkey-policy';
 import { auth } from './auth';
+import {
+  applyRateLimit,
+  getPasskeyRateLimitCategory,
+} from './rate-limit';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 function registrationDisabledResponse(): Response {
@@ -29,41 +33,6 @@ function registrationPolicy() {
     enrolmentEnabled: env.MATMETRICS_PASSKEY_ENROLMENT_ENABLED === 'true',
     signupEnabled: env.MATMETRICS_PASSKEY_SIGNUP_ENABLED === 'true',
   };
-}
-
-function requestIpKey(request: Request): string {
-  // Cloudflare sets this from the connection it receives. Direct Worker
-  // requests get the caller IP; requests through Vercel may share Vercel egress
-  // IPs, so Vercel Firewall must enforce per-browser limits on proxied paths.
-  return request.headers.get('CF-Connecting-IP') || 'unknown-client-ip';
-}
-
-async function applyRateLimit(
-  request: Request,
-  limiter: RateLimit
-): Promise<Response | null> {
-  try {
-    const result = await limiter.limit({ key: requestIpKey(request) });
-    if (result.success) return null;
-    return Response.json(
-      {
-        code: 'RATE_LIMITED',
-        message: 'Too many authentication attempts. Try again shortly.',
-      },
-      {
-        status: 429,
-        headers: { ...NO_STORE_HEADERS, 'Retry-After': '60' },
-      }
-    );
-  } catch {
-    return Response.json(
-      {
-        code: 'AUTH_RATE_LIMIT_UNAVAILABLE',
-        message: 'Authentication is temporarily unavailable',
-      },
-      { status: 503, headers: NO_STORE_HEADERS }
-    );
-  }
 }
 
 async function checkRegistrationPolicy(
@@ -177,11 +146,8 @@ export default {
       return Response.json({ ok: true }, { headers: NO_STORE_HEADERS });
     }
 
-    const passkeySignInRoute =
-      pathname.endsWith('/passkey/generate-authenticate-options') ||
-      pathname.endsWith('/passkey/verify-authentication') ||
-      pathname.endsWith('/token');
-    if (passkeySignInRoute) {
+    const rateLimitCategory = getPasskeyRateLimitCategory(pathname);
+    if (rateLimitCategory === 'sign-in') {
       if (env.MATMETRICS_PASSKEY_SIGNIN_ENABLED !== 'true') {
         return signInDisabledResponse();
       }
@@ -189,10 +155,7 @@ export default {
       if (limited) return limited;
     }
 
-    const passkeyRegistrationRoute =
-      pathname.endsWith('/passkey/generate-register-options') ||
-      pathname.endsWith('/passkey/verify-registration');
-    if (passkeyRegistrationRoute) {
+    if (rateLimitCategory === 'registration') {
       const limited = await applyRateLimit(
         request,
         env.PASSKEY_REGISTRATION_LIMITER
