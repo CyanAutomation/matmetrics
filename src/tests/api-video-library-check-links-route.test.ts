@@ -102,6 +102,58 @@ test('POST reports disallowed domains without making outbound requests', async (
   });
 });
 
+test('POST reads custom video domains from the configured data store', async () => {
+  await withStoredGitHubConfig('null', async () => {
+    await withTempDataDir(async () => {
+      await createLocalSession(
+        makeSession('custom-domain', 'https://media.example.test/video/123')
+      );
+
+      const originalUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+      const originalSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+      const originalFetch = global.fetch;
+      process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data-worker.test';
+      process.env.MATMETRICS_INTERNAL_API_SECRET = 'test-data-worker-secret';
+      let preferenceRequests = 0;
+      global.fetch = (async (input: RequestInfo | URL) => {
+        const url = new URL(String(input));
+        if (url.origin === 'https://data-worker.test') {
+          preferenceRequests += 1;
+          assert.equal(url.pathname, '/v1/preferences');
+          return Response.json({
+            preferences: {
+              videoLibrary: { customAllowedDomains: ['example.test'] },
+            },
+            revision: 1,
+          });
+        }
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+
+      try {
+        const response = await POST(
+          new NextRequest('http://localhost/api/video-library/check-links', {
+            method: 'POST',
+            headers: { authorization: 'Bearer test-token' },
+            body: JSON.stringify({ sessionIds: ['custom-domain'] }),
+          })
+        );
+
+        assert.equal(response.status, 200);
+        const payload = await response.json();
+        assert.equal(preferenceRequests, 1);
+        assert.equal(payload.results[0].status, 'reachable');
+      } finally {
+        global.fetch = originalFetch;
+        if (originalUrl === undefined) delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+        else process.env.CLOUDFLARE_DATA_WORKER_URL = originalUrl;
+        if (originalSecret === undefined) delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+        else process.env.MATMETRICS_INTERNAL_API_SECRET = originalSecret;
+      }
+    });
+  });
+});
+
 test('POST falls back to GET when HEAD is rejected', async () => {
   await withStoredGitHubConfig('null', async () => {
     await withTempDataDir(async () => {
