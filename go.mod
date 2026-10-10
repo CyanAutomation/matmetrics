@@ -2,9 +2,15 @@ module matmetrics
 
 go 1.25.0
 
-require github.com/rhysd/actionlint v1.7.12
+require (
+	github.com/MicahParks/keyfunc/v3 v3.8.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/rhysd/actionlint v1.7.12
+	golang.org/x/time v0.15.0
+)
 
 require (
+	github.com/MicahParks/jwkset v0.11.3 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect

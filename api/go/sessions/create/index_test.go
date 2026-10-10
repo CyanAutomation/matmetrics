@@ -10,6 +10,7 @@ import (
 
 func TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	body, err := json.Marshal(sessionRequest{
 		Session: sessionRequest{}.Session,
@@ -39,6 +40,7 @@ func TestHandlerRejectsOutOfRangeEffortBeforeCallingGitHub(t *testing.T) {
 
 func TestHandlerRejectsInvalidDateBeforeCallingGitHub(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	body := []byte(`{"session":{"id":"session-1","date":"2025-02-30","effort":3,"category":"Technical","techniques":["osoto-gari"]},"config":{"owner":"octocat","repo":"hello-world"}}`)
 

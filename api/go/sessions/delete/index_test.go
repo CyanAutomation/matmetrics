@@ -20,6 +20,7 @@ func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) 
 
 func TestHandlerReturnsBadRequestWhenIDIsEmpty(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	request := httptest.NewRequest(http.MethodDelete, "/api/go/sessions/delete", bytes.NewReader([]byte(`{"id":"   ","config":{"owner":"octocat","repo":"hello-world"}}`)))
 	request.Header.Set("Authorization", "Bearer test-token")
@@ -43,6 +44,7 @@ func TestHandlerReturnsBadRequestWhenIDIsEmpty(t *testing.T) {
 
 func TestHandlerReturnsConfigValidationErrorForValidIDWhenOwnerRepoMissing(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	request := httptest.NewRequest(http.MethodDelete, "/api/go/sessions/delete", bytes.NewReader([]byte(`{"id":"session-123","config":{"owner":"","repo":""}}`)))
 	request.Header.Set("Authorization", "Bearer test-token")
@@ -66,6 +68,7 @@ func TestHandlerReturnsConfigValidationErrorForValidIDWhenOwnerRepoMissing(t *te
 
 func TestHandlerReturnsConflictWhenDeleteRevisionIsStale(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 	originalNewClient := newGitHubClient
 	t.Cleanup(func() { newGitHubClient = originalNewClient })
 	newGitHubClient = func() (*githubapi.Client, error) {
