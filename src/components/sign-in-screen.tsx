@@ -203,7 +203,7 @@ export function SignInScreen({
 
           {isConfigured && (
             <>
-              {passkeySignupEnabled && mode === 'sign-in' && (
+              {betterAuthConfigured && mode === 'sign-in' && (
                 <Button
                   type="button"
                   className="w-full"
@@ -375,7 +375,7 @@ export function SignInScreen({
                 )}
               </div>
 
-              {betterAuthConfigured && mode === 'sign-in' && (
+              {passkeySignupEnabled && mode === 'sign-in' && (
                 <button
                   type="button"
                   className="w-full text-sm text-primary"
