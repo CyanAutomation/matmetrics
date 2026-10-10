@@ -26,6 +26,7 @@ func (s stubLogDoctorFixClient) FixLogs(config model.GitHubConfig, request githu
 
 func TestHandlerValidationAndDryRun(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	originalFactory := newGitHubClient
 	t.Cleanup(func() {
@@ -130,6 +131,7 @@ func TestHandlerValidationAndDryRun(t *testing.T) {
 
 func TestHandlerServiceFailure(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "true")
+	t.Setenv("NODE_ENV", "test")
 
 	originalFactory := newGitHubClient
 	t.Cleanup(func() {
