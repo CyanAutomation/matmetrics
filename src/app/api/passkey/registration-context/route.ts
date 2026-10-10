@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createPasskeyRegistrationContext } from '@/lib/passkey-registration-context';
 import { isFirebaseAdminConfigured } from '@/lib/firebase-admin';
-import { getFirebaseAdminAuth } from '@/lib/firebase-admin-auth';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { isPasskeyRegistrationAllowed } from '@/lib/passkey-policy';
 
@@ -164,6 +163,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const email = parsed.data.email.trim().toLowerCase();
     let firebaseUserExists = false;
     try {
+      const { getFirebaseAdminAuth } = await import(
+        '@/lib/firebase-admin-auth'
+      );
       await getFirebaseAdminAuth().getUserByEmail(email);
       firebaseUserExists = true;
     } catch (error) {
