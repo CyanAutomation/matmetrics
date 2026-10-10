@@ -12,6 +12,8 @@ import {
   listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
 } from '@/lib/session-storage';
+import { loadStoredPreferences } from '@/lib/preferences-store.server';
+import { isDataWorkerConfigured } from '@/lib/data-worker-client.server';
 import type { GitHubConfig } from '@/lib/types';
 import {
   isAllowedVideoHostname,
@@ -26,24 +28,19 @@ const LINK_CHECK_CONCURRENCY = 6;
 const MAX_REDIRECT_HOPS = 5;
 
 async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
-  if (process.env.MATMETRICS_AUTH_TEST_MODE === 'true') {
+  if (
+    process.env.MATMETRICS_AUTH_TEST_MODE === 'true' &&
+    !isDataWorkerConfigured()
+  ) {
     return [];
   }
 
-  const { getFirebaseAdminDb } = await import('@/lib/firebase-admin');
-  const snapshot = await getFirebaseAdminDb()
-    .collection('users')
-    .doc(uid)
-    .collection('preferences')
-    .doc('app')
-    .get();
-
-  if (!snapshot.exists) {
-    return [];
-  }
-
+  const stored = await loadStoredPreferences(uid);
+  const preferences = stored.preferences as {
+    videoLibrary?: { customAllowedDomains?: unknown };
+  } | null;
   const customAllowedDomains =
-    snapshot.data()?.videoLibrary?.customAllowedDomains;
+    preferences?.videoLibrary?.customAllowedDomains;
   return Array.isArray(customAllowedDomains)
     ? customAllowedDomains.filter(
         (domain): domain is string => typeof domain === 'string'

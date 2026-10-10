@@ -33,7 +33,6 @@ import {
   getCurrentPreferences,
   saveGitHubSettingsPreference,
 } from './user-preferences';
-import { getFirebaseAuth } from './firebase-client';
 import type { UserPreferences } from './types';
 import { normalizeSessionList } from './session-normalization';
 import {
@@ -168,15 +167,7 @@ class MissingSessionRefreshAuthError extends Error {
 }
 
 let resolveAuthenticatedUserId: AuthenticatedUserIdResolver = () => {
-  try {
-    return getFirebaseAuth().currentUser?.uid ?? null;
-  } catch (error) {
-    console.error(
-      'Failed to resolve authenticated user for sync status',
-      error
-    );
-    return null;
-  }
+  return isGuestMode() ? null : getActiveUserId();
 };
 
 let readPreferences: PreferenceReader = () => getCurrentPreferences();
@@ -1326,11 +1317,7 @@ export function __resetStorageStateForTests(): void {
   });
 
   resolveAuthenticatedUserId = () => {
-    try {
-      return getFirebaseAuth().currentUser?.uid ?? null;
-    } catch {
-      return null;
-    }
+    return isGuestMode() ? null : getActiveUserId();
   };
   readPreferences = () => getCurrentPreferences();
   persistGitHubSettingsPreference = saveGitHubSettingsPreference;
