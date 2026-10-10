@@ -11,8 +11,9 @@ document. The read-only production checks and infrastructure audit are recorded
 in [Better Auth production readiness](better-auth-production-readiness.md).
 
 The implementation keeps existing Firebase UIDs as canonical MatMetrics user
-IDs. It does not remove Firebase, change GitHub Markdown ownership, or migrate
-the Go API verifier.
+IDs. It does not remove Firebase or change GitHub Markdown ownership. The Go API
+accepts Better Auth service JWTs alongside Firebase tokens during the rollback
+period.
 
 ## Authentication and identity model
 
@@ -24,7 +25,7 @@ flowchart LR
   V -->|rewrite| W[Cloudflare auth Worker]
   W -->|D1 binding| D[(MatMetrics D1)]
   A -->|Firebase UID or canonical appUserId| S[Preferences and session storage]
-  B -->|Firebase ID token| G[Go API; Firebase verifier retained]
+  B -->|Firebase ID token or Better Auth service JWT| G[Go API; dual verifier]
 ```
 
 Existing Firebase identities keep their Firebase UID as `app_users.id`. A
@@ -51,12 +52,12 @@ Set these flags together for a pilot. UI flags control what the browser offers;
 Worker and Vercel server flags decide whether a request is allowed. Server-side
 flags are authoritative.
 
-| Capability                                  | Browser flag                            | Server flag                                              | Pilot value                |
-| ------------------------------------------- | --------------------------------------- | -------------------------------------------------------- | -------------------------- |
+| Capability                                  | Browser flag                            | Server flag                                              | Rollout value                 |
+| ------------------------------------------- | --------------------------------------- | -------------------------------------------------------- | ----------------------------- |
 | Firebase sign-in and fallback               | Existing Firebase configuration         | Existing Firebase configuration                          | On                         |
 | Passkey sign-in and service JWT issuance    | `NEXT_PUBLIC_BETTER_AUTH_ENABLED`       | Worker `MATMETRICS_PASSKEY_SIGNIN_ENABLED`               | On                         |
-| Firebase user adds a passkey                | `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` | Vercel and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED` | On for selected pilot      |
-| Authenticated passkey user adds another key | `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` | Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`            | On for selected pilot      |
+| Firebase user adds a passkey                | `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` | Vercel and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED` | On during supervised window |
+| Authenticated passkey user adds another key | `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` | Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`            | On during supervised window |
 | Public passkey-only account creation        | `NEXT_PUBLIC_PASSKEY_SIGNUP_ENABLED`    | Vercel and Worker `MATMETRICS_PASSKEY_SIGNUP_ENABLED`    | **Off**                    |
 | Firebase removal                            | Not applicable                          | Not applicable                                           | **Not part of this phase** |
 
@@ -83,12 +84,13 @@ Cloudflare sets from the connection it receives; the Worker does not trust
 client-supplied forwarded-IP headers. A direct Worker request is keyed by its
 caller IP. A request proxied through Vercel may be keyed by Vercel egress, so
 this is a coarse guard for proxied traffic and must not be treated as a
-per-browser limit. Use Vercel Firewall on the browser-facing host for the
-per-client limit. If the Cloudflare binding is unavailable, the Worker returns
-a safe `503` instead of bypassing the limit. The configured Worker limits are
-30 sign-in requests and 10 registration requests per minute per key; counters
-are local to a Cloudflare location and are approximate, not a globally exact
-quota. See [Cloudflare Worker rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/),
+per-browser limit. Vercel Firewall rules are deferred for this rollout, so no
+per-client limit is currently verified at the browser-facing edge. If the
+Cloudflare binding is unavailable, the Worker returns a safe `503` instead of
+bypassing the limit. The configured Worker limits are 30 sign-in requests and
+10 registration requests per minute per key; counters are local to a Cloudflare
+location and are approximate, not a globally exact quota. See [Cloudflare
+Worker rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/),
 [Vercel request headers](https://vercel.com/docs/headers/request-headers),
 and [Vercel rewrites](https://vercel.com/docs/routing/rewrites) for the proxy
 boundary.
@@ -97,8 +99,9 @@ The Vercel registration-context route requires a valid JSON content type,
 limits request bodies to 4 KiB, validates a strict schema, requires Firebase
 Admin verification for existing-user enrolment, and checks Firebase email
 collisions before the optional new-account path. The new-account path remains
-disabled by default. Configure Vercel Firewall rate-limit rules on the exact
-production host and verify them against production: 30 requests per 60 seconds
+disabled by default. Before broad exposure, configure Vercel Firewall
+rate-limit rules on the exact production host and verify them against
+production: 30 requests per 60 seconds
 per client IP for `GET /api/auth/passkey/generate-authenticate-options`,
 `POST /api/auth/passkey/verify-authentication`, and `GET /api/auth/token`; 10
 requests per 60 seconds per client IP for
@@ -111,7 +114,11 @@ rewrite then sees Vercel as its network peer. Do not treat the Worker-observed
 IP as the original browser IP on that path. See [Vercel Firewall custom
 rules](https://vercel.com/docs/vercel-firewall/vercel-waf/custom-rules) and
 [Better Auth production readiness](better-auth-production-readiness.md) for
-the operator steps. Keep public signup off during the pilot.
+the operator steps. Firewall setup is deferred by the operator; this does not
+block the Better Auth protocol or identity migration, but the Worker limit is
+coarse for proxied requests. Keep public signup off. Enrolment is a project-wide
+flag, not a per-user allowlist, so enabling it makes Firebase-authenticated
+users eligible to link a passkey during that window.
 
 Registration failures return safe JSON errors with `no-store` caching where
 credentials or registration state are involved. Registration contexts contain
@@ -197,10 +204,11 @@ Set these Vercel server variables to match the production frontend and Worker:
 
 The Worker production values for public URL, frontend origin, RP ID, issuer,
 and audience must match the deployed hostname exactly. Do not enable passkeys
-on arbitrary Vercel preview hosts or wildcard trusted origins. Add and verify
-the Vercel Firewall rules described above before the controlled pilot.
+on arbitrary Vercel preview hosts or wildcard trusted origins. Vercel Firewall
+setup is deferred; retain the Worker rate limits and keep the public-signup
+flag off.
 
-### 3. Run the production smoke test with one controlled Firebase account
+### 3. Run the production smoke test with an approved Firebase account
 
 Use a disposable or explicitly approved test account that already has known
 preferences and GitHub-backed sessions. Record its Firebase UID and verify it
@@ -212,12 +220,15 @@ account without authorization.
    still work. Verify Worker `/healthz` and same-origin `/api/auth/jwks`.
 3. Enable `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` in Vercel and set the Worker
    `MATMETRICS_PASSKEY_SIGNIN_ENABLED=true`. Keep public signup off.
-4. For the controlled pilot only, set both Vercel and Worker
+4. During a supervised enrolment window, set both Vercel and Worker
    `MATMETRICS_PASSKEY_ENROLMENT_ENABLED=true` and set
    `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true`. Redeploy/restart the affected
    services so the values are active. Keep
    `MATMETRICS_PASSKEY_SIGNUP_ENABLED=false`,
    `NEXT_PUBLIC_PASSKEY_SIGNUP_ENABLED=false`.
+   This flag is project-wide: any Firebase-authenticated user can start
+   enrolment during the window. Do not describe this as a one-account pilot
+   unless a user allowlist has been added.
 5. Sign in with Firebase, record the canonical user ID, add a passkey, and
    confirm the same ID has both Firebase and Better Auth identity mappings.
    Confirm no second `app_users` row was created.
@@ -274,9 +285,11 @@ requires immediate invalidation, rotate the Better Auth signing key through a
 separately reviewed emergency procedure; this invalidates all currently issued
 Better Auth JWTs.
 
-The Go API still trusts Firebase tokens, so this phase does not require a Go
-rollback or token migration. Firebase removal and Firestore fallback removal
-remain separate future work.
+The Go API source now accepts Better Auth EdDSA service JWTs alongside Firebase
+RS256 tokens. The latest production deployment includes this verifier, but its
+runtime JWKS, issuer, and audience configuration and protected endpoint
+acceptance still need verification. Firebase removal and Firestore fallback
+removal remain separate future work.
 
 ## Verification and known limits
 
@@ -289,13 +302,14 @@ claims/signatures. The root `auth-worker:verify` script and CI job run the
 Worker tests and typecheck.
 
 The production browser flow, Vercel rewrite/cookie behavior, Firebase Admin
-collision check against production, Vercel Firewall rules, and real production
-rollback remain manual checks. Cloudflare Worker Rate Limiting is per-location
-and approximate; for Vercel-proxied requests it sees the Vercel peer rather
-than the original browser. No per-user pilot allowlist exists; enrolment is a
-project-wide server flag, so control the pilot through a supervised window and
-keep public signup disabled. The final-passkey trigger also blocks cascading
-deletion of a Better Auth user that still has exactly one passkey; any future
+collision check against production, Go protected endpoint, and real production
+rollback remain manual checks. Vercel Firewall rules are deferred. Cloudflare
+Worker Rate Limiting is per-location and approximate; for Vercel-proxied
+requests it sees the Vercel peer rather than the original browser. No per-user
+pilot allowlist exists; enrolment is a project-wide server flag, so control the
+pilot through a supervised window and keep public signup disabled. The
+final-passkey trigger also blocks cascading deletion of a Better Auth user that
+still has exactly one passkey; any future
 account-deletion feature must define an ordered deletion path that preserves
 the last-key guard for ordinary credential requests. If public signup is ever
 considered, review the Firebase email-collision response for account
@@ -304,6 +318,7 @@ registration before enabling the flag.
 
 Firebase client/Admin dependencies, Firebase sign-in, Firebase token support,
 Firestore fallback, GitHub Markdown storage, and the Go Firebase verifier are
-intentionally retained. The next architectural phase should move the Go API
-to issuer/audience-checked Better Auth JWT verification through JWKS while
-retaining Firebase verification during a measured rollback window.
+intentionally retained. The Go API now also supports issuer/audience-checked
+Better Auth JWT verification through JWKS. Keep Firebase verification during a
+measured rollback window, then remove it only after account adoption and
+recovery gates pass.

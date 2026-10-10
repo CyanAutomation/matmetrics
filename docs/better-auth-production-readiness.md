@@ -21,15 +21,15 @@ database change and zero rows written.
 | Workstream | Current state | Missing work | Risk | Proposed PR |
 | --- | --- | --- | --- | --- |
 | D1 migration | Production D1 is the configured `matmetrics-data` database. Migration `0004_auth_registration_guards.sql` is recorded as applied at 2026-10-09 20:59:31 UTC; Wrangler reports no pending migrations. The claims/completions tables and both triggers exist. | Keep the repeatable read-only preflight and verification commands in use for future schema changes. The pre-migration cleanup counts cannot be reconstructed from the post-migration database. | The migration deletes legacy registration reservations, orphan Better Auth identity rows, and canonical `app_users` rows without any identity mapping. Current post-migration counts for those categories are zero. | PR A |
-| Deployment configuration | Latest Vercel production deployment is `main` at `1893166`. The live auth Worker uses the same D1 database and exact production frontend origin, RP ID, issuer, audience, and JWKS route as the project config. Worker and Vercel passkey flags are all `false`; required Worker secret bindings are present. | Secret values were not read or validated. Project environment settings are verified, but this does not prove every secret works at runtime. | Incorrect secrets or a later environment/config change could break auth despite the current alignment. | PR A |
-| Rate limiting | The deployed Worker has a 30-per-minute sign-in limiter and a 10-per-minute registration limiter. Source covers passkey options/verification and JWT issuance. It keys Cloudflare limits with `CF-Connecting-IP`. | Vercel's active custom Firewall configuration lookup returned 404 (“Seawall Config not found”). Add and verify per-client rules for the same-origin Vercel routes before a pilot. | Requests proxied by Vercel can share a Worker-visible egress address. Without Vercel limits, the Worker limiter is only a coarse backstop and may group unrelated browsers. | PR A; operator configuration remains pending |
-| Production smoke tests | Read-only production checks returned Worker `/healthz` 200 and same-origin `/api/auth/jwks` 200 with one public key. Worker integration tests cover identity linking, registration-context replay, session/JWT handling, credential rename, second passkey, and final-key deletion. | A controlled Firebase-to-passkey browser journey, protected API/data ownership checks, rollback, and blocked/rate-limited response checks have not been run against production. | A healthy Worker/JWKS does not prove account linking, browser cookies, existing data ownership, or rollback. | PR A |
-| Go JWT verification | Source now verifies Firebase RS256 ID tokens and Better Auth EdDSA service JWTs, and attaches a provider-neutral principal with the canonical MatMetrics user ID. Local tests cover issuer, audience, expiry, not-before, signature, identity matching, JWKS failure, unknown keys, and key rotation. | Verify the Go API deployment has the shared JWKS URL, issuer, and audience configured, then run a protected endpoint smoke check after PR B is deployed. | Production Go endpoint acceptance has not yet been demonstrated; missing configuration returns 500 and unavailable signing keys return 503. | PR B |
+| Deployment configuration | A follow-up Vercel deployment listing reports production `main` at `8c6ce13` (#847) as `READY`, superseding the prior `1893166` record. The prior resource audit recorded all passkey flags as `false` and matching Worker/Vercel origins, issuer, audience, and D1 binding; live variable values were not re-read during this follow-up. | Confirm current runtime variables and Worker secrets without exposing their values, then exercise the protected endpoints. | A ready deployment does not prove that runtime secrets and JWT settings are usable. | PR A/B |
+| Rate limiting | The Worker config has a 30-per-minute sign-in limiter and a 10-per-minute registration limiter. Source covers passkey options/verification and JWT issuance. It keys Cloudflare limits with `CF-Connecting-IP`. | Vercel Firewall rules are deferred. No per-client edge limit is verified for requests passing through the same-origin rewrite. | Requests proxied by Vercel can share a Worker-visible egress address, so Worker limits are a coarse backstop and may group unrelated browsers. | Revisit before broad rollout |
+| Production smoke tests | The previous audit's read-only checks returned Worker `/healthz` 200 and same-origin `/api/auth/jwks` 200. A follow-up run from the current execution environment timed out on both GET probes, so it could not confirm current reachability. Worker integration tests cover identity linking, registration-context replay, session/JWT handling, credential rename, second passkey, and final-key deletion. | A controlled Firebase-to-passkey browser journey, protected API/data ownership checks, Go endpoint acceptance, and rollback have not been demonstrated against production. | A healthy Worker/JWKS does not prove account linking, browser cookies, existing data ownership, or rollback. | PR A/B |
+| Go JWT verification | Source now verifies Firebase RS256 ID tokens and Better Auth EdDSA service JWTs, and attaches a provider-neutral principal with the canonical MatMetrics user ID. Local tests cover issuer, audience, expiry, not-before, signature, identity matching, JWKS failure, unknown keys, and key rotation. The latest Vercel production deployment includes this source. | Verify the Go runtime has the shared JWKS URL, issuer, and audience configured, then run a protected endpoint smoke check. | Production Go endpoint acceptance has not yet been demonstrated; missing configuration returns 500 and unavailable signing keys return 503. | PR B follow-up |
 | Account recovery | A recovery policy is documented; there is no recovery endpoint or administrator grant implementation. | Threat model, operational staffing decision, and an implementation plan with replay protection and audit records. | A passkey-only account could be unrecoverable if its user loses every credential. | PR C |
-| Public signup | Worker, Vercel server, and browser signup flags are all off in production. | Keep disabled until a tested recovery process and abuse controls are approved. | Enabling it before recovery and abuse review could create accounts that cannot be recovered or can be created abusively. | PR C |
-| Firebase retirement | Firebase remains in browser sign-in, Next.js token verification, registration-context issuance, Go verification, and Firestore fallback code. | Complete the dependency inventory and staged cutover/rollback plan after dual-provider Go support and recovery are ready. | Removing Firebase now could strand existing identities or remove a working fallback. | PR D, planning only |
+| Public signup | The previous resource audit recorded Worker, Vercel server, and browser signup flags as off; live values were not re-read in the follow-up. | Keep disabled until a tested recovery process and abuse controls are approved. | Enabling it before recovery and abuse review could create accounts that cannot be recovered or can be created abusively. | PR C |
+| Firebase retirement | Firebase remains in browser sign-in, Next.js and Go token verification, existing-user registration-context issuance, and Firestore fallback code. The video-link route now uses the shared preference store, and sync-status ownership now follows the active canonical identity. | Complete account adoption and recovery, replace the Firebase email-collision lookup for new accounts, and remove remaining Firestore fallbacks in a separate data-service phase. | Removing Firebase now could strand unlinked identities or remove a working data fallback. | Staged follow-up |
 
-The production auth registry currently has zero `app_users`, zero
+The previous audit reported zero `app_users`, zero
 `auth_identities`, and zero Better Auth user rows. D1 contains one preference
 row. Those aggregate counts do not establish ownership for that preference or
 prove historical data preservation; the production account journey remains
@@ -37,9 +37,11 @@ pending. GitHub-backed training sessions were not queried or changed.
 
 ## Production configuration observed
 
-The Vercel production hostname is `matmetrics-teal.vercel.app`. Its latest
-production deployment is `main` at commit `1893166` (`Fix stale session history
-after login`, #845). The production project settings contain:
+The Vercel production hostname is `matmetrics-teal.vercel.app`. The latest
+production deployment observed in the follow-up Vercel API listing is `main` at
+commit `8c6ce13` (`Add Better Auth JWT verification to Go API`, #847), state
+`READY`. The previous infrastructure audit recorded these production project
+settings; they were not re-read during the follow-up:
 
 - `CLOUDFLARE_AUTH_WORKER_URL` pointing to `matmetrics-auth-production`.
 - `MATMETRICS_AUTH_JWKS_URL` pointing to the same-origin `/api/auth/jwks` route.
@@ -57,10 +59,14 @@ The deployed Worker uses:
 - Rate-limit bindings of 30 requests per 60 seconds for sign-in and 10 per 60
   seconds for registration.
 
-The live Worker health route and public JWKS endpoint both returned HTTP 200.
-The Vercel Firewall API did not return an active custom-rule configuration, so
-the browser-facing abuse controls are not verified as deployed. Treat the
-rules below as required operator setup before a production pilot.
+The previous audit's live Worker health route and public JWKS endpoint both
+returned HTTP 200. A follow-up read-only probe from the current execution
+environment timed out on both endpoints; that result does not distinguish a
+network-path failure from an endpoint failure. The Vercel Firewall lookup in
+the previous audit returned no active custom-rule configuration. Firewall
+configuration is deferred; Worker rate limits remain coarse for Vercel-proxied
+requests, and this is an acknowledged rollout risk rather than a Better Auth
+functional dependency. Revisit per-client limiting before broad exposure.
 
 ## D1 preflight and verification
 
@@ -200,14 +206,15 @@ controlled pilot and rollback checklist in
 
 ## Phase status and next work
 
-PR A now adds the read-only D1 migration preflight/verification SQL, a
-repeatable health/JWKS probe, and deterministic Worker rate-limit policy tests.
-The Firewall rules and the account-based browser journey remain operator
-actions. Do not enable the passkey flags or public signup until the Firewall
-rules and controlled pilot checks are complete.
+PR A adds read-only D1 migration preflight/verification SQL, a repeatable
+health/JWKS probe, and deterministic Worker rate-limit policy tests. The
+Firewall configuration is deferred. Keep public signup disabled. Before
+enabling sign-in or enrolment, confirm runtime configuration and arrange an
+approved test account; enrolment is currently controlled by project-wide flags,
+not a per-user allowlist.
 
 PR B adds Better Auth JWT/JWKS verification to the Go API while retaining
-Firebase compatibility. Configure and smoke-test the Go API after deployment
-before treating the production verifier path as validated. Account recovery
-and Firebase retirement remain separate gated phases; no Firebase removal
-belongs in PR A or PR B.
+Firebase compatibility and is included in the latest production deployment.
+Configure and smoke-test the Go API before treating the production verifier
+path as validated. Account recovery and Firebase retirement remain separate
+gated phases; no Firebase removal belongs in PR A or PR B.
