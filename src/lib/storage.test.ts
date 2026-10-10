@@ -2649,6 +2649,36 @@ serialTest(
 );
 
 serialTest(
+  'setGitHubSyncStatus uses the active canonical identity without Firebase auth',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('passkey-user');
+    __resetStorageStateForTests();
+
+    let persistedUserId: string | null = null;
+    const preferenceState = {
+      ...DEFAULT_USER_PREFERENCES,
+      gitHub: { ...DEFAULT_USER_PREFERENCES.gitHub },
+    };
+    __setStorageDependencyOverridesForTests({
+      readPreferences: () => preferenceState,
+      persistGitHubSettingsPreference: async (uid) => {
+        persistedUserId = uid;
+      },
+    });
+
+    try {
+      setGitHubSyncStatus('success');
+      await flushAsyncWork();
+      assert.equal(persistedUserId, 'passkey-user');
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
   'setGitHubSyncStatus warns and no-ops when no authenticated user is available',
   async () => {
     installBrowserEnv();
