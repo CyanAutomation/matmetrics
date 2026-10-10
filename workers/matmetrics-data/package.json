@@ -4,7 +4,11 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "migrate:local": "wrangler d1 migrations apply matmetrics-data --local",
-    "migrate:remote": "wrangler d1 migrations apply matmetrics-data --remote"
+    "migrate:remote": "wrangler d1 migrations apply matmetrics-data --remote",
+    "migrate:remote:list": "wrangler d1 migrations list matmetrics-data --remote",
+    "auth:migration:preflight": "node scripts/auth-migration-check.mjs preflight",
+    "auth:migration:verify": "node scripts/auth-migration-check.mjs verify",
+    "test:auth:migration-check": "node --test scripts/auth-migration-check.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260915.1",
