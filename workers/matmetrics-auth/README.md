@@ -109,7 +109,7 @@ npx wrangler deploy --env production
 ```
 
 The maintainer confirmed the deployed Worker has its Resend configuration and
-secrets and verified email verification, password reset by email,
+secrets, and verified email verification, password reset by email,
 username/password sign-in, and passkey sign-in. D1 migration
 `0006_retire_firebase_auth.sql` has also been applied and verified. Disabling
 Firebase Auth in the Firebase project is the remaining project-level action;

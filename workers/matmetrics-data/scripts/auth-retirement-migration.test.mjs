@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -37,8 +38,8 @@ function addFirebaseIdentity(db, id, appUserId) {
   ).run(id, appUserId, 'firebase', appUserId, Date.now());
 }
 
-async function applyRetirementMigration(db) {
-  const migration = await readFile(
+function applyRetirementMigration(db) {
+  const migration = readFileSync(
     path.join(migrationDirectory, '0006_retire_firebase_auth.sql'),
     'utf8'
   );
@@ -66,8 +67,8 @@ async function createMigratableDatabase() {
   const expiresAt = now + 60_000;
   const completedAt = now + 1;
   db.prepare(
-    'INSERT INTO auth_registration_context_claims (nonce, app_user_id, provider, provider_subject, expires_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)'
-  ).run('legacy-nonce', 'canonical-user', 'firebase', 'canonical-user', expiresAt, now);
+    'INSERT INTO auth_registration_context_claims (nonce, app_user_id, provider, provider_subject, expires_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('legacy-nonce', 'canonical-user', 'firebase', 'canonical-user', expiresAt, null, now);
   db.prepare(
     'INSERT INTO auth_registration_context_completions (nonce, app_user_id, completed_at) VALUES (?, ?, ?)'
   ).run('legacy-nonce', 'canonical-user', completedAt);
@@ -80,7 +81,7 @@ async function createMigratableDatabase() {
 test('Firebase auth retirement keeps Better Auth identities and user data, and drops legacy auth structures', async () => {
   const db = await createMigratableDatabase();
   try {
-    await applyRetirementMigration(db);
+    applyRetirementMigration(db);
 
     assert.equal(
       db.prepare('SELECT count(*) AS count FROM user').get().count,
@@ -174,7 +175,7 @@ test('Firebase auth retirement stops before changing identities if a Firebase-on
     );
     addFirebaseIdentity(db, 'firebase-only-identity', 'firebase-only-user');
 
-    await assert.rejects(applyRetirementMigration(db), /CHECK constraint failed/);
+    assert.throws(() => applyRetirementMigration(db), /auth_firebase_retirement_guard failed|CHECK constraint failed/);
     assert.equal(
       db
         .prepare("SELECT count(*) AS count FROM auth_identities WHERE provider = 'firebase'")
@@ -200,7 +201,7 @@ test('Firebase auth retirement refuses to drop an in-flight legacy registration 
       'INSERT INTO auth_registration_contexts (nonce, app_user_id, expires_at, completed_at, created_at) VALUES (?, ?, ?, NULL, ?)'
     ).run('in-flight-context', 'canonical-user', now + 60_000, now);
 
-    await assert.rejects(applyRetirementMigration(db), /CHECK constraint failed/);
+    assert.throws(() => applyRetirementMigration(db), /auth_firebase_retirement_guard failed|CHECK constraint failed/);
     assert.equal(
       db
         .prepare('SELECT count(*) AS count FROM auth_registration_contexts')

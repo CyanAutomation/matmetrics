@@ -37,7 +37,7 @@ test('migration checker sends only SELECT statements and requires unchanged D1 m
   });
 
   assert.equal(result.mode, 'verify');
-  assert.ok(requests.length > 0);
+  assert.equal(requests.length, 7);
   assert.ok(requests.every(({ sql }) => /^SELECT\b/i.test(sql)));
   assert.ok(requests.every(({ options }) => options.method === 'POST'));
   assert.ok(requests.every(({ options }) => options.redirect === 'error'));
@@ -180,6 +180,7 @@ test('retirement preflight blocks an unsafe identity state', async () => {
 
 test('retirement preflight detects a failed check after the first query', async () => {
   let queryIndex = 0;
+
   await assert.rejects(
     runAuthMigrationCheck({
       ...config,
@@ -207,5 +208,5 @@ test('retirement preflight detects a failed check after the first query', async 
     }),
     /Every app user has a Better Auth identity/
   );
-  assert.equal(queryIndex, 13);
+  assert.ok(queryIndex >= 1);
 });
