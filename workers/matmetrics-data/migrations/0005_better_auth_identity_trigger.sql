@@ -31,10 +31,9 @@ WHERE NOT EXISTS (
     AND provider_subject = auth_user.id
 );
 
-CREATE TRIGGER ensure_better_auth_identity_after_user_insert
-AFTER INSERT ON user
-BEGIN
-  SELECT CASE WHEN EXISTS (
+CREATE TRIGGER reject_better_auth_identity_conflict_before_user_insert
+BEFORE INSERT ON user
+WHEN EXISTS (
     SELECT 1
     FROM auth_identities
     WHERE provider = 'better-auth'
@@ -42,8 +41,14 @@ BEGIN
         (provider_subject = NEW.id AND app_user_id <> NEW.id)
         OR (app_user_id = NEW.id AND provider_subject <> NEW.id)
       )
-  ) THEN RAISE(ABORT, 'BETTER_AUTH_IDENTITY_CONFLICT') END;
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'BETTER_AUTH_IDENTITY_CONFLICT');
+END;
 
+CREATE TRIGGER ensure_better_auth_identity_after_user_insert
+AFTER INSERT ON user
+BEGIN
   INSERT OR IGNORE INTO app_users (id, created_at, updated_at)
   VALUES (
     NEW.id,

@@ -39,10 +39,10 @@ Worker flag; the Worker is authoritative.
 Use the exact frontend hostname for the WebAuthn RP ID and origin. Do not use
 wildcard preview hosts. Apply D1 changes through `workers/matmetrics-data`,
 which remains the migration owner. Migration `0005` backfills canonical
-identity rows and installs a D1 trigger that creates each new Better Auth
-identity atomically with its user row. Run the read-only auth migration
-preflight before applying pending D1 migrations and the verification command
-afterward.
+identity rows and installs D1 triggers that reject conflicting mappings and
+create each new Better Auth identity atomically with its user row. Run the
+read-only auth migration preflight before applying pending D1 migrations and
+the verification command afterward.
 
 ## Existing-account migration
 
