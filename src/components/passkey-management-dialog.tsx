@@ -29,8 +29,11 @@ export function PasskeyManagementDialog({
   const {
     betterAuthConfigured,
     passkeyEnrolmentEnabled,
-    isPasskeySession,
+    hasBetterAuthSession,
+    user,
     addPasskey,
+    sendEmailVerification,
+    sendPasswordReset,
   } = useAuth();
   const { refetch } = authClient.useSession();
   const [passkeys, setPasskeys] = useState<PasskeySummary[]>([]);
@@ -39,10 +42,14 @@ export function PasskeyManagementDialog({
   const [editingName, setEditingName] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadPasskeys = useCallback(async () => {
-    if (!isPasskeySession) {
+    if (!hasBetterAuthSession) {
       setPasskeys([]);
       return;
     }
@@ -66,7 +73,7 @@ export function PasskeyManagementDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [isPasskeySession]);
+  }, [hasBetterAuthSession]);
 
   useEffect(() => {
     if (open) void loadPasskeys();
@@ -88,6 +95,44 @@ export function PasskeyManagementDialog({
       );
     } finally {
       setPendingId(null);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    setIsSendingReset(true);
+    setPasswordResetSent(false);
+    setError(null);
+    try {
+      await sendPasswordReset(user.email);
+      setPasswordResetSent(true);
+    } catch (resetError) {
+      setError(
+        resetError instanceof Error
+          ? resetError.message
+          : 'Could not send a password setup link'
+      );
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
+  const handleEmailVerification = async () => {
+    if (!user?.email) return;
+    setIsSendingVerification(true);
+    setVerificationSent(false);
+    setError(null);
+    try {
+      await sendEmailVerification(user.email);
+      setVerificationSent(true);
+    } catch (verificationError) {
+      setError(
+        verificationError instanceof Error
+          ? verificationError.message
+          : 'Could not send an email verification link'
+      );
+    } finally {
+      setIsSendingVerification(false);
     }
   };
 
@@ -135,10 +180,10 @@ export function PasskeyManagementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Passkeys</DialogTitle>
+          <DialogTitle>Sign-in methods</DialogTitle>
           <DialogDescription>
-            Add more than one passkey so you can still sign in if a device is
-            lost. Synced passkeys and a hardware security key are useful options.
+            Use your password or a passkey to sign in. Add another passkey so
+            you can still sign in if a device is lost.
           </DialogDescription>
         </DialogHeader>
 
@@ -148,12 +193,60 @@ export function PasskeyManagementDialog({
           </p>
         ) : (
           <div className="space-y-5">
+            {!user?.emailVerified && (
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="text-sm font-medium">Verify your email</div>
+                <p className="text-sm text-muted-foreground">
+                  Password sign-in requires a verified email address. We can
+                  send a verification link to {user?.email ?? 'your account'}.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleEmailVerification()}
+                  disabled={isSendingVerification || !user?.email}
+                >
+                  {isSendingVerification && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  Send verification email
+                </Button>
+                {verificationSent && (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    If verification is needed, an email is on its way.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="text-sm font-medium">Password sign-in</div>
+              <p className="text-sm text-muted-foreground">
+                Send a secure link to set or reset the password for{' '}
+                {user?.email ?? 'your account'}.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handlePasswordReset()}
+                disabled={isSendingReset || !user?.email}
+              >
+                {isSendingReset && <Loader2 className="h-4 w-4 animate-spin" />}
+                Email password link
+              </Button>
+              {passwordResetSent && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  If the address is eligible, a password link is on its way.
+                </p>
+              )}
+            </div>
+
             {isLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading passkeys...
               </div>
-            ) : isPasskeySession && passkeys.length > 0 ? (
+            ) : hasBetterAuthSession && passkeys.length > 0 ? (
               <ul className="space-y-2" aria-label="Registered passkeys">
                 {passkeys.map((passkey) => (
                   <li
@@ -218,14 +311,14 @@ export function PasskeyManagementDialog({
                   </li>
                 ))}
               </ul>
-            ) : isPasskeySession ? (
+            ) : hasBetterAuthSession ? (
               <p className="text-sm text-muted-foreground">
                 No passkeys are registered yet.
               </p>
             ) : passkeyEnrolmentEnabled ? (
               <p className="text-sm text-muted-foreground">
-                Add your first passkey to link this Firebase account. You will
-                remain signed in to the same MatMetrics account.
+                Add a passkey as another sign-in method for this MatMetrics
+                account.
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -233,7 +326,7 @@ export function PasskeyManagementDialog({
               </p>
             )}
 
-            {passkeyEnrolmentEnabled ? (
+            {passkeyEnrolmentEnabled && hasBetterAuthSession ? (
               <div className="space-y-2">
                 <Label htmlFor="new-passkey-name">Name for the new passkey</Label>
                 <div className="flex gap-2">
@@ -260,7 +353,7 @@ export function PasskeyManagementDialog({
               </div>
             ) : null}
 
-            {passkeys.length === 1 && isPasskeySession ? (
+            {passkeys.length === 1 && hasBetterAuthSession ? (
               <p className="text-xs text-muted-foreground">
                 Keep this passkey until another one has been added and tested.
               </p>

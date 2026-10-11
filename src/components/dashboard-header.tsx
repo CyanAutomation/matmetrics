@@ -129,7 +129,7 @@ export function DashboardHeader({
             {hasUser && canManagePasskeys ? (
               <DropdownMenuItem onClick={onManagePasskeys}>
                 <KeyRound className="mr-2 h-4 w-4" />
-                Manage Passkeys
+                Sign-in methods
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />

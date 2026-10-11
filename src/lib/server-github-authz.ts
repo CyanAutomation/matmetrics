@@ -3,7 +3,7 @@ import { loadStoredPreferences } from './preferences-store.server';
 import { normalizeGitHubConfig } from './session-storage';
 import type { GitHubConfig } from './types';
 
-type FirebasePreferences = {
+type StoredPreferences = {
   gitHub?: {
     config?: GitHubConfig;
   };
@@ -37,7 +37,7 @@ async function getStoredGitHubConfigForUser(
   }
 
   const stored = await loadStoredPreferences(uid);
-  const preferences = stored.preferences as FirebasePreferences | null;
+  const preferences = stored.preferences as StoredPreferences | null;
   return normalizeGitHubConfig(preferences?.gitHub?.config);
 }
 

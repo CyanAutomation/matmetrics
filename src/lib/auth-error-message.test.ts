@@ -5,7 +5,7 @@ import { getAuthErrorMessage } from './auth-error-message';
 
 test('network authentication failures use clear retry guidance', () => {
   assert.equal(
-    getAuthErrorMessage(new Error('Firebase: Error (auth/network-request-failed).')),
+    getAuthErrorMessage(new Error('The network request failed.')),
     'Unable to reach the sign-in service. Check your connection and try again.'
   );
 });

@@ -39,7 +39,8 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 ### Operator/developer quickstart
 
 1. Ensure runtime dependencies are present before opening the UI:
-   - Firebase auth + admin configuration
+   - Better Auth Worker and same-origin `/api/auth/*` rewrite configuration
+   - Firebase Admin configuration only if the Firestore preferences fallback is in use
    - `GITHUB_TOKEN` with repository write permissions
 2. Start local app runtime:
 
@@ -55,7 +56,7 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 #### Authentication requirements
 
 - User must be signed in to use GitHub Sync UI actions.
-- Firebase auth must be configured for the deployment; if it is not configured, the plugin shows an unavailable/auth-required warning state.
+- Better Auth must be configured for the deployment; if it is not configured, the plugin shows an unavailable/auth-required warning state.
 - Server routes used by this plugin require a Bearer token and authenticated user context.
 
 #### Environment variables and backend requirements
@@ -64,8 +65,8 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
   - Used by server-side GitHub API calls.
   - If repository access is not configured, validation/sync endpoints return `503` and explain that GitHub features are unavailable for this deployment.
   - Expired tokens return an authorization message asking the user to check the repository connection.
-- Firebase admin configuration (required outside test mode)
-  - Needed by server auth verification and user preference retrieval.
+- Firebase Admin configuration (only when using the Firestore preference fallback)
+  - Used to read stored user preferences; it does not verify authentication tokens.
 - Optional auth test mode variables (for automated tests only):
   - `MATMETRICS_AUTH_TEST_MODE`
   - `MATMETRICS_TEST_USER_GITHUB_CONFIG`
@@ -195,13 +196,14 @@ Fix:
 
 Symptoms:
 
-- Warning banner indicates sign-in required or Firebase auth unavailable.
+- Warning banner indicates sign-in required or Better Auth unavailable.
 - Inputs/actions are disabled.
 
 Fix:
 
-- Ensure Firebase client and admin configuration are present.
-- Sign in with a supported provider/account.
+- Ensure the Better Auth Worker and frontend flags are configured.
+- Configure the Firestore service account only if the preference fallback is in use.
+- Sign in with a password or passkey.
 
 ### Invalid repository settings
 
