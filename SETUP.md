@@ -78,10 +78,14 @@ Only after those checks pass should public signup be opened by setting both
 build. Add Vercel Firewall rate limits for sign-in, signup, verification, and
 password recovery endpoints before launch.
 
-Firebase Auth is no longer used by MatMetrics code. Keep Firebase Admin and its
-service account for the Firestore fallback. Disabling Firebase Auth in the
-Firebase project is a separate project-wide action; do it only after checking
-the deployed account and any other Firebase Auth consumers.
+Firebase Auth is no longer used by MatMetrics code, and D1 migration `0006`
+removed its legacy identity mapping and registration metadata. The maintainer
+confirmed the deployed Better Auth email verification, password reset,
+username/password sign-in, and passkey sign-in flows. Disabling Firebase Auth
+in the Firebase project remains a separate project-level action; this session
+did not have project-admin access to perform or verify it. Keep Firebase Admin
+and its service account for the Firestore fallback until that data path is
+migrated separately.
 
 ## Other setup
 
