@@ -37,6 +37,14 @@ SELECT
   ) AS passed
 UNION ALL
 SELECT
+  'Better Auth identity conflict guard' AS check_name,
+  EXISTS (
+    SELECT 1 FROM sqlite_master
+    WHERE type = 'trigger'
+      AND name = 'reject_better_auth_identity_conflict_before_user_insert'
+  ) AS passed
+UNION ALL
+SELECT
   'Better Auth identity insert trigger' AS check_name,
   EXISTS (
     SELECT 1 FROM sqlite_master
