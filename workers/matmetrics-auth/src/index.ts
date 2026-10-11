@@ -1,12 +1,37 @@
 import { env } from 'cloudflare:workers';
 import { isPasskeyRegistrationAllowed } from '../../../src/lib/passkey-policy';
 import { auth } from './auth';
+import { hasAuthEmailConfiguration } from './email';
 import {
   applyRateLimit,
   getAuthRateLimitCategory,
 } from './rate-limit';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const EMAIL_AUTH_ENDPOINT_SUFFIXES = [
+  '/sign-up/email',
+  '/sign-in/email',
+  '/request-password-reset',
+  '/send-verification-email',
+] as const;
+
+function emailDeliveryUnavailableResponse(): Response {
+  return Response.json(
+    {
+      code: 'AUTH_EMAIL_DELIVERY_UNAVAILABLE',
+      message: 'Email authentication is temporarily unavailable',
+    },
+    { status: 503, headers: NO_STORE_HEADERS }
+  );
+}
+
+function requiresEmailDelivery(method: string, pathname: string): boolean {
+  return (
+    method === 'POST' &&
+    EMAIL_AUTH_ENDPOINT_SUFFIXES.some((suffix) => pathname.endsWith(suffix))
+  );
+}
+
 function registrationDisabledResponse(): Response {
   return Response.json(
     {
@@ -153,6 +178,13 @@ export default {
         },
         { status: 403, headers: NO_STORE_HEADERS }
       );
+    }
+
+    if (
+      requiresEmailDelivery(request.method, pathname) &&
+      !hasAuthEmailConfiguration()
+    ) {
+      return emailDeliveryUnavailableResponse();
     }
 
     const registrationPolicyResponse = await checkRegistrationPolicy(request);

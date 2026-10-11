@@ -31,8 +31,9 @@ npm --prefix workers/matmetrics-auth run typecheck
 ```
 
 The Vitest suite uses Cloudflare's Worker runtime and D1, loads the real data
-Worker migrations, and invokes the Worker entrypoint. It does not send real
-email or add a production authentication bypass.
+Worker migrations, and invokes the Worker entrypoint. Resend requests are
+mocked; the suite does not send real email or add a production authentication
+bypass.
 
 ## Configuration
 
@@ -77,23 +78,30 @@ are ready. Signup visibility is controlled by
 Keep the browser flag and Worker signup flag `false` until launch.
 
 The auth Worker uses Resend's Cloudflare-compatible SDK from Better Auth's
-verification and password-reset callbacks. Delivery runs under Cloudflare
-`waitUntil`; links expire after one hour. Signup and recovery endpoints are
-rate limited by Cloudflare bindings. Because requests proxied through Vercel
-may share egress IPs, add per-client Vercel Firewall limits for the browser
-auth endpoints before opening public signup. Forwarded client-IP headers are
-not trusted by the Worker, and rate-limit binding failures return HTTP 503.
+verification and password-reset callbacks. Email-dependent auth requests fail
+with the same generic HTTP 503 when the Resend key or sender is missing;
+transient Resend errors are retried up to three times with the same idempotency
+key and final failures are logged. Delivery runs under Cloudflare `waitUntil`;
+links expire after one hour. Signup and recovery endpoints are rate limited by
+Cloudflare bindings. Because requests proxied through Vercel may share egress
+IP, add per-client Vercel Firewall limits for the browser auth endpoints before
+opening public signup. Forwarded client-IP headers are not trusted by the
+Worker, and rate-limit binding failures return HTTP 503.
 
 ## Deployment and account migration
 
 The existing D1 schema already contains Better Auth user, account, session,
-verification, and passkey tables; no new D1 migration is needed for password
-sign-in. Apply D1 changes through `workers/matmetrics-data` before deploying
-the auth Worker:
+verification, and passkey tables. Migration `0005` adds an SQLite trigger that
+creates the canonical MatMetrics identity in the same transaction as each new
+Better Auth user, and backfills any missing mappings. Run the auth migration
+preflight, apply D1 changes through `workers/matmetrics-data`, then verify the
+identity invariant before deploying the auth Worker:
 
 ```bash
 cd workers/matmetrics-data
+npm run auth:migration:preflight
 npm run migrate:remote
+npm run auth:migration:verify
 cd ../matmetrics-auth
 npm ci
 npx wrangler deploy --env production

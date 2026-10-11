@@ -103,6 +103,74 @@ async function passkeyCount(userId: string): Promise<number> {
 }
 
 describe('MatMetrics auth Worker integration', () => {
+  it('returns one generic unavailable response when email delivery is not configured', async () => {
+    const previousApiKey = env.RESEND_API_KEY;
+    const previousSender = env.MATMETRICS_AUTH_EMAIL_FROM;
+    const previousSignupFlag = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
+    const userId = 'email-outage-' + crypto.randomUUID();
+    const email = userId + '@example.test';
+    await createUser(userId);
+    env.RESEND_API_KEY = '';
+    env.MATMETRICS_AUTH_EMAIL_FROM = '';
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'true';
+
+    try {
+      const knownReset = await workerFetch(
+        authRequest('/request-password-reset', {
+          method: 'POST',
+          body: { email, redirectTo: 'http://localhost:9002/reset-password' },
+        })
+      );
+      const unknownReset = await workerFetch(
+        authRequest('/request-password-reset', {
+          method: 'POST',
+          body: {
+            email: 'unknown-' + crypto.randomUUID() + '@example.test',
+            redirectTo: 'http://localhost:9002/reset-password',
+          },
+        })
+      );
+      const signup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: {
+            name: 'New User',
+            email: 'new-' + crypto.randomUUID() + '@example.test',
+            password: 'strong-password-123',
+          },
+        })
+      );
+      const emailSignIn = await workerFetch(
+        authRequest('/sign-in/email', {
+          method: 'POST',
+          body: { email, password: 'strong-password-123' },
+        })
+      );
+      const resendVerification = await workerFetch(
+        authRequest('/send-verification-email', {
+          method: 'POST',
+          body: { email, callbackURL: 'http://localhost:9002/' },
+        })
+      );
+
+      expect(knownReset.status).toBe(503);
+      expect(unknownReset.status).toBe(503);
+      const knownResetBody = await knownReset.json();
+      const unknownResetBody = await unknownReset.json();
+      expect(knownResetBody).toEqual(unknownResetBody);
+      expect(unknownResetBody).toMatchObject({
+        code: 'AUTH_EMAIL_DELIVERY_UNAVAILABLE',
+      });
+      expect(signup.status).toBe(503);
+      expect(emailSignIn.status).toBe(503);
+      expect(resendVerification.status).toBe(503);
+    } finally {
+      env.RESEND_API_KEY = previousApiKey;
+      env.MATMETRICS_AUTH_EMAIL_FROM = previousSender;
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = previousSignupFlag;
+    }
+  });
+
   it('keeps email sign-up disabled until the Worker flag is enabled, then requires verification', async () => {
     const previous = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
     env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'false';
@@ -202,24 +270,90 @@ describe('MatMetrics auth Worker integration', () => {
     }
   });
 
+  it('keeps Better Auth user creation atomic with its identity mapping and allows retry', async () => {
+    const previousSignupFlag = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
+    const email = 'identity-retry-' + crypto.randomUUID() + '@example.test';
+    const identityCountBefore = await env.DB.prepare(
+      'SELECT count(*) AS count FROM auth_identities'
+    ).first<{ count: number }>();
+    const appUserCountBefore = await env.DB.prepare(
+      'SELECT count(*) AS count FROM app_users'
+    ).first<{ count: number }>();
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'true';
+
+    try {
+      await env.DB.prepare(`
+        CREATE TRIGGER simulate_better_auth_identity_failure
+        BEFORE INSERT ON auth_identities
+        WHEN NEW.provider = 'better-auth'
+        BEGIN
+          SELECT RAISE(ABORT, 'SIMULATED_IDENTITY_INSERT_FAILURE');
+        END
+      `).run();
+
+      const failedSignup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: { name: 'Retry User', email, password: 'strong-password-123' },
+        })
+      );
+      expect(failedSignup.status).toBeGreaterThanOrEqual(400);
+
+      const failedUser = await env.DB.prepare(
+        'SELECT id FROM user WHERE email = ?'
+      )
+        .bind(email)
+        .first<{ id: string }>();
+      const identityCountAfterFailure = await env.DB.prepare(
+        'SELECT count(*) AS count FROM auth_identities'
+      ).first<{ count: number }>();
+      const appUserCountAfterFailure = await env.DB.prepare(
+        'SELECT count(*) AS count FROM app_users'
+      ).first<{ count: number }>();
+      expect(failedUser).toBeNull();
+      expect(identityCountAfterFailure?.count).toBe(identityCountBefore?.count);
+      expect(appUserCountAfterFailure?.count).toBe(appUserCountBefore?.count);
+
+      await env.DB.prepare(
+        'DROP TRIGGER simulate_better_auth_identity_failure'
+      ).run();
+      const retriedSignup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: { name: 'Retry User', email, password: 'strong-password-123' },
+        })
+      );
+      expect(retriedSignup.status).toBe(200);
+
+      const user = await env.DB.prepare(
+        'SELECT id FROM user WHERE email = ?'
+      )
+        .bind(email)
+        .first<{ id: string }>();
+      expect(user).toBeTruthy();
+      const identity = await env.DB.prepare(
+        'SELECT app_user_id, provider_subject FROM auth_identities WHERE provider = ? AND provider_subject = ?'
+      )
+        .bind('better-auth', user?.id)
+        .first<{ app_user_id: string; provider_subject: string }>();
+      expect(identity).toEqual({
+        app_user_id: user?.id,
+        provider_subject: user?.id,
+      });
+    } finally {
+      await env.DB.prepare(
+        'DROP TRIGGER IF EXISTS simulate_better_auth_identity_failure'
+      ).run();
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = previousSignupFlag;
+    }
+  });
+
   it('uses password reset to set the first credential without changing an existing passkey account', async () => {
     const userId = 'legacy-account-' + crypto.randomUUID();
     const email = userId + '@example.test';
     await createUser(userId);
     await createPasskey(userId, userId + '-passkey');
     await createSession(userId);
-    const createdAt = Date.now();
-    await env.DB.prepare(
-      'INSERT INTO app_users (id, created_at, updated_at) VALUES (?, ?, ?)'
-    )
-      .bind(userId, createdAt, createdAt)
-      .run();
-    await env.DB.prepare(
-      'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
-    )
-      .bind(userId + '-identity', userId, 'better-auth', userId, createdAt)
-      .run();
-
     const knownRequest = await workerFetch(
       authRequest('/request-password-reset', {
         method: 'POST',

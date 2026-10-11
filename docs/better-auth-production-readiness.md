@@ -12,9 +12,10 @@ fallback storage.
 The worker integration suite covers signup gating, email verification before
 password sign-in, generic duplicate/recovery responses, first-password setup
 for a pre-existing passkey account, reset expiry and replay, session revocation,
-passkey enrollment access, account ownership, service JWTs, and rate limiting.
-These local checks do not verify a production Resend key, browser cookies,
-WebAuthn devices, or deployed Go API configuration.
+passkey enrollment access, account ownership, service JWTs, rate limiting,
+email delivery retries, missing email configuration, and atomic identity
+creation/retry. These local checks do not verify a production Resend key,
+browser cookies, WebAuthn devices, or deployed Go API configuration.
 
 ## Before production use
 
@@ -22,17 +23,21 @@ WebAuthn devices, or deployed Go API configuration.
 2. Set `MATMETRICS_AUTH_EMAIL_FROM` to a sender on a verified Resend domain.
 3. Confirm the Worker origin, trusted frontend origin, RP ID, issuer, and
    audience match the deployed Next.js and Go configuration.
-4. Deploy the auth Worker and the same-origin `/api/auth/*` rewrite with
+4. Run `npm run auth:migration:preflight`, apply the pending D1 migrations
+   through `workers/matmetrics-data`, then run `npm run auth:migration:verify`.
+   Migration `0005` creates canonical identity mappings atomically with Better
+   Auth user creation.
+5. Deploy the auth Worker and the same-origin `/api/auth/*` rewrite with
    `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false`.
-5. In Vercel, enable `NEXT_PUBLIC_BETTER_AUTH_ENABLED` and keep
+6. In Vercel, enable `NEXT_PUBLIC_BETTER_AUTH_ENABLED` and keep
    `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false`.
-6. Complete the existing-account password, passkey, protected API, and data
+7. Complete the existing-account password, passkey, protected API, and data
    ownership checks in
    [`better-auth-passkey-migration.md`](better-auth-passkey-migration.md).
-7. Add Vercel Firewall limits for `/api/auth/sign-in/*`,
+8. Add Vercel Firewall limits for `/api/auth/sign-in/*`,
    `/api/auth/sign-up/*`, `/api/auth/request-password-reset`,
    `/api/auth/reset-password`, and `/api/auth/send-verification-email`.
-8. Only after the account checks pass, decide whether to enable public signup
+9. Only after the account checks pass, decide whether to enable public signup
    by setting both the Worker and Next.js signup flags to `true`.
 
 The Worker applies Cloudflare limits to sign-in and account-recovery routes,

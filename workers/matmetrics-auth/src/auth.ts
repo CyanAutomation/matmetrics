@@ -2,8 +2,6 @@ import { env, waitUntil } from 'cloudflare:workers';
 import { passkey } from '@better-auth/passkey';
 import { betterAuth } from 'better-auth';
 import { jwt } from 'better-auth/plugins';
-import { betterAuthIdentityForUser } from '../../../src/lib/auth-identity';
-import { ensureAuthIdentity } from './identity';
 import { queueAuthEmail } from './email';
 
 export const auth = betterAuth({
@@ -40,18 +38,6 @@ export const auth = betterAuth({
     expiresIn: 60 * 60,
     sendVerificationEmail: async ({ user, url, token }) => {
       queueAuthEmail('verification', user.email, url, token);
-    },
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          await ensureAuthIdentity(
-            env.DB,
-            betterAuthIdentityForUser(user.id)
-          );
-        },
-      },
     },
   },
   plugins: [
