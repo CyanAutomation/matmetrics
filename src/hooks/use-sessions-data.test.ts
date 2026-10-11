@@ -80,7 +80,7 @@ test('session refresh waits for auth and preferences, then fetches once with cre
   __setStorageDependencyOverridesForTests({
     readPreferences: () => preferences,
     getSessionRefreshAuthHeaders: async () => ({
-      Authorization: 'Bearer firebase-token',
+      Authorization: 'Bearer better-auth-token',
     }),
   });
 
@@ -168,7 +168,7 @@ test('session refresh waits for auth and preferences, then fetches once with cre
     });
 
     assert.equal(listRequests, 1);
-    assert.equal(requestAuthorization, 'Bearer firebase-token');
+    assert.equal(requestAuthorization, 'Bearer better-auth-token');
     assert.ok(
       infoDiagnostics.some(([event, details]) => {
         const diagnostic = details as {
@@ -184,7 +184,7 @@ test('session refresh waits for auth and preferences, then fetches once with cre
         );
       })
     );
-    assert.equal(JSON.stringify(infoDiagnostics).includes('firebase-token'), false);
+    assert.equal(JSON.stringify(infoDiagnostics).includes('better-auth-token'), false);
     assert.deepEqual(renderedSessionIds(view), ['latest-session']);
     assert.deepEqual(
       JSON.parse(
@@ -207,7 +207,7 @@ test('switching users hides the old list and ignores its pending response', asyn
   __setStorageDependencyOverridesForTests({
     readPreferences: () => preferences,
     getSessionRefreshAuthHeaders: async () => ({
-      Authorization: 'Bearer firebase-token',
+      Authorization: 'Bearer better-auth-token',
     }),
   });
 

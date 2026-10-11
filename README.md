@@ -92,16 +92,17 @@ MATMETRICS_INTERNAL_API_SECRET=generate-a-long-random-secret
 MATMETRICS_BACKGROUND_EXECUTOR_URL=
 MATMETRICS_BACKGROUND_EXECUTOR_SECRET=
 
-# Firebase client SDK - Firebase console → Project Settings → Your web app
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+# Better Auth browser configuration
+NEXT_PUBLIC_BETTER_AUTH_ENABLED=false
+NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false
+NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true
+CLOUDFLARE_AUTH_WORKER_URL=https://matmetrics-auth.example.workers.dev
+MATMETRICS_AUTH_JWKS_URL=https://matmetrics.example.com/api/auth/jwks
+MATMETRICS_AUTH_ISSUER=https://matmetrics.example.com
+MATMETRICS_AUTH_AUDIENCE=matmetrics-api
 
-# Firebase admin SDK - paste the full service account JSON on one line
-# Firebase console → Project Settings → Service accounts → Generate new private key
+# Firebase Admin SDK, retained for Firestore preferences and plugin state
+# Paste the full service account JSON on one line.
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
 
 # Sentry DSN for error monitoring in browser bundle
@@ -111,31 +112,24 @@ SENTRY_DSN=https://example@o0.ingest.sentry.io/0
 SENTRY_AUTH_TOKEN=sentry_example_token
 ```
 
-Firebase values come from:
+Environment values come from:
 
-| Variable                                   | Where to find it                                                                  |
-| ------------------------------------------ | --------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Firebase console → Project Settings → Your web app                                |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Firebase console → Project Settings → Your web app                                |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Firebase console → Project Settings → Your web app                                |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Firebase console → Project Settings → Your web app                                |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase console → Project Settings → Your web app                                |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase console → Project Settings → Your web app                                |
-| `FIREBASE_SERVICE_ACCOUNT_KEY`             | Firebase console → Project Settings → Service accounts → Generate new private key |
-| `CLOUDFLARE_AUTH_WORKER_URL`                | Cloudflare dashboard → `matmetrics-auth` Worker URL (server-side rewrite destination) |
-| `MATMETRICS_AUTH_JWKS_URL`                  | Same-origin JWKS endpoint, usually `https://<app-origin>/api/auth/jwks` |
-| `MATMETRICS_AUTH_ISSUER`                    | Public MatMetrics frontend origin used by Better Auth JWTs |
-| `MATMETRICS_AUTH_AUDIENCE`                  | Better Auth JWT audience; defaults to `matmetrics-api` |
-| `MATMETRICS_AUTH_CONTEXT_SECRET`            | Shared Vercel/Cloudflare secret for short-lived registration contexts |
-| `SENTRY_DSN`                               | Sentry dashboard → Project settings → Client keys (DSN)                           |
-| `SENTRY_AUTH_TOKEN`                        | sentry.io → User settings → Auth tokens                                           |
+| Variable | Where to find it |
+| --- | --- |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase console → Project Settings → Service accounts → Generate new private key (Firestore only) |
+| `CLOUDFLARE_AUTH_WORKER_URL` | Cloudflare dashboard → `matmetrics-auth` Worker URL |
+| `MATMETRICS_AUTH_JWKS_URL` | Same-origin JWKS endpoint, usually `https://<app-origin>/api/auth/jwks` |
+| `MATMETRICS_AUTH_ISSUER` | Public MatMetrics frontend origin used by Better Auth JWTs |
+| `MATMETRICS_AUTH_AUDIENCE` | Better Auth JWT audience; defaults to `matmetrics-api` |
+| `SENTRY_DSN` | Sentry dashboard → Project settings → Client keys (DSN) |
+| `SENTRY_AUTH_TOKEN` | sentry.io → User settings → Auth tokens |
 
 ### Environment variable behavior
 
 - Copy `.env.example` to `.env.local` before starting the app. `.env.local` is intentionally ignored by git and should contain your real local credentials.
-- Firebase authentication and Firestore-backed preferences require all `NEXT_PUBLIC_FIREBASE_*` variables plus `FIREBASE_SERVICE_ACCOUNT_KEY`.
+- Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Firebase Admin remains only for the Firestore preference/plugin-state fallback and requires `FIREBASE_SERVICE_ACCOUNT_KEY`.
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
-- When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
+- When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Better Auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
 - `OPENROUTER_API_KEY` enables the optional JEV training check-in, verification of AI technique-tag candidates, and review-only checks for unsupported facts in transformed descriptions. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, check-ins and fidelity checks are skipped, and technique suggestions remain available without verification. If JEV is unreachable or rejects the key, suggestions and rewrites remain available and the UI asks users to review unchecked results.
 - The optional history review runs JEV against up to five previously logged sessions at a time after the user starts a batch. It sends each selected session's description, notes, selected category, effort rating, and up to 12 saved technique tags to OpenRouter/TypeSafe. JEV offers review suggestions, and never changes or saves sessions automatically.
@@ -144,7 +138,7 @@ Firebase values come from:
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
-- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, `MATMETRICS_AUTH_AUDIENCE`, and `MATMETRICS_AUTH_CONTEXT_SECRET` configure the incremental Better Auth passkey migration. Passkey sign-in uses `NEXT_PUBLIC_BETTER_AUTH_ENABLED` and Worker `MATMETRICS_PASSKEY_SIGNIN_ENABLED`. Existing-user enrolment uses `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` plus server-side `MATMETRICS_PASSKEY_ENROLMENT_ENABLED` in Vercel and Cloudflare. Public passkey-only signup has separate `NEXT_PUBLIC_PASSKEY_SIGNUP_ENABLED` and server-side `MATMETRICS_PASSKEY_SIGNUP_ENABLED` flags and must stay disabled for the pilot. Keep `BETTER_AUTH_SECRET` only in Cloudflare; it is not needed by Vercel. See [the rollout guide](docs/better-auth-passkey-migration.md).
+- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE` connect Next.js and Go to the Better Auth Worker. Set `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite are ready. Password signup is gated by `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED` and Worker `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`; both default off. Passkey enrollment requires an authenticated session and is controlled by `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`. Keep `BETTER_AUTH_SECRET` and `RESEND_API_KEY` only in Cloudflare. Configure the verified sender with `MATMETRICS_AUTH_EMAIL_FROM`. See [the auth setup guide](docs/better-auth-passkey-migration.md).
 - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.
@@ -187,100 +181,54 @@ This preflight fails fast with a clear error when test tooling dependencies are 
 
 ## Authentication Setup
 
-MatMetrics uses Firebase Authentication for secure user authentication. The application supports both production Firebase authentication and a test mode for development and testing scenarios.
+MatMetrics uses Better Auth for verified email/password accounts and passkeys.
+Email/password signup is initially disabled; existing users can sign in with a
+passkey and use the emailed password-reset link to set their first password.
+Passkeys remain available as an additional sign-in method on the same account.
 
-### Production Authentication (Firebase)
+The Cloudflare auth Worker owns Better Auth and the existing D1 auth tables.
+Next.js exposes it through a same-origin `/api/auth/*` rewrite. Better Auth
+sends verification and password-reset links through Resend using the Worker
+secret `RESEND_API_KEY` and verified sender `MATMETRICS_AUTH_EMAIL_FROM` (for
+example `MatMetrics <auth@scheimann.xyz>`). The Worker uses `waitUntil` for
+email delivery. Set the Resend key with Wrangler; never put it in Vercel or a
+`NEXT_PUBLIC_*` variable.
 
-The primary authentication method uses Firebase with the following configuration:
+Set these values for the Next.js deployment:
 
-- **Client SDK**: `NEXT_PUBLIC_FIREBASE_*` environment variables (see table above)
-- **Admin SDK**: `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable
-- **Token Validation**: Firebase ID tokens are verified using Firebase's public certificates
-- **Header Format**: `Authorization: Bearer <firebase-id-token>`
+- `CLOUDFLARE_AUTH_WORKER_URL`
+- `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true`
+- `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false` until public signup is opened
+- `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true`
+- `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE`
 
-### Better Auth passkey migration
+Set these Worker values in `workers/matmetrics-auth/wrangler.jsonc` or its
+Cloudflare environment:
 
-The migration adds Better Auth in a dedicated Cloudflare Worker bound directly
-to the existing D1 database. The Vercel application proxies `/api/auth/*` to
-that Worker through a same-origin rewrite; the browser keeps a host-only
-session cookie on the MatMetrics origin. Better Auth issues normal browser
-sessions and separate JWKS-verifiable JWTs for protected application APIs.
+- `BETTER_AUTH_SECRET` and `RESEND_API_KEY` as Worker secrets
+- `MATMETRICS_AUTH_EMAIL_FROM` to a sender on a verified Resend domain
+- `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false` until launch
+- `MATMETRICS_AUTH_SIGNIN_ENABLED=true` and `MATMETRICS_PASSKEY_ENROLMENT_ENABLED=true`
+- The exact frontend origin, RP ID, JWT issuer, and audience
 
-The current stage keeps Firebase available. A Firebase-authenticated user can
-request a short-lived, signed registration context at
-`/api/passkey/registration-context`; Better Auth links the verified passkey to
-the same canonical MatMetrics user ID. Public passkey-only signup is disabled
-by default and is not part of the pilot. Emails identify accounts but do not
-establish ownership or provide recovery; passkeys are the only Better Auth
-sign-in credential.
+After deploying the Worker and rewrite, use the reset email for an existing
+passkey account to set its first password. Better Auth preserves that account's
+user ID, passkeys, Firestore preferences, and data ownership, and revokes its
+active sessions after a password reset. Firebase Admin and
+`FIREBASE_SERVICE_ACCOUNT_KEY` remain for the Firestore fallback only; Firebase
+Auth client sign-in and Firebase ID token verification have been removed.
 
-Configure the Cloudflare Worker secrets `BETTER_AUTH_SECRET` and
-`MATMETRICS_AUTH_CONTEXT_SECRET`. Set the same context secret in Vercel, along
-with the Worker URL, JWT issuer/audience, and same-origin JWKS URL. Never put
-either secret in a `NEXT_PUBLIC_*` variable. Apply the additive auth schema
-through the existing D1 migration owner before enabling the browser flag; see
-[`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md) and
-[`docs/better-auth-passkey-migration.md`](docs/better-auth-passkey-migration.md).
-
-For the existing-user pilot, enable passkey sign-in and Firebase-user
-enrolment explicitly in both UI and server configuration while leaving both
-signup flags false. Production Worker defaults keep all three capabilities
-disabled. The rollout guide includes the controlled-account smoke test,
-recovery limitations, rate-limit setup, and Firebase rollback procedure.
-
-Set the passkey RP ID to the deployed frontend hostname and the WebAuthn
-origin/trusted origin to that exact origin. Local development uses `localhost`
-as the RP ID. Vercel preview deployments need a stable explicit hostname; do
-not wildcard preview origins. Firebase verification remains the migration
-fallback until the API and Go verifier migration is complete.
+See [`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md)
+and the [auth rollout and retirement record](docs/better-auth-passkey-migration.md)
+for deployment and post-deploy account checks.
 
 ### Test Mode Authentication
 
-For development and testing, you can enable test mode using **two** environment variables: `MATMETRICS_AUTH_TEST_MODE=true` **and** `NODE_ENV=test`. Both must be set for test mode to activate. This is particularly useful for:
-
-- **Unit Testing**: Testing authentication logic without real Firebase tokens
-- **CI/CD**: Running tests in environments where Firebase configuration isn't available
-
-#### Test Mode Behavior
-
-When test mode is enabled (both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test`), both authentication paths (Next.js route handlers and Go HTTP API handlers, including proxy calls) enforce the same simplified contract:
-
-- **Header**: `Authorization: Bearer test-token`
-- **Case Sensitivity**: `Bearer` is case-insensitive (`Bearer` and `bearer` are both accepted)
-- **Missing/Malformed Headers**: Return `401` with `Authentication required`
-- **Invalid Tokens**: Any token other than `test-token` returns `401` with `Invalid test token`
-
-#### When to Use Test Mode
-
-1. **Testing**: Enable both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test` in test environments
-2. **CI/CD**: Set both variables in automated testing pipelines
-
-#### Integration with Firebase Authentication
-
-The authentication system automatically falls back to Firebase authentication when either condition is false:
-
-- Test mode is not fully enabled (either `MATMETRICS_AUTH_TEST_MODE` is not `true` **or** `NODE_ENV` is not `test`)
-- Firebase is properly configured (all required environment variables are set)
-
-This ensures that test mode doesn't interfere with production authentication while providing a simplified testing experience.
-
-### Authentication Flow Overview
-
-```
-Client Request
-    ↓
-Authorization Header
-    ↓
-┌─────────────────────────────────────────────┐
-│           Authentication Check               │
-│ ┌─────────────┐  ┌─────────────┐             │
-│ │ Test Mode?  │  │  Firebase   │             │
-│ │ (test-token)│  │  (ID Token) │             │
-│ └─────────────┘  └─────────────┘             │
-└─────────────────────────────────────────────┘
-    ↓
-Authorized Request → Business Logic
-```
+For development and testing, set both `MATMETRICS_AUTH_TEST_MODE=true` and
+`NODE_ENV=test`. Next.js and Go then accept only
+`Authorization: Bearer test-token`; all other tokens receive HTTP 401. Outside
+test mode, protected APIs accept Better Auth service JWTs verified through the
+configured JWKS URL, issuer, audience, expiry, and signature.
 
 ## Deployment
 
@@ -299,13 +247,8 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
    - Click "Import"
 
 3. **Configure Environment Variables**:
-   - Add the required Firebase client values:
-     - `NEXT_PUBLIC_FIREBASE_API_KEY`
-     - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-     - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-     - `NEXT_PUBLIC_FIREBASE_APP_ID`
-   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` and `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` are optional client settings.
-   - Add `FIREBASE_SERVICE_ACCOUNT_KEY` with the service account JSON. Keep it server-only; do not give it a `NEXT_PUBLIC_` prefix.
+   - Configure Better Auth with `CLOUDFLARE_AUTH_WORKER_URL`, `NEXT_PUBLIC_BETTER_AUTH_ENABLED`, the signup/enrollment flags, and the JWKS issuer/audience values listed above.
+   - Add `FIREBASE_SERVICE_ACCOUNT_KEY` with the service account JSON for the Firestore fallback only. Keep it server-only; do not give it a `NEXT_PUBLIC_` prefix.
    - Add the server-side integrations used by your deployment:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents read and write access to each user-configured repository
      - `CLOUDFLARE_API_TOKEN`: Cloudflare API token for AI-assisted suggestions and transforms (get with: `wrangler auth token`)

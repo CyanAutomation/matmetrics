@@ -1,4 +1,4 @@
-const NETWORK_AUTH_ERROR = /auth\/network-request-failed|network request failed/i;
+const NETWORK_AUTH_ERROR = /network request failed/i;
 
 export function getAuthErrorMessage(
   error: unknown,

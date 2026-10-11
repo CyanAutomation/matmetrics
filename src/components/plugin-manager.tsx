@@ -196,7 +196,7 @@ export function PluginManagerInstalledContent(props: {
         data-testid="plugins-access-blocked-state"
       >
         {accessState === 'auth-unavailable'
-          ? 'Plugin management cannot load in this environment until Firebase authentication is configured.'
+          ? 'Plugin management cannot load in this environment until Better Auth is configured.'
           : 'Sign in with a configured account to load installed plugins and update their enabled state.'}
       </p>
     );
@@ -680,7 +680,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
           Plugin management unavailable
         </AlertTitle>
         <AlertDescription>
-          Plugin management requires Firebase authentication, which is not
+          Plugin management requires Better Auth, which is not
           configured for this deployment.
         </AlertDescription>
       </Alert>
@@ -740,7 +740,7 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         {installedPluginsViewState === 'access-blocked' ? (
           <p className="text-sm text-muted-foreground">
             {accessState === 'auth-unavailable'
-              ? 'Plugin issue details are unavailable because Firebase authentication is not configured.'
+              ? 'Plugin issue details are unavailable because Better Auth is not configured.'
               : 'Plugin issue details load after authentication succeeds.'}
           </p>
         ) : installedPluginsViewState === 'loading' ? (

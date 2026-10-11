@@ -1,6 +1,6 @@
--- Read-only preflight for 0004_auth_registration_guards.sql.
--- Run after migrations 0001-0003 and before applying migration 0004.
--- Review every non-zero cleanup count before an operator applies the migration.
+-- Read-only preflight for auth migrations 0004 and 0005.
+-- Run after migrations 0001-0003 before 0004, or after 0004 before 0005.
+-- Review non-zero cleanup counts and resolve identity conflicts before migration.
 SELECT
   'auth_registration_contexts rows cleared by 0004' AS cleanup_target,
   count(*) AS rows_that_would_be_deleted
@@ -33,3 +33,22 @@ SELECT
   'D1 preference records not modified by 0004' AS check_name,
   count(*) AS rows
 FROM user_preferences;
+
+SELECT
+  'Better Auth identity mappings to backfill by 0005' AS cleanup_target,
+  count(*) AS rows_that_would_be_added
+FROM user AS auth_user
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM auth_identities
+  WHERE provider = 'better-auth'
+    AND app_user_id = auth_user.id
+    AND provider_subject = auth_user.id
+);
+
+SELECT
+  'Noncanonical Better Auth identity mappings blocking 0005' AS check_name,
+  count(*) AS rows
+FROM auth_identities
+WHERE provider = 'better-auth'
+  AND app_user_id <> provider_subject;

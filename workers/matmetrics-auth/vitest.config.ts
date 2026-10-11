@@ -6,9 +6,9 @@ import { defineConfig } from 'vitest/config';
 
 const workerRoot = path.dirname(fileURLToPath(import.meta.url));
 const testAuthSecret = 'local-auth-test-secret-0123456789-abcdef';
-const testContextSecret = 'local-context-test-secret-0123456789-abcdef';
+const testResendApiKey = 're_test_worker_suite';
 process.env.BETTER_AUTH_SECRET = testAuthSecret;
-process.env.MATMETRICS_AUTH_CONTEXT_SECRET = testContextSecret;
+process.env.RESEND_API_KEY = testResendApiKey;
 
 export default defineConfig({
   plugins: [
@@ -23,7 +23,9 @@ export default defineConfig({
           bindings: {
             TEST_MIGRATIONS: migrations,
             BETTER_AUTH_SECRET: testAuthSecret,
-            MATMETRICS_AUTH_CONTEXT_SECRET: testContextSecret,
+            RESEND_API_KEY: testResendApiKey,
+            MATMETRICS_AUTH_EMAIL_FROM: 'MatMetrics <auth@scheimann.xyz>',
+            MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED: 'false',
           },
         },
       };

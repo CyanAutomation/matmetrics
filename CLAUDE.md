@@ -40,7 +40,7 @@ MatMetrics is a Judo training session tracker with a **dual-language full-stack*
 | CLI + Go API | Go in `go/cmd/` and `internal/`                                                               |
 | Storage      | GitHub markdown (primary), local `data/` markdown (fallback), Firebase Firestore (user prefs) |
 | AI           | Cloudflare AI Gateway with `dynamic/matmetrics` model routing                                 |
-| Auth         | Firebase Auth (client) + Firebase Admin SDK (server)                                          |
+| Auth         | Better Auth passwords + passkeys; Firebase Admin remains for Firestore fallback             |
 
 ### Storage Layers
 
@@ -77,9 +77,12 @@ Implementation uses direct Cloudflare API calls via `src/lib/cloudflare-ai-clien
 
 ### Authentication
 
-- **Client**: Firebase Auth (Google / email sign-in) via `src/lib/firebase-client.ts`
-- **Server**: Firebase Admin SDK validates tokens in `src/lib/server-auth.ts`; all session API routes call `requireAuthenticatedUser`
-- **Test mode**: Set `MATMETRICS_AUTH_TEST_MODE=true` to enable `Authorization: Bearer test-token` contract (case-insensitive `Bearer`; any other token → 401)
+- **Provider**: Better Auth runs in `workers/matmetrics-auth` and supports verified email/password accounts plus passkeys on the same account.
+- **Email delivery**: Resend sends verification and password-reset links from the Worker. Keep `RESEND_API_KEY` and `BETTER_AUTH_SECRET` as Cloudflare secrets.
+- **API authentication**: Next.js and Go accept Better Auth EdDSA service JWTs verified with the configured JWKS URL, issuer, and audience.
+- **Signup**: `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED` is the Worker gate and defaults off; the Next.js public flag controls signup UI visibility.
+- **Firebase scope**: Firebase Auth client code and token verification are removed. Firebase Admin remains for Firestore-backed preferences and plugin-state fallback.
+- **Test mode**: Set `MATMETRICS_AUTH_TEST_MODE=true` with `NODE_ENV=test` to enable `Authorization: Bearer test-token` (case-insensitive `Bearer`; other tokens receive 401).
 
 ## Environment Setup
 
@@ -88,16 +91,15 @@ Copy `.env.example` to `.env.local`. Required variables:
 ```bash
 GITHUB_TOKEN                          # GitHub API access for sync/storage
 CLOUDFLARE_API_TOKEN                  # Cloudflare AI Gateway for AI features
-NEXT_PUBLIC_FIREBASE_API_KEY          # Firebase client config (6 variables)
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-NEXT_PUBLIC_FIREBASE_PROJECT_ID
-NEXT_PUBLIC_FIREBASE_APP_ID
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-FIREBASE_SERVICE_ACCOUNT_KEY          # Full service account JSON on a single line
+NEXT_PUBLIC_BETTER_AUTH_ENABLED       # Browser Better Auth feature flag
+CLOUDFLARE_AUTH_WORKER_URL            # Better Auth Worker rewrite destination
+MATMETRICS_AUTH_JWKS_URL              # Same-origin Better Auth JWKS endpoint
+MATMETRICS_AUTH_ISSUER                # Better Auth JWT issuer
+MATMETRICS_AUTH_AUDIENCE              # Better Auth JWT audience
+FIREBASE_SERVICE_ACCOUNT_KEY          # Firestore fallback only
 ```
 
-`FIREBASE_SERVICE_ACCOUNT_KEY` must be a single-line JSON string (escape all newlines). `NEXT_PUBLIC_*` vars are baked in at build time.
+`FIREBASE_SERVICE_ACCOUNT_KEY` is retained only while the Firestore fallback is needed. The auth Worker also needs `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `MATMETRICS_AUTH_EMAIL_FROM`, and `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`. Keep Worker secrets out of Vercel and browser variables. `NEXT_PUBLIC_*` vars are baked in at build time.
 
 ## Key Conventions
 

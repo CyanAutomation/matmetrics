@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Fingerprint, GitBranch, Loader2 } from 'lucide-react';
+import { Fingerprint, Loader2 } from 'lucide-react';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { useAuth } from '@/components/auth-provider';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthErrorMessage } from '@/lib/auth-error-message';
 
-type AuthMode = 'sign-in' | 'sign-up' | 'passkey-sign-up' | 'reset';
+type AuthMode = 'sign-in' | 'sign-up' | 'reset' | 'verification-sent';
 
 type SignInScreenProps = {
   onContinueAsGuest?: () => void;
@@ -26,33 +26,30 @@ export function SignInScreen({
   const { toast } = useToast();
   const {
     isConfigured,
-    firebaseConfigured,
     betterAuthConfigured,
-    passkeySignupEnabled,
+    emailPasswordSignupEnabled,
     signInWithPasskey,
-    signUpWithPasskey,
-    signInWithGoogle,
-    signInWithGitHub,
     signInWithEmail,
     signUpWithEmail,
     sendPasswordReset,
+    sendEmailVerification,
   } = useAuth();
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const googleFeedback = useActionFeedback();
-  const githubFeedback = useActionFeedback();
   const emailFeedback = useActionFeedback();
   const passkeyFeedback = useActionFeedback();
 
   const title =
-    mode === 'sign-up' || mode === 'passkey-sign-up'
+    mode === 'sign-up'
       ? 'Create your account'
       : mode === 'reset'
         ? 'Reset your password'
-        : 'Sign in';
+        : mode === 'verification-sent'
+          ? 'Check your email'
+          : 'Sign in';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -68,23 +65,14 @@ export function SignInScreen({
 
       if (mode === 'sign-up') {
         await signUpWithEmail(name, email, password);
-        onAuthenticated?.();
-        return;
-      }
-
-      if (mode === 'passkey-sign-up') {
-        await signUpWithPasskey(name, email);
-        onAuthenticated?.();
+        setMode('verification-sent');
+        emailFeedback.showSuccess();
         return;
       }
 
       await sendPasswordReset(email);
+      setMode('verification-sent');
       emailFeedback.showSuccess();
-      toast({
-        title: 'Password reset sent',
-        description: 'Check your inbox for a Firebase password reset email.',
-      });
-      setMode('sign-in');
     } catch (error) {
       emailFeedback.showError();
       toast({
@@ -118,41 +106,18 @@ export function SignInScreen({
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleResendVerification = async () => {
     setIsSubmitting(true);
-    googleFeedback.startLoading();
     try {
-      await signInWithGoogle();
-      onAuthenticated?.();
-    } catch (error) {
-      googleFeedback.showError();
+      await sendEmailVerification(email);
       toast({
-        title: 'Authentication error',
-        description: getAuthErrorMessage(
-          error,
-          'Google sign-in failed. Please try again.'
-        ),
-        variant: 'destructive',
+        title: 'If verification is needed, an email is on its way',
+        description: 'Check your inbox for a MatMetrics verification link.',
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleGitHubSignIn = async () => {
-    setIsSubmitting(true);
-    githubFeedback.startLoading();
-    try {
-      await signInWithGitHub();
-      onAuthenticated?.();
     } catch (error) {
-      githubFeedback.showError();
       toast({
-        title: 'Authentication error',
-        description: getAuthErrorMessage(
-          error,
-          'GitHub sign-in failed. Please try again.'
-        ),
+        title: 'Could not send verification email',
+        description: getAuthErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -163,32 +128,31 @@ export function SignInScreen({
   return (
     <div className="w-full flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        {/* Brand header */}
         <div className="flex items-center gap-3 mb-6">
           <MatMetricsLogo size="lg" variant="solid" />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">MatMetrics</h1>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight">MatMetrics</h1>
         </div>
 
         <h2 className="text-lg font-semibold mb-1">{title}</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          {isConfigured
-            ? 'Sign in to sync sessions, unlock AI tools, and back up your training data.'
-            : 'Authentication is not configured. Explore the app in guest mode.'}
+          {mode === 'verification-sent'
+            ? 'If this address can be used for the requested action, we sent an email with the next step.'
+            : isConfigured
+              ? 'Sign in to sync sessions, unlock AI tools, and back up your training data.'
+              : 'Authentication is not configured. Explore the app in guest mode.'}
         </p>
 
         {!isConfigured && (
           <Alert className="mb-6 ui-alert-warning">
             <AlertTitle>Authentication is not configured</AlertTitle>
             <AlertDescription>
-              Configure Better Auth or Firebase to enable sign-in. You can
-              still explore the app in guest mode.
+              Configure Better Auth to enable sign-in. You can still explore
+              the app in guest mode.
             </AlertDescription>
           </Alert>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {onContinueAsGuest && (
             <Button
               type="button"
@@ -201,7 +165,36 @@ export function SignInScreen({
             </Button>
           )}
 
-          {isConfigured && (
+          {mode === 'verification-sent' ? (
+            <div className="space-y-4">
+              <Alert>
+                <AlertTitle>Check your inbox</AlertTitle>
+                <AlertDescription>
+                  We sent the next step to <strong>{email}</strong>, if an
+                  account action is available for that address.
+                </AlertDescription>
+              </Alert>
+              {emailPasswordSignupEnabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void handleResendVerification()}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Resend verification email
+                </Button>
+              )}
+              <button
+                type="button"
+                className="w-full text-sm text-primary"
+                onClick={() => setMode('sign-in')}
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : (
             <>
               {betterAuthConfigured && mode === 'sign-in' && (
                 <Button
@@ -220,189 +213,117 @@ export function SignInScreen({
                 </Button>
               )}
 
-              {betterAuthConfigured && mode === 'sign-in' && firebaseConfigured && (
-                <p className="text-center text-xs text-muted-foreground">
-                  Existing accounts can continue with Firebase while passkeys
-                  are being linked.
-                </p>
-              )}
-
-              {onContinueAsGuest && (
+              {mode === 'sign-in' && onContinueAsGuest && (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-background px-2 text-muted-foreground">
-                      or sign in
+                      or use email
                     </span>
                   </div>
                 </div>
               )}
 
-              {firebaseConfigured && <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                feedbackState={googleFeedback.feedbackState}
-                onClick={handleGoogleSignIn}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <GoogleMark className="h-4 w-4" />
-                )}
-                Google
-              </Button>}
+              {betterAuthConfigured && (
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  {mode === 'sign-up' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Display name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        autoComplete="name"
+                        maxLength={100}
+                        required
+                      />
+                    </div>
+                  )}
 
-              {firebaseConfigured && <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                feedbackState={githubFeedback.feedbackState}
-                onClick={handleGitHubSignIn}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <GitBranch className="h-4 w-4" />
-                )}
-                GitHub
-              </Button>}
-
-              {firebaseConfigured && <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-[color:color-mix(in_srgb,var(--color-outline-variant)_0.15,transparent)]" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    or use email
-                  </span>
-                </div>
-              </div>}
-
-              {mode !== 'sign-in' || firebaseConfigured ? <form className="space-y-4" onSubmit={handleSubmit}>
-                {(mode === 'sign-up' || mode === 'passkey-sign-up') && (
                   <div className="space-y-2">
-                    <Label htmlFor="name">Display name</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                  />
-                </div>
-
-                {mode !== 'reset' && mode !== 'passkey-sign-up' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      autoComplete={
-                        mode === 'sign-up' ? 'new-password' : 'current-password'
-                      }
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
                       required
                     />
                   </div>
-                )}
 
-                {mode === 'passkey-sign-up' && (
-                  <p className="text-xs text-muted-foreground">
-                    Your email is an account label, not a recovery method.
-                    Passkeys are the only sign-in credential for this account.
-                  </p>
-                )}
+                  {mode !== 'reset' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        autoComplete={
+                          mode === 'sign-up' ? 'new-password' : 'current-password'
+                        }
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        minLength={8}
+                        maxLength={128}
+                        required
+                      />
+                    </div>
+                  )}
 
-                <Button
-                  feedbackState={emailFeedback.feedbackState}
-                  type="submit"
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  {mode === 'sign-up'
-                    ? 'Create account'
-                    : mode === 'passkey-sign-up'
-                      ? 'Create account with a passkey'
-                    : mode === 'reset'
-                      ? 'Send reset email'
-                      : 'Sign in'}
-                </Button>
-              </form> : null}
+                  <Button
+                    feedbackState={emailFeedback.feedbackState}
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {mode === 'sign-up'
+                      ? 'Create account'
+                      : mode === 'reset'
+                        ? 'Send reset email'
+                        : 'Sign in'}
+                  </Button>
+                </form>
+              )}
 
               <div className="flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  className="text-primary"
-                  onClick={() => {
-                    if (mode === 'passkey-sign-up' || mode === 'reset') {
-                      setMode('sign-in');
-                    } else {
-                      setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
-                    }
-                  }}
-                >
-                  {mode === 'sign-in' ? 'Create account' : 'Back to sign in'}
-                </button>
+                {mode === 'sign-in' && emailPasswordSignupEnabled ? (
+                  <button
+                    type="button"
+                    className="text-primary"
+                    onClick={() => setMode('sign-up')}
+                    disabled={isSubmitting}
+                  >
+                    Create account
+                  </button>
+                ) : mode !== 'sign-in' ? (
+                  <button
+                    type="button"
+                    className="text-primary"
+                    onClick={() => setMode('sign-in')}
+                    disabled={isSubmitting}
+                  >
+                    Back to sign in
+                  </button>
+                ) : <span />}
 
-                {mode === 'sign-in' && firebaseConfigured && (
+                {mode === 'sign-in' && betterAuthConfigured && (
                   <button
                     type="button"
                     className="text-primary"
                     onClick={() => setMode('reset')}
+                    disabled={isSubmitting}
                   >
                     Forgot password?
                   </button>
                 )}
               </div>
-
-              {passkeySignupEnabled && mode === 'sign-in' && (
-                <button
-                  type="button"
-                  className="w-full text-sm text-primary"
-                  onClick={() => setMode('passkey-sign-up')}
-                  disabled={isSubmitting}
-                >
-                  Create an account with a passkey
-                </button>
-              )}
-
             </>
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-function GoogleMark({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className={className}
-      fill="currentColor"
-    >
-      <path d="M21.35 11.1H12v2.98h5.35c-.23 1.5-1.74 4.4-5.35 4.4-3.22 0-5.85-2.67-5.85-5.97s2.63-5.97 5.85-5.97c1.84 0 3.07.78 3.77 1.45l2.57-2.5C16.7 3.95 14.58 3 12 3 7.03 3 3 7.03 3 12s4.03 9 9 9c5.2 0 8.65-3.65 8.65-8.8 0-.59-.06-1.04-.14-1.5Z" />
-    </svg>
   );
 }

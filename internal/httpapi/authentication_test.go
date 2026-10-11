@@ -4,14 +4,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,10 +91,10 @@ func testJWKSJSON(t *testing.T, kid string, publicKey ed25519.PublicKey) string 
 
 func validBetterAuthClaims(now time.Time, issuer string) betterAuthTokenClaims {
 	return betterAuthTokenClaims{
-		AppUserID: "legacy-firebase-uid",
+		AppUserID: "legacy-account-id",
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    issuer,
-			Subject:   "legacy-firebase-uid",
+			Subject:   "legacy-account-id",
 			Audience:  jwt.ClaimStrings{testAuthAudience},
 			IssuedAt:  jwt.NewNumericDate(now.Add(-time.Minute)),
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
@@ -128,8 +123,8 @@ func TestBetterAuthVerifierAcceptsCanonicalEdDSAToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify() error = %v", err)
 	}
-	if principal.Provider != "better-auth" || principal.UserID != "legacy-firebase-uid" || principal.AppUserID != principal.UserID {
-		t.Fatalf("principal = %#v, want Better Auth principal for canonical Firebase UID", principal)
+	if principal.Provider != "better-auth" || principal.UserID != "legacy-account-id" || principal.AppUserID != principal.UserID {
+		t.Fatalf("principal = %#v, want Better Auth principal for canonical account ID", principal)
 	}
 }
 
@@ -158,7 +153,7 @@ func TestRequireAuthenticatedUserAcceptsBetterAuthAndAttachesCanonicalPrincipal(
 		t.Fatalf("Better Auth authentication failed with status %d: %s", recorder.Code, recorder.Body.String())
 	}
 	principal, ok := AuthenticatedPrincipalFromContext(request.Context())
-	if !ok || principal.Provider != "better-auth" || principal.UserID != "legacy-firebase-uid" || principal.AppUserID != principal.UserID {
+	if !ok || principal.Provider != "better-auth" || principal.UserID != "legacy-account-id" || principal.AppUserID != principal.UserID {
 		t.Fatalf("principal = %#v, ok = %v, want canonical Better Auth principal", principal, ok)
 	}
 }
@@ -247,7 +242,7 @@ func TestBetterAuthVerifierRefreshesKeysAfterRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify() after key rotation error = %v", err)
 	}
-	if principal.AppUserID != "legacy-firebase-uid" {
+	if principal.AppUserID != "legacy-account-id" {
 		t.Fatalf("AppUserID = %q, want canonical ID", principal.AppUserID)
 	}
 }
@@ -284,7 +279,7 @@ func TestRequireAuthenticatedUserReturnsUnavailableWhenJWKSFails(t *testing.T) {
 func TestRequireAuthenticatedUserRejectsUnsupportedAlgorithm(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "false")
 	t.Setenv("NODE_ENV", "production")
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "legacy-firebase-uid"})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "legacy-account-id"})
 	signed, err := token.SignedString([]byte("test-only-secret"))
 	if err != nil {
 		t.Fatal(err)
@@ -337,68 +332,18 @@ func TestBetterAuthJWKSFetchIsBounded(t *testing.T) {
 	}
 }
 
-func TestRequireAuthenticatedUserAcceptsFirebaseAndAttachesCanonicalPrincipal(t *testing.T) {
-	resetFirebaseCertState(t)
+func TestRequireAuthenticatedUserRejectsLegacyRS256Token(t *testing.T) {
 	t.Setenv("MATMETRICS_AUTH_TEST_MODE", "false")
 	t.Setenv("NODE_ENV", "production")
-	const projectID = "matmetrics-auth-test"
-	privateKey, certPEM := newFirebaseTestCertificate(t)
-	certs, err := json.Marshal(map[string]string{"firebase-test-key": certPEM})
-	if err != nil {
-		t.Fatal(err)
-	}
-	http.DefaultClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-		response := responseWithBody(http.StatusOK, string(certs))
-		response.Header.Set("Cache-Control", "max-age=300")
-		return response, nil
-	})}
-	account, err := json.Marshal(firebaseServiceAccount{ProjectID: projectID, ClientEmail: "test@example.test"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("FIREBASE_SERVICE_ACCOUNT_KEY", string(account))
-
-	claims := jwt.MapClaims{
-		"aud": projectID,
-		"exp": time.Now().Add(time.Hour).Unix(),
-		"iat": time.Now().Add(-time.Minute).Unix(),
-		"iss": "https://securetoken.google.com/" + projectID,
-		"sub": "legacy-firebase-uid",
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = "firebase-test-key"
-	signed, err := token.SignedString(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"legacy-account-id"}`))
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.Header.Set("Authorization", "Bearer "+signed)
+	request.Header.Set("Authorization", "Bearer "+header+"."+payload+".signature")
 	recorder := httptest.NewRecorder()
-	if !RequireAuthenticatedUser(recorder, request) {
-		t.Fatalf("Firebase authentication failed with status %d: %s", recorder.Code, recorder.Body.String())
+	if RequireAuthenticatedUser(recorder, request) {
+		t.Fatal("Legacy RS256 token was accepted after Firebase Auth removal")
 	}
-	principal, ok := AuthenticatedPrincipalFromContext(request.Context())
-	if !ok || principal.Provider != "firebase" || principal.UserID != "legacy-firebase-uid" || principal.AppUserID != principal.UserID {
-		t.Fatalf("principal = %#v, ok = %v, want canonical Firebase principal", principal, ok)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
 	}
-}
-
-func newFirebaseTestCertificate(t *testing.T) (*rsa.PrivateKey, string) {
-	t.Helper()
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	template := &x509.Certificate{
-		SerialNumber: big.NewInt(7),
-		Subject:      pkix.Name{CommonName: "firebase-test"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return privateKey, string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
 }
