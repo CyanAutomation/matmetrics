@@ -21,22 +21,6 @@ async function createDatabase() {
   for (const fileName of migrationFiles) {
     db.exec(await readFile(path.join(migrationDirectory, fileName), 'utf8'));
   }
-  db.exec(`
-    CREATE TRIGGER reject_better_auth_identity_conflict_before_user_insert
-    BEFORE INSERT ON user
-    WHEN EXISTS (
-      SELECT 1
-      FROM auth_identities
-      WHERE provider = 'better-auth'
-        AND (
-          (provider_subject = NEW.id AND app_user_id <> NEW.id)
-          OR (app_user_id = NEW.id AND provider_subject <> NEW.id)
-        )
-    )
-    BEGIN
-      SELECT RAISE(ABORT, 'BETTER_AUTH_IDENTITY_CONFLICT');
-    END
-  `);
   return db;
 }
 
