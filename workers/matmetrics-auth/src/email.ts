@@ -3,6 +3,10 @@ import { Resend } from 'resend';
 
 export type AuthEmailKind = 'verification' | 'password-reset';
 
+const MAX_EMAIL_SEND_ATTEMPTS = 3;
+const EMAIL_RETRY_DELAYS_MS = [250, 1_000] as const;
+const EMAIL_SEND_TIMEOUT_MS = 5_000;
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -70,6 +74,102 @@ function safeErrorCode(error: unknown): number | string {
   return 'unknown';
 }
 
+function isSecureOrigin(url: URL): boolean {
+  const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(
+    url.hostname
+  );
+  return url.protocol === 'https:' || (isLoopback && url.protocol === 'http:');
+}
+
+function hasTrustedAuthOriginConfiguration(): boolean {
+  try {
+    const publicUrl = new URL(env.MATMETRICS_AUTH_PUBLIC_URL);
+    const frontendOrigin = new URL(env.MATMETRICS_AUTH_FRONTEND_ORIGIN);
+    return (
+      publicUrl.origin === frontendOrigin.origin &&
+      publicUrl.pathname === '/' &&
+      !publicUrl.search &&
+      !publicUrl.hash &&
+      !publicUrl.username &&
+      !publicUrl.password &&
+      frontendOrigin.pathname === '/' &&
+      !frontendOrigin.search &&
+      !frontendOrigin.hash &&
+      !frontendOrigin.username &&
+      !frontendOrigin.password &&
+      isSecureOrigin(publicUrl)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function errorStatusCode(error: unknown): number | null {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number'
+  ) {
+    return error.statusCode;
+  }
+  return null;
+}
+
+function isRetryable(error: unknown): boolean {
+  const statusCode = errorStatusCode(error);
+  return statusCode === null || statusCode === 429 || statusCode >= 500;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export function hasAuthEmailConfiguration(): boolean {
+  return Boolean(
+    env.RESEND_API_KEY?.trim() &&
+      env.MATMETRICS_AUTH_EMAIL_FROM?.trim() &&
+      hasTrustedAuthOriginConfiguration()
+  );
+}
+
+export function isSafeAuthEmailUrl(value: string): boolean {
+  let link: URL;
+  let configuredOrigin: URL;
+  try {
+    link = new URL(value);
+    configuredOrigin = new URL(env.MATMETRICS_AUTH_PUBLIC_URL);
+  } catch {
+    return false;
+  }
+
+  const secureProtocol =
+    link.protocol === 'https:' ||
+    (isSecureOrigin(configuredOrigin) &&
+      configuredOrigin.protocol === 'http:' &&
+      link.protocol === 'http:');
+  const redirectUrl =
+    link.searchParams.get('callbackURL') ??
+    link.searchParams.get('redirectTo');
+  if (redirectUrl) {
+    try {
+      const redirect = new URL(redirectUrl, configuredOrigin);
+      if (redirect.origin !== configuredOrigin.origin || !isSecureOrigin(redirect)) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  return (
+    secureProtocol &&
+    link.origin === configuredOrigin.origin &&
+    !link.username &&
+    !link.password
+  );
+}
+
 async function makeIdempotencyKey(
   kind: AuthEmailKind,
   token: string
@@ -82,56 +182,62 @@ async function makeIdempotencyKey(
   return 'matmetrics-' + kind + '-' + suffix;
 }
 
-async function deliverAuthEmail(
+export async function deliverAuthEmail(
   kind: AuthEmailKind,
   email: string,
   url: string,
   token: string
 ): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.MATMETRICS_AUTH_EMAIL_FROM) {
+  if (!hasAuthEmailConfiguration()) {
     console.error('Better Auth email delivery is not configured', { kind });
     return;
   }
 
-  let link: URL;
-  try {
-    link = new URL(url);
-  } catch {
-    console.error('Better Auth email link URL is invalid', { kind });
-    return;
-  }
-  const isLocalHttp =
-    link.protocol === 'http:' &&
-    (link.hostname === 'localhost' || link.hostname === '127.0.0.1');
-  if (link.protocol !== 'https:' && !isLocalHttp) {
-    console.error('Better Auth email link URL is not secure', { kind });
+  if (!isSafeAuthEmailUrl(url)) {
+    console.error('Better Auth email link URL is invalid or untrusted', {
+      kind,
+    });
     return;
   }
 
   const content = getEmailContent(kind, url);
-  try {
-    const { error } = await new Resend(env.RESEND_API_KEY).emails.send(
-      {
-        from: env.MATMETRICS_AUTH_EMAIL_FROM,
-        to: email,
-        subject: content.subject,
-        text: content.text,
-        html: content.html,
-      },
-      { idempotencyKey: await makeIdempotencyKey(kind, token) }
-    );
-    if (error) {
-      console.error('Better Auth email delivery failed', {
-        kind,
-        error: safeErrorCode(error),
-      });
+  const resend = new Resend(env.RESEND_API_KEY);
+  const idempotencyKey = await makeIdempotencyKey(kind, token);
+  let finalError: unknown;
+  let attemptsMade = 0;
+
+  for (let attempt = 1; attempt <= MAX_EMAIL_SEND_ATTEMPTS; attempt += 1) {
+    attemptsMade = attempt;
+    try {
+      const { error } = await resend.emails.send(
+        {
+          from: env.MATMETRICS_AUTH_EMAIL_FROM,
+          to: email,
+          subject: content.subject,
+          text: content.text,
+          html: content.html,
+        },
+        {
+          idempotencyKey,
+          signal: AbortSignal.timeout(EMAIL_SEND_TIMEOUT_MS),
+        }
+      );
+      if (!error) return;
+      finalError = error;
+      if (!isRetryable(error) || attempt === MAX_EMAIL_SEND_ATTEMPTS) break;
+    } catch (error) {
+      finalError = error;
+      if (!isRetryable(error) || attempt === MAX_EMAIL_SEND_ATTEMPTS) break;
     }
-  } catch (error) {
-    console.error('Better Auth email delivery failed', {
-      kind,
-      error: safeErrorCode(error),
-    });
+
+    await delay(EMAIL_RETRY_DELAYS_MS[attempt - 1]);
   }
+
+  console.error('Better Auth email delivery failed', {
+    kind,
+    attempts: attemptsMade,
+    error: safeErrorCode(finalError),
+  });
 }
 
 export function queueAuthEmail(

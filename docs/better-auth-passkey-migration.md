@@ -14,7 +14,9 @@ IDs. Existing passkey account IDs remain unchanged. First-password setup uses
 Better Auth's password-reset email; the reset route creates the credential if
 one does not exist, consumes the token once, and revokes active sessions.
 Verification and password-reset links are sent through Resend callbacks and
-Cloudflare `waitUntil`.
+Cloudflare `waitUntil`. Email-dependent auth requests return the same generic
+503 if the sender configuration is missing. Transient send failures are
+retried with an idempotency key and logged if all attempts fail.
 
 ## Required configuration
 
@@ -36,9 +38,11 @@ Worker flag; the Worker is authoritative.
 
 Use the exact frontend hostname for the WebAuthn RP ID and origin. Do not use
 wildcard preview hosts. Apply D1 changes through `workers/matmetrics-data`,
-which remains the migration owner. The existing auth schema already contains
-the required Better Auth tables; password login requires no additional
-migration.
+which remains the migration owner. Migration `0005` backfills canonical
+identity rows and installs a D1 trigger that creates each new Better Auth
+identity atomically with its user row. Run the read-only auth migration
+preflight before applying pending D1 migrations and the verification command
+afterward.
 
 ## Existing-account migration
 
