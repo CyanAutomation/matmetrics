@@ -3,12 +3,19 @@
 
 -- Fail before touching identity rows if any Firebase account was not migrated,
 -- any Better Auth identity is noncanonical, or a legacy registration is still
--- incomplete. The guard table is reusable if a failed migration is retried.
-CREATE TABLE IF NOT EXISTS auth_firebase_retirement_guard (
-  valid INTEGER NOT NULL CHECK (valid = 1)
+-- incomplete. We drop any stale guard state before creating a fresh guard so a
+-- retry starts from a clean table.
+DROP TABLE IF EXISTS auth_firebase_retirement_guard;
+CREATE TABLE auth_firebase_retirement_guard (
+  valid INTEGER NOT NULL CHECK (valid IN (0, 1))
 ) STRICT;
 
-DELETE FROM auth_firebase_retirement_guard;
+CREATE TRIGGER reject_invalid_firebase_retirement_guard
+BEFORE INSERT ON auth_firebase_retirement_guard
+WHEN NEW.valid = 0
+BEGIN
+  SELECT RAISE(ABORT, 'auth_firebase_retirement_guard failed');
+END;
 
 INSERT INTO auth_firebase_retirement_guard (valid)
 SELECT CASE WHEN
@@ -95,7 +102,8 @@ DELETE FROM auth_firebase_retirement_guard;
 -- Rebuild the live identity table with Better Auth as its only valid provider.
 -- Copying is deliberately limited to Better Auth only after the guard proves
 -- every Firebase mapping is redundant with the same canonical account.
-CREATE TABLE IF NOT EXISTS auth_identities_better_auth (
+DROP TABLE IF EXISTS auth_identities_better_auth;
+CREATE TABLE auth_identities_better_auth (
   id TEXT PRIMARY KEY,
   app_user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
   provider TEXT NOT NULL CHECK (provider = 'better-auth'),
@@ -183,6 +191,7 @@ BEGIN
 END;
 
 DROP TRIGGER IF EXISTS validate_auth_registration_context_completion;
+DROP TRIGGER IF EXISTS reject_invalid_firebase_retirement_guard;
 DROP TABLE auth_registration_context_completions;
 DROP TABLE auth_registration_context_claims;
 DROP TABLE auth_registration_contexts;

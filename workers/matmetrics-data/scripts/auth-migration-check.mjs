@@ -119,10 +119,10 @@ export async function runAuthMigrationCheck({
       .filter((result) => typeof result.check_name === 'string');
     const failedCheck = checks.find((check) => check.passed !== 1);
     if (checks.length === 0) {
-      throw new Error('D1 migration verification returned no checks');
+      throw new Error(`D1 migration check (${mode}) returned no checks`);
     }
     if (failedCheck) {
-      throw new Error(`D1 migration verification failed: ${failedCheck.check_name}`);
+      throw new Error(`D1 migration ${mode} failed: ${failedCheck.check_name}`);
     }
   }
 
