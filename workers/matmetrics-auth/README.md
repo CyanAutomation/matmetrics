@@ -107,13 +107,14 @@ npm ci
 npx wrangler deploy --env production
 ```
 
-After deploying the Worker and Next.js rewrite, use the password-reset email
-for an existing passkey account to set its first password. Better Auth creates
-the credential on that same user ID, preserving passkeys and ownership of
-preferences and session data. Confirm password sign-in, reset expiry and
-replay rejection, session revocation, passkey sign-in/enrollment, and protected
-Next.js and Go API access before disabling Firebase Auth at the project level.
-Firebase Admin/Firestore fallback remains in use after that point.
+The maintainer confirmed the deployed Worker has its Resend configuration and
+secrets and verified email verification, password reset by email,
+username/password sign-in, and passkey sign-in. D1 migration
+`0006_retire_firebase_auth.sql` has also been applied and verified. Disabling
+Firebase Auth in the Firebase project is the remaining project-level action;
+this session did not have Firebase project-admin access to perform it. Keep the
+Firebase Admin/Firestore fallback in use until the separate Firestore
+migration is complete.
 
 See [`../../docs/better-auth-passkey-migration.md`](../../docs/better-auth-passkey-migration.md)
 for the deployment and post-deploy checklist.

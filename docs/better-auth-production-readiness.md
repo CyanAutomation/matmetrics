@@ -17,28 +17,24 @@ email delivery retries, missing email configuration, and atomic identity
 creation/retry. These local checks do not verify a production Resend key,
 browser cookies, WebAuthn devices, or deployed Go API configuration.
 
-## Before production use
+## Production status
 
-1. Set Cloudflare Worker secrets `BETTER_AUTH_SECRET` and `RESEND_API_KEY`.
-2. Set `MATMETRICS_AUTH_EMAIL_FROM` to a sender on a verified Resend domain.
-3. Confirm the Worker origin, trusted frontend origin, RP ID, issuer, and
-   audience match the deployed Next.js and Go configuration.
-4. Run `npm run auth:migration:preflight`, apply the pending D1 migrations
-   through `workers/matmetrics-data`, then run `npm run auth:migration:verify`.
-   Migration `0005` creates canonical identity mappings atomically with Better
-   Auth user creation.
-5. Deploy the auth Worker and the same-origin `/api/auth/*` rewrite with
-   `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false`.
-6. In Vercel, enable `NEXT_PUBLIC_BETTER_AUTH_ENABLED` and keep
-   `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false`.
-7. Complete the existing-account password, passkey, protected API, and data
-   ownership checks in
-   [`better-auth-passkey-migration.md`](better-auth-passkey-migration.md).
-8. Add Vercel Firewall limits for `/api/auth/sign-in/*`,
-   `/api/auth/sign-up/*`, `/api/auth/request-password-reset`,
-   `/api/auth/reset-password`, and `/api/auth/send-verification-email`.
-9. Only after the account checks pass, decide whether to enable public signup
-   by setting both the Worker and Next.js signup flags to `true`.
+As of 2026-10-11, the maintainer confirmed the deployed Better Auth Worker has
+its Resend configuration and secrets, and verified email verification,
+password reset by email, username/password sign-in, and passkey sign-in.
+
+The production D1 preflight passed and migration `0006_retire_firebase_auth.sql`
+was applied. Post-migration checks confirmed no Firebase identity rows or
+legacy registration tables remain, the Better Auth identity is canonical, the
+Better Auth user and passkey guard triggers remain, and the existing D1
+preference row is preserved. The migration removed one redundant Firebase
+identity mapping and one completed legacy registration claim/completion.
+
+Public password signup remains disabled by default. Before opening signup,
+configure Vercel Firewall limits for `/api/auth/sign-in/*`,
+`/api/auth/sign-up/*`, `/api/auth/request-password-reset`,
+`/api/auth/reset-password`, and `/api/auth/send-verification-email`, then decide
+whether public signup should be enabled in both the Worker and Next.js build.
 
 The Worker applies Cloudflare limits to sign-in and account-recovery routes,
 keyed by `CF-Connecting-IP`. A request proxied through Vercel can share egress
@@ -49,8 +45,10 @@ forwarded client-IP headers at the Worker boundary.
 ## Firebase scope
 
 Firebase Auth is no longer part of the application runtime, and the Go API
-accepts only Better Auth EdDSA service JWTs outside test mode. Disabling
-Firebase Auth in the Firebase project is a project-wide operations action and
-has not been performed by these code changes. Firebase Admin and Firestore
-remain configured for the existing fallback data path. Remove that service
-account only after a separate Firestore migration and rollback window.
+accepts only Better Auth EdDSA service JWTs outside test mode. The D1 schema and
+legacy registration metadata have also been retired. Disabling Firebase Auth
+in the Firebase project is the remaining project-level operation; it has not
+been performed or verified here because this session has no Firebase project
+admin access. Firebase Admin and Firestore remain configured for the existing
+fallback data path. Remove that service account only after a separate Firestore
+migration and rollback window.
