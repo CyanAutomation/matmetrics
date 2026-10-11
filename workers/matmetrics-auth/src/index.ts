@@ -1,13 +1,37 @@
 import { env } from 'cloudflare:workers';
-import { verifyPasskeyRegistrationContext } from '../../../src/lib/passkey-registration-context';
 import { isPasskeyRegistrationAllowed } from '../../../src/lib/passkey-policy';
 import { auth } from './auth';
+import { hasAuthEmailConfiguration } from './email';
 import {
   applyRateLimit,
-  getPasskeyRateLimitCategory,
+  getAuthRateLimitCategory,
 } from './rate-limit';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const EMAIL_AUTH_ENDPOINT_SUFFIXES = [
+  '/sign-up/email',
+  '/sign-in/email',
+  '/request-password-reset',
+  '/send-verification-email',
+] as const;
+
+function emailDeliveryUnavailableResponse(): Response {
+  return Response.json(
+    {
+      code: 'AUTH_EMAIL_DELIVERY_UNAVAILABLE',
+      message: 'Email authentication is temporarily unavailable',
+    },
+    { status: 503, headers: NO_STORE_HEADERS }
+  );
+}
+
+function requiresEmailDelivery(method: string, pathname: string): boolean {
+  return (
+    method === 'POST' &&
+    EMAIL_AUTH_ENDPOINT_SUFFIXES.some((suffix) => pathname.endsWith(suffix))
+  );
+}
+
 function registrationDisabledResponse(): Response {
   return Response.json(
     {
@@ -21,8 +45,8 @@ function registrationDisabledResponse(): Response {
 function signInDisabledResponse(): Response {
   return Response.json(
     {
-      code: 'PASSKEY_SIGN_IN_DISABLED',
-      message: 'Passkey sign-in is disabled',
+      code: 'AUTH_SIGN_IN_DISABLED',
+      message: 'Sign-in is temporarily unavailable',
     },
     { status: 503, headers: NO_STORE_HEADERS }
   );
@@ -31,7 +55,6 @@ function signInDisabledResponse(): Response {
 function registrationPolicy() {
   return {
     enrolmentEnabled: env.MATMETRICS_PASSKEY_ENROLMENT_ENABLED === 'true',
-    signupEnabled: env.MATMETRICS_PASSKEY_SIGNUP_ENABLED === 'true',
   };
 }
 
@@ -39,37 +62,17 @@ async function checkRegistrationPolicy(
   request: Request
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  if (
-    request.method !== 'GET' ||
-    !url.pathname.endsWith('/passkey/generate-register-options')
-  ) {
+  const isRegistrationOptions =
+    request.method === 'GET' &&
+    url.pathname.endsWith('/passkey/generate-register-options');
+  const isRegistrationVerification =
+    request.method === 'POST' &&
+    url.pathname.endsWith('/passkey/verify-registration');
+  if (!isRegistrationOptions && !isRegistrationVerification) {
     return null;
   }
 
-  const context = url.searchParams.get('context');
-  let path: 'firebase-enrolment' | 'authenticated-enrolment' | 'new-account';
-  if (!context) {
-    path = 'authenticated-enrolment';
-  } else {
-    try {
-      const claims = await verifyPasskeyRegistrationContext(
-        context,
-        env.MATMETRICS_AUTH_CONTEXT_SECRET
-      );
-      path =
-        claims.provider === 'firebase' ? 'firebase-enrolment' : 'new-account';
-    } catch {
-      return Response.json(
-        {
-          code: 'INVALID_REGISTRATION_CONTEXT',
-          message: 'Passkey registration context is invalid or expired',
-        },
-        { status: 400, headers: NO_STORE_HEADERS }
-      );
-    }
-  }
-
-  return isPasskeyRegistrationAllowed(path, registrationPolicy())
+  return isPasskeyRegistrationAllowed(registrationPolicy())
     ? null
     : registrationDisabledResponse();
 }
@@ -146,21 +149,42 @@ export default {
       return Response.json({ ok: true }, { headers: NO_STORE_HEADERS });
     }
 
-    const rateLimitCategory = getPasskeyRateLimitCategory(pathname);
+    const rateLimitCategory = getAuthRateLimitCategory(pathname);
     if (rateLimitCategory === 'sign-in') {
-      if (env.MATMETRICS_PASSKEY_SIGNIN_ENABLED !== 'true') {
+      if (env.MATMETRICS_AUTH_SIGNIN_ENABLED !== 'true') {
         return signInDisabledResponse();
       }
-      const limited = await applyRateLimit(request, env.PASSKEY_SIGNIN_LIMITER);
+      const limited = await applyRateLimit(request, env.AUTH_SIGNIN_LIMITER);
       if (limited) return limited;
     }
 
     if (rateLimitCategory === 'registration') {
       const limited = await applyRateLimit(
         request,
-        env.PASSKEY_REGISTRATION_LIMITER
+        env.AUTH_REGISTRATION_LIMITER
       );
       if (limited) return limited;
+    }
+
+    if (
+      request.method === 'POST' &&
+      pathname.endsWith('/sign-up/email') &&
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED !== 'true'
+    ) {
+      return Response.json(
+        {
+          code: 'EMAIL_PASSWORD_SIGN_UP_DISABLED',
+          message: 'Email account creation is currently disabled',
+        },
+        { status: 403, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if (
+      requiresEmailDelivery(request.method, pathname) &&
+      !hasAuthEmailConfiguration()
+    ) {
+      return emailDeliveryUnavailableResponse();
     }
 
     const registrationPolicyResponse = await checkRegistrationPolicy(request);

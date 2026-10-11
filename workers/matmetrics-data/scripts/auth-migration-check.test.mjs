@@ -37,7 +37,7 @@ test('migration checker sends only SELECT statements and requires unchanged D1 m
   });
 
   assert.equal(result.mode, 'verify');
-  assert.equal(requests.length, 6);
+  assert.equal(requests.length, 7);
   assert.ok(requests.every(({ sql }) => /^SELECT\b/i.test(sql)));
   assert.ok(requests.every(({ options }) => options.method === 'POST'));
   assert.ok(requests.every(({ options }) => options.redirect === 'error'));

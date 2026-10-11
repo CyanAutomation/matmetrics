@@ -860,7 +860,7 @@ serialTest(
 );
 
 serialTest(
-  'GitHub history refresh uses the active auth provider without requiring a Firebase user',
+  'GitHub history refresh uses the active auth provider without requiring a legacy provider user',
   async () => {
     installBrowserEnv();
     setActiveUserId('passkey-user');
@@ -873,19 +873,9 @@ serialTest(
       }),
     });
 
-    const envKeys = [
-      'NEXT_PUBLIC_BETTER_AUTH_ENABLED',
-      'NEXT_PUBLIC_FIREBASE_API_KEY',
-      'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-      'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-      'NEXT_PUBLIC_FIREBASE_APP_ID',
-    ] as const;
+    const envKeys = ['NEXT_PUBLIC_BETTER_AUTH_ENABLED'] as const;
     const originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
     process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'true';
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test.firebaseapp.com';
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID = 'test-app-id';
 
     const originalFetch = global.fetch;
     let listRequests = 0;
@@ -994,7 +984,7 @@ serialTest(
     __setStorageDependencyOverridesForTests({
       readPreferences: () => preferences,
       getSessionRefreshAuthHeaders: async () => ({
-        Authorization: 'Bearer firebase-token',
+        Authorization: 'Bearer better-auth-token',
       }),
     });
 
@@ -1047,7 +1037,7 @@ serialTest(
     __setStorageDependencyOverridesForTests({
       readPreferences: () => preferences,
       getSessionRefreshAuthHeaders: async () => ({
-        Authorization: 'Bearer firebase-token',
+        Authorization: 'Bearer better-auth-token',
       }),
     });
     const cachedSession = makeSession('cached-session');
@@ -2649,7 +2639,7 @@ serialTest(
 );
 
 serialTest(
-  'setGitHubSyncStatus uses the active canonical identity without Firebase auth',
+  'setGitHubSyncStatus uses the active canonical identity without a legacy auth provider',
   async () => {
     installBrowserEnv();
     setActiveUserId('passkey-user');

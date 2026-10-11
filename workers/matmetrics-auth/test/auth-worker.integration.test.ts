@@ -1,22 +1,7 @@
 import { env, exports } from 'cloudflare:workers';
-import { createLocalJWKSet, jwtVerify } from 'jose';
+import { createLocalJWKSet, jwtVerify, SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
-import {
-  createPasskeyRegistrationContext,
-  PASSKEY_REGISTRATION_CONTEXT_TTL_SECONDS,
-  verifyPasskeyRegistrationContext,
-} from '../../../src/lib/passkey-registration-context';
-import { completePasskeyRegistration } from '../src/identity';
 import { auth } from '../src/auth';
-
-const firebaseClaims = {
-  appUserId: 'firebase-user-1',
-  provider: 'firebase' as const,
-  providerSubject: 'firebase-user-1',
-  email: 'firebase-user-1@example.test',
-  name: 'Firebase User',
-  emailVerified: true,
-};
 
 function workerFetch(request: Request): Promise<Response> {
   const mainWorker = (exports as unknown as { default: Fetcher }).default;
@@ -44,15 +29,25 @@ async function signedCookie(token: string): Promise<string> {
 
 function authRequest(
   path: string,
-  options: { method?: string; cookie?: string; body?: unknown } = {}
+  options: {
+    method?: string;
+    cookie?: string;
+    body?: unknown;
+    redirect?: RequestRedirect;
+    clientIp?: string;
+  } = {}
 ): Request {
-  const headers = new Headers({ Origin: 'http://localhost:9002' });
+  const headers = new Headers({
+    Origin: 'http://localhost:9002',
+    'CF-Connecting-IP': options.clientIp ?? crypto.randomUUID(),
+  });
   if (options.cookie) headers.set('Cookie', options.cookie);
   if (options.body !== undefined)
     headers.set('Content-Type', 'application/json');
   return new Request(`http://localhost:9002/api/auth${path}`, {
     method: options.method ?? 'GET',
     headers,
+    redirect: options.redirect,
     ...(options.body !== undefined
       ? { body: JSON.stringify(options.body) }
       : {}),
@@ -107,195 +102,383 @@ async function passkeyCount(userId: string): Promise<number> {
   return result?.count ?? 0;
 }
 
-async function startFirebaseRegistration(
-  appUserId = `firebase-${crypto.randomUUID()}`
-): Promise<{
-  context: string;
-  claims: Awaited<ReturnType<typeof verifyPasskeyRegistrationContext>>;
-  expiresAt: number;
-}> {
-  const context = await createPasskeyRegistrationContext(
-    {
-      ...firebaseClaims,
-      appUserId,
-      providerSubject: appUserId,
-      email: `${appUserId}@example.test`,
-    },
-    env.MATMETRICS_AUTH_CONTEXT_SECRET
-  );
-  const response = await workerFetch(
-    authRequest(
-      `/passkey/generate-register-options?context=${encodeURIComponent(context)}`
-    )
-  );
-  expect(response.status).toBe(200);
-  const claims = await verifyPasskeyRegistrationContext(
-    context,
-    env.MATMETRICS_AUTH_CONTEXT_SECRET
-  );
-  const [, payloadSegment] = context.split('.');
-  if (!payloadSegment) throw new Error('Context payload missing');
-  const encodedPayload = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-  const payload = JSON.parse(
-    atob(encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '='))
-  );
-  return { context, claims, expiresAt: payload.exp * 1000 };
-}
-
 describe('MatMetrics auth Worker integration', () => {
-  it('reserves Firebase enrolment only, without writing an account before verification', async () => {
-    const { context, claims, expiresAt } = await startFirebaseRegistration();
+  it('returns one generic unavailable response when email delivery is not configured', async () => {
+    const previousApiKey = env.RESEND_API_KEY;
+    const previousSender = env.MATMETRICS_AUTH_EMAIL_FROM;
+    const previousSignupFlag = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
+    const userId = 'email-outage-' + crypto.randomUUID();
+    const email = userId + '@example.test';
+    await createUser(userId);
+    env.RESEND_API_KEY = '';
+    env.MATMETRICS_AUTH_EMAIL_FROM = '';
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'true';
 
-    const users = await env.DB.prepare(
-      'SELECT count(*) AS count FROM app_users WHERE id = ?'
-    )
-      .bind(claims.appUserId)
-      .first<{ count: number }>();
-    const identities = await env.DB.prepare(
-      'SELECT count(*) AS count FROM auth_identities WHERE app_user_id = ?'
-    )
-      .bind(claims.appUserId)
-      .first<{ count: number }>();
-    const reservations = await env.DB.prepare(
-      'SELECT count(*) AS count FROM auth_registration_context_claims WHERE nonce = ?'
-    )
-      .bind(claims.nonce)
-      .first<{ count: number }>();
-    expect(users?.count).toBe(0);
-    expect(identities?.count).toBe(0);
-    expect(reservations?.count).toBe(1);
+    try {
+      const knownReset = await workerFetch(
+        authRequest('/request-password-reset', {
+          method: 'POST',
+          body: { email, redirectTo: 'http://localhost:9002/reset-password' },
+        })
+      );
+      const unknownReset = await workerFetch(
+        authRequest('/request-password-reset', {
+          method: 'POST',
+          body: {
+            email: 'unknown-' + crypto.randomUUID() + '@example.test',
+            redirectTo: 'http://localhost:9002/reset-password',
+          },
+        })
+      );
+      const signup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: {
+            name: 'New User',
+            email: 'new-' + crypto.randomUUID() + '@example.test',
+            password: 'strong-password-123',
+          },
+        })
+      );
+      const emailSignIn = await workerFetch(
+        authRequest('/sign-in/email', {
+          method: 'POST',
+          body: { email, password: 'strong-password-123' },
+        })
+      );
+      const resendVerification = await workerFetch(
+        authRequest('/send-verification-email', {
+          method: 'POST',
+          body: { email, callbackURL: 'http://localhost:9002/' },
+        })
+      );
 
-    await completePasskeyRegistration(env.DB, claims, expiresAt);
-    const linked = await env.DB.prepare(
-      'SELECT provider, provider_subject FROM auth_identities WHERE app_user_id = ? ORDER BY provider'
-    )
-      .bind(claims.appUserId)
-      .all<{ provider: string; provider_subject: string }>();
-    expect(linked.results).toEqual([
-      { provider: 'better-auth', provider_subject: claims.appUserId },
-      { provider: 'firebase', provider_subject: claims.providerSubject },
-    ]);
-    await expect(
-      completePasskeyRegistration(env.DB, claims, expiresAt)
-    ).rejects.toThrow();
-
-    const replay = await workerFetch(
-      authRequest(
-        `/passkey/generate-register-options?context=${encodeURIComponent(context)}`
-      )
-    );
-    expect(replay.status).toBeGreaterThanOrEqual(400);
+      expect(knownReset.status).toBe(503);
+      expect(unknownReset.status).toBe(503);
+      const knownResetBody = await knownReset.json();
+      const unknownResetBody = await unknownReset.json();
+      expect(knownResetBody).toEqual(unknownResetBody);
+      expect(unknownResetBody).toMatchObject({
+        code: 'AUTH_EMAIL_DELIVERY_UNAVAILABLE',
+      });
+      expect(signup.status).toBe(503);
+      expect(emailSignIn.status).toBe(503);
+      expect(resendVerification.status).toBe(503);
+    } finally {
+      env.RESEND_API_KEY = previousApiKey;
+      env.MATMETRICS_AUTH_EMAIL_FROM = previousSender;
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = previousSignupFlag;
+    }
   });
 
-  it('rejects public passkey signup while its independent policy is disabled', async () => {
-    const userId = `new-passkey-user-${crypto.randomUUID()}`;
-    const context = await createPasskeyRegistrationContext(
-      {
-        appUserId: userId,
-        provider: 'better-auth',
-        providerSubject: userId,
-        email: `${userId}@example.test`,
-        name: 'New User',
-        emailVerified: false,
-      },
-      env.MATMETRICS_AUTH_CONTEXT_SECRET
+  it('keeps email sign-up disabled until the Worker flag is enabled, then requires verification', async () => {
+    const previous = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'false';
+    const email = 'signup-disabled-' + crypto.randomUUID() + '@example.test';
+    const disabled = await workerFetch(
+      authRequest('/sign-up/email', {
+        method: 'POST',
+        body: { name: 'New User', email, password: 'strong-password-123' },
+      })
     );
-    const response = await workerFetch(
-      authRequest(
-        `/passkey/generate-register-options?context=${encodeURIComponent(context)}`
+    expect(disabled.status).toBeGreaterThanOrEqual(400);
+
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'true';
+    try {
+      const signup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: {
+            name: 'New User',
+            email,
+            password: 'strong-password-123',
+            callbackURL: 'http://localhost:9002/',
+          },
+        })
+      );
+      expect(signup.status).toBe(200);
+
+      const user = await env.DB.prepare(
+        'SELECT id, emailVerified FROM user WHERE lower(email) = lower(?)'
       )
-    );
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: 'PASSKEY_REGISTRATION_DISABLED',
-    });
-  });
+        .bind(email)
+        .first<{ id: string; emailVerified: number }>();
+      expect(user).toBeTruthy();
+      expect(user?.emailVerified).toBe(0);
+      const identity = await env.DB.prepare(
+        'SELECT app_user_id, provider_subject FROM auth_identities WHERE provider = ? AND provider_subject = ?'
+      )
+        .bind('better-auth', user?.id)
+        .first<{ app_user_id: string; provider_subject: string }>();
+      expect(identity).toEqual({
+        app_user_id: user?.id,
+        provider_subject: user?.id,
+      });
 
-  it('rejects tampered, expired, and identity-mismatched registration contexts', async () => {
-    const valid = await createPasskeyRegistrationContext(
-      firebaseClaims,
-      env.MATMETRICS_AUTH_CONTEXT_SECRET
-    );
-    const [header, payload, signature] = valid.split('.');
-    expect(header).toBeTruthy();
-    expect(payload).toBeTruthy();
-    expect(signature).toBeTruthy();
-    const modifiedPayload = JSON.parse(
-      atob(payload!.replace(/-/g, '+').replace(/_/g, '/'))
-    );
-    modifiedPayload.appUserId = 'somebody-else';
-    const tampered = `${header}.${btoa(JSON.stringify(modifiedPayload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')}.${signature}`;
-    const expired = await createPasskeyRegistrationContext(
-      firebaseClaims,
-      env.MATMETRICS_AUTH_CONTEXT_SECRET,
-      Math.floor(Date.now() / 1000) -
-        PASSKEY_REGISTRATION_CONTEXT_TTL_SECONDS -
-        2
-    );
-    const wrongIdentity = await createPasskeyRegistrationContext(
-      { ...firebaseClaims, providerSubject: 'different-firebase-id' },
-      env.MATMETRICS_AUTH_CONTEXT_SECRET
-    );
+      const beforeVerification = await workerFetch(
+        authRequest('/sign-in/email', {
+          method: 'POST',
+          body: { email, password: 'strong-password-123' },
+        })
+      );
+      expect(beforeVerification.status).toBe(403);
 
-    const countBefore = await env.DB.prepare(
-      'SELECT count(*) AS count FROM auth_registration_context_claims'
-    ).first<{ count: number }>();
-    for (const context of [tampered, expired, wrongIdentity]) {
-      const response = await workerFetch(
+      const verificationToken = await new SignJWT({ email })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(new TextEncoder().encode(env.BETTER_AUTH_SECRET));
+      const verification = await workerFetch(
         authRequest(
-          `/passkey/generate-register-options?context=${encodeURIComponent(context)}`
+          '/verify-email?token=' +
+            encodeURIComponent(verificationToken) +
+            '&callbackURL=' +
+            encodeURIComponent('http://localhost:9002/'),
+          { redirect: 'manual' }
         )
       );
-      expect(response.status).toBe(400);
-    }
-    const countAfter = await env.DB.prepare(
-      'SELECT count(*) AS count FROM auth_registration_context_claims'
-    ).first<{ count: number }>();
-    expect(countAfter?.count).toBe(countBefore?.count);
-  });
+      expect(verification.status).toBe(302);
 
-  it('links the same Firebase identity idempotently across concurrent contexts', async () => {
-    const sharedUserId = `firebase-shared-${crypto.randomUUID()}`;
-    const [first, second] = await Promise.all([
-      startFirebaseRegistration(sharedUserId),
-      startFirebaseRegistration(sharedUserId),
-    ]);
-    await Promise.all([
-      completePasskeyRegistration(env.DB, first.claims, first.expiresAt),
-      completePasskeyRegistration(env.DB, second.claims, second.expiresAt),
-    ]);
-    const identities = await env.DB.prepare(
-      'SELECT count(*) AS count FROM auth_identities WHERE app_user_id = ?'
-    )
-      .bind(sharedUserId)
-      .first<{ count: number }>();
-    expect(identities?.count).toBe(2);
-  });
-
-  it('rejects a conflicting pre-existing identity link', async () => {
-    const userId = `firebase-conflict-${crypto.randomUUID()}`;
-    await env.DB.batch([
-      env.DB.prepare(
-        'INSERT INTO app_users (id, created_at, updated_at) VALUES (?, ?, ?)'
-      ).bind('other-user', Date.now(), Date.now()),
-      env.DB.prepare(
-        'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
-      ).bind(
-        `conflict-${crypto.randomUUID()}`,
-        'other-user',
-        'better-auth',
-        userId,
-        Date.now()
-      ),
-    ]);
-    const reservation = await startFirebaseRegistration(userId);
-    await expect(
-      completePasskeyRegistration(
-        env.DB,
-        reservation.claims,
-        reservation.expiresAt
+      const verifiedUser = await env.DB.prepare(
+        'SELECT id, emailVerified FROM user WHERE lower(email) = lower(?)'
       )
-    ).rejects.toThrow(/another MatMetrics user/);
+        .bind(email)
+        .first<{ id: string; emailVerified: number }>();
+      expect(verifiedUser?.id).toBe(user?.id);
+      expect(verifiedUser?.emailVerified).toBe(1);
+
+      const passwordSignin = await workerFetch(
+        authRequest('/sign-in/email', {
+          method: 'POST',
+          body: { email, password: 'strong-password-123' },
+        })
+      );
+      expect(passwordSignin.status).toBe(200);
+      expect(passwordSignin.headers.get('Set-Cookie')).toContain(
+        'better-auth.session_token'
+      );
+
+      const duplicateSignup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: { name: 'New User', email, password: 'strong-password-123' },
+        })
+      );
+      expect(duplicateSignup.status).toBe(200);
+    } finally {
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = previous;
+    }
+  });
+
+  it('keeps Better Auth user creation atomic with its identity mapping and allows retry', async () => {
+    const previousSignupFlag = env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED;
+    const email = 'identity-retry-' + crypto.randomUUID() + '@example.test';
+    const identityCountBefore = await env.DB.prepare(
+      'SELECT count(*) AS count FROM auth_identities'
+    ).first<{ count: number }>();
+    const appUserCountBefore = await env.DB.prepare(
+      'SELECT count(*) AS count FROM app_users'
+    ).first<{ count: number }>();
+    env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = 'true';
+
+    try {
+      await env.DB.prepare(`
+        CREATE TRIGGER simulate_better_auth_identity_failure
+        BEFORE INSERT ON auth_identities
+        WHEN NEW.provider = 'better-auth'
+        BEGIN
+          SELECT RAISE(ABORT, 'SIMULATED_IDENTITY_INSERT_FAILURE');
+        END
+      `).run();
+
+      const failedSignup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: { name: 'Retry User', email, password: 'strong-password-123' },
+        })
+      );
+      expect(failedSignup.status).toBeGreaterThanOrEqual(400);
+
+      const failedUser = await env.DB.prepare(
+        'SELECT id FROM user WHERE email = ?'
+      )
+        .bind(email)
+        .first<{ id: string }>();
+      const identityCountAfterFailure = await env.DB.prepare(
+        'SELECT count(*) AS count FROM auth_identities'
+      ).first<{ count: number }>();
+      const appUserCountAfterFailure = await env.DB.prepare(
+        'SELECT count(*) AS count FROM app_users'
+      ).first<{ count: number }>();
+      expect(failedUser).toBeNull();
+      expect(identityCountAfterFailure?.count).toBe(identityCountBefore?.count);
+      expect(appUserCountAfterFailure?.count).toBe(appUserCountBefore?.count);
+
+      await env.DB.prepare(
+        'DROP TRIGGER simulate_better_auth_identity_failure'
+      ).run();
+      const retriedSignup = await workerFetch(
+        authRequest('/sign-up/email', {
+          method: 'POST',
+          body: { name: 'Retry User', email, password: 'strong-password-123' },
+        })
+      );
+      expect(retriedSignup.status).toBe(200);
+
+      const user = await env.DB.prepare(
+        'SELECT id FROM user WHERE email = ?'
+      )
+        .bind(email)
+        .first<{ id: string }>();
+      expect(user).toBeTruthy();
+      const identity = await env.DB.prepare(
+        'SELECT app_user_id, provider_subject FROM auth_identities WHERE provider = ? AND provider_subject = ?'
+      )
+        .bind('better-auth', user?.id)
+        .first<{ app_user_id: string; provider_subject: string }>();
+      expect(identity).toEqual({
+        app_user_id: user?.id,
+        provider_subject: user?.id,
+      });
+    } finally {
+      await env.DB.prepare(
+        'DROP TRIGGER IF EXISTS simulate_better_auth_identity_failure'
+      ).run();
+      env.MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED = previousSignupFlag;
+    }
+  });
+
+  it('uses password reset to set the first credential without changing an existing passkey account', async () => {
+    const userId = 'legacy-account-' + crypto.randomUUID();
+    const email = userId + '@example.test';
+    await createUser(userId);
+    await createPasskey(userId, userId + '-passkey');
+    await createSession(userId);
+    const knownRequest = await workerFetch(
+      authRequest('/request-password-reset', {
+        method: 'POST',
+        body: { email, redirectTo: 'http://localhost:9002/reset-password' },
+      })
+    );
+    const unknownRequest = await workerFetch(
+      authRequest('/request-password-reset', {
+        method: 'POST',
+        body: {
+          email: 'unknown-' + crypto.randomUUID() + '@example.test',
+          redirectTo: 'http://localhost:9002/reset-password',
+        },
+      })
+    );
+    expect(knownRequest.status).toBe(200);
+    expect(await knownRequest.json()).toEqual(await unknownRequest.json());
+
+    const resetRecord = await env.DB.prepare(
+      "SELECT identifier FROM verification WHERE value = ? AND identifier LIKE 'reset-password:%' ORDER BY createdAt DESC LIMIT 1"
+    )
+      .bind(userId)
+      .first<{ identifier: string }>();
+    expect(resetRecord).toBeTruthy();
+    const token = resetRecord!.identifier.slice('reset-password:'.length);
+
+    const reset = await workerFetch(
+      authRequest('/reset-password', {
+        method: 'POST',
+        body: { token, newPassword: 'first-password-123' },
+      })
+    );
+    expect(reset.status).toBe(200);
+
+    const account = await env.DB.prepare(
+      "SELECT userId, providerId, password FROM account WHERE userId = ? AND providerId = 'credential'"
+    )
+      .bind(userId)
+      .first<{ userId: string; providerId: string; password: string }>();
+    expect(account?.userId).toBe(userId);
+    expect(account?.password).toBeTruthy();
+    expect(await passkeyCount(userId)).toBe(1);
+    const identity = await env.DB.prepare(
+      'SELECT app_user_id, provider, provider_subject FROM auth_identities WHERE app_user_id = ?'
+    )
+      .bind(userId)
+      .first<{
+        app_user_id: string;
+        provider: string;
+        provider_subject: string;
+      }>();
+    expect(identity).toEqual({
+      app_user_id: userId,
+      provider: 'better-auth',
+      provider_subject: userId,
+    });
+
+    const sessions = await env.DB.prepare(
+      'SELECT count(*) AS count FROM session WHERE userId = ?'
+    )
+      .bind(userId)
+      .first<{ count: number }>();
+    expect(sessions?.count).toBe(0);
+
+    const replay = await workerFetch(
+      authRequest('/reset-password', {
+        method: 'POST',
+        body: { token, newPassword: 'another-password-456' },
+      })
+    );
+    expect(replay.status).toBeGreaterThanOrEqual(400);
+
+    const passwordSignin = await workerFetch(
+      authRequest('/sign-in/email', {
+        method: 'POST',
+        body: { email, password: 'first-password-123' },
+      })
+    );
+    expect(passwordSignin.status).toBe(200);
+    expect(await passkeyCount(userId)).toBe(1);
+  });
+
+  it('rejects an expired password-reset link', async () => {
+    const userId = 'expired-reset-' + crypto.randomUUID();
+    const email = userId + '@example.test';
+    await createUser(userId);
+
+    const request = await workerFetch(
+      authRequest('/request-password-reset', {
+        method: 'POST',
+        body: { email, redirectTo: 'http://localhost:9002/reset-password' },
+      })
+    );
+    expect(request.status).toBe(200);
+    const resetRecord = await env.DB.prepare(
+      "SELECT identifier FROM verification WHERE value = ? AND identifier LIKE 'reset-password:%' ORDER BY createdAt DESC LIMIT 1"
+    )
+      .bind(userId)
+      .first<{ identifier: string }>();
+    expect(resetRecord).toBeTruthy();
+    const token = resetRecord!.identifier.slice('reset-password:'.length);
+    await env.DB.prepare('UPDATE verification SET expiresAt = ? WHERE identifier = ?')
+      .bind(Date.now() - 1000, resetRecord!.identifier)
+      .run();
+
+    const reset = await workerFetch(
+      authRequest('/reset-password', {
+        method: 'POST',
+        body: { token, newPassword: 'expired-password-123' },
+      })
+    );
+    expect(reset.status).toBeGreaterThanOrEqual(400);
+    const account = await env.DB.prepare(
+      "SELECT count(*) AS count FROM account WHERE userId = ? AND providerId = 'credential'"
+    )
+      .bind(userId)
+      .first<{ count: number }>();
+    expect(account?.count).toBe(0);
+  });
+
+  it('requires an authenticated account before registering a passkey', async () => {
+    const response = await workerFetch(
+      authRequest('/passkey/generate-register-options')
+    );
+    expect(response.status).toBeGreaterThanOrEqual(400);
   });
 
   it('requires an authenticated owner for list, rename, and delete, and blocks the final key', async () => {

@@ -44,13 +44,13 @@ test('plugin discovery waits for auth readiness and avoids requests for guests',
   }) as typeof fetch;
 
   try {
-    const getIdToken = async () => {
+    const getAuthToken = async () => {
       tokenCalls += 1;
-      return 'firebase-id-token';
+      return 'better-auth-token';
     };
     const view = render(
       React.createElement(Harness, {
-        deps: { authReady: false, hasUser: false, getIdToken },
+        deps: { authReady: false, hasUser: false, getAuthToken },
       })
     );
 
@@ -60,7 +60,7 @@ test('plugin discovery waits for auth readiness and avoids requests for guests',
     await act(async () => {
       view.rerender(
         React.createElement(Harness, {
-          deps: { authReady: true, hasUser: false, getIdToken },
+          deps: { authReady: true, hasUser: false, getAuthToken },
         })
       );
       await Promise.resolve();
@@ -73,7 +73,7 @@ test('plugin discovery waits for auth readiness and avoids requests for guests',
   }
 });
 
-test('authenticated plugin discovery sends the Firebase ID token', async () => {
+test('authenticated plugin discovery sends the Better Auth token', async () => {
   const originalFetch = globalThis.fetch;
   const requestHeaders: Headers[] = [];
   let tokenCalls = 0;
@@ -88,9 +88,9 @@ test('authenticated plugin discovery sends the Firebase ID token', async () => {
         deps: {
           authReady: true,
           hasUser: true,
-          getIdToken: async () => {
+          getAuthToken: async () => {
             tokenCalls += 1;
-            return 'firebase-id-token';
+            return 'better-auth-token';
           },
         },
       })
@@ -100,7 +100,7 @@ test('authenticated plugin discovery sends the Firebase ID token', async () => {
     assert.equal(tokenCalls, 1);
     assert.equal(
       requestHeaders[0].get('Authorization'),
-      'Bearer firebase-id-token'
+      'Bearer better-auth-token'
     );
   } finally {
     cleanup();

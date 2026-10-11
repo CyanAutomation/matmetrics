@@ -34,7 +34,7 @@ export default function Home() {
     retryPreferencesLoad,
     user,
     signOutUser,
-    getIdToken,
+    getAuthToken,
     authMode,
     authAvailable,
     betterAuthConfigured,
@@ -72,7 +72,7 @@ export default function Home() {
     hasUser: Boolean(user),
     isGuest: authMode === 'guest',
     authAvailable,
-    getIdToken,
+    getAuthToken,
   });
   const {
     isImportDialogOpen,

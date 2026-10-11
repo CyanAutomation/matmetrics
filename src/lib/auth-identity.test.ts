@@ -3,31 +3,19 @@ import test from 'node:test';
 import {
   assertIdentityLinkAllowed,
   betterAuthIdentityForUser,
-  firebaseIdentityForUid,
   IdentityLinkConflictError,
 } from '@/lib/auth-identity';
 
-test('Firebase UID keeps the existing canonical MatMetrics user ID', () => {
-  const identity = firebaseIdentityForUid('legacy-firebase-uid');
-  assert.deepEqual(identity, {
-    appUserId: 'legacy-firebase-uid',
-    provider: 'firebase',
-    providerSubject: 'legacy-firebase-uid',
+test('Better Auth keeps the canonical MatMetrics account ID', () => {
+  assert.deepEqual(betterAuthIdentityForUser('canonical-id'), {
+    appUserId: 'canonical-id',
+    provider: 'better-auth',
+    providerSubject: 'canonical-id',
   });
 });
 
-test('Better Auth identity links to the same canonical user as Firebase', () => {
-  const firebase = firebaseIdentityForUid('legacy-firebase-uid');
-  const betterAuth = betterAuthIdentityForUser(firebase.appUserId);
-
-  assert.equal(betterAuth.appUserId, firebase.appUserId);
-  assert.equal(betterAuth.provider, 'better-auth');
-  assert.equal(betterAuth.providerSubject, firebase.appUserId);
-});
-
 test('an authentication subject already mapped to another user cannot be claimed', () => {
-  const identity = firebaseIdentityForUid('existing-subject');
-
+  const identity = betterAuthIdentityForUser('canonical-id');
   assert.throws(
     () => assertIdentityLinkAllowed(identity, 'different-app-user'),
     IdentityLinkConflictError

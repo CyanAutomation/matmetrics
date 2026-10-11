@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isFirebaseAuthConfigured } from './firebase-admin';
 import { PREFERENCE_API_ERROR_CODES } from './preference-api-errors';
 import {
   AuthConfigurationError,
@@ -92,13 +91,6 @@ async function verifyToken(token: string): Promise<AuthenticatedPrincipal> {
       './better-auth-token-verifier.server'
     );
     return verifyBetterAuthToken(token);
-  }
-  if (alg === 'RS256') {
-    if (!isFirebaseAuthConfigured()) throw new AuthConfigurationError();
-    const { verifyFirebaseToken } = await import(
-      './firebase-token-verifier.server'
-    );
-    return verifyFirebaseToken(token);
   }
   throw new Error('Unsupported authentication token algorithm');
 }

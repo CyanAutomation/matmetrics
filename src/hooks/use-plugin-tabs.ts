@@ -21,13 +21,13 @@ export function usePluginTabs(deps?: {
   hasUser?: boolean;
   isGuest?: boolean;
   authAvailable?: boolean;
-  getIdToken?: () => Promise<string | null>;
+  getAuthToken?: () => Promise<string | null>;
 }) {
   const legacyPluginRegistryFallbackEnabled =
     deps?.legacyPluginRegistryFallbackEnabled ?? false;
   const isAuthReady = deps?.authReady ?? true;
   const hasUser = deps?.hasUser ?? false;
-  const getIdToken = deps?.getIdToken;
+  const getAuthToken = deps?.getAuthToken;
 
   const [pluginExtensions, setPluginExtensions] = useState<
     ResolvedDashboardTabExtension[]
@@ -93,11 +93,11 @@ export function usePluginTabs(deps?: {
 
   const refreshPluginExtensions = useCallback(async () => {
     let authorizationToken: string | null = null;
-    if (hasUser && getIdToken) {
+    if (hasUser && getAuthToken) {
       try {
-        authorizationToken = await getIdToken();
+        authorizationToken = await getAuthToken();
       } catch (error) {
-        console.warn('Failed to get an ID token for plugin discovery', error);
+        console.warn('Failed to get an auth token for plugin discovery', error);
       }
     }
 
@@ -108,7 +108,7 @@ export function usePluginTabs(deps?: {
     });
 
     setPluginExtensions(nextExtensions);
-  }, [getIdToken, hasUser, legacyPluginRegistryFallbackEnabled]);
+  }, [getAuthToken, hasUser, legacyPluginRegistryFallbackEnabled]);
 
   useEffect(() => {
     if (!isAuthReady) return;
