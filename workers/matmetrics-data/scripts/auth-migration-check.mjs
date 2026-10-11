@@ -6,6 +6,8 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const sqlFiles = {
   preflight: 'auth-registration-guards-preflight.sql',
   verify: 'verify-auth-registration-guards.sql',
+  'retirement-preflight': 'auth-retirement-preflight.sql',
+  'retirement-verify': 'verify-auth-retirement.sql',
 };
 
 function requireValue(name, value) {
@@ -52,7 +54,11 @@ export async function runAuthMigrationCheck({
   sqlDirectory = scriptDirectory,
 }) {
   const fileName = sqlFiles[mode];
-  if (!fileName) throw new Error('Choose either preflight or verify');
+  if (!fileName) {
+    throw new Error(
+      'Choose preflight, verify, retirement-preflight, or retirement-verify'
+    );
+  }
 
   const cloudflareAccountId = requireValue('CLOUDFLARE_ACCOUNT_ID', accountId);
   const cloudflareDatabaseId = requireValue(
@@ -103,8 +109,14 @@ export async function runAuthMigrationCheck({
     results.push(result.results ?? []);
   }
 
-  if (mode === 'verify') {
-    const checks = results[0] ?? [];
+  if (
+    mode === 'verify' ||
+    mode === 'retirement-preflight' ||
+    mode === 'retirement-verify'
+  ) {
+    const checks = results
+      .flat()
+      .filter((result) => typeof result.check_name === 'string');
     const failedCheck = checks.find((check) => check.passed !== 1);
     if (checks.length === 0) {
       throw new Error('D1 migration verification returned no checks');

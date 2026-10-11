@@ -18,6 +18,16 @@ Cloudflare `waitUntil`. Email-dependent auth requests return the same generic
 503 if the sender configuration is missing. Transient send failures are
 retried with an idempotency key and logged if all attempts fail.
 
+## Production verification
+
+On 2026-10-11, the maintainer confirmed the deployed Worker has its Resend
+configuration and secrets and verified email verification, password reset by
+email, username/password sign-in, and passkey sign-in. D1 migration
+`0006_retire_firebase_auth.sql` was applied after its read-only preflight passed.
+Post-migration checks confirmed the canonical Better Auth identity remains,
+the Firebase identity mapping and legacy registration tables are gone, and the
+existing preference row is preserved.
+
 ## Required configuration
 
 In Cloudflare, configure:
@@ -40,9 +50,10 @@ Use the exact frontend hostname for the WebAuthn RP ID and origin. Do not use
 wildcard preview hosts. Apply D1 changes through `workers/matmetrics-data`,
 which remains the migration owner. Migration `0005` backfills canonical
 identity rows and installs a D1 trigger that creates each new Better Auth
-identity atomically with its user row. Run the read-only auth migration
-preflight before applying pending D1 migrations and the verification command
-afterward.
+identity atomically with its user row. Migration `0006` restricts identity
+providers to Better Auth and removes the retired Firebase registration
+metadata. For future D1 migrations, run the read-only preflight before applying
+pending migrations and the verification command afterward.
 
 ## Existing-account migration
 
@@ -79,11 +90,10 @@ Vercel egress IPs and the Worker IP limiter is a coarse guard.
 
 ## Firebase retirement
 
-Firebase Auth has been removed from the application code: there is no Firebase
-client auth SDK, account-linking route, Firebase token verifier, or Firebase
-verification in Go. The Firebase project may still have Firebase Auth enabled;
-disabling that service is a separate project-wide operations step. Do so only
-after confirming the existing account's password, passkey, API access, and
-data ownership in the deployed environment. Keep Firebase Admin and its
-service-account configuration for the Firestore fallback until the separate
-Firestore data migration is complete.
+Firebase Auth has been removed from the application runtime and D1 schema.
+The maintainer verified the existing account's email verification, password
+reset, password sign-in, and passkey sign-in in production. The only remaining
+Firebase Auth retirement action is disabling Firebase Auth in the Firebase
+project; this session did not have project-admin access to perform or verify
+that setting. Keep Firebase Admin and its service-account configuration for
+the Firestore fallback until the separate Firestore data migration is complete.
