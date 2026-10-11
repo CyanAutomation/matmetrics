@@ -1,20 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyRateLimit,
-  getPasskeyRateLimitCategory,
+  getAuthRateLimitCategory,
 } from '../src/rate-limit';
 
-describe('passkey rate limit policy', () => {
+describe('authentication rate limit policy', () => {
   it.each([
     ['/api/auth/passkey/generate-authenticate-options', 'sign-in'],
     ['/api/auth/passkey/verify-authentication', 'sign-in'],
     ['/api/auth/token', 'sign-in'],
+    ['/api/auth/sign-in/email', 'sign-in'],
+    ['/api/auth/sign-up/email', 'registration'],
+    ['/api/auth/request-password-reset', 'registration'],
+    ['/api/auth/reset-password', 'registration'],
+    ['/api/auth/send-verification-email', 'registration'],
     ['/api/auth/passkey/generate-register-options', 'registration'],
     ['/api/auth/passkey/verify-registration', 'registration'],
     ['/api/auth/jwks', null],
     ['/api/auth/passkey/list-user-passkeys', null],
   ] as const)('classifies %s as %s', (pathname, expected) => {
-    expect(getPasskeyRateLimitCategory(pathname)).toBe(expected);
+    expect(getAuthRateLimitCategory(pathname)).toBe(expected);
   });
 
   it('uses Cloudflare connection IP and returns a no-store 429 when limited', async () => {

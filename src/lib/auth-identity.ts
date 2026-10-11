@@ -1,8 +1,6 @@
-export type AuthIdentityProvider = 'firebase' | 'better-auth';
-
 export type AuthIdentity = {
   appUserId: string;
-  provider: AuthIdentityProvider;
+  provider: 'better-auth';
   providerSubject: string;
 };
 
@@ -20,16 +18,6 @@ export function assertIdentityLinkAllowed(
   if (existingAppUserId && existingAppUserId !== identity.appUserId) {
     throw new IdentityLinkConflictError();
   }
-}
-
-export function firebaseIdentityForUid(uid: string): AuthIdentity {
-  const normalizedUid = uid.trim();
-  if (!normalizedUid) throw new Error('Firebase subject is required');
-  return {
-    appUserId: normalizedUid,
-    provider: 'firebase',
-    providerSubject: normalizedUid,
-  };
 }
 
 export function betterAuthIdentityForUser(

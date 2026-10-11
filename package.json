@@ -57,7 +57,6 @@
     "@sentry/nextjs": "^10.71.0",
     "better-auth": "1.7.7",
     "class-variance-authority": "^0.7.1",
-    "firebase": "^12.10.0",
     "firebase-admin": "^14.3.0",
     "jose": "6.2.12",
     "lucide-react": "^1.43.0",

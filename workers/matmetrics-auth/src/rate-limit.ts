@@ -1,19 +1,24 @@
-export type PasskeyRateLimitCategory = 'sign-in' | 'registration';
+export type AuthRateLimitCategory = 'sign-in' | 'registration';
 
 const SIGN_IN_ENDPOINT_SUFFIXES = [
   '/passkey/generate-authenticate-options',
   '/passkey/verify-authentication',
+  '/sign-in/email',
   '/token',
 ] as const;
 
 const REGISTRATION_ENDPOINT_SUFFIXES = [
   '/passkey/generate-register-options',
   '/passkey/verify-registration',
+  '/sign-up/email',
+  '/request-password-reset',
+  '/reset-password',
+  '/send-verification-email',
 ] as const;
 
-export function getPasskeyRateLimitCategory(
+export function getAuthRateLimitCategory(
   pathname: string
-): PasskeyRateLimitCategory | null {
+): AuthRateLimitCategory | null {
   if (SIGN_IN_ENDPOINT_SUFFIXES.some((suffix) => pathname.endsWith(suffix))) {
     return 'sign-in';
   }
@@ -28,7 +33,7 @@ export function getPasskeyRateLimitCategory(
 function requestIpKey(request: Request): string {
   // Cloudflare sets this from the network peer. Requests proxied through
   // Vercel may share Vercel egress IPs, so Vercel Firewall must enforce the
-  // per-client limit for the browser-facing paths.
+  // per-client limit for browser-facing authentication paths.
   return request.headers.get('CF-Connecting-IP') || 'unknown-client-ip';
 }
 

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
@@ -7,7 +6,6 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 const AUTH_TEST_MODE_ENV = 'MATMETRICS_AUTH_TEST_MODE';
 const NODE_ENV_VAR = 'NODE_ENV';
-const requireFromTest = createRequire(import.meta.url);
 
 const requestForAuthorization = (authorization?: string) =>
   new NextRequest('http://localhost/api/test', {
@@ -61,11 +59,6 @@ const assertUnauthorizedResponse = async (
   assert.deepEqual(body, { error: expectedError });
 };
 
-test('server auth does not eagerly load Firebase Admin Auth', () => {
-  const firebaseAuthPath = requireFromTest.resolve('firebase-admin/auth');
-  assert.equal(requireFromTest.cache[firebaseAuthPath], undefined);
-});
-
 test('test env + MATMETRICS_AUTH_TEST_MODE accepts valid Bearer authorization', async () => {
   await withEnv(
     { [AUTH_TEST_MODE_ENV]: 'true', [NODE_ENV_VAR]: 'test' },
@@ -96,7 +89,7 @@ test('test shortcut is unavailable outside NODE_ENV=test', async () => {
       assert.equal('status' in result, true);
       if (!('status' in result)) {
         assert.fail(
-          'Expected error response when Firebase admin is unavailable'
+          'Expected an error response for a token signed by an unsupported algorithm'
         );
       }
 
@@ -107,7 +100,7 @@ test('test shortcut is unavailable outside NODE_ENV=test', async () => {
   );
 });
 
-test('Firebase token path reports missing server configuration', async () => {
+test('legacy RS256 token path is rejected after Firebase Auth removal', async () => {
   await withEnv(
     { [AUTH_TEST_MODE_ENV]: 'false', [NODE_ENV_VAR]: 'test' },
     async () => {
@@ -118,15 +111,14 @@ test('Firebase token path reports missing server configuration', async () => {
 
       assert.equal('status' in result, true);
       if (!('status' in result)) {
-        assert.fail('Expected normal auth path without Firebase config');
+        assert.fail('Expected normal auth path without legacy auth config');
       }
 
-      assert.equal(result.status, 500);
+      assert.equal(result.status, 401);
       const body = await result.json();
       assert.deepEqual(body, {
-        error:
-          'Authentication service is not configured. Contact the site administrator.',
-        code: 'AUTH_CONFIGURATION',
+        error: 'Invalid authentication token',
+        code: 'AUTHENTICATION_FAILED',
       });
     }
   );

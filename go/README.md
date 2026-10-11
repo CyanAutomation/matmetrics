@@ -30,11 +30,9 @@ GITHUB_TOKEN=... go run ./go/cmd/matmetrics-cli github sync-all --data-dir data 
 
 ## Go API authentication
 
-The protected Go API accepts Firebase ID tokens (`RS256`) and Better Auth
-service JWTs (`EdDSA`) during the migration. Keep
-`FIREBASE_SERVICE_ACCOUNT_KEY` configured while Firebase sign-in remains in
-use. Configure the Better Auth verifier in every Vercel environment that runs
-the Go API:
+The protected Go API accepts Better Auth service JWTs (`EdDSA`). Firebase Auth
+token verification has been removed. Configure the Better Auth verifier in
+every environment that runs the Go API:
 
 ```text
 MATMETRICS_AUTH_JWKS_URL=https://<app-origin>/api/auth/jwks
@@ -55,7 +53,7 @@ After successful verification, handlers can read the provider-neutral
 the canonical MatMetrics user ID.
 
 Invalid credentials receive HTTP 401, missing verifier configuration receives
-HTTP 500, and JWKS or Firebase signing-key fetch failures receive HTTP 503.
-The test-token bypass is enabled only when both `MATMETRICS_AUTH_TEST_MODE=true`
-and `NODE_ENV=test` are set. Firebase verification remains supported; this PR
-does not remove Firebase dependencies.
+HTTP 500, and JWKS fetch failures receive HTTP 503. The test-token bypass is
+enabled only when both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test` are
+set. Firebase Admin/Firestore remains in the Next.js application only for its
+existing preference fallback; it is not used by Go authentication.

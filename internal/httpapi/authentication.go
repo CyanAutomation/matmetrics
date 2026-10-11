@@ -41,15 +41,13 @@ type AuthenticatedPrincipal struct {
 type principalContextKey struct{}
 
 // AuthenticatedPrincipalFromContext returns the canonical principal attached by
-// RequireAuthenticatedUser. Both UserID and AppUserID identify the same
-// MatMetrics account for Firebase and Better Auth tokens.
+// RequireAuthenticatedUser.
 func AuthenticatedPrincipalFromContext(ctx context.Context) (AuthenticatedPrincipal, bool) {
 	principal, ok := ctx.Value(principalContextKey{}).(AuthenticatedPrincipal)
 	return principal, ok
 }
 
-// RequireAuthenticatedUser accepts migration-era Firebase ID tokens and
-// Better Auth service JWTs. It keeps the existing handler API while attaching a
+// RequireAuthenticatedUser accepts Better Auth service JWTs and attaches a
 // provider-neutral principal to the request context for authorization logic.
 func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
 	token, ok := bearerToken(r)
@@ -78,22 +76,14 @@ func RequireAuthenticatedUser(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	var principal AuthenticatedPrincipal
-	switch algorithm {
-	case jwt.SigningMethodRS256.Alg():
-		serviceAccount, configured := serviceAccountFromEnv()
-		if !configured {
-			writeAuthFailure(w, errAuthConfiguration)
-			return false
-		}
-		principal, err = verifyFirebaseIDToken(r, token, serviceAccount.ProjectID)
-	case jwt.SigningMethodEdDSA.Alg():
-		var verifier *betterAuthVerifier
-		verifier, err = betterAuthVerifierFromEnv()
-		if err == nil {
-			principal, err = verifier.verify(r.Context(), token)
-		}
-	default:
+	if algorithm != jwt.SigningMethodEdDSA.Alg() {
 		err = errors.New("unsupported signing algorithm")
+		writeAuthFailure(w, err)
+		return false
+	}
+	verifier, err := betterAuthVerifierFromEnv()
+	if err == nil {
+		principal, err = verifier.verify(r.Context(), token)
 	}
 
 	if err != nil {

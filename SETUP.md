@@ -1,232 +1,97 @@
-# Setup & Deployment Guide
-
-## Overview
-
-This guide consolidates all critical setup steps for deploying MatMetrics. Essential configuration information was previously scattered across [README.md](README.md), [nextsteps.md](nextsteps.md), and [DESIGN.md](DESIGN.md). Follow this guide to ensure complete and error-free deployment.
+# MatMetrics Setup Guide
 
 ## Prerequisites
 
-### Development Environment
+- Node.js 24.x and npm 11.x
+- A GitHub token for GitHub-backed session storage
+- Cloudflare Workers and D1 for Better Auth and preference APIs
+- A Resend account with a verified sending domain
+- Firebase Admin credentials only while the Firestore preference/plugin-state
+  fallback remains in use
 
-- Node.js 24.x
-- npm 11.x
-- Google Gen AI API key (for AI-powered features)
-- GitHub personal access token for GitHub-backed storage
+## Local development
 
-### Production Environment
-
-- Vercel account
-- Firebase project
-- GitHub repository for session storage
-
-## Complete Setup Checklist
-
-### 1. Environment Variables Configuration
-
-#### Local Development
+Copy the environment template and add the server-side integrations you use:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Add all required variables to `.env.local`:
+Set `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, and the Better Auth Worker URL and
+JWT settings. For local Firestore fallback, set
+`FIREBASE_SERVICE_ACCOUNT_KEY` to the service-account JSON on one line. That
+credential is server-only and is unrelated to authentication.
 
-| Variable                                   | Required | Source                                                          |
-| ------------------------------------------ | -------- | --------------------------------------------------------------- |
-| `GITHUB_TOKEN`                             | ✓        | GitHub → Settings → Developer settings → Personal access tokens |
-| `GOOGLE_GENAI_API_KEY`                     | ✓        | [ai.google.dev](https://ai.google.dev/)                         |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | ✓        | Firebase console → Project Settings → Your web app              |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | ✓        | Firebase console → Project Settings → Your web app              |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | ✓        | Firebase console → Project Settings → Your web app              |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | ✓        | Firebase console → Project Settings → Your web app              |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | ✓        | Firebase console → Project Settings → Your web app              |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | ✓        | Firebase console → Project Settings → Your web app              |
-| `FIREBASE_SERVICE_ACCOUNT_KEY`             | ✓        | Firebase console → Project Settings → Service accounts          |
-
-#### Vercel Configuration
-
-Add all environment variables to Vercel dashboard under **Environment Variables**:
-
-**Critical Notes:**
-
-- `NEXT_PUBLIC_*` variables are baked at build time and require redeployment to take effect
-- Changes to these variables alone (without code changes) need a manual "Redeploy" in Vercel dashboard
-
-### 2. Firebase Project Setup
-
-#### Create Firebase Project
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project
-3. Add a web app to the project
-
-#### Get Firebase Configuration
-
-From Firebase console → Project Settings → Your web app, copy the configuration values:
-
-| Variable                                   | Where to find it    |
-| ------------------------------------------ | ------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase SDK config |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Firebase SDK config |
-
-#### Generate Service Account Key
-
-1. Go to Firebase console → Project Settings → Service accounts
-2. Click "Generate new private key" → download `.json` file
-3. Convert to single-line string for environment variable:
+Apply the existing D1 schema through the data Worker migration owner, then
+start the data Worker, auth Worker, and Next.js app:
 
 ```bash
-cat /path/to/your-downloaded-key.json | tr -d '\n'
+cd workers/matmetrics-data && npm run migrate:local
+cd ../matmetrics-auth && npm run dev
 ```
 
-4. Set as `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable
-5. Delete the downloaded JSON file (sensitive credential)
+The auth Worker needs local `.dev.vars` values for `BETTER_AUTH_SECRET` and
+`RESEND_API_KEY` if you want to receive real verification or recovery email.
+Keep `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false` until you intentionally
+open signup. The authenticated user can enroll another passkey from account
+settings.
 
-**⚠️ Critical Pitfall:** The service account JSON contains literal `\n` characters in the `private_key` field. Vercel's environment variable editor can mangle them. Always paste as a single-line JSON string.
+## Deploy Better Auth and email
 
-### 3. Firestore Security Rules
+Configure these Cloudflare Worker secrets before deployment:
 
-**Required before any real use** - Firestore was likely created in test mode (open access).
+- `BETTER_AUTH_SECRET`: random secret of at least 32 characters.
+- `RESEND_API_KEY`: Resend API key with send permission for your verified
+  domain.
 
-1. Go to Firebase console → **Firestore → Rules**
-2. Set the following rules:
+Set `MATMETRICS_AUTH_EMAIL_FROM` to a sender on that verified domain. Set the
+Worker's frontend origin, public URL, RP ID, JWT issuer, and audience to match
+the deployed MatMetrics hostname. Keep
+`MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false` during the existing-account
+rollout.
 
-```text
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
+In Vercel, configure:
 
-This ensures each user can only read/write their own preferences document.
+- `CLOUDFLARE_AUTH_WORKER_URL`
+- `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` after the auth Worker and rewrite are
+  ready
+- `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false`
+- `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true`
+- `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and
+  `MATMETRICS_AUTH_AUDIENCE`
 
-### 4. Firebase Authorised Domains (Most Commonly Missed Step)
+Never put `BETTER_AUTH_SECRET` or `RESEND_API_KEY` in Vercel or a
+`NEXT_PUBLIC_*` variable. Public browser flags are compiled into the Next.js
+build and require a redeploy when changed.
 
-Once Vercel assigns your deployment URL (e.g., `matmetrics-xyz.vercel.app`), you must add it to Firebase:
+## Existing account and launch checks
 
-1. Go to Firebase console → **Authentication → Settings → Authorised domains**
-2. Add both:
-   - Your main Vercel domain (e.g., `matmetrics-xyz.vercel.app`)
-   - Any Vercel preview URLs if you want preview deployments to support auth (e.g., `matmetrics-abc.vercel.app`)
+Use the emailed password-reset link on the existing passkey account to set its
+first password. Confirm the user ID, passkey, preferences, and session
+ownership remain unchanged. Then verify password sign-in, passkey sign-in,
+passkey enrollment, reset expiry/replay rejection, session revocation, and
+protected Next.js and Go APIs.
 
-**⚠️ If you skip this step, authentication will fail.**
+Only after those checks pass should public signup be opened by setting both
+`MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in Cloudflare and
+`NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in the corresponding Vercel
+build. Add Vercel Firewall rate limits for sign-in, signup, verification, and
+password recovery endpoints before launch.
 
-### 5. GitHub Token Setup
+Firebase Auth is no longer used by MatMetrics code. Keep Firebase Admin and its
+service account for the Firestore fallback. Disabling Firebase Auth in the
+Firebase project is a separate project-wide action; do it only after checking
+the deployed account and any other Firebase Auth consumers.
 
-For GitHub-backed session storage:
+## Other setup
 
-1. Create GitHub personal access token:
-   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-   - Generate new token with "repo" scope
-2. Set `GITHUB_TOKEN` environment variable
+- GitHub-backed session storage requires `GITHUB_TOKEN` with access to the
+  configured repositories.
+- `CLOUDFLARE_API_TOKEN` enables AI-assisted technique suggestions and
+  description transforms.
+- `OPENROUTER_API_KEY` enables optional JEV check-ins and AI fidelity checks.
+- `SENTRY_DSN` enables browser error reporting; `SENTRY_AUTH_TOKEN` is for
+  source-map uploads in CI/Vercel.
 
-**Note:** When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Firebase auth is configured.
-
-## Deployment Process
-
-### Vercel Deployment (Recommended)
-
-1. **Push to GitHub**: Ensure your code is on GitHub
-
-2. **Create Vercel Project**:
-   - Go to [vercel.com](https://vercel.com) and sign in
-   - Click "Add New" → "Project"
-   - Select your GitHub repository
-   - Click "Import"
-
-3. **Configure Environment Variables**:
-   - In the "Environment Variables" section, add:
-     - `GITHUB_TOKEN`: Fine-grained token with repository contents write access
-     - `GOOGLE_GENAI_API_KEY`: Your Google Gen AI API key from [ai.google.dev](https://ai.google.dev/)
-     - All Firebase variables from step 1
-
-4. **Set Runtime**: Configure Node.js 24.x for both local development and deployment
-
-5. **Deploy**:
-   - Click "Deploy"
-   - Vercel will automatically build and deploy your application
-
-### Data Storage Behavior
-
-- **Before GitHub configuration**: Sessions are written to local markdown storage under `data/YYYY/MM/`
-- **After GitHub setup**: Sessions are stored directly in the configured repository
-- **Browser behavior**: Always maintains local cache and offline sync queue
-
-## Post-Deployment Verification
-
-### 1. Test Authentication
-
-- Try to log in using Firebase authentication
-- Verify that user preferences can be saved
-
-### 2. Test Session Storage
-
-- Create a test session
-- Verify it appears in the session list
-- Check that it's stored in GitHub (if configured) or local markdown files
-
-### 3. Test AI Features
-
-- Try the technique suggestion feature
-- Verify Google Gen AI integration is working
-
-### 4. Test GitHub Sync
-
-- Enable GitHub sync in the app settings
-- Verify sessions sync between local and remote storage
-
-## Troubleshooting
-
-### Common Issues
-
-#### Authentication Fails
-
-- Check Firebase Authorised Domains configuration
-- Verify all `NEXT_PUBLIC_FIREBASE_*` variables are correctly set
-- Ensure deployment URL matches exactly what's added to Firebase
-
-#### Service Account Key Issues
-
-- Verify the key is pasted as a single-line JSON string
-- Check that `\n` characters in `private_key` are escaped as `\\n`
-- Regenerate the key if corrupted
-
-#### GitHub Sync Not Working
-
-- Verify `GITHUB_TOKEN` has correct permissions
-- Check repository access permissions
-- Verify the token is not expired
-
-#### Build Failures
-
-- Ensure all environment variables are set before build
-- Check Node.js version compatibility (requires 24.x)
-- Verify dependency installation is complete
-
-## Related Documentation
-
-- [Project Overview](README.md) - General project information and tech stack
-- [Next Steps](nextsteps.md) - Additional post-deployment configuration details
-- [Design System](DESIGN.md) - Visual design tokens and component specifications
-- [Go Contract](docs/go-contract.md) - Session data format and storage contracts
-
-## Quick Reference Summary
-
-| Task                         | Location           | Criticality                        |
-| ---------------------------- | ------------------ | ---------------------------------- |
-| Environment Variables        | Step 1             | 🔴 Critical                        |
-| Firebase Service Account Key | Step 2             | 🔴 Critical (common pitfall)       |
-| Firestore Security Rules     | Step 3             | 🔴 Critical                        |
-| Firebase Authorised Domains  | Step 4             | 🔴 Critical (most commonly missed) |
-| GitHub Token                 | Step 5             | 🟡 Important                       |
-| Vercel Deployment            | Deployment Process | 🟡 Important                       |
-
-**Key Takeaway:** The most common deployment failures are missing Firebase Authorised Domains and improper FIREBASE_SERVICE_ACCOUNT_KEY formatting. Double-check these two items before deployment.
+See the [README](README.md), [auth Worker setup](workers/matmetrics-auth/README.md),
+and [auth rollout checklist](docs/better-auth-passkey-migration.md) for detail.

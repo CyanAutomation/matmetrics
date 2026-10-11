@@ -23,14 +23,14 @@ test('persistPluginEnabledOverride stores and loads overrides in auth test mode'
   assert.deepEqual(await loadPluginEnabledOverrides('user-b'), {});
 });
 
-test('persistPluginEnabledOverride rejects when firebase admin is unavailable outside test mode', async () => {
+test('persistPluginEnabledOverride rejects when Firestore admin is unavailable outside test mode', async () => {
   const previous = process.env.MATMETRICS_AUTH_TEST_MODE;
   delete process.env.MATMETRICS_AUTH_TEST_MODE;
 
   try {
     await assert.rejects(
       () => persistPluginEnabledOverride('user-a', 'tag-manager', false),
-      /Firebase admin is not configured|Plugin state persistence is unavailable/
+      /Firestore admin is not configured|Plugin state persistence is unavailable/
     );
   } finally {
     if (previous === undefined) {
