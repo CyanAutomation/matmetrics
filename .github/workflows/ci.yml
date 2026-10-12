@@ -48,6 +48,12 @@ jobs:
         run: npm run validate:skills
       - name: Test skill validator
         run: npm run test:skills
+      - name: Test README validator
+        run: npm run test:readme
+      - name: Lint root README Markdown
+        run: npm run lint:readme
+      - name: Validate root README links and headings
+        run: npm run validate:readme
       - name: Lint
         run: npm run lint
       - name: Check workflow formatting
