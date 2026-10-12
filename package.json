@@ -38,6 +38,9 @@
     "plugin:ui-migration:regenerate": "node --import tsx scripts/regenerate-plugin-ui-migration-scorecards.ts",
     "validate:plugin-ui-migration-artifact": "node --import tsx scripts/validate-plugin-ui-migration-artifact.ts",
     "validate:plugin-ui-contract": "node scripts/check-tsx-availability.cjs && node --import tsx scripts/validate-plugin-ui-contract.ts",
+    "lint:readme": "npx --yes markdownlint-cli@0.45.0 -c .markdownlint.json README.md",
+    "test:readme": "node --test scripts/validate-readme.test.mjs",
+    "validate:readme": "node scripts/validate-readme.mjs",
     "validate:theme-contrast": "node scripts/check-theme-contrast.mjs",
     "docs:design-tokens": "node --import tsx scripts/design-token-docs.ts",
     "validate:docs": "node --import tsx scripts/design-token-docs.ts --check"
