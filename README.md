@@ -1,8 +1,8 @@
-[![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml) [![CodeQL](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql)
-
 # MatMetrics
 
-A simple web application for tracking Judo practice sessions, analyzing training patterns to help judoka manage their techniques and training intensity.
+[![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml) [![CodeQL](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql)
+
+MatMetrics is a web application for judoka to log Judo practice sessions and understand their training patterns, techniques, and intensity. Operators can connect persistent storage and optional AI and authentication services; contributors can work on the Next.js app, Go tools, and Cloudflare Workers in this repository.
 
 ## Overview
 
@@ -17,12 +17,72 @@ MatMetrics is designed to help Judo practitioners log and analyze their training
 - **Dashboard Overview**: Visual metrics including average effort levels and frequently practiced techniques
 - **Dark Mode Support**: Light and dark theme options for comfortable viewing
 
+## Quick Start
+
+Run the local app with its guest demo data; no credentials or `.env.local` file
+are needed for this preview.
+
+```bash
+git clone https://github.com/CyanAutomation/matmetrics.git
+cd matmetrics
+npm ci
+npm run dev
+```
+
+Open [http://localhost:9002](http://localhost:9002). The guest preview starts
+with sample sessions stored in this browser. Select **Log session** to open the
+session form and try adding a practice entry. Guest changes stay in browser
+storage and are not synced to GitHub. Configure authentication and a storage
+repository for an account-backed workflow; see [Setup](SETUP.md).
+
+AI suggestions, description transforms, and other integrations need their own
+credentials. Add only the settings for the features you enable; see
+[`.env.example`](.env.example) and [Environment variable behavior](#environment-variable-behavior).
+
+## Using MatMetrics
+
+### Explore the guest preview
+
+The Dashboard opens with sample Judo sessions. Open **Training History** to
+review them, or choose **Log session** to create an entry. Add session details,
+optionally include techniques or notes, review the entry, and select **Save
+session**. In guest mode, the preview and new entries are stored in this
+browser. They are not sent to a server or synced to GitHub.
+
+To keep sessions in an account, configure sign-in and a GitHub-backed storage
+repository. See the [setup guide](SETUP.md) and [deployment instructions](#deployment).
+
+### Use the Go CLI
+
+List Markdown sessions from the repository's sample `data/` directory as JSON:
+
+```bash
+go run ./go/cmd/matmetrics-cli sessions list --data-dir data --format json
+```
+
+The CLI reads local files for this command; GitHub credentials are only needed
+for GitHub validation and synchronization. See [Go tooling](go/README.md) for
+other commands and protected Go API configuration.
+
+## Documentation
+
+| Guide | Purpose |
+| --- | --- |
+| [Setup guide](SETUP.md) | Local services, authentication, email, and deployment setup |
+| [Contributing](CONTRIBUTING.md) | Release and pull request conventions |
+| [Go tooling](go/README.md) | CLI commands and Go API authentication |
+| [Auth Worker](workers/matmetrics-auth/README.md) | Worker configuration, tests, and deployment |
+| [Auth migration](docs/better-auth-passkey-migration.md) | Auth rollout and post-deployment checks |
+| [D1 migration](docs/cloudflare-d1-migration.md) | D1-backed preference migration |
+| [Plugin UI contract](docs/plugin-ui-contract.md) | Plugin onboarding and UI requirements |
+
 ## Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) with TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
-- **Data Storage**: GitHub-backed markdown files with local markdown fallback
+- **Data Storage**: GitHub-backed Markdown for account sessions, browser storage for the guest preview, and local Markdown files for local server fallback
+- **Additional components**: Go CLI/API and Cloudflare Workers for authentication and D1-backed data services
 - **AI Integration**: Cloudflare AI Gateway with `dynamic/matmetrics` model routing
 - **Forms and validation**: React form components with [Zod](https://zod.dev/) validation
 - **UI Components**: Radix UI primitives with custom Tailwind styling
@@ -45,74 +105,27 @@ See [docs/blueprint.md](docs/blueprint.md) for full design specifications.
 
 - Node.js 24.x
 - npm 11.x
-- Cloudflare API token (for AI-powered features)
-- GitHub personal access token for GitHub-backed storage
+- Go 1.25.x only if you are building or using the Go CLI/API
+- Integration credentials only for the features that use them (see
+  [`.env.example`](.env.example))
 
-### Installation
+### Full local setup
 
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
-cd matmetrics
-```
-
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Set up environment variables:
-
-Copy `.env.example` to `.env.local` and add your API keys:
+The [Quick Start](#quick-start) is enough to open the guest demo. For local
+integrations, copy the environment template and fill in only the values needed
+for the features you plan to use. Keep secrets in `.env.local`; do not commit
+them.
 
 ```bash
 cp .env.example .env.local
 ```
 
-Then edit `.env.local` and add:
+For the local data and auth Workers, use the [setup guide](SETUP.md), which
+describes their migrations and development configuration. The root app can
+still run in guest preview mode without those Workers. The environment
+reference below describes what each configured integration enables.
 
-```dotenv
-# GitHub token used by server-side GitHub sync/storage
-GITHUB_TOKEN=your_github_token
-
-# Cloudflare AI Gateway API - Get with: wrangler auth token
-CLOUDFLARE_API_TOKEN=your_cloudflare_token
-
-# OpenRouter API key for server-side JEV check-ins and verification
-OPENROUTER_API_KEY=your_openrouter_key
-
-# Cloudflare D1 preference data Worker (server-only)
-CLOUDFLARE_DATA_WORKER_URL=https://matmetrics-data.example.workers.dev
-MATMETRICS_INTERNAL_API_SECRET=generate-a-long-random-secret
-
-# Cloudflare Queues background-job executor (server-only)
-# Use the public Vercel origin for the URL and generate a distinct long secret.
-MATMETRICS_BACKGROUND_EXECUTOR_URL=
-MATMETRICS_BACKGROUND_EXECUTOR_SECRET=
-
-# Better Auth browser configuration
-NEXT_PUBLIC_BETTER_AUTH_ENABLED=false
-NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false
-NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true
-CLOUDFLARE_AUTH_WORKER_URL=https://matmetrics-auth.example.workers.dev
-MATMETRICS_AUTH_JWKS_URL=https://matmetrics.example.com/api/auth/jwks
-MATMETRICS_AUTH_ISSUER=https://matmetrics.example.com
-MATMETRICS_AUTH_AUDIENCE=matmetrics-api
-
-# Firebase Admin SDK, retained for Firestore preferences and plugin state
-# Paste the full service account JSON on one line.
-FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
-
-# Sentry DSN for error monitoring in browser bundle
-SENTRY_DSN=https://example@o0.ingest.sentry.io/0
-
-# Sentry auth token for CI/Vercel source map uploads and release creation
-SENTRY_AUTH_TOKEN=sentry_example_token
-```
-
-Environment values come from:
+Important credential sources:
 
 | Variable | Where to find it |
 | --- | --- |
@@ -126,7 +139,7 @@ Environment values come from:
 
 ### Environment variable behavior
 
-- Copy `.env.example` to `.env.local` before starting the app. `.env.local` is intentionally ignored by git and should contain your real local credentials.
+- `.env.local` is intentionally ignored by git and should contain any real local credentials you need. The guest preview does not require this file.
 - Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Firebase Admin remains only for the Firestore preference/plugin-state fallback and requires `FIREBASE_SERVICE_ACCOUNT_KEY`.
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Better Auth is configured.
@@ -159,6 +172,9 @@ Environment values come from:
 - **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)
 - **API route tests**: Live in `src/tests/` (for example `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts`) and are covered by `npm run test:all`; `src/lib/plugins/validate.test.ts` covers plugin validation behavior checks.
 - **`npm run test:all`**: Run all TypeScript tests under `plugins/` and `src/` (with `src/lib/storage.test.ts` executed separately), after `validate:plugin-ui-contract`, `validate:plugin-ui-migration-artifact`, `validate:docs`, and the tsx availability preflight
+- **`npm run lint:readme`**: Check root README Markdown style with the repository's markdownlint config
+- **`npm run test:readme`**: Test the root README link and heading validator
+- **`npm run validate:readme`**: Check the root README heading hierarchy and local file/heading links
 
 `npm run build` and `npm run typecheck` both read and write `.next` artifacts. Run them sequentially, or prefer `npm run verify`, instead of launching them in parallel.
 
@@ -274,19 +290,29 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 
 ```text
 src/
-├── app/               # Next.js app directory
-│   └── api/          # API routes, emitted through one catch-all handler
-│       └── ai/       # AI endpoints (suggest-techniques, transform-description)
-├── components/        # Reusable React components
-│   └── ui/           # Base UI components from Radix UI
-├── hooks/            # Custom React hooks
-└── lib/              # Utilities, types, and helpers
-    ├── cloudflare-ai-client.ts  # Cloudflare AI Gateway client
-    ├── ai-api-error.ts          # AI error handling
-    └── ai-prompts.ts            # AI prompt templates
+├── app/                         # Next.js pages and catch-all API dispatcher
+├── components/                  # Dashboard, session forms, and reusable UI
+├── hooks/                       # Client-side state and data hooks
+└── lib/                         # Storage, auth, AI clients, and shared types
+api/go/                          # Go HTTP API handlers
+go/cmd/matmetrics-cli/           # Go command-line application
+internal/                        # Go session, Markdown, storage, and API logic
+workers/
+├── matmetrics-auth/             # Better Auth, passkeys, and auth email
+└── matmetrics-data/             # D1 data API, migrations, and job support
 ```
 
-API handlers live in `api-handler.ts` modules (each exports `POST` and `maxDuration`) that are registered in `src/app/api/[...path]/route.ts`, which emits the API surface as a single Next.js route handler. The AI endpoints are at `src/app/api/ai/suggest-techniques/api-handler.ts` and `src/app/api/ai/transform-description/api-handler.ts`.
+The Next.js catch-all route registers API handler modules under `src/app/api/`.
+The auth Worker hosts Better Auth and is exposed to the frontend through the
+same-origin `/api/auth/*` rewrite. The data Worker owns D1 migrations and serves
+the D1-backed data features. Go CLI and API code share session and storage
+logic in `internal/`.
+
+For session storage, authenticated users use GitHub-backed Markdown files;
+guest preview data stays in browser storage. Local server development can use
+Markdown files under `data/YYYY/MM/`. Hosted Vercel deployments require a
+configured GitHub repository for persistent user sessions and do not write
+session data to the ephemeral function filesystem; see [Deployment](#deployment).
 
 ## AI Features
 
@@ -322,6 +348,15 @@ When contributing to MatMetrics, please ensure:
 - Components are built using Radix UI primitives where applicable
 - All changes include appropriate type definitions
 - The application maintains the clean, minimalist design aesthetic
+
+Read the [contribution guide](CONTRIBUTING.md) for release and pull request
+conventions. Report bugs and request features through
+[GitHub Issues](https://github.com/CyanAutomation/matmetrics/issues).
+
+## License
+
+The repository does not currently include a project license file. Contact the
+maintainers about reuse permissions.
 
 ## Roadmap
 
