@@ -348,6 +348,57 @@ describe('MatMetrics auth Worker integration', () => {
     }
   });
 
+  it('rejects a Better Auth user ID already linked to another MatMetrics account', async () => {
+    const conflictingUserId = 'conflicting-subject-' + crypto.randomUUID();
+    const ownerId = 'conflicting-owner-' + crypto.randomUUID();
+    const now = Date.now();
+    await env.DB.prepare(
+      'INSERT INTO app_users (id, created_at, updated_at) VALUES (?, ?, ?)'
+    )
+      .bind(ownerId, now, now)
+      .run();
+    await env.DB.prepare(
+      'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind(
+        'conflicting-identity-' + crypto.randomUUID(),
+        ownerId,
+        'better-auth',
+        conflictingUserId,
+        now
+      )
+      .run();
+
+    try {
+      let insertError: unknown;
+      try {
+        await env.DB.prepare(
+          'INSERT INTO user (id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)'
+        )
+          .bind(
+            conflictingUserId,
+            'Conflicting User',
+            conflictingUserId + '@example.test',
+            now,
+            now
+          )
+          .run();
+      } catch (error) {
+        insertError = error;
+      }
+
+      expect(String(insertError)).toContain('BETTER_AUTH_IDENTITY_CONFLICT');
+      const user = await env.DB.prepare('SELECT id FROM user WHERE id = ?')
+        .bind(conflictingUserId)
+        .first<{ id: string }>();
+      expect(user).toBeNull();
+    } finally {
+      await env.DB.prepare('DELETE FROM app_users WHERE id = ?')
+        .bind(ownerId)
+        .run();
+    }
+  });
+
   it('uses password reset to set the first credential without changing an existing passkey account', async () => {
     const userId = 'legacy-account-' + crypto.randomUUID();
     const email = userId + '@example.test';

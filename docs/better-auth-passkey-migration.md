@@ -48,12 +48,13 @@ Worker flag; the Worker is authoritative.
 
 Use the exact frontend hostname for the WebAuthn RP ID and origin. Do not use
 wildcard preview hosts. Apply D1 changes through `workers/matmetrics-data`,
-which remains the migration owner. Migration `0005` backfills canonical
-identity rows and installs a D1 trigger that creates each new Better Auth
-identity atomically with its user row. Migration `0006` restricts identity
-providers to Better Auth and removes the retired Firebase registration
-metadata. For future D1 migrations, run the read-only preflight before applying
-pending migrations and the verification command afterward.
+which remains the migration owner. Migration `0005` backfills canonical Better
+Auth identity rows and installs D1 triggers that reject conflicting mappings and
+create each new Better Auth identity atomically with its user row. Migration
+`0006` restricts identity providers to Better Auth and removes the retired
+Firebase registration metadata. For future D1 migrations, run the read-only
+preflight before applying pending migrations and the verification command
+afterward.
 
 ## Existing-account migration
 
