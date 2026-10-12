@@ -357,17 +357,22 @@ describe('MatMetrics auth Worker integration', () => {
     )
       .bind(ownerId, now, now)
       .run();
-    await env.DB.prepare(
-      'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
-    )
-      .bind(
-        'conflicting-identity-' + crypto.randomUUID(),
-        ownerId,
-        'better-auth',
-        conflictingUserId,
-        now
+    await env.DB.prepare('PRAGMA ignore_check_constraints = ON').run();
+    try {
+      await env.DB.prepare(
+        'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
       )
-      .run();
+        .bind(
+          'conflicting-identity-' + crypto.randomUUID(),
+          ownerId,
+          'better-auth',
+          conflictingUserId,
+          now
+        )
+        .run();
+    } finally {
+      await env.DB.prepare('PRAGMA ignore_check_constraints = OFF').run();
+    }
 
     try {
       let insertError: unknown;
