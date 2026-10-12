@@ -91,11 +91,12 @@ Worker, and rate-limit binding failures return HTTP 503.
 ## Deployment and account migration
 
 The existing D1 schema already contains Better Auth user, account, session,
-verification, and passkey tables. Migration `0005` adds an SQLite trigger that
-creates the canonical MatMetrics identity in the same transaction as each new
-Better Auth user, and backfills any missing mappings. Run the auth migration
-preflight, apply D1 changes through `workers/matmetrics-data`, then verify the
-identity invariant before deploying the auth Worker:
+verification, and passkey tables. Migration `0005` adds SQLite triggers that
+reject conflicting identity mappings, create the canonical MatMetrics identity
+in the same transaction as each new Better Auth user, and backfill any missing
+mappings. Run the auth migration preflight, apply D1 changes through
+`workers/matmetrics-data`, then verify the identity invariant before deploying
+the auth Worker:
 
 ```bash
 cd workers/matmetrics-data
@@ -108,7 +109,7 @@ npx wrangler deploy --env production
 ```
 
 The maintainer confirmed the deployed Worker has its Resend configuration and
-secrets and verified email verification, password reset by email,
+secrets, and verified email verification, password reset by email,
 username/password sign-in, and passkey sign-in. D1 migration
 `0006_retire_firebase_auth.sql` has also been applied and verified. Disabling
 Firebase Auth in the Firebase project is the remaining project-level action;
