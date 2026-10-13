@@ -1768,17 +1768,20 @@ serialTest('alive foreign lease is not reclaimed before expiry', async () => {
 });
 
 serialTest(
-  'two contenders cannot steal a live lease before expiry',
+  'two contenders cannot steal a live lease and acquisition succeeds after expiry',
   async () => {
     const { localStorage } = installBrowserEnv();
     setActiveUserId('user-1');
     __resetStorageStateForTests();
     const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+    const originalNow = Date.now;
+    let virtualNow = originalNow();
+    Date.now = () => virtualNow;
     localStorage.setItem(
       syncLockStorageKey,
       JSON.stringify({
         owner: 'live-owner',
-        expiresAt: Date.now() + 800,
+        expiresAt: virtualNow + 800,
         nonce: 'live-nonce',
         epoch: 5,
       })
@@ -1792,9 +1795,10 @@ serialTest(
       assert.equal(firstBeforeExpiry, false);
       assert.equal(secondBeforeExpiry, false);
 
-      await delay(850);
+      virtualNow += 801;
       assert.equal(await __tryAcquireSyncLeaseForTests(), true);
     } finally {
+      Date.now = originalNow;
       teardownStorageListeners();
       __resetStorageStateForTests();
     }
@@ -2154,7 +2158,7 @@ serialTest(
 );
 
 serialTest(
-  'sync loop aborts safely when lease expires during a delayed sync request',
+  'keeps the current and remaining queued operations when the lease expires during a request',
   async () => {
     const { localStorage } = installBrowserEnv();
     setActiveUserId('user-1');
@@ -2167,6 +2171,19 @@ serialTest(
     const syncQueueStorageKey = getSyncQueueStorageKey();
     const firstSession = makeSession('session-delayed-lease-expiry-1');
     const secondSession = makeSession('session-delayed-lease-expiry-2');
+    const originalNow = Date.now;
+    const syncLockStorageKey = getScopedStorageKey('matmetrics_sync_lock');
+    const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+    let notifyLeaseReleased!: () => void;
+    const syncLeaseReleased = new Promise<void>((resolve) => {
+      notifyLeaseReleased = resolve;
+    });
+    let virtualNow = originalNow();
+    Date.now = () => virtualNow;
+    localStorage.removeItem = (key) => {
+      originalRemoveItem(key);
+      if (key === syncLockStorageKey) notifyLeaseReleased();
+    };
 
     localStorage.setItem(
       syncQueueStorageKey,
@@ -2176,6 +2193,14 @@ serialTest(
       ])
     );
 
+    let notifyRequestStarted: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      notifyRequestStarted = resolve;
+    });
+    let resolveFirstRequest: ((response: Response) => void) | undefined;
+    const firstRequest = new Promise<Response>((resolve) => {
+      resolveFirstRequest = resolve;
+    });
     let requestCount = 0;
     const originalSetInterval = global.setInterval;
     const originalClearInterval = global.clearInterval;
@@ -2190,25 +2215,47 @@ serialTest(
       }
 
       requestCount += 1;
-      await delay(1_200);
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      notifyRequestStarted?.();
+      return firstRequest;
     }) as typeof fetch;
 
     try {
       retryCloudSync();
-      await delay(1_250);
-      await flushAsyncWork();
+      await requestStarted;
+      virtualNow += 1_001;
+      resolveFirstRequest?.(
+        new Response(JSON.stringify(firstSession), { status: 200 })
+      );
 
-      assert.ok(requestCount >= 1);
-      assert.equal(getQueue().length, 2);
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          syncLeaseReleased,
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error('Timed out waiting for the sync lease to release')),
+              2_000
+            );
+          }),
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
+
+      assert.equal(getSyncStatus().isSyncing, false);
+      assert.equal(requestCount, 1, 'the second queued operation must not start');
       const queue = getQueue();
+      assert.equal(queue.length, 2);
       assertCreateOperation(queue[0]);
       assert.equal(queue[0].session.id, firstSession.id);
       assertCreateOperation(queue[1]);
       assert.equal(queue[1].session.id, secondSession.id);
     } finally {
+      Date.now = originalNow;
+      localStorage.removeItem = originalRemoveItem;
       teardownStorageListeners();
       __resetStorageStateForTests();
+      syncQueueTestInternals.resetLeaseTtlForTests();
       global.setInterval = originalSetInterval;
       global.clearInterval = originalClearInterval;
       global.fetch = originalFetch;

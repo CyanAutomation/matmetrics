@@ -24,7 +24,7 @@ Object.defineProperty(globalThis, 'navigator', {
 });
 
 const React = require('react') as typeof import('react');
-const { act, cleanup, render } =
+const { act, cleanup, render, waitFor } =
   require('@testing-library/react') as typeof import('@testing-library/react');
 const { getScopedStorageKey, setActiveUserId } =
   require('../lib/client-identity') as typeof import('../lib/client-identity');
@@ -133,59 +133,56 @@ test('session refresh waits for auth and preferences, then fetches once with cre
         },
       })
     );
-    await act(async () => {
-      await delay(10);
-    });
+    await act(async () => {});
     assert.equal(listRequests, 0);
 
-    await act(async () => {
-      view.rerender(
-        React.createElement(Harness, {
-          deps: {
-            userId: 'user-1',
-            authMode: 'authenticated',
-            authReady: true,
-            preferencesReady: false,
-          },
-        })
-      );
-      await delay(10);
-    });
-    assert.equal(listRequests, 0);
-
-    await act(async () => {
-      view.rerender(
-        React.createElement(Harness, {
-          deps: {
-            userId: 'user-1',
-            authMode: 'authenticated',
-            authReady: true,
-            preferencesReady: true,
-          },
-        })
-      );
-      await delay(20);
-    });
-
-    assert.equal(listRequests, 1);
-    assert.equal(requestAuthorization, 'Bearer better-auth-token');
-    assert.ok(
-      infoDiagnostics.some(([event, details]) => {
-        const diagnostic = details as {
-          source?: string;
-          sessionCount?: number;
-          requestId?: string;
-        };
-        return (
-          event === 'session_list_refresh_completed' &&
-          diagnostic.source === 'github' &&
-          diagnostic.sessionCount === 1 &&
-          diagnostic.requestId === 'iad1::refresh-456'
-        );
+    view.rerender(
+      React.createElement(Harness, {
+        deps: {
+          userId: 'user-1',
+          authMode: 'authenticated',
+          authReady: true,
+          preferencesReady: false,
+        },
       })
     );
+    await act(async () => {});
+    assert.equal(listRequests, 0);
+
+    view.rerender(
+      React.createElement(Harness, {
+        deps: {
+          userId: 'user-1',
+          authMode: 'authenticated',
+          authReady: true,
+          preferencesReady: true,
+        },
+      })
+    );
+
+    await waitFor(() => assert.equal(listRequests, 1));
+    await waitFor(() =>
+      assert.deepEqual(renderedSessionIds(view), ['latest-session'])
+    );
+    assert.equal(requestAuthorization, 'Bearer better-auth-token');
+    await waitFor(() => {
+      assert.ok(
+        infoDiagnostics.some(([event, details]) => {
+          const diagnostic = details as {
+            source?: string;
+            sessionCount?: number;
+            requestId?: string;
+          };
+          return (
+            event === 'session_list_refresh_completed' &&
+            diagnostic.source === 'github' &&
+            diagnostic.sessionCount === 1 &&
+            diagnostic.requestId === 'iad1::refresh-456'
+          );
+        })
+      );
+    });
     assert.equal(JSON.stringify(infoDiagnostics).includes('better-auth-token'), false);
-    assert.deepEqual(renderedSessionIds(view), ['latest-session']);
     assert.deepEqual(
       JSON.parse(
         localStorage.getItem(getScopedStorageKey('matmetrics_sessions')) ??

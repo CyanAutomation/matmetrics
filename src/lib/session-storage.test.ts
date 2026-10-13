@@ -389,6 +389,28 @@ test('scanSessionsFromGitHub bounds concurrent GitHub file reads', async () => {
   let activeReads = 0;
   let maxActiveReads = 0;
   let fileFetchCalls = 0;
+  const pendingFileReads: Array<() => void> = [];
+  let notifyFetchStarted: (() => void) | undefined;
+  const waitForFetchCount = async (expected: number): Promise<void> => {
+    while (fileFetchCalls < expected) {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            notifyFetchStarted = resolve;
+          }),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error(`Timed out waiting for ${expected} file fetches`)),
+              2_000
+            );
+          }),
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
+    }
+  };
 
   await withMockedGitHub(
     (async (url: string | URL | Request) => {
@@ -406,9 +428,8 @@ test('scanSessionsFromGitHub bounds concurrent GitHub file reads', async () => {
         fileFetchCalls += 1;
         activeReads += 1;
         maxActiveReads = Math.max(maxActiveReads, activeReads);
-
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        activeReads -= 1;
+        notifyFetchStarted?.();
+        notifyFetchStarted = undefined;
 
         const markdown = `---
 id: "session-${fileFetchCalls}"
@@ -430,8 +451,15 @@ Drilled O soto gari entries.
 
 Good session.
 `;
-        return new Response(JSON.stringify(toContentsPayload(markdown)), {
-          status: 200,
+        return new Promise<Response>((resolve) => {
+          pendingFileReads.push(() => {
+            activeReads -= 1;
+            resolve(
+              new Response(JSON.stringify(toContentsPayload(markdown)), {
+                status: 200,
+              })
+            );
+          });
         });
       }
 
@@ -440,10 +468,32 @@ Good session.
       });
     }) as typeof fetch,
     async () => {
-      const result = await scanSessionsFromGitHub(
+      const scanPromise = scanSessionsFromGitHub(
         { owner: 'o', repo: 'r' },
         { concurrency: concurrencyLimit, readRetryAttempts: 0 }
       );
+      await waitForFetchCount(concurrencyLimit);
+      assert.equal(pendingFileReads.length, concurrencyLimit);
+
+      for (let index = 0; index < fileCount; index += 1) {
+        const releaseRead = pendingFileReads.shift();
+        assert.ok(releaseRead, 'a file read should be waiting for release');
+        releaseRead();
+
+        const expectedStarted = Math.min(
+          fileCount,
+          concurrencyLimit + index + 1
+        );
+        const expectedPending = Math.min(
+          concurrencyLimit,
+          fileCount - index - 1
+        );
+        await waitForFetchCount(expectedStarted);
+        assert.equal(pendingFileReads.length, expectedPending);
+        assert.ok(activeReads <= concurrencyLimit);
+      }
+
+      const result = await scanPromise;
 
       assert.equal(result.sessions.length, fileCount);
       assert.equal(result.issues.length, 0);
@@ -452,7 +502,7 @@ Good session.
 
   assert.equal(fileFetchCalls, fileCount);
   assert.equal(activeReads, 0);
-  assert.ok(maxActiveReads <= concurrencyLimit);
+  assert.equal(maxActiveReads, concurrencyLimit);
 });
 
 test('scanSessionsFromGitHub retries retryable GitHub read failures before read_failed', async () => {

@@ -154,7 +154,7 @@ Use this checklist for plugin changes:
 - **Empty state with CTA** → `plugins/github-sync/src/components/github-settings.ux.test.tsx`
   - `empty criterion anchor: empty state present with cta action wording run sync configure`
 - **Destructive action safety (confirm + cancel)** → `plugins/github-sync/src/components/github-settings.destructive.test.tsx`
-  - `destructive criterion anchor: destructive confirm clears configuration and destructive cancel preserves prior values`
+  - `[req:docs/plugin-ui-contract.md#destructive-flow-requirements] destructive criterion anchor: confirming clears configuration while cancel preserves it`
 
 ### Exact test commands
 
