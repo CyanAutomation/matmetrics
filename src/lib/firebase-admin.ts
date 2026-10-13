@@ -96,7 +96,7 @@ export function isFirebaseAdminConfigured(): boolean {
   return getServiceAccount() !== null;
 }
 
-export function getFirebaseAdminApp(): App {
+function getFirebaseAdminApp(): App {
   const serviceAccount = getServiceAccount();
   if (!serviceAccount) {
     throw new Error('Firebase admin configuration is missing');

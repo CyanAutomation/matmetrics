@@ -11,8 +11,6 @@ import { PREFERENCE_API_ERROR_CODES } from '@/lib/preference-api-errors';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-
 type PreferencesStore = Pick<
   typeof import('@/lib/preferences-store.server'),
   'loadStoredPreferences' | 'saveStoredPreferences'

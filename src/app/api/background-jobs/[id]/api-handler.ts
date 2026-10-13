@@ -5,9 +5,6 @@ import { getBackgroundJob } from '@/lib/background-job-store.server';
 import { DataWorkerError } from '@/lib/data-worker-client.server';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

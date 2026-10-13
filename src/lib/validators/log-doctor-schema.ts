@@ -54,6 +54,3 @@ export const applyModeConstraints = {
   maxFiles: 25,
   requiresConfirmation: true,
 } as const;
-
-export type LogDoctorFixRequest = z.infer<typeof logDoctorFixRequestSchema>;
-export type LogDoctorFixOptions = z.infer<typeof logDoctorFixOptionsSchema>;
