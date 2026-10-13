@@ -199,6 +199,14 @@ test('awaits async plugin init before resolving renderers to avoid timing warnin
   clearDashboardTabRendererRegistryForTests();
   resetPluginComponentRegistryInitializationForTests();
 
+  let notifyInitStarted!: () => void;
+  const initStarted = new Promise<void>((resolve) => {
+    notifyInitStarted = resolve;
+  });
+  let releaseInit!: () => void;
+  const initGate = new Promise<void>((resolve) => {
+    releaseInit = resolve;
+  });
   const tagManagerModulePath = requireFromTest.resolve(
     '../../../plugins/tag-manager/src/index'
   );
@@ -212,7 +220,8 @@ test('awaits async plugin init before resolving renderers to avoid timing warnin
         register?: (extensionId: string) => void;
         registerPluginComponent?: typeof registerPluginComponent;
       }) => {
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        notifyInitStarted();
+        await initGate;
         context.register?.('tag-manager-dashboard-tab');
         context.registerPluginComponent?.(
           'tag_manager',
@@ -224,7 +233,8 @@ test('awaits async plugin init before resolving renderers to avoid timing warnin
 
   try {
     const warningsCaptured: Array<{ code: string }> = [];
-    const tabs = await mapDashboardExtensionsToTabs(
+    let mappingResolved = false;
+    const mapping = mapDashboardExtensionsToTabs(
       [
         createDashboardTabExtensionFixture({
           pluginId: 'tag-manager-plugin',
@@ -246,11 +256,25 @@ test('awaits async plugin init before resolving renderers to avoid timing warnin
           warningsCaptured.push({ code: warning.code });
         },
       }
+    ).then((tabs) => {
+      mappingResolved = true;
+      return tabs;
+    });
+
+    await initStarted;
+    await Promise.resolve();
+    assert.equal(
+      mappingResolved,
+      false,
+      'tab mapping should wait for plugin initialization to finish'
     );
+    releaseInit();
+    const tabs = await mapping;
 
     assert.equal(tabs.length, 1);
     assert.equal(warningsCaptured.length, 0);
   } finally {
+    releaseInit();
     if (originalCacheEntry) {
       requireFromTest.cache[tagManagerModulePath] = originalCacheEntry;
     } else {
