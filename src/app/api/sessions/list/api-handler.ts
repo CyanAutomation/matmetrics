@@ -164,7 +164,7 @@ async function respondFromSessionStorage(
     console.info('session_list_completed', {
       event: 'session_list_completed',
       stage: context.stage,
-      source: !force && cached ? 'cache' : 'storage',
+      source: 'storage',
       status: 200,
       sessionCount: result.sessions.length,
       issueCount: result.issues.length,
