@@ -18,8 +18,6 @@ import {
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 const INTERNAL_PROCESSING_FAILURE_PATH = 'processing.internal';
 
 const asGateManifest = (

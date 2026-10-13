@@ -2,7 +2,7 @@ import * as React from 'react';
 
 // Keep this aligned with Tailwind's `xl` breakpoint used by the application
 // navigation components.
-export const APPLICATION_NAVIGATION_BREAKPOINT = 1280;
+const APPLICATION_NAVIGATION_BREAKPOINT = 1280;
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(

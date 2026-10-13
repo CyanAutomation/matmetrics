@@ -14,10 +14,10 @@ import { NextRequest } from 'next/server';
 
 import { POST as CREATE } from '@/app/api/plugins/create/api-handler';
 import {
-  GET as LIST,
-  dynamic as LIST_DYNAMIC,
-  revalidate as LIST_REVALIDATE,
-} from '@/app/api/plugins/list/api-handler';
+  dynamic as API_DYNAMIC,
+  revalidate as API_REVALIDATE,
+} from '@/app/api/[...path]/route';
+import { GET as LIST } from '@/app/api/plugins/list/api-handler';
 import { POST as TOGGLE } from '@/app/api/plugins/toggle/api-handler';
 import { POST as UPDATE } from '@/app/api/plugins/update/api-handler';
 import { POST as VALIDATE } from '@/app/api/plugins/validate/api-handler';
@@ -121,8 +121,8 @@ test('GET /api/plugins/list returns manifests and contract payload', async () =>
       })
     );
 
-    assert.equal(LIST_DYNAMIC, 'force-dynamic');
-    assert.equal(LIST_REVALIDATE, 0);
+    assert.equal(API_DYNAMIC, 'force-dynamic');
+    assert.equal(API_REVALIDATE, 0);
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get('Cache-Control'),

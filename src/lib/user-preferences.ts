@@ -99,10 +99,12 @@ export class PreferenceRequestError extends Error {
     this.name = 'PreferenceRequestError';
   }
 
+  // fallow-ignore-next-line unused-class-member
   get canRetry(): boolean {
     return this.category === 'unavailable';
   }
 
+  // fallow-ignore-next-line unused-class-member
   get diagnostic(): string {
     if (this.stage === 'authentication') {
       return `Could not authenticate preferences ${this.method} request`;
