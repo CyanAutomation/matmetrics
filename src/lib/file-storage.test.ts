@@ -46,11 +46,36 @@ function makeSession(overrides: Partial<JudoSession> = {}): JudoSession {
   };
 }
 
-async function wait(ms: number): Promise<void> {
-  await new Promise((resolve) => {
-    setTimeout(resolve, ms);
+function createSignal() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((complete) => {
+    resolve = complete;
   });
+  return { promise, resolve };
 }
+
+async function waitForPromise<T>(
+  promise: Promise<T>,
+  description: string
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`Timed out waiting for ${description}`)),
+          2_000
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+const waitForSignal = (signal: Promise<void>, description: string) =>
+  waitForPromise(signal, description);
 
 const SESSION_UPDATE_LOCK_UNKNOWN_PID_RECLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -411,18 +436,13 @@ test(
       const originalWriteFile = fs.writeFile;
       let deleteStarted = false;
       let deleteLockConflicts = 0;
-      let notifyRenameStarted: (() => void) | null = null;
-      const renameStarted = new Promise<void>((resolve) => {
-        notifyRenameStarted = resolve;
-      });
-      let releaseRename: (() => void) | undefined;
-      const renameGate = new Promise<void>((resolve) => {
-        releaseRename = resolve;
-      });
+      const renameStarted = createSignal();
+      const releaseRename = createSignal();
+      const deleteLockConflictObserved = createSignal();
 
       fs.rename = async (...args) => {
-        notifyRenameStarted?.();
-        await renameGate;
+        renameStarted.resolve();
+        await releaseRename.promise;
         return originalRename(...(args as Parameters<typeof originalRename>));
       };
       fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
@@ -436,6 +456,7 @@ test(
             (error as NodeJS.ErrnoException).code === 'EEXIST'
           ) {
             deleteLockConflicts += 1;
+            deleteLockConflictObserved.resolve();
           }
           throw error;
         }
@@ -449,18 +470,23 @@ test(
         };
         const updatePromise = updateSession(updated);
 
-        await renameStarted;
+        await waitForSignal(
+          renameStarted.promise,
+          'updateSession to reach its commit rename'
+        );
 
         deleteStarted = true;
         const deletePromise = deleteSession('race-session');
-        while (deleteLockConflicts === 0) {
-          await wait(5);
-        }
-        if (releaseRename) {
-          releaseRename();
-        }
+        await waitForSignal(
+          deleteLockConflictObserved.promise,
+          'deleteSession to observe the update lock'
+        );
+        releaseRename.resolve();
 
-        await Promise.all([updatePromise, deletePromise]);
+        await waitForPromise(
+          Promise.all([updatePromise, deletePromise]),
+          'deleteSession and updateSession to finish'
+        );
 
         const finalPath = await findSessionFileById('race-session');
         assert.equal(finalPath, null);
@@ -469,9 +495,7 @@ test(
           'deleteSession should retry after encountering the update lock'
         );
       } finally {
-        if (releaseRename) {
-          releaseRename();
-        }
+        releaseRename.resolve();
         fs.rename = originalRename;
         fs.writeFile = originalWriteFile;
       }
@@ -551,16 +575,15 @@ test(
 
       const originalWriteFile = fs.writeFile;
       let blockedLockWrite = false;
-      let releaseLockWrite: (() => void) | undefined;
-      const lockWriteGate = new Promise<void>((resolve) => {
-        releaseLockWrite = resolve;
-      });
+      const lockWriteStarted = createSignal();
+      const releaseLockWrite = createSignal();
 
       fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
         const [targetPath] = args;
         if (!blockedLockWrite && targetPath.toString() === lockPath) {
           blockedLockWrite = true;
-          await lockWriteGate;
+          lockWriteStarted.resolve();
+          await releaseLockWrite.promise;
         }
         return originalWriteFile.call(fs, ...args);
       }) as typeof fs.writeFile;
@@ -571,21 +594,21 @@ test(
           notes: 'should see not found after delete wins',
         });
 
-        while (!blockedLockWrite) {
-          await wait(5);
-        }
+        await waitForSignal(
+          lockWriteStarted.promise,
+          'updateSession to begin acquiring its lock'
+        );
 
         await deleteSession(session.id);
-        if (releaseLockWrite) {
-          releaseLockWrite();
-        }
+        releaseLockWrite.resolve();
 
-        await assert.rejects(updatePromise, SessionNotFoundError);
+        await waitForPromise(
+          assert.rejects(updatePromise, SessionNotFoundError),
+          'updateSession to observe the deleted session'
+        );
         assert.equal(await findSessionFileById(session.id), null);
       } finally {
-        if (releaseLockWrite) {
-          releaseLockWrite();
-        }
+        releaseLockWrite.resolve();
         fs.writeFile = originalWriteFile;
       }
     });
@@ -1200,7 +1223,7 @@ test(
 );
 
 test(
-  'createSession resolves concurrent create when the winning writer completes after 200ms',
+  'identical concurrent creates resolve to the same file after the winning write completes',
   { concurrency: false },
   async () => {
     await withTempDataDir(async () => {
@@ -1215,7 +1238,10 @@ test(
         undefined,
         session.id
       );
-      let delayedPrimaryWrite = false;
+      let primaryWriteWasBlocked = false;
+      const primaryWriteStarted = createSignal();
+      const competingIndexWrite = createSignal();
+      const releasePrimaryWrite = createSignal();
 
       fs.writeFile = (async (...args: Parameters<typeof fs.writeFile>) => {
         const [targetPathArg, data, options] = args;
@@ -1224,29 +1250,54 @@ test(
             ? options.flag
             : undefined;
         if (
-          !delayedPrimaryWrite &&
+          !primaryWriteWasBlocked &&
           targetPathArg.toString() === targetPath &&
           flag === 'wx' &&
           typeof data === 'string'
         ) {
-          delayedPrimaryWrite = true;
-          await wait(350);
+          primaryWriteWasBlocked = true;
+          primaryWriteStarted.resolve();
+          await releasePrimaryWrite.promise;
         }
-        return originalWriteFile.call(fs, ...args);
+        try {
+          return await originalWriteFile.call(fs, ...args);
+        } catch (error) {
+          if (
+            targetPathArg.toString() !== targetPath &&
+            flag === 'wx' &&
+            (error as NodeJS.ErrnoException).code === 'EEXIST'
+          ) {
+            competingIndexWrite.resolve();
+          }
+          throw error;
+        }
       }) as typeof fs.writeFile;
 
       try {
-        const [first, second] = await Promise.all([
-          createSession(session),
-          createSession(session),
-        ]);
+        const firstCreate = createSession(session);
+        const secondCreate = createSession(session);
+        await waitForSignal(
+          primaryWriteStarted.promise,
+          'the winning session write to start'
+        );
+        await waitForSignal(
+          competingIndexWrite.promise,
+          'the competing create to observe the active index lock'
+        );
+        releasePrimaryWrite.resolve();
+
+        const [first, second] = await waitForPromise(
+          Promise.all([firstCreate, secondCreate]),
+          'both concurrent create calls to finish'
+        );
         assert.equal(first, targetPath);
         assert.equal(second, targetPath);
       } finally {
+        releasePrimaryWrite.resolve();
         fs.writeFile = originalWriteFile;
       }
 
-      assert.equal(delayedPrimaryWrite, true);
+      assert.equal(primaryWriteWasBlocked, true);
       const markdown = await readFile(targetPath, 'utf8');
       assert.match(markdown, /delayed write winner/);
     });
