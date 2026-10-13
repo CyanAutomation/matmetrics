@@ -25,10 +25,46 @@
     {
       "file": "plugins/**/src/index.ts",
       "exports": ["initPlugin"]
+    },
+    {
+      "file": "src/app/api/**/api-handler.ts",
+      "exports": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    },
+    {
+      "file": "plugins/video-library/src/components/video-library-panel.tsx",
+      "exports": [
+        "VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL",
+        "VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL",
+        "buildVideoDomainRemovalConfirmationDescription"
+      ]
+    },
+    {
+      "file": "plugins/video-library/src/components/video-library.tsx",
+      "exports": [
+        "VIDEO_LIBRARY_REMOVE_DOMAIN_CONFIRM_LABEL",
+        "VIDEO_LIBRARY_REMOVE_DOMAIN_CANCEL_LABEL",
+        "buildVideoDomainRemovalConfirmationDescription"
+      ]
+    },
+    {
+      "file": "src/lib/plugins/dashboard-tab-adapters.tsx",
+      "exports": ["PluginComponentRegistration"]
+    },
+    {
+      "file": "src/lib/plugins/scoring/index.ts",
+      "exports": [
+        "CategoryScoringResult",
+        "TierEvaluationResult",
+        "TestCoverageInput",
+        "TierDeterminationInput"
+      ]
+    },
+    {
+      "file": "src/lib/sync-lease.ts",
+      "exports": ["ActiveSyncLease", "LeaseTakeoverReason"]
     }
   ],
   "health": {
-    "maxCognitive": 15,
-    "coverage": "coverage/coverage-final.json"
+    "maxCognitive": 15
   }
 }
