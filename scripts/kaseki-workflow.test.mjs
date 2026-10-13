@@ -124,6 +124,28 @@ test("stops preflight when readiness is not ready", async () => {
   assert.equal(requests, 1);
 });
 
+test("does not retry a successful response with invalid JSON", async () => {
+  let requests = 0;
+  let sleeps = 0;
+
+  await assert.rejects(
+    verifyKasekiController({
+      baseUrl,
+      token,
+      fetchImpl: async () => {
+        requests += 1;
+        return new Response("not json", { status: 200 });
+      },
+      sleep: async () => {
+        sleeps += 1;
+      },
+    }),
+    /Kaseki returned invalid JSON/,
+  );
+  assert.equal(requests, 1);
+  assert.equal(sleeps, 0);
+});
+
 test("submits JSON and validates the returned run ID", async () => {
   const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
   const payload = { ref: "abc123", idempotencyKey };

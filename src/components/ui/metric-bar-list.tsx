@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type MetricBarListItem = {
+type MetricBarListItem = {
   label: string;
   value: number;
   valueLabel?: string;

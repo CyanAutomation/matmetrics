@@ -943,55 +943,263 @@ function reconcileDirtyMutations(sessions: JudoSession[]): void {
   }
 }
 
+type SessionListRefreshContext = {
+  requestUserId: string;
+  contextKey: string;
+  generation: number;
+  seq: number;
+  source: 'github' | 'local';
+  force: boolean;
+  startedAt: number;
+  stage: 'auth_headers' | 'request' | 'parse_response';
+};
+
+function isSessionListRefreshCurrent(
+  context: SessionListRefreshContext
+): boolean {
+  if (!isStorageGenerationCurrent(context.generation)) {
+    console.debug('session_list_refresh_discarded', {
+      event: 'session_list_refresh_discarded',
+      requestSeq: context.seq,
+      reason: 'storage_generation_changed',
+    });
+    return false;
+  }
+  if (!isSessionListContextCurrent(context.contextKey, context.requestUserId)) {
+    console.debug('session_list_refresh_discarded', {
+      event: 'session_list_refresh_discarded',
+      requestSeq: context.seq,
+      reason: 'session_context_changed',
+    });
+    return false;
+  }
+  return true;
+}
+
+function logSessionRefreshStarted(context: SessionListRefreshContext): void {
+  console.debug('session_list_refresh_started', {
+    event: 'session_list_refresh_started',
+    requestSeq: context.seq,
+    source: context.source,
+    force: context.force,
+  });
+}
+
+async function requestSessionList(
+  context: SessionListRefreshContext
+): Promise<{ response: Response; metadata: SessionListRefreshMetadata } | null> {
+  const metadata = getSessionListRefreshMetadata(context.contextKey);
+  const url = buildSessionListUrl(getGitHubConfig(), context.force);
+  const headers = new Headers(await getSessionRefreshAuthHeaders());
+  if (!isSessionListRefreshCurrent(context)) return null;
+  if (!/^Bearer\s+\S+$/i.test(headers.get('Authorization')?.trim() ?? '')) {
+    throw new MissingSessionRefreshAuthError();
+  }
+  if (!context.force && metadata.etag) {
+    headers.set('If-None-Match', metadata.etag);
+  }
+
+  context.stage = 'request';
+  const response = await fetch(url.toString(), { headers });
+  if (!isSessionListRefreshCurrent(context)) return null;
+  return { response, metadata };
+}
+
+function applyNotModifiedSessionList(
+  context: SessionListRefreshContext,
+  response: Response,
+  metadata: SessionListRefreshMetadata
+): void {
+  sessionListRefreshError = null;
+  sessionListRefreshMetadata.set(context.contextKey, {
+    ...metadata,
+    lastSuccessfulRemoteRefreshAt: Date.now(),
+  });
+  if (context.force) {
+    console.info('session_list_refresh_completed', {
+      event: 'session_list_refresh_completed',
+      requestSeq: context.seq,
+      source: context.source,
+      force: context.force,
+      status: response.status,
+      durationMs: Date.now() - context.startedAt,
+    });
+  }
+  dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+}
+
+function logSessionRefreshHttpFailure(
+  context: SessionListRefreshContext,
+  response: Response
+): void {
+  const requestId = getDiagnosticRequestId(response);
+  console.warn('session_list_refresh_http_failed', {
+    event: 'session_list_refresh_http_failed',
+    requestSeq: context.seq,
+    source: context.source,
+    force: context.force,
+    stage: 'response',
+    status: response.status,
+    durationMs: Date.now() - context.startedAt,
+    ...(requestId ? { requestId } : {}),
+  });
+}
+
+async function applySuccessfulSessionList(
+  context: SessionListRefreshContext,
+  response: Response,
+  metadata: SessionListRefreshMetadata
+): Promise<void> {
+  context.stage = 'parse_response';
+  const payload = await response.json();
+  const { sessions, issues } = parseSessionListResponse(payload);
+  if (!isSessionListRefreshCurrent(context) || context.seq < latestAppliedSeq) {
+    return;
+  }
+
+  sessionListRefreshError = null;
+  sessionListRefreshMetadata.set(context.contextKey, {
+    etag: response.headers.get('ETag') ?? metadata.etag,
+    lastSuccessfulRemoteRefreshAt: Date.now(),
+  });
+  const mergedSessions = getOptimisticSessions(sessions);
+  reconcileDirtyMutations(sessions);
+  latestAppliedSeq = context.seq;
+  sessionFileIssuesCache = issues;
+  commitLocalSessions(mergedSessions);
+  if (context.force) {
+    const requestId = getDiagnosticRequestId(response);
+    console.info('session_list_refresh_completed', {
+      event: 'session_list_refresh_completed',
+      requestSeq: context.seq,
+      source: context.source,
+      force: context.force,
+      status: response.status,
+      sessionCount: sessions.length,
+      issueCount: issues.length,
+      durationMs: Date.now() - context.startedAt,
+      ...(requestId ? { requestId } : {}),
+    });
+  }
+  dispatchStorageSync(mergedSessions);
+}
+
+async function applySessionListResponse(
+  context: SessionListRefreshContext,
+  response: Response,
+  metadata: SessionListRefreshMetadata
+): Promise<void> {
+  if (response.status === 304) {
+    applyNotModifiedSessionList(context, response, metadata);
+    return;
+  }
+  if (!response.ok) {
+    sessionListRefreshError = { status: response.status };
+    logSessionRefreshHttpFailure(context, response);
+    dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+    return;
+  }
+  await applySuccessfulSessionList(context, response, metadata);
+}
+
+async function applySessionListRefresh(
+  context: SessionListRefreshContext
+): Promise<void> {
+  const result = await requestSessionList(context);
+  if (result) {
+    await applySessionListResponse(context, result.response, result.metadata);
+  }
+}
+
+function getSessionRefreshFailureReason(
+  error: unknown,
+  stage: SessionListRefreshContext['stage']
+): string {
+  if (error instanceof MissingSessionRefreshAuthError) {
+    return 'missing_bearer_token';
+  }
+  if (stage === 'auth_headers') return 'auth_header_generation_failed';
+  if (stage === 'request') return 'network_request_failed';
+  return 'invalid_response';
+}
+
+function handleSessionListRefreshFailure(
+  context: SessionListRefreshContext,
+  error: unknown
+): void {
+  if (!isSessionListRefreshCurrent(context)) return;
+  sessionListRefreshError = {};
+  console.error('session_list_refresh_failed', {
+    event: 'session_list_refresh_failed',
+    requestSeq: context.seq,
+    source: context.source,
+    force: context.force,
+    stage: context.stage,
+    reason: getSessionRefreshFailureReason(error, context.stage),
+    errorName: error instanceof Error ? error.name : 'UnknownError',
+    durationMs: Date.now() - context.startedAt,
+  });
+  dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+}
+
+function finishSessionListRefresh(context: SessionListRefreshContext): void {
+  if (!isStorageGenerationCurrent(context.generation)) return;
+
+  isSyncing = false;
+  const shouldRunQueuedForce = queuedForcedRefresh;
+  queuedForcedRefresh = false;
+  inFlightRefreshForce = false;
+  if (isSessionListContextCurrent(context.contextKey, context.requestUserId)) {
+    dispatchStorageSync(sessionCache ?? getLocalStorageCache());
+  }
+  inFlightRefresh = null;
+
+  if (
+    shouldRunQueuedForce &&
+    isStorageGenerationCurrent(context.generation) &&
+    isOnline &&
+    !isGuestMode()
+  ) {
+    void refreshSessionsFromAPI({ force: true });
+  }
+}
+
+async function executeSessionListRefresh(
+  context: SessionListRefreshContext
+): Promise<void> {
+  try {
+    await applySessionListRefresh(context);
+  } catch (error) {
+    handleSessionListRefreshFailure(context, error);
+  } finally {
+    finishSessionListRefresh(context);
+  }
+}
+
 async function refreshSessionsFromAPI(options?: {
   force?: boolean;
 }): Promise<void> {
   if (typeof window === 'undefined' || !isOnline || isGuestMode()) return;
   const force = options?.force === true;
   if (inFlightRefresh) {
-    if (force && !inFlightRefreshForce) {
-      queuedForcedRefresh = true;
-    }
+    if (force && !inFlightRefreshForce) queuedForcedRefresh = true;
     return inFlightRefresh;
   }
   if (!force && shouldThrottleGitHubRefresh() && hasFreshRemoteRefresh()) {
     return;
   }
 
-  const requestUserId = getActiveUserId();
-  const contextKey = getSessionListContextKey();
-  const generation = storageGeneration;
-  const seq = ++refreshSeq;
-  const source = getSessionListRefreshSource();
-  const startedAt = Date.now();
-  let stage: 'auth_headers' | 'request' | 'parse_response' = 'auth_headers';
-
-  console.debug('session_list_refresh_started', {
-    event: 'session_list_refresh_started',
-    requestSeq: seq,
-    source,
+  const context: SessionListRefreshContext = {
+    requestUserId: getActiveUserId(),
+    contextKey: getSessionListContextKey(),
+    generation: storageGeneration,
+    seq: ++refreshSeq,
+    source: getSessionListRefreshSource(),
     force,
-  });
-
-  const isCurrentRequest = (): boolean => {
-    if (!isStorageGenerationCurrent(generation)) {
-      console.debug('session_list_refresh_discarded', {
-        event: 'session_list_refresh_discarded',
-        requestSeq: seq,
-        reason: 'storage_generation_changed',
-      });
-      return false;
-    }
-    if (!isSessionListContextCurrent(contextKey, requestUserId)) {
-      console.debug('session_list_refresh_discarded', {
-        event: 'session_list_refresh_discarded',
-        requestSeq: seq,
-        reason: 'session_context_changed',
-      });
-      return false;
-    }
-    return true;
+    startedAt: Date.now(),
+    stage: 'auth_headers',
   };
+  logSessionRefreshStarted(context);
 
   // Install an in-flight guard before broadcasting. storageSync listeners read
   // sessions synchronously; without the guard, that read starts another refresh
@@ -1007,144 +1215,9 @@ async function refreshSessionsFromAPI(options?: {
   isSyncing = true;
   dispatchStorageSync(sessionCache ?? getLocalStorageCache());
 
-  const refresh = (async () => {
-    try {
-      const gitHubConfig = getGitHubConfig();
-      const refreshMetadata = getSessionListRefreshMetadata(contextKey);
-      const url = buildSessionListUrl(gitHubConfig, force);
-      const headers = new Headers(await getSessionRefreshAuthHeaders());
-      if (!isCurrentRequest()) return;
-      if (!/^Bearer\s+\S+$/i.test(headers.get('Authorization')?.trim() ?? '')) {
-        throw new MissingSessionRefreshAuthError();
-      }
-      if (!force && refreshMetadata.etag) {
-        headers.set('If-None-Match', refreshMetadata.etag);
-      }
-      stage = 'request';
-      const res = await fetch(url.toString(), { headers });
-      if (!isCurrentRequest()) return;
-
-      if (res.status === 304) {
-        sessionListRefreshError = null;
-        sessionListRefreshMetadata.set(contextKey, {
-          ...refreshMetadata,
-          lastSuccessfulRemoteRefreshAt: Date.now(),
-        });
-        if (force) {
-          console.info('session_list_refresh_completed', {
-            event: 'session_list_refresh_completed',
-            requestSeq: seq,
-            source,
-            force,
-            status: res.status,
-            durationMs: Date.now() - startedAt,
-          });
-        }
-        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
-        return;
-      }
-
-      if (!res.ok) {
-        sessionListRefreshError = { status: res.status };
-        const requestId = getDiagnosticRequestId(res);
-        console.warn('session_list_refresh_http_failed', {
-          event: 'session_list_refresh_http_failed',
-          requestSeq: seq,
-          source,
-          force,
-          stage: 'response',
-          status: res.status,
-          durationMs: Date.now() - startedAt,
-          ...(requestId ? { requestId } : {}),
-        });
-        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
-        return;
-      }
-
-      stage = 'parse_response';
-      const payload = await res.json();
-      const { sessions, issues } = parseSessionListResponse(payload);
-
-      if (!isCurrentRequest()) return;
-      if (seq < latestAppliedSeq) {
-        return;
-      }
-
-      sessionListRefreshError = null;
-      sessionListRefreshMetadata.set(contextKey, {
-        etag: res.headers.get('ETag') ?? refreshMetadata.etag,
-        lastSuccessfulRemoteRefreshAt: Date.now(),
-      });
-      const mergedSessions = getOptimisticSessions(sessions);
-      reconcileDirtyMutations(sessions);
-
-      latestAppliedSeq = seq;
-      sessionFileIssuesCache = issues;
-      commitLocalSessions(mergedSessions);
-      if (force) {
-        const requestId = getDiagnosticRequestId(res);
-        console.info('session_list_refresh_completed', {
-          event: 'session_list_refresh_completed',
-          requestSeq: seq,
-          source,
-          force,
-          status: res.status,
-          sessionCount: sessions.length,
-          issueCount: issues.length,
-          durationMs: Date.now() - startedAt,
-          ...(requestId ? { requestId } : {}),
-        });
-      }
-      dispatchStorageSync(mergedSessions);
-    } catch (error) {
-      if (!isCurrentRequest()) return;
-      sessionListRefreshError = {};
-      console.error('session_list_refresh_failed', {
-        event: 'session_list_refresh_failed',
-        requestSeq: seq,
-        source,
-        force,
-        stage,
-        reason:
-          error instanceof MissingSessionRefreshAuthError
-            ? 'missing_bearer_token'
-            : stage === 'auth_headers'
-              ? 'auth_header_generation_failed'
-              : stage === 'request'
-                ? 'network_request_failed'
-                : 'invalid_response',
-        errorName: error instanceof Error ? error.name : 'UnknownError',
-        durationMs: Date.now() - startedAt,
-      });
-      dispatchStorageSync(sessionCache ?? getLocalStorageCache());
-    } finally {
-      if (!isStorageGenerationCurrent(generation)) {
-        return;
-      }
-
-      isSyncing = false;
-      const shouldRunQueuedForce = queuedForcedRefresh;
-      queuedForcedRefresh = false;
-      inFlightRefreshForce = false;
-      if (isSessionListContextCurrent(contextKey, requestUserId)) {
-        dispatchStorageSync(sessionCache ?? getLocalStorageCache());
-      }
-      inFlightRefresh = null;
-
-      if (
-        shouldRunQueuedForce &&
-        isStorageGenerationCurrent(generation) &&
-        isOnline &&
-        !isGuestMode()
-      ) {
-        void refreshSessionsFromAPI({ force: true });
-      }
-    }
-  })();
-
+  const refresh = executeSessionListRefresh(context);
   inFlightRefresh = refresh;
   void refresh.then(resolveRefreshGate, rejectRefreshGate);
-
   return refresh;
 }
 

@@ -124,6 +124,66 @@ async function createHttpError(response) {
   });
 }
 
+function getRequestTimeoutMs(deadline, now) {
+  const remainingMs =
+    deadline === undefined ? REQUEST_TIMEOUT_MS : deadline - now();
+  if (remainingMs <= 0) {
+    throw new KasekiDeadlineError("Kaseki polling deadline reached");
+  }
+  return Math.max(1, Math.min(REQUEST_TIMEOUT_MS, remainingMs));
+}
+
+function parseResponseJson(responseText) {
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new KasekiResponseError("Kaseki returned invalid JSON");
+  }
+}
+
+async function performJsonRequest(url, options, timeoutMs) {
+  const { fetchImpl, headers, method, body } = options;
+  const response = await fetchImpl(url, {
+    method,
+    headers,
+    body,
+    redirect: "error",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) throw await createHttpError(response);
+
+  const responseText = await readResponseText(response);
+  return parseResponseJson(responseText);
+}
+
+function throwIfRequestCannotRetry(error, deadline, now) {
+  if (error instanceof KasekiResponseError) throw error;
+  if (error instanceof KasekiHttpError && !error.retryable) throw error;
+  if (deadline !== undefined && now() >= deadline) {
+    throw new KasekiDeadlineError("Kaseki polling deadline reached");
+  }
+}
+
+function createRetryExhaustedError(error) {
+  const lastError = safeDiagnosticText(
+    error instanceof Error ? error.message : String(error),
+  );
+  return new Error(
+    `Kaseki request failed after ${MAX_ATTEMPTS} attempts${lastError ? `: ${lastError}` : ""}`,
+    { cause: error },
+  );
+}
+
+async function waitBeforeRequestRetry(attempt, deadline, now, sleep) {
+  const delay = RETRY_DELAYS_MS[attempt];
+  const timeLeft =
+    deadline === undefined ? delay : Math.max(0, deadline - now());
+  if (timeLeft <= 0) {
+    throw new KasekiDeadlineError("Kaseki polling deadline reached");
+  }
+  await sleep(Math.min(delay, timeLeft));
+}
+
 async function requestJson(
   url,
   {
@@ -138,54 +198,19 @@ async function requestJson(
   },
 ) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-    const remainingMs =
-      deadline === undefined ? REQUEST_TIMEOUT_MS : deadline - now();
-    if (remainingMs <= 0)
-      throw new KasekiDeadlineError("Kaseki polling deadline reached");
-
     try {
-      const response = await fetchImpl(url, {
-        method,
-        headers,
-        body,
-        redirect: "error",
-        signal: AbortSignal.timeout(
-          Math.max(1, Math.min(REQUEST_TIMEOUT_MS, remainingMs)),
-        ),
-      });
-
-      if (!response.ok) {
-        throw await createHttpError(response);
-      }
-
-      const responseText = await readResponseText(response);
-      try {
-        return JSON.parse(responseText);
-      } catch {
-        throw new KasekiResponseError("Kaseki returned invalid JSON");
-      }
+      const timeoutMs = getRequestTimeoutMs(deadline, now);
+      return await performJsonRequest(
+        url,
+        { fetchImpl, headers, method, body },
+        timeoutMs,
+      );
     } catch (error) {
-      if (error instanceof KasekiResponseError) throw error;
-      if (error instanceof KasekiHttpError && !error.retryable) throw error;
-      if (deadline !== undefined && now() >= deadline) {
-        throw new KasekiDeadlineError("Kaseki polling deadline reached");
-      }
+      throwIfRequestCannotRetry(error, deadline, now);
       if (attempt === MAX_ATTEMPTS - 1) {
-        const lastError = safeDiagnosticText(
-          error instanceof Error ? error.message : String(error),
-        );
-        throw new Error(
-          `Kaseki request failed after ${MAX_ATTEMPTS} attempts${lastError ? `: ${lastError}` : ""}`,
-          { cause: error },
-        );
+        throw createRetryExhaustedError(error);
       }
-
-      const delay = RETRY_DELAYS_MS[attempt];
-      const timeLeft =
-        deadline === undefined ? delay : Math.max(0, deadline - now());
-      if (timeLeft <= 0)
-        throw new KasekiDeadlineError("Kaseki polling deadline reached");
-      await sleep(Math.min(delay, timeLeft));
+      await waitBeforeRequestRetry(attempt, deadline, now, sleep);
     }
   }
 
@@ -273,6 +298,61 @@ export async function submitKasekiRun({
   return runId;
 }
 
+function getKasekiRunResult(response) {
+  if (response?.status === "completed") {
+    const exitCode = response.exitCode ?? 0;
+    if (typeof exitCode !== "number" || !Number.isFinite(exitCode)) {
+      throw new Error("Kaseki returned an invalid exit code");
+    }
+    if (exitCode === 0) {
+      return { status: "completed", success: true, exitCode };
+    }
+    return {
+      status: `failed (exit code ${exitCode})`,
+      success: false,
+      exitCode,
+    };
+  }
+
+  if (response?.status === "failed" || response?.status === "cancelled") {
+    return { status: response.status, success: false };
+  }
+
+  if (response?.status !== "queued" && response?.status !== "running") {
+    throw new Error("unexpected Kaseki run status");
+  }
+
+  return null;
+}
+
+async function pollKasekiRunOnce({
+  url,
+  token,
+  fetchImpl,
+  now,
+  sleep,
+  deadline,
+}) {
+  try {
+    const response = await requestJson(url, {
+      fetchImpl,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      now,
+      sleep,
+      deadline,
+    });
+    return getKasekiRunResult(response);
+  } catch (error) {
+    if (error instanceof KasekiDeadlineError) {
+      return { status: "timed out", success: false };
+    }
+    throw error;
+  }
+}
+
 export async function waitForKasekiRun({
   baseUrl,
   token,
@@ -291,49 +371,18 @@ export async function waitForKasekiRun({
   validatePositiveNumber(maxWaitMs, "maxWaitMs");
 
   const deadline = now() + maxWaitMs;
+  const url = `${baseUrl}/api/v1/runs/${runId}/status`;
 
   while (now() < deadline) {
-    let response;
-    try {
-      response = await requestJson(`${baseUrl}/api/v1/runs/${runId}/status`, {
-        fetchImpl,
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        now,
-        sleep,
-        deadline,
-      });
-    } catch (error) {
-      if (error instanceof KasekiDeadlineError) {
-        return { status: "timed out", success: false };
-      }
-      throw error;
-    }
-
-    if (response?.status === "completed") {
-      const exitCode = response.exitCode ?? 0;
-      if (typeof exitCode !== "number" || !Number.isFinite(exitCode)) {
-        throw new Error("Kaseki returned an invalid exit code");
-      }
-      if (exitCode === 0) {
-        return { status: "completed", success: true, exitCode };
-      }
-      return {
-        status: `failed (exit code ${exitCode})`,
-        success: false,
-        exitCode,
-      };
-    }
-
-    if (response?.status === "failed" || response?.status === "cancelled") {
-      return { status: response.status, success: false };
-    }
-
-    if (response?.status !== "queued" && response?.status !== "running") {
-      throw new Error("unexpected Kaseki run status");
-    }
+    const result = await pollKasekiRunOnce({
+      url,
+      token,
+      fetchImpl,
+      now,
+      sleep,
+      deadline,
+    });
+    if (result) return result;
 
     const timeLeft = deadline - now();
     if (timeLeft <= 0) break;

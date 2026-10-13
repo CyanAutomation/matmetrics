@@ -1,21 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Fingerprint, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/components/auth-provider';
 import { authClient } from '@/lib/auth-client';
-
-type PasskeySummary = { id: string; name: string | null };
+import {
+  PasskeyManagementDialogView,
+  type PasskeySummary,
+} from './passkey-management-dialog-view';
 
 type PasskeyManagementDialogProps = {
   open: boolean;
@@ -177,195 +168,36 @@ export function PasskeyManagementDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Sign-in methods</DialogTitle>
-          <DialogDescription>
-            Use your password or a passkey to sign in. Add another passkey so
-            you can still sign in if a device is lost.
-          </DialogDescription>
-        </DialogHeader>
-
-        {!betterAuthConfigured ? (
-          <p className="text-sm text-muted-foreground">
-            Passkey management is not available in this deployment yet.
-          </p>
-        ) : (
-          <div className="space-y-5">
-            {!user?.emailVerified && (
-              <div className="space-y-2 rounded-md border p-3">
-                <div className="text-sm font-medium">Verify your email</div>
-                <p className="text-sm text-muted-foreground">
-                  Password sign-in requires a verified email address. We can
-                  send a verification link to {user?.email ?? 'your account'}.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleEmailVerification()}
-                  disabled={isSendingVerification || !user?.email}
-                >
-                  {isSendingVerification && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  Send verification email
-                </Button>
-                {verificationSent && (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    If verification is needed, an email is on its way.
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2 rounded-md border p-3">
-              <div className="text-sm font-medium">Password sign-in</div>
-              <p className="text-sm text-muted-foreground">
-                Send a secure link to set or reset the password for{' '}
-                {user?.email ?? 'your account'}.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handlePasswordReset()}
-                disabled={isSendingReset || !user?.email}
-              >
-                {isSendingReset && <Loader2 className="h-4 w-4 animate-spin" />}
-                Email password link
-              </Button>
-              {passwordResetSent && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  If the address is eligible, a password link is on its way.
-                </p>
-              )}
-            </div>
-
-            {isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading passkeys...
-              </div>
-            ) : hasBetterAuthSession && passkeys.length > 0 ? (
-              <ul className="space-y-2" aria-label="Registered passkeys">
-                {passkeys.map((passkey) => (
-                  <li
-                    key={passkey.id}
-                    className="flex items-center gap-2 rounded-md border p-3"
-                  >
-                    <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
-                    {editingId === passkey.id ? (
-                      <>
-                        <Input
-                          aria-label="Passkey name"
-                          value={editingName}
-                          onChange={(event) => setEditingName(event.target.value)}
-                          maxLength={80}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => void handleRename(passkey.id)}
-                          disabled={pendingId === passkey.id || !editingName.trim()}
-                        >
-                          Save
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {passkey.name}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Rename ${passkey.name}`}
-                          onClick={() => {
-                            setEditingId(passkey.id);
-                            setEditingName(passkey.name ?? '');
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Remove ${passkey.name}`}
-                          title={
-                            passkeys.length <= 1
-                              ? 'Keep at least one passkey on your account'
-                              : undefined
-                          }
-                          disabled={passkeys.length <= 1 || pendingId === passkey.id}
-                          onClick={() => void handleDelete(passkey)}
-                        >
-                          {pendingId === passkey.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : hasBetterAuthSession ? (
-              <p className="text-sm text-muted-foreground">
-                No passkeys are registered yet.
-              </p>
-            ) : passkeyEnrolmentEnabled ? (
-              <p className="text-sm text-muted-foreground">
-                Add a passkey as another sign-in method for this MatMetrics
-                account.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Passkey enrolment is currently disabled.
-              </p>
-            )}
-
-            {passkeyEnrolmentEnabled && hasBetterAuthSession ? (
-              <div className="space-y-2">
-                <Label htmlFor="new-passkey-name">Name for the new passkey</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="new-passkey-name"
-                    value={newName}
-                    onChange={(event) => setNewName(event.target.value)}
-                    placeholder="e.g. iPhone or YubiKey"
-                    maxLength={80}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void handleAdd()}
-                    disabled={pendingId === 'new'}
-                  >
-                    {pendingId === 'new' ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                    <span className="sr-only sm:not-sr-only">Add</span>
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
-            {passkeys.length === 1 && hasBetterAuthSession ? (
-              <p className="text-xs text-muted-foreground">
-                Keep this passkey until another one has been added and tested.
-              </p>
-            ) : null}
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            ) : null}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    <PasskeyManagementDialogView
+      open={open}
+      onOpenChange={onOpenChange}
+      betterAuthConfigured={betterAuthConfigured}
+      passkeyEnrolmentEnabled={passkeyEnrolmentEnabled}
+      hasBetterAuthSession={hasBetterAuthSession}
+      userEmail={user?.email ?? undefined}
+      userEmailVerified={!!user?.emailVerified}
+      passkeys={passkeys}
+      newName={newName}
+      setNewName={setNewName}
+      editingId={editingId}
+      editingName={editingName}
+      setEditingName={setEditingName}
+      pendingId={pendingId}
+      isLoading={isLoading}
+      isSendingReset={isSendingReset}
+      passwordResetSent={passwordResetSent}
+      isSendingVerification={isSendingVerification}
+      verificationSent={verificationSent}
+      error={error}
+      onAdd={() => void handleAdd()}
+      onPasswordReset={() => void handlePasswordReset()}
+      onEmailVerification={() => void handleEmailVerification()}
+      onBeginRename={(passkey) => {
+        setEditingId(passkey.id);
+        setEditingName(passkey.name ?? '');
+      }}
+      onRename={(id) => void handleRename(id)}
+      onDelete={(passkey) => void handleDelete(passkey)}
+    />
   );
 }

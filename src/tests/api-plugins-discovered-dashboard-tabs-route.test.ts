@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
+import { dynamic } from '@/app/api/[...path]/route';
 
 // biome-ignore lint/security/noCommonJs: Test runtime exposes Next route modules through CommonJS interop.
 const routeModule =
@@ -8,7 +9,7 @@ const routeModule =
 // biome-ignore lint/security/noCommonJs: Test runtime exposes server-only modules through CommonJS interop.
 const stateModule =
   require('@/lib/plugins/state.server') as typeof import('@/lib/plugins/state.server');
-const { GET: DISCOVER_DASHBOARD_TABS, dynamic } = routeModule;
+const { GET: DISCOVER_DASHBOARD_TABS } = routeModule;
 const { persistPluginEnabledOverride, resetPluginEnabledOverridesForTests } =
   stateModule;
 
