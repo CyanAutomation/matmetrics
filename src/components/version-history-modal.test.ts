@@ -66,7 +66,9 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-afterEach(cleanup);
+afterEach(async () => {
+  await React.act(async () => cleanup());
+});
 after(() => {
   cleanup();
   dom.window.close();
@@ -96,21 +98,23 @@ test('VersionHistoryModal shows release content after a successful fetch', async
       'Loading recent releases...'
     );
 
-    response.resolve({
-      ok: true,
-      json: async () => ({
-        currentVersion: '1.2.3',
-        releases: [
-          {
-            version: '1.2.3',
-            date: '2026-03-30',
-            sections: [
-              { label: 'Fixes', items: ['Resolved loading state race'] },
-            ],
-          },
-        ],
-      }),
-    } as Response);
+    await React.act(async () => {
+      response.resolve({
+        ok: true,
+        json: async () => ({
+          currentVersion: '1.2.3',
+          releases: [
+            {
+              version: '1.2.3',
+              date: '2026-03-30',
+              sections: [
+                { label: 'Fixes', items: ['Resolved loading state race'] },
+              ],
+            },
+          ],
+        }),
+      } as Response);
+    });
 
     assert.equal(
       (await view.findByText('Resolved loading state race')).textContent,
@@ -145,7 +149,9 @@ test(
         'Loading recent releases...'
       );
 
-      response.reject(new Error('Network unavailable'));
+      await React.act(async () => {
+        response.reject(new Error('Network unavailable'));
+      });
 
       const error = await view.findByText(/Unable to load release history\./);
       assert.match(error.textContent ?? '', /Network unavailable/);
@@ -156,3 +162,31 @@ test(
     }
   }
 );
+
+test('VersionHistoryModal ignores a response that arrives after unmount', async () => {
+  const response = createDeferred<Response>();
+  const originalFetch = globalThis.fetch;
+  let responseBodyReads = 0;
+  globalThis.fetch = (() => response.promise) as typeof fetch;
+  try {
+    const view = render(React.createElement(VersionHistoryModal, {
+      open: true,
+      onOpenChange: () => undefined,
+      disableDialogWrapper: true,
+    }));
+    view.unmount();
+    await React.act(async () => {
+      response.resolve({
+        ok: true,
+        json: async () => {
+          responseBodyReads += 1;
+          return { currentVersion: '1.2.3', releases: [] };
+        },
+      } as Response);
+    });
+    assert.equal(responseBodyReads, 0);
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});
