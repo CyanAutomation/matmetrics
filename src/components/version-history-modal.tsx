@@ -60,8 +60,11 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
           cache: 'no-store',
           signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         const payload = (await response.json()) as
           RecentReleasesResponse | ReleaseHistoryErrorResponse;
+
+        if (controller.signal.aborted) return;
 
         if (!response.ok) {
           if (isReleaseHistoryErrorResponse(payload)) {
@@ -77,6 +80,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         }
         setReleases(payload.releases);
       } catch (fetchError) {
+        if (controller.signal.aborted) return;
         if (
           fetchError instanceof DOMException &&
           fetchError.name === 'AbortError'
@@ -90,7 +94,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
             : 'Unable to load release history.'
         );
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
