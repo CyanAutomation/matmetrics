@@ -167,14 +167,22 @@ test('VersionHistoryModal ignores a response that arrives after unmount', async 
   const response = createDeferred<Response>();
   const originalFetch = globalThis.fetch;
   let responseBodyReads = 0;
-  globalThis.fetch = (() => response.promise) as typeof fetch;
+  let requestSignal: AbortSignal | undefined;
+  globalThis.fetch = ((_input, init) => {
+    requestSignal = init?.signal ?? undefined;
+    return response.promise;
+  }) as typeof fetch;
   try {
     const view = render(React.createElement(VersionHistoryModal, {
       open: true,
       onOpenChange: () => undefined,
       disableDialogWrapper: true,
     }));
+    await React.act(async () => {});
+    assert.ok(requestSignal, 'fetch must start before unmount');
+    assert.equal(requestSignal.aborted, false);
     view.unmount();
+    assert.equal(requestSignal.aborted, true);
     await React.act(async () => {
       response.resolve({
         ok: true,
