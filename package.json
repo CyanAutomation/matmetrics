@@ -18,7 +18,7 @@
     "lint": "npm run validate:plugin-ui-contract && eslint .",
     "validate:skills": "node --import tsx scripts/validate-skill-metadata.ts",
     "test:skills": "node --import tsx --test scripts/validate-skill-metadata.test.ts",
-    "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false",
+    "typecheck": "rm -rf .next/types .next/dev/types tsconfig.tsbuildinfo && next typegen && mkdir -p .next/types && printf 'export {};\n' > .next/types/cache-life.d.ts && tsc --noEmit --incremental false",
     "test": "npm run validate:plugin-ui-contract && node scripts/check-tsx-availability.cjs && NODE_ENV=test node --experimental-test-module-mocks --import tsx --test src/lib/sync-queue.test.ts && npm run test:styles",
     "test:styles": "NODE_ENV=test node --test src/app/globals.css.test.mjs",
     "test:auth:preflight": "node --test scripts/better-auth-production-preflight.test.mjs",
