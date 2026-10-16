@@ -467,10 +467,10 @@ async function authenticate(
   )
     return { error: 'Expired signature' } as unknown as Response;
   const expected = await expectedSignature(
-    env.MATMETRICS_INTERNAL_API_SECRET,
+    env.MATMETRICS_INTERNAL_API_SECRET.trim(),
     timestamp,
     request.method,
-    new URL(request.url).pathname,
+    `${new URL(request.url).pathname}${new URL(request.url).search}`,
     body
   );
   if (!timingSafeEqual(authorization.slice(7), expected))
@@ -1151,6 +1151,87 @@ test('authenticate - returns userId on valid request', async () => {
 
   const result = await authenticate(request, env, body);
   assert.deepEqual(result, { userId });
+});
+
+test('authenticate - verifies the request query string', async () => {
+  const env = createMockEnv();
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const userId = 'user-123';
+  const signedPath = '/v1/preferences?scope=app';
+  const signature = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    timestamp,
+    'GET',
+    signedPath,
+    ''
+  );
+  const request = new MockRequest({
+    url: `https://api.example.com${signedPath}`,
+    method: 'GET',
+    headers: {
+      'X-Matmetrics-Timestamp': timestamp,
+      'X-Matmetrics-User-Id': userId,
+      Authorization: `Bearer ${signature}`,
+    },
+    body: '',
+  });
+
+  assert.deepEqual(await authenticate(request, env, ''), { userId });
+});
+
+test('authenticate - rejects a query string not covered by the signature', async () => {
+  const env = createMockEnv();
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const userId = 'user-123';
+  const signature = await expectedSignature(
+    env.MATMETRICS_INTERNAL_API_SECRET,
+    timestamp,
+    'GET',
+    '/v1/preferences',
+    ''
+  );
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences?scope=app',
+    method: 'GET',
+    headers: {
+      'X-Matmetrics-Timestamp': timestamp,
+      'X-Matmetrics-User-Id': userId,
+      Authorization: `Bearer ${signature}`,
+    },
+    body: '',
+  });
+
+  assert.deepEqual(await authenticate(request, env, ''), {
+    error: 'Unauthorized',
+  });
+});
+
+test('authenticate - trims whitespace around the shared secret', async () => {
+  const secret = 'test-secret-key';
+  const env = createMockEnv({
+    MATMETRICS_INTERNAL_API_SECRET: ` ${secret} `,
+  });
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const userId = 'user-123';
+  const signature = await expectedSignature(
+    secret,
+    timestamp,
+    'GET',
+    '/v1/preferences',
+    ''
+  );
+  const request = new MockRequest({
+    url: 'https://api.example.com/v1/preferences',
+    method: 'GET',
+    headers: {
+      'X-Matmetrics-Timestamp': timestamp,
+      'X-Matmetrics-User-Id': userId,
+      Authorization: `Bearer ${signature}`,
+    },
+    body: '',
+  });
+
+  assert.deepEqual(await authenticate(request, env, ''), { userId });
 });
 
 test('authenticate - returns 401 when Authorization header missing', async () => {
