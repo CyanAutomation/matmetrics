@@ -55,5 +55,5 @@ the canonical MatMetrics user ID.
 Invalid credentials receive HTTP 401, missing verifier configuration receives
 HTTP 500, and JWKS fetch failures receive HTTP 503. The test-token bypass is
 enabled only when both `MATMETRICS_AUTH_TEST_MODE=true` and `NODE_ENV=test` are
-set. Firebase Admin/Firestore remains in the Next.js application only for its
-existing preference fallback; it is not used by Go authentication.
+set. Preferences and plugin overrides are stored in D1 through the signed
+Cloudflare data Worker; Firebase is not used by the Go API.

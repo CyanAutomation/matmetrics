@@ -40,7 +40,7 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
 
 1. Ensure runtime dependencies are present before opening the UI:
    - Better Auth Worker and same-origin `/api/auth/*` rewrite configuration
-   - Firebase Admin configuration only if the Firestore preferences fallback is in use
+   - Cloudflare data Worker URL and signing secret for preference persistence
    - `GITHUB_TOKEN` with repository write permissions
 2. Start local app runtime:
 
@@ -65,7 +65,7 @@ The GitHub Sync plugin adds an operational dashboard tab that lets authenticated
   - Used by server-side GitHub API calls.
   - If repository access is not configured, validation/sync endpoints return `503` and explain that GitHub features are unavailable for this deployment.
   - Expired tokens return an authorization message asking the user to check the repository connection.
-- Firebase Admin configuration (only when using the Firestore preference fallback)
+- Cloudflare data Worker configuration for preference persistence
   - Used to read stored user preferences; it does not verify authentication tokens.
 - Optional auth test mode variables (for automated tests only):
   - `MATMETRICS_AUTH_TEST_MODE`
@@ -202,7 +202,7 @@ Symptoms:
 Fix:
 
 - Ensure the Better Auth Worker and frontend flags are configured.
-- Configure the Firestore service account only if the preference fallback is in use.
+- Configure the signed Cloudflare data Worker for D1-backed preferences.
 - Sign in with a password or passkey.
 
 ### Invalid repository settings

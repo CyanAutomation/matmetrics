@@ -105,7 +105,10 @@ test('missing data Worker endpoint or secret is reported as unconfigured', async
         method: 'GET',
         userId: 'user-1',
       }),
-      /Cloudflare data Worker is not configured/
+      (error: unknown) =>
+        error instanceof DataWorkerError &&
+        error.status === 503 &&
+        error.category === 'configuration'
     );
   } finally {
     globalThis.fetch = originalFetch;

@@ -2,11 +2,10 @@
 
 ## Scope
 
-This migration moves user preferences and plugin overrides to D1, with
-Firestore retained as a server-side fallback. Better Auth is the sole
-authentication provider; Firebase Auth client sign-in and token verification
-have been removed. Session records remain GitHub-backed Markdown files (with
-their existing local fallback) and are deliberately out of scope.
+User preferences and plugin overrides use D1 through the signed data Worker.
+There is no Firestore runtime fallback. Better Auth is the sole authentication
+provider. Session records remain GitHub-backed Markdown files (with their
+existing local fallback) and are deliberately out of scope.
 
 ## Architecture
 
@@ -40,8 +39,9 @@ administrative REST API from Vercel.
 4. Set the same randomly generated `MATMETRICS_INTERNAL_API_SECRET` as a
    Cloudflare Worker secret and a Vercel server-only environment variable.
 5. Set `CLOUDFLARE_DATA_WORKER_URL` in Vercel to the deployed Worker URL.
-6. Deploy the Next.js application. Until both variables are present, it retains
-   the Firestore server-side fallback, which permits a controlled cutover.
+6. Deploy the Next.js application only after D1 data import and verification
+   are complete. The application requires these Worker settings for preference
+   and plugin state operations.
 
 The incremental Better Auth passkey Worker shares the environment's D1 database
 but owns a separate native D1 binding for auth reads and writes. Its additive
@@ -77,16 +77,24 @@ not queue consumers.
 
 ## Data Migration and Cutover
 
-1. Export `users/{uid}/preferences/app` from Firestore.
-2. Normalize every exported document using the application's preference
-   normalization logic, then import one D1 row per user with `revision = 0`.
-3. Compare user counts and a sampled set of normalized documents.
-4. Deploy with D1 variables enabled; exercise preference reads/writes and
-   plugin changes for a test account.
-5. Keep Firestore credentials and data untouched through a rollback window.
-6. After the rollback window and a separate preference migration, remove the
-   Firebase Admin SDK and service-account variable if no Firestore fallback
-   remains.
+1. Before deploying the D1-only application, export each user's
+   `users/{uid}/preferences/app` and `users/{uid}/app/pluginConfig` documents.
+2. Normalize preferences using the application's preference normalization
+   logic. Import one `user_preferences` row per user with `revision = 0`, and
+   one `plugin_enabled_overrides` row per `(user_id, plugin_id)` override.
+3. Do not import a legacy global plugin configuration as a global setting.
+   If global defaults are wanted, make that a product decision and apply them
+   per user explicitly.
+4. Compare source and destination user/override counts and sampled normalized
+   values. Record the results and create a D1 recovery point.
+5. Set the D1 Worker URL and signing secret in every Vercel environment, then
+   exercise preference reads/writes and plugin changes with representative
+   accounts before deploying the application.
+6. Keep Firestore data and credentials available through the agreed rollback
+   window. Do not deploy this D1-only application until import and validation
+   are confirmed.
+7. After the rollback window, revoke the Firestore service account and disable
+   or delete unused Firebase products in the provider console.
 
 Plugin overrides are now per user: `(user_id, plugin_id)` is the primary key.
 The prior global Firestore document must not be imported as a global setting.
@@ -95,7 +103,8 @@ login through an explicit product decision.
 
 ## Rollback
 
-Remove `CLOUDFLARE_DATA_WORKER_URL` from Vercel and redeploy. The application
-falls back to its server-side Firestore preference store. Before schema or bulk
-data changes, create a D1 recovery point; D1 Time Travel provides the recovery
-mechanism for current databases.
+Restore the previous application deployment while Firestore credentials and
+data remain intact. Do not remove the D1 Worker configuration as a rollback
+mechanism: the current application has no Firestore fallback. Before schema or
+bulk data changes, create a D1 recovery point; D1 Time Travel provides the
+recovery mechanism for current databases.

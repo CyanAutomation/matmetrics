@@ -2,8 +2,8 @@
 
 This Cloudflare Worker hosts Better Auth for email/password and passkey sign-in.
 It binds directly to the existing D1 auth tables. The data Worker remains the
-owner of D1 migration history. Firebase Auth is no longer used; Firebase Admin
-and Firestore remain in Next.js as the preferences and plugin-state fallback.
+owner of D1 migration history. Preferences and plugin overrides are stored in
+D1 through the signed data Worker.
 
 The Next.js app exposes the Worker through a same-origin `/api/auth/*` rewrite.
 The browser keeps a host-only Better Auth session cookie on the MatMetrics
@@ -111,11 +111,10 @@ npx wrangler deploy --env production
 The maintainer confirmed the deployed Worker has its Resend configuration and
 secrets, and verified email verification, password reset by email,
 username/password sign-in, and passkey sign-in. D1 migration
-`0006_retire_firebase_auth.sql` has also been applied and verified. Disabling
-Firebase Auth in the Firebase project is the remaining project-level action;
-this session did not have Firebase project-admin access to perform it. Keep the
-Firebase Admin/Firestore fallback in use until the separate Firestore
-migration is complete.
+`0006_retire_firebase_auth.sql` has also been applied and verified. Confirm the
+Firestore preference and plugin override import into D1 before deploying any
+version of the application that requires the D1-only data path. Retire unused
+Firebase products and credentials after the rollback window.
 
 See [`../../docs/better-auth-passkey-migration.md`](../../docs/better-auth-passkey-migration.md)
 for the deployment and post-deploy checklist.

@@ -48,7 +48,11 @@ export async function requestDataWorker<T>(
   const configuredSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
   const secret = configuredSecret?.trim() ? configuredSecret : undefined;
   if (!baseUrl || !secret) {
-    throw new Error('Cloudflare data Worker is not configured');
+    throw new DataWorkerError(
+      'The background data service is not configured. Please contact the site administrator.',
+      503,
+      'configuration'
+    );
   }
 
   let url: URL;

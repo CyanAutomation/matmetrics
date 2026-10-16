@@ -129,7 +129,7 @@ Because this feature is auth- and backend-dependent, verify in a running app (`n
    - Confirm success toast and temporary `Saved!` button state.
    - Reload app and confirm saved prompt persists.
 3. **Save/Reset failure handling**
-   - Simulate backend write failure (e.g., unavailable Firestore rules/network failure in dev tools or emulator).
+   - Simulate a backend write failure (e.g., data Worker unavailable in dev tools).
    - Confirm error handling is surfaced (toast/logs/UI behavior) and app remains usable.
 4. **Reset confirmation**
    - With a customized prompt, click **Reset to Default**.
@@ -138,5 +138,5 @@ Because this feature is auth- and backend-dependent, verify in a running app (`n
 ## Known Limitations and Dependencies
 
 - **Authentication dependency**: prompt persistence requires a signed-in user; without auth, prompt settings are read-only/unavailable.
-- **Preferences backend dependency**: save/reset depend on user-preferences persistence (`saveTransformerPromptPreference`, `resetTransformerPromptPreference`) and backing Firebase/Firestore availability.
+- **Preferences backend dependency**: save/reset depend on user-preferences persistence (`saveTransformerPromptPreference`, `resetTransformerPromptPreference`) and the Cloudflare data Worker/D1 availability.
 - **Operational caveat**: manual failure-path testing currently requires environment simulation (auth disabled, network or backend faults) rather than a dedicated in-app fault injector.
