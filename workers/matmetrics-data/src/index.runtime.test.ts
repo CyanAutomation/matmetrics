@@ -84,12 +84,15 @@ class WorkerTestQueue {
   }
 }
 
-function createEnv(database = new WorkerTestDatabase()) {
+function createEnv(
+  database = new WorkerTestDatabase(),
+  secret = INTERNAL_SECRET
+) {
   const queue = new WorkerTestQueue();
   const env = {
     DB: database,
     BACKGROUND_JOBS: queue,
-    MATMETRICS_INTERNAL_API_SECRET: INTERNAL_SECRET,
+    MATMETRICS_INTERNAL_API_SECRET: secret,
     MATMETRICS_BACKGROUND_EXECUTOR_URL: 'https://executor.example.test',
     MATMETRICS_BACKGROUND_EXECUTOR_SECRET: 'executor-secret',
   } as unknown as Env;
@@ -116,7 +119,8 @@ function makeJob(overrides: Partial<TestJob> = {}): TestJob {
 async function signedHeaders(
   method: string,
   path: string,
-  body: string
+  body: string,
+  secret = INTERNAL_SECRET
 ): Promise<Headers> {
   const timestamp = String(Math.floor(Date.now() / 1000));
   const encoder = new TextEncoder();
@@ -127,7 +131,7 @@ async function signedHeaders(
     .join('');
   const key = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(INTERNAL_SECRET),
+    encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -172,6 +176,32 @@ test('worker.fetch routes a signed preferences read through the production handl
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.deepEqual(await response.json(), { preferences: null, revision: 0 });
+});
+
+test('worker.fetch accepts matching query signatures and trims its shared secret', async () => {
+  const { env } = createEnv(new WorkerTestDatabase(), ` ${INTERNAL_SECRET} `);
+  const path = '/v1/preferences?scope=app';
+  const headers = await signedHeaders('GET', path, '');
+  const response = await worker.fetch(
+    new Request(`https://worker.example.test${path}`, { headers }),
+    env
+  );
+
+  assert.equal(response.status, 200);
+});
+
+test('worker.fetch requires the query string to match the signed request path', async () => {
+  const { env } = createEnv();
+  const headers = await signedHeaders('GET', '/v1/preferences', '');
+  const response = await worker.fetch(
+    new Request('https://worker.example.test/v1/preferences?scope=app', {
+      headers,
+    }),
+    env
+  );
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: 'Unauthorized' });
 });
 
 test('worker.fetch validates signed job creation payloads before enqueueing', async () => {
