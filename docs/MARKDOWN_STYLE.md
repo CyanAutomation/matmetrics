@@ -209,7 +209,7 @@ Use these terms consistently across all documentation:
 - **plugin** — Extension system component (not "module" or "extension")
 - **dashboard** or **tab** — UI component for displaying content
 - **UI contract** — Interface specification for plugins
-- **storage layer** — Data persistence mechanism (GitHub, local, Firebase)
+- **storage layer** — Data persistence mechanism (GitHub, local, Cloudflare D1)
 - **flow** — Genkit AI flow for task automation
 
 ### Terminology Examples

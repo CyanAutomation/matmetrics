@@ -6,8 +6,8 @@ The application now uses Better Auth for password and passkey authentication.
 Email verification and password recovery use Resend from the Cloudflare auth
 Worker. Signup is gated off by default. Firebase Auth client code, account
 linking, Firebase ID token verification, and Go Firebase verification have
-been removed. Firebase Admin/Firestore remains for preference and plugin-state
-fallback storage.
+been removed. User preferences and plugin state are stored in D1 through the
+signed Cloudflare data Worker.
 
 The worker integration suite covers signup gating, email verification before
 password sign-in, generic duplicate/recovery responses, first-password setup
@@ -42,13 +42,14 @@ IP with other users, so the Worker limit is only a coarse safeguard for
 browser traffic. A rate-limit binding failure returns HTTP 503. Do not trust
 forwarded client-IP headers at the Worker boundary.
 
-## Firebase scope
+## Former Firebase scope
 
 Firebase Auth is no longer part of the application runtime, and the Go API
 accepts only Better Auth EdDSA service JWTs outside test mode. The D1 schema and
 legacy registration metadata have also been retired. Disabling Firebase Auth
 in the Firebase project is the remaining project-level operation; it has not
 been performed or verified here because this session has no Firebase project
-admin access. Firebase Admin and Firestore remain configured for the existing
-fallback data path. Remove that service account only after a separate Firestore
-migration and rollback window.
+admin access. Firebase Admin and Firestore have been removed from application
+runtime code. Verify the preference and plugin override data import to D1
+before deploying the D1-only application. Disable or delete unused Firebase
+products and revoke credentials after the rollback window.

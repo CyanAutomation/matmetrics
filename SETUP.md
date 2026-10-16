@@ -6,8 +6,6 @@
 - A GitHub token for GitHub-backed session storage
 - Cloudflare Workers and D1 for Better Auth and preference APIs
 - A Resend account with a verified sending domain
-- Firebase Admin credentials only while the Firestore preference/plugin-state
-  fallback remains in use
 
 ## Local development
 
@@ -17,10 +15,9 @@ Copy the environment template and add the server-side integrations you use:
 cp .env.example .env.local
 ```
 
-Set `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, and the Better Auth Worker URL and
-JWT settings. For local Firestore fallback, set
-`FIREBASE_SERVICE_ACCOUNT_KEY` to the service-account JSON on one line. That
-credential is server-only and is unrelated to authentication.
+Set `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, the Cloudflare data Worker URL and
+signing secret, and the Better Auth Worker URL and JWT settings. Preference and
+plugin state require the data Worker; there is no Firestore fallback.
 
 Apply the existing D1 schema through the data Worker migration owner, then
 start the data Worker, auth Worker, and Next.js app:
@@ -78,14 +75,11 @@ Only after those checks pass should public signup be opened by setting both
 build. Add Vercel Firewall rate limits for sign-in, signup, verification, and
 password recovery endpoints before launch.
 
-Firebase Auth is no longer used by MatMetrics code, and D1 migration `0006`
-removed its legacy identity mapping and registration metadata. The maintainer
-confirmed the deployed Better Auth email verification, password reset,
-username/password sign-in, and passkey sign-in flows. Disabling Firebase Auth
-in the Firebase project remains a separate project-level action; this session
-did not have project-admin access to perform or verify it. Keep Firebase Admin
-and its service account for the Firestore fallback until that data path is
-migrated separately.
+Firebase Auth and Firestore are no longer used by MatMetrics runtime code.
+Before deploying this cutover, verify the production Firestore preference and
+plugin override data has been imported into D1 and validated. Remove the old
+Firebase service account and disable or delete unused Firebase products only
+after that data check and the rollback window are complete.
 
 ## Other setup
 
