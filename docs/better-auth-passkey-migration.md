@@ -6,8 +6,8 @@ Better Auth is MatMetrics' sole authentication provider. It supports verified
 email/password accounts and passkeys on the same account. Password signup is
 disabled by default while the existing account is migrated and checked.
 Firebase Auth client sign-in, linking, and Firebase ID token verification have
-been removed. Firebase Admin and Firestore remain as the existing preferences
-and plugin-state fallback.
+been removed. Preferences and plugin overrides use D1 through the signed data
+Worker; no Firebase runtime fallback remains.
 
 The Better Auth Worker uses the existing D1 schema and canonical MatMetrics user
 IDs. Existing passkey account IDs remain unchanged. First-password setup uses
@@ -91,10 +91,12 @@ Vercel egress IPs and the Worker IP limiter is a coarse guard.
 
 ## Firebase retirement
 
-Firebase Auth has been removed from the application runtime and D1 schema.
+Firebase Auth has been removed from the application runtime and D1 schema, and
+Firebase Admin/Firestore have been removed from the application runtime.
 The maintainer verified the existing account's email verification, password
 reset, password sign-in, and passkey sign-in in production. The only remaining
 Firebase Auth retirement action is disabling Firebase Auth in the Firebase
 project; this session did not have project-admin access to perform or verify
-that setting. Keep Firebase Admin and its service-account configuration for
-the Firestore fallback until the separate Firestore data migration is complete.
+that setting. Before deploying the D1-only application, confirm that Firestore
+preferences and per-user plugin overrides have been exported, imported to D1,
+and reconciled. Keep the old data and credentials through the rollback window.

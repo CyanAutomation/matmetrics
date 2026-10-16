@@ -1,15 +1,6 @@
-import {
-  isDataWorkerConfigured,
-  requestDataWorker,
-} from '@/lib/data-worker-client.server';
-import {
-  getFirebaseAdminDb,
-  isFirebaseAdminConfigured,
-} from '@/lib/firebase-admin';
+import { requestDataWorker } from '@/lib/data-worker-client.server';
 export type PluginEnabledOverrides = Record<string, boolean>;
 
-const PLUGIN_CONFIG_COLLECTION = 'app';
-const PLUGIN_CONFIG_DOCUMENT = 'pluginConfig';
 const TEST_PLUGIN_ENABLED_OVERRIDES = new Map<string, PluginEnabledOverrides>();
 
 const isTestMode = (): boolean =>
@@ -63,30 +54,10 @@ export const loadPluginEnabledOverrides = async (
     return { ...(TEST_PLUGIN_ENABLED_OVERRIDES.get(uid) ?? {}) };
   }
 
-  if (isDataWorkerConfigured()) {
-    const payload = await requestDataWorker<{
-      overrides: PluginEnabledOverrides;
-    }>('/v1/plugin-overrides', { method: 'GET', userId: uid });
-    return normalizePluginEnabledOverrides(payload.overrides);
-  }
-
-  if (!isFirebaseAdminConfigured()) {
-    return {};
-  }
-
-  const snapshot = await getFirebaseAdminDb()
-    .collection('users')
-    .doc(uid)
-    .collection(PLUGIN_CONFIG_COLLECTION)
-    .doc(PLUGIN_CONFIG_DOCUMENT)
-    .get();
-
-  if (!snapshot.exists) {
-    return {};
-  }
-
-  const data = snapshot.data();
-  return normalizePluginEnabledOverrides(data?.enabledOverrides);
+  const payload = await requestDataWorker<{
+    overrides: PluginEnabledOverrides;
+  }>('/v1/plugin-overrides', { method: 'GET', userId: uid });
+  return normalizePluginEnabledOverrides(payload.overrides);
 };
 
 export const persistPluginEnabledOverride = async (
@@ -102,34 +73,11 @@ export const persistPluginEnabledOverride = async (
     return;
   }
 
-  if (isDataWorkerConfigured()) {
-    await requestDataWorker('/v1/plugin-overrides', {
-      method: 'PUT',
-      userId: uid,
-      body: { pluginId, enabled },
-    });
-    return;
-  }
-
-  if (!isFirebaseAdminConfigured()) {
-    throw new Error(
-      'Plugin state persistence is unavailable because Firebase admin is not configured.'
-    );
-  }
-
-  await getFirebaseAdminDb()
-    .collection('users')
-    .doc(uid)
-    .collection(PLUGIN_CONFIG_COLLECTION)
-    .doc(PLUGIN_CONFIG_DOCUMENT)
-    .set(
-      {
-        enabledOverrides: {
-          [pluginId]: enabled,
-        },
-      },
-      { merge: true }
-    );
+  await requestDataWorker('/v1/plugin-overrides', {
+    method: 'PUT',
+    userId: uid,
+    body: { pluginId, enabled },
+  });
 };
 
 export const resetPluginEnabledOverridesForTests = (): void => {

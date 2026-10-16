@@ -45,10 +45,14 @@ export async function requestDataWorker<T>(
   }
 ): Promise<T> {
   const baseUrl = process.env.CLOUDFLARE_DATA_WORKER_URL?.trim();
-  const configuredSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
-  const secret = configuredSecret?.trim() ? configuredSecret : undefined;
+  const secret =
+    process.env.MATMETRICS_INTERNAL_API_SECRET?.trim() || undefined;
   if (!baseUrl || !secret) {
-    throw new Error('Cloudflare data Worker is not configured');
+    throw new DataWorkerError(
+      'The background data service is not configured. Please contact the site administrator.',
+      503,
+      'configuration'
+    );
   }
 
   let url: URL;
@@ -82,7 +86,13 @@ export async function requestDataWorker<T>(
     response = await fetch(url, {
       method: options.method,
       headers: {
-        Authorization: `Bearer ${createDataWorkerSignature(secret, timestamp, options.method, url.pathname, body)}`,
+        Authorization: `Bearer ${createDataWorkerSignature(
+          secret,
+          timestamp,
+          options.method,
+          `${url.pathname}${url.search}`,
+          body
+        )}`,
         'Content-Type': 'application/json',
         'X-Matmetrics-Timestamp': timestamp,
         'X-Matmetrics-User-Id': options.userId,

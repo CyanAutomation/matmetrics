@@ -40,7 +40,7 @@ See [docs/go-contract.md](./docs/go-contract.md) for the complete contract and e
 
 - Primary: GitHub-backed markdown files in user's repo (synced via `github sync-all` command)
 - Fallback: Local markdown files in `data/YYYY/MM/` (ISO date directory structure)
-- Firebase: User preferences and session metadata (indexed by `uid`)
+- Cloudflare D1: User preferences and plugin overrides, accessed through the signed data Worker
 
 ## Build and Test
 
@@ -138,7 +138,7 @@ Test helper files use `// fallow-ignore file unused-exports` to suppress false p
 
 ### Environment Variables
 
-See [README.md](./README.md) for required variables (GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, Firebase keys, SENTRY_DSN, SENTRY_AUTH_TOKEN). Locally, copy `.env.example` to `.env.local`.
+See [README.md](./README.md) for required variables (GITHUB_TOKEN, Cloudflare Worker settings, SENTRY_DSN, SENTRY_AUTH_TOKEN). Locally, copy `.env.example` to `.env.local`.
 
 ### AI & Cloudflare Gateway
 

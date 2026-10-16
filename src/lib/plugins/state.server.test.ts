@@ -23,14 +23,22 @@ test('persistPluginEnabledOverride stores and loads overrides in auth test mode'
   assert.deepEqual(await loadPluginEnabledOverrides('user-b'), {});
 });
 
-test('persistPluginEnabledOverride rejects when Firestore admin is unavailable outside test mode', async () => {
+test('plugin override writes reject when the D1 data Worker is not configured', async () => {
   const previous = process.env.MATMETRICS_AUTH_TEST_MODE;
+  const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+  const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
   delete process.env.MATMETRICS_AUTH_TEST_MODE;
+  delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+  delete process.env.MATMETRICS_INTERNAL_API_SECRET;
 
   try {
     await assert.rejects(
+      () => loadPluginEnabledOverrides('user-a'),
+      /background data service is not configured/
+    );
+    await assert.rejects(
       () => persistPluginEnabledOverride('user-a', 'tag-manager', false),
-      /Firestore admin is not configured|Plugin state persistence is unavailable/
+      /background data service is not configured/
     );
   } finally {
     if (previous === undefined) {
@@ -38,6 +46,11 @@ test('persistPluginEnabledOverride rejects when Firestore admin is unavailable o
     } else {
       process.env.MATMETRICS_AUTH_TEST_MODE = previous;
     }
+    if (previousUrl === undefined) delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    else process.env.CLOUDFLARE_DATA_WORKER_URL = previousUrl;
+    if (previousSecret === undefined)
+      delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+    else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
   }
 });
 

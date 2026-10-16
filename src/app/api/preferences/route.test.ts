@@ -75,7 +75,6 @@ test('preferences route classifies missing server-side storage without exposing 
   const names = [
     'CLOUDFLARE_DATA_WORKER_URL',
     'MATMETRICS_INTERNAL_API_SECRET',
-    'FIREBASE_SERVICE_ACCOUNT_KEY',
   ] as const;
   const previous = Object.fromEntries(
     names.map((name) => [name, process.env[name]])

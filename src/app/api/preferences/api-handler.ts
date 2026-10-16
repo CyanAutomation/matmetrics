@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DataWorkerError } from '@/lib/data-worker-client.server';
 import {
   loadStoredPreferences,
-  PreferencesStoreConfigurationError,
   saveStoredPreferences,
 } from '@/lib/preferences-store.server';
 import { PREFERENCE_API_ERROR_CODES } from '@/lib/preference-api-errors';
@@ -18,8 +17,7 @@ type PreferencesStore = Pick<
 
 function preferencesFailure(error: unknown): NextResponse {
   if (
-    error instanceof PreferencesStoreConfigurationError ||
-    (error instanceof DataWorkerError && error.category === 'configuration')
+    error instanceof DataWorkerError && error.category === 'configuration'
   ) {
     return NextResponse.json(
       {
