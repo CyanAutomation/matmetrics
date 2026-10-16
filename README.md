@@ -129,8 +129,9 @@ Important credential sources:
 
 | Variable | Where to find it |
 | --- | --- |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase console → Project Settings → Service accounts → Generate new private key (Firestore only) |
 | `CLOUDFLARE_AUTH_WORKER_URL` | Cloudflare dashboard → `matmetrics-auth` Worker URL |
+| `CLOUDFLARE_DATA_WORKER_URL` | Cloudflare dashboard → `matmetrics-data` Worker URL |
+| `MATMETRICS_INTERNAL_API_SECRET` | Shared server-only signing secret for Vercel and the data Worker |
 | `MATMETRICS_AUTH_JWKS_URL` | Same-origin JWKS endpoint, usually `https://<app-origin>/api/auth/jwks` |
 | `MATMETRICS_AUTH_ISSUER` | Public MatMetrics frontend origin used by Better Auth JWTs |
 | `MATMETRICS_AUTH_AUDIENCE` | Better Auth JWT audience; defaults to `matmetrics-api` |
@@ -140,7 +141,7 @@ Important credential sources:
 ### Environment variable behavior
 
 - `.env.local` is intentionally ignored by git and should contain any real local credentials you need. The guest preview does not require this file.
-- Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Firebase Admin remains only for the Firestore preference/plugin-state fallback and requires `FIREBASE_SERVICE_ACCOUNT_KEY`.
+- Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Preferences and plugin overrides use the signed Cloudflare data Worker and D1.
 - `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
 - When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Better Auth is configured.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
@@ -229,10 +230,9 @@ Cloudflare environment:
 
 After deploying the Worker and rewrite, use the reset email for an existing
 passkey account to set its first password. Better Auth preserves that account's
-user ID, passkeys, Firestore preferences, and data ownership, and revokes its
-active sessions after a password reset. Firebase Admin and
-`FIREBASE_SERVICE_ACCOUNT_KEY` remain for the Firestore fallback only; Firebase
-Auth client sign-in and Firebase ID token verification have been removed.
+user ID, passkeys, preferences, and data ownership, and revokes its active
+sessions after a password reset. Firebase Auth client sign-in and Firebase ID
+token verification have been removed.
 
 See [`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md)
 and the [auth rollout and retirement record](docs/better-auth-passkey-migration.md)
@@ -264,7 +264,6 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
 
 3. **Configure Environment Variables**:
    - Configure Better Auth with `CLOUDFLARE_AUTH_WORKER_URL`, `NEXT_PUBLIC_BETTER_AUTH_ENABLED`, the signup/enrollment flags, and the JWKS issuer/audience values listed above.
-   - Add `FIREBASE_SERVICE_ACCOUNT_KEY` with the service account JSON for the Firestore fallback only. Keep it server-only; do not give it a `NEXT_PUBLIC_` prefix.
    - Add the server-side integrations used by your deployment:
      - `GITHUB_TOKEN`: Fine-grained token with repository contents read and write access to each user-configured repository
      - `CLOUDFLARE_API_TOKEN`: Cloudflare API token for AI-assisted suggestions and transforms (get with: `wrangler auth token`)
@@ -272,7 +271,7 @@ Use Node.js 24.x for local development and configure the deployment runtime to N
      - `OPENROUTER_API_KEY`: OpenRouter API key for the optional server-side JEV training check-in
      - `SENTRY_DSN`: Your Sentry DSN for error monitoring
      - `SENTRY_AUTH_TOKEN`: A Sentry auth token for source map uploads
-     - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` when using D1-backed preferences
+     - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` for D1-backed preferences and plugin overrides (required for those features)
      - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` when using the Cloudflare Queues executor
    - Set credentials for Production and for Preview if preview deployments need authenticated features. Keep server credentials server-only.
 

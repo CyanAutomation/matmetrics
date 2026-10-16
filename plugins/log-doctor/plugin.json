@@ -5,7 +5,7 @@
   "description": "Checks training files for data issues and reviews session records for completeness.",
   "maturity": {
     "tier": "silver",
-    "notes": "Silver maturity. Comprehensive plugin with two feature tabs (file validation and session audit), audit rule detection engine with 31 tests, Firebase persistence, rule configuration UI, and full UX state coverage (loading, error, empty, destructive actions).",
+    "notes": "Silver maturity. Comprehensive plugin with two feature tabs (file validation and session audit), audit rule detection engine with 31 tests, persistent rule configuration, and full UX state coverage (loading, error, empty, destructive actions).",
     "lastReviewedAt": "2026-03-29",
     "uxStates": {
       "loading": true,

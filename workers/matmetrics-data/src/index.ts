@@ -96,11 +96,12 @@ async function authenticate(
     Math.abs(Date.now() / 1000 - timestampNumber) > MAX_SIGNATURE_AGE_SECONDS
   )
     return json({ error: 'Expired signature' }, 401);
+  const requestUrl = new URL(request.url);
   const expected = await expectedSignature(
-    env.MATMETRICS_INTERNAL_API_SECRET,
+    env.MATMETRICS_INTERNAL_API_SECRET.trim(),
     timestamp,
     request.method,
-    new URL(request.url).pathname,
+    `${requestUrl.pathname}${requestUrl.search}`,
     body
   );
   if (!timingSafeEqual(authorization.slice(7), expected))

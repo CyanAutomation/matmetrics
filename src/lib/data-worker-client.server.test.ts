@@ -49,6 +49,61 @@ test('data Worker signatures bind the method, path, timestamp, and body', () => 
       '{"preferences":{}}'
     )
   );
+  assert.notEqual(
+    baseline,
+    createDataWorkerSignature(
+      secret,
+      '1700000000',
+      'PUT',
+      '/v1/preferences?scope=app',
+      '{"preferences":{}}'
+    )
+  );
+});
+
+test('data Worker request trims the shared secret and signs the query string', async () => {
+  const originalFetch = globalThis.fetch;
+  const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+  const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+  process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data.example.workers.dev';
+  process.env.MATMETRICS_INTERNAL_API_SECRET = ' test-secret ';
+
+  try {
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      const timestamp = init?.headers instanceof Headers
+        ? init.headers.get('X-Matmetrics-Timestamp')!
+        : (init?.headers as Record<string, string>)['X-Matmetrics-Timestamp'];
+      const authorization = init?.headers instanceof Headers
+        ? init.headers.get('Authorization')
+        : (init?.headers as Record<string, string>)['Authorization'];
+
+      assert.equal(url.search, '?scope=app');
+      assert.equal(
+        authorization,
+        `Bearer ${createDataWorkerSignature(
+          'test-secret',
+          timestamp,
+          'GET',
+          `${url.pathname}${url.search}`,
+          ''
+        )}`
+      );
+      return Response.json({ preferences: null, revision: 0 });
+    }) as typeof fetch;
+
+    await requestDataWorker('/v1/preferences?scope=app', {
+      method: 'GET',
+      userId: 'user-1',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    else process.env.CLOUDFLARE_DATA_WORKER_URL = previousUrl;
+    if (previousSecret === undefined)
+      delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+    else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
+  }
 });
 
 test('data Worker requests set an abort signal for the bounded upstream call', async () => {
@@ -105,7 +160,10 @@ test('missing data Worker endpoint or secret is reported as unconfigured', async
         method: 'GET',
         userId: 'user-1',
       }),
-      /Cloudflare data Worker is not configured/
+      (error: unknown) =>
+        error instanceof DataWorkerError &&
+        error.status === 503 &&
+        error.category === 'configuration'
     );
   } finally {
     globalThis.fetch = originalFetch;

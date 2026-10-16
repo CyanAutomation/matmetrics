@@ -21,11 +21,12 @@
 The auth Worker uses the exact frontend origin and RP ID for WebAuthn. Do not
 allow wildcard preview origins. See the [auth rollout checklist](docs/better-auth-passkey-migration.md).
 
-## Firebase data fallback
+## D1 data cutover and Firebase retirement
 
-Firebase Auth is no longer used by the application. Firebase Admin and Firestore
-remain as a fallback for preferences and plugin state while those records use
-the existing Firestore path. Keep `FIREBASE_SERVICE_ACCOUNT_KEY` server-only
-until that fallback is retired. Firebase project Auth can be disabled only
-after verifying the deployed account migration and checking for other project
-consumers.
+Before deploying the D1-only application, export Firestore preferences and
+per-user plugin overrides, import them into the existing D1 tables, and
+reconcile counts and sampled values. Confirm the data Worker URL and signing
+secret are configured in every Vercel environment and exercise reads and
+writes. Keep the Firestore export and credentials through the rollback window.
+Afterward revoke the service account and disable or delete Firebase products
+only after checking for other project consumers.

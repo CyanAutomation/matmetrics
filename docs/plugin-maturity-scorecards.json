@@ -1,55 +1,55 @@
 {
-  "generatedAt": "2026-08-24T21:45:58.339Z",
+  "cacheKey": "22ccd25c2bd06d26af54b0f25117e1f0250067bbda4f0fb33a924af0664cd4ae",
+  "generatedAt": "2026-10-16T18:54:55.719Z",
   "generator": "scripts/regenerate-plugin-maturity-scorecards.ts",
-  "sourceEntrypoint": "src/app/api/plugins/list/route.ts",
-  "cacheKey": "f3751179a587a37188d5a5c307c71a18d944960a24248b1b32ab6b7bc84686ee",
   "plugins": [
     {
+      "declaredTier": "silver",
       "id": "github-sync",
-      "score": 91,
-      "tier": "silver",
-      "declaredTier": "silver",
+      "manifestEvidenceHash": "05c3133b69f14563b812f907934b7329ef7ed145225139c6cfe3ce6c65fc9036",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "05c3133b69f14563b812f907934b7329ef7ed145225139c6cfe3ce6c65fc9036"
+      "score": 91,
+      "tier": "silver"
     },
     {
+      "declaredTier": "silver",
       "id": "log-doctor",
-      "score": 89,
-      "tier": "silver",
-      "declaredTier": "silver",
+      "manifestEvidenceHash": "0f0778c0dff962e9fd90f2a8b8afff80f0ac741b0b9bdc086791d9e81d523471",
       "manifestLastReviewedAt": "2026-03-29",
-      "manifestEvidenceHash": "cf151f1f67d4f8d5c0b01365476ffa79caf147129c4235c38a4664b9b3728c3a"
+      "score": 89,
+      "tier": "silver"
     },
     {
+      "declaredTier": "silver",
       "id": "prompt-settings",
-      "score": 91,
-      "tier": "silver",
-      "declaredTier": "silver",
+      "manifestEvidenceHash": "de061a16842ff2c610ca16df8bc1b8e04ca103f16e58ed3c46ad7e020d442727",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "de061a16842ff2c610ca16df8bc1b8e04ca103f16e58ed3c46ad7e020d442727"
+      "score": 91,
+      "tier": "silver"
     },
     {
-      "id": "session-types",
-      "score": 75,
-      "tier": "silver",
       "declaredTier": "bronze",
-      "manifestEvidenceHash": "30c4642f87057a29097e542bec12fbe29ee31f90f3f3c9389a5025ef428f0711"
+      "id": "session-types",
+      "manifestEvidenceHash": "30c4642f87057a29097e542bec12fbe29ee31f90f3f3c9389a5025ef428f0711",
+      "score": 75,
+      "tier": "silver"
     },
     {
+      "declaredTier": "silver",
       "id": "tag-manager",
-      "score": 93,
-      "tier": "silver",
-      "declaredTier": "silver",
+      "manifestEvidenceHash": "06865eca30062924f7f22243253be578427c89296cce99a2fde4258501a6f908",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "06865eca30062924f7f22243253be578427c89296cce99a2fde4258501a6f908"
+      "score": 93,
+      "tier": "silver"
     },
     {
-      "id": "video-library",
-      "score": 91,
-      "tier": "silver",
       "declaredTier": "silver",
+      "id": "video-library",
+      "manifestEvidenceHash": "f5d6520ffa8db80b768d388466bd2638f8ef1d44bf1acfd535545ecfd180ebfb",
       "manifestLastReviewedAt": "2026-03-30",
-      "manifestEvidenceHash": "f5d6520ffa8db80b768d388466bd2638f8ef1d44bf1acfd535545ecfd180ebfb"
+      "score": 91,
+      "tier": "silver"
     }
-  ]
+  ],
+  "sourceEntrypoint": "src/app/api/plugins/list/route.ts"
 }

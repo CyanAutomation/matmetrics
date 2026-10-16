@@ -275,7 +275,7 @@ test('view state matrix captures load error, control state, submit state, and em
     {
       name: 'ready with load error while idle',
       preferencesReady: true,
-      preferencesError: new Error('firestore unavailable'),
+      preferencesError: new Error('data service unavailable'),
       isSaving: false,
       isResetting: false,
       prompt: 'Custom prompt',
@@ -290,7 +290,7 @@ test('view state matrix captures load error, control state, submit state, and em
     {
       name: 'ready with load error while saving',
       preferencesReady: true,
-      preferencesError: new Error('firestore unavailable'),
+      preferencesError: new Error('data service unavailable'),
       isSaving: true,
       isResetting: false,
       prompt: 'Custom prompt',
@@ -392,7 +392,7 @@ test('error criterion anchor: error state recover flow retries once and transiti
   const stateBeforeRetry = derivePromptSettingsViewState({
     canSavePreferences: true,
     preferencesReady: true,
-    preferencesError: new Error('firestore unavailable'),
+    preferencesError: new Error('data service unavailable'),
     prompt: 'Custom prompt',
     isSaving: false,
     isResetting: false,
