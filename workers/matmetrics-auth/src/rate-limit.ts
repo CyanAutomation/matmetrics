@@ -5,6 +5,8 @@ const SIGN_IN_ENDPOINT_SUFFIXES = [
   '/passkey/verify-authentication',
   '/sign-in/email',
   '/token',
+  '/keiko-token',
+  '/__internal/keiko-token',
 ] as const;
 
 const REGISTRATION_ENDPOINT_SUFFIXES = [
