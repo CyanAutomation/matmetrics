@@ -17,6 +17,10 @@ import {
   cacheSessionList,
   getCachedSessionList,
 } from '@/lib/session-list-cache.server';
+import {
+  isKeikoCutoverUser,
+  listAllKeikoSessions,
+} from '@/lib/keiko-session-gateway.server';
 
 function createResponseEtag(payload: unknown): string {
   return `"${createHash('sha256').update(JSON.stringify(payload)).digest('hex')}"`;
@@ -221,6 +225,15 @@ export async function GET(request: NextRequest) {
     const user = await requireAuthenticatedUser(request);
     if (user instanceof NextResponse)
       return logAuthenticationRejection(request, user, context.requestId);
+
+    if (isKeikoCutoverUser(user.appUserId)) {
+      const filters = new URLSearchParams();
+      for (const key of ['from', 'to', 'category', 'effort'] as const) {
+        const value = request.nextUrl.searchParams.get(key);
+        if (value !== null) filters.set(key, value);
+      }
+      return listAllKeikoSessions(request, user, filters);
+    }
 
     context.stage = 'repository_authorization';
     const requestedGitHubConfig = normalizeGitHubConfig({
