@@ -107,7 +107,7 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
           authHeaders.get('cookie'),
           '__Secure-better-auth.session_token=session-value'
         );
-        assert.equal(authHeaders.get('authorization'), null);
+        assert.equal(authHeaders.get('authorization'), 'Bearer matmetrics-api-token');
         assert.equal(authHeaders.get('origin'), authOrigin);
         assert.equal(authCall.init?.redirect, 'error');
         assert.deepEqual(JSON.parse(String(authCall.init?.body)), {
@@ -123,6 +123,7 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
       },
       {
         CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+        CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
         KEIKO_API_BASE_URL: keikoUrl,
         MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
         MATMETRICS_AUTH_ISSUER: issuer,
@@ -194,9 +195,32 @@ test('rejects CSRF, missing or ambiguous cookies, and untrusted Auth Worker URLs
           scope: 'sessions:read',
         });
         assert.equal(response.status, 503);
-      }, { CLOUDFLARE_AUTH_WORKER_URL: 'https://attacker.example' });
+      }, {
+        CLOUDFLARE_AUTH_WORKER_URL: 'https://attacker.example',
+        CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
+      });
+      await withEnv(async () => {
+        const request = new NextRequest(`${authOrigin}/api/sessions/list`, {
+          headers: {
+            authorization: 'Bearer valid',
+            cookie,
+            origin: authOrigin,
+            'sec-fetch-site': 'same-origin',
+          },
+        });
+        const response = await forwardSessionRequestToKeiko(request, principal, {
+          path: '/v1/sessions',
+          method: 'GET',
+          scope: 'sessions:read',
+        });
+        assert.equal(response.status, 503);
+      }, {
+        CLOUDFLARE_AUTH_WORKER_URL: 'https://attacker.workers.dev',
+        CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
+      });
     }, {
       CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+      CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
       KEIKO_API_BASE_URL: keikoUrl,
       MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
       MATMETRICS_AUTH_ISSUER: issuer,
@@ -299,6 +323,7 @@ test('fails closed on an identity mismatch and does not call Keiko or expose the
       assert.doesNotMatch(await response.text(), /eyJ/);
     }, {
       CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+      CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
       KEIKO_API_BASE_URL: keikoUrl,
       MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
       MATMETRICS_AUTH_ISSUER: issuer,

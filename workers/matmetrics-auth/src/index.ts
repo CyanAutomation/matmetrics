@@ -25,6 +25,26 @@ const EMAIL_AUTH_ENDPOINT_SUFFIXES = [
   '/send-verification-email',
 ] as const;
 
+async function verifiedMatmetricsBearerUserId(request: Request): Promise<string | null> {
+  const authorization = request.headers.get('authorization');
+  const match = authorization && /^Bearer ([^\s]{1,16384})$/i.exec(authorization.trim());
+  if (!match) return null;
+  try {
+    const verified = await auth.api.verifyJWT({ body: { token: match[1]! } });
+    const payload = verified.payload;
+    if (
+      !payload ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub ||
+      typeof payload.appUserId !== 'string' ||
+      payload.appUserId !== payload.sub
+    ) return null;
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
+
 function emailDeliveryUnavailableResponse(): Response {
   return Response.json(
     {
@@ -169,7 +189,6 @@ async function issueKeikoToken(request: Request): Promise<Response> {
       { status: 403, headers: NO_STORE_HEADERS }
     );
   }
-
   const contentType = request.headers
     .get('content-type')
     ?.split(';', 1)[0]
@@ -183,7 +202,52 @@ async function issueKeikoToken(request: Request): Promise<Response> {
   }
 
   const contentLength = request.headers.get('content-length');
-  if (contentLength && Number(contentLength) > 4096) {
+  if (contentLength !== null && !/^\d+$/.test(contentLength)) {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+  const declaredLength = contentLength === null ? null : Number(contentLength);
+  if (declaredLength !== null && !Number.isSafeInteger(declaredLength)) {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (declaredLength !== null && declaredLength > 4096) {
+    return Response.json(
+      { code: 'PAYLOAD_TOO_LARGE', message: 'Request body exceeds the 4 KiB limit' },
+      { status: 413, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  let bytes: Uint8Array;
+  try {
+    if (!request.body) throw new Error('Missing request body');
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4096) {
+        await reader.cancel().catch(() => {});
+        return Response.json(
+          { code: 'PAYLOAD_TOO_LARGE', message: 'Request body exceeds the 4 KiB limit' },
+          { status: 413, headers: NO_STORE_HEADERS }
+        );
+      }
+      chunks.push(value);
+    }
+    bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  } catch {
     return Response.json(
       { code: 'BAD_REQUEST', message: 'Invalid request' },
       { status: 400, headers: NO_STORE_HEADERS }
@@ -192,7 +256,7 @@ async function issueKeikoToken(request: Request): Promise<Response> {
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
   } catch {
     return Response.json(
       { code: 'BAD_REQUEST', message: 'Invalid request' },
@@ -221,6 +285,20 @@ async function issueKeikoToken(request: Request): Promise<Response> {
     return Response.json(
       { code: 'BAD_REQUEST', message: 'Invalid request' },
       { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const bearerUserId = await verifiedMatmetricsBearerUserId(request);
+  if (!bearerUserId) {
+    return Response.json(
+      { code: 'AUTHENTICATION_REQUIRED', message: 'A valid MatMetrics bearer token is required' },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (body.expectedUserId !== bearerUserId) {
+    return Response.json(
+      { code: 'USER_MISMATCH', message: 'Bearer user does not match the requested user' },
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
