@@ -21,12 +21,14 @@
 The auth Worker uses the exact frontend origin and RP ID for WebAuthn. Do not
 allow wildcard preview origins. See the [auth rollout checklist](docs/better-auth-passkey-migration.md).
 
-## D1 data cutover and Firebase retirement
+## Firebase project retirement
 
-Before deploying the D1-only application, export Firestore preferences and
-per-user plugin overrides, import them into the existing D1 tables, and
-reconcile counts and sampled values. Confirm the data Worker URL and signing
-secret are configured in every Vercel environment and exercise reads and
-writes. Keep the Firestore export and credentials through the rollback window.
-Afterward revoke the service account and disable or delete Firebase products
-only after checking for other project consumers.
+The production data comparison is recorded in
+[`docs/cloudflare-d1-migration.md`](docs/cloudflare-d1-migration.md). D1 already
+contains the newer matching preference state, so do not import the older
+Firestore snapshot over it. Keep the export and D1 Time Travel recovery point
+through the rollback window. Before retirement, check for other Firebase
+project consumers and define how a rollback to any older Firestore-backed
+application would reconcile the newer D1 state. After the window, revoke the
+Firestore service account, disable Firebase Auth, and retire Firestore and any
+other unused Firebase products.

@@ -17,7 +17,7 @@ cp .env.example .env.local
 
 Set `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, the Cloudflare data Worker URL and
 signing secret, and the Better Auth Worker URL and JWT settings. Preference and
-plugin state require the data Worker; there is no Firestore fallback.
+plugin state require the data Worker; there is no secondary preference store.
 
 Apply the existing D1 schema through the data Worker migration owner, then
 start the data Worker, auth Worker, and Next.js app:
@@ -75,11 +75,14 @@ Only after those checks pass should public signup be opened by setting both
 build. Add Vercel Firewall rate limits for sign-in, signup, verification, and
 password recovery endpoints before launch.
 
-Firebase Auth and Firestore are no longer used by MatMetrics runtime code.
-Before deploying this cutover, verify the production Firestore preference and
-plugin override data has been imported into D1 and validated. Remove the old
-Firebase service account and disable or delete unused Firebase products only
-after that data check and the rollback window are complete.
+Firebase and Firestore are no longer part of the MatMetrics runtime. Production
+data reconciliation found one Firestore preference document, no plugin config
+document, one matching D1 preference row, and no D1 plugin overrides. The D1
+row is newer, so it remains authoritative; no import or overwrite was needed.
+See the [D1 migration record](docs/cloudflare-d1-migration.md) for the comparison
+and recovery point. Project retirement still requires checking for other
+consumers and completing the rollback window before revoking credentials or
+deleting products.
 
 ## Other setup
 
