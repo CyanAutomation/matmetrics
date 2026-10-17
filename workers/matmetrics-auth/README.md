@@ -111,10 +111,12 @@ npx wrangler deploy --env production
 The maintainer confirmed the deployed Worker has its Resend configuration and
 secrets, and verified email verification, password reset by email,
 username/password sign-in, and passkey sign-in. D1 migration
-`0006_retire_firebase_auth.sql` has also been applied and verified. Confirm the
-Firestore preference and plugin override import into D1 before deploying any
-version of the application that requires the D1-only data path. Retire unused
-Firebase products and credentials after the rollback window.
+`0006_retire_firebase_auth.sql` has also been applied and verified. Production
+preference reconciliation is recorded in
+[`../../docs/cloudflare-d1-migration.md`](../../docs/cloudflare-d1-migration.md);
+the existing D1 value is newer than the exported preference and remains
+authoritative. Retire Firebase project resources and credentials only after
+checking for other consumers and completing the rollback window.
 
 See [`../../docs/better-auth-passkey-migration.md`](../../docs/better-auth-passkey-migration.md)
 for the deployment and post-deploy checklist.
