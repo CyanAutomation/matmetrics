@@ -8,12 +8,42 @@ import {
 } from './rate-limit';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+// Kept outside /api/auth/* so the browser-facing Next.js auth rewrite cannot
+// expose the short-lived Keiko token response.
+const KEIKO_TOKEN_PATH = '/__internal/keiko-token';
+const KEIKO_SCOPES = new Set([
+  'sessions:read',
+  'sessions:write',
+  'backups:read',
+  'backups:write',
+  'backups:restore',
+]);
 const EMAIL_AUTH_ENDPOINT_SUFFIXES = [
   '/sign-up/email',
   '/sign-in/email',
   '/request-password-reset',
   '/send-verification-email',
 ] as const;
+
+async function verifiedMatmetricsBearerUserId(request: Request): Promise<string | null> {
+  const authorization = request.headers.get('authorization');
+  const match = authorization && /^Bearer ([^\s]{1,16384})$/i.exec(authorization.trim());
+  if (!match) return null;
+  try {
+    const verified = await auth.api.verifyJWT({ body: { token: match[1]! } });
+    const payload = verified.payload;
+    if (
+      !payload ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub ||
+      typeof payload.appUserId !== 'string' ||
+      payload.appUserId !== payload.sub
+    ) return null;
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
 
 function emailDeliveryUnavailableResponse(): Response {
   return Response.json(
@@ -142,6 +172,192 @@ function lastPasskeyResponse(): Response {
   );
 }
 
+async function issueKeikoToken(request: Request): Promise<Response> {
+  if (request.method !== 'POST') {
+    return Response.json(
+      { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' },
+      { status: 405, headers: { ...NO_STORE_HEADERS, Allow: 'POST' } }
+    );
+  }
+
+  if (
+    request.headers.get('Origin') !== env.MATMETRICS_AUTH_FRONTEND_ORIGIN ||
+    request.headers.get('Sec-Fetch-Site') !== 'same-origin'
+  ) {
+    return Response.json(
+      { code: 'CSRF_REJECTED', message: 'Request origin is not allowed' },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+  const contentType = request.headers
+    .get('content-type')
+    ?.split(';', 1)[0]
+    .trim()
+    .toLowerCase();
+  if (contentType !== 'application/json') {
+    return Response.json(
+      { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected JSON' },
+      { status: 415, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null && !/^\d+$/.test(contentLength)) {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+  const declaredLength = contentLength === null ? null : Number(contentLength);
+  if (declaredLength !== null && !Number.isSafeInteger(declaredLength)) {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (declaredLength !== null && declaredLength > 4096) {
+    return Response.json(
+      { code: 'PAYLOAD_TOO_LARGE', message: 'Request body exceeds the 4 KiB limit' },
+      { status: 413, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  let bytes: Uint8Array;
+  try {
+    if (!request.body) throw new Error('Missing request body');
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4096) {
+        await reader.cancel().catch(() => {});
+        return Response.json(
+          { code: 'PAYLOAD_TOO_LARGE', message: 'Request body exceeds the 4 KiB limit' },
+          { status: 413, headers: NO_STORE_HEADERS }
+        );
+      }
+      chunks.push(value);
+    }
+    bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  } catch {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
+  } catch {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    Array.isArray(body) ||
+    !('expectedUserId' in body) ||
+    typeof body.expectedUserId !== 'string' ||
+    !body.expectedUserId.trim() ||
+    body.expectedUserId.length > 255 ||
+    !('scopes' in body) ||
+    !Array.isArray(body.scopes) ||
+    body.scopes.length < 1 ||
+    body.scopes.length > KEIKO_SCOPES.size ||
+    body.scopes.some(
+      (scope: unknown) => typeof scope !== 'string' || !KEIKO_SCOPES.has(scope)
+    ) ||
+    new Set(body.scopes).size !== body.scopes.length ||
+    Object.keys(body).some((key) => !['expectedUserId', 'scopes'].includes(key))
+  ) {
+    return Response.json(
+      { code: 'BAD_REQUEST', message: 'Invalid request' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const bearerUserId = await verifiedMatmetricsBearerUserId(request);
+  if (!bearerUserId) {
+    return Response.json(
+      { code: 'AUTHENTICATION_REQUIRED', message: 'A valid MatMetrics bearer token is required' },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (body.expectedUserId !== bearerUserId) {
+    return Response.json(
+      { code: 'USER_MISMATCH', message: 'Bearer user does not match the requested user' },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  let session;
+  try {
+    session = await auth.api.getSession({ headers: request.headers });
+  } catch {
+    return Response.json(
+      { code: 'SESSION_UNAVAILABLE', message: 'Session validation is unavailable' },
+      { status: 503, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (!session?.user?.id) {
+    return Response.json(
+      { code: 'AUTHENTICATION_REQUIRED', message: 'A valid session is required' },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
+  }
+  if (session.user.id !== body.expectedUserId) {
+    return Response.json(
+      { code: 'USER_MISMATCH', message: 'Authenticated user does not match the session' },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = now + 300;
+  try {
+    const result = await auth.api.signJWT({
+      body: {
+        payload: {
+          sub: session.user.id,
+          appUserId: session.user.id,
+          scope: body.scopes.join(' '),
+          iat: now,
+          exp: expiresAt,
+        },
+        overrideOptions: {
+          jwt: {
+            issuer: env.MATMETRICS_AUTH_ISSUER,
+            audience: 'keiko-dojo-api',
+            expirationTime: '5m',
+          },
+        },
+      },
+    });
+    return Response.json(
+      { token: result.token, expiresAt, scopes: body.scopes },
+      { headers: NO_STORE_HEADERS }
+    );
+  } catch {
+    console.error('keiko_token_issuance_failed');
+    return Response.json(
+      { code: 'TOKEN_ISSUANCE_UNAVAILABLE', message: 'Token issuance is unavailable' },
+      { status: 503, headers: NO_STORE_HEADERS }
+    );
+  }
+}
+
 export default {
   async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
@@ -164,6 +380,10 @@ export default {
         env.AUTH_REGISTRATION_LIMITER
       );
       if (limited) return limited;
+    }
+
+    if (pathname === KEIKO_TOKEN_PATH) {
+      return issueKeikoToken(request);
     }
 
     if (

@@ -23,6 +23,11 @@ import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
+import {
+  forwardSessionRequestToKeiko,
+  isKeikoCutoverUser,
+  keikoSessionRecordResponse,
+} from '@/lib/keiko-session-gateway.server';
 
 // TODO(P4): Validation logic (date, techniques, videoUrl, etc.) is duplicated
 // between this TypeScript route handler and the Go backend
@@ -47,6 +52,13 @@ export async function GET(
     }
 
     const { id } = await params;
+    if (isKeikoCutoverUser(user.appUserId)) {
+      return keikoSessionRecordResponse(await forwardSessionRequestToKeiko(request, user, {
+        path: `/v1/sessions/${encodeURIComponent(id)}`,
+        method: 'GET',
+        scope: 'sessions:read',
+      }));
+    }
     const requestedGitHubConfig = normalizeGitHubConfig({
       owner: request.nextUrl.searchParams.get('owner') ?? undefined,
       repo: request.nextUrl.searchParams.get('repo') ?? undefined,
@@ -134,6 +146,27 @@ export async function PUT(
     }
 
     const session: JudoSession = validation.session;
+
+    if (isKeikoCutoverUser(user.appUserId)) {
+      const path = `/v1/sessions/${encodeURIComponent(id)}`;
+      const current = await forwardSessionRequestToKeiko(request, user, {
+        path,
+        method: 'GET',
+        scope: 'sessions:read',
+      });
+      if (!current.ok) return current;
+      const etag = current.headers.get('etag');
+      if (!etag) return NextResponse.json({ error: 'Session revision is unavailable' }, { status: 502 });
+      const response = await forwardSessionRequestToKeiko(request, user, {
+        path,
+        method: 'PUT',
+        scope: ['sessions:read', 'sessions:write'],
+        body: session,
+        ifMatch: etag,
+      });
+      if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
+      return keikoSessionRecordResponse(response);
+    }
 
     const requestedGitHubConfig = normalizeGitHubConfig(
       body.gitHubConfig as GitHubConfig | undefined
@@ -236,6 +269,26 @@ export async function DELETE(
       }
 
       body = parsedBody as Record<string, unknown>;
+    }
+
+    if (isKeikoCutoverUser(user.appUserId)) {
+      const path = `/v1/sessions/${encodeURIComponent(id)}`;
+      const current = await forwardSessionRequestToKeiko(request, user, {
+        path,
+        method: 'GET',
+        scope: 'sessions:read',
+      });
+      if (!current.ok) return current;
+      const etag = current.headers.get('etag');
+      if (!etag) return NextResponse.json({ error: 'Session revision is unavailable' }, { status: 502 });
+      const response = await forwardSessionRequestToKeiko(request, user, {
+        path,
+        method: 'DELETE',
+        scope: ['sessions:read', 'sessions:write'],
+        ifMatch: etag,
+      });
+      if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
+      return response;
     }
 
     const requestedGitHubConfig = normalizeGitHubConfig(

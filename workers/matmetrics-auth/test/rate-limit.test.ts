@@ -9,6 +9,7 @@ describe('authentication rate limit policy', () => {
     ['/api/auth/passkey/generate-authenticate-options', 'sign-in'],
     ['/api/auth/passkey/verify-authentication', 'sign-in'],
     ['/api/auth/token', 'sign-in'],
+    ['/__internal/keiko-token', 'sign-in'],
     ['/api/auth/sign-in/email', 'sign-in'],
     ['/api/auth/sign-up/email', 'registration'],
     ['/api/auth/request-password-reset', 'registration'],

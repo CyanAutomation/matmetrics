@@ -50,16 +50,35 @@ rollout.
 In Vercel, configure:
 
 - `CLOUDFLARE_AUTH_WORKER_URL`
+- `CLOUDFLARE_AUTH_WORKER_HOST` (the exact bare Worker hostname, for example `matmetrics-auth.<account>.workers.dev`)
 - `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` after the auth Worker and rewrite are
   ready
 - `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false`
 - `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED=true`
 - `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and
   `MATMETRICS_AUTH_AUDIENCE`
+- `MATMETRICS_AUTH_FRONTEND_ORIGIN`, `KEIKO_API_BASE_URL`, and
+  `KEIKO_SESSION_CUTOVER_USER_IDS` for the server-side Keiko session adapter
 
 Never put `BETTER_AUTH_SECRET` or `RESEND_API_KEY` in Vercel or a
 `NEXT_PUBLIC_*` variable. Public browser flags are compiled into the Next.js
 build and require a redeploy when changed.
+
+Session routes retain the existing `matmetrics-api` bearer check. For each
+allowlisted account, the server forwards only the configured Better Auth
+session cookie to the fixed Auth Worker URL. The Worker compares that session
+identity to the bearer-authenticated user before issuing a five-minute Keiko
+token. The token is signature, issuer, audience, subject, lifetime, and scope
+checked by Vercel, then sent only to Keiko. The exchange endpoint lives outside
+the `/api/auth/*` rewrite. Browser authentication headers and sign-in flows do
+not change.
+
+Run the Markdown importer without `--apply` first. Review parse failures,
+duplicate IDs, payload mismatches, and existing records; keep the GitHub
+Markdown copy through the rollback window. Do not add a user to
+`KEIKO_SESSION_CUTOVER_USER_IDS` until the dry run and import match. Before a
+rollback, export the current Keiko D1 data and reconcile writes made since the
+import; keep the allowlist change server-side and avoid dual writes.
 
 ## Existing account and launch checks
 
