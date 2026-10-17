@@ -53,7 +53,9 @@ timestamps, and recovery bookmark are in the
 [D1 migration record](cloudflare-d1-migration.md).
 
 Disabling Firebase Auth, revoking credentials, and retiring Firestore remain
-project-side operations. Their completion has not been verified here. Check
-for other project consumers, keep the export and D1 recovery point through the
-rollback window, and account for the older Firestore snapshot before restoring
-an application that depends on it.
+project-side operations. Their completion has not been verified here. The
+maintainer confirmed the rollback window ended on 2026-10-17. Check for other
+project consumers in the provider console before revocation or retirement, and
+account for the older Firestore snapshot before restoring an application that
+depends on it. The detailed status is in the
+[D1 migration record](cloudflare-d1-migration.md).
