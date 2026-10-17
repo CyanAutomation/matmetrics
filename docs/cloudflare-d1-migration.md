@@ -94,6 +94,13 @@ the current D1 row and is not a lossless rollback copy: before restoring an
 older application that reads or writes Firestore, reconcile the newer D1 state
 back to that store or explicitly accept the resulting data gap.
 
+On 2026-10-17, the maintainer confirmed the rollback window had ended. Keep the
+export and recorded recovery point available until the Firebase consumer
+inventory and project retirement are verified. A GitHub code search available
+to this session found no explicit Firebase or Firestore references outside
+MatMetrics in the indexed CyanAutomation repositories, but this does not cover
+project-console integrations or other non-code consumers.
+
 For a new non-production environment that still needs an initial data load,
 export each user's `users/{uid}/preferences/app` and
 `users/{uid}/app/pluginConfig` documents. Normalize preferences with the
@@ -104,10 +111,12 @@ users to that environment. Do not overwrite a newer destination row with an
 older export. A legacy global plugin configuration must not become a global
 setting; apply defaults per user only after an explicit product decision.
 
-After the rollback window, check for other Firebase project consumers, revoke
-the Firestore service account and its credentials, disable Firebase Auth, and
-retire Firestore and other unused Firebase products in the provider console.
-Project-side retirement has not been verified in this repository.
+Before any project retirement action, check for other Firebase project
+consumers in the provider console. Once that inventory confirms no consumers
+remain, revoke the Firestore service account and its credentials, disable
+Firebase Auth, and retire Firestore and other unused Firebase products. Record
+provider-console verification; project-side retirement has not been verified
+in this repository.
 
 ## Rollback
 
