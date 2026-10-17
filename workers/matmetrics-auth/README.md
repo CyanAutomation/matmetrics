@@ -116,7 +116,9 @@ preference reconciliation is recorded in
 [`../../docs/cloudflare-d1-migration.md`](../../docs/cloudflare-d1-migration.md);
 the existing D1 value is newer than the exported preference and remains
 authoritative. Retire Firebase project resources and credentials only after
-checking for other consumers and completing the rollback window.
+checking for other consumers in the provider console. The maintainer confirmed
+the rollback window ended on 2026-10-17; project-side retirement is not yet
+verified.
 
 See [`../../docs/better-auth-passkey-migration.md`](../../docs/better-auth-passkey-migration.md)
 for the deployment and post-deploy checklist.

@@ -81,8 +81,9 @@ document, one matching D1 preference row, and no D1 plugin overrides. The D1
 row is newer, so it remains authoritative; no import or overwrite was needed.
 See the [D1 migration record](docs/cloudflare-d1-migration.md) for the comparison
 and recovery point. Project retirement still requires checking for other
-consumers and completing the rollback window before revoking credentials or
-deleting products.
+consumers in the provider console before revoking credentials or deleting
+products. The maintainer confirmed the rollback window ended on 2026-10-17;
+project-side retirement is not yet verified.
 
 ## Other setup
 
