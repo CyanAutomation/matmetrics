@@ -39,8 +39,8 @@ administrative REST API from Vercel.
 4. Set the same randomly generated `MATMETRICS_INTERNAL_API_SECRET` as a
    Cloudflare Worker secret and a Vercel server-only environment variable.
 5. Set `CLOUDFLARE_DATA_WORKER_URL` in Vercel to the deployed Worker URL.
-6. Deploy the Next.js application only after D1 data import and verification
-   are complete. The application requires these Worker settings for preference
+6. Before routing users to an environment, confirm its D1 data is populated and
+   reconciled. The application requires these Worker settings for preference
    and plugin state operations.
 
 The incremental Better Auth passkey Worker shares the environment's D1 database
@@ -75,36 +75,45 @@ final result or failure against the user-scoped job record. Log Doctor fixes,
 session mutations, and GitHub sync remain synchronous and are intentionally
 not queue consumers.
 
-## Data Migration and Cutover
+## Production Data Reconciliation
 
-1. Before deploying the D1-only application, export each user's
-   `users/{uid}/preferences/app` and `users/{uid}/app/pluginConfig` documents.
-2. Normalize preferences using the application's preference normalization
-   logic. Import one `user_preferences` row per user with `revision = 0`, and
-   one `plugin_enabled_overrides` row per `(user_id, plugin_id)` override.
-3. Do not import a legacy global plugin configuration as a global setting.
-   If global defaults are wanted, make that a product decision and apply them
-   per user explicitly.
-4. Compare source and destination user/override counts and sampled normalized
-   values. Record the results and create a D1 recovery point.
-5. Set the D1 Worker URL and signing secret in every Vercel environment, then
-   exercise preference reads/writes and plugin changes with representative
-   accounts before deploying the application.
-6. Keep Firestore data and credentials available through the agreed rollback
-   window. Do not deploy this D1-only application until import and validation
-   are confirmed.
-7. After the rollback window, revoke the Firestore service account and disable
-   or delete unused Firebase products in the provider console.
+On 2026-10-17, the maintainer compared a Firestore export with production D1.
+The export matched the Firebase project and contained one preference document,
+no plugin configuration document, and a UID matching the D1 user. D1 contained
+one preference row and zero plugin override rows.
 
-Plugin overrides are now per user: `(user_id, plugin_id)` is the primary key.
-The prior global Firestore document must not be imported as a global setting.
-If legacy global defaults are desired, apply them once to each user at first
-login through an explicit product decision.
+The D1 row was at revision 92 and updated on 2026-10-15. The Firestore document
+was timestamped 2026-09-15; six normalized fields differed. The newer D1 state
+was retained. No import, overwrite, database write, or deployment occurred.
+The D1 Time Travel bookmark recorded for recovery is
+`00000097-00000000-00005106-1b975d443d69173e9b3213ee32ffc58d`.
+
+No production import is needed from this older snapshot. Keep the export and
+the D1 recovery point through the agreed rollback window. The export predates
+the current D1 row and is not a lossless rollback copy: before restoring an
+older application that reads or writes Firestore, reconcile the newer D1 state
+back to that store or explicitly accept the resulting data gap.
+
+For a new non-production environment that still needs an initial data load,
+export each user's `users/{uid}/preferences/app` and
+`users/{uid}/app/pluginConfig` documents. Normalize preferences with the
+application's normalization logic, then import one `user_preferences` row per
+user and one `plugin_enabled_overrides` row per `(user_id, plugin_id)` override.
+Compare source and destination counts and normalized values before routing
+users to that environment. Do not overwrite a newer destination row with an
+older export. A legacy global plugin configuration must not become a global
+setting; apply defaults per user only after an explicit product decision.
+
+After the rollback window, check for other Firebase project consumers, revoke
+the Firestore service account and its credentials, disable Firebase Auth, and
+retire Firestore and other unused Firebase products in the provider console.
+Project-side retirement has not been verified in this repository.
 
 ## Rollback
 
-Restore the previous application deployment while Firestore credentials and
-data remain intact. Do not remove the D1 Worker configuration as a rollback
-mechanism: the current application has no Firestore fallback. Before schema or
-bulk data changes, create a D1 recovery point; D1 Time Travel provides the
-recovery mechanism for current databases.
+Restore a previous application deployment only after checking its data path.
+Do not remove the D1 Worker configuration as a rollback mechanism. The current
+application has no Firestore fallback, and the retained Firestore export is
+older than the current D1 preference state. Before schema or bulk data changes,
+create a D1 recovery point; D1 Time Travel provides the recovery mechanism for
+current databases.

@@ -13,7 +13,7 @@ Use this skill when changing session reads, writes, persistence routing, caching
 - [session-storage.ts](../../../src/lib/session-storage.ts) selects GitHub or local file storage for server-side session operations.
 - [github-storage.ts](../../../src/lib/github-storage.ts) implements GitHub reads and writes.
 - [file-storage.ts](../../../src/lib/file-storage.ts) manages local markdown files and file locking.
-- Firebase stores user preferences and configuration; session files are stored in GitHub or local markdown.
+- User preferences and plugin overrides are stored in D1 through the signed Cloudflare data Worker; session files are stored in GitHub or local markdown.
 - [storage.ts](../../../src/lib/storage.ts), [storage-queue.ts](../../../src/lib/storage-queue.ts), and the sync lease implementation coordinate queued client mutations.
 
 Read the caller and the owning storage layer before editing. Do not assume every route passes through the same facade.

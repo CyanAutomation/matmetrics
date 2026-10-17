@@ -231,8 +231,7 @@ Cloudflare environment:
 After deploying the Worker and rewrite, use the reset email for an existing
 passkey account to set its first password. Better Auth preserves that account's
 user ID, passkeys, preferences, and data ownership, and revokes its active
-sessions after a password reset. Firebase Auth client sign-in and Firebase ID
-token verification have been removed.
+sessions after a password reset.
 
 See [`workers/matmetrics-auth/README.md`](workers/matmetrics-auth/README.md)
 and the [auth rollout and retirement record](docs/better-auth-passkey-migration.md)
