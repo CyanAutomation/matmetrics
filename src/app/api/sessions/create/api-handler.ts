@@ -16,6 +16,11 @@ import { validateSessionPayload } from '@/lib/session-validation';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
+import {
+  forwardSessionRequestToKeiko,
+  isKeikoCutoverUser,
+  keikoSessionRecordResponse,
+} from '@/lib/keiko-session-gateway.server';
 
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
@@ -53,6 +58,17 @@ export async function POST(request: NextRequest) {
     }
 
     const session: JudoSession = validation.session;
+
+    if (isKeikoCutoverUser(user.appUserId)) {
+      const response = await forwardSessionRequestToKeiko(request, user, {
+        path: '/v1/sessions',
+        method: 'POST',
+        scope: 'sessions:write',
+        body: session,
+      });
+      if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
+      return keikoSessionRecordResponse(response);
+    }
 
     const requestedGitHubConfig = normalizeGitHubConfig(
       body.gitHubConfig as GitHubConfig | undefined

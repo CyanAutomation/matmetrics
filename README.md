@@ -130,11 +130,15 @@ Important credential sources:
 | Variable | Where to find it |
 | --- | --- |
 | `CLOUDFLARE_AUTH_WORKER_URL` | Cloudflare dashboard → `matmetrics-auth` Worker URL |
+| `CLOUDFLARE_AUTH_WORKER_HOST` | Exact bare `*.workers.dev` hostname for the configured auth Worker URL |
 | `CLOUDFLARE_DATA_WORKER_URL` | Cloudflare dashboard → `matmetrics-data` Worker URL |
 | `MATMETRICS_INTERNAL_API_SECRET` | Shared server-only signing secret for Vercel and the data Worker |
 | `MATMETRICS_AUTH_JWKS_URL` | Same-origin JWKS endpoint, usually `https://<app-origin>/api/auth/jwks` |
 | `MATMETRICS_AUTH_ISSUER` | Public MatMetrics frontend origin used by Better Auth JWTs |
 | `MATMETRICS_AUTH_AUDIENCE` | Better Auth JWT audience; defaults to `matmetrics-api` |
+| `MATMETRICS_AUTH_FRONTEND_ORIGIN` | Exact MatMetrics origin used to validate the session-cookie exchange |
+| `KEIKO_API_BASE_URL` | Server-only Keiko Worker/API origin |
+| `KEIKO_SESSION_CUTOVER_USER_IDS` | Server-only comma-separated Better Auth user IDs routed to Keiko |
 | `SENTRY_DSN` | Sentry dashboard → Project settings → Client keys (DSN) |
 | `SENTRY_AUTH_TOKEN` | sentry.io → User settings → Auth tokens |
 
@@ -152,7 +156,9 @@ Important credential sources:
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
-- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE` connect Next.js and Go to the Better Auth Worker. Set `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite are ready. Password signup is gated by `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED` and Worker `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`; both default off. Passkey enrollment requires an authenticated session and is controlled by `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`. Keep `BETTER_AUTH_SECRET` and `RESEND_API_KEY` only in Cloudflare. Configure the verified sender with `MATMETRICS_AUTH_EMAIL_FROM`. See [the auth setup guide](docs/better-auth-passkey-migration.md).
+- `CLOUDFLARE_AUTH_WORKER_URL`, `CLOUDFLARE_AUTH_WORKER_HOST`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE` connect Next.js and Go to the Better Auth Worker. The host setting is a non-secret exact hostname check for server-side session-cookie forwarding. Set `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite are ready. Password signup is gated by `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED` and Worker `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`; both default off. Passkey enrollment requires an authenticated session and is controlled by `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`. Keep `BETTER_AUTH_SECRET` and `RESEND_API_KEY` only in Cloudflare. Configure the verified sender with `MATMETRICS_AUTH_EMAIL_FROM`. See [the auth setup guide](docs/better-auth-passkey-migration.md).
+- For accounts in `KEIKO_SESSION_CUTOVER_USER_IDS`, session API routes first verify the existing `matmetrics-api` bearer token, then exchange only the configured Better Auth session cookie with the fixed `CLOUDFLARE_AUTH_WORKER_URL`. The Auth Worker independently verifies that bearer token and checks both its user ID and its Better Auth session user against the expected identity before issuing a five-minute `keiko-dojo-api` token. The bearer token is sent only to the trusted Auth Worker and is never forwarded to Keiko. Set `MATMETRICS_AUTH_FRONTEND_ORIGIN` to the exact origin and `KEIKO_API_BASE_URL` to the Keiko origin. The internal issuance endpoint is outside `/api/auth/*`, so the browser rewrite cannot expose its token response. Do not put these settings under `NEXT_PUBLIC_*`.
+- Before enabling a user in the cutover allowlist, run `npm run test:keiko:import` and the importer in dry-run mode. Configure `MATMETRICS_API_BASE_URL`, `MATMETRICS_BEARER_TOKEN`, and the single `BETTER_AUTH_SESSION_COOKIE` along with the auth and Keiko server settings. Run `node --import tsx scripts/import-keiko-sessions.ts` to compare Markdown sessions with Keiko; add `--apply` only after reviewing counts and mismatches. Keep the Markdown source for rollback.
 - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
 - When GitHub is not configured in the app, the server stores sessions as local markdown files under `data/YYYY/MM/`.
 - When GitHub is configured in the app and `GITHUB_TOKEN` is present on the server, session APIs read and write directly against the configured repository.

@@ -93,6 +93,7 @@ GITHUB_TOKEN                          # GitHub API access for sync/storage
 CLOUDFLARE_API_TOKEN                  # Cloudflare AI Gateway for AI features
 NEXT_PUBLIC_BETTER_AUTH_ENABLED       # Browser Better Auth feature flag
 CLOUDFLARE_AUTH_WORKER_URL            # Better Auth Worker rewrite destination
+CLOUDFLARE_AUTH_WORKER_HOST           # Exact trusted *.workers.dev hostname for server-side session-cookie exchange
 MATMETRICS_AUTH_JWKS_URL              # Same-origin Better Auth JWKS endpoint
 MATMETRICS_AUTH_ISSUER                # Better Auth JWT issuer
 MATMETRICS_AUTH_AUDIENCE              # Better Auth JWT audience

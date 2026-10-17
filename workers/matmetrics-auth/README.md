@@ -70,7 +70,8 @@ npx wrangler secret put RESEND_API_KEY --env production
 ```
 
 Keep both secrets only in Cloudflare. Next.js needs
-`CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`,
+`CLOUDFLARE_AUTH_WORKER_URL`, the exact non-secret
+`CLOUDFLARE_AUTH_WORKER_HOST` hostname, `MATMETRICS_AUTH_JWKS_URL`,
 `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE`. In the browser, set
 `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite
 are ready. Signup visibility is controlled by

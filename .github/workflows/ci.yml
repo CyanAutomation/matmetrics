@@ -64,6 +64,10 @@ jobs:
         run: npm run typecheck
       - name: Run full TypeScript test suite
         run: npm run test:all
+      - name: Test Keiko session-cookie gateway
+        run: npm run test:keiko:gateway
+      - name: Test Keiko Markdown importer dry-run analysis
+        run: npm run test:keiko:import
       - name: Run contract checks
         run: npm run ci:contracts
       - name: Check plugin maturity scorecards

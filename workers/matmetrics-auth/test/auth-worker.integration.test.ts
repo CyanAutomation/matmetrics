@@ -35,16 +35,27 @@ function authRequest(
     body?: unknown;
     redirect?: RequestRedirect;
     clientIp?: string;
+    origin?: string;
+    fetchSite?: string;
+    contentLength?: string;
+    authorization?: string;
   } = {}
 ): Request {
   const headers = new Headers({
-    Origin: 'http://localhost:9002',
+    Origin: options.origin ?? 'http://localhost:9002',
+    'Sec-Fetch-Site': options.fetchSite ?? 'same-origin',
     'CF-Connecting-IP': options.clientIp ?? crypto.randomUUID(),
   });
   if (options.cookie) headers.set('Cookie', options.cookie);
+  if (options.authorization) headers.set('Authorization', options.authorization);
   if (options.body !== undefined)
     headers.set('Content-Type', 'application/json');
-  return new Request(`http://localhost:9002/api/auth${path}`, {
+  if (options.contentLength !== undefined)
+    headers.set('Content-Length', options.contentLength);
+  const requestPath = path.startsWith('/__internal/')
+    ? path
+    : `/api/auth${path}`;
+  return new Request(`http://localhost:9002${requestPath}`, {
     method: options.method ?? 'GET',
     headers,
     redirect: options.redirect,
@@ -704,5 +715,194 @@ describe('MatMetrics auth Worker integration', () => {
 
     const response = await workerFetch(authRequest('/token', { cookie }));
     expect(response.status).toBe(401);
+  });
+
+  it('issues a short-lived Keiko-only token only when the authenticated session matches the expected user', async () => {
+    const userId = `keiko-token-${crypto.randomUUID()}`;
+    await createUser(userId);
+    const cookie = await createSession(userId);
+    const matmetricsResponse = await workerFetch(authRequest('/token', { cookie }));
+    expect(matmetricsResponse.status).toBe(200);
+    const matmetricsToken = ((await matmetricsResponse.json()) as { token: string }).token;
+    const response = await workerFetch(
+      authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        authorization: `Bearer ${matmetricsToken}`,
+        body: {
+          expectedUserId: userId,
+          scopes: ['sessions:read', 'sessions:write'],
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const result = (await response.json()) as {
+      token: string;
+      expiresAt: number;
+      scopes: string[];
+    };
+    expect(result.scopes).toEqual(['sessions:read', 'sessions:write']);
+    const jwks = (await (await workerFetch(authRequest('/jwks'))).json()) as {
+      keys: JsonWebKey[];
+    };
+    const verified = await jwtVerify(result.token, createLocalJWKSet(jwks), {
+      issuer: env.MATMETRICS_AUTH_ISSUER,
+      audience: 'keiko-dojo-api',
+      algorithms: ['EdDSA'],
+    });
+    expect(verified.payload.sub).toBe(userId);
+    expect(verified.payload.appUserId).toBe(userId);
+    expect(verified.payload.scope).toBe('sessions:read sessions:write');
+    expect(verified.payload.exp! - verified.payload.iat!).toBeLessThanOrEqual(300);
+    expect(verified.payload.exp! - verified.payload.iat!).toBeGreaterThan(0);
+    expect(result.expiresAt).toBe(verified.payload.exp);
+    await expect(
+      jwtVerify(result.token, createLocalJWKSet(jwks), {
+        issuer: env.MATMETRICS_AUTH_ISSUER,
+        audience: env.MATMETRICS_AUTH_AUDIENCE,
+      })
+    ).rejects.toThrow();
+
+    const matmetricsClaims = await jwtVerify(
+      matmetricsToken,
+      createLocalJWKSet(jwks),
+      {
+        issuer: env.MATMETRICS_AUTH_ISSUER,
+        audience: env.MATMETRICS_AUTH_AUDIENCE,
+        algorithms: ['EdDSA'],
+      }
+    );
+    expect(matmetricsClaims.payload.sub).toBe(userId);
+    await expect(
+      jwtVerify(matmetricsToken, createLocalJWKSet(jwks), {
+        issuer: env.MATMETRICS_AUTH_ISSUER,
+        audience: 'keiko-dojo-api',
+      })
+    ).rejects.toThrow();
+  });
+
+  it('caps Keiko token issuance JSON by actual bytes and rejects malformed Content-Length', async () => {
+    const oversized = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: {
+        expectedUserId: 'bounded-user',
+        scopes: ['sessions:read'],
+        padding: 'x'.repeat(5000),
+      },
+    }));
+    expect(oversized.status).toBe(413);
+
+    const understatedLength = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: {
+        expectedUserId: 'bounded-user',
+        scopes: ['sessions:read'],
+        padding: 'x'.repeat(5000),
+      },
+      contentLength: '1',
+    }));
+    expect(understatedLength.status).toBe(413);
+
+    const malformedLength = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: { expectedUserId: 'bounded-user', scopes: ['sessions:read'] },
+      contentLength: 'not-a-number',
+    }));
+    expect(malformedLength.status).toBe(400);
+  });
+
+  it('rejects a direct session-cookie exchange without a valid MatMetrics bearer token', async () => {
+    const userId = `keiko-direct-${crypto.randomUUID()}`;
+    await createUser(userId);
+    const cookie = await createSession(userId);
+    const body = { expectedUserId: userId, scopes: ['sessions:read'] };
+    for (const authorization of [undefined, 'Bearer invalid-token']) {
+      const response = await workerFetch(authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        ...(authorization ? { authorization } : {}),
+        body,
+      }));
+      expect(response.status).toBe(401);
+      expect(await response.text()).not.toContain('"token"');
+    }
+  });
+
+  it('rejects cross-user Keiko issuance before returning a token', async () => {
+    const sessionUser = `keiko-session-${crypto.randomUUID()}`;
+    const bearerUser = `keiko-bearer-${crypto.randomUUID()}`;
+    await createUser(sessionUser);
+    await createUser(bearerUser);
+    const cookie = await createSession(sessionUser);
+    const bearerSession = await createSession(bearerUser);
+    const bearerResponse = await workerFetch(authRequest('/token', { cookie: bearerSession }));
+    const bearerToken = ((await bearerResponse.json()) as { token: string }).token;
+    const bearerMismatch = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      cookie: bearerSession,
+      authorization: `Bearer ${bearerToken}`,
+      body: { expectedUserId: sessionUser, scopes: ['sessions:read'] },
+    }));
+    expect(bearerMismatch.status).toBe(403);
+    expect(await bearerMismatch.text()).not.toContain('"token"');
+    const response = await workerFetch(
+      authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        authorization: `Bearer ${bearerToken}`,
+        body: {
+          expectedUserId: bearerUser,
+          scopes: ['sessions:read'],
+        },
+      })
+    );
+    expect(response.status).toBe(403);
+    const body = await response.text();
+    expect(body).toContain('USER_MISMATCH');
+    expect(body).not.toContain('"token"');
+  });
+
+  it('rejects CSRF and unapproved scopes on Keiko token issuance', async () => {
+    const userId = `keiko-csrf-${crypto.randomUUID()}`;
+    await createUser(userId);
+    const cookie = await createSession(userId);
+    const tokenResponse = await workerFetch(authRequest('/token', { cookie }));
+    const token = ((await tokenResponse.json()) as { token: string }).token;
+    const body = {
+      expectedUserId: userId,
+      scopes: ['sessions:read'],
+    };
+
+    const wrongOrigin = await workerFetch(
+      authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        authorization: `Bearer ${token}`,
+        body,
+        origin: 'https://attacker.example',
+      })
+    );
+    expect(wrongOrigin.status).toBe(403);
+
+    const crossSite = await workerFetch(
+      authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        authorization: `Bearer ${token}`,
+        body,
+        fetchSite: 'cross-site',
+      })
+    );
+    expect(crossSite.status).toBe(403);
+
+    const scopeEscalation = await workerFetch(
+      authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        authorization: `Bearer ${token}`,
+        body: { ...body, scopes: ['sessions:read', 'admin:*'] },
+      })
+    );
+    expect(scopeEscalation.status).toBe(400);
   });
 });
