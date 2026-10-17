@@ -93,6 +93,7 @@ Firebase authentication and Firestore access are absent from the application
 runtime, and D1 migration `0006` restricts the live identity schema to Better
 Auth. Production preference reconciliation and the remaining project-retirement
 steps are recorded in the [D1 migration record](cloudflare-d1-migration.md).
-The project-side disablement and deletion have not been verified here. Check
-for other project consumers and complete the rollback window before revoking
-credentials or retiring Firebase products.
+The maintainer confirmed the rollback window ended on 2026-10-17. The
+project-side consumer inventory, disablement, and deletion have not been
+verified here. Check for other project consumers in the provider console before
+revoking credentials or retiring Firebase products.
