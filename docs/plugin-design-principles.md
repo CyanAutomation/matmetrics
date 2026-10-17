@@ -74,7 +74,7 @@ These plugins directly enhance the value of session logging and provide immediat
 
 **Technical notes:**
 
-- New data model (training blocks, goals) stored in Firebase
+- If this feature needs persisted data, define a user-scoped D1 schema and data Worker API.
 - Extends dashboard with planning tab
 - Syncs with session log to show adherence
 
@@ -141,7 +141,7 @@ These plugins solve specific athlete problems and pair well with Tier 1 plugins.
 
 **Technical notes:**
 
-- New data model (recovery logs, injury records) in Firebase
+- If this feature needs persisted data, define a user-scoped D1 schema and data Worker API.
 - Extends dashboard with recovery tab
 - Linked to session records for correlation analysis
 
@@ -173,7 +173,7 @@ When designing a new plugin:
 
 1. **Reference the UI contract** — Follow [docs/plugin-ui-contract.md](plugin-ui-contract.md) for dashboard integration
 2. **Check the capability policy** — Ensure your plugin meets maturity requirements in [docs/plugin-capability-policy.md](plugin-capability-policy.md)
-3. **Use the session contract** — Do not modify the frozen session shape; extend storage only in Firebase
+3. **Use the session contract** — Do not modify the frozen session shape; add new persisted plugin data through an explicitly scoped D1 schema and data Worker API
 4. **Test with Markdown** — Verify local markdown exports work correctly
 5. **Document state transitions** — Show empty, loading, error, and success states (see [plugin-ui-contract.md](plugin-ui-contract.md))
 
