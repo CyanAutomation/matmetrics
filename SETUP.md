@@ -50,6 +50,7 @@ rollout.
 In Vercel, configure:
 
 - `CLOUDFLARE_AUTH_WORKER_URL`
+- `CLOUDFLARE_AUTH_WORKER_HOST` (the exact bare Worker hostname, for example `matmetrics-auth.<account>.workers.dev`)
 - `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` after the auth Worker and rewrite are
   ready
 - `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=false`

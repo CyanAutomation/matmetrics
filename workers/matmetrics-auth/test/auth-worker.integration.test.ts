@@ -37,6 +37,8 @@ function authRequest(
     clientIp?: string;
     origin?: string;
     fetchSite?: string;
+    contentLength?: string;
+    authorization?: string;
   } = {}
 ): Request {
   const headers = new Headers({
@@ -45,8 +47,11 @@ function authRequest(
     'CF-Connecting-IP': options.clientIp ?? crypto.randomUUID(),
   });
   if (options.cookie) headers.set('Cookie', options.cookie);
+  if (options.authorization) headers.set('Authorization', options.authorization);
   if (options.body !== undefined)
     headers.set('Content-Type', 'application/json');
+  if (options.contentLength !== undefined)
+    headers.set('Content-Length', options.contentLength);
   const requestPath = path.startsWith('/__internal/')
     ? path
     : `/api/auth${path}`;
@@ -716,10 +721,14 @@ describe('MatMetrics auth Worker integration', () => {
     const userId = `keiko-token-${crypto.randomUUID()}`;
     await createUser(userId);
     const cookie = await createSession(userId);
+    const matmetricsResponse = await workerFetch(authRequest('/token', { cookie }));
+    expect(matmetricsResponse.status).toBe(200);
+    const matmetricsToken = ((await matmetricsResponse.json()) as { token: string }).token;
     const response = await workerFetch(
       authRequest('/__internal/keiko-token', {
         method: 'POST',
         cookie,
+        authorization: `Bearer ${matmetricsToken}`,
         body: {
           expectedUserId: userId,
           scopes: ['sessions:read', 'sessions:write'],
@@ -754,11 +763,8 @@ describe('MatMetrics auth Worker integration', () => {
       })
     ).rejects.toThrow();
 
-    const matmetricsResponse = await workerFetch(authRequest('/token', { cookie }));
-    expect(matmetricsResponse.status).toBe(200);
-    const matmetricsResult = (await matmetricsResponse.json()) as { token: string };
     const matmetricsClaims = await jwtVerify(
-      matmetricsResult.token,
+      matmetricsToken,
       createLocalJWKSet(jwks),
       {
         issuer: env.MATMETRICS_AUTH_ISSUER,
@@ -768,11 +774,58 @@ describe('MatMetrics auth Worker integration', () => {
     );
     expect(matmetricsClaims.payload.sub).toBe(userId);
     await expect(
-      jwtVerify(matmetricsResult.token, createLocalJWKSet(jwks), {
+      jwtVerify(matmetricsToken, createLocalJWKSet(jwks), {
         issuer: env.MATMETRICS_AUTH_ISSUER,
         audience: 'keiko-dojo-api',
       })
     ).rejects.toThrow();
+  });
+
+  it('caps Keiko token issuance JSON by actual bytes and rejects malformed Content-Length', async () => {
+    const oversized = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: {
+        expectedUserId: 'bounded-user',
+        scopes: ['sessions:read'],
+        padding: 'x'.repeat(5000),
+      },
+    }));
+    expect(oversized.status).toBe(413);
+
+    const understatedLength = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: {
+        expectedUserId: 'bounded-user',
+        scopes: ['sessions:read'],
+        padding: 'x'.repeat(5000),
+      },
+      contentLength: '1',
+    }));
+    expect(understatedLength.status).toBe(413);
+
+    const malformedLength = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      body: { expectedUserId: 'bounded-user', scopes: ['sessions:read'] },
+      contentLength: 'not-a-number',
+    }));
+    expect(malformedLength.status).toBe(400);
+  });
+
+  it('rejects a direct session-cookie exchange without a valid MatMetrics bearer token', async () => {
+    const userId = `keiko-direct-${crypto.randomUUID()}`;
+    await createUser(userId);
+    const cookie = await createSession(userId);
+    const body = { expectedUserId: userId, scopes: ['sessions:read'] };
+    for (const authorization of [undefined, 'Bearer invalid-token']) {
+      const response = await workerFetch(authRequest('/__internal/keiko-token', {
+        method: 'POST',
+        cookie,
+        ...(authorization ? { authorization } : {}),
+        body,
+      }));
+      expect(response.status).toBe(401);
+      expect(await response.text()).not.toContain('"token"');
+    }
   });
 
   it('rejects cross-user Keiko issuance before returning a token', async () => {
@@ -781,10 +834,22 @@ describe('MatMetrics auth Worker integration', () => {
     await createUser(sessionUser);
     await createUser(bearerUser);
     const cookie = await createSession(sessionUser);
+    const bearerSession = await createSession(bearerUser);
+    const bearerResponse = await workerFetch(authRequest('/token', { cookie: bearerSession }));
+    const bearerToken = ((await bearerResponse.json()) as { token: string }).token;
+    const bearerMismatch = await workerFetch(authRequest('/__internal/keiko-token', {
+      method: 'POST',
+      cookie: bearerSession,
+      authorization: `Bearer ${bearerToken}`,
+      body: { expectedUserId: sessionUser, scopes: ['sessions:read'] },
+    }));
+    expect(bearerMismatch.status).toBe(403);
+    expect(await bearerMismatch.text()).not.toContain('"token"');
     const response = await workerFetch(
       authRequest('/__internal/keiko-token', {
         method: 'POST',
         cookie,
+        authorization: `Bearer ${bearerToken}`,
         body: {
           expectedUserId: bearerUser,
           scopes: ['sessions:read'],
@@ -801,6 +866,8 @@ describe('MatMetrics auth Worker integration', () => {
     const userId = `keiko-csrf-${crypto.randomUUID()}`;
     await createUser(userId);
     const cookie = await createSession(userId);
+    const tokenResponse = await workerFetch(authRequest('/token', { cookie }));
+    const token = ((await tokenResponse.json()) as { token: string }).token;
     const body = {
       expectedUserId: userId,
       scopes: ['sessions:read'],
@@ -810,6 +877,7 @@ describe('MatMetrics auth Worker integration', () => {
       authRequest('/__internal/keiko-token', {
         method: 'POST',
         cookie,
+        authorization: `Bearer ${token}`,
         body,
         origin: 'https://attacker.example',
       })
@@ -820,6 +888,7 @@ describe('MatMetrics auth Worker integration', () => {
       authRequest('/__internal/keiko-token', {
         method: 'POST',
         cookie,
+        authorization: `Bearer ${token}`,
         body,
         fetchSite: 'cross-site',
       })
@@ -830,6 +899,7 @@ describe('MatMetrics auth Worker integration', () => {
       authRequest('/__internal/keiko-token', {
         method: 'POST',
         cookie,
+        authorization: `Bearer ${token}`,
         body: { ...body, scopes: ['sessions:read', 'admin:*'] },
       })
     );

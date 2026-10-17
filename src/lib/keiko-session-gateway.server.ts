@@ -69,6 +69,11 @@ function validatedBaseUrl(name: string, allowedWorker: boolean): URL {
     process.env.NODE_ENV !== 'production' &&
     url.protocol === 'http:' &&
     (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+  const expectedWorkerHost = process.env.CLOUDFLARE_AUTH_WORKER_HOST?.trim().toLowerCase();
+  const validExpectedWorkerHost = Boolean(
+    expectedWorkerHost &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+workers\.dev$/.test(expectedWorkerHost)
+  );
   if (
     (url.protocol !== 'https:' && !localHttp) ||
     url.username ||
@@ -76,7 +81,11 @@ function validatedBaseUrl(name: string, allowedWorker: boolean): URL {
     url.search ||
     url.hash ||
     (url.pathname !== '/' && url.pathname !== '') ||
-    (allowedWorker && !localHttp && !url.hostname.endsWith('.workers.dev'))
+    (allowedWorker && !localHttp && (
+      !validExpectedWorkerHost ||
+      url.hostname !== expectedWorkerHost ||
+      url.port !== ''
+    ))
   ) {
     fail(503, 'Session service is unavailable');
   }
@@ -103,6 +112,13 @@ function sessionCookieHeader(request: NextRequest): string {
   }
   if (matches.length !== 1) fail(401, 'A valid session is required');
   return matches[0]!;
+}
+
+function verifiedMatmetricsBearerHeader(request: NextRequest): string {
+  const authorization = request.headers.get('authorization');
+  const match = authorization && /^Bearer ([^\s]{1,16384})$/i.exec(authorization.trim());
+  if (!match) fail(401, 'Authentication required');
+  return `Bearer ${match[1]}`;
 }
 
 function requestedScopes(scope: KeikoOperation['scope']): string[] {
@@ -184,6 +200,7 @@ async function issueKeikoToken(
   ) {
     fail(403, 'Request origin could not be verified');
   }
+  const authorization = verifiedMatmetricsBearerHeader(request);
   const cookie = sessionCookieHeader(request);
   const workerUrl = validatedBaseUrl('CLOUDFLARE_AUTH_WORKER_URL', true);
   const endpoint = new URL('/__internal/keiko-token', workerUrl);
@@ -195,6 +212,7 @@ async function issueKeikoToken(
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
+        authorization,
         cookie,
         origin,
         'sec-fetch-site': 'same-origin',
