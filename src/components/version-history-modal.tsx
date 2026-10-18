@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { formatReleaseTag } from '@/lib/release-tag';
 import type { ReleaseEntry } from '@/lib/releases';
 
 type RecentReleasesResponse = {
@@ -121,7 +122,9 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         ? releases.map((entry) => (
             <div key={entry.version}>
               <div className="mb-3">
-                <h3 className="font-semibold text-sm">v{entry.version}</h3>
+                <h3 className="font-semibold text-sm">
+                  {formatReleaseTag(entry.version)}
+                </h3>
                 <p className="text-xs text-muted-foreground">{entry.date}</p>
               </div>
               <div className="space-y-3">
