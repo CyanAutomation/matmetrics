@@ -4,18 +4,24 @@
 
 MatMetrics is a web application for judoka to log Judo practice sessions and understand their training patterns, techniques, and intensity. Operators can connect persistent storage and optional AI and authentication services; contributors can work on the Next.js app, Go tools, and Cloudflare Workers in this repository.
 
-## Overview
+## Contents
 
-MatMetrics is designed to help Judo practitioners log and analyze their training sessions with minimal friction. The application combines session logging, AI-powered technique suggestions, effort tracking, and visual dashboards to provide actionable insights into your training progress.
-
-## Core Features
-
-- **Session Logging**: Quickly log training sessions with date, techniques practiced, and effort level
-- **AI Technique Helper**: Intelligently suggests Judo techniques as you type, powered by Cloudflare AI Gateway
-- **Effort Rating**: Track perceived training intensity on a 1-5 scale (1 = easy, 3 = normal, 5 = intense)
-- **Session History**: Browse and review all logged training sessions
-- **Dashboard Overview**: Visual metrics including average effort levels and frequently practiced techniques
-- **Dark Mode Support**: Light and dark theme options for comfortable viewing
+- [Quick Start](#quick-start)
+- [Core Features](#core-features)
+- [Using MatMetrics](#using-matmetrics)
+- [Documentation](#documentation)
+- [Tech Stack](#tech-stack)
+- [Design System](#design-system)
+- [Getting Started and Configuration](#getting-started)
+- [Available Scripts](#available-scripts)
+- [Authentication Setup](#authentication-setup)
+- [Deployment](#deployment)
+- [Project Structure](#project-structure)
+- [AI Features](#ai-features)
+- [Contributing](#contributing)
+- [License](#license)
+- [Roadmap](#roadmap)
+- [Plugin Development](#plugin-development)
 
 ## Quick Start
 
@@ -32,12 +38,21 @@ npm run dev
 Open [http://localhost:9002](http://localhost:9002). The guest preview starts
 with sample sessions stored in this browser. Select **Log session** to open the
 session form and try adding a practice entry. Guest changes stay in browser
-storage and are not synced to GitHub. Configure authentication and a storage
-repository for an account-backed workflow; see [Setup](SETUP.md).
+storage and are not synced to GitHub. For account-backed local development, see
+the [full local setup guide](SETUP.md#local-development).
 
 AI suggestions, description transforms, and other integrations need their own
 credentials. Add only the settings for the features you enable; see
 [`.env.example`](.env.example) and [Environment variable behavior](#environment-variable-behavior).
+
+## Core Features
+
+- **Session Logging**: Quickly log training sessions with date, techniques practiced, and effort level
+- **AI Technique Helper**: Intelligently suggests Judo techniques as you type, powered by Cloudflare AI Gateway
+- **Effort Rating**: Track perceived training intensity on a 1-5 scale (1 = easy, 3 = normal, 5 = intense)
+- **Session History**: Browse and review all logged training sessions
+- **Dashboard Overview**: Visual metrics including average effort levels and frequently practiced techniques
+- **Dark Mode Support**: Light and dark theme options for comfortable viewing
 
 ## Using MatMetrics
 
@@ -50,7 +65,8 @@ session**. In guest mode, the preview and new entries are stored in this
 browser. They are not sent to a server or synced to GitHub.
 
 To keep sessions in an account, configure sign-in and a GitHub-backed storage
-repository. See the [setup guide](SETUP.md) and [deployment instructions](#deployment).
+repository. See the [full local setup guide](SETUP.md#local-development) and
+[deployment instructions](#deployment).
 
 ### Use the Go CLI
 
@@ -68,8 +84,8 @@ other commands and protected Go API configuration.
 
 | Guide | Purpose |
 | --- | --- |
-| [Setup guide](SETUP.md) | Local services, authentication, email, and deployment setup |
-| [Contributing](CONTRIBUTING.md) | Release and pull request conventions |
+| [Setup guide](SETUP.md#local-development) | Guest preview, local Workers, authentication, email, and deployment setup |
+| [Contributing](CONTRIBUTING.md) | Development, verification, and release guidance |
 | [Go tooling](go/README.md) | CLI commands and Go API authentication |
 | [Auth Worker](workers/matmetrics-auth/README.md) | Worker configuration, tests, and deployment |
 | [Auth migration](docs/better-auth-passkey-migration.md) | Auth rollout and post-deployment checks |
@@ -156,7 +172,7 @@ Important credential sources:
 - To smoke-test the JEV request with the Vercel Production environment without writing secrets to a local env file, run `vercel env run -e production -- npm run smoke:jev`. This makes one JEV request with synthetic training text and prints only the assessment summary or a safe error code/status.
 - JEV category thresholds can be evaluated against labeled outcomes without storing session text; see [JEV threshold evaluation](docs/jev-evaluation.md).
 - `CLOUDFLARE_DATA_WORKER_URL` and `MATMETRICS_INTERNAL_API_SECRET` enable D1-backed preferences and per-user plugin overrides. See [the D1 migration guide](docs/cloudflare-d1-migration.md).
-- `CLOUDFLARE_AUTH_WORKER_URL`, `CLOUDFLARE_AUTH_WORKER_HOST`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE` connect Next.js and Go to the Better Auth Worker. The host setting is a non-secret exact hostname check for server-side session-cookie forwarding. Set `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite are ready. Password signup is gated by `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED` and Worker `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`; both default off. Passkey enrollment requires an authenticated session and is controlled by `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`. Keep `BETTER_AUTH_SECRET` and `RESEND_API_KEY` only in Cloudflare. Configure the verified sender with `MATMETRICS_AUTH_EMAIL_FROM`. See [the auth setup guide](docs/better-auth-passkey-migration.md).
+- `CLOUDFLARE_AUTH_WORKER_URL`, `MATMETRICS_AUTH_JWKS_URL`, `MATMETRICS_AUTH_ISSUER`, and `MATMETRICS_AUTH_AUDIENCE` connect Next.js and Go to the Better Auth Worker. `CLOUDFLARE_AUTH_WORKER_HOST` is a non-secret exact-host check used by the server-side Keiko session-cookie exchange when it calls a remote `*.workers.dev` auth Worker; local `http://localhost` Worker URLs do not need it. Set `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true` when the Worker and same-origin rewrite are ready. Password signup is gated by `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED` and Worker `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED`; both default off. Passkey enrollment requires an authenticated session and is controlled by `NEXT_PUBLIC_PASSKEY_ENROLMENT_ENABLED` and Worker `MATMETRICS_PASSKEY_ENROLMENT_ENABLED`. Keep `BETTER_AUTH_SECRET` and `RESEND_API_KEY` only in Cloudflare. Configure the verified sender with `MATMETRICS_AUTH_EMAIL_FROM`. See [the auth setup guide](docs/better-auth-passkey-migration.md).
 - For accounts in `KEIKO_SESSION_CUTOVER_USER_IDS`, session API routes first verify the existing `matmetrics-api` bearer token, then exchange only the configured Better Auth session cookie with the fixed `CLOUDFLARE_AUTH_WORKER_URL`. The Auth Worker independently verifies that bearer token and checks both its user ID and its Better Auth session user against the expected identity before issuing a five-minute `keiko-dojo-api` token. The bearer token is sent only to the trusted Auth Worker and is never forwarded to Keiko. Set `MATMETRICS_AUTH_FRONTEND_ORIGIN` to the exact origin and `KEIKO_API_BASE_URL` to the Keiko origin. The internal issuance endpoint is outside `/api/auth/*`, so the browser rewrite cannot expose its token response. Do not put these settings under `NEXT_PUBLIC_*`.
 - Before enabling a user in the cutover allowlist, run `npm run test:keiko:import` and the importer in dry-run mode. Configure `MATMETRICS_API_BASE_URL`, `MATMETRICS_BEARER_TOKEN`, and the single `BETTER_AUTH_SESSION_COOKIE` along with the auth and Keiko server settings. Run `node --import tsx scripts/import-keiko-sessions.ts` to compare Markdown sessions with Keiko; add `--apply` only after reviewing counts and mismatches. Keep the Markdown source for rollback.
 - `MATMETRICS_BACKGROUND_EXECUTOR_URL` and `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` enable the Cloudflare Queues background-job executor: the Worker posts background jobs to the URL, and the secret authorizes `POST` calls to `/api/internal/background-jobs/execute`.
@@ -177,7 +193,7 @@ Important credential sources:
 - **`npm run verify`**: Run the full verification suite sequentially (`test:all`, auth Worker tests/typecheck, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
 - **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`, followed by `npm run test:styles`)
 - **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)
-- **API route tests**: Live in `src/tests/` (for example `src/tests/api-sessions-id-route.test.ts` and `src/tests/api-sessions-create-route.test.ts`) and are covered by `npm run test:all`; `src/lib/plugins/validate.test.ts` covers plugin validation behavior checks.
+- **API route tests**: Tests are in `src/tests/` and alongside route handlers under `src/app/api/`; they are covered by `npm run test:all`. For example, see `src/tests/api-sessions-id-route.test.ts` and `src/app/api/ai/routes.test.ts`.
 - **`npm run test:all`**: Run all TypeScript tests under `plugins/` and `src/` (with `src/lib/storage.test.ts` executed separately), after `validate:plugin-ui-contract`, `validate:plugin-ui-migration-artifact`, `validate:docs`, and the tsx availability preflight
 - **`npm run lint:readme`**: Check root README Markdown style with the repository's markdownlint config
 - **`npm run test:readme`**: Test the root README link and heading validator
@@ -185,22 +201,8 @@ Important credential sources:
 
 `npm run build` and `npm run typecheck` both read and write `.next` artifacts. Run them sequentially, or prefer `npm run verify`, instead of launching them in parallel.
 
-### CI dependency requirement for validation and tests
-
-CI/runner jobs that execute any of the following scripts must install **full dependencies** (including `devDependencies`):
-
-- `npm run validate:plugin-ui-contract`
-- `npm run test`
-- `npm run test:all`
-- `npm run ci:contracts`
-
-Do not use production-only install flags (`--omit=dev`, `NODE_ENV=production`) in those validation/test jobs. Immediately after install, run:
-
-```bash
-node -e "require.resolve('tsx')"
-```
-
-This preflight fails fast with a clear error when test tooling dependencies are missing.
+CI and contribution verification require the full dependency set, including
+`devDependencies`; see [Development and verification](CONTRIBUTING.md#development-and-verification).
 
 ## Authentication Setup
 
@@ -247,9 +249,11 @@ for deployment and post-deploy account checks.
 
 For development and testing, set both `MATMETRICS_AUTH_TEST_MODE=true` and
 `NODE_ENV=test`. Next.js and Go then accept only
-`Authorization: Bearer test-token`; all other tokens receive HTTP 401. Outside
-test mode, protected APIs accept Better Auth service JWTs verified through the
-configured JWKS URL, issuer, audience, expiry, and signature.
+`Authorization: Bearer test-token`; all other tokens receive HTTP 401. This
+test-only token is not valid in development or production. Outside test mode,
+protected APIs accept Better Auth service JWTs verified through the configured
+JWKS URL, issuer, audience, expiry, and signature. The AI endpoint examples
+below show the required bearer header.
 
 ## Deployment
 
@@ -322,11 +326,65 @@ session data to the ephemeral function filesystem; see [Deployment](#deployment)
 
 ### POST /api/ai/suggest-techniques
 
-Accepts `{ description: string }` and returns `{ suggestions: string[] }`. Analyzes the provided session description and returns an array of suggested Judo technique names. Powered by Cloudflare AI Gateway with the `dynamic/matmetrics` model routing.
+Accepts `{ "description": string }` and returns a `suggestions` array plus a
+`verificationStatus` value (`verified`, `not_configured`, `unavailable`, or
+`not_needed`). The endpoint analyzes the session description and suggests Judo
+technique names through Cloudflare AI Gateway with the `dynamic/matmetrics`
+model routing. `OPENROUTER_API_KEY` enables optional technique verification.
 
 ### POST /api/ai/transform-description
 
-Accepts `{ description: string, customPrompt?: string }` and returns `{ transformedDescription: string, fidelityStatus }`. Processes the provided text and normalizes it into consistent prose format. Uses customizable prompts via `customPrompt` parameter or falls back to the default transformer prompt. When `OPENROUTER_API_KEY` is configured, JEV checks for unsupported factual details; `fidelityStatus` is `clear`, `flagged`, or `unavailable`. Without the key, it is `not_checked`. The check only flags possible issues and never blocks the rewrite.
+Accepts `{ "description": string, "customPrompt"?: string }` and returns
+`transformedDescription` and `fidelityStatus`. It normalizes the text into
+prose, using `customPrompt` when supplied or the default prompt otherwise.
+When `OPENROUTER_API_KEY` is configured, JEV checks for unsupported factual
+details; the status can be `clear`, `flagged`, or `unavailable`. Without the
+key, it is `not_checked`. The check only flags possible issues and never blocks
+the rewrite.
+
+Both endpoints require `Authorization: Bearer <Better Auth service JWT>`; guest
+mode requests receive HTTP 401. A signed-in MatMetrics client obtains a
+short-lived service token from Better Auth and sends it as a bearer token via
+the [auth header helper](src/lib/auth-session.ts). Both endpoints also require
+`CLOUDFLARE_API_TOKEN` in the app environment; `OPENROUTER_API_KEY` enables
+optional verification. For a direct request, set `MATMETRICS_SERVICE_JWT` to a
+token obtained from an authenticated session. Do not use the test-only
+`test-token` outside a test environment.
+
+```bash
+export MATMETRICS_ORIGIN=http://localhost:9002
+export MATMETRICS_SERVICE_JWT=replace-with-a-short-lived-service-token
+
+curl --fail-with-body "$MATMETRICS_ORIGIN/api/ai/suggest-techniques" \
+  -H "Authorization: Bearer $MATMETRICS_SERVICE_JWT" \
+  -H "Content-Type: application/json" \
+  --data '{"description":"Practiced O-soto-gari entries during randori."}'
+```
+
+Example response:
+
+```json
+{
+  "suggestions": ["O-soto-gari"],
+  "verificationStatus": "verified"
+}
+```
+
+```bash
+curl --fail-with-body "$MATMETRICS_ORIGIN/api/ai/transform-description" \
+  -H "Authorization: Bearer $MATMETRICS_SERVICE_JWT" \
+  -H "Content-Type: application/json" \
+  --data '{"description":"Worked on grip fighting and O-soto-gari entries."}'
+```
+
+Example response when no fidelity check is configured:
+
+```json
+{
+  "transformedDescription": "Worked on grip fighting and O-soto-gari entries.",
+  "fidelityStatus": "not_checked"
+}
+```
 
 ### Input Limits
 
@@ -360,7 +418,8 @@ conventions. Report bugs and request features through
 ## License
 
 The repository does not currently include a project license file. Contact the
-maintainers about reuse permissions.
+maintainers about licensing. Do not assume permission to reuse or redistribute
+the code without a published license.
 
 ## Roadmap
 
