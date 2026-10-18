@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createKasekiIdempotencyKey } from "./kaseki-idempotency-key.mjs";
+import { createKasekiIdempotencyKey } from "./kaseki-idempotency-key.ts";
 
 test("creates a UUIDv4 idempotency key", () => {
   const first = createKasekiIdempotencyKey();
@@ -22,7 +22,7 @@ for (const missingVariable of [
   "GITHUB_RUN_ID",
 ]) {
   test(`reports a clear error when ${missingVariable} is missing`, () => {
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       ...process.env,
       GITHUB_REPOSITORY: "CyanAutomation/matmetrics",
       GITHUB_WORKFLOW: "Kaseki Docs Sweep",
@@ -31,7 +31,7 @@ for (const missingVariable of [
     delete env[missingVariable];
 
     const scriptPath = fileURLToPath(
-      new URL("./kaseki-idempotency-key.mjs", import.meta.url),
+      new URL("./kaseki-idempotency-key.ts", import.meta.url),
     );
     const result = spawnSync(process.execPath, [scriptPath], {
       encoding: "utf8",

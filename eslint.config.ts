@@ -1,3 +1,4 @@
+import type { Linter } from 'eslint';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import nextTypeScript from 'eslint-config-next/typescript';
 import unusedImports from 'eslint-plugin-unused-imports';
@@ -8,7 +9,7 @@ const config = [
   },
   ...nextCoreWebVitals,
   ...nextTypeScript,
-];
+] satisfies Linter.Config[];
 
 config.push({
   plugins: {

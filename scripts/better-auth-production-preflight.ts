@@ -4,7 +4,18 @@ export const DEFAULT_APP_ORIGIN = 'https://matmetrics-teal.vercel.app';
 export const DEFAULT_AUTH_WORKER_ORIGIN =
   'https://matmetrics-auth-production.scheimann.workers.dev';
 
-function parseOrigin(name, value) {
+type PreflightCheck = {
+  name: string;
+  ok: boolean;
+  status?: number;
+  detail: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseOrigin(name: string, value: string): string {
   let url;
   try {
     url = new URL(value);
@@ -27,7 +38,12 @@ function parseOrigin(name, value) {
   return url.origin;
 }
 
-async function getJson(fetchImpl, name, url, validate) {
+async function getJson(
+  fetchImpl: typeof fetch,
+  name: string,
+  url: string,
+  validate: (body: unknown) => string | null
+): Promise<PreflightCheck> {
   try {
     const response = await fetchImpl(url, {
       method: 'GET',
@@ -38,7 +54,7 @@ async function getJson(fetchImpl, name, url, validate) {
       return { name, ok: false, status: response.status, detail: 'HTTP error' };
     }
 
-    let body;
+    let body: unknown;
     try {
       body = await response.json();
     } catch {
@@ -66,15 +82,21 @@ export async function runBetterAuthProductionPreflight({
   appOrigin,
   workerOrigin,
   fetchImpl = fetch,
+}: {
+  appOrigin: string;
+  workerOrigin: string;
+  fetchImpl?: typeof fetch;
 }) {
   const app = parseOrigin('appOrigin', appOrigin);
   const worker = parseOrigin('workerOrigin', workerOrigin);
   const checks = await Promise.all([
     getJson(fetchImpl, 'auth-worker-health', `${worker}/healthz`, (body) =>
-      body && body.ok === true ? 'health endpoint returned ok=true' : null
+      isRecord(body) && body.ok === true
+        ? 'health endpoint returned ok=true'
+        : null
     ),
     getJson(fetchImpl, 'same-origin-jwks', `${app}/api/auth/jwks`, (body) => {
-      if (!body || !Array.isArray(body.keys) || body.keys.length === 0) {
+      if (!isRecord(body) || !Array.isArray(body.keys) || body.keys.length === 0) {
         return null;
       }
       return `JWKS endpoint returned ${body.keys.length} public key(s)`;

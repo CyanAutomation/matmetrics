@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export function createKasekiIdempotencyKey() {
+export function createKasekiIdempotencyKey(): string {
   // Kaseki requires UUIDv4; the submit client reuses this value across retries.
   return randomUUID();
 }
@@ -23,7 +23,9 @@ if (scriptPath === fileURLToPath(import.meta.url)) {
     const key = createKasekiIdempotencyKey();
     process.stdout.write(`${key}\n`);
   } catch (error) {
-    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(
+      `${error instanceof Error ? error.message : 'Unable to create idempotency key'}\n`
+    );
     process.exitCode = 1;
   }
 }

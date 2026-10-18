@@ -173,7 +173,7 @@ Important credential sources:
 - **`npm run build`**: Build for production
 - **`npm run start`**: Start the production server
 - **`npm run lint`**: Run the plugin UI contract validator, then ESLint
-- **`npm run typecheck`**: Clear `.next/types` and `tsconfig.tsbuildinfo`, regenerate Next.js route types with `next typegen`, write a placeholder `.next/types/cache-life.d.ts`, then run `tsc --noEmit`
+- **`npm run typecheck`**: Clear `.next/types` and `tsconfig.tsbuildinfo`, regenerate Next.js route types with `next typegen`, write a placeholder `.next/types/cache-life.d.ts`, then typecheck the app and operational scripts, including the data Worker migration tools.
 - **`npm run verify`**: Run the full verification suite sequentially (`test:all`, auth Worker tests/typecheck, `plugin:maturity:check`, `typecheck`, `build`, `go:test`)
 - **`npm run test`**: Run the focused TypeScript test suite (runs `validate:plugin-ui-contract` and the tsx availability preflight, then executes `src/lib/sync-queue.test.ts` with Node's test runner under `NODE_ENV=test`, followed by `npm run test:styles`)
 - **`npm test -- <file>`**: Append a specific TypeScript test file to the focused run (for example: `npm test -- src/lib/plugins/validate.test.ts`)

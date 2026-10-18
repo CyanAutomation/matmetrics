@@ -10,8 +10,6 @@
       "entryPoints": [
         "**/*.test.ts",
         "**/*.test.tsx",
-        "**/*.test.js",
-        "**/*.test.mjs",
         "**/*.spec.ts",
         "**/*.spec.tsx"
       ],
@@ -20,7 +18,7 @@
   ],
   "ignorePatterns": ["scripts/__fixtures__/**"],
   "ignoreDependencies": ["react-dom", "tailwindcss-animate"],
-  "dynamicallyLoaded": ["tailwind.config.ts", "postcss.config.mjs"],
+  "dynamicallyLoaded": ["tailwind.config.ts", "postcss.config.ts"],
   "ignoreExports": [
     {
       "file": "plugins/**/src/index.ts",
