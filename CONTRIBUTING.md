@@ -1,5 +1,34 @@
 # Contributing
 
+## Development and verification
+
+Use the root README's [Quick Start](README.md#quick-start) for the credential-free
+guest preview. Before running validation or tests, install the full dependency
+set, including development dependencies:
+
+```bash
+npm ci
+```
+
+CI jobs that run `npm run validate:plugin-ui-contract`, `npm run test`,
+`npm run test:all`, or `npm run ci:contracts` must not use production-only
+installs such as `npm ci --omit=dev` or `NODE_ENV=production`. Check that the
+TypeScript test runner is available after installing:
+
+```bash
+node -e "require.resolve('tsx')"
+```
+
+Useful local checks include `npm run lint`, `npm run typecheck`,
+`npm run test:all`, `npm run build`, and `npm run go:test`. The root README's
+[Available Scripts](README.md#available-scripts) section describes these
+commands. `npm run typecheck` and `npm run build` both write `.next` artifacts;
+run them sequentially.
+
+GitHub Actions checks links in the README and selected documentation on a weekly
+schedule. Review link-check failures to distinguish a stale URL from a temporary
+network or rate-limit response.
+
 ## Manual releases and changelog
 
 MatMetrics publishes GitHub Releases manually. The release tag and title use
