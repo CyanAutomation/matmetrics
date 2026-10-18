@@ -53,11 +53,16 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
       - name: Validate Kaseki configuration
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/kaseki-workflow.mjs validate
+          node scripts/kaseki-workflow.ts validate
           command -v jq >/dev/null
 
       - name: Verify controller health
@@ -69,7 +74,7 @@ jobs:
         shell: bash
         env:
           KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
-        run: node scripts/kaseki-workflow.mjs preflight
+        run: node scripts/kaseki-workflow.ts preflight
 
       - name: Submit DRY sweep
         id: submit
@@ -79,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          idempotency_key="$(node scripts/kaseki-idempotency-key.mjs)"
+          idempotency_key="$(node scripts/kaseki-idempotency-key.ts)"
 
           payload="$(
             jq -n \
@@ -140,7 +145,7 @@ jobs:
               }'
           )"
 
-          printf '%s' "$payload" | node scripts/kaseki-workflow.mjs submit
+          printf '%s' "$payload" | node scripts/kaseki-workflow.ts submit
 
       - name: Wait for Kaseki completion
         id: wait
@@ -148,7 +153,7 @@ jobs:
         env:
           KASEKI_API_TOKEN: ${{ secrets.KASEKI_API_TOKEN }}
           RUN_ID: ${{ steps.submit.outputs.run_id }}
-        run: node scripts/kaseki-workflow.mjs wait
+        run: node scripts/kaseki-workflow.ts wait
 
       - name: Publish run details
         if: always()

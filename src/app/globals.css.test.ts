@@ -12,8 +12,11 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
     from: cssPath,
   });
 
-  const declarationValueFor = (selector, property) => {
-    let value;
+  const declarationValueFor = (
+    selector: string,
+    property: string
+  ): string | undefined => {
+    let value: string | undefined;
     result.root.walkRules((rule) => {
       const selectors = rule.selector
         .split(',')

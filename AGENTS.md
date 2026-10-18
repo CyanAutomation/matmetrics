@@ -4,7 +4,7 @@
 
 ### TypeScript/React
 
-- Follow the surrounding code style. Linting uses [ESLint with Next.js config](./eslint.config.mjs) (Next.js core web vitals, TypeScript) with relaxed rules for explicit any and require imports.
+- Follow the surrounding code style. Linting uses [ESLint with Next.js config](./eslint.config.ts) (Next.js core web vitals, TypeScript) with relaxed rules for explicit any and require imports.
 - Organize components in `src/components/`, hooks in `src/hooks/`, utilities in `src/lib/`
 - Use Radix UI primitives with Tailwind CSS for styling; see [design system](./docs/blueprint.md) for colors and typography
 
