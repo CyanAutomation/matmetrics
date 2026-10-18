@@ -17,6 +17,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function getCloudflareErrorDetails(payload: unknown): string | undefined {
+  if (!isRecord(payload) || !Array.isArray(payload.errors)) return undefined;
+
+  const details = payload.errors
+    .slice(0, 3)
+    .flatMap((error) => {
+      if (!isRecord(error) || typeof error.message !== 'string') return [];
+
+      const message = error.message
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .trim()
+        .slice(0, 200);
+      if (!message) return [];
+
+      const code =
+        typeof error.code === 'number' && Number.isFinite(error.code)
+          ? `${error.code}: `
+          : '';
+      return [`${code}${message}`];
+    })
+    .join('; ')
+    .slice(0, 500);
+
+  return details || undefined;
+}
+
 function requireValue(name: string, value: string | undefined): string {
   if (!value?.trim()) {
     throw new Error(`${name} must be set in the secure operator environment`);
@@ -122,10 +148,18 @@ export async function runAuthMigrationCheck({
     try {
       payload = await response.json();
     } catch {
+      if (!response.ok) {
+        throw new Error(
+          `Cloudflare D1 query failed (HTTP ${response.status}; response was not valid JSON)`
+        );
+      }
       throw new Error(`Cloudflare D1 query returned invalid JSON (${response.status})`);
     }
     if (!response.ok || !isRecord(payload) || payload.success !== true) {
-      throw new Error(`Cloudflare D1 query failed (HTTP ${response.status})`);
+      const details = getCloudflareErrorDetails(payload);
+      throw new Error(
+        `Cloudflare D1 query failed (HTTP ${response.status})${details ? `: ${details}` : ''}`
+      );
     }
 
     const firstResult = Array.isArray(payload.result) ? payload.result[0] : undefined;

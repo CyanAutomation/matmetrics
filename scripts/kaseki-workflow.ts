@@ -531,9 +531,9 @@ async function runCli(command: string | undefined): Promise<void> {
 const scriptPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (scriptPath && import.meta.url === pathToFileURL(scriptPath).href) {
   runCli(process.argv[2]).catch((error) => {
-      process.stderr.write(
-        `Kaseki operation failed: ${error instanceof Error ? error.message : 'Unknown error'}\n`
-      );
+    process.stderr.write(
+      `Kaseki operation failed: ${error instanceof Error ? error.message : 'Unknown error'}\n`
+    );
     process.exitCode = 1;
   });
 }
