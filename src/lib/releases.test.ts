@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { formatReleaseTag } from '@/lib/release-tag';
 import {
   assertReleaseVersionConsistency,
   getRecentReleasesFromSource,
@@ -72,7 +73,15 @@ test('getRecentReleasesFromSource returns the latest three releases', () => {
   );
 });
 
-test('parseChangelog supports release-please and manual headings together', () => {
+test('formatReleaseTag uses vX.Y for whole internal releases and preserves legacy patch tags', () => {
+  assert.equal(formatReleaseTag('2.0.0'), 'v2.0');
+  assert.equal(formatReleaseTag('2.9.0'), 'v2.9');
+  assert.equal(formatReleaseTag('3.0.0'), 'v3.0');
+  assert.equal(formatReleaseTag('1.9.1'), 'v1.9.1');
+  assert.equal(formatReleaseTag('1.12.0'), 'v1.12.0');
+});
+
+test('parseChangelog supports historical automated and manual headings together', () => {
   const releases =
     parseChangelog(`## [1.2.1](https://github.com/CyanAutomation/matmetrics/compare/v1.2.0...v1.2.1) (2026-08-16)
 
