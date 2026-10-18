@@ -6,7 +6,8 @@ import {
   LEGACY_DESIGN_TOKEN_MAPPINGS,
 } from '@/lib/design-tokens';
 
-test('canonical design token keys are unique kebab-case names', () => {
+test('canonical design token keys follow the documented kebab-case contract', () => {
+  // Design contract: docs/blueprint.md#canonical-design-tokens.
   assert.equal(
     new Set(CANONICAL_DESIGN_TOKEN_KEYS).size,
     CANONICAL_DESIGN_TOKEN_KEYS.length,
@@ -18,7 +19,8 @@ test('canonical design token keys are unique kebab-case names', () => {
   }
 });
 
-test('legacy design token mappings resolve to canonical keys', () => {
+test('legacy design token mappings migrate to documented canonical keys', () => {
+  // Migration contract: docs/blueprint.md#token-migration-guide.
   const canonicalKeys = new Set<string>(CANONICAL_DESIGN_TOKEN_KEYS);
 
   for (const [legacyKey, canonicalKey] of Object.entries(

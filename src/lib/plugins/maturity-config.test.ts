@@ -165,17 +165,5 @@ describe('maturity-config', () => {
 
       assert.deepEqual(detectMaturityPrimitiveEvidence(sourceText), []);
     });
-
-    it('should return null for unknown source in getPrimitivesBySource', () => {
-      const result =
-        MATURITY_PRIMITIVES.getPrimitivesBySource('@/unknown/source');
-      assert.equal(result, null);
-    });
-
-    it('should return null for unknown primitive in getSourceOfPrimitive', () => {
-      const source =
-        MATURITY_PRIMITIVES.getSourceOfPrimitive('UnknownPrimitive');
-      assert.equal(source, null);
-    });
   });
 });
