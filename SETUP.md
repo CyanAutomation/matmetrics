@@ -49,6 +49,10 @@ MATMETRICS_INTERNAL_API_SECRET=replace-with-a-local-random-secret
 MATMETRICS_BACKGROUND_EXECUTOR_SECRET=replace-with-a-different-local-random-secret
 ```
 
+`CLOUDFLARE_AUTH_WORKER_HOST` is not needed for the local `http://localhost`
+URL above. Set it to the auth Worker's exact bare `*.workers.dev` hostname only
+when using a remote Worker for the server-side Keiko session exchange.
+
 Use the same local `MATMETRICS_INTERNAL_API_SECRET` and
 `MATMETRICS_BACKGROUND_EXECUTOR_SECRET` in
 `workers/matmetrics-data/.dev.vars`. Add a local `BETTER_AUTH_SECRET` in
