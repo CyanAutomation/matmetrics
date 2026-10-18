@@ -4,6 +4,24 @@ All notable changes to MatMetrics are documented in this file.
 
 > **History note:** This changelog was reconciled with Git history on 2026-08-16. The repository has no Git tags or GitHub Releases before this point. The entries below therefore record version-setting commits and product milestones, rather than claiming publication dates that cannot be verified.
 
+## [2.0.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.12.0...v2.0) (2026-10-18)
+
+### Features
+
+- Add password and passkey sign-in with incremental account migration to Better Auth.
+- Add the server-side Keiko session gateway and expand JEV training assessments.
+
+### Improvements
+
+- Improve session workflows, semantic Session Audit checks, and responsive dashboard layouts.
+- Retire Firebase and Firestore runtime dependencies as authentication and preference paths move to Better Auth and D1.
+- Strengthen Kaseki automation, deployment safeguards, and test reliability.
+
+### Fixes
+
+- Fix auth identity conflicts, preference refresh, and stale training history across sign-in providers.
+- Improve API failure handling, session dialog teardown, and workflow retries.
+
 ## [1.12.0](https://github.com/CyanAutomation/matmetrics/compare/nextn-v1.11.1...nextn-v1.12.0) (2026-09-22)
 
 

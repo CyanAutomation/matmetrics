@@ -5,6 +5,7 @@ import test from 'node:test';
 import { APP_VERSION } from '@/lib/app-version';
 
 const loadApiContract = async () => import('@/lib/plugins/api-contract');
+const INCOMPATIBLE_VERSION = `${Number(APP_VERSION.split('.')[0]) + 1}.0.0`;
 
 test('autoDisablePluginIfNeeded - returns manifest unchanged if no issues', async () => {
   const { autoDisablePluginIfNeeded } = await loadApiContract();
@@ -75,7 +76,7 @@ test('autoDisablePluginIfNeeded - disables plugin with version mismatch', async 
     version: '1.0.0',
     description: 'Test',
     enabled: true,
-    minVersion: '2.0.0',
+    minVersion: INCOMPATIBLE_VERSION,
     capabilities: [],
     uiExtensions: [
       {
