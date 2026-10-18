@@ -18,7 +18,7 @@ or direct-invocation tools even though application code does not import them:
 - `src/components/ui/radio-group.tsx` is a shared UI primitive.
 - `src/components/ui/section.tsx` is the documented page-section layout
   primitive in `DESIGN.md`.
-- `scripts/convert-images.js` is a manual image conversion command run directly
+- `scripts/convert-images.ts` is a manual image conversion command run directly
   with Node.
 
 Each carries a file-level `unused-file` suppression for that reason. Keep the

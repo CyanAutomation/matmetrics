@@ -8,16 +8,49 @@ const sqlFiles = {
   verify: 'verify-auth-registration-guards.sql',
   'retirement-preflight': 'auth-retirement-preflight.sql',
   'retirement-verify': 'verify-auth-retirement.sql',
-};
+} as const;
 
-function requireValue(name, value) {
+type MigrationMode = keyof typeof sqlFiles;
+type D1CheckRow = { check_name: string; passed?: unknown };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getCloudflareErrorDetails(payload: unknown): string | undefined {
+  if (!isRecord(payload) || !Array.isArray(payload.errors)) return undefined;
+
+  const details = payload.errors
+    .slice(0, 3)
+    .flatMap((error) => {
+      if (!isRecord(error) || typeof error.message !== 'string') return [];
+
+      const message = error.message
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .trim()
+        .slice(0, 200);
+      if (!message) return [];
+
+      const code =
+        typeof error.code === 'number' && Number.isFinite(error.code)
+          ? `${error.code}: `
+          : '';
+      return [`${code}${message}`];
+    })
+    .join('; ')
+    .slice(0, 500);
+
+  return details || undefined;
+}
+
+function requireValue(name: string, value: string | undefined): string {
   if (!value?.trim()) {
     throw new Error(`${name} must be set in the secure operator environment`);
   }
   return value.trim();
 }
 
-function splitReadOnlyStatements(sql) {
+function splitReadOnlyStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
@@ -31,10 +64,12 @@ function splitReadOnlyStatements(sql) {
     });
 }
 
-function assertReadOnlyResult(result) {
+function assertReadOnlyResult(
+  result: Record<string, unknown> | undefined
+): asserts result is Record<string, unknown> {
   const meta = result?.meta;
   if (
-    !meta ||
+    !isRecord(meta) ||
     meta.changed_db !== false ||
     meta.rows_written !== 0 ||
     meta.changes !== 0
@@ -45,6 +80,10 @@ function assertReadOnlyResult(result) {
   }
 }
 
+function hasCheckName(value: unknown): value is D1CheckRow {
+  return isRecord(value) && typeof value.check_name === 'string';
+}
+
 export async function runAuthMigrationCheck({
   mode,
   accountId,
@@ -52,13 +91,24 @@ export async function runAuthMigrationCheck({
   apiToken,
   fetchImpl = fetch,
   sqlDirectory = scriptDirectory,
+}: {
+  mode: string | undefined;
+  accountId: string | undefined;
+  databaseId: string | undefined;
+  apiToken: string | undefined;
+  fetchImpl?: typeof fetch;
+  sqlDirectory?: string;
 }) {
-  const fileName = sqlFiles[mode];
+  const fileName =
+    mode && Object.hasOwn(sqlFiles, mode)
+      ? sqlFiles[mode as MigrationMode]
+      : undefined;
   if (!fileName) {
     throw new Error(
       'Choose preflight, verify, retirement-preflight, or retirement-verify'
     );
   }
+  const validatedMode = mode as MigrationMode;
 
   const cloudflareAccountId = requireValue('CLOUDFLARE_ACCOUNT_ID', accountId);
   const cloudflareDatabaseId = requireValue(
@@ -80,7 +130,7 @@ export async function runAuthMigrationCheck({
   const sql = await readFile(path.join(sqlDirectory, fileName), 'utf8');
   const statements = splitReadOnlyStatements(sql);
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/d1/database/${cloudflareDatabaseId}/query`;
-  const results = [];
+  const results: unknown[][] = [];
 
   for (const statement of statements) {
     const response = await fetchImpl(endpoint, {
@@ -94,39 +144,50 @@ export async function runAuthMigrationCheck({
       body: JSON.stringify({ sql: statement }),
     });
 
-    let payload;
+    let payload: unknown;
     try {
       payload = await response.json();
     } catch {
+      if (!response.ok) {
+        throw new Error(
+          `Cloudflare D1 query failed (HTTP ${response.status}; response was not valid JSON)`
+        );
+      }
       throw new Error(`Cloudflare D1 query returned invalid JSON (${response.status})`);
     }
-    if (!response.ok || payload.success !== true) {
-      throw new Error(`Cloudflare D1 query failed (HTTP ${response.status})`);
+    if (!response.ok || !isRecord(payload) || payload.success !== true) {
+      const details = getCloudflareErrorDetails(payload);
+      throw new Error(
+        `Cloudflare D1 query failed (HTTP ${response.status})${details ? `: ${details}` : ''}`
+      );
     }
 
-    const result = payload.result?.[0];
+    const firstResult = Array.isArray(payload.result) ? payload.result[0] : undefined;
+    const result = isRecord(firstResult) ? firstResult : undefined;
     assertReadOnlyResult(result);
-    results.push(result.results ?? []);
+    results.push(Array.isArray(result.results) ? result.results : []);
   }
 
   if (
-    mode === 'verify' ||
-    mode === 'retirement-preflight' ||
-    mode === 'retirement-verify'
+    validatedMode === 'verify' ||
+    validatedMode === 'retirement-preflight' ||
+    validatedMode === 'retirement-verify'
   ) {
     const checks = results
       .flat()
-      .filter((result) => typeof result.check_name === 'string');
+      .filter(hasCheckName);
     const failedCheck = checks.find((check) => check.passed !== 1);
     if (checks.length === 0) {
-      throw new Error(`D1 migration check (${mode}) returned no checks`);
+      throw new Error(`D1 migration check (${validatedMode}) returned no checks`);
     }
     if (failedCheck) {
-      throw new Error(`D1 migration ${mode} failed: ${failedCheck.check_name}`);
+      throw new Error(
+        `D1 migration ${validatedMode} failed: ${failedCheck.check_name}`
+      );
     }
   }
 
-  return { mode, results };
+  return { mode: validatedMode, results };
 }
 
 async function main() {

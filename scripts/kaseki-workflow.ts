@@ -13,11 +13,47 @@ const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_MAX_WAIT_MS = 11_100_000;
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
+type Sleep = (duration: number) => Promise<void>;
+type KasekiDependencies = {
+  fetchImpl?: typeof fetch;
+  sleep?: Sleep;
+  now?: () => number;
+};
+type JsonRequestOptions = {
+  fetchImpl: typeof fetch;
+  headers: HeadersInit;
+  method?: string;
+  body?: BodyInit;
+  now?: () => number;
+  sleep?: Sleep;
+  deadline?: number;
+};
+type KasekiRunResult = {
+  status: string;
+  success: boolean;
+  exitCode?: number;
+};
+
 class KasekiResponseError extends Error {}
 class KasekiDeadlineError extends Error {}
 
 class KasekiHttpError extends Error {
-  constructor({ status, statusText, title, detail, requestId }) {
+  readonly status: number;
+  readonly retryable: boolean;
+
+  constructor({
+    status,
+    statusText,
+    title,
+    detail,
+    requestId,
+  }: {
+    status: number;
+    statusText?: string;
+    title?: string;
+    detail?: string;
+    requestId?: string;
+  }) {
     const parts = [
       `HTTP ${status}${statusText ? ` ${statusText}` : ""}`,
       title,
@@ -35,7 +71,10 @@ class KasekiHttpError extends Error {
   }
 }
 
-function safeDiagnosticText(value, maxLength = 512) {
+function safeDiagnosticText(
+  value: unknown,
+  maxLength = 512
+): string | undefined {
   if (typeof value !== "string") return undefined;
   const safeValue = value
     .replace(/[\u0000-\u001f\u007f]/g, " ")
@@ -44,7 +83,7 @@ function safeDiagnosticText(value, maxLength = 512) {
   return safeValue || undefined;
 }
 
-export function validateKasekiBaseUrl(baseUrl) {
+export function validateKasekiBaseUrl(baseUrl: string): string {
   if (baseUrl !== KASEKI_BASE_URL) {
     throw new Error(
       "KASEKI_BASE_URL must use the approved Kaseki controller URL",
@@ -53,25 +92,25 @@ export function validateKasekiBaseUrl(baseUrl) {
   return baseUrl;
 }
 
-function validateToken(token) {
+function validateToken(token: unknown): asserts token is string {
   if (typeof token !== "string" || token.length === 0) {
     throw new Error("KASEKI_API_TOKEN is required");
   }
 }
 
-function validateRunId(runId) {
+function validateRunId(runId: unknown): asserts runId is string {
   if (typeof runId !== "string" || !RUN_ID_PATTERN.test(runId)) {
     throw new Error("invalid Kaseki run ID");
   }
 }
 
-function validatePositiveNumber(value, name) {
+function validatePositiveNumber(value: number, name: string): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new TypeError(`${name} must be a positive number`);
   }
 }
 
-async function readResponseText(response) {
+async function readResponseText(response: Response): Promise<string> {
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > MAX_RESPONSE_BYTES) {
     await response.body?.cancel();
@@ -81,7 +120,7 @@ async function readResponseText(response) {
   if (!response.body) return "";
 
   const reader = response.body.getReader();
-  const chunks = [];
+  const chunks: Buffer[] = [];
   let totalBytes = 0;
 
   while (true) {
@@ -99,8 +138,8 @@ async function readResponseText(response) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function createHttpError(response) {
-  let problemDetails;
+async function createHttpError(response: Response): Promise<KasekiHttpError> {
+  let problemDetails: unknown;
   try {
     const responseText = await readResponseText(response);
     problemDetails = responseText ? JSON.parse(responseText) : undefined;
@@ -108,10 +147,7 @@ async function createHttpError(response) {
     // Keep the HTTP status even if the body is missing, oversized, or malformed.
   }
 
-  const details =
-    problemDetails && typeof problemDetails === "object"
-      ? problemDetails
-      : {};
+  const details = isRecord(problemDetails) ? problemDetails : {};
 
   return new KasekiHttpError({
     status: response.status,
@@ -124,7 +160,10 @@ async function createHttpError(response) {
   });
 }
 
-function getRequestTimeoutMs(deadline, now) {
+function getRequestTimeoutMs(
+  deadline: number | undefined,
+  now: () => number
+): number {
   const remainingMs =
     deadline === undefined ? REQUEST_TIMEOUT_MS : deadline - now();
   if (remainingMs <= 0) {
@@ -133,7 +172,7 @@ function getRequestTimeoutMs(deadline, now) {
   return Math.max(1, Math.min(REQUEST_TIMEOUT_MS, remainingMs));
 }
 
-function parseResponseJson(responseText) {
+function parseResponseJson(responseText: string): unknown {
   try {
     return JSON.parse(responseText);
   } catch {
@@ -141,7 +180,11 @@ function parseResponseJson(responseText) {
   }
 }
 
-async function performJsonRequest(url, options, timeoutMs) {
+async function performJsonRequest(
+  url: string,
+  options: Pick<JsonRequestOptions, 'fetchImpl' | 'headers' | 'method' | 'body'>,
+  timeoutMs: number
+): Promise<unknown> {
   const { fetchImpl, headers, method, body } = options;
   const response = await fetchImpl(url, {
     method,
@@ -156,7 +199,11 @@ async function performJsonRequest(url, options, timeoutMs) {
   return parseResponseJson(responseText);
 }
 
-function throwIfRequestCannotRetry(error, deadline, now) {
+function throwIfRequestCannotRetry(
+  error: unknown,
+  deadline: number | undefined,
+  now: () => number
+): void {
   if (error instanceof KasekiResponseError) throw error;
   if (error instanceof KasekiHttpError && !error.retryable) throw error;
   if (deadline !== undefined && now() >= deadline) {
@@ -164,7 +211,7 @@ function throwIfRequestCannotRetry(error, deadline, now) {
   }
 }
 
-function createRetryExhaustedError(error) {
+function createRetryExhaustedError(error: unknown): Error {
   const lastError = safeDiagnosticText(
     error instanceof Error ? error.message : String(error),
   );
@@ -174,7 +221,12 @@ function createRetryExhaustedError(error) {
   );
 }
 
-async function waitBeforeRequestRetry(attempt, deadline, now, sleep) {
+async function waitBeforeRequestRetry(
+  attempt: number,
+  deadline: number | undefined,
+  now: () => number,
+  sleep: Sleep
+): Promise<void> {
   const delay = RETRY_DELAYS_MS[attempt];
   const timeLeft =
     deadline === undefined ? delay : Math.max(0, deadline - now());
@@ -185,7 +237,7 @@ async function waitBeforeRequestRetry(attempt, deadline, now, sleep) {
 }
 
 async function requestJson(
-  url,
+  url: string,
   {
     fetchImpl,
     headers,
@@ -193,10 +245,10 @@ async function requestJson(
     body,
     now = () => performance.now(),
     sleep = (duration) =>
-      new Promise((resolveSleep) => setTimeout(resolveSleep, duration)),
+      new Promise<void>((resolveSleep) => setTimeout(resolveSleep, duration)),
     deadline,
-  },
-) {
+  }: JsonRequestOptions
+): Promise<unknown> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
       const timeoutMs = getRequestTimeoutMs(deadline, now);
@@ -223,7 +275,10 @@ export async function verifyKasekiController({
   fetchImpl = fetch,
   sleep,
   now,
-}) {
+}: KasekiDependencies & {
+  baseUrl: string;
+  token: string;
+}): Promise<void> {
   validateKasekiBaseUrl(baseUrl);
   validateToken(token);
 
@@ -233,7 +288,7 @@ export async function verifyKasekiController({
     sleep,
     now,
   });
-  if (readiness?.status !== "ready") {
+  if (!isRecord(readiness) || readiness.status !== "ready") {
     throw new Error("Kaseki readiness check failed");
   }
 
@@ -246,7 +301,7 @@ export async function verifyKasekiController({
     sleep,
     now,
   });
-  if (gateway?.status !== "ok") {
+  if (!isRecord(gateway) || gateway.status !== "ok") {
     throw new Error("Kaseki gateway authentication check failed");
   }
 }
@@ -258,14 +313,14 @@ export async function submitKasekiRun({
   fetchImpl = fetch,
   sleep,
   now,
-}) {
+}: KasekiDependencies & {
+  baseUrl: string;
+  token: string;
+  payload: unknown;
+}): Promise<string> {
   validateKasekiBaseUrl(baseUrl);
   validateToken(token);
-  if (
-    payload === null ||
-    typeof payload !== "object" ||
-    Array.isArray(payload)
-  ) {
+  if (!isRecord(payload)) {
     throw new TypeError("Kaseki run payload must be a JSON object");
   }
   const idempotencyKey = payload.idempotencyKey;
@@ -293,13 +348,19 @@ export async function submitKasekiRun({
     now,
   });
 
-  const runId = response?.id;
+  const runId = isRecord(response) ? response.id : undefined;
   validateRunId(runId);
   return runId;
 }
 
-function getKasekiRunResult(response) {
-  if (response?.status === "completed") {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getKasekiRunResult(response: unknown): KasekiRunResult | null {
+  if (!isRecord(response)) throw new Error("unexpected Kaseki run status");
+
+  if (response.status === "completed") {
     const exitCode = response.exitCode ?? 0;
     if (typeof exitCode !== "number" || !Number.isFinite(exitCode)) {
       throw new Error("Kaseki returned an invalid exit code");
@@ -314,11 +375,11 @@ function getKasekiRunResult(response) {
     };
   }
 
-  if (response?.status === "failed" || response?.status === "cancelled") {
+  if (response.status === "failed" || response.status === "cancelled") {
     return { status: response.status, success: false };
   }
 
-  if (response?.status !== "queued" && response?.status !== "running") {
+  if (response.status !== "queued" && response.status !== "running") {
     throw new Error("unexpected Kaseki run status");
   }
 
@@ -332,7 +393,14 @@ async function pollKasekiRunOnce({
   now,
   sleep,
   deadline,
-}) {
+}: {
+  url: string;
+  token: string;
+  fetchImpl: typeof fetch;
+  now: () => number;
+  sleep: Sleep;
+  deadline: number;
+}): Promise<KasekiRunResult | null> {
   try {
     const response = await requestJson(url, {
       fetchImpl,
@@ -360,10 +428,16 @@ export async function waitForKasekiRun({
   fetchImpl = fetch,
   now = () => performance.now(),
   sleep = (duration) =>
-    new Promise((resolveSleep) => setTimeout(resolveSleep, duration)),
+    new Promise<void>((resolveSleep) => setTimeout(resolveSleep, duration)),
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   maxWaitMs = DEFAULT_MAX_WAIT_MS,
-}) {
+}: KasekiDependencies & {
+  baseUrl: string;
+  token: string;
+  runId: string;
+  pollIntervalMs?: number;
+  maxWaitMs?: number;
+}): Promise<KasekiRunResult> {
   validateKasekiBaseUrl(baseUrl);
   validateToken(token);
   validateRunId(runId);
@@ -392,20 +466,20 @@ export async function waitForKasekiRun({
   return { status: "timed out", success: false };
 }
 
-function requireEnvironment(name) {
+function requireEnvironment(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required`);
   return value;
 }
 
-function writeGitHubOutput(name, value) {
+function writeGitHubOutput(name: string, value: string): void {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || value.includes("\n")) {
     throw new Error("invalid GitHub Actions output");
   }
   appendFileSync(requireEnvironment("GITHUB_OUTPUT"), `${name}=${value}\n`);
 }
 
-async function runCli(command) {
+async function runCli(command: string | undefined): Promise<void> {
   const baseUrl = process.env.KASEKI_BASE_URL ?? "";
 
   if (command === "validate") {
@@ -421,7 +495,7 @@ async function runCli(command) {
   }
 
   if (command === "submit") {
-    let payload;
+    let payload: unknown;
     try {
       payload = JSON.parse(readFileSync(0, "utf8"));
     } catch {
@@ -457,7 +531,9 @@ async function runCli(command) {
 const scriptPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (scriptPath && import.meta.url === pathToFileURL(scriptPath).href) {
   runCli(process.argv[2]).catch((error) => {
-    process.stderr.write(`Kaseki operation failed: ${error.message}\n`);
+    process.stderr.write(
+      `Kaseki operation failed: ${error instanceof Error ? error.message : 'Unknown error'}\n`
+    );
     process.exitCode = 1;
   });
 }

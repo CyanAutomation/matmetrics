@@ -1,35 +1,40 @@
 #!/usr/bin/env node
 // fallow-ignore-file unused-file
-// Manual CLI utility; invoked directly with `node scripts/convert-images.js`.
+// Manual CLI utility; invoked directly with `node scripts/convert-images.ts`.
 
 /**
  * Convert character PNG images to WebP for better web delivery
  * Processes both Ressa and Dr. Log characters
- * Usage: node scripts/convert-images.js
+ * Usage: node scripts/convert-images.ts
  */
 
-const sharp = require('sharp');
-const fs = require('fs');
-const path = require('path');
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 
-async function convertCharacterImages(name, pattern) {
-  const sourceDir = path.join(__dirname, `../design/${name}`);
-  const targetDir = path.join(__dirname, `../public/images/${name}`);
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = path.resolve(scriptDirectory, '..');
 
-  if (!fs.existsSync(sourceDir)) {
+async function convertCharacterImages(
+  name: string,
+  pattern: RegExp
+): Promise<void> {
+  const sourceDir = path.join(repositoryRoot, 'design', name);
+  const targetDir = path.join(repositoryRoot, 'public', 'images', name);
+
+  if (!existsSync(sourceDir)) {
     console.log(`⊘ Skipped ${name}: design directory not found`);
     return;
   }
 
   try {
     // Create target directory if it doesn't exist
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true });
     }
 
-    const pngFiles = fs
-      .readdirSync(sourceDir)
-      .filter((file) => file.match(pattern));
+    const pngFiles = readdirSync(sourceDir).filter((file) => pattern.test(file));
 
     if (pngFiles.length === 0) {
       console.log(`⊘ No files found for ${name} matching pattern`);
@@ -51,20 +56,23 @@ async function convertCharacterImages(name, pattern) {
         console.log(`✓ Converted ${file} → ${baseName}.webp`);
 
         // Also copy PNG as fallback
-        fs.copyFileSync(sourcePath, pngOutputPath);
+        copyFileSync(sourcePath, pngOutputPath);
         console.log(`✓ Copied ${file} (fallback)`);
       } catch (err) {
-        console.error(`✗ Error converting ${file}:`, err.message);
+        console.error(
+          `✗ Error converting ${file}:`,
+          err instanceof Error ? err.message : 'Unknown image conversion error'
+        );
       }
     }
 
     console.log(`✓ ${name} conversion complete!`);
-  } catch (err) {
-    console.error(`Error processing ${name}:`, err);
+  } catch (error) {
+    console.error(`Error processing ${name}:`, error);
   }
 }
 
-async function convertAllCharacters() {
+async function convertAllCharacters(): Promise<void> {
   try {
     // Convert Ressa character
     await convertCharacterImages('ressa', /^ressa-pose-\d+\.png$/);
@@ -73,10 +81,10 @@ async function convertAllCharacters() {
     await convertCharacterImages('drlog', /^drlog-pose-\d+\.png$/);
 
     console.log('\n✓ All image conversions complete!');
-  } catch (err) {
-    console.error('Error:', err);
-    process.exit(1);
+  } catch (error) {
+    console.error('Error:', error);
+    process.exitCode = 1;
   }
 }
 
-convertAllCharacters();
+await convertAllCharacters();

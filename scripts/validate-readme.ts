@@ -8,8 +8,8 @@ const repositoryRoot = path.resolve(
 );
 const readmePath = path.join(repositoryRoot, 'README.md');
 
-function hideFencedCode(markdown) {
-  let fence = null;
+function hideFencedCode(markdown: string): string {
+  let fence: string | null = null;
   return markdown
     .split('\n')
     .map((line) => {
@@ -27,8 +27,8 @@ function hideFencedCode(markdown) {
     .join('\n');
 }
 
-function githubHeadingSlugs(markdown) {
-  const slugs = new Set();
+function githubHeadingSlugs(markdown: string): Set<string> {
+  const slugs = new Set<string>();
   const source = hideFencedCode(markdown);
   for (const match of source.matchAll(/^#{1,6}\s+(.+?)\s*#*\s*$/gm)) {
     const heading = match[1]
@@ -50,7 +50,10 @@ function githubHeadingSlugs(markdown) {
   return slugs;
 }
 
-export function validateHeadingStructure(markdown, displayPath = 'README.md') {
+export function validateHeadingStructure(
+  markdown: string,
+  displayPath = 'README.md'
+): string[] {
   const issues = [];
   const source = hideFencedCode(markdown);
   let previousLevel = 0;
@@ -78,10 +81,10 @@ export function validateHeadingStructure(markdown, displayPath = 'README.md') {
 }
 
 export async function validateMarkdownLinks(
-  markdown,
-  sourceFilePath,
-  rootDir = repositoryRoot
-) {
+  markdown: string,
+  sourceFilePath: string,
+  rootDir: string = repositoryRoot
+): Promise<string[]> {
   const sourcePath = path.resolve(sourceFilePath);
   const displayPath = path.relative(rootDir, sourcePath) || path.basename(sourcePath);
   const source = hideFencedCode(markdown);

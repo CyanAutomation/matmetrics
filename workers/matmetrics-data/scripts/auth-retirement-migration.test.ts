@@ -25,20 +25,37 @@ async function createDatabase() {
   return db;
 }
 
-function addBetterAuthUser(db, id) {
+function readRow<T extends Record<string, unknown>>(
+  db: DatabaseSync,
+  sql: string
+): T {
+  const row = db.prepare(sql).get();
+  assert.ok(row);
+  return row as T;
+}
+
+function rowCount(db: DatabaseSync, sql: string): number {
+  return readRow<{ count: number }>(db, sql).count;
+}
+
+function addBetterAuthUser(db: DatabaseSync, id: string): void {
   const now = Date.now();
   db.prepare(
     'INSERT INTO user (id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 1, NULL, ?, ?)'
   ).run(id, `User ${id}`, `${id}@example.test`, now, now);
 }
 
-function addFirebaseIdentity(db, id, appUserId) {
+function addFirebaseIdentity(
+  db: DatabaseSync,
+  id: string,
+  appUserId: string
+): void {
   db.prepare(
     'INSERT INTO auth_identities (id, app_user_id, provider, provider_subject, created_at) VALUES (?, ?, ?, ?, ?)'
   ).run(id, appUserId, 'firebase', appUserId, Date.now());
 }
 
-function applyRetirementMigration(db) {
+function applyRetirementMigration(db: DatabaseSync): void {
   const migration = readFileSync(
     path.join(migrationDirectory, '0006_retire_firebase_auth.sql'),
     'utf8'
@@ -46,7 +63,7 @@ function applyRetirementMigration(db) {
   db.exec(migration);
 }
 
-async function createMigratableDatabase() {
+async function createMigratableDatabase(): Promise<DatabaseSync> {
   const db = await createDatabase();
   addBetterAuthUser(db, 'canonical-user');
   addFirebaseIdentity(db, 'firebase-identity', 'canonical-user');
@@ -84,67 +101,74 @@ test('Firebase auth retirement keeps Better Auth identities and user data, and d
     applyRetirementMigration(db);
 
     assert.equal(
-      db.prepare('SELECT count(*) AS count FROM user').get().count,
+      rowCount(db, 'SELECT count(*) AS count FROM user'),
       1
     );
     assert.equal(
-      db.prepare('SELECT count(*) AS count FROM account').get().count,
+      rowCount(db, 'SELECT count(*) AS count FROM account'),
       1
     );
     assert.equal(
-      db.prepare('SELECT count(*) AS count FROM passkey').get().count,
+      rowCount(db, 'SELECT count(*) AS count FROM passkey'),
       1
     );
     assert.deepEqual(
       {
-        ...db
-          .prepare('SELECT preferences_json, revision FROM user_preferences')
-          .get(),
+        ...readRow<{ preferences_json: string; revision: number }>(
+          db,
+          'SELECT preferences_json, revision FROM user_preferences'
+        ),
       },
       { preferences_json: '{"theme":"dark"}', revision: 4 }
     );
     assert.equal(
-      db.prepare('SELECT count(*) AS count FROM plugin_enabled_overrides').get().count,
+      rowCount(db, 'SELECT count(*) AS count FROM plugin_enabled_overrides'),
       1
     );
     assert.deepEqual(
       {
-        ...db
-          .prepare('SELECT provider, provider_subject FROM auth_identities')
-          .get(),
+        ...readRow<{ provider: string; provider_subject: string }>(
+          db,
+          'SELECT provider, provider_subject FROM auth_identities'
+        ),
       },
       { provider: 'better-auth', provider_subject: 'canonical-user' }
     );
 
-    const legacyTables = db
-      .prepare(
-        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('auth_registration_contexts', 'auth_registration_context_claims', 'auth_registration_context_completions')"
-      )
-      .get();
-    assert.equal(legacyTables.count, 0);
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'validate_auth_registration_context_completion'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('auth_registration_contexts', 'auth_registration_context_claims', 'auth_registration_context_completions')"
+      ),
       0
     );
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'prevent_final_passkey_deletion'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'validate_auth_registration_context_completion'"
+      ),
+      0
+    );
+    assert.equal(
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'prevent_final_passkey_deletion'"
+      ),
       1
     );
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'reject_better_auth_identity_conflict_before_user_insert'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name = 'reject_better_auth_identity_conflict_before_user_insert'"
+      ),
       1
     );
 
     assert.match(
-      db
-        .prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'reject_better_auth_identity_conflict_before_user_insert'")
-        .get().sql,
+      readRow<{ sql: string }>(
+        db,
+        "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'reject_better_auth_identity_conflict_before_user_insert'"
+      ).sql,
       /BETTER_AUTH_IDENTITY_CONFLICT/
     );
     assert.throws(
@@ -154,9 +178,10 @@ test('Firebase auth retirement keeps Better Auth identities and user data, and d
 
     addBetterAuthUser(db, 'second-user');
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM auth_identities WHERE app_user_id = 'second-user' AND provider = 'better-auth'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM auth_identities WHERE app_user_id = 'second-user' AND provider = 'better-auth'"
+      ),
       1
     );
   } finally {
@@ -177,15 +202,17 @@ test('Firebase auth retirement stops before changing identities if a Firebase-on
 
     assert.throws(() => applyRetirementMigration(db), /auth_firebase_retirement_guard failed|CHECK constraint failed/);
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM auth_identities WHERE provider = 'firebase'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM auth_identities WHERE provider = 'firebase'"
+      ),
       2
     );
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'auth_registration_context_claims'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'auth_registration_context_claims'"
+      ),
       1
     );
   } finally {
@@ -203,15 +230,14 @@ test('Firebase auth retirement refuses to drop an in-flight legacy registration 
 
     assert.throws(() => applyRetirementMigration(db), /auth_firebase_retirement_guard failed|CHECK constraint failed/);
     assert.equal(
-      db
-        .prepare('SELECT count(*) AS count FROM auth_registration_contexts')
-        .get().count,
+      rowCount(db, 'SELECT count(*) AS count FROM auth_registration_contexts'),
       1
     );
     assert.equal(
-      db
-        .prepare("SELECT count(*) AS count FROM auth_identities WHERE provider = 'firebase'")
-        .get().count,
+      rowCount(
+        db,
+        "SELECT count(*) AS count FROM auth_identities WHERE provider = 'firebase'"
+      ),
       1
     );
   } finally {

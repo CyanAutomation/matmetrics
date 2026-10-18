@@ -1,16 +1,21 @@
 {
   "name": "matmetrics-data-worker",
+  "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "deploy": "wrangler deploy",
     "migrate:local": "wrangler d1 migrations apply matmetrics-data --local",
     "migrate:remote": "wrangler d1 migrations apply matmetrics-data --remote",
     "migrate:remote:list": "wrangler d1 migrations list matmetrics-data --remote",
-    "auth:migration:preflight": "node scripts/auth-migration-check.mjs preflight",
-    "auth:migration:verify": "node scripts/auth-migration-check.mjs verify",
-    "auth:retirement:preflight": "node scripts/auth-migration-check.mjs retirement-preflight",
-    "auth:retirement:verify": "node scripts/auth-migration-check.mjs retirement-verify",
-    "test:auth:migration-check": "node --test scripts/auth-migration-check.test.mjs scripts/auth-retirement-migration.test.mjs"
+    "auth:migration:preflight": "node scripts/auth-migration-check.ts preflight",
+    "auth:migration:verify": "node scripts/auth-migration-check.ts verify",
+    "auth:retirement:preflight": "node scripts/auth-migration-check.ts retirement-preflight",
+    "auth:retirement:verify": "node scripts/auth-migration-check.ts retirement-verify",
+    "test:auth:migration-check": "node --test scripts/auth-migration-check.test.ts scripts/auth-retirement-migration.test.ts",
+    "typecheck:scripts": "tsc --project tsconfig.scripts.json --noEmit --incremental false"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260915.1",

@@ -6,9 +6,11 @@ import test from 'node:test';
 import {
   validateHeadingStructure,
   validateMarkdownLinks,
-} from './validate-readme.mjs';
+} from './validate-readme.ts';
 
-async function withTempRepository(run) {
+async function withTempRepository(
+  run: (rootDir: string) => Promise<void>
+): Promise<void> {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), 'matmetrics-readme-'));
   try {
     await run(rootDir);
