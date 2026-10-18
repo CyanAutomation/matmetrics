@@ -12,18 +12,27 @@ import {
 import type { PluginMaturityTier } from '@/lib/plugins/types';
 import type { SessionCategory } from '@/lib/types';
 
-test('plugin severity resolver covers every supported semantic tone', () => {
-  assert.equal(resolvePluginSeverityToneClass('error'), 'ui-pill-error');
-  assert.equal(resolvePluginSeverityToneClass('warning'), 'ui-pill-warning');
-  assert.equal(resolvePluginSeverityToneClass('info'), 'ui-pill-info');
-});
+test('maps supported severities and rejects unsupported values', () => {
+  // Design contract: docs/blueprint.md#status--semantic-tokens.
+  const cases = [
+    { severity: 'error', expectedTone: 'ui-pill-error' },
+    { severity: 'warning', expectedTone: 'ui-pill-warning' },
+    { severity: 'info', expectedTone: 'ui-pill-info' },
+  ] as const;
 
-test('plugin severity resolver rejects unknown severities', () => {
-  assert.throws(
-    () => resolvePluginSeverityToneClass('critical'),
-    /Unsupported plugin severity: critical/
-  );
-  assert.throws(() => resolvePluginSeverityToneClass('toString'));
+  for (const { severity, expectedTone } of cases) {
+    assert.equal(resolvePluginSeverityToneClass(severity), expectedTone);
+  }
+
+  for (const unsupportedSeverity of ['critical', 'toString']) {
+    assert.throws(
+      () => resolvePluginSeverityToneClass(unsupportedSeverity),
+      {
+        name: 'RangeError',
+        message: `Unsupported plugin severity: ${unsupportedSeverity}`,
+      }
+    );
+  }
 });
 
 test('plugin maturity tier presentation exposes text and policy-backed semantic tones', () => {

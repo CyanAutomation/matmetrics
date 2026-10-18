@@ -18,7 +18,7 @@ export class TierEvaluator {
    */
   evaluateTier(
     categoryScores: Record<PluginMaturityCategory, number>,
-    evidence?: Record<PluginMaturityCategory, string[]>
+    evidence?: Partial<Record<PluginMaturityCategory, string[]>>
   ): PluginMaturityTier {
     const totalScore = Object.values(categoryScores).reduce(
       (sum, score) => sum + score,
@@ -45,7 +45,7 @@ export class TierEvaluator {
   private shouldPromoteToGold(
     totalScore: number,
     categoryScores: Record<PluginMaturityCategory, number>,
-    evidence?: Record<PluginMaturityCategory, string[]>
+    evidence?: Partial<Record<PluginMaturityCategory, string[]>>
   ): boolean {
     if (totalScore < this.GOLD_THRESHOLD) {
       return false;

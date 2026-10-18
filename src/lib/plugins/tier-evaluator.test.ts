@@ -1,67 +1,112 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import type { PluginMaturityCategory } from './types';
 import { TierEvaluator } from './tier-evaluator';
 
 describe('TierEvaluator', () => {
   const evaluator = new TierEvaluator();
+  const explicitEvidence = {
+    contract_metadata: ['Explicit verification'],
+    runtime_integration: ['All exports verified'],
+    feature_quality: ['All UX states explicitly tested'],
+    test_coverage: ['Comprehensive test suite'],
+    operability_docs: ['Full documentation'],
+  };
 
-  describe('Bronze tier', () => {
-    it('should promote to Bronze tier with low scores', () => {
-      const scores = {
-        contract_metadata: 5,
-        runtime_integration: 3,
-        feature_quality: 2,
-        test_coverage: 2,
-        operability_docs: 1,
-      };
+  it('assigns tiers immediately below, at, and above Silver and Gold thresholds', () => {
+    // Keep these boundary cases aligned with the documented 70/85 thresholds
+    // in src/lib/plugins/tier-evaluator.ts.
+    const cases = [
+      {
+        name: 'one point below Silver',
+        total: 69,
+        scores: {
+          contract_metadata: 14,
+          runtime_integration: 14,
+          feature_quality: 18,
+          test_coverage: 13,
+          operability_docs: 10,
+        },
+        expectedTier: 'bronze',
+      },
+      {
+        name: 'at the Silver threshold',
+        total: 70,
+        scores: {
+          contract_metadata: 14,
+          runtime_integration: 14,
+          feature_quality: 18,
+          test_coverage: 14,
+          operability_docs: 10,
+        },
+        expectedTier: 'silver',
+      },
+      {
+        name: 'one point above Silver',
+        total: 71,
+        scores: {
+          contract_metadata: 14,
+          runtime_integration: 14,
+          feature_quality: 18,
+          test_coverage: 14,
+          operability_docs: 11,
+        },
+        expectedTier: 'silver',
+      },
+      {
+        name: 'one point below Gold',
+        total: 84,
+        scores: {
+          contract_metadata: 17,
+          runtime_integration: 17,
+          feature_quality: 22,
+          test_coverage: 16,
+          operability_docs: 12,
+        },
+        expectedTier: 'silver',
+      },
+      {
+        name: 'at the Gold threshold',
+        total: 85,
+        scores: {
+          contract_metadata: 17,
+          runtime_integration: 17,
+          feature_quality: 22,
+          test_coverage: 17,
+          operability_docs: 12,
+        },
+        expectedTier: 'gold',
+      },
+      {
+        name: 'one point above Gold',
+        total: 86,
+        scores: {
+          contract_metadata: 17,
+          runtime_integration: 17,
+          feature_quality: 22,
+          test_coverage: 17,
+          operability_docs: 13,
+        },
+        expectedTier: 'gold',
+      },
+    ] as const;
 
-      const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'bronze');
-    });
-
-    it('should assign Bronze tier as default when score below Silver threshold', () => {
-      const scores = {
-        contract_metadata: 15,
-        runtime_integration: 10,
-        feature_quality: 10,
-        test_coverage: 10,
-        operability_docs: 5,
-      };
-
-      const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'bronze');
-    });
+    for (const testCase of cases) {
+      assert.equal(
+        Object.values(testCase.scores).reduce((sum, score) => sum + score, 0),
+        testCase.total,
+        `${testCase.name}: score fixture total`
+      );
+      assert.equal(
+        evaluator.evaluateTier(testCase.scores, explicitEvidence),
+        testCase.expectedTier,
+        testCase.name
+      );
+    }
   });
 
   describe('Silver tier', () => {
-    it('should promote to Silver tier with sufficient scores', () => {
-      const scores = {
-        contract_metadata: 18,
-        runtime_integration: 18,
-        feature_quality: 20,
-        test_coverage: 16,
-        operability_docs: 15,
-      };
-
-      const tier = evaluator.evaluateTier(scores);
-      assert.equal(tier, 'silver');
-    });
-
-    it('should require total score >= 70 for Silver', () => {
-      const scores = {
-        contract_metadata: 20,
-        runtime_integration: 20,
-        feature_quality: 15,
-        test_coverage: 10,
-        operability_docs: 5,
-      };
-
-      const tier = evaluator.evaluateTier(scores);
-      // Total = 70, should be silver
-      assert.equal(tier, 'silver');
-    });
-
-    it('should stay Silver if any category is 0', () => {
+    it('keeps a qualifying total at Silver when a category score is zero', () => {
       const scores = {
         contract_metadata: 0,
         runtime_integration: 20,
@@ -76,50 +121,7 @@ describe('TierEvaluator', () => {
   });
 
   describe('Gold tier', () => {
-    it('should promote to Gold tier with high scores and explicit evidence', () => {
-      const scores = {
-        contract_metadata: 20,
-        runtime_integration: 20,
-        feature_quality: 25,
-        test_coverage: 20,
-        operability_docs: 15,
-      };
-
-      const evidence = {
-        contract_metadata: ['Explicit verification'],
-        runtime_integration: ['All exports verified'],
-        feature_quality: ['All UX states explicitly tested'],
-        test_coverage: ['Comprehensive test suite'],
-        operability_docs: ['Full documentation'],
-      };
-
-      const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'gold');
-    });
-
-    it('should require total score >= 85 for Gold', () => {
-      const scores = {
-        contract_metadata: 20,
-        runtime_integration: 20,
-        feature_quality: 20,
-        test_coverage: 14,
-        operability_docs: 12,
-      };
-
-      const evidence = {
-        contract_metadata: ['Explicit'],
-        runtime_integration: ['Explicit'],
-        feature_quality: ['Explicit'],
-        test_coverage: ['Explicit'],
-        operability_docs: ['Explicit'],
-      };
-
-      // Total = 86, but needs explicit in all categories
-      const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'gold');
-    });
-
-    it('should not promote to Gold without explicit evidence', () => {
+    it('does not promote to Gold when critical evidence is heuristic only', () => {
       const scores = {
         contract_metadata: 20,
         runtime_integration: 20,
@@ -136,11 +138,22 @@ describe('TierEvaluator', () => {
         operability_docs: ['README found'],
       };
 
-      const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'silver');
+      assert.equal(evaluator.evaluateTier(scores, evidence), 'silver');
     });
 
-    it('should not promote to Gold if any critical category is missing evidence', () => {
+    it('does not promote to Gold when evidence is absent', () => {
+      const scores = {
+        contract_metadata: 20,
+        runtime_integration: 20,
+        feature_quality: 25,
+        test_coverage: 20,
+        operability_docs: 15,
+      };
+
+      assert.equal(evaluator.evaluateTier(scores), 'silver');
+    });
+
+    it('does not promote to Gold when a critical category has no evidence', () => {
       const scores = {
         contract_metadata: 20,
         runtime_integration: 20,
@@ -157,26 +170,12 @@ describe('TierEvaluator', () => {
         operability_docs: ['Explicit'],
       };
 
-      const tier = evaluator.evaluateTier(scores, evidence);
-      assert.equal(tier, 'silver');
+      assert.equal(evaluator.evaluateTier(scores, evidence), 'silver');
     });
   });
 
   describe('Edge cases', () => {
-    it('should handle missing evidence gracefully', () => {
-      const scores = {
-        contract_metadata: 18,
-        runtime_integration: 18,
-        feature_quality: 20,
-        test_coverage: 16,
-        operability_docs: 15,
-      };
-
-      const tier = evaluator.evaluateTier(scores, undefined);
-      assert.equal(tier, 'silver');
-    });
-
-    it('should handle empty scores', () => {
+    it('keeps all-zero scores at Bronze', () => {
       const scores = {
         contract_metadata: 0,
         runtime_integration: 0,
@@ -189,7 +188,7 @@ describe('TierEvaluator', () => {
       assert.equal(tier, 'bronze');
     });
 
-    it('should handle partial evidence', () => {
+    it('keeps partial evidence at Silver when a critical category is absent', () => {
       const scores = {
         contract_metadata: 20,
         runtime_integration: 20,
@@ -198,14 +197,15 @@ describe('TierEvaluator', () => {
         operability_docs: 15,
       };
 
-      const partialEvidence = {
+      const partialEvidence: Partial<
+        Record<PluginMaturityCategory, string[]>
+      > = {
         contract_metadata: ['Explicit'],
         feature_quality: ['Explicit'],
         // Other categories missing
-      } as any;
+      };
 
-      const tier = evaluator.evaluateTier(scores, partialEvidence);
-      assert.ok(['silver', 'bronze'].includes(tier));
+      assert.equal(evaluator.evaluateTier(scores, partialEvidence), 'silver');
     });
   });
 });
