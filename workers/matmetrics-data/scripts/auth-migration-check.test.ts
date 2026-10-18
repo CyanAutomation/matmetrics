@@ -67,6 +67,31 @@ test('migration checker stops if D1 reports any database change', async () => {
   );
 });
 
+test('migration checker preserves bounded Cloudflare API error details', async () => {
+  const longMessage = `Access denied ${'x'.repeat(1_000)}`;
+
+  await assert.rejects(
+    runAuthMigrationCheck({
+      ...config,
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            errors: [{ code: 10000, message: longMessage }],
+          }),
+          { status: 403 }
+        ),
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Cloudflare D1 query failed \(HTTP 403\)/);
+      assert.match(error.message, /10000: Access denied/);
+      assert.ok(error.message.length < 600);
+      return true;
+    }
+  );
+});
+
 test('migration checker refuses SQL statements outside SELECT', async () => {
   const sqlDirectory = await mkdtemp(
     path.join(os.tmpdir(), 'matmetrics-d1-check-')
