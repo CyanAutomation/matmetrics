@@ -102,14 +102,19 @@ test('VersionHistoryModal shows release content after a successful fetch', async
       response.resolve({
         ok: true,
         json: async () => ({
-          currentVersion: '1.2.3',
+          currentVersion: '2.0.0',
           releases: [
             {
-              version: '1.2.3',
+              version: '2.0.0',
               date: '2026-03-30',
               sections: [
                 { label: 'Fixes', items: ['Resolved loading state race'] },
               ],
+            },
+            {
+              version: '1.9.1',
+              date: '2026-03-29',
+              sections: [{ label: 'Fixes', items: ['Legacy patch release'] }],
             },
           ],
         }),
@@ -121,7 +126,8 @@ test('VersionHistoryModal shows release content after a successful fetch', async
       'Resolved loading state race'
     );
     assert.equal(view.queryByText('Loading recent releases...'), null);
-    assert.ok(view.getByRole('heading', { name: 'v1.2.3' }));
+    assert.ok(view.getByRole('heading', { name: 'v2.0' }));
+    assert.ok(view.getByRole('heading', { name: 'v1.9.1' }));
   } finally {
     cleanup();
     globalThis.fetch = originalFetch;
