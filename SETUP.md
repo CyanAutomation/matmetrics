@@ -3,35 +3,92 @@
 ## Prerequisites
 
 - Node.js 24.x and npm 11.x
-- A GitHub token for GitHub-backed session storage
-- Cloudflare Workers and D1 for Better Auth and preference APIs
-- A Resend account with a verified sending domain
+- Go 1.25.x only if building or using the Go CLI/API
+- A GitHub token only for GitHub-backed session storage or sync
+- Cloudflare Workers and D1 only for local auth and preference services
+- A Resend account and verified sending domain only for real auth email delivery
 
 ## Local development
 
-Copy the environment template and add the server-side integrations you use:
+### Guest preview
+
+The credential-free preview needs only the root application dependencies:
 
 ```bash
-cp .env.example .env.local
+npm ci
+npm run dev
 ```
 
-Set `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, the Cloudflare data Worker URL and
-signing secret, and the Better Auth Worker URL and JWT settings. Preference and
-plugin state require the data Worker; there is no secondary preference store.
+Open `http://localhost:9002`. The guest preview stores sample sessions and
+changes in this browser. It does not start or require either Worker.
 
-Apply the existing D1 schema through the data Worker migration owner, then
-start the data Worker, auth Worker, and Next.js app:
+### Local Workers and account services
+
+This optional setup starts local D1-backed data and auth Workers with the
+Next.js app. It uses local Wrangler state. Do not copy production credentials
+or use a production D1 database for local development.
+
+Install the root and Worker dependencies:
 
 ```bash
-cd workers/matmetrics-data && npm run migrate:local
-cd ../matmetrics-auth && npm run dev
+npm ci
+npm --prefix workers/matmetrics-data ci
+npm --prefix workers/matmetrics-auth ci
 ```
 
-The auth Worker needs local `.dev.vars` values for `BETTER_AUTH_SECRET` and
-`RESEND_API_KEY` if you want to receive real verification or recovery email.
-Keep `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false` until you intentionally
-open signup. The authenticated user can enroll another passkey from account
-settings.
+Copy `.env.example` to `.env.local`, then set these local endpoints and values:
+
+```dotenv
+CLOUDFLARE_AUTH_WORKER_URL=http://localhost:8787
+CLOUDFLARE_DATA_WORKER_URL=http://localhost:8788
+MATMETRICS_AUTH_JWKS_URL=http://localhost:9002/api/auth/jwks
+MATMETRICS_AUTH_ISSUER=http://localhost:9002
+MATMETRICS_AUTH_AUDIENCE=matmetrics-api
+NEXT_PUBLIC_BETTER_AUTH_ENABLED=true
+MATMETRICS_INTERNAL_API_SECRET=replace-with-a-local-random-secret
+MATMETRICS_BACKGROUND_EXECUTOR_SECRET=replace-with-a-different-local-random-secret
+```
+
+Use the same local `MATMETRICS_INTERNAL_API_SECRET` and
+`MATMETRICS_BACKGROUND_EXECUTOR_SECRET` in
+`workers/matmetrics-data/.dev.vars`. Add a local `BETTER_AUTH_SECRET` in
+`workers/matmetrics-auth/.dev.vars`. Generate independent random values (for
+example, run `openssl rand -hex 32` once per secret); do not reuse production
+secrets. `.dev.vars` files are ignored by git and should stay local. A real
+`RESEND_API_KEY` is only needed to test verification or recovery email delivery.
+
+Apply the local D1 migrations once:
+
+```bash
+cd workers/matmetrics-data
+npm run migrate:local
+```
+
+Then run each service in a separate terminal. The data Worker config's default
+background executor URL is the hosted MatMetrics app, so the local command
+overrides it to keep locally queued jobs on the local app:
+
+```bash
+# Terminal 1: local data Worker and D1
+cd workers/matmetrics-data
+npx wrangler dev --port 8788 --var MATMETRICS_BACKGROUND_EXECUTOR_URL:http://localhost:9002
+```
+
+```bash
+# Terminal 2: local auth Worker, sharing the data Worker D1 state
+cd workers/matmetrics-auth
+npm run dev -- --port 8787
+```
+
+```bash
+# Terminal 3: Next.js app
+npm run dev
+```
+
+Restart the Next.js server after changing `.env.local`. Public email/password
+signup remains disabled by default; see [Authentication Setup](README.md#authentication-setup)
+and the [auth Worker guide](workers/matmetrics-auth/README.md) before enabling
+signup or email-dependent flows.
 
 ## Deploy Better Auth and email
 
