@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runBetterAuthProductionPreflight } from './better-auth-production-preflight.mjs';
+import { runBetterAuthProductionPreflight } from './better-auth-production-preflight.ts';
 
 test('preflight probes only the Worker health and same-origin JWKS GETs', async () => {
-  const requests = [];
-  const fetchImpl = async (url, options) => {
+  const requests: { url: string; options: RequestInit }[] = [];
+  const fetchImpl: typeof fetch = async (input, options = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
     requests.push({ url, options });
     return new Response(
       JSON.stringify(
@@ -36,11 +37,16 @@ test('preflight reports an unexpected public JWKS response as a failure', async 
   const result = await runBetterAuthProductionPreflight({
     appOrigin: 'https://app.example.test',
     workerOrigin: 'https://auth.example.test',
-    fetchImpl: async (url) =>
-      new Response(JSON.stringify(url.endsWith('/healthz') ? { ok: true } : { keys: [] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    fetchImpl: async (input) => {
+      const url = input instanceof Request ? input.url : String(input);
+      return new Response(
+        JSON.stringify(url.endsWith('/healthz') ? { ok: true } : { keys: [] }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    },
   });
 
   assert.equal(result.passed, false);

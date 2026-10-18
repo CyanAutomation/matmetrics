@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { runAuthMigrationCheck } from './auth-migration-check.mjs';
+import { runAuthMigrationCheck } from './auth-migration-check.ts';
 
 const config = {
   mode: 'verify',
@@ -13,11 +13,12 @@ const config = {
 };
 
 test('migration checker sends only SELECT statements and requires unchanged D1 metadata', async () => {
-  const requests = [];
+  const requests: { url: string; options: RequestInit; sql: string }[] = [];
   const result = await runAuthMigrationCheck({
     ...config,
-    fetchImpl: async (url, options) => {
-      const sql = JSON.parse(options.body).sql;
+    fetchImpl: async (input, options = {}) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const sql = (JSON.parse(String(options.body)) as { sql: string }).sql;
       requests.push({ url, options, sql });
       return new Response(
         JSON.stringify({
@@ -92,12 +93,12 @@ test('migration checker refuses SQL statements outside SELECT', async () => {
 });
 
 test('retirement preflight uses only read-only aggregate queries', async () => {
-  const requests = [];
+  const requests: string[] = [];
   const result = await runAuthMigrationCheck({
     ...config,
     mode: 'retirement-preflight',
-    fetchImpl: async (_url, options) => {
-      const sql = JSON.parse(options.body).sql;
+    fetchImpl: async (_url, options = {}) => {
+      const sql = (JSON.parse(String(options.body)) as { sql: string }).sql;
       requests.push(sql);
       return new Response(
         JSON.stringify({
@@ -125,8 +126,8 @@ test('retirement verification rejects a failed retirement invariant', async () =
     runAuthMigrationCheck({
       ...config,
       mode: 'retirement-verify',
-      fetchImpl: async (_url, options) => {
-        const sql = JSON.parse(options.body).sql;
+      fetchImpl: async (_url, options = {}) => {
+        const sql = (JSON.parse(String(options.body)) as { sql: string }).sql;
         return new Response(
           JSON.stringify({
             success: true,

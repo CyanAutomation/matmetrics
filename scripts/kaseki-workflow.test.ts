@@ -7,7 +7,7 @@ import {
   validateKasekiBaseUrl,
   verifyKasekiController,
   waitForKasekiRun,
-} from "./kaseki-workflow.mjs";
+} from "./kaseki-workflow.ts";
 
 const baseUrl = "https://kaseki-tunnel.scheimann.xyz";
 const token = "test-token";
@@ -26,7 +26,7 @@ const ciWorkflow = readFileSync(
   "utf8",
 );
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -66,9 +66,9 @@ test("pins the Kaseki health action to a commit in upstream main history", () =>
 
 test("routes both Kaseki workflows through the shared API and poll helper", () => {
   for (const workflow of [dryWorkflow, docsWorkflow]) {
-    assert.match(workflow, /node scripts\/kaseki-workflow\.mjs preflight/);
-    assert.match(workflow, /node scripts\/kaseki-workflow\.mjs submit/);
-    assert.match(workflow, /node scripts\/kaseki-workflow\.mjs wait/);
+    assert.match(workflow, /node scripts\/kaseki-workflow\.ts preflight/);
+    assert.match(workflow, /node scripts\/kaseki-workflow\.ts submit/);
+    assert.match(workflow, /node scripts\/kaseki-workflow\.ts wait/);
   }
 });
 
@@ -86,8 +86,8 @@ test("runs zizmor in CI and disables persisted checkout credentials", () => {
 });
 
 test("checks readiness before authenticated gateway connectivity", async () => {
-  const requests = [];
-  const responses = [
+  const requests: { url: string; options: RequestInit }[] = [];
+  const responses: Response[] = [
     jsonResponse({ status: "ready" }),
     jsonResponse({ status: "ok" }),
   ];
@@ -95,16 +95,20 @@ test("checks readiness before authenticated gateway connectivity", async () => {
   await verifyKasekiController({
     baseUrl,
     token,
-    fetchImpl: async (url, options) => {
+    fetchImpl: async (input, options = {}) => {
+      const url = input instanceof Request ? input.url : String(input);
       requests.push({ url, options });
-      return responses.shift();
+      return responses.shift()!;
     },
   });
 
   assert.equal(requests[0].url, `${baseUrl}/ready`);
-  assert.equal(requests[0].options.headers.Authorization, undefined);
+  assert.equal(new Headers(requests[0].options.headers).get('authorization'), null);
   assert.equal(requests[1].url, `${baseUrl}/api/v1/gateway-test?stage=1`);
-  assert.equal(requests[1].options.headers.Authorization, `Bearer ${token}`);
+  assert.equal(
+    new Headers(requests[1].options.headers).get('authorization'),
+    `Bearer ${token}`
+  );
 });
 
 test("stops preflight when readiness is not ready", async () => {
@@ -149,24 +153,26 @@ test("does not retry a successful response with invalid JSON", async () => {
 test("submits JSON and validates the returned run ID", async () => {
   const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
   const payload = { ref: "abc123", idempotencyKey };
-  let request;
+  let request: { url: string; options: RequestInit } | undefined;
 
   const submittedRunId = await submitKasekiRun({
     baseUrl,
     token,
     payload,
-    fetchImpl: async (url, options) => {
+    fetchImpl: async (input, options = {}) => {
+      const url = input instanceof Request ? input.url : String(input);
       request = { url, options };
       return jsonResponse({ id: runId });
     },
   });
 
   assert.equal(submittedRunId, runId);
+  assert.ok(request);
   assert.equal(request.url, `${baseUrl}/api/v1/runs`);
   assert.equal(request.options.method, "POST");
-  assert.equal(request.options.headers.Authorization, `Bearer ${token}`);
-  assert.equal(request.options.headers["Idempotency-Key"], idempotencyKey);
-  assert.deepEqual(JSON.parse(request.options.body), payload);
+  assert.equal(new Headers(request.options.headers).get('authorization'), `Bearer ${token}`);
+  assert.equal(new Headers(request.options.headers).get('idempotency-key'), idempotencyKey);
+  assert.deepEqual(JSON.parse(String(request.options.body)), payload);
 });
 
 test("rejects a non-v4 idempotency key before making a request", async () => {
@@ -223,6 +229,7 @@ test("fails once on a permanent HTTP error and reports bounded problem details",
       },
     }),
     (error) => {
+      assert.ok(error instanceof Error);
       assert.match(error.message, /HTTP 400.*publishMode must be pr.*request-123/);
       assert.doesNotMatch(error.message, /must not be logged/);
       return true;
@@ -235,7 +242,7 @@ test("fails once on a permanent HTTP error and reports bounded problem details",
 
 test("reuses the UUIDv4 idempotency key across transient submission retries", async () => {
   const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
-  const requests = [];
+  const requests: RequestInit[] = [];
 
   const submittedRunId = await submitKasekiRun({
     baseUrl,
@@ -244,7 +251,7 @@ test("reuses the UUIDv4 idempotency key across transient submission retries", as
       repoUrl: "https://github.com/example/repo",
       idempotencyKey,
     },
-    fetchImpl: async (_url, options) => {
+    fetchImpl: async (_url, options = {}) => {
       requests.push(options);
       if (requests.length === 1) {
         return jsonResponse({ title: "Unavailable", detail: "Retry" }, 503);
@@ -256,14 +263,14 @@ test("reuses the UUIDv4 idempotency key across transient submission retries", as
 
   assert.equal(submittedRunId, runId);
   assert.equal(requests.length, 2);
-  assert.equal(requests[0].headers["Idempotency-Key"], idempotencyKey);
-  assert.equal(requests[1].headers["Idempotency-Key"], idempotencyKey);
+  assert.equal(new Headers(requests[0].headers).get('idempotency-key'), idempotencyKey);
+  assert.equal(new Headers(requests[1].headers).get('idempotency-key'), idempotencyKey);
   assert.equal(requests[0].body, requests[1].body);
 });
 
 test("preserves the final transient HTTP diagnostic after exhausting retries", async () => {
   let requests = 0;
-  const delays = [];
+  const delays: number[] = [];
 
   await assert.rejects(
     submitKasekiRun({
@@ -313,7 +320,7 @@ test("rejects unsafe run IDs before using them in a URL", async () => {
 
 test("waits through running states and accepts a successful completion", async () => {
   const states = ["queued", "running", "completed"];
-  const delays = [];
+  const delays: number[] = [];
   let now = 0;
 
   const result = await waitForKasekiRun({
@@ -335,7 +342,7 @@ test("waits through running states and accepts a successful completion", async (
 });
 
 test("reports task failures and nonzero completion codes", async (t) => {
-  const cases = [
+  const cases: [Record<string, unknown>, string][] = [
     [{ status: "completed", exitCode: 7 }, "failed (exit code 7)"],
     [{ status: "failed" }, "failed"],
     [{ status: "cancelled" }, "cancelled"],
@@ -357,7 +364,7 @@ test("reports task failures and nonzero completion codes", async (t) => {
 
 test("uses a deadline and shortens the final sleep to the remaining time", async () => {
   let now = 0;
-  const delays = [];
+  const delays: number[] = [];
 
   const result = await waitForKasekiRun({
     baseUrl,
@@ -380,7 +387,7 @@ test("uses a deadline and shortens the final sleep to the remaining time", async
 test("retries transient HTTP failures before polling again", async () => {
   let requests = 0;
   let now = 0;
-  const delays = [];
+  const delays: number[] = [];
 
   const result = await waitForKasekiRun({
     baseUrl,

@@ -9,7 +9,7 @@ const REQUIRED_RATIO = 4.5;
 const THEME_SELECTORS = {
   light: ':root',
   dark: '.dark',
-};
+} as const;
 
 const PAIRS = [
   ['foreground', 'background'],
@@ -42,9 +42,25 @@ const PAIRS = [
   ['color-on-trend-positive-container', 'color-trend-positive-container'],
   ['color-on-trend-negative-container', 'color-trend-negative-container'],
   ['color-on-trend-neutral-container', 'color-trend-neutral-container'],
-];
+] as const;
 
-function extractBlock(cssText, selector) {
+type Hsl = { h: number; s: number; l: number };
+type Rgb = { r: number; g: number; b: number };
+type ContrastReport = {
+  theme: string;
+  foregroundToken: string;
+  backgroundToken: string;
+  foregroundValue?: string;
+  backgroundValue?: string;
+  foregroundRgb?: string;
+  backgroundRgb?: string;
+  ratio?: number;
+  threshold: number;
+  ok: boolean;
+  reason?: string;
+};
+
+function extractBlock(cssText: string, selector: string): string {
   const start = cssText.indexOf(selector);
   if (start === -1) {
     throw new Error(`Missing selector block: ${selector}`);
@@ -67,8 +83,8 @@ function extractBlock(cssText, selector) {
   throw new Error(`Unclosed selector block: ${selector}`);
 }
 
-function parseVariables(block) {
-  const vars = new Map();
+function parseVariables(block: string): Map<string, string> {
+  const vars = new Map<string, string>();
   const regex = /--([\w-]+)\s*:\s*([^;]+);/g;
   let match;
   while ((match = regex.exec(block)) !== null) {
@@ -77,7 +93,11 @@ function parseVariables(block) {
   return vars;
 }
 
-function resolveToken(name, vars, stack = []) {
+function resolveToken(
+  name: string,
+  vars: Map<string, string>,
+  stack: string[] = []
+): string {
   if (!vars.has(name)) {
     throw new Error(`Missing token: --${name}`);
   }
@@ -88,6 +108,9 @@ function resolveToken(name, vars, stack = []) {
   }
 
   const raw = vars.get(name);
+  if (raw === undefined) {
+    throw new Error(`Missing token: --${name}`);
+  }
   const varRef = raw.match(/^var\(--([\w-]+)\)$/);
   if (varRef) {
     return resolveToken(varRef[1], vars, [...stack, name]);
@@ -98,7 +121,7 @@ function resolveToken(name, vars, stack = []) {
   return raw;
 }
 
-function parseHslTriplet(value) {
+function parseHslTriplet(value: string): Hsl {
   const match = value.match(
     /^(-?\d*\.?\d+)\s+(-?\d*\.?\d+)%\s+(-?\d*\.?\d+)%$/
   );
@@ -113,7 +136,7 @@ function parseHslTriplet(value) {
   };
 }
 
-function hslToRgb({ h, s, l }) {
+function hslToRgb({ h, s, l }: Hsl): Rgb {
   const hue = ((h % 360) + 360) % 360;
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
@@ -129,16 +152,16 @@ function hslToRgb({ h, s, l }) {
   else if (hue < 300) [r1, g1, b1] = [x, 0, c];
   else [r1, g1, b1] = [c, 0, x];
 
-  const to255 = (value) => Math.round((value + m) * 255);
+  const to255 = (value: number) => Math.round((value + m) * 255);
   return { r: to255(r1), g: to255(g1), b: to255(b1) };
 }
 
-function toLinear(channel) {
+function toLinear(channel: number): number {
   const value = channel / 255;
   return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 
-function relativeLuminance(rgb) {
+function relativeLuminance(rgb: Rgb): number {
   return (
     0.2126 * toLinear(rgb.r) +
     0.7152 * toLinear(rgb.g) +
@@ -146,7 +169,7 @@ function relativeLuminance(rgb) {
   );
 }
 
-function contrastRatio(foreground, background) {
+function contrastRatio(foreground: Rgb, background: Rgb): number {
   const lighter = Math.max(
     relativeLuminance(foreground),
     relativeLuminance(background)
@@ -158,12 +181,12 @@ function contrastRatio(foreground, background) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function formatRgb({ r, g, b }) {
+function formatRgb({ r, g, b }: Rgb): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-const reports = [];
-const failures = [];
+const reports: ContrastReport[] = [];
+const failures: ContrastReport[] = [];
 
 for (const [theme, selector] of Object.entries(THEME_SELECTORS)) {
   const vars = parseVariables(extractBlock(css, selector));
@@ -193,14 +216,15 @@ for (const [theme, selector] of Object.entries(THEME_SELECTORS)) {
           reason: 'contrast-below-threshold',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const failure = {
         theme,
         foregroundToken: fgToken,
         backgroundToken: bgToken,
         threshold: REQUIRED_RATIO,
         ok: false,
-        reason: error.message,
+        reason:
+          error instanceof Error ? error.message : 'Unknown token validation error',
       };
       reports.push(failure);
       failures.push(failure);
@@ -225,18 +249,18 @@ if (outputJson) {
   for (const report of reports) {
     if (report.ok) {
       console.log(
-        `PASS [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`
+        `PASS [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio ?? 'n/a'}:1 (${report.foregroundValue ?? 'unknown'} -> ${report.foregroundRgb ?? 'unknown'} on ${report.backgroundValue ?? 'unknown'} -> ${report.backgroundRgb ?? 'unknown'})`
       );
       continue;
     }
     if (report.reason === 'contrast-below-threshold') {
       console.log(
-        `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio}:1 < ${report.threshold}:1 (${report.foregroundValue} -> ${report.foregroundRgb} on ${report.backgroundValue} -> ${report.backgroundRgb})`
+        `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.ratio ?? 'n/a'}:1 < ${report.threshold}:1 (${report.foregroundValue ?? 'unknown'} -> ${report.foregroundRgb ?? 'unknown'} on ${report.backgroundValue ?? 'unknown'} -> ${report.backgroundRgb ?? 'unknown'})`
       );
       continue;
     }
     console.log(
-      `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.reason}`
+      `FAIL [${report.theme}] ${report.foregroundToken} on ${report.backgroundToken}: ${report.reason ?? 'Unknown validation failure'}`
     );
   }
   console.log(
