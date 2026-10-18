@@ -88,18 +88,34 @@ was retained. No import, overwrite, database write, or deployment occurred.
 The D1 Time Travel bookmark recorded for recovery is
 `00000097-00000000-00005106-1b975d443d69173e9b3213ee32ffc58d`.
 
-No production import is needed from this older snapshot. Keep the export and
-the D1 recovery point through the agreed rollback window. The export predates
-the current D1 row and is not a lossless rollback copy: before restoring an
-older application that reads or writes Firestore, reconcile the newer D1 state
-back to that store or explicitly accept the resulting data gap.
+On 2026-10-18, a read-only Cloudflare API timestamp lookup near this record's
+2026-10-17 update returned a different bookmark from the one recorded above.
+The Cloudflare dashboard then retrieved the current bookmark
+`000000a1-00000000-00005108-3cd8faf0c84cfe43eebe08c7b1947095` for the current D1
+state. The dashboard showed a seven-day Time Travel window, from 2026-10-11
+17:14 to 2026-10-18 17:14 BST. Refresh and verify a current bookmark before a
+later retirement action that depends on recovery. No restore or database write
+was performed.
+
+Read-only queries on 2026-10-18 confirmed one `user_preferences` row at revision
+96 and zero `plugin_enabled_overrides` rows. The latest migration is
+`0006_retire_firebase_auth.sql`. This check did not read or change preference
+contents.
+
+No production import is needed from this older snapshot. Keep the Firestore
+export and verify a D1 recovery point is available before relying on it for
+rollback. The export predates the current D1 row and is not a lossless rollback
+copy: before restoring an older application that reads or writes Firestore,
+reconcile the newer D1 state back to that store or explicitly accept the
+resulting data gap.
 
 On 2026-10-17, the maintainer confirmed the rollback window had ended. Keep the
-export and recorded recovery point available until the Firebase consumer
-inventory and project retirement are verified. A GitHub code search available
-to this session found no explicit Firebase or Firestore references outside
-MatMetrics in the indexed CyanAutomation repositories, but this does not cover
-project-console integrations or other non-code consumers.
+export available and verify or replace the recorded recovery point before the
+Firebase consumer inventory and project retirement are considered complete. A
+GitHub code search available to this session found no explicit Firebase or
+Firestore references outside MatMetrics in the indexed CyanAutomation
+repositories, but this does not cover project-console integrations or other
+non-code consumers.
 
 For a new non-production environment that still needs an initial data load,
 export each user's `users/{uid}/preferences/app` and
@@ -111,12 +127,18 @@ users to that environment. Do not overwrite a newer destination row with an
 older export. A legacy global plugin configuration must not become a global
 setting; apply defaults per user only after an explicit product decision.
 
-Before any project retirement action, check for other Firebase project
-consumers in the provider console. Once that inventory confirms no consumers
-remain, revoke the Firestore service account and its credentials, disable
-Firebase Auth, and retire Firestore and other unused Firebase products. Record
-provider-console verification; project-side retirement has not been verified
-in this repository.
+The partial provider-console inventory from 2026-10-18 is recorded in
+[`firebase-project-retirement-inventory.md`](firebase-project-retirement-inventory.md).
+It found a live `/app/pluginConfig` document that was absent from the
+2026-10-17 export. The maintainer directed that the existing Firebase Admin SDK
+and Google Cloud API keys remain available for possible future reuse; they are
+not Firestore documents and their secret material was not copied into D1. The
+Firestore usage metrics showed no writes or deletes in the last 30 days, but
+include console usage and do not identify callers. These findings do not
+establish that no consumers remain. Reconcile the document discrepancy and
+identify current Firestore callers before product retirement. Keep the export
+and a current verified D1 recovery point available until retirement is
+verified. No provider-side retirement or data import has occurred.
 
 ## Rollback
 

@@ -52,10 +52,14 @@ preference state; no import or database write was needed. The detailed counts,
 timestamps, and recovery bookmark are in the
 [D1 migration record](cloudflare-d1-migration.md).
 
-Disabling Firebase Auth, revoking credentials, and retiring Firestore remain
-project-side operations. Their completion has not been verified here. The
-maintainer confirmed the rollback window ended on 2026-10-17. Check for other
-project consumers in the provider console before revocation or retirement, and
-account for the older Firestore snapshot before restoring an application that
-depends on it. The detailed status is in the
-[D1 migration record](cloudflare-d1-migration.md).
+Disabling Firebase Auth and retiring Firestore remain project-side operations;
+their completion has not been verified here. The maintainer confirmed the
+rollback window ended on 2026-10-17. Check for other project consumers in the
+provider console before product retirement, and account for the older Firestore
+snapshot before restoring an application that depends on it. A partial console
+inventory found additional live Firestore data. The maintainer directed that
+the existing Admin SDK and API keys remain available for possible future reuse;
+do not revoke them as part of Firebase product retirement. Reconcile the live
+Firestore data and confirm no current consumers remain before retirement;
+details are in the [D1 migration record](cloudflare-d1-migration.md) and
+[Firebase project inventory](firebase-project-retirement-inventory.md).

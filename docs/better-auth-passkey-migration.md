@@ -92,8 +92,11 @@ Vercel egress IPs and the Worker IP limiter is a coarse guard.
 Firebase authentication and Firestore access are absent from the application
 runtime, and D1 migration `0006` restricts the live identity schema to Better
 Auth. Production preference reconciliation and the remaining project-retirement
-steps are recorded in the [D1 migration record](cloudflare-d1-migration.md).
-The maintainer confirmed the rollback window ended on 2026-10-17. The
-project-side consumer inventory, disablement, and deletion have not been
-verified here. Check for other project consumers in the provider console before
-revoking credentials or retiring Firebase products.
+steps are recorded in the [D1 migration record](cloudflare-d1-migration.md) and
+the [partial Firebase project inventory](firebase-project-retirement-inventory.md).
+The maintainer confirmed the rollback window ended on 2026-10-17. The console
+inventory found a Firestore document absent from the retained export. The
+maintainer directed that the existing Admin SDK and API keys remain available
+for possible future reuse, so do not revoke them as part of Firebase product
+retirement. Reconcile the Firestore data discrepancy and confirm no current
+consumers remain before retiring Firebase products.
