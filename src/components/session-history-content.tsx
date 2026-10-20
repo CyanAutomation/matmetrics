@@ -34,6 +34,7 @@ interface SessionHistoryContentProps {
   hasUnreviewedDescriptions: boolean;
   isReviewingHistory: boolean;
   reviewProgress: { completed: number; total: number };
+  semanticSearchActive: boolean;
   onRequestDelete: (session: JudoSession) => void;
   onEditSession: (session: JudoSession) => void;
   onFilterTechnique: (technique: string) => void;
@@ -133,6 +134,7 @@ function SessionHistorySessionGroups({
   filteredSessions,
   deletingSessionId,
   density,
+  semanticSearchActive,
   onRequestDelete,
   onEditSession,
   onFilterTechnique,
@@ -142,6 +144,7 @@ function SessionHistorySessionGroups({
   | 'filteredSessions'
   | 'deletingSessionId'
   | 'density'
+  | 'semanticSearchActive'
   | 'onRequestDelete'
   | 'onEditSession'
   | 'onFilterTechnique'
@@ -150,9 +153,15 @@ function SessionHistorySessionGroups({
     <>
       {filteredSessions.length === 0 ? (
         <div className="rounded-xl bg-muted/45 p-8 text-center">
-          <p className="font-semibold">No sessions match these filters.</p>
+          <p className="font-semibold">
+            {semanticSearchActive
+              ? 'JEV found no likely sessions among the candidates checked.'
+              : 'No sessions match these filters.'}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Try a different technique, date range, or effort level.
+            {semanticSearchActive
+              ? 'Try another query or broaden the date, type, or effort filters.'
+              : 'Try a different technique, date range, or effort level.'}
           </p>
         </div>
       ) : null}
@@ -189,6 +198,7 @@ export function SessionHistoryContent({
   hasUnreviewedDescriptions,
   isReviewingHistory,
   reviewProgress,
+  semanticSearchActive,
   onRequestDelete,
   onEditSession,
   onFilterTechnique,
@@ -218,6 +228,7 @@ export function SessionHistoryContent({
       <SessionHistorySessionGroups
         grouped={grouped}
         filteredSessions={filteredSessions}
+        semanticSearchActive={semanticSearchActive}
         deletingSessionId={deletingSessionId}
         density={density}
         onRequestDelete={onRequestDelete}

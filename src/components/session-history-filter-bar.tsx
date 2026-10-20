@@ -1,7 +1,8 @@
 'use client';
 
-import { Filter, Search, X } from 'lucide-react';
+import { Filter, Search, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { Input } from '@/components/ui/input';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
@@ -20,6 +21,11 @@ interface SessionHistoryFilterBarProps {
   sessionCount: number;
   averageEffort: number;
   duration: number;
+  canUseAi: boolean;
+  canSemanticSearch: boolean;
+  isSemanticSearching: boolean;
+  semanticSearchResultCount: number | null;
+  semanticSearchError: string | null;
   onSearchQueryChange: (value: string) => void;
   onCategoryFilterChange: (value: string) => void;
   onEffortFilterChange: (value: string) => void;
@@ -28,6 +34,8 @@ interface SessionHistoryFilterBarProps {
   onToggleFilters: () => void;
   onQuickFilter: (kind: SessionHistoryQuickFilter) => void;
   onClearFilters: () => void;
+  onSemanticSearch: () => void;
+  onClearSemanticSearch: () => void;
 }
 
 function QuickFilters({
@@ -151,7 +159,7 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
       label="Filter training history"
       className="@container/filters sticky top-3 z-[1] mb-6 block bg-card/95 p-3 shadow-[0_18px_32px_-28px_hsl(var(--foreground)/0.28)] backdrop-blur sm:p-4"
     >
-      <div className="flex flex-col gap-2 @min-[30rem]/filters:flex-row">
+      <div className="flex flex-col gap-2 @min-[48rem]/filters:flex-row">
         <InputWithIcon
           icon={<Search className="h-4 w-4" />}
           value={props.searchQuery}
@@ -163,6 +171,21 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
         <Button
           type="button"
           variant="outline"
+          className="min-h-11 w-full shrink-0 @min-[48rem]/filters:w-auto"
+          onClick={props.onSemanticSearch}
+          disabled={
+            !props.canUseAi ||
+            !props.canSemanticSearch ||
+            props.isSemanticSearching ||
+            !props.searchQuery.trim()
+          }
+        >
+          <Sparkles className="h-4 w-4" />
+          {props.isSemanticSearching ? 'Searching…' : 'Search by meaning'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
           className="min-h-11 w-full shrink-0 @min-[30rem]/filters:w-auto"
           onClick={props.onToggleFilters}
           aria-expanded={props.filtersOpen}
@@ -170,6 +193,35 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
           <Filter className="h-4 w-4" />
           Filters{props.activeFilterCount ? ` (${props.activeFilterCount})` : ''}
         </Button>
+      </div>
+      <div className="mt-2 space-y-1">
+        <DataUseNotice variant="semantic-history-search" />
+        {props.semanticSearchResultCount !== null ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <p role="status">
+              {props.semanticSearchResultCount > 0
+                ? `JEV found ${props.semanticSearchResultCount} likely ${props.semanticSearchResultCount === 1 ? 'match' : 'matches'}.`
+                : 'JEV found no likely matches among the sessions checked.'}
+            </p>
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={props.onClearSemanticSearch}
+            >
+              Clear semantic results
+            </button>
+          </div>
+        ) : null}
+        {props.semanticSearchError ? (
+          <p role="alert" className="text-xs text-destructive">
+            {props.semanticSearchError}
+          </p>
+        ) : null}
+        {!props.canUseAi ? (
+          <p className="text-xs text-muted-foreground">
+            Sign in to search training history by meaning.
+          </p>
+        ) : null}
       </div>
       <QuickFilters onQuickFilter={props.onQuickFilter} />
       <SessionHistoryAdvancedFilters {...props} />
