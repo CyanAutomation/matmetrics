@@ -21,10 +21,10 @@
     "typecheck:scripts": "tsc --project tsconfig.scripts.json --noEmit --incremental false"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260915.1",
-    "@types/node": "^24.0.0",
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "@types/node": "^26.6.5",
     "tsx": "^4.23.11",
-    "wrangler": "^4.143.1",
-    "typescript": "^5.0.0"
+    "wrangler": "^4.151.1",
+    "typescript": "^7.0.2"
   }
 }
