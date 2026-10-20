@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Keep API implementations in api-handler.ts modules and register them here
 // so the API surface is emitted as one Next.js route handler.
 import * as assessSession from '../ai/assess-session/api-handler';
+import * as searchSessions from '../ai/search-sessions/api-handler';
 import * as suggestTechniques from '../ai/suggest-techniques/api-handler';
 import * as transformDescription from '../ai/transform-description/api-handler';
 import * as backgroundJob from '../background-jobs/[id]/api-handler';
@@ -35,6 +36,7 @@ type ApiRoute = Partial<Record<ApiMethod, ApiHandler>>;
 
 const routes: Record<string, ApiRoute> = {
   '/api/ai/assess-session': { POST: assessSession.POST },
+  '/api/ai/search-sessions': { POST: searchSessions.POST },
   '/api/ai/suggest-techniques': { POST: suggestTechniques.POST },
   '/api/ai/transform-description': { POST: transformDescription.POST },
   '/api/github/health': { POST: githubHealth.POST },
