@@ -45,6 +45,17 @@ test('API dispatcher reports route-specific methods for OPTIONS', async () => {
   assert.equal(response.headers.get('Allow'), 'GET, HEAD, OPTIONS, PUT');
 });
 
+test('API dispatcher registers semantic history search as an authenticated POST endpoint', async () => {
+  const response = await OPTIONS(
+    new NextRequest('http://localhost/api/ai/search-sessions', {
+      method: 'OPTIONS',
+    })
+  );
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('Allow'), 'OPTIONS, POST');
+});
+
 test('API dispatcher preserves HEAD behavior for GET endpoints', async () => {
   const request = new NextRequest('http://localhost/api/preferences', {
     method: 'HEAD',
