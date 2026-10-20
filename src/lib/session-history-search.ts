@@ -112,8 +112,8 @@ export function selectSessionHistorySearchCandidates(
   sessions: JudoSession[],
   query: string
 ): SessionHistorySearchCandidate[] {
-  const queryTokens = tokenize(query.trim());
   if (!query.trim()) return [];
+  const queryTokens = tokenize(query.trim());
 
   const datedSessions = sessions
     .map((session, index) => ({ session, index }))

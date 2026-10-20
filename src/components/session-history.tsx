@@ -82,6 +82,7 @@ export function SessionHistory({
 
   useEffect(() => {
     semanticRequestId.current += 1;
+    setIsSemanticSearching(false);
     setSemanticMatches(null);
     setSemanticSearchError(null);
   }, [sessions]);
@@ -145,6 +146,7 @@ export function SessionHistory({
   };
   const clearSemanticSearch = () => {
     semanticRequestId.current += 1;
+    setIsSemanticSearching(false);
     setSemanticMatches(null);
     setSemanticSearchError(null);
   };
@@ -171,10 +173,10 @@ export function SessionHistory({
           candidates: semanticSearchCandidates,
         }),
       });
-      const payload: unknown = await response.json();
       if (!response.ok) {
         throw new Error('The semantic search request failed.');
       }
+      const payload: unknown = await response.json();
       const matches =
         payload && typeof payload === 'object'
           ? (payload as { matches?: unknown }).matches
@@ -198,7 +200,9 @@ export function SessionHistory({
         );
       }
     } finally {
-      setIsSemanticSearching(false);
+      if (requestId === semanticRequestId.current) {
+        setIsSemanticSearching(false);
+      }
     }
   };
   const updateSearchQuery = (value: string) => {
