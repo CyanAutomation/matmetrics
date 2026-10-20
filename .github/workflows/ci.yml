@@ -123,6 +123,35 @@ jobs:
         run: npm run typecheck
         working-directory: workers/matmetrics-auth
 
+  data-worker:
+    name: data-worker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: workers/matmetrics-data/package-lock.json
+      - name: Install data Worker dependencies
+        run: npm ci
+        working-directory: workers/matmetrics-data
+      - name: Run data Worker tests
+        run: npm test
+        working-directory: workers/matmetrics-data
+      - name: Run migration checks
+        run: npm run test:auth:migration-check
+        working-directory: workers/matmetrics-data
+      - name: Type check data Worker and scripts
+        run: npm run typecheck
+        working-directory: workers/matmetrics-data
+      - name: Validate Wrangler bundle
+        run: npm run deploy -- --dry-run
+        working-directory: workers/matmetrics-data
+
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -163,6 +192,7 @@ jobs:
       - quality
       - go
       - auth-worker
+      - data-worker
       - dependency-review
       - workflow-lint
     runs-on: ubuntu-24.04
@@ -173,11 +203,12 @@ jobs:
           QUALITY_RESULT: ${{ needs.quality.result }}
           GO_RESULT: ${{ needs.go.result }}
           AUTH_WORKER_RESULT: ${{ needs.auth-worker.result }}
+          DATA_WORKER_RESULT: ${{ needs.data-worker.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          for result in "$BUILD_RESULT" "$QUALITY_RESULT" "$GO_RESULT" "$AUTH_WORKER_RESULT" "$WORKFLOW_LINT_RESULT"; do
+          for result in "$BUILD_RESULT" "$QUALITY_RESULT" "$GO_RESULT" "$AUTH_WORKER_RESULT" "$DATA_WORKER_RESULT" "$WORKFLOW_LINT_RESULT"; do
             if [[ "$result" != "success" ]]; then
               echo "A required deployment check did not succeed."
               exit 1

@@ -77,9 +77,10 @@ or compromise.
 
 Enable a `main` ruleset requiring pull-request review and the successful
 `CI / release-readiness` check. This aggregate check fails when `build`,
-`quality`, `go`, `auth-worker`, or `workflow-lint` fails, and also requires
-`dependency-review` on pull requests. Requiring the aggregate prevents a
-component job such as `auth-worker` from being omitted from the merge gate.
+`quality`, `go`, `auth-worker`, `data-worker`, or `workflow-lint` fails, and
+also requires `dependency-review` on pull requests. Requiring the aggregate
+prevents a component job such as either Worker check from being omitted from
+the merge gate.
 Require a CodeQL check only if GitHub code scanning is configured to produce it.
 Restrict direct pushes and workflow or environment configuration changes, and
 enable secret scanning with push protection. These settings live in GitHub
