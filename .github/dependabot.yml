@@ -8,3 +8,35 @@ updates:
       github-actions:
         patterns:
           - "*"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      root-npm:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: /workers/matmetrics-auth
+    schedule:
+      interval: weekly
+    groups:
+      auth-worker-npm:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: /workers/matmetrics-data
+    schedule:
+      interval: weekly
+    groups:
+      data-worker-npm:
+        patterns:
+          - "*"
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go-modules:
+        patterns:
+          - "*"
