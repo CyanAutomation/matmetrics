@@ -15,10 +15,15 @@
     "auth:retirement:preflight": "node scripts/auth-migration-check.ts retirement-preflight",
     "auth:retirement:verify": "node scripts/auth-migration-check.ts retirement-verify",
     "test:auth:migration-check": "node --test scripts/auth-migration-check.test.ts scripts/auth-retirement-migration.test.ts",
+    "test": "node --experimental-test-module-mocks --import tsx --test src/index.test.ts src/index.runtime.test.ts",
+    "typecheck": "npm run typecheck:worker && npm run typecheck:scripts",
+    "typecheck:worker": "tsc --project tsconfig.worker.json --noEmit --incremental false",
     "typecheck:scripts": "tsc --project tsconfig.scripts.json --noEmit --incremental false"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260915.1",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.11",
     "wrangler": "^4.143.1",
     "typescript": "^5.0.0"
   }

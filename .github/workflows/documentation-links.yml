@@ -1,6 +1,14 @@
 name: Documentation links
 
 on:
+  pull_request:
+    paths:
+      - README.md
+      - SETUP.md
+      - CONTRIBUTING.md
+      - go/README.md
+      - workers/matmetrics-auth/README.md
+      - docs/*.md
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -9,8 +17,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: documentation-links-${{ github.repository }}
-  cancel-in-progress: false
+  group: documentation-links-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check-links:
