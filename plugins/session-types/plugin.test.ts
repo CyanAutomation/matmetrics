@@ -3,10 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { isValidElement } from 'react';
 
 import sessionTypesManifest from './plugin.json';
+import { SessionTypes } from './src/components/session-types';
 import { testPluginManifestContract } from '../test-plugin-manifest-contract';
 import { resolveDashboardExtensionsToTabs } from '@/lib/navigation/tab-definitions';
+import { resolveDashboardTabRenderer } from '@/lib/plugins/dashboard-tab-adapters';
 import { discoverEnabledDashboardTabExtensions } from '@/lib/plugins/discovery.server';
 
 testPluginManifestContract({
@@ -55,5 +58,19 @@ test('session-types is discovered and mapped to a dashboard tab', async () => {
   assert.equal(tabs.length, 1, 'expected the registered surface to resolve');
   assert.equal(tabs[0]?.id, manifestExtension.config.tabId);
   assert.ok(tabs[0]?.title.trim(), 'navigation item needs an accessible label');
-  assert.equal(typeof tabs[0]?.render, 'function');
+
+  const renderer = await resolveDashboardTabRenderer(
+    manifestExtension.config.component
+  );
+  assert.ok(renderer, 'the declared component should resolve after bootstrap');
+
+  const refreshSessions = () => undefined;
+  const rendered = renderer({
+    sessions: [],
+    refreshSessions,
+    refreshPluginExtensions: () => undefined,
+  });
+
+  assert.ok(isValidElement(rendered));
+  assert.equal(rendered.type, SessionTypes);
 });

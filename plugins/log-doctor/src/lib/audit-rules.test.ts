@@ -14,7 +14,7 @@ import {
 // Helper to create test sessions
 function makeSession(overrides?: Partial<JudoSession>): JudoSession {
   return {
-    id: `session-${Math.random().toString(36).slice(2)}`,
+    id: 'test-session',
     date: '2026-03-18',
     techniques: ['Uchi mata'],
     effort: 3,
@@ -26,39 +26,25 @@ function makeSession(overrides?: Partial<JudoSession>): JudoSession {
   };
 }
 
-test('detectNoTechniquesHighEffort: flags high effort (>= 4) with zero techniques', () => {
-  const session = makeSession({
-    effort: 4,
-    techniques: [],
-  });
+test('detectNoTechniquesHighEffort: flags efforts at and above the configured threshold', () => {
   const config: AuditRuleConfig = {
     code: 'no_techniques_high_effort',
     enabled: true,
     effortThreshold: 4,
   };
 
-  const flag = detectNoTechniquesHighEffort(session, config);
+  for (const effort of [4, 5] as const) {
+    const flag = detectNoTechniquesHighEffort(
+      makeSession({ effort, techniques: [] }),
+      config
+    );
 
-  assert(flag !== null);
-  assert.equal(flag?.code, 'no_techniques_high_effort');
-  assert.equal(flag?.severity, 'error');
-  assert(flag?.message);
-});
-
-test('detectNoTechniquesHighEffort: flags effort 5 with zero techniques', () => {
-  const session = makeSession({
-    effort: 5,
-    techniques: [],
-  });
-  const config: AuditRuleConfig = {
-    code: 'no_techniques_high_effort',
-    enabled: true,
-    effortThreshold: 4,
-  };
-
-  const flag = detectNoTechniquesHighEffort(session, config);
-
-  assert(flag !== null);
+    assert.deepEqual(flag, {
+      code: 'no_techniques_high_effort',
+      severity: 'error',
+      message: `High-effort session (effort ${effort}) with no techniques logged. Verify whether it was a conditioning or light technical session.`,
+    });
+  }
 });
 
 test('detectNoTechniquesHighEffort: does not flag effort 3 with zero techniques', () => {
