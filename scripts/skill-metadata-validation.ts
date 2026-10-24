@@ -208,8 +208,14 @@ function validateSkillDirectory(
 
   for (const markdownPath of findMarkdownFiles(skillDirectory)) {
     diagnostics.push(...checkMarkdownLinks(markdownPath, repoRoot));
+    const markdownContent =
+      markdownPath === skillPath
+        ? content
+        : readFileSync(markdownPath, 'utf8');
+    diagnostics.push(
+      ...checkNpmScripts(markdownPath, markdownContent, repoRoot)
+    );
   }
-  diagnostics.push(...checkNpmScripts(skillPath, content, repoRoot));
 
   return diagnostics;
 }

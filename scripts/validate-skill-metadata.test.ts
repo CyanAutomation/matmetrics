@@ -160,6 +160,28 @@ test('reports npm run commands that are missing from their package scripts', () 
   });
 });
 
+test('validates npm run commands in nested skill references', () => {
+  withSkillsFixture((repoRoot, skillsRoot) => {
+    writeFileSync(join(repoRoot, 'package.json'), JSON.stringify({ scripts: {} }));
+    writeSkill(skillsRoot, 'demo-skill', validSkill('demo-skill'));
+    const references = join(skillsRoot, 'demo-skill', 'references');
+    mkdirSync(references, { recursive: true });
+    writeFileSync(
+      join(references, 'guide.md'),
+      '# Guide\n\nRun `npm run missing-reference-script`.\n'
+    );
+
+    const diagnostics = validateSkills(skillsRoot, repoRoot);
+    assert.ok(
+      diagnostics.some(
+        (item) =>
+          item.path === '.github/skills/demo-skill/references/guide.md' &&
+          item.message.includes('missing-reference-script')
+      )
+    );
+  });
+});
+
 test('validates local links and npm commands in the skills catalogue', () => {
   withSkillsFixture((repoRoot, skillsRoot) => {
     writeFileSync(join(repoRoot, 'package.json'), JSON.stringify({ scripts: {} }));

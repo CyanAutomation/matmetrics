@@ -50,7 +50,7 @@ Nine repository skills describe project-specific workflows. Start with the skill
 ## Validate skills and project behavior
 
 Validate skill frontmatter, local Markdown links, and `npm run` commands in
-skill entrypoints:
+skill Markdown files and the catalogue:
 
     npm run validate:skills
 
@@ -71,6 +71,6 @@ The plugin UI command checks registered dashboard component composition; it is n
 
 ## Metadata convention
 
-Each skill has YAML frontmatter with a name matching its folder and a non-empty description. License is recommended. The validator checks repository-local Markdown link targets in skill files and this catalogue, plus root or `npm --prefix` script names in skill entrypoints and this catalogue. It does not verify that the prose still matches runtime behavior.
+Each skill has YAML frontmatter with a name matching its folder and a non-empty description. License is recommended. The validator checks repository-local Markdown link targets and root or `npm --prefix` script names in all skill Markdown files and this catalogue. It does not verify that the prose still matches runtime behavior.
 
 When changing a source file, configuration key, contract, or command linked by a skill, review the affected skill in the same change. Confirm its branch ordering, environment assumptions, examples, and test commands against current code. Keep entrypoints focused on task-specific decisions and link to contracts, source files, and tests for details that change with the application.
