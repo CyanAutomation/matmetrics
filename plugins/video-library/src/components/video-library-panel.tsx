@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   Search,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 
 import { SessionLogForm } from '@/components/session-log-form';
@@ -29,6 +30,7 @@ import {
 } from '@/components/plugins/plugin-action-row';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import {
   Dialog,
@@ -821,28 +823,21 @@ function VideoLibraryView({
             <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto]">
               <div className="space-y-2">
                 <Label>Mode</Label>
-                <div
-                  className="inline-flex rounded-md border p-1"
-                  role="group"
+                <SegmentedControl
                   aria-label="Presentation mode"
+                  value={presentationMode}
+                  onValueChange={(mode) =>
+                    setPresentationMode(mode as VideoLibraryPresentationMode)
+                  }
                 >
                   {(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
                     (mode) => (
-                      <Button
-                        key={mode}
-                        type="button"
-                        size="sm"
-                        variant={
-                          presentationMode === mode ? 'default' : 'ghost'
-                        }
-                        aria-pressed={presentationMode === mode}
-                        onClick={() => setPresentationMode(mode)}
-                      >
+                      <SegmentedControl.Item key={mode} value={mode}>
                         {getPresentationLabel(mode)}
-                      </Button>
+                      </SegmentedControl.Item>
                     )
                   )}
-                </div>
+                </SegmentedControl>
               </div>
 
               <div className="space-y-2">
@@ -1055,15 +1050,13 @@ function VideoLibraryView({
                   customAllowedDomains.map((domain: any) => (
                     <Badge key={domain} variant="outline" className="gap-2">
                       {domain}
-                      <button
-                        type="button"
-                        className={getPluginUiTokenClassNames('action.subtle')}
-                        onClick={() => handlePromptRemoveDomain(domain)}
-                        disabled={isSavingDomains || isRemovingDomain}
-                        aria-label={`Remove ${domain}`}
-                      >
-                        ×
-                      </button>
+                        <IconButton
+                          size="compact"
+                          label={`Remove ${domain}`}
+                          onClick={() => handlePromptRemoveDomain(domain)}
+                          disabled={isSavingDomains || isRemovingDomain}
+                          icon={<X aria-hidden="true" />}
+                        />
                     </Badge>
                   ))
                 )}

@@ -11,6 +11,7 @@ import { PluginTableSection } from '@/components/plugins/plugin-kit';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import {
   Table,
   TableBody,
@@ -116,45 +117,46 @@ export function VideoLibraryResults({
                 <TableCell>
                   <div className="flex justify-end gap-2">
                     {row.entry.url ? (
-                      <Button type="button" variant="ghost" size="icon" asChild>
+                      <Button type="button" variant="ghost" size="icon-sm" asChild>
                         <a
                           href={row.entry.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-label={`Open video link for ${row.session.date}`}
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <ExternalLink aria-hidden="true" className="h-4 w-4" />
                         </a>
                       </Button>
                     ) : null}
                     {showAdvanced && row.isCheckable ? (
-                      <Button
+                      <IconButton
+                        size="compact"
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        label={`Refresh video link for ${row.session.date}`}
                         onClick={() => onCheckLinks([row.session.id])}
                         disabled={isCheckingLinks}
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                      </Button>
+                        icon={<RefreshCcw aria-hidden="true" />}
+                      />
                     ) : null}
-                    <Button
+                    <IconButton
+                      size="compact"
                       type="button"
                       variant="ghost"
-                      size="icon"
+                      label={`Edit video from ${row.session.date}`}
                       onClick={() => onEdit(row)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                      icon={<Pencil aria-hidden="true" />}
+                    />
                     {row.entry.url ? (
-                      <Button
+                      <IconButton
+                        size="compact"
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        label={`Remove video from ${row.session.date}`}
                         interaction="destructive"
                         onClick={() => onRemove(row)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        icon={<Trash2 aria-hidden="true" />}
+                      />
                     ) : null}
                   </div>
                 </TableCell>

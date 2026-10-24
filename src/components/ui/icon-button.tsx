@@ -12,18 +12,22 @@ type IconButtonProps = Omit<
 };
 
 /** A labelled, shared icon-only action button with comfortable or compact sizing. */
-export function IconButton({
-  className,
-  icon,
-  label,
-  size = 'default',
-  type = 'button',
-  variant = 'ghost',
-  ...props
-}: IconButtonProps) {
-  return (
+export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
+  (
+    {
+      className,
+      icon,
+      label,
+      size = 'default',
+      type = 'button',
+      variant = 'ghost',
+      ...props
+    },
+    ref
+  ) => (
     <Button
       {...props}
+      ref={ref}
       aria-label={label}
       className={className}
       size={size === 'compact' ? 'icon-sm' : 'icon'}
@@ -32,7 +36,8 @@ export function IconButton({
     >
       {icon}
     </Button>
-  );
-}
+  )
+);
+IconButton.displayName = 'IconButton';
 
 export type { IconButtonProps };

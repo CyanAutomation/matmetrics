@@ -9,7 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import {
   PluginDataList,
   PluginDataListRow,
@@ -85,13 +85,11 @@ export function TagManagerInventory({
                 onOpenChange={(open) => setOpenMenuTag(open ? tag : null)}
               >
                 <DropdownMenuTrigger asChild>
-                  <Button
+                  <IconButton
                     variant="outline"
-                    size="icon"
-                    aria-label={`Actions for ${tag}`}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                    label={`Actions for ${tag}`}
+                    icon={<MoreHorizontal aria-hidden="true" />}
+                  />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
