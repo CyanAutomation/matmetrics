@@ -11,7 +11,9 @@ function main(): void {
   const warnings = diagnostics.filter((item) => item.severity === 'warning');
 
   if (diagnostics.length === 0) {
-    console.log('All skill metadata and local Markdown links are valid.');
+    console.log(
+      'Skill metadata, local Markdown links, and npm script references are valid.'
+    );
     return;
   }
 

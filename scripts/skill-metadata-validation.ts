@@ -9,6 +9,7 @@ export type SkillDiagnostic = {
 
 const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const MARKDOWN_LINK_RE = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)/g;
+const NPM_RUN_RE = /\bnpm\s+(?:--prefix\s+([^\s]+)\s+)?run\s+([A-Za-z0-9_:-]+(?:\.[A-Za-z0-9_:-]+)*)/g;
 
 function repoRelativePath(repoRoot: string, filePath: string): string {
   return relative(repoRoot, filePath).split(sep).join('/');
@@ -100,6 +101,47 @@ function checkMarkdownLinks(
   return diagnostics;
 }
 
+function checkNpmScripts(
+  markdownPath: string,
+  content: string,
+  repoRoot: string
+): SkillDiagnostic[] {
+  const diagnostics: SkillDiagnostic[] = [];
+  const relativeMarkdownPath = repoRelativePath(repoRoot, markdownPath);
+
+  for (const match of content.matchAll(NPM_RUN_RE)) {
+    const prefix = match[1];
+    const scriptName = match[2];
+    const packageDirectory = prefix
+      ? resolve(repoRoot, prefix)
+      : repoRoot;
+    const packagePath = join(packageDirectory, 'package.json');
+    const line = content.slice(0, match.index).split('\n').length;
+
+    if (!existsSync(packagePath)) {
+      diagnostics.push({
+        path: relativeMarkdownPath,
+        severity: 'error',
+        message: `npm script reference on line ${line} uses a package without package.json: ${prefix ?? '.'}`,
+      });
+      continue;
+    }
+
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+      scripts?: Record<string, unknown>;
+    };
+    if (!Object.hasOwn(packageJson.scripts ?? {}, scriptName)) {
+      diagnostics.push({
+        path: relativeMarkdownPath,
+        severity: 'error',
+        message: `Unknown npm script on line ${line}: ${scriptName} (${repoRelativePath(repoRoot, packagePath)}).`,
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
 function validateSkillDirectory(
   skillDirectory: string,
   folderName: string,
@@ -167,6 +209,7 @@ function validateSkillDirectory(
   for (const markdownPath of findMarkdownFiles(skillDirectory)) {
     diagnostics.push(...checkMarkdownLinks(markdownPath, repoRoot));
   }
+  diagnostics.push(...checkNpmScripts(skillPath, content, repoRoot));
 
   return diagnostics;
 }
@@ -200,7 +243,23 @@ export function validateSkills(
     ];
   }
 
-  return skillDirectories.flatMap((folderName) =>
+  const diagnostics = skillDirectories.flatMap((folderName) =>
     validateSkillDirectory(join(skillsRoot, folderName), folderName, repoRoot)
   );
+  diagnostics.push(...validateSkillsCatalogue(skillsRoot, repoRoot));
+  return diagnostics;
+}
+
+function validateSkillsCatalogue(
+  skillsRoot: string,
+  repoRoot: string
+): SkillDiagnostic[] {
+  const cataloguePath = join(skillsRoot, 'README.md');
+  if (!existsSync(cataloguePath)) return [];
+
+  const content = readFileSync(cataloguePath, 'utf8');
+  return [
+    ...checkMarkdownLinks(cataloguePath, repoRoot),
+    ...checkNpmScripts(cataloguePath, content, repoRoot),
+  ];
 }
