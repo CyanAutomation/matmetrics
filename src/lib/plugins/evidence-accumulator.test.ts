@@ -108,16 +108,32 @@ describe('EvidenceAccumulator', () => {
     assert.deepEqual(summary.nextActions, acc.getNextActions());
   });
 
-  it('should provide safe immutability on reads', () => {
+  it('getFinal returns values callers can change without mutating accumulated state', () => {
     const acc = new EvidenceAccumulator();
 
     acc.addCategoryScore('contract_metadata', 18, 'explicit');
-    const scores1 = acc.getCategoryScores();
-    const scores2 = acc.getCategoryScores();
+    acc.addEvidence('contract_metadata', 'explicit', 'plugin.json found');
+    acc.addReason('contract_metadata', 'Valid contract metadata');
+    acc.addNextAction('Add a test');
 
-    // Different object instances
-    assert.notEqual(scores1, scores2);
-    // Same content
-    assert.deepEqual(scores1, scores2);
+    const result = acc.getFinal();
+    result.categoryScores.contract_metadata = 0;
+    result.evidence.contract_metadata?.push('caller mutation');
+    result.reasons.contract_metadata = 'caller mutation';
+    result.nextActions.push('caller mutation');
+
+    assert.deepEqual(acc.getFinal(), {
+      categoryScores: {
+        contract_metadata: 18,
+        runtime_integration: 0,
+        feature_quality: 0,
+        test_coverage: 0,
+        operability_docs: 0,
+      },
+      totalScore: 18,
+      evidence: { contract_metadata: ['plugin.json found'] },
+      reasons: { contract_metadata: 'Valid contract metadata' },
+      nextActions: ['Add a test'],
+    });
   });
 });

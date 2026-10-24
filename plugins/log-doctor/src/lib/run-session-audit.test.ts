@@ -190,7 +190,6 @@ test('concurrent assessment workers report exact success and failure totals', as
     DEFAULT_AUDIT_CONFIG,
     async (input) => {
       const index = Number(input.description.replace('Session ', ''));
-      await new Promise((resolve) => setTimeout(resolve, index % 3));
       if (index % 2 === 0) throw new Error('redacted failure');
       return makeAssessment();
     }
@@ -201,6 +200,10 @@ test('concurrent assessment workers report exact success and failure totals', as
     assessedSessions: 4,
     failedSessions: 5,
   });
+  assert.deepEqual(
+    result.sessions.map(({ sessionId }) => sessionId),
+    ['session-1', 'session-3', 'session-5', 'session-7']
+  );
 });
 
 test('disabled semantic rules skip JEV and keep deterministic audit enabled', async () => {
