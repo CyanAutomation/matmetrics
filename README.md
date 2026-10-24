@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/ci.yml) [![CodeQL](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/CyanAutomation/matmetrics/actions/workflows/github-code-scanning/codeql)
 
-MatMetrics is a web application for judoka to log Judo practice sessions and understand their training patterns, techniques, and intensity. Operators can connect persistent storage and optional AI and authentication services; contributors can work on the Next.js app, Go tools, and Cloudflare Workers in this repository.
+MatMetrics is a web application for judoka to log Judo practice sessions and understand their training patterns, techniques, and intensity.
 
 ## Contents
 
