@@ -166,6 +166,22 @@ interactive tags, and `size="text"` is for inline link actions.
 consistent square hit area. Use its compact size only inside dense controls such
 as removable chips.
 
+Keep control choices consistent across the app:
+
+- Use `Button` for actions with visible text, including buttons that render a
+  link through `asChild`.
+- Use `IconButton` for icon-only actions, including dialog and sheet close
+  controls. Give every icon-only action a specific `label`.
+- Use `Toggle` for an independent pressed state, such as a selected technique.
+- Use `SegmentedControl` for one-of-many views, timeframes, and short option
+  sets. Set `variant="card"` for descriptive choices that need a wider card
+  layout while keeping the same selection behavior and focus treatment.
+- Use the shared `RadioGroup` for form choices that should use radio semantics.
+
+Feature components should not introduce hand-styled native buttons. Keep raw
+buttons inside low-level UI primitives that need custom interaction behavior
+and the unstyled global error fallback, where shared CSS may not be available.
+
 ### Segmented Controls
 
 Use `SegmentedControl` for a small set of mutually exclusive peer views or

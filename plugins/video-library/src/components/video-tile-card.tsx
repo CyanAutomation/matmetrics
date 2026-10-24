@@ -10,6 +10,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { PluginMediaTile } from '@/components/plugins/plugin-media-tile';
 import { PluginTileActions } from '@/components/plugins/plugin-tile-actions';
 import {
@@ -165,14 +166,12 @@ export function VideoTileCard({
           menuAction={
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <IconButton
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  aria-label={`More actions for ${title}`}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                  label={`More actions for ${title}`}
+                  icon={<MoreHorizontal aria-hidden="true" />}
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {showAdvanced && row.isCheckable ? (

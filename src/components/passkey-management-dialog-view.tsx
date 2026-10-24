@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -160,32 +161,30 @@ function PasskeyItem({
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
             {passkey.name}
           </span>
-          <Button
+          <IconButton
             type="button"
             variant="ghost"
-            size="icon"
-            aria-label={`Rename ${passkey.name}`}
+            label={`Rename ${passkey.name}`}
             onClick={() => onBeginRename(passkey)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
+            icon={<Pencil aria-hidden="true" />}
+          />
+          <IconButton
             type="button"
             variant="ghost"
-            size="icon"
-            aria-label={`Remove ${passkey.name}`}
+            label={`Remove ${passkey.name}`}
             title={
               canRemove ? undefined : 'Keep at least one passkey on your account'
             }
             disabled={!canRemove || pending}
             onClick={() => onDelete(passkey)}
-          >
-            {pending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
+            icon={
+              pending ? (
+                <Loader2 aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Trash2 aria-hidden="true" />
+              )
+            }
+          />
         </>
       )}
     </li>
