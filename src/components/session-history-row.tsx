@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,15 +69,13 @@ function SessionRowActions({
       onOpenChange={setIsActionsMenuOpen}
     >
       <DropdownMenuTrigger asChild>
-        <Button
+        <IconButton
           variant="ghost"
-          size="icon"
           className="h-11 w-11 text-muted-foreground hover:bg-primary/5 hover:text-primary"
-          aria-label={`Actions for session from ${sessionDateLabel}`}
+          label={`Actions for session from ${sessionDateLabel}`}
           title="Session actions"
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </Button>
+          icon={<MoreHorizontal aria-hidden="true" className="h-5 w-5" />}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -208,29 +209,27 @@ export const AuditSettings: React.FC<AuditSettingsProps> = ({
           <Label className="block font-medium">
             How sensitive should checks be?
           </Label>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {PRIMARY_PRESET_OPTIONS.map((option) => {
-              const isActive = selectedPreset === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handlePrimaryPresetChange(option.value)}
-                  className={`rounded-md border p-3 text-left transition ${
-                    isActive
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-background hover:bg-muted/30'
-                  }`}
-                  aria-pressed={isActive}
-                >
-                  <div className="text-sm font-medium">{option.label}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {option.description}
-                  </p>
-                </button>
+          <SegmentedControl
+            aria-label="Audit strictness"
+            value={selectedPreset ?? ''}
+            onValueChange={(value) => {
+              const nextPreset = PRIMARY_PRESET_OPTIONS.find(
+                (option) => option.value === value
               );
-            })}
-          </div>
+              if (nextPreset) handlePrimaryPresetChange(nextPreset.value);
+            }}
+            variant="card"
+            className="sm:grid-cols-3"
+          >
+            {PRIMARY_PRESET_OPTIONS.map((option) => (
+              <SegmentedControl.Item key={option.value} value={option.value}>
+                <div className="text-sm font-medium">{option.label}</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {option.description}
+                </p>
+              </SegmentedControl.Item>
+            ))}
+          </SegmentedControl>
           {selectedPreset === null && (
             <p className="text-xs text-muted-foreground">
               Using custom advanced settings.

@@ -82,6 +82,11 @@ test('SegmentedControl preserves the labelled, mutually exclusive selection requ
     getAllByRole('button', { pressed: true }).map((item) => item.textContent),
     ['30 days']
   );
+  assert.match(
+    getByRole('button', { name: '30 days' }).getAttribute('class') ?? '',
+    /ui-button/,
+    'segmented options should inherit the shared Button interaction and focus treatment'
+  );
 
   fireEvent.click(getByRole('button', { name: '90 days' }));
 
@@ -93,4 +98,28 @@ test('SegmentedControl preserves the labelled, mutually exclusive selection requ
     getAllByRole('button', { pressed: true }).map((item) => item.textContent),
     ['90 days']
   );
+});
+
+test('SegmentedControl card variant standardizes descriptive single-choice options', () => {
+  const { getByRole } = render(
+    <SegmentedControl
+      aria-label="Audit strictness"
+      value="balanced"
+      variant="card"
+    >
+      <SegmentedControl.Item value="balanced">
+        <span>Balanced</span>
+        <span>Recommended everyday checks.</span>
+      </SegmentedControl.Item>
+    </SegmentedControl>
+  );
+  const group = getByRole('group', { name: 'Audit strictness' });
+  const option = getByRole('button', { name: /Balanced/ });
+  const className = option.getAttribute('class') ?? '';
+
+  assert.equal(group.getAttribute('class')?.includes('grid'), true);
+  assert.equal(option.getAttribute('aria-pressed'), 'true');
+  assert.match(className, /ui-button/);
+  assert.match(className, /w-full/);
+  assert.match(className, /border-primary/);
 });
