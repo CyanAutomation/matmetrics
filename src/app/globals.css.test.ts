@@ -2,13 +2,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import postcss from 'postcss';
-import tailwindcss from '@tailwindcss/postcss';
+import postcssrc from 'postcss-load-config';
 import test from 'node:test';
 
 test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind compiles base styles, semantic utilities, and all category chart colors', async () => {
   const cssPath = path.join(process.cwd(), 'src/app/globals.css');
   const source = await readFile(cssPath, 'utf8');
-  const result = await postcss([tailwindcss()]).process(source, {
+  const config = await postcssrc({}, process.cwd());
+
+  assert.equal(
+    path.basename(config.file),
+    'postcss.config.mjs',
+    'the PostCSS loader must resolve the ESM config supported by Next.js'
+  );
+
+  const result = await postcss(config.plugins).process(source, {
     from: cssPath,
   });
 

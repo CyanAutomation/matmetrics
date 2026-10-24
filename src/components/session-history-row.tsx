@@ -114,15 +114,17 @@ function SessionRowTechniques({
   return (
     <div className="flex flex-wrap gap-1.5">
       {techniques.slice(0, 3).map((technique, index) => (
-        <button
+        <Button
           key={`${technique}-${index}`}
           type="button"
+          variant="secondary"
+          size="chip"
           onClick={() => onFilterTechnique(technique)}
-          className="max-w-full break-words rounded-full bg-[hsl(var(--color-surface-container-high))] px-2.5 py-1 text-left text-xs font-medium transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="max-w-full justify-start break-words text-left font-medium hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary"
           title={`Show sessions tagged ${technique}`}
         >
           {technique}
-        </button>
+        </Button>
       ))}
       {techniques.length > 3 ? (
         <Badge variant="secondary">+{techniques.length - 3} more</Badge>

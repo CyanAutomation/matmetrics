@@ -12,6 +12,7 @@ export function LogDoctorTabs({
 }) {
   return (
     <PluginTabs
+      ariaLabel="Data check sections"
       tabs={[
         { id: 'validation', label: 'File Validation' },
         {
