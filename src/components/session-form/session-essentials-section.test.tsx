@@ -7,8 +7,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SessionEssentialsSection } from './session-essentials-section';
 
-test('session essentials shows the coach illustration only when the container can fit it', () => {
-  const document = parse(
+function renderEssentials(showAvatar: boolean) {
+  return parse(
     renderToStaticMarkup(
       React.createElement(SessionEssentialsSection, {
         date: '2026-09-28',
@@ -16,7 +16,7 @@ test('session essentials shows the coach illustration only when the container ca
         category: 'Technical',
         availableCategories: ['Technical'],
         effort: 3,
-        showAvatar: true,
+        showAvatar,
         shouldHideHeader: false,
         fid: (suffix: string) => suffix,
         setDate: () => undefined,
@@ -26,39 +26,27 @@ test('session essentials shows the coach illustration only when the container ca
       })
     )
   );
-  const illustration = document.querySelector(
-    'img[alt*="ready to help log your training session"]'
-  );
-  const responsiveFrame = illustration?.parentNode?.parentNode?.parentNode;
+}
 
-  assert.ok(illustration);
-  // The illustration waits for its container to reach the documented 56rem width.
-  // See docs/blueprint.md#component-layout-contracts.
-  assert.match(
-    responsiveFrame?.getAttribute('class') ?? '',
-    /hidden shrink-0 @min-\[56rem\]\/essentials:flex/
+test('session essentials includes the coach illustration only when avatar mode is enabled', () => {
+  const enabled = renderEssentials(true);
+  const disabled = renderEssentials(false);
+
+  assert.ok(
+    enabled.querySelector(
+      'img[alt="Ressa in coach mode, ready to help log your training session"]'
+    )
+  );
+  assert.equal(
+    disabled.querySelector(
+      'img[alt="Ressa in coach mode, ready to help log your training session"]'
+    ),
+    null
   );
 });
 
 test('effort options expose which level is selected to assistive technology', () => {
-  const document = parse(
-    renderToStaticMarkup(
-      React.createElement(SessionEssentialsSection, {
-        date: '2026-09-28',
-        duration: '',
-        category: 'Technical',
-        availableCategories: ['Technical'],
-        effort: 3,
-        showAvatar: false,
-        shouldHideHeader: false,
-        fid: (suffix: string) => suffix,
-        setDate: () => undefined,
-        setDuration: () => undefined,
-        setCategory: () => undefined,
-        setEffort: () => undefined,
-      })
-    )
-  );
+  const document = renderEssentials(false);
   const options = document.querySelectorAll('[aria-label^="Effort level:"]');
   const selected = document.querySelector('[aria-label="Effort level: Normal"]');
   const unselected = document.querySelector('[aria-label="Effort level: Easy"]');

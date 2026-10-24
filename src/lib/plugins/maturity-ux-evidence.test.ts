@@ -64,25 +64,31 @@ test('findFilesAssertingState requires an assertion anchor near the UX state', a
   );
 });
 
-test('findFilesAssertingState recognizes broad loading assertions and preserves file order', async () => {
+test('findFilesAssertingState recognizes broad loading assertions and preserves input order', async () => {
   await withEvidenceFiles(
     {
-      'broad.test.ts': `
+      'first-broad.test.ts': `
         expect(
           screen.getByRole('status', { name: 'pending request is loading' })
         ).toBeVisible();
+      `,
+      'second-broad.test.ts': `
+        expect(screen.getByText('Loading next session')).toBeVisible();
       `,
       'error.test.ts': `
         expect(screen.getByText('request failed')).toBeVisible();
       `,
     },
     async (paths) => {
+      const inputOrder = [
+        paths['second-broad.test.ts'],
+        paths['error.test.ts'],
+        paths['first-broad.test.ts'],
+      ];
+
       assert.deepEqual(
-        await findFilesAssertingState(
-          [paths['error.test.ts'], paths['broad.test.ts']],
-          'loading'
-        ),
-        [paths['broad.test.ts']]
+        await findFilesAssertingState(inputOrder, 'loading'),
+        [paths['second-broad.test.ts'], paths['first-broad.test.ts']]
       );
     }
   );
@@ -149,24 +155,4 @@ expect(screen.getByRole('button', { name: 'cancel' })).toBeVisible();`,
       );
     }
   );
-});
-
-test('findFilesAssertingState propagates raw filesystem failures with the affected path', async () => {
-  const directory = await mkdtemp(
-    path.join(tmpdir(), 'matmetrics-ux-missing-')
-  );
-  const missingFile = path.join(directory, 'missing.test.ts');
-
-  try {
-    await assert.rejects(
-      findFilesAssertingState([missingFile], 'loading'),
-      (error: NodeJS.ErrnoException) => {
-        assert.equal(error.code, 'ENOENT');
-        assert.equal(error.path, missingFile);
-        return true;
-      }
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
 });

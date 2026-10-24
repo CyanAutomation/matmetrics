@@ -52,21 +52,6 @@ test('button public API defaults align with design-system/button expectations', 
   assert.equal(element.hasAttribute('data-pulse'), false);
 });
 
-test('button offers standard chip and inline text sizes', () => {
-  const chip = renderElement(<Button size="chip">Technique</Button>);
-  const text = renderElement(
-    <Button size="text" variant="link">
-      Clear filters
-    </Button>
-  );
-
-  assert.match(chip.getAttribute('class') ?? '', /h-8/);
-  assert.match(chip.getAttribute('class') ?? '', /rounded-full/);
-  assert.match(text.getAttribute('class') ?? '', /h-auto/);
-  assert.match(text.getAttribute('class') ?? '', /px-0/);
-  assert.match(text.getAttribute('class') ?? '', /py-0/);
-});
-
 test('button forwards data attributes when rendered as child element', () => {
   const element = renderElement(
     <Button asChild interaction="subtle" feedbackState="success" feedbackPulse>

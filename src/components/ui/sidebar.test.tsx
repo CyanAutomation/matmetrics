@@ -1,16 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+// @ts-expect-error Next bundles this parser without publishing type declarations.
+import { parse } from 'next/dist/compiled/node-html-parser';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Sidebar, SidebarInset, SidebarProvider } from './sidebar';
 
-test('SidebarInset exposes a shrink-safe flex item contract', () => {
-  const html = renderToStaticMarkup(<SidebarInset>Content</SidebarInset>);
+test('SidebarInset keeps content shrinkable beside desktop navigation', () => {
+  const document = parse(
+    renderToStaticMarkup(<SidebarInset>Session history</SidebarInset>)
+  );
+  const inset = document.querySelector('div');
+  const insetClasses = inset?.getAttribute('class')?.split(/\s+/) ?? [];
 
   // The content area must be allowed to shrink beside desktop navigation.
   // See docs/blueprint.md#component-layout-contracts.
-  assert.match(html, /class="[^"]*\bmin-w-0\b[^"]*"/);
+  assert.equal(inset?.textContent, 'Session history');
+  assert.ok(insetClasses.includes('min-w-0'));
 });
 
 test('desktop sidebar reserves its configured width in the flex layout', () => {
