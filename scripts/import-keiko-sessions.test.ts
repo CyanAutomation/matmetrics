@@ -24,8 +24,19 @@ test('dry-run summary separates parse failures, duplicates, payload mismatches, 
     duplicateIds: 1,
     alreadyPresent: 1,
     payloadMismatches: 1,
+    keikoOnly: 0,
     importable: 1,
     imported: 0,
   });
   assert.deepEqual(result.importable.map((item) => item.id), ['new']);
+});
+
+test('dry-run summary counts sessions that exist only in Keiko', () => {
+  const result = summarizeImport(
+    [session('source')],
+    [],
+    [session('source'), session('keiko-only')]
+  );
+
+  assert.equal(result.report.keikoOnly, 1);
 });
