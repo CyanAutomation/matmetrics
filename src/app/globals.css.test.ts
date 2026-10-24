@@ -1,34 +1,22 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getPostCssPlugins } from 'next/dist/build/webpack/config/blocks/css/plugins.js';
-import { findConfig, findConfigPath } from 'next/dist/lib/find-config.js';
-import postcss, { type AcceptedPlugin } from 'postcss';
+import postcss from 'postcss';
+import postcssrc from 'postcss-load-config';
 import test from 'node:test';
-
-test('Next can discover the Tailwind PostCSS config used by production builds', async () => {
-  const configPath = await findConfigPath(process.cwd(), 'postcss');
-  const config = await findConfig<{ plugins: Record<string, unknown> }>(
-    process.cwd(),
-    'postcss'
-  );
-
-  assert.ok(
-    configPath,
-    'Next must find the Tailwind PostCSS config so production styles include utility classes'
-  );
-  assert.match(configPath, /postcss\.config\.(?:mjs|js|cjs)$/);
-  assert.ok(
-    config?.plugins?.['@tailwindcss/postcss'],
-    'the discovered Next config must enable the Tailwind PostCSS plugin'
-  );
-});
 
 test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind compiles base styles, semantic utilities, and all category chart colors', async () => {
   const cssPath = path.join(process.cwd(), 'src/app/globals.css');
   const source = await readFile(cssPath, 'utf8');
-  const plugins = await getPostCssPlugins(process.cwd(), undefined);
-  const result = await postcss(plugins as unknown as AcceptedPlugin[]).process(source, {
+  const config = await postcssrc({}, process.cwd());
+
+  assert.equal(
+    path.basename(config.file),
+    'postcss.config.mjs',
+    'the PostCSS loader must resolve the ESM config supported by Next.js'
+  );
+
+  const result = await postcss(config.plugins).process(source, {
     from: cssPath,
   });
 

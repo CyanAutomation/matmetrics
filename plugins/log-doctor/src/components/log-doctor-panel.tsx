@@ -12,6 +12,7 @@ import {
   PluginEmptyFilteredResults,
 } from '@/components/plugins/plugin-data-surface';
 import { PluginPageShell } from '@/components/plugins/plugin-page-shell';
+import { PluginTabPanel } from '@/components/plugins/plugin-tabs';
 import {
   PluginStatusPanel,
   PluginTableSection,
@@ -449,9 +450,12 @@ function LogDoctorView({
             />
 
             {/* File Validation Tab */}
-            {(() => {
-              if (activeTab !== 'validation') return null;
-              return (
+            <PluginTabPanel
+              tabId="validation"
+              selected={activeTab === 'validation'}
+              className="space-y-4"
+            >
+              {activeTab === 'validation' ? (
                 <>
                   <details className="rounded-lg border bg-muted/20 px-4 py-3">
                     <summary className="cursor-pointer text-sm font-medium">
@@ -731,15 +735,18 @@ function LogDoctorView({
                       ))}
                     </PluginTableSection>
                   ) : null}
-                </> /* end File Validation tab */
-              );
-            })()}
+                </>
+              ) : null}
+            </PluginTabPanel>
 
             {/* Session Audit Tab */}
-            {(() => {
-              if (activeTab !== 'audit') return null;
-              return (
-                <div className="space-y-4">
+            <PluginTabPanel
+              tabId="audit"
+              selected={activeTab === 'audit'}
+              className="space-y-4"
+            >
+              {activeTab === 'audit' ? (
+                <>
                   <PluginSectionCard
                     title="Session audit status"
                     contentClassName="flex flex-wrap items-center justify-between gap-3"
@@ -893,9 +900,9 @@ function LogDoctorView({
                       />
                     )
                   ) : null}
-                </div>
-              );
-            })()}
+                </>
+              ) : null}
+            </PluginTabPanel>
 
             {auditStep === 'resolve-findings' ? (
               <AuditReviewDialog
