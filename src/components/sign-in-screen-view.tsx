@@ -116,13 +116,15 @@ function VerificationSentState({
           Resend verification email
         </Button>
       )}
-      <button
+      <Button
         type="button"
-        className="w-full text-sm text-primary"
+        variant="link"
+        size="text"
+        className="w-full justify-start text-sm"
         onClick={onBackToSignIn}
       >
         Back to sign in
-      </button>
+      </Button>
     </div>
   );
 }
@@ -256,35 +258,41 @@ function AuthModeNavigation({
   return (
     <div className="flex items-center justify-between text-sm">
       {mode === 'sign-in' && emailPasswordSignupEnabled ? (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="text"
           className="text-primary"
           onClick={onStartSignUp}
           disabled={isSubmitting}
         >
           Create account
-        </button>
+        </Button>
       ) : mode !== 'sign-in' ? (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="text"
           className="text-primary"
           onClick={onBackToSignIn}
           disabled={isSubmitting}
         >
           Back to sign in
-        </button>
+        </Button>
       ) : (
         <span />
       )}
       {mode === 'sign-in' && betterAuthConfigured && (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="text"
           className="text-primary"
           onClick={onStartPasswordReset}
           disabled={isSubmitting}
         >
           Forgot password?
-        </button>
+        </Button>
       )}
     </div>
   );

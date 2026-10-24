@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { getPluginUiTokenClassNames } from '@/components/plugins/plugin-style-policy';
 import { cn } from '@/lib/utils';
 
@@ -25,14 +26,16 @@ export function PluginTabs({
   return (
     <div role="tablist" className={cn('flex gap-2 border-b pb-2', className)}>
       {tabs.map((tab) => (
-        <button
+        <Button
           key={tab.id}
           type="button"
+          variant="ghost"
+          size="sm"
           role="tab"
           aria-selected={activeTab === tab.id}
           aria-controls={`plugin-tab-panel-${tab.id}`}
           className={cn(
-            'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            'gap-2',
             activeTab === tab.id
               ? 'bg-primary text-primary-foreground'
               : getPluginUiTokenClassNames('tab.inactive')
@@ -41,7 +44,7 @@ export function PluginTabs({
         >
           {tab.label}
           {tab.badge}
-        </button>
+        </Button>
       ))}
     </div>
   );
