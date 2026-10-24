@@ -60,9 +60,20 @@ test('tag-manager dashboard renderer resolves after plugin bootstrap', async () 
   resetPluginComponentRegistryInitializationForTests();
 
   const renderer = await resolveDashboardTabRenderer('tag_manager');
+  const refreshSessions = () => undefined;
 
   assert.ok(
     renderer,
     'Expected tag-manager renderer to resolve after bootstrap.'
   );
+
+  const rendered = renderer({
+    sessions: [],
+    refreshSessions,
+    refreshPluginExtensions: () => undefined,
+  });
+
+  assert.ok(isValidElement<TagManagerProps>(rendered));
+  assert.equal(rendered.type, TagManager);
+  assert.equal(rendered.props.onRefresh, refreshSessions);
 });
