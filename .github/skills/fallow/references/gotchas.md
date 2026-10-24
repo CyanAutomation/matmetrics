@@ -2,6 +2,8 @@
 
 Common pitfalls and their correct solutions when working with fallow.
 
+> **Source and version:** [Fallow documentation](https://docs.fallow.tools/). This is a repository-maintained reference; check the installed version before relying on version-specific behavior. MatMetrics pins Fallow `3.22.0`. Reviewed on 2026-10-24 for the repository invocation guidance, not for complete behavior parity. For MatMetrics work, follow [the Fallow skill](../SKILL.md) and run the pinned local version.
+
 ---
 
 ## `fix` Requires `--yes` in Non-TTY Environments
@@ -29,7 +31,7 @@ The `npx fallow` command (without the `-y` flag) prompts for installation confir
 # WRONG: blocks waiting for user confirmation in non-TTY
 npx fallow dead-code --format json --quiet
 # Output: "Need to install the following packages:
-#          fallow@3.10.0
+#          fallow@<resolved-version>
 #          Ok to proceed? (y)" [hangs]
 
 # CORRECT: auto-accept installation prompt
@@ -47,7 +49,7 @@ For projects using fallow regularly, add it to `devDependencies` in `package.jso
 
 ## Don't Create Config Unless Needed
 
-Fallow works with zero configuration for most projects thanks to 114 auto-detecting framework plugins. Creating an unnecessary config file can mask issues or override detection behavior.
+Fallow works with zero configuration for many projects thanks to its auto-detecting framework plugins. Creating an unnecessary config file can mask issues or override detection behavior.
 
 ```bash
 # WRONG: creating config for a standard Next.js project

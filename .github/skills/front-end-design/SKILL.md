@@ -32,4 +32,4 @@ Use this skill when a task needs visual direction or a meaningful UI composition
 
 ## Verify
 
-Use the project’s existing component tests and linting for changed UI. For plugin dashboard components, run npm run validate:plugin-ui-contract. Follow the relevant design-system guidance rather than introducing new visual rules for a single page.
+Use the project’s existing component tests and linting for changed UI. For plugin dashboard components, run `npm run validate:plugin-ui-contract`. Follow the relevant design-system guidance rather than introducing new visual rules for a single page.

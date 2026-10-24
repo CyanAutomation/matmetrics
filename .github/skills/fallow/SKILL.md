@@ -39,7 +39,7 @@ When cleanup is requested, inspect a preview with fallow fix --dry-run. Review i
 
 Read only the reference needed for the task:
 
-- [CLI reference](references/cli-reference.md) for command flags and output fields.
+- [CLI reference](references/cli-reference.md) for historical flag and output examples; verify them against the installed version.
 - [Gotchas](references/gotchas.md) for false positives, fix behavior, and analysis limits.
 - [Workflow patterns](references/patterns.md) for CI, migration, and audit recipes.
 
