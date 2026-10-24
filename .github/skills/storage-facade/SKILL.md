@@ -10,17 +10,19 @@ Use this skill when changing session reads, writes, persistence routing, caching
 
 ## Storage boundaries
 
-- [session-storage.ts](../../../src/lib/session-storage.ts) selects GitHub or local file storage for server-side session operations.
+- [session-storage.ts](../../../src/lib/session-storage.ts) selects GitHub or local file storage for sessions handled by this storage layer.
 - [github-storage.ts](../../../src/lib/github-storage.ts) implements GitHub reads and writes.
 - [file-storage.ts](../../../src/lib/file-storage.ts) manages local markdown files and file locking.
-- User preferences and plugin overrides are stored in D1 through the signed Cloudflare data Worker; session files are stored in GitHub or local markdown.
+- User preferences and plugin overrides are stored in D1 through the signed Cloudflare data Worker. Session requests may use GitHub or local markdown through this layer, or Keiko when the API handler selects the cutover path.
 - [storage.ts](../../../src/lib/storage.ts), [storage-queue.ts](../../../src/lib/storage-queue.ts), and the sync lease implementation coordinate queued client mutations.
 
 Read the caller and the owning storage layer before editing. Do not assume every route passes through the same facade.
 
 ## Routing and consistency
 
-The server uses GitHub storage when a valid GitHub config and GITHUB_TOKEN are available; otherwise it selects local storage. A GitHub error is returned to the caller. There is no automatic fallback from a failed GitHub read or write to local storage. Preserve that distinction so one logical session does not silently split across backends.
+The storage layer uses GitHub when a valid GitHub config and GITHUB_TOKEN are available. Otherwise, it attempts local storage only where local storage is allowed. In Vercel deployments with `VERCEL=1` and `VERCEL_ENV` other than `development`, local storage throws `PersistentSessionStorageUnavailableError`; it is not a production fallback. A GitHub error is returned to the caller, with no automatic fallback to local storage, so one logical session cannot silently split across backends.
+
+Some session API requests are routed to Keiko before they reach this storage layer. Check the handler’s `isKeikoCutoverUser` branch before assuming a request uses GitHub or local markdown storage.
 
 The Next.js API routes may also proxy configured GitHub work to Go. Follow the route’s selected behavior and the gateway guidance in [api-gateway-pattern](../api-gateway-pattern/SKILL.md).
 
@@ -47,5 +49,6 @@ The Next.js API routes may also proxy configured GitHub work to Go. Follow the r
 - [Storage orchestration](../../../src/lib/storage.ts)
 - [Queue operation processing](../../../src/lib/storage-queue.ts)
 - [Sync lease](../../../src/lib/sync-lease.ts)
+- [Keiko session gateway](../../../src/lib/keiko-session-gateway.server.ts)
 - [Storage tests](../../../src/lib/storage.test.ts)
 - [Session storage tests](../../../src/lib/session-storage.test.ts)
