@@ -52,6 +52,13 @@ test('dialog close control is layered above sticky content', () => {
     )
   );
   const close = screen.getByRole('button', { name: 'Close' });
+  assert.match(
+    close.getAttribute('class') ?? '',
+    /ui-button/,
+    'dialog close controls should use the shared icon-button styling'
+  );
+  assert.match(close.getAttribute('class') ?? '', /h-10/);
+  assert.match(close.getAttribute('class') ?? '', /w-10/);
   const stickyContent = document.querySelector('[class*="sticky"]');
   const zIndex = (element: Element | null) => {
     const layer = element?.getAttribute('class')?.match(/\bz-(\d+)\b/);

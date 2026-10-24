@@ -2,7 +2,7 @@
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +16,17 @@ export function ModeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative h-10 w-10">
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 opacity-100 !transition-[transform,opacity] duration-200 ease-snappy dark:-rotate-90 dark:scale-0 dark:opacity-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 opacity-0 !transition-[transform,opacity] duration-200 ease-snappy dark:rotate-0 dark:scale-100 dark:opacity-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
+        <IconButton
+          variant="outline"
+          label="Toggle theme"
+          className="relative"
+          icon={
+            <>
+              <Sun aria-hidden="true" className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 opacity-100 !transition-[transform,opacity] duration-200 ease-snappy dark:-rotate-90 dark:scale-0 dark:opacity-0" />
+              <Moon aria-hidden="true" className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 opacity-0 !transition-[transform,opacity] duration-200 ease-snappy dark:rotate-0 dark:scale-100 dark:opacity-100" />
+            </>
+          }
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme('light')}>

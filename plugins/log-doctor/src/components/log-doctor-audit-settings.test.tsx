@@ -37,11 +37,22 @@ test('default view exposes one top-level strictness control (UX guardrail)', () 
     'expected exactly one top-level strictness control'
   );
 
+  assert.match(
+    markup,
+    /aria-label="Audit strictness"/,
+    'strictness options should be grouped as one shared segmented control'
+  );
   const topLevelOptions = markup.match(/aria-pressed="(?:true|false)"/g) ?? [];
   assert.equal(
     topLevelOptions.length,
     3,
     'guardrail: adding top-level options must go through the Advanced/custom path'
+  );
+  const strictnessButtons =
+    markup.match(/<button\b(?=[^>]*aria-pressed="(?:true|false)")[^>]*>/g) ?? [];
+  assert.ok(
+    strictnessButtons.every((button) => /\bui-button\b/.test(button)),
+    'each strictness option should use the shared Button treatment'
   );
 });
 
