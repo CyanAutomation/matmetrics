@@ -203,13 +203,15 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
                 ? `JEV found ${props.semanticSearchResultCount} likely ${props.semanticSearchResultCount === 1 ? 'match' : 'matches'}.`
                 : 'JEV found no likely matches among the sessions checked.'}
             </p>
-            <button
+            <Button
               type="button"
-              className="underline underline-offset-2"
+              variant="link"
+              size="text"
+              className="text-muted-foreground underline underline-offset-2"
               onClick={props.onClearSemanticSearch}
             >
               Clear semantic results
-            </button>
+            </Button>
           </div>
         ) : null}
         {props.semanticSearchError ? (

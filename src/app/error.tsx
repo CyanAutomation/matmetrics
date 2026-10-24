@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import * as Sentry from '@sentry/nextjs';
+import { Button } from '@/components/ui/button';
 
 export default function Error({
   error,
@@ -24,13 +25,13 @@ export default function Error({
         <p className="text-muted-foreground">
           We&apos;ve recorded the problem. Please try again.
         </p>
-        <button
-          className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+        <Button
+          variant="default"
           onClick={retry}
           type="button"
         >
           Try again
-        </button>
+        </Button>
       </section>
     </main>
   );

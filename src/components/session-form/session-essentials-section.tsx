@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import { RessaImage } from '@/components/ressa-image';
 import { EFFORT_LABELS, SessionCategory } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -170,11 +170,14 @@ export function SessionEssentialsSection({
                 const effortVal = val as typeof effort;
                 const isSelected = effort === effortVal;
                 return (
-                  <Button
+                  <Toggle
                     key={fid(`effort-${val}`)}
-                    type="button"
-                    variant={isSelected ? 'default' : 'outline'}
-                    onClick={() => setEffort(effortVal)}
+                    pressed={isSelected}
+                    pressedVariant="default"
+                    unpressedVariant="outline"
+                    onPressedChange={(nextPressed) => {
+                      if (nextPressed) setEffort(effortVal);
+                    }}
                     className={cn(
                       'min-h-10 min-w-0 px-1 text-[11px] font-semibold leading-none transition-all duration-200 @min-[30rem]/essentials:px-2 @min-[30rem]/essentials:text-sm',
                       isSelected
@@ -183,10 +186,9 @@ export function SessionEssentialsSection({
                     )}
                     title={EFFORT_LABELS[effortVal]}
                     aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
-                    aria-pressed={isSelected}
                   >
                     {EFFORT_LABELS[effortVal]}
-                  </Button>
+                  </Toggle>
                 );
               })}
             </div>

@@ -149,16 +149,22 @@ details are sent to an external service.
 ### Buttons
 
 ```tsx
-// Primary Button
-<Button variant="primary" size="md">
+// The shared Button defaults to the primary action treatment.
+<Button>
   Save Session
 </Button>
 
-// Class recipe:
-// bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-container)]
-// text-[var(--color-on-primary)] rounded-[var(--radius-button)]
-// shadow-[var(--shadow-ambient)] hover:brightness-105
+<IconButton icon={<Plus aria-hidden="true" />} label="Log a session" />
 ```
+
+Use the shared `Button` for actions instead of styling native buttons in page
+components. Use `variant="outline"`, `variant="secondary"`, `variant="ghost"`,
+or `variant="link"` for secondary actions. `size="chip"` is for compact
+interactive tags, and `size="text"` is for inline link actions.
+
+`IconButton` requires a visible-to-assistive-technology `label` and uses a
+consistent square hit area. Use its compact size only inside dense controls such
+as removable chips.
 
 ### Segmented Controls
 
@@ -183,13 +189,20 @@ segmented control when users can select more than one option.
 ### Technique Chips
 
 ```tsx
-<Toggle pressed={selected}>Uchi mata</Toggle>
+<Toggle pressed={selected} onPressedChange={setSelected}>
+  Uchi mata
+</Toggle>
 
 // Class recipe:
 // rounded-full h-8 px-3 text-xs font-medium
 // selected: bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]
 // !selected: bg-[var(--color-surface-low)] text-[var(--color-on-surface-variant)]
 ```
+
+`Toggle` is the shared controlled primitive for a button with a pressed state.
+It exposes `aria-pressed` and supports the same visual variants as `Button`.
+Use `SegmentedControl` for mutually exclusive peer views and `Toggle` for
+individual selected states.
 
 ### Metric Cards
 

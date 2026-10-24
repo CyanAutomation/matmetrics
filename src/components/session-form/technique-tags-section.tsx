@@ -4,6 +4,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Badge } from '@/components/ui/badge';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { Brain, X, Sparkles, Loader2 } from 'lucide-react';
@@ -77,13 +78,13 @@ export function TechniqueTagsSection({
             className="gap-1 bg-primary text-white py-1.5 px-3 text-sm"
           >
             {tech}
-            <button
-              type="button"
+            <IconButton
+              size="compact"
+              label={`Remove ${tech} technique tag`}
+              icon={<X aria-hidden="true" />}
               onClick={() => onRemoveTech(tech)}
-              className="ml-1 rounded-full transition-[color,transform] duration-200 ease-snappy hover:text-destructive hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+              className="ml-1 rounded-full text-primary-foreground hover:bg-white/10 hover:text-white focus-visible:ring-white"
+            />
           </Badge>
         ))}
       </div>

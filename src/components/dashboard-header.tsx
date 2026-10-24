@@ -105,12 +105,15 @@ export function DashboardHeader({
         <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               aria-label="Open account menu"
-              className="w-11 h-11 rounded-full bg-[hsl(var(--color-primary-fixed))] flex items-center justify-center text-[hsl(var(--color-on-primary-fixed))] font-semibold text-sm cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="h-11 w-11 rounded-full bg-[hsl(var(--color-primary-fixed))] text-sm font-semibold text-[hsl(var(--color-on-primary-fixed))] hover:opacity-80"
             >
               {initials}
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="font-normal">
