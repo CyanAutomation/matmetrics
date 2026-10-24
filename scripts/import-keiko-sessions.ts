@@ -18,6 +18,7 @@ export type ImportReport = {
   duplicateIds: number;
   alreadyPresent: number;
   payloadMismatches: number;
+  keikoOnly: number;
   importable: number;
   imported: number;
 };
@@ -38,6 +39,10 @@ export function summarizeImport(
 ): { report: ImportReport; importable: JudoSession[] } {
   const counts = new Map<string, number>();
   for (const session of source) counts.set(session.id, (counts.get(session.id) ?? 0) + 1);
+  const sourceIds = new Set(source.map((session) => session.id));
+  const keikoOnly = new Set(existing
+    .filter((session) => !sourceIds.has(session.id))
+    .map((session) => session.id)).size;
   const existingById = new Map(existing.map((session) => [session.id, session]));
   const duplicates = new Set([...counts].filter(([, count]) => count > 1).map(([id]) => id));
   let alreadyPresent = 0;
@@ -57,6 +62,7 @@ export function summarizeImport(
       duplicateIds: duplicates.size,
       alreadyPresent,
       payloadMismatches,
+      keikoOnly,
       importable: importable.length,
       imported: 0,
     },
