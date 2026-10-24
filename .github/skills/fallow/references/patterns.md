@@ -2,6 +2,8 @@
 
 Step-by-step workflows for common fallow usage scenarios.
 
+> **Source and version:** [Fallow documentation](https://docs.fallow.tools/). This generic cookbook is maintained in the repository and its version-sensitive examples may not match the installed CLI. MatMetrics pins Fallow `3.22.0`; reviewed on 2026-10-24 for this caveat and repository invocation guidance, not for complete command parity. Use `npm exec -- fallow ...` for MatMetrics work; the global-install and unpinned `npx` examples below are generic setup recipes.
+
 ---
 
 ## Table of Contents

@@ -106,3 +106,71 @@ test('reports skill directories that do not contain SKILL.md', () => {
     assert.ok(diagnostics.some((item) => item.message.includes('SKILL.md')));
   });
 });
+
+test('validates root and prefixed npm run commands in skill entrypoints', () => {
+  withSkillsFixture((repoRoot, skillsRoot) => {
+    writeFileSync(
+      join(repoRoot, 'package.json'),
+      JSON.stringify({ scripts: { 'test:all': 'node test.js' } })
+    );
+    const workerDirectory = join(repoRoot, 'workers', 'demo');
+    mkdirSync(workerDirectory, { recursive: true });
+    writeFileSync(
+      join(workerDirectory, 'package.json'),
+      JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } })
+    );
+    writeSkill(
+      skillsRoot,
+      'demo-skill',
+      validSkill(
+        'demo-skill',
+        'Run npm run test:all. Also run `npm --prefix workers/demo run typecheck`.'
+      )
+    );
+
+    assert.deepEqual(validateSkills(skillsRoot, repoRoot), []);
+  });
+});
+
+test('reports npm run commands that are missing from their package scripts', () => {
+  withSkillsFixture((repoRoot, skillsRoot) => {
+    writeFileSync(
+      join(repoRoot, 'package.json'),
+      JSON.stringify({ scripts: { 'test:all': 'node test.js' } })
+    );
+    const workerDirectory = join(repoRoot, 'workers', 'demo');
+    mkdirSync(workerDirectory, { recursive: true });
+    writeFileSync(
+      join(workerDirectory, 'package.json'),
+      JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } })
+    );
+    writeSkill(
+      skillsRoot,
+      'demo-skill',
+      validSkill(
+        'demo-skill',
+        'Run `npm run typo` and `npm --prefix workers/demo run missing`.'
+      )
+    );
+
+    const diagnostics = validateSkills(skillsRoot, repoRoot);
+    assert.ok(diagnostics.some((item) => item.message.includes('typo')));
+    assert.ok(diagnostics.some((item) => item.message.includes('missing')));
+    assert.ok(diagnostics.every((item) => item.severity === 'error'));
+  });
+});
+
+test('validates local links and npm commands in the skills catalogue', () => {
+  withSkillsFixture((repoRoot, skillsRoot) => {
+    writeFileSync(join(repoRoot, 'package.json'), JSON.stringify({ scripts: {} }));
+    writeSkill(skillsRoot, 'demo-skill', validSkill('demo-skill'));
+    writeFileSync(
+      join(skillsRoot, 'README.md'),
+      '# Skills\n\n[Missing skill](./missing/SKILL.md)\n\nRun `npm run missing`.\n'
+    );
+
+    const diagnostics = validateSkills(skillsRoot, repoRoot);
+    assert.ok(diagnostics.some((item) => item.message.includes('missing/SKILL.md')));
+    assert.ok(diagnostics.some((item) => item.message.includes('Unknown npm script')));
+  });
+});

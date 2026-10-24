@@ -1,6 +1,8 @@
 # Fallow CLI Reference
 
-Complete command and flag specifications for all fallow CLI commands.
+Command, flag, and output notes for Fallow CLI commands.
+
+> **Source and version:** [Fallow documentation](https://docs.fallow.tools/). These JSON examples were captured from Fallow `2.86.0`; their `version` fields use `<installed-version>` placeholders so they are not mistaken for current output. MatMetrics currently pins `3.22.0`. This copy has not been regenerated in full. Reviewed on 2026-10-24 against the repository pin for this version caveat and local invocation guidance, not for complete flag or output-schema parity. Verify version-sensitive details with `npm exec -- fallow --version` and the installed command's `--help`.
 
 ---
 
@@ -485,7 +487,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -875,7 +877,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -948,7 +950,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1487,7 +1489,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1742,7 +1744,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -1798,11 +1800,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "2.86.0",
+  "version": "<installed-version>",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "2.86.0",
+    "version": "<installed-version>",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],

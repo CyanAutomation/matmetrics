@@ -1,6 +1,6 @@
 # MatMetrics Skills
 
-Eight repository skills describe project-specific workflows. Start with the skill that matches the code or task being changed, then follow its links to the implementation and tests.
+Nine repository skills describe project-specific workflows. Start with the skill that matches the code or task being changed, then follow its links to the implementation and tests.
 
 ## Skills
 
@@ -26,6 +26,10 @@ Eight repository skills describe project-specific workflows. Start with the skil
 
 - [fallow](./fallow/SKILL.md) — JavaScript and TypeScript static analysis with Fallow.
 
+### Cloudflare Workers
+
+- [cloudflare-workers-auth](./cloudflare-workers-auth/SKILL.md) — authentication, signed data requests, D1 migrations, and Worker tests.
+
 ### Interface design
 
 - [front-end-design](./front-end-design/SKILL.md) — visual hierarchy and interaction decisions for MatMetrics UI.
@@ -39,12 +43,14 @@ Eight repository skills describe project-specific workflows. Start with the skil
 | Shared TypeScript and Go behavior      | cross-language-testing | error-handling-patterns if error responses change                              |
 | Go CLI or backend package              | go-cli-development     | cross-language-testing for shared behavior                                     |
 | Plugin manifest or dashboard UI        | plugin-manager         | front-end-design for significant UI work                                       |
+| Cloudflare auth/data Worker or D1      | cloudflare-workers-auth | cross-language-testing when a shared TypeScript/Go contract changes            |
 | Code health, dead code, or duplication | fallow                 | —                                                                              |
 | Significant page or component design   | front-end-design       | plugin-manager for plugin surfaces                                             |
 
 ## Validate skills and project behavior
 
-Validate skill frontmatter and local Markdown links:
+Validate skill frontmatter, local Markdown links, and `npm run` commands in
+skill entrypoints:
 
     npm run validate:skills
 
@@ -65,6 +71,6 @@ The plugin UI command checks registered dashboard component composition; it is n
 
 ## Metadata convention
 
-Each skill has YAML frontmatter with a name matching its folder and a non-empty description. License is recommended. The validator also checks repository-local Markdown links in skill files and references.
+Each skill has YAML frontmatter with a name matching its folder and a non-empty description. License is recommended. The validator checks repository-local Markdown link targets in skill files and this catalogue, plus root or `npm --prefix` script names in skill entrypoints and this catalogue. It does not verify that the prose still matches runtime behavior.
 
-Keep skill entrypoints focused on task-specific decisions and links to current implementation. Prefer contracts, source files, and tests as the authority for details that change with the application.
+When changing a source file, configuration key, contract, or command linked by a skill, review the affected skill in the same change. Confirm its branch ordering, environment assumptions, examples, and test commands against current code. Keep entrypoints focused on task-specific decisions and link to contracts, source files, and tests for details that change with the application.
