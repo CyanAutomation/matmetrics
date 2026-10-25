@@ -119,18 +119,6 @@ export function GitHubSettings() {
     void refreshKeikoInstallation();
   }, [refreshKeikoInstallation]);
 
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const result = url.searchParams.get('githubBackup');
-    if (result !== 'connected' && result !== 'failed') return;
-
-    setKeikoMessage(result === 'connected'
-      ? 'GitHub backup repository connected.'
-      : 'GitHub connection did not complete. Check the selected repository and try again.');
-    url.searchParams.delete('githubBackup');
-    window.history.replaceState(window.history.state, '', url.toString());
-  }, []);
-
   const handleKeikoInstall = async () => {
     setKeikoOperation('connect');
     setKeikoMessage(null);
