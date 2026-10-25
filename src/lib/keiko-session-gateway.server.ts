@@ -305,13 +305,16 @@ export async function forwardSessionRequestToKeiko(
     if (body.includes(token)) {
       fail(502, 'Session service returned an invalid response');
     }
-    const safeHeaders = new Headers({
-      'cache-control': 'no-store',
-      'content-type': response.headers.get('content-type') ?? 'application/json',
-    });
+    const bodylessStatus = [204, 205, 304].includes(response.status);
+    const safeHeaders = new Headers({ 'cache-control': 'no-store' });
+    const contentType = response.headers.get('content-type');
+    if (!bodylessStatus && contentType) safeHeaders.set('content-type', contentType);
     const etag = response.headers.get('etag');
     if (etag && /^"[1-9][0-9]{0,8}"$/.test(etag)) safeHeaders.set('etag', etag);
-    return new NextResponse(body, { status: response.status, headers: safeHeaders });
+    return new NextResponse(bodylessStatus ? null : body, {
+      status: response.status,
+      headers: safeHeaders,
+    });
   } catch (error) {
     if (error instanceof GatewayError) {
       return NextResponse.json({ error: error.message }, {

@@ -1,6 +1,9 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { NextRequest } from 'next/server';
 import { verifyBetterAuthToken } from '../src/lib/better-auth-token-verifier.server';
+import { markdownToSession } from '../src/lib/markdown-serializer';
 import {
   forwardSessionRequestToKeiko,
   listAllKeikoSessions,
@@ -12,6 +15,16 @@ const COOKIE_NAMES = new Set([
   '__Secure-better-auth.session_token',
 ]);
 
+function normalizeExportSession(value: unknown): JudoSession {
+  if (
+    value && typeof value === 'object' && !Array.isArray(value) &&
+    'techniques' in value && value.techniques === null
+  ) {
+    return { ...value, techniques: [] } as unknown as JudoSession;
+  }
+  return value as JudoSession;
+}
+
 export type ImportReport = {
   sourceCount: number;
   parseFailures: number;
@@ -22,6 +35,108 @@ export type ImportReport = {
   importable: number;
   imported: number;
 };
+
+export function parseSessionExport(value: unknown): {
+  sessions: JudoSession[];
+  issues: unknown[];
+} {
+  if (Array.isArray(value)) {
+    // The GitHub-backed API returns its parsed sessions as a bare array.
+    return { sessions: value.map(normalizeExportSession), issues: [] };
+  }
+  if (
+    value && typeof value === 'object' &&
+    'sessions' in value && Array.isArray(value.sessions) &&
+    'issues' in value && Array.isArray(value.issues)
+  ) {
+    return {
+      sessions: value.sessions.map(normalizeExportSession),
+      issues: value.issues,
+    };
+  }
+  throw new Error('MatMetrics returned an invalid session export');
+}
+
+export function parseMarkdownFiles(files: Array<{ filePath: string; contents: string }>): {
+  sessions: JudoSession[];
+  issues: Array<{ filePath: string }>;
+} {
+  const sessions: JudoSession[] = [];
+  const issues: Array<{ filePath: string }> = [];
+  for (const file of files) {
+    try {
+      sessions.push(markdownToSession(file.contents));
+    } catch {
+      issues.push({ filePath: file.filePath });
+    }
+  }
+  return { sessions, issues };
+}
+
+async function readMarkdownSource(root = resolve('data')): Promise<{
+  sessions: JudoSession[];
+  issues: Array<{ filePath: string }>;
+}> {
+  const files: Array<{ filePath: string; contents: string }> = [];
+  async function visit(directory: string): Promise<void> {
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolutePath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolutePath);
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        files.push({
+          filePath: relative(process.cwd(), absolutePath).split(sep).join('/'),
+          contents: await readFile(absolutePath, 'utf8'),
+        });
+      }
+    }
+  }
+  await visit(root);
+  return parseMarkdownFiles(files);
+}
+
+export function createImporterGatewayRequest(
+  trustedOrigin: URL,
+  bearer: string,
+  cookie: string
+): NextRequest {
+  return new NextRequest(new URL('/api/sessions/list', trustedOrigin), {
+    headers: {
+      authorization: `Bearer ${bearer}`,
+      cookie,
+      origin: trustedOrigin.origin,
+      'sec-fetch-site': 'same-origin',
+    },
+  });
+}
+
+const SAFE_AUTH_ERRORS = new Set([
+  'Authentication required',
+  'Invalid access token',
+  'Session authentication failed',
+  'Session authentication is unavailable',
+  'Session token validation failed',
+]);
+
+export async function safeResponseError(response: Response): Promise<string | null> {
+  try {
+    const value: unknown = await response.clone().json();
+    if (!value || typeof value !== 'object' || !('error' in value)) return null;
+    const error = value.error;
+    const message =
+      typeof error === 'string'
+        ? error
+        : error && typeof error === 'object' && 'message' in error &&
+            typeof error.message === 'string'
+          ? error.message
+          : null;
+    if (message && SAFE_AUTH_ERRORS.has(message)) return message;
+  } catch {
+    // Keep the importer output generic when a service returns a non-JSON body.
+  }
+  return null;
+}
 
 function canonicalSession(session: JudoSession): string {
   const normalized = Object.fromEntries(
@@ -93,7 +208,7 @@ function baseOrigin(name: string): URL {
   return url;
 }
 
-async function run(apply: boolean): Promise<ImportReport> {
+async function run(apply: boolean, markdownSource: boolean): Promise<ImportReport> {
   const bearer = process.env.MATMETRICS_BEARER_TOKEN?.trim();
   if (!bearer) throw new Error('MATMETRICS_BEARER_TOKEN is required');
   const principal = await verifyBetterAuthToken(bearer);
@@ -103,37 +218,36 @@ async function run(apply: boolean): Promise<ImportReport> {
     throw new Error('MatMetrics API origin must match the configured Better Auth frontend origin');
   }
   const cookie = sessionCookie();
-  const sourceUrl = new URL('/api/sessions/list?force=1', appOrigin);
-  const sourceResponse = await fetch(sourceUrl, {
-    headers: {
-      accept: 'application/json',
-      authorization: `Bearer ${bearer}`,
-      cookie,
-      origin: trustedOrigin.origin,
-      'sec-fetch-site': 'same-origin',
-    },
-    redirect: 'error',
-    cache: 'no-store',
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!sourceResponse.ok) throw new Error(`MatMetrics source read failed (${sourceResponse.status})`);
-  const sourceValue: unknown = await sourceResponse.json();
-  if (
-    !sourceValue || typeof sourceValue !== 'object' ||
-    !('sessions' in sourceValue) || !Array.isArray(sourceValue.sessions) ||
-    !('issues' in sourceValue) || !Array.isArray(sourceValue.issues)
-  ) throw new Error('MatMetrics returned an invalid session export');
-  const source = sourceValue.sessions as JudoSession[];
-  const issues = sourceValue.issues;
-  const gatewayRequest = new NextRequest(new URL('/api/sessions/list', trustedOrigin), {
-    headers: {
-      cookie,
-      origin: trustedOrigin.origin,
-      'sec-fetch-site': 'same-origin',
-    },
-  });
+  let source: JudoSession[];
+  let issues: unknown[];
+  if (markdownSource) {
+    ({ sessions: source, issues } = await readMarkdownSource());
+  } else {
+    const sourceUrl = new URL('/api/sessions/list?force=1', appOrigin);
+    const sourceResponse = await fetch(sourceUrl, {
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${bearer}`,
+        cookie,
+        origin: trustedOrigin.origin,
+        'sec-fetch-site': 'same-origin',
+      },
+      redirect: 'error',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!sourceResponse.ok) throw new Error(`MatMetrics source read failed (${sourceResponse.status})`);
+    const sourceValue: unknown = await sourceResponse.json();
+    ({ sessions: source, issues } = parseSessionExport(sourceValue));
+  }
+  const gatewayRequest = createImporterGatewayRequest(trustedOrigin, bearer, cookie);
   const existingResponse = await listAllKeikoSessions(gatewayRequest, principal, new URLSearchParams());
-  if (!existingResponse.ok) throw new Error(`Keiko comparison read failed (${existingResponse.status})`);
+  if (!existingResponse.ok) {
+    const safeError = await safeResponseError(existingResponse);
+    throw new Error(
+      `Keiko comparison read failed (${existingResponse.status})${safeError ? `: ${safeError}` : ''}`
+    );
+  }
   const existingValue: unknown = await existingResponse.json();
   if (!existingValue || typeof existingValue !== 'object' || !('sessions' in existingValue) || !Array.isArray(existingValue.sessions)) {
     throw new Error('Keiko returned an invalid session list');
@@ -158,13 +272,19 @@ async function run(apply: boolean): Promise<ImportReport> {
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply');
+  const markdownSource = process.argv.includes('--markdown-source');
   try {
-    const report = await run(apply);
-    console.log(JSON.stringify({ mode: apply ? 'apply' : 'dry-run', ...report }, null, 2));
+    const report = await run(apply, markdownSource);
+    console.log(JSON.stringify({
+      mode: apply ? 'apply' : 'dry-run',
+      source: markdownSource ? 'markdown' : 'api',
+      ...report,
+    }, null, 2));
   } catch (error) {
     console.error(JSON.stringify({
       error: error instanceof Error ? error.message : 'Import failed',
       mode: apply ? 'apply' : 'dry-run',
+      source: markdownSource ? 'markdown' : 'api',
     }));
     process.exitCode = 1;
   }
