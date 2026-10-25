@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createImporterGatewayRequest,
+  createImportWritePacer,
   parseMarkdownFiles,
   parseSessionExport,
   safeResponseError,
@@ -107,6 +108,32 @@ test('importer gateway request carries the bearer and only the Better Auth sessi
   assert.equal(request.headers.get('cookie'), '__Secure-better-auth.session_token=session-value');
   assert.equal(request.headers.get('origin'), 'https://matmetrics.example.test');
   assert.equal(request.headers.get('sec-fetch-site'), 'same-origin');
+});
+
+test('import write pacing stays below the Auth Worker token-exchange limit', async () => {
+  let now = 1_000;
+  const waits: number[] = [];
+  const pace = createImportWritePacer({
+    minimumIntervalMs: 3_000,
+    now: () => now,
+    sleep: async (durationMs) => {
+      waits.push(durationMs);
+      now += durationMs;
+    },
+  });
+
+  await pace();
+  const firstWriteAt = now;
+  now += 750;
+  await pace();
+  const secondWriteAt = now;
+  now += 1_000;
+  await pace();
+  const thirdWriteAt = now;
+
+  assert.equal(secondWriteAt - firstWriteAt, 3_000);
+  assert.equal(thirdWriteAt - secondWriteAt, 3_000);
+  assert.deepEqual(waits, [2_250, 2_000]);
 });
 
 test('comparison error hints expose only allowlisted authentication errors', async () => {
