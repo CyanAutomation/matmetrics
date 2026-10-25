@@ -84,12 +84,53 @@ export function isBackgroundJobResult(
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.id === 'string' &&
+    /^[A-Za-z0-9_-]{1,100}$/.test(candidate.id) &&
     typeof candidate.type === 'string' &&
     (BACKGROUND_JOB_TYPES as readonly string[]).includes(candidate.type) &&
     typeof candidate.status === 'string' &&
     (BACKGROUND_JOB_STATUSES as readonly string[]).includes(candidate.status) &&
     typeof candidate.createdAt === 'string' &&
     typeof candidate.updatedAt === 'string' &&
-    typeof candidate.attempts === 'number'
+    typeof candidate.attempts === 'number' &&
+    Number.isFinite(candidate.attempts) &&
+    candidate.attempts >= 0
+  );
+}
+
+export type KeikoBackgroundJobType =
+  | 'github-health'
+  | 'log-doctor-scan'
+  | 'log-doctor-fix'
+  | 'github-sync-all';
+
+export type KeikoBackgroundJobResult = Omit<BackgroundJobResult, 'type'> & {
+  type: KeikoBackgroundJobType;
+};
+
+const KEIKO_BACKGROUND_JOB_TYPES: readonly KeikoBackgroundJobType[] = [
+  'github-health',
+  'log-doctor-scan',
+  'log-doctor-fix',
+  'github-sync-all',
+];
+
+/** Validates Keiko jobs without widening the matmetrics-data Worker contract. */
+export function isKeikoBackgroundJobResult(
+  value: unknown
+): value is KeikoBackgroundJobResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    /^[A-Za-z0-9_-]{1,100}$/.test(candidate.id) &&
+    typeof candidate.type === 'string' &&
+    KEIKO_BACKGROUND_JOB_TYPES.includes(candidate.type as KeikoBackgroundJobType) &&
+    typeof candidate.status === 'string' &&
+    (BACKGROUND_JOB_STATUSES as readonly string[]).includes(candidate.status) &&
+    typeof candidate.createdAt === 'string' &&
+    typeof candidate.updatedAt === 'string' &&
+    typeof candidate.attempts === 'number' &&
+    Number.isFinite(candidate.attempts) &&
+    candidate.attempts >= 0
   );
 }

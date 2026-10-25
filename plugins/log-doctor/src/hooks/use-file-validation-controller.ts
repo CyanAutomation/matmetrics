@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
   isBackgroundJobResult,
+  isKeikoBackgroundJobResult,
+  type KeikoBackgroundJobResult,
   type BackgroundJobResult,
 } from '@/lib/background-jobs';
 import { parseLogDoctorApiResponse, toErrorReason } from '../lib/api-parser';
@@ -112,7 +114,7 @@ function getValidationEndpoint(action: 'scan' | 'preview' | 'apply'): string {
 }
 
 async function waitForBackgroundJob(
-  job: BackgroundJobResult,
+  job: BackgroundJobResult | KeikoBackgroundJobResult,
   dependencies: FileValidationDependencies,
   signal: AbortSignal
 ): Promise<unknown> {
@@ -134,13 +136,19 @@ async function waitForBackgroundJob(
       { headers, signal }
     );
     const current: unknown = await response.json();
-    if (!response.ok || !isBackgroundJobResult(current))
+    if (!response.ok || (!isBackgroundJobResult(current) && !isKeikoBackgroundJobResult(current)))
       throw new Error('Unable to read background job status');
     if (current.status === 'completed') return current.result;
     if (current.status === 'failed')
       throw new Error(current.error || 'Background check failed');
   }
   throw new Error('Background check is taking longer than expected');
+}
+
+function isJobResult(
+  value: unknown
+): value is BackgroundJobResult | KeikoBackgroundJobResult {
+  return isBackgroundJobResult(value) || isKeikoBackgroundJobResult(value);
 }
 
 /**
@@ -231,14 +239,12 @@ export const useFileValidationController = (
         // Handle scan vs fix responses
         if (action === 'scan') {
           const initial: unknown = await response.json();
-          const payload =
-            response.status === 202 && isBackgroundJobResult(initial)
-              ? ((await waitForBackgroundJob(
-                  initial,
-                  dependencies,
-                  controller.signal
-                )) as ScanResult)
-              : (initial as ScanResult);
+          if (response.status === 202 && !isJobResult(initial)) {
+            throw new Error('Training data scan returned an invalid job');
+          }
+          const payload = response.status === 202
+            ? ((await waitForBackgroundJob(initial as BackgroundJobResult | KeikoBackgroundJobResult, dependencies, controller.signal)) as ScanResult)
+            : (initial as ScanResult);
           if (response.status >= 400) {
             throw new Error('Training data scan request failed');
           }
@@ -252,7 +258,14 @@ export const useFileValidationController = (
               : createUiState(action, 'success')
           );
         } else {
-          const payload = await parseLogDoctorApiResponse<FixResult>(response);
+          let payload: FixResult;
+          if (response.status === 202) {
+            const initial: unknown = await response.json();
+            if (!isJobResult(initial)) throw new Error('Log Doctor fix returned an invalid job');
+            payload = (await waitForBackgroundJob(initial, dependencies, controller.signal)) as FixResult;
+          } else {
+            payload = await parseLogDoctorApiResponse<FixResult>(response);
+          }
           if (!isCurrentRequest()) {
             return;
           }

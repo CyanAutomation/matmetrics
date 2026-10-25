@@ -6,12 +6,30 @@ import {
   isDataWorkerConfigured,
 } from '@/lib/data-worker-client.server';
 import { validateGitHubRoute } from '@/lib/github-route-helpers';
+import {
+  forwardSessionRequestToKeiko,
+  isKeikoCutoverUser,
+} from '@/lib/keiko-session-gateway.server';
+import { validateKeikoGitHubRoute } from '@/lib/github-keiko-route.server';
+import { requireAuthenticatedUser } from '@/lib/server-auth';
 
 /**
  * POST /api/github/log-doctor
  * Diagnose markdown logs in a GitHub repository
  */
 export async function POST(request: NextRequest) {
+  const user = await requireAuthenticatedUser(request);
+  if (user instanceof NextResponse) return user;
+  if (isKeikoCutoverUser(user.appUserId)) {
+    const validation = await validateKeikoGitHubRoute(request, ['owner', 'repo', 'branch']);
+    if (!validation.ok) return validation.response;
+    return forwardSessionRequestToKeiko(request, validation.user, {
+      path: '/v1/github/log-doctor',
+      method: 'POST',
+      scope: 'github:read',
+      body: validation.branch ? { branch: validation.branch } : {},
+    });
+  }
   const validation = await validateGitHubRoute(request);
   if (!validation.ok) return validation.response;
   if (!isDataWorkerConfigured()) {

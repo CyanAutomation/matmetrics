@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBackgroundJob } from '@/lib/background-job-store.server';
 import { DataWorkerError } from '@/lib/data-worker-client.server';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import {
+  forwardSessionRequestToKeiko,
+  isKeikoCutoverUser,
+} from '@/lib/keiko-session-gateway.server';
 
 export async function GET(
   request: NextRequest,
@@ -12,6 +16,13 @@ export async function GET(
   const user = await requireAuthenticatedUser(request);
   if (user instanceof NextResponse) return user;
   const { id } = await context.params;
+  if (isKeikoCutoverUser(user.appUserId)) {
+    return forwardSessionRequestToKeiko(request, user, {
+      path: `/v1/github/jobs/${encodeURIComponent(id)}`,
+      method: 'GET',
+      scope: 'github:read',
+    });
+  }
   try {
     return NextResponse.json(await getBackgroundJob(user.appUserId, id), {
       headers: { 'Cache-Control': 'no-store' },
