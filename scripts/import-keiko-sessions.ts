@@ -36,6 +36,25 @@ export type ImportReport = {
   imported: number;
 };
 
+type ImportWritePacerOptions = {
+  minimumIntervalMs?: number;
+  now?: () => number;
+  sleep?: (durationMs: number) => Promise<void>;
+};
+
+export function createImportWritePacer({
+  minimumIntervalMs = 3_000,
+  now = Date.now,
+  sleep = (durationMs) => new Promise((resolve) => setTimeout(resolve, durationMs)),
+}: ImportWritePacerOptions = {}): () => Promise<void> {
+  let nextWriteAt = 0;
+  return async () => {
+    const waitMs = nextWriteAt - now();
+    if (waitMs > 0) await sleep(waitMs);
+    nextWriteAt = now() + minimumIntervalMs;
+  };
+}
+
 export function parseSessionExport(value: unknown): {
   sessions: JudoSession[];
   issues: unknown[];
@@ -254,7 +273,9 @@ async function run(apply: boolean, markdownSource: boolean): Promise<ImportRepor
   }
   const { report, importable } = summarizeImport(source, issues, existingValue.sessions as JudoSession[]);
   if (apply) {
+    const paceBeforeWrite = createImportWritePacer();
     for (const session of importable) {
+      await paceBeforeWrite();
       const response = await forwardSessionRequestToKeiko(gatewayRequest, principal, {
         path: '/v1/sessions',
         method: 'POST',
