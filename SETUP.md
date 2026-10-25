@@ -4,7 +4,7 @@
 
 - Node.js 24.x and npm 11.x
 - Go 1.25.x only if building or using the Go CLI/API
-- A GitHub token only for GitHub-backed session storage or sync
+- A GitHub token for legacy GitHub-backed session storage or sync; allowlisted Keiko accounts use a selected-repository GitHub App instead
 - Cloudflare Workers and D1 only for local auth and preference services
 - A Resend account and verified sending domain only for real auth email delivery
 

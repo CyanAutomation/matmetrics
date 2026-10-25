@@ -15,7 +15,8 @@ import {
   getGitHubSettingsValidationError,
   resolveClearDialogOutcome,
 } from './github-settings-view-model';
-import { parseGitHubApiResponse } from './github-settings-api';
+import { parseGitHubApiPayload } from './github-settings-api';
+import { waitForGitHubJobResponse } from '@/lib/github-background-jobs.client';
 
 interface UseGitHubSettingsOperationsProps {
   owner: string;
@@ -125,9 +126,11 @@ export function useGitHubSettingsOperations({
         }),
       });
 
-      const result = await parseGitHubApiResponse(
-        response,
-        'Unable to validate this repository right now. Please try again.'
+      const payload = await waitForGitHubJobResponse(response, { getAuthHeaders });
+      const result = parseGitHubApiPayload(
+        payload,
+        'Unable to validate this repository right now. Please try again.',
+        response.ok
       );
       onSetTestResult(result);
 
@@ -189,9 +192,11 @@ export function useGitHubSettingsOperations({
         }),
       });
 
-      const result = await parseGitHubApiResponse(
-        response,
-        'Sync failed due to an unexpected server response. Please try again.'
+      const payload = await waitForGitHubJobResponse(response, { getAuthHeaders });
+      const result = parseGitHubApiPayload(
+        payload,
+        'Sync failed due to an unexpected server response. Please try again.',
+        response.ok
       );
 
       if (result.success) {

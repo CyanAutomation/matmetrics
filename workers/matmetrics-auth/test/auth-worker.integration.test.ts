@@ -731,7 +731,7 @@ describe('MatMetrics auth Worker integration', () => {
         authorization: `Bearer ${matmetricsToken}`,
         body: {
           expectedUserId: userId,
-          scopes: ['sessions:read', 'sessions:write'],
+          scopes: ['sessions:read', 'sessions:write', 'github:read', 'github:write'],
         },
       })
     );
@@ -741,7 +741,7 @@ describe('MatMetrics auth Worker integration', () => {
       expiresAt: number;
       scopes: string[];
     };
-    expect(result.scopes).toEqual(['sessions:read', 'sessions:write']);
+    expect(result.scopes).toEqual(['sessions:read', 'sessions:write', 'github:read', 'github:write']);
     const jwks = (await (await workerFetch(authRequest('/jwks'))).json()) as {
       keys: JsonWebKey[];
     };
@@ -752,7 +752,7 @@ describe('MatMetrics auth Worker integration', () => {
     });
     expect(verified.payload.sub).toBe(userId);
     expect(verified.payload.appUserId).toBe(userId);
-    expect(verified.payload.scope).toBe('sessions:read sessions:write');
+    expect(verified.payload.scope).toBe('sessions:read sessions:write github:read github:write');
     expect(verified.payload.exp! - verified.payload.iat!).toBeLessThanOrEqual(300);
     expect(verified.payload.exp! - verified.payload.iat!).toBeGreaterThan(0);
     expect(result.expiresAt).toBe(verified.payload.exp);

@@ -4,6 +4,7 @@ import type {
   GitHubSyncSurfaceState,
   LoadGitHubSyncHistoryOptions,
 } from './github-sync-results-types';
+import { waitForGitHubJobResponse } from '@/lib/github-background-jobs.client';
 
 const parseErrorMessage = async (
   response: Response,
@@ -127,12 +128,15 @@ export async function runLoadGitHubSyncHistory(
 
     let payload: unknown;
     try {
-      payload = await response.json();
+      payload = await waitForGitHubJobResponse(response, {
+        getAuthHeaders: options.getHeaders,
+        fetchImpl,
+      });
     } catch {
       options.onStateChange({
         status: 'error',
         message:
-          'Sync history response could not be parsed. Please retry the request.',
+          'Unable to load GitHub diagnostics. Please retry the request.',
       });
       return;
     }
