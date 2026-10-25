@@ -41,7 +41,8 @@ export default function Home() {
   } = useAuth();
 
   // Custom hooks for state management
-  const { activeTab, setActiveTab } = useDashboardNavigation();
+  const { activeTab, setActiveTab, githubBackupResult } =
+    useDashboardNavigation();
   const {
     sessions,
     sessionFileIssues,
@@ -153,6 +154,24 @@ export default function Home() {
 
           <main className="@container/main mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
             <div className="space-y-6">
+              {githubBackupResult && (
+                <Alert
+                  role={githubBackupResult === 'failed' ? 'alert' : 'status'}
+                  variant={githubBackupResult === 'failed' ? 'destructive' : 'default'}
+                >
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>
+                    {githubBackupResult === 'connected'
+                      ? 'GitHub backup repository connected'
+                      : 'GitHub connection did not complete'}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {githubBackupResult === 'connected'
+                      ? 'Your selected repository is ready for MatMetrics backups.'
+                      : 'Check the selected repository and try again.'}
+                  </AlertDescription>
+                </Alert>
+              )}
               {preferencesError && user && (
                 <Alert className="ui-alert-warning">
                   <Info className="h-4 w-4" />
