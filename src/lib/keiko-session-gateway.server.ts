@@ -310,7 +310,8 @@ export async function forwardSessionRequestToKeiko(
     const contentType = response.headers.get('content-type');
     if (!bodylessStatus && contentType) safeHeaders.set('content-type', contentType);
     const etag = response.headers.get('etag');
-    if (etag && /^"[1-9][0-9]{0,8}"$/.test(etag)) safeHeaders.set('etag', etag);
+    const revisionEtag = etag?.match(/^(?:W\/)?"([1-9][0-9]{0,8})"$/);
+    if (revisionEtag) safeHeaders.set('etag', `"${revisionEtag[1]}"`);
     return new NextResponse(bodylessStatus ? null : body, {
       status: response.status,
       headers: safeHeaders,

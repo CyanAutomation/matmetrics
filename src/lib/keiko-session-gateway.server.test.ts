@@ -220,6 +220,86 @@ test('preserves a bodyless successful DELETE response from Keiko', async () => {
   }
 });
 
+test('normalizes weak numeric revision ETags returned by Keiko', async () => {
+  const { privateKey, publicKey } = await generateKeyPair('EdDSA', {
+    crv: 'Ed25519',
+  });
+  const keyId = 'keiko-gateway-weak-etag-test-key';
+  const weakEtagJwksUrl = `${authOrigin}/api/auth/jwks-weak-etag-test`;
+  const publicJwk = {
+    ...(await exportJWK(publicKey)),
+    alg: 'EdDSA',
+    kid: keyId,
+    use: 'sig',
+  };
+  const token = await new SignJWT({
+    appUserId: userId,
+    scope: 'sessions:read',
+  })
+    .setProtectedHeader({ alg: 'EdDSA', kid: keyId })
+    .setSubject(userId)
+    .setIssuer(issuer)
+    .setAudience('keiko-dojo-api')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url === `${authUrl}/__internal/keiko-token`) {
+      return Response.json({ token, scopes: ['sessions:read'] });
+    }
+    if (url === weakEtagJwksUrl) return Response.json({ keys: [publicJwk] });
+    if (url === `${keikoUrl}/v1/sessions/session-smoke`) {
+      return Response.json(
+        { data: { session: { id: 'session-smoke' }, revision: 1 } },
+        { headers: { etag: 'W/"1"' } }
+      );
+    }
+    throw new Error(`Unexpected outbound request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    let response: Response | undefined;
+    await withEnv(async () => {
+      const request = new NextRequest(`${authOrigin}/api/sessions/session-smoke`, {
+        headers: {
+          authorization: 'Bearer matmetrics-api-token',
+          cookie: '__Secure-better-auth.session_token=session-value',
+          origin: authOrigin,
+          'sec-fetch-site': 'same-origin',
+        },
+      });
+      response = await forwardSessionRequestToKeiko(request, {
+        userId,
+        appUserId: userId,
+        provider: 'better-auth',
+        email: null,
+        displayName: null,
+        emailVerified: true,
+      }, {
+        path: '/v1/sessions/session-smoke',
+        method: 'GET',
+        scope: 'sessions:read',
+      });
+    }, {
+      CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+      CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
+      KEIKO_API_BASE_URL: keikoUrl,
+      MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
+      MATMETRICS_AUTH_ISSUER: issuer,
+      MATMETRICS_AUTH_JWKS_URL: weakEtagJwksUrl,
+      NODE_ENV: 'production',
+    });
+
+    assert.ok(response);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('etag'), '"1"');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('rejects CSRF, missing or ambiguous cookies, missing Origin on writes, and untrusted Auth Worker URLs before fetch', async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
