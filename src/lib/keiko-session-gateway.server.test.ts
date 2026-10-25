@@ -79,7 +79,6 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
             cookie:
               `__Secure-better-auth.session_token=session-value; theme=dark; ` +
               `github_access_token=must-not-forward`,
-            origin: authOrigin,
             'sec-fetch-site': 'same-origin',
           },
         });
@@ -136,7 +135,7 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
   }
 });
 
-test('rejects CSRF, missing or ambiguous cookies, and untrusted Auth Worker URLs before fetch', async () => {
+test('rejects CSRF, missing or ambiguous cookies, missing Origin on writes, and untrusted Auth Worker URLs before fetch', async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = (async () => {
@@ -179,6 +178,27 @@ test('rejects CSRF, missing or ambiguous cookies, and untrusted Auth Worker URLs
         });
         assert.equal(response.ok, false);
       }
+
+      const writeWithoutOrigin = new NextRequest(`${authOrigin}/api/sessions/create`, {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer valid',
+          cookie,
+          'sec-fetch-site': 'same-origin',
+        },
+        body: JSON.stringify({}),
+      });
+      const writeResponse = await forwardSessionRequestToKeiko(
+        writeWithoutOrigin,
+        principal,
+        {
+          path: '/v1/sessions',
+          method: 'POST',
+          scope: 'sessions:write',
+          body: {},
+        }
+      );
+      assert.equal(writeResponse.status, 403);
 
       await withEnv(async () => {
         const request = new NextRequest(`${authOrigin}/api/sessions/list`, {

@@ -193,8 +193,11 @@ async function issueKeikoToken(
   scopes: string[]
 ): Promise<string> {
   const origin = exactOrigin();
+  const requestOrigin = request.headers.get('origin');
+  const isSameOriginGetWithoutOrigin =
+    request.method === 'GET' && requestOrigin === null;
   if (
-    request.headers.get('origin') !== origin ||
+    (requestOrigin !== origin && !isSameOriginGetWithoutOrigin) ||
     request.headers.get('sec-fetch-site') !== 'same-origin' ||
     request.nextUrl.origin !== origin
   ) {
