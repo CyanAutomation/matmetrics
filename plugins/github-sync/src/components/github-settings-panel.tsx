@@ -290,7 +290,7 @@ export function GitHubSettings() {
       {keikoMode === 'keiko' && (
         <PluginFormSection
           title="GitHub App connection"
-          description="Keiko uses a repository-scoped GitHub App connection for backup and diagnostics."
+          description="Choose one repository for your Keiko backups. Your current target stays active until GitHub confirms a replacement."
           footerActions={
             <div className="flex flex-wrap gap-2">
               {keikoInstallation ? (
@@ -300,6 +300,9 @@ export function GitHubSettings() {
                   </Button>
                   <Button type="button" disabled={keikoOperation !== null} onClick={() => void runKeikoOperation('sync')}>
                     {keikoOperation === 'sync' ? 'Backing up…' : 'Back up all sessions'}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={keikoOperation !== null} onClick={() => void handleKeikoInstall()}>
+                    {keikoOperation === 'connect' ? 'Connecting…' : 'Change repository'}
                   </Button>
                   <Button type="button" variant="outline" disabled={keikoOperation !== null} onClick={() => void handleKeikoDisconnect()}>
                     {keikoOperation === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
