@@ -7,6 +7,12 @@ There is no Firestore runtime fallback. Better Auth is the sole authentication
 provider. Session records remain GitHub-backed Markdown files (with their
 existing local fallback) and are deliberately out of scope.
 
+That scope describes the initial preferences migration. The existing
+allowlisted pilot account has since moved its primary session store to Keiko
+D1; its selected GitHub repository now serves as a Markdown backup and rollback
+source. Accounts outside the Keiko cutover allowlist continue using the legacy
+GitHub-backed session path.
+
 ## Architecture
 
 ```text

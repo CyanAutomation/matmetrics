@@ -97,7 +97,7 @@ other commands and protected Go API configuration.
 - **Framework**: [Next.js 16](https://nextjs.org/) with TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [Radix UI](https://www.radix-ui.com/) components
 - **Deployment**: [Vercel](https://vercel.com/) for hosting and serverless functions
-- **Data Storage**: GitHub-backed Markdown for account sessions, browser storage for the guest preview, and local Markdown files for local server fallback
+- **Data Storage**: Keiko D1 is primary for allowlisted accounts, with selected-repository GitHub Markdown backups; other accounts retain GitHub-backed Markdown, guest preview uses browser storage, and local server development can use local Markdown files
 - **Additional components**: Go CLI/API and Cloudflare Workers for authentication and D1-backed data services
 - **AI Integration**: Cloudflare AI Gateway with `dynamic/matmetrics` model routing
 - **Forms and validation**: React form components with [Zod](https://zod.dev/) validation
@@ -162,8 +162,8 @@ Important credential sources:
 
 - `.env.local` is intentionally ignored by git and should contain any real local credentials you need. The guest preview does not require this file.
 - Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Preferences and plugin overrides use the signed Cloudflare data Worker and D1.
-- `GITHUB_TOKEN` enables GitHub-backed session storage and sync.
-- When `GITHUB_TOKEN` is missing, GitHub sync features will not work even if Better Auth is configured.
+- `GITHUB_TOKEN` enables the legacy GitHub-backed session storage and sync path for accounts outside the Keiko cutover allowlist.
+- Allowlisted Keiko accounts use their selected GitHub App connection for backups, health checks, and Log Doctor; those operations do not require MatMetrics `GITHUB_TOKEN`.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
 - `OPENROUTER_API_KEY` enables the optional JEV training check-in, verification of AI technique-tag candidates, and review-only checks for unsupported facts in transformed descriptions. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, check-ins and fidelity checks are skipped, and technique suggestions remain available without verification. If JEV is unreachable or rejects the key, suggestions and rewrites remain available and the UI asks users to review unchecked results.
 - The optional history review runs JEV against up to five previously logged sessions at a time after the user starts a batch. It sends each selected session's description, notes, selected category, effort rating, and up to 12 saved technique tags to OpenRouter/TypeSafe. JEV offers review suggestions, and never changes or saves sessions automatically.
@@ -316,11 +316,13 @@ same-origin `/api/auth/*` rewrite. The data Worker owns D1 migrations and serves
 the D1-backed data features. Go CLI and API code share session and storage
 logic in `internal/`.
 
-For session storage, authenticated users use GitHub-backed Markdown files;
-guest preview data stays in browser storage. Local server development can use
-Markdown files under `data/YYYY/MM/`. Hosted Vercel deployments require a
-configured GitHub repository for persistent user sessions and do not write
-session data to the ephemeral function filesystem; see [Deployment](#deployment).
+For session storage, accounts in `KEIKO_SESSION_CUTOVER_USER_IDS` use Keiko D1
+as the primary store and the selected GitHub App repository as the Markdown
+backup and rollback source. Other authenticated accounts retain the GitHub
+Markdown path. Guest preview data stays in browser storage. Local server
+development can use Markdown files under `data/YYYY/MM/`. Hosted Vercel
+deployments do not write session data to the ephemeral function filesystem;
+see [Deployment](#deployment).
 
 ## AI Features
 

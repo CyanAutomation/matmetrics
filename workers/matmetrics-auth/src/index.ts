@@ -17,6 +17,8 @@ const KEIKO_SCOPES = new Set([
   'backups:read',
   'backups:write',
   'backups:restore',
+  'github:read',
+  'github:write',
 ]);
 const EMAIL_AUTH_ENDPOINT_SUFFIXES = [
   '/sign-up/email',

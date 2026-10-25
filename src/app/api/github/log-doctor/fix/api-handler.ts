@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isGitHubConfigured } from '@/lib/github-storage';
 import { proxyGoFunction } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import {
+  forwardSessionRequestToKeiko,
+  isKeikoCutoverUser,
+} from '@/lib/keiko-session-gateway.server';
 import { buildLogDoctorFixErrorResponse } from './error-response';
 import {
   logDoctorFixRequestSchema,
@@ -22,8 +26,10 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    // GitHub configuration check
-    if (!isGitHubConfigured()) {
+    const isKeikoUser = isKeikoCutoverUser(authResult.appUserId);
+
+    // GitHub configuration check for legacy token based accounts.
+    if (!isKeikoUser && !isGitHubConfigured()) {
       return NextResponse.json(
         {
           success: false,
@@ -76,6 +82,25 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    if (isKeikoUser) {
+      return forwardSessionRequestToKeiko(request, authResult, {
+        path: '/v1/github/log-doctor/fix',
+        method: 'POST',
+        scope: 'github:write',
+        body: {
+          ...(validated.branch ? { branch: validated.branch } : {}),
+          mode: validated.mode,
+          paths: validated.paths,
+          ...(validated.mode === 'apply' ? { confirmApply: true } : {}),
+          options: {
+            normalizeFrontmatter: validated.options?.normalizeFrontmatter ?? true,
+            enforceSectionOrder: validated.options?.enforceSectionOrder ?? true,
+            preserveUserContent: validated.options?.preserveUserContent ?? true,
+          },
+        },
+      });
     }
 
     // Proxy to Go backend with validated data

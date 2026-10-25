@@ -135,6 +135,80 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
   }
 });
 
+test('forwards selected-repository GitHub operations using the new Keiko scopes', async () => {
+  const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
+  const keyId = 'keiko-github-gateway-test-key';
+  const githubJwksUrl = `${authOrigin}/api/auth/jwks-github-test`;
+  const publicJwk = { ...(await exportJWK(publicKey)), alg: 'EdDSA', kid: keyId, use: 'sig' };
+  const token = await new SignJWT({ appUserId: userId, scope: 'github:write' })
+    .setProtectedHeader({ alg: 'EdDSA', kid: keyId })
+    .setSubject(userId)
+    .setIssuer(issuer)
+    .setAudience('keiko-dojo-api')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey);
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input);
+    calls.push({ url, init });
+    if (url === `${authUrl}/__internal/keiko-token`) {
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        expectedUserId: userId,
+        scopes: ['github:write'],
+      });
+      return Response.json({ token, scopes: ['github:write'] });
+    }
+    if (url === githubJwksUrl) return Response.json({ keys: [publicJwk] });
+    if (url === `${keikoUrl}/v1/github/sync-all`) {
+      assert.equal(init?.method, 'POST');
+      assert.equal(String(init?.body), '{}');
+      return Response.json({ id: 'job-1', type: 'github-sync-all', status: 'queued' }, { status: 202 });
+    }
+    throw new Error(`Unexpected outbound request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await withEnv(async () => {
+      const request = new NextRequest(`${authOrigin}/api/github/sync-all`, {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer matmetrics-api-token',
+          cookie: '__Secure-better-auth.session_token=session-value',
+          origin: authOrigin,
+          'sec-fetch-site': 'same-origin',
+        },
+      });
+      const response = await forwardSessionRequestToKeiko(request, {
+        userId,
+        appUserId: userId,
+        provider: 'better-auth',
+        email: null,
+        displayName: null,
+        emailVerified: true,
+      }, {
+        path: '/v1/github/sync-all',
+        method: 'POST',
+        scope: 'github:write',
+        body: {},
+      });
+      assert.equal(response.status, 202);
+      assert.equal(new Headers(calls[2]?.init?.headers).get('authorization'), `Bearer ${token}`);
+    }, {
+      CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+      CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
+      KEIKO_API_BASE_URL: keikoUrl,
+      MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
+      MATMETRICS_AUTH_ISSUER: issuer,
+      MATMETRICS_AUTH_JWKS_URL: githubJwksUrl,
+      NODE_ENV: 'production',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('preserves a bodyless successful DELETE response from Keiko', async () => {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', {
     crv: 'Ed25519',

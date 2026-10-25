@@ -1,5 +1,28 @@
 export type GitHubApiResult = { success: boolean; message: string };
 
+export function parseGitHubApiPayload(
+  payload: unknown,
+  fallbackMessage: string,
+  fallbackSuccess: boolean
+): GitHubApiResult {
+  const message =
+    payload &&
+    typeof payload === 'object' &&
+    'message' in payload &&
+    typeof payload.message === 'string' &&
+    payload.message.trim()
+      ? payload.message
+      : fallbackMessage;
+  const success =
+    payload &&
+    typeof payload === 'object' &&
+    'success' in payload &&
+    typeof payload.success === 'boolean'
+      ? payload.success
+      : fallbackSuccess;
+  return { success, message };
+}
+
 export async function parseGitHubApiResponse(
   response: Response,
   fallbackMessage: string
@@ -16,20 +39,5 @@ export async function parseGitHubApiResponse(
         };
   }
 
-  const message =
-    payload &&
-    typeof payload === 'object' &&
-    'message' in payload &&
-    typeof payload.message === 'string' &&
-    payload.message.trim()
-      ? payload.message
-      : fallbackMessage;
-  const success =
-    payload &&
-    typeof payload === 'object' &&
-    'success' in payload &&
-    typeof payload.success === 'boolean'
-      ? payload.success
-      : response.ok;
-  return { success, message };
+  return parseGitHubApiPayload(payload, fallbackMessage, response.ok);
 }

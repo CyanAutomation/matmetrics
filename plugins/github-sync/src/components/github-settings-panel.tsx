@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GitBranch, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { waitForGitHubJobResponse } from '@/lib/github-background-jobs.client';
 
 import { runLoadGitHubSyncHistory } from './github-sync-results';
 import { useAuth } from '@/components/auth-provider';
@@ -33,6 +36,12 @@ import GitHubSettingsDangerZone from './github-settings-danger-zone';
 
 export function GitHubSettings() {
   const { user, preferences, canUseGitHubSync, authAvailable } = useAuth();
+  const userId = user?.uid;
+  const { toast } = useToast();
+  const [keikoMode, setKeikoMode] = useState<'loading' | 'legacy' | 'keiko' | 'unavailable'>(user ? 'loading' : 'legacy');
+  const [keikoInstallation, setKeikoInstallation] = useState<{ owner: string; repository: string } | null>(null);
+  const [keikoOperation, setKeikoOperation] = useState<'connect' | 'disconnect' | 'health' | 'sync' | null>(null);
+  const [keikoMessage, setKeikoMessage] = useState<string | null>(null);
   const {
     owner,
     setOwner,
@@ -74,6 +83,100 @@ export function GitHubSettings() {
   const lastSyncLabel = preferences.gitHub.lastSyncTime
     ? new Date(preferences.gitHub.lastSyncTime).toLocaleString()
     : 'No completed sync yet';
+
+  const refreshKeikoInstallation = useCallback(async () => {
+    if (!userId) {
+      setKeikoMode('legacy');
+      return;
+    }
+    setKeikoMode('loading');
+    setKeikoInstallation(null);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/github/installation', { headers, cache: 'no-store' });
+      const payload: unknown = await response.json();
+      if (!response.ok || !payload || typeof payload !== 'object' || !('cutover' in payload)) {
+        throw new Error('GitHub App connection status is unavailable');
+      }
+      if (payload.cutover !== true) {
+        setKeikoInstallation(null);
+        setKeikoMode('legacy');
+        return;
+      }
+      const installation = 'installation' in payload && payload.installation && typeof payload.installation === 'object'
+        ? payload.installation as Record<string, unknown>
+        : null;
+      setKeikoInstallation(installation && typeof installation.owner === 'string' && typeof installation.repository === 'string'
+        ? { owner: installation.owner, repository: installation.repository }
+        : null);
+      setKeikoMode('keiko');
+    } catch {
+      setKeikoMode('unavailable');
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void refreshKeikoInstallation();
+  }, [refreshKeikoInstallation]);
+
+  const handleKeikoInstall = async () => {
+    setKeikoOperation('connect');
+    setKeikoMessage(null);
+    try {
+      const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+      const response = await fetch('/api/github/installation', { method: 'POST', headers, body: '{}' });
+      const payload: unknown = await response.json();
+      if (!response.ok || !payload || typeof payload !== 'object' || !('url' in payload) || typeof payload.url !== 'string') {
+        throw new Error('Unable to start the GitHub App connection');
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setKeikoMessage(error instanceof Error ? error.message : 'Unable to start the GitHub App connection');
+    } finally {
+      setKeikoOperation(null);
+    }
+  };
+
+  const handleKeikoDisconnect = async () => {
+    setKeikoOperation('disconnect');
+    setKeikoMessage(null);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/github/installation', { method: 'DELETE', headers });
+      if (!response.ok) throw new Error('Unable to disconnect the GitHub App');
+      setKeikoInstallation(null);
+      toast({ title: 'GitHub App disconnected', description: 'Your Keiko backup connection was removed.' });
+    } catch (error) {
+      setKeikoMessage(error instanceof Error ? error.message : 'Unable to disconnect the GitHub App');
+    } finally {
+      setKeikoOperation(null);
+    }
+  };
+
+  const runKeikoOperation = async (operation: 'health' | 'sync') => {
+    setKeikoOperation(operation);
+    setKeikoMessage(null);
+    try {
+      const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+      const response = await fetch(operation === 'health' ? '/api/github/validate' : '/api/github/sync-all', {
+        method: 'POST', headers, body: '{}',
+      });
+      const result = await waitForGitHubJobResponse(response, { getAuthHeaders });
+      const success = result && typeof result === 'object' && 'success' in result && result.success === true;
+      const message = result && typeof result === 'object' && 'message' in result && typeof result.message === 'string'
+        ? result.message
+        : operation === 'health' ? 'GitHub connection is healthy.' : 'GitHub backup completed.';
+      if (!success) throw new Error(message);
+      setKeikoMessage(message);
+      toast({ title: operation === 'health' ? 'Connection Successful' : 'Backup Complete', description: message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'GitHub operation failed';
+      setKeikoMessage(message);
+      toast({ title: 'GitHub operation failed', description: message, variant: 'destructive' });
+    } finally {
+      setKeikoOperation(null);
+    }
+  };
   const {
     handleSaveConfig,
     handleTestConnection,
@@ -184,7 +287,45 @@ export function GitHubSettings() {
         />
       )}
 
-      {isEnabled && (
+      {keikoMode === 'keiko' && (
+        <PluginFormSection
+          title="GitHub App connection"
+          description="Keiko uses a repository-scoped GitHub App connection for backup and diagnostics."
+          footerActions={
+            <div className="flex flex-wrap gap-2">
+              {keikoInstallation ? (
+                <>
+                  <Button type="button" variant="outline" disabled={keikoOperation !== null} onClick={() => void runKeikoOperation('health')}>
+                    {keikoOperation === 'health' ? 'Checking…' : 'Test connection'}
+                  </Button>
+                  <Button type="button" disabled={keikoOperation !== null} onClick={() => void runKeikoOperation('sync')}>
+                    {keikoOperation === 'sync' ? 'Backing up…' : 'Back up all sessions'}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={keikoOperation !== null} onClick={() => void handleKeikoDisconnect()}>
+                    {keikoOperation === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" disabled={!canUseGitHubSync || keikoOperation !== null} onClick={() => void handleKeikoInstall()}>
+                  {keikoOperation === 'connect' ? 'Connecting…' : 'Connect GitHub App'}
+                </Button>
+              )}
+            </div>
+          }
+        >
+          {keikoInstallation ? (
+            <PluginStatusPanel variant="success" title="Repository connected" description={`${keikoInstallation.owner}/${keikoInstallation.repository}`} />
+          ) : (
+            <PluginEmptyState title="No GitHub App connected" description="Connect one repository to enable Keiko backups and Log Doctor." />
+          )}
+          {keikoMessage && <p role="status" className="text-sm">{keikoMessage}</p>}
+        </PluginFormSection>
+      )}
+
+      {keikoMode === 'loading' && user && <PluginStatusPanel variant="warning" title="Checking backup connection" description="Loading the account’s GitHub connection." />}
+      {keikoMode === 'unavailable' && <PluginStatusPanel variant="error" title="Backup connection unavailable" description="Could not load the GitHub App connection. Retry by reloading this page." />}
+
+      {keikoMode === 'legacy' && isEnabled && (
         <PluginStatusPanel
           variant="success"
           title="Backup healthy"
@@ -192,7 +333,7 @@ export function GitHubSettings() {
         />
       )}
 
-      <PluginFormSection
+      {keikoMode === 'legacy' && <PluginFormSection
         title="Connection"
         description="Repository and branch settings"
       >
@@ -216,9 +357,9 @@ export function GitHubSettings() {
           onSaveConfig={handleSaveConfig}
           controlState={controlState}
         />
-      </PluginFormSection>
+      </PluginFormSection>}
 
-      {!isEnabled && (
+      {keikoMode === 'legacy' && !isEnabled && (
         <PluginEmptyState
           title="Sync not configured"
           description="No repository is currently configured. Add an owner and repository above, then save your configuration to enable GitHub sync."
@@ -230,7 +371,7 @@ export function GitHubSettings() {
         />
       )}
 
-      {isEnabled && !migrationDone && (
+      {keikoMode === 'legacy' && isEnabled && !migrationDone && (
         <PluginEmptyState
           title="First backup still needed"
           description="New entries will back up automatically. Run one initial sync when you are ready to copy your existing history."
@@ -243,7 +384,7 @@ export function GitHubSettings() {
         />
       )}
 
-      {isEnabled && (
+      {keikoMode === 'legacy' && isEnabled && (
         <PluginTableSection
           title="Troubleshooting and activity"
           description="Troubleshooting and activity"
@@ -264,7 +405,7 @@ export function GitHubSettings() {
         </PluginTableSection>
       )}
 
-      {isEnabled && (
+      {keikoMode === 'legacy' && isEnabled && (
         <GitHubSettingsDangerZone
           controlState={controlState}
           handleDisable={handleDisable}
@@ -274,7 +415,7 @@ export function GitHubSettings() {
         />
       )}
 
-      <PluginDestructiveAction
+      {keikoMode === 'legacy' && <PluginDestructiveAction
         open={controlState.isClearDialogOpen}
         onOpenChange={setIsClearDialogOpen}
         title="Clear GitHub configuration?"
@@ -287,7 +428,7 @@ export function GitHubSettings() {
         isPending={isClearing}
         confirmDisabled={!controlState.canConfirmClear}
         cancelDisabled={!controlState.canConfirmClear}
-      />
+      />}
     </PluginPageShell>
   );
 }

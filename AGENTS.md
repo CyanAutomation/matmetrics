@@ -38,8 +38,9 @@ See [docs/go-contract.md](./docs/go-contract.md) for the complete contract and e
 
 ### Storage Layer
 
-- Primary: GitHub-backed markdown files in user's repo (synced via `github sync-all` command)
-- Fallback: Local markdown files in `data/YYYY/MM/` (ISO date directory structure)
+- Allowlisted Keiko cutover accounts: Keiko D1 is primary; the selected GitHub App repository holds Markdown backups and supports rollback.
+- Other authenticated accounts: GitHub-backed Markdown files in the user's repo (synced via `github sync-all`).
+- Local development fallback: Markdown files in `data/YYYY/MM/` (ISO date directory structure).
 - Cloudflare D1: User preferences and plugin overrides, accessed through the signed data Worker
 
 ## Build and Test

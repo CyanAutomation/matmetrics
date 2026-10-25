@@ -8,6 +8,7 @@ import * as suggestTechniques from '../ai/suggest-techniques/api-handler';
 import * as transformDescription from '../ai/transform-description/api-handler';
 import * as backgroundJob from '../background-jobs/[id]/api-handler';
 import * as githubHealth from '../github/health/api-handler';
+import * as githubInstallation from '../github/installation/api-handler';
 import * as githubLogDoctorFix from '../github/log-doctor/fix/api-handler';
 import * as githubLogDoctor from '../github/log-doctor/api-handler';
 import * as githubSyncAll from '../github/sync-all/api-handler';
@@ -40,6 +41,11 @@ const routes: Record<string, ApiRoute> = {
   '/api/ai/suggest-techniques': { POST: suggestTechniques.POST },
   '/api/ai/transform-description': { POST: transformDescription.POST },
   '/api/github/health': { POST: githubHealth.POST },
+  '/api/github/installation': {
+    GET: githubInstallation.GET,
+    POST: githubInstallation.POST,
+    DELETE: githubInstallation.DELETE,
+  },
   '/api/github/log-doctor': { POST: githubLogDoctor.POST },
   '/api/github/log-doctor/fix': { POST: githubLogDoctorFix.POST },
   '/api/github/sync-all': { POST: githubSyncAll.POST },

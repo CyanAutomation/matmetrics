@@ -30,6 +30,7 @@ function makeSession(id: string, notes: string): JudoSession {
     effort: 3,
     category: 'Technical',
     techniques: ['uchi-mata'],
+    description: '',
     notes,
   };
 }

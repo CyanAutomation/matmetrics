@@ -58,6 +58,7 @@ function makeSession(
     duration: 60,
     effort: 3,
     category: 'Technical',
+    description: '',
     notes: 'test',
     techniques: [],
     ...(options.videoUrl !== undefined && { videoUrl: options.videoUrl }),

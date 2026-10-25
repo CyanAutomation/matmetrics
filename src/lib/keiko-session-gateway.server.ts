@@ -13,6 +13,8 @@ const ALLOWED_SCOPES = new Set([
   'backups:read',
   'backups:write',
   'backups:restore',
+  'github:read',
+  'github:write',
 ]);
 
 export type KeikoOperation = {
@@ -135,7 +137,7 @@ function requestedScopes(scope: KeikoOperation['scope']): string[] {
 }
 
 function assertSafePath(path: string): void {
-  if (!/^\/v1\/(?:sessions(?:\/[A-Za-z0-9_-]{1,100})?|analytics\/summary|backups(?:\/[A-Za-z0-9_-]{1,100})?)$/.test(path)) {
+  if (!/^\/v1\/(?:sessions(?:\/[A-Za-z0-9_-]{1,100})?|analytics\/summary|backups(?:\/[A-Za-z0-9_-]{1,100}|\/github-installation)?|github\/(?:health|sync-all|log-doctor(?:\/fix)?|jobs\/[A-Za-z0-9_-]{1,100}))$/.test(path)) {
     fail(500, 'Invalid Keiko operation');
   }
 }

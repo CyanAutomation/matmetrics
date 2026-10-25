@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   backgroundJobRequestSchema,
   isBackgroundJobResult,
+  isKeikoBackgroundJobResult,
 } from './background-jobs';
 
 test('background job requests accept the two read-only GitHub jobs', () => {
@@ -51,4 +52,20 @@ test('background job results only accept terminal or runnable statuses', () => {
     isBackgroundJobResult({ id: 'job-1', status: 'mystery' }),
     false
   );
+});
+
+test('Keiko job results accept Keiko operations without expanding the data Worker contract', () => {
+  const keikoJob = {
+    id: 'job-1',
+    type: 'github-sync-all',
+    status: 'completed',
+    createdAt: '2026-10-25T00:00:00.000Z',
+    updatedAt: '2026-10-25T00:00:01.000Z',
+    attempts: 1,
+    result: { success: true },
+  };
+
+  assert.equal(isKeikoBackgroundJobResult(keikoJob), true);
+  assert.equal(isBackgroundJobResult(keikoJob), false);
+  assert.equal(isKeikoBackgroundJobResult({ ...keikoJob, id: '../job' }), false);
 });
