@@ -282,6 +282,42 @@ export function sessionToMarkdown(session: JudoSession): string {
   return `---\n${frontmatterLines.join('\n')}\n---\n\n${content}`;
 }
 
+type KeikoTextPayload = {
+  techniques: string[];
+  description?: string;
+  notes?: string;
+};
+
+function parseKeikoTextPayload(data: SessionFrontmatter): KeikoTextPayload | undefined {
+  if (data.keikoBackupVersion === undefined) return undefined;
+  if (data.keikoBackupVersion !== 1 || typeof data.keikoTextPayload !== 'string') {
+    throw new Error('Invalid Keiko backup text payload');
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(data.keikoTextPayload);
+  } catch {
+    throw new Error('Invalid Keiko backup text payload');
+  }
+  if (
+    !payload || typeof payload !== 'object' || Array.isArray(payload) ||
+    !('techniques' in payload) || !Array.isArray(payload.techniques) ||
+    !payload.techniques.every((technique) => typeof technique === 'string') ||
+    ('description' in payload && typeof payload.description !== 'string') ||
+    ('notes' in payload && typeof payload.notes !== 'string')
+  ) {
+    throw new Error('Invalid Keiko backup text payload');
+  }
+
+  const value = payload as Record<string, unknown>;
+  return {
+    techniques: value.techniques as string[],
+    ...(typeof value.description === 'string' ? { description: value.description } : {}),
+    ...(typeof value.notes === 'string' ? { notes: value.notes } : {}),
+  };
+}
+
 /**
  * Parse a markdown string (with YAML frontmatter) into a JudoSession
  * Throws if markdown is invalid or missing required fields
@@ -303,10 +339,14 @@ export function markdownToSession(markdown: string): JudoSession {
   validateRequiredSections(normalizedContent);
 
   // Parse techniques from markdown content
-  const techniques = extractTechniques(normalizedContent);
+  const keikoTextPayload = parseKeikoTextPayload(data);
+  const techniques = keikoTextPayload?.techniques ?? extractTechniques(normalizedContent);
 
   // Parse description and notes from markdown content
-  const { description, notes } = extractContentSections(normalizedContent);
+  const { description: markdownDescription, notes: markdownNotes } =
+    extractContentSections(normalizedContent);
+  const description = keikoTextPayload ? keikoTextPayload.description : markdownDescription;
+  const notes = keikoTextPayload ? keikoTextPayload.notes : markdownNotes;
 
   const session: JudoSession = {
     id,
@@ -314,8 +354,8 @@ export function markdownToSession(markdown: string): JudoSession {
     effort,
     category,
     techniques,
-    ...(description && { description }),
-    ...(notes && { notes }),
+    ...(description !== undefined && { description }),
+    ...(notes !== undefined && { notes }),
     ...(duration !== undefined && { duration }),
     ...(videoUrl !== undefined && { videoUrl }),
   };

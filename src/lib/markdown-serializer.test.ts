@@ -776,3 +776,51 @@ test('fully valid canonical markdown passes required section validation', () => 
   assert.equal(parsed.description, 'Canonical description.');
   assert.equal(parsed.notes, 'Canonical notes.');
 });
+
+test('markdownToSession restores lossless Keiko backup text payloads', () => {
+  const session = {
+    id: 'keiko-lossless-text',
+    date: '2026-03-24',
+    effort: 4 as const,
+    category: 'Randori' as const,
+    techniques: ['Randori drills\n# injected heading', 'O soto gari\\'],
+    description: 'Warm-up\n---\n# Injected heading\n<script>alert(1)</script>',
+    notes: '[link](https://example.test)\n- injected list\n```html',
+  };
+  const textPayload = JSON.stringify({
+    techniques: session.techniques,
+    description: session.description,
+    notes: session.notes,
+  });
+  const markdown = [
+    '---',
+    `id: ${JSON.stringify(session.id)}`,
+    `date: ${JSON.stringify(session.date)}`,
+    `effort: ${session.effort}`,
+    `category: ${JSON.stringify(session.category)}`,
+    'keikoBackupVersion: 1',
+    `keikoTextPayload: ${JSON.stringify(textPayload)}`,
+    '---',
+    '',
+    '# 2026-03-24 - Judo Session: Randori',
+    '',
+    '## Techniques Practiced',
+    '- Randori drills \\# injected heading',
+    '- O soto gari\\\\',
+    '',
+    '## Session Description',
+    '',
+    'Warm\\-up',
+    '\\-\\-\\-',
+    '\\# Injected heading',
+    '&lt;script&gt;alert\\(1\\)&lt;/script&gt;',
+    '',
+    '## Notes',
+    '',
+    '\\[link\\]\\(https://example.test\\)',
+    '\\- injected list',
+    '\\`\\`\\`html',
+  ].join('\n');
+
+  assert.deepEqual(markdownToSession(markdown), session);
+});
