@@ -87,7 +87,7 @@ test('GET list returns local sessions when no GitHub config is requested', async
       assert.equal(conditionalResponse.status, 304);
       assert.equal(
         conditionalResponse.headers.get('cache-control'),
-        'private, max-age=30, stale-while-revalidate=120'
+        'private, no-cache, must-revalidate'
       );
     });
   });

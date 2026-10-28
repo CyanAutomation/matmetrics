@@ -1,5 +1,6 @@
 // Internal handler dispatched by app/api/[...path]/route.ts.
-import { NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
+import { NextRequest, NextResponse } from 'next/server';
 
 import { APP_VERSION } from '@/lib/app-version';
 import {
@@ -16,12 +17,30 @@ const jsonNoStore = (body: unknown, init?: ResponseInit) =>
     },
   });
 
-export async function GET() {
+const RELEASE_CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=0, must-revalidate',
+  'CDN-Cache-Control':
+    'public, s-maxage=300, stale-while-revalidate=3600',
+};
+
+function jsonCachedReleaseResponse(
+  request: NextRequest,
+  body: unknown
+): NextResponse {
+  const etag = `"${createHash('sha256').update(JSON.stringify(body)).digest('hex')}"`;
+  const headers = { ...RELEASE_CACHE_HEADERS, ETag: etag };
+  if (request.headers.get('if-none-match') === etag) {
+    return new NextResponse(null, { status: 304, headers });
+  }
+  return NextResponse.json(body, { headers });
+}
+
+export async function GET(request: NextRequest) {
   try {
     const releases = await getRecentReleases(3);
     assertReleaseVersionConsistency(releases);
 
-    return jsonNoStore({
+    return jsonCachedReleaseResponse(request, {
       currentVersion: APP_VERSION,
       releases,
     });
