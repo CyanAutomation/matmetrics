@@ -11,6 +11,14 @@ origin. Configure the exact frontend origin and WebAuthn RP hostname; do not
 use wildcard origins. Local development uses `http://localhost:9002` and RP ID
 `localhost`.
 
+The production `workers.dev` endpoint is intentionally enabled because Vercel
+uses it for the auth rewrite and the server-side Keiko token exchange. It is
+publicly reachable, so the Worker must remain the security boundary: keep its
+trusted frontend origin exact, rate limits bound, signup disabled until
+launch, and the Keiko token endpoint gated by both the user session and
+verified MatMetrics bearer token. Do not rely on Vercel-only controls or
+browser `Origin` checks to protect direct requests.
+
 ## Local setup
 
 Apply the existing additive auth schema using the data Worker migration owner:

@@ -1,0 +1,43 @@
+name: Security analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "42 7 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-analysis-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# CodeQL scans are provided by the repository's default setup. GitHub rejects
+# advanced SARIF uploads while that setup is enabled.
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            workers/matmetrics-auth/package-lock.json
+            workers/matmetrics-data/package-lock.json
+      - name: Audit root dependencies
+        run: npm audit --audit-level=high
+      - name: Audit auth Worker dependencies
+        run: npm audit --prefix workers/matmetrics-auth --audit-level=high
+      - name: Audit data Worker dependencies
+        run: npm audit --prefix workers/matmetrics-data --audit-level=high
