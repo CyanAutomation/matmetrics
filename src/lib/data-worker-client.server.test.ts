@@ -9,14 +9,15 @@ import {
   requestDataWorker,
 } from './data-worker-client.server';
 
-test('data Worker signatures bind the method, path, timestamp, and body', () => {
+test('data Worker signatures bind the method, path, timestamp, user, and body', () => {
   const secret = 'test-secret';
   const baseline = createDataWorkerSignature(
     secret,
     '1700000000',
     'PUT',
     '/v1/preferences',
-    '{"preferences":{}}'
+    '{"preferences":{}}',
+    'user-1'
   );
 
   assert.equal(
@@ -26,7 +27,8 @@ test('data Worker signatures bind the method, path, timestamp, and body', () => 
       '1700000000',
       'put',
       '/v1/preferences',
-      '{"preferences":{}}'
+      '{"preferences":{}}',
+      'user-1'
     )
   );
   assert.notEqual(
@@ -36,7 +38,8 @@ test('data Worker signatures bind the method, path, timestamp, and body', () => 
       '1700000000',
       'PUT',
       '/v1/preferences',
-      '{"preferences":{"changed":true}}'
+      '{"preferences":{"changed":true}}',
+      'user-1'
     )
   );
   assert.notEqual(
@@ -46,7 +49,8 @@ test('data Worker signatures bind the method, path, timestamp, and body', () => 
       '1700000000',
       'PUT',
       '/v1/plugin-overrides',
-      '{"preferences":{}}'
+      '{"preferences":{}}',
+      'user-1'
     )
   );
   assert.notEqual(
@@ -56,7 +60,19 @@ test('data Worker signatures bind the method, path, timestamp, and body', () => 
       '1700000000',
       'PUT',
       '/v1/preferences?scope=app',
-      '{"preferences":{}}'
+      '{"preferences":{}}',
+      'user-1'
+    )
+  );
+  assert.notEqual(
+    baseline,
+    createDataWorkerSignature(
+      secret,
+      '1700000000',
+      'PUT',
+      '/v1/preferences',
+      '{"preferences":{}}',
+      'user-2'
     )
   );
 });
@@ -86,7 +102,8 @@ test('data Worker request trims the shared secret and signs the query string', a
           timestamp,
           'GET',
           `${url.pathname}${url.search}`,
-          ''
+          '',
+          'user-1'
         )}`
       );
       return Response.json({ preferences: null, revision: 0 });

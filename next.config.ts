@@ -1,6 +1,7 @@
 import path from 'path';
 import type { NextConfig } from 'next';
-import { withSentryConfig } from '@sentry/nextjs';
+import { withSentryConfig } from '@sentry/nextjs/config';
+import { getSecurityHeaders } from './src/lib/security-headers';
 
 const sentryRelease =
   process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA;
@@ -8,6 +9,14 @@ const sentryEnvironment =
   process.env.SENTRY_ENVIRONMENT ?? process.env.VERCEL_ENV ?? 'development';
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: getSecurityHeaders(),
+      },
+    ];
+  },
   env: {
     SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_RELEASE: sentryRelease ?? undefined,
