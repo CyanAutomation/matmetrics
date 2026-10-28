@@ -27,6 +27,8 @@ type StoredJob = {
 
 const MAX_SIGNATURE_AGE_SECONDS = 60;
 const MAX_JOB_PAYLOAD_BYTES = 4 * 1024;
+const MAX_SMALL_REQUEST_BODY_BYTES = 4 * 1024;
+const MAX_PREFERENCES_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_JOB_RESULT_BYTES = 512 * 1024;
 const MAX_JOB_ATTEMPTS = 5;
 const encoder = new TextEncoder();
@@ -36,6 +38,60 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Cache-Control': 'no-store' },
   });
+}
+
+function maxRequestBodyBytes(request: Request): number {
+  return new URL(request.url).pathname === '/v1/preferences'
+    ? MAX_PREFERENCES_BODY_BYTES
+    : MAX_SMALL_REQUEST_BODY_BYTES;
+}
+
+async function readRequestBody(request: Request): Promise<string | Response> {
+  const maxBytes = maxRequestBodyBytes(request);
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    if (!/^\d+$/.test(contentLength)) {
+      return json({ error: 'Invalid request body' }, 400);
+    }
+    const declaredLength = Number(contentLength);
+    if (!Number.isSafeInteger(declaredLength)) {
+      return json({ error: 'Invalid request body' }, 400);
+    }
+    if (declaredLength > maxBytes) {
+      return json({ error: 'Request body exceeds the allowed size' }, 413);
+    }
+  }
+
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return json({ error: 'Request body exceeds the allowed size' }, 413);
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return json({ error: 'Invalid request body' }, 400);
+  }
+
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes);
+  } catch {
+    return json({ error: 'Invalid request body' }, 400);
+  }
 }
 
 function hex(bytes: ArrayBuffer): string {
@@ -49,6 +105,7 @@ async function expectedSignature(
   timestamp: string,
   method: string,
   path: string,
+  userId: string,
   body: string
 ): Promise<string> {
   const bodyHash = hex(
@@ -65,9 +122,14 @@ async function expectedSignature(
     await crypto.subtle.sign(
       'HMAC',
       key,
-      encoder.encode(
-        `v1.${timestamp}.${method.toUpperCase()}.${path}.${bodyHash}`
-      )
+      encoder.encode(JSON.stringify([
+        'v2',
+        timestamp,
+        method.toUpperCase(),
+        path,
+        userId,
+        bodyHash,
+      ]))
     )
   );
 }
@@ -102,6 +164,7 @@ async function authenticate(
     timestamp,
     request.method,
     `${requestUrl.pathname}${requestUrl.search}`,
+    userId,
     body
   );
   if (!timingSafeEqual(authorization.slice(7), expected))
@@ -435,7 +498,9 @@ async function handlePreferences(
 
 const worker: ExportedHandler<Env, { id: string }> = {
   async fetch(request, env): Promise<Response> {
-    const body = request.method === 'GET' ? '' : await request.text();
+    const bodyResult = request.method === 'GET' ? '' : await readRequestBody(request);
+    if (bodyResult instanceof Response) return bodyResult;
+    const body = bodyResult;
     const identity = await authenticate(request, env, body);
     if (identity instanceof Response) return identity;
     const pathname = new URL(request.url).pathname;

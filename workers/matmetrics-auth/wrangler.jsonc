@@ -42,6 +42,9 @@
   ],
   "env": {
     "production": {
+      // Vercel's same-origin auth rewrite and Keiko token exchange call this
+      // public endpoint. Worker-side origin, session, and token checks remain
+      // authoritative for direct workers.dev requests as well.
       "workers_dev": true,
       "vars": {
         "MATMETRICS_AUTH_PUBLIC_URL": "https://matmetrics-teal.vercel.app",
