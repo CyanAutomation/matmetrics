@@ -17,6 +17,7 @@ import {
 } from '@/lib/plugins/state.server';
 import type { PluginManifest } from '@/lib/plugins/types';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { cacheStablePluginData } from '@/lib/plugins/plugin-stable-cache.server';
 
 const INTERNAL_PROCESSING_FAILURE_PATH = 'processing.internal';
 
@@ -58,6 +59,25 @@ const throwForConfiguredPlugin = (directoryName: string): void => {
     throw new Error('Simulated plugin contract gate failure');
   }
 };
+
+const runCachedPluginContractGate = cacheStablePluginData(
+  'contract-gate',
+  async (
+    pluginsRoot: string,
+    directoryName: string,
+    manifest: ReturnType<typeof asGateManifest>,
+    runtimeMode: string
+  ) => {
+    // runtimeMode participates in the cache key; the gate reads the same
+    // environment value while it evaluates packaged-runtime artifacts.
+    void runtimeMode;
+    return pluginContractGate.runPluginContractGate({
+      pluginsRoot,
+      directoryName,
+      manifest,
+    });
+  }
+);
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,11 +127,12 @@ export async function GET(request: NextRequest) {
           });
 
           throwForConfiguredPlugin(entry.directoryName);
-          const gateResult = await pluginContractGate.runPluginContractGate({
+          const gateResult = await runCachedPluginContractGate(
             pluginsRoot,
-            directoryName: entry.directoryName,
-            manifest: asGateManifest(processedManifest),
-          });
+            entry.directoryName,
+            asGateManifest(entry.manifest),
+            process.env.MATMETRICS_PLUGIN_CONTRACT_RUNTIME_MODE ?? ''
+          );
 
           validation.rows.push(...gateResult.issues);
           validation.isValid = validation.isValid && gateResult.isValid;
