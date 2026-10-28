@@ -412,7 +412,8 @@ async function expectedSignature(
   timestamp: string,
   method: string,
   path: string,
-  body: string
+  body: string,
+  userId = 'user-123'
 ): Promise<string> {
   const bodyHash = hex(
     await crypto.subtle.digest('SHA-256', encoder.encode(body))
@@ -428,9 +429,14 @@ async function expectedSignature(
     await crypto.subtle.sign(
       'HMAC',
       key,
-      encoder.encode(
-        `v1.${timestamp}.${method.toUpperCase()}.${path}.${bodyHash}`
-      )
+      encoder.encode(JSON.stringify([
+        'v2',
+        timestamp,
+        method.toUpperCase(),
+        path,
+        userId,
+        bodyHash,
+      ]))
     )
   );
 }
@@ -471,7 +477,8 @@ async function authenticate(
     timestamp,
     request.method,
     `${new URL(request.url).pathname}${new URL(request.url).search}`,
-    body
+    body,
+    userId ?? ''
   );
   if (!timingSafeEqual(authorization.slice(7), expected))
     return { error: 'Unauthorized' } as unknown as Response;

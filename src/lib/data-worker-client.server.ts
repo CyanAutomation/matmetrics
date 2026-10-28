@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 
-const SIGNATURE_VERSION = 'v1';
+const SIGNATURE_VERSION = 'v2';
 export const DATA_WORKER_REQUEST_TIMEOUT_MS = 8_000;
 
 export class DataWorkerError extends Error {
@@ -26,13 +26,19 @@ export function createDataWorkerSignature(
   timestamp: string,
   method: string,
   path: string,
-  body: string
+  body: string,
+  userId: string
 ): string {
   const bodyHash = createHash('sha256').update(body).digest('hex');
   return createHmac('sha256', secret)
-    .update(
-      `${SIGNATURE_VERSION}.${timestamp}.${method.toUpperCase()}.${path}.${bodyHash}`
-    )
+    .update(JSON.stringify([
+      SIGNATURE_VERSION,
+      timestamp,
+      method.toUpperCase(),
+      path,
+      userId,
+      bodyHash,
+    ]))
     .digest('hex');
 }
 
@@ -91,7 +97,8 @@ export async function requestDataWorker<T>(
           timestamp,
           options.method,
           `${url.pathname}${url.search}`,
-          body
+          body,
+          options.userId
         )}`,
         'Content-Type': 'application/json',
         'X-Matmetrics-Timestamp': timestamp,

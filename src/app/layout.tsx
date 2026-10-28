@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '@/components/app-providers';
@@ -18,11 +19,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The Proxy supplies the per-request CSP nonce that Next attaches to scripts.
+  await connection();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-body antialiased bg-background ${inter.variable}`}>

@@ -16,6 +16,7 @@ const IPV4_BLOCKED_CIDRS: Array<[number, number]> = [
   [ipv4ToInt('198.51.100.0'), 24], // TEST-NET-2
   [ipv4ToInt('203.0.113.0'), 24], // TEST-NET-3
   [ipv4ToInt('224.0.0.0'), 4], // multicast + reserved space
+  [ipv4ToInt('240.0.0.0'), 4], // reserved, including limited broadcast
 ];
 
 const IPV6_BLOCKED_CIDRS: Array<[bigint, number]> = [
@@ -23,10 +24,16 @@ const IPV6_BLOCKED_CIDRS: Array<[bigint, number]> = [
   [ipv6ToBigInt('::1'), 128], // loopback
   [ipv6ToBigInt('::ffff:0:0'), 96], // IPv4-mapped IPv6 (evaluate mapped IPv4)
   [ipv6ToBigInt('64:ff9b::'), 96], // IPv4/IPv6 translation prefix
+  [ipv6ToBigInt('64:ff9b:1::'), 48], // local-use IPv4/IPv6 translation prefix
   [ipv6ToBigInt('100::'), 64], // discard-only prefix
   [ipv6ToBigInt('2001::'), 32], // TEREDO
+  [ipv6ToBigInt('2001::'), 23], // IETF protocol assignments
   [ipv6ToBigInt('2001:2::'), 48], // benchmarking
+  [ipv6ToBigInt('2001:10::'), 28], // ORCHIDv1
+  [ipv6ToBigInt('2001:20::'), 28], // ORCHIDv2
   [ipv6ToBigInt('2001:db8::'), 32], // documentation
+  [ipv6ToBigInt('2002::'), 16], // 6to4
+  [ipv6ToBigInt('3fff::'), 20], // documentation
   [ipv6ToBigInt('fc00::'), 7], // unique local addresses
   [ipv6ToBigInt('fe80::'), 10], // link-local unicast
   [ipv6ToBigInt('ff00::'), 8], // multicast

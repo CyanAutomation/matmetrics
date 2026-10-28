@@ -5,6 +5,7 @@ import {
   isBlockedNetworkHostname,
   normalizeNetworkHostname,
 } from '@/lib/network-safety';
+import { safeUrlFetch } from '@/lib/safe-url-fetch.server';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
@@ -20,7 +21,6 @@ import {
   type VideoLinkCheckResult,
 } from '@/lib/video-library';
 
-const REQUEST_TIMEOUT_MS = 5000;
 const HEAD_FALLBACK_STATUSES = new Set([403, 405, 501]);
 const MAX_SESSION_IDS_TO_CHECK = 50;
 const MAX_SESSIONS_TO_PROCESS = 100;
@@ -39,8 +39,7 @@ async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
   const preferences = stored.preferences as {
     videoLibrary?: { customAllowedDomains?: unknown };
   } | null;
-  const customAllowedDomains =
-    preferences?.videoLibrary?.customAllowedDomains;
+  const customAllowedDomains = preferences?.videoLibrary?.customAllowedDomains;
   return Array.isArray(customAllowedDomains)
     ? customAllowedDomains.filter(
         (domain): domain is string => typeof domain === 'string'
@@ -48,16 +47,7 @@ async function getAllowedDomainsForUser(uid: string): Promise<string[]> {
     : [];
 }
 
-async function fetchVideoUrl(
-  url: string,
-  method: 'HEAD' | 'GET'
-): Promise<Response> {
-  return fetch(url, {
-    method,
-    redirect: 'manual',
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-}
+type FetchVideoUrl = typeof safeUrlFetch;
 
 function normalizeHostname(hostname: string): string {
   return normalizeNetworkHostname(hostname).replace(/^www\./, '');
@@ -80,7 +70,8 @@ function validateRedirectHostname(
 
 async function fetchWithRedirectTraversal(
   initialUrl: string,
-  customAllowedDomains: string[]
+  customAllowedDomains: string[],
+  fetchVideoUrl: FetchVideoUrl
 ): Promise<{
   response: Response;
   resolvedUrl: string;
@@ -157,7 +148,8 @@ async function checkVideoLink(
   sessionId: string,
   url: string,
   hostname: string,
-  customAllowedDomains: string[]
+  customAllowedDomains: string[],
+  fetchVideoUrl: FetchVideoUrl
 ): Promise<VideoLinkCheckResult> {
   const checkedAt = new Date().toISOString();
 
@@ -178,7 +170,8 @@ async function checkVideoLink(
   try {
     const { response, resolvedHostname } = await fetchWithRedirectTraversal(
       url,
-      customAllowedDomains
+      customAllowedDomains,
+      fetchVideoUrl
     );
 
     return {
@@ -196,7 +189,7 @@ async function checkVideoLink(
     const message =
       error instanceof Error ? error.message : 'Unknown fetch failure';
     if (
-      /Disallowed hostname encountered during redirect|Blocked network hostname encountered during redirect/.test(
+      /Disallowed hostname encountered during redirect|Blocked network hostname encountered during redirect|Blocked network hostname resolved/.test(
         message
       )
     ) {
@@ -221,7 +214,10 @@ async function checkVideoLink(
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleCheckLinksPost(
+  request: NextRequest,
+  fetchVideoUrl: FetchVideoUrl
+) {
   try {
     const user = await requireAuthenticatedUser(request);
     if (user instanceof NextResponse) {
@@ -298,7 +294,8 @@ export async function POST(request: NextRequest) {
           session.id,
           parsedUrl.toString(),
           hostname,
-          customAllowedDomains
+          customAllowedDomains,
+          fetchVideoUrl
         );
       }
     );
@@ -312,8 +309,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    const storageResponse =
-      persistentSessionStorageUnavailableResponse(error);
+    const storageResponse = persistentSessionStorageUnavailableResponse(error);
     if (storageResponse) return storageResponse;
 
     console.error('Error checking video links', error);
@@ -323,3 +319,11 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export function createCheckLinksPost(
+  fetchVideoUrl: FetchVideoUrl = safeUrlFetch
+) {
+  return (request: NextRequest) => handleCheckLinksPost(request, fetchVideoUrl);
+}
+
+export const POST = createCheckLinksPost();

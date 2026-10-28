@@ -51,6 +51,26 @@ test('blocks additional private and internal address families', () => {
   }
 });
 
+test('blocks reserved and documentation network ranges', () => {
+  const blockedHosts = [
+    '240.0.0.1',
+    '255.255.255.255',
+    '2001:1::1',
+    '2001:20::1',
+    '2002::1',
+    '3fff::1',
+    '64:ff9b:1::808:808',
+  ];
+
+  for (const host of blockedHosts) {
+    assert.equal(
+      isBlockedNetworkHostname(host),
+      true,
+      `expected ${host} blocked`
+    );
+  }
+});
+
 test('allows public internet hosts and addresses', () => {
   const allowedHosts = ['example.com', '8.8.8.8', '2606:4700:4700::1111'];
 

@@ -120,7 +120,8 @@ async function signedHeaders(
   method: string,
   path: string,
   body: string,
-  secret = INTERNAL_SECRET
+  secret = INTERNAL_SECRET,
+  userId = 'user-1'
 ): Promise<Headers> {
   const timestamp = String(Math.floor(Date.now() / 1000));
   const encoder = new TextEncoder();
@@ -140,7 +141,14 @@ async function signedHeaders(
     await crypto.subtle.sign(
       'HMAC',
       key,
-      encoder.encode(`v1.${timestamp}.${method}.${path}.${bodyHash}`)
+      encoder.encode(JSON.stringify([
+        'v2',
+        timestamp,
+        method.toUpperCase(),
+        path,
+        userId,
+        bodyHash,
+      ]))
     )
   )]
     .map((value) => value.toString(16).padStart(2, '0'))
@@ -149,7 +157,7 @@ async function signedHeaders(
   return new Headers({
     Authorization: `Bearer ${signature}`,
     'X-Matmetrics-Timestamp': timestamp,
-    'X-Matmetrics-User-Id': 'user-1',
+    'X-Matmetrics-User-Id': userId,
   });
 }
 
@@ -176,6 +184,69 @@ test('worker.fetch routes a signed preferences read through the production handl
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.deepEqual(await response.json(), { preferences: null, revision: 0 });
+});
+
+test('worker.fetch rejects a signed request whose user identity was changed', async () => {
+  const { env } = createEnv();
+  const headers = await signedHeaders('GET', '/v1/preferences', '');
+  headers.set('X-Matmetrics-User-Id', 'user-2');
+  const response = await worker.fetch(
+    new Request('https://worker.example.test/v1/preferences', { headers }),
+    env
+  );
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: 'Unauthorized' });
+});
+
+test('worker.fetch rejects an oversized request body before signature verification', async () => {
+  const { env } = createEnv();
+  const body = 'x'.repeat(4 * 1024 * 1024 + 1);
+  const response = await worker.fetch(
+    new Request('https://worker.example.test/v1/preferences', {
+      method: 'PUT',
+      body,
+    }),
+    env
+  );
+
+  assert.equal(response.status, 413);
+  assert.deepEqual(await response.json(), { error: 'Request body exceeds the allowed size' });
+});
+
+test('worker.fetch rejects an oversized declared body before reading it', async () => {
+  const { env } = createEnv();
+  const response = await worker.fetch(
+    new Request('https://worker.example.test/v1/plugin-overrides', {
+      method: 'PUT',
+      headers: { 'content-length': String(4 * 1024 + 1) },
+      body: '{}',
+    }),
+    env
+  );
+
+  assert.equal(response.status, 413);
+  assert.deepEqual(await response.json(), { error: 'Request body exceeds the allowed size' });
+});
+
+test('worker.fetch accepts a valid Unicode preference within the existing preference limit', async () => {
+  const { env } = createEnv();
+  const body = JSON.stringify({
+    preferences: { note: '🥋'.repeat(500_000) },
+    revision: 0,
+  });
+  const headers = await signedHeaders('PUT', '/v1/preferences', body);
+  const response = await worker.fetch(
+    new Request('https://worker.example.test/v1/preferences', {
+      method: 'PUT',
+      headers,
+      body,
+    }),
+    env
+  );
+
+  assert.equal(new TextEncoder().encode(body).byteLength > 1_048_576, true);
+  assert.equal(response.status, 200);
 });
 
 test('worker.fetch accepts matching query signatures and trims its shared secret', async () => {
