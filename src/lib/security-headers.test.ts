@@ -57,6 +57,8 @@ test('production CSP uses a nonce without unsafe inline scripts or eval', () => 
   const csp = createContentSecurityPolicy('test-nonce', true);
   assert.match(csp, /script-src 'self' 'nonce-test-nonce' 'strict-dynamic'/);
   assert.doesNotMatch(csp, /script-src[^;]*'unsafe-(?:inline|eval)'/);
+  assert.match(csp, /style-src 'self' 'nonce-test-nonce'/);
+  assert.doesNotMatch(csp, /style-src[^;]*'unsafe-inline'/);
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /upgrade-insecure-requests/);
 });
