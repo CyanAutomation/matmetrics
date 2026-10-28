@@ -17,6 +17,12 @@ type SessionListCacheEntry = {
 };
 
 const sessionListCache = new Map<string, SessionListCacheEntry>();
+const sessionListLoads = new Map<
+  string,
+  { generation: number; promise: Promise<SessionListPayload> }
+>();
+const sessionListGenerations = new Map<string, number>();
+let nextSessionListGeneration = 0;
 let sessionListCacheNow = () => Date.now();
 let sessionListCacheMaxEntries = readPositiveInteger(
   process.env.SESSION_LIST_CACHE_MAX_ENTRIES,
@@ -82,11 +88,52 @@ export function cacheSessionList(
   }
 }
 
+export async function getOrLoadSessionList(
+  uid: string,
+  config: Partial<GitHubConfig> | null | undefined,
+  load: () => Promise<SessionListPayload>,
+  force = false
+): Promise<SessionListPayload> {
+  if (force) return load();
+
+  const key = cacheKey(uid, config);
+  const cached = getCachedSessionList(uid, config);
+  if (cached) return cached;
+
+  const generation = sessionListGenerations.get(key) ?? 0;
+  const currentLoad = sessionListLoads.get(key);
+  if (currentLoad?.generation === generation) return currentLoad.promise;
+
+  const promise = load().then((payload) => {
+    if ((sessionListGenerations.get(key) ?? 0) === generation) {
+      cacheSessionList(uid, config, payload);
+    }
+    return payload;
+  });
+  const entry = { generation, promise };
+  sessionListLoads.set(key, entry);
+
+  try {
+    return await promise;
+  } finally {
+    if (sessionListLoads.get(key) === entry) sessionListLoads.delete(key);
+    if (!sessionListLoads.has(key)) sessionListGenerations.delete(key);
+  }
+}
+
 export function invalidateSessionListCache(
   uid: string,
   config: Partial<GitHubConfig> | null | undefined
 ): void {
-  sessionListCache.delete(cacheKey(uid, config));
+  const key = cacheKey(uid, config);
+  sessionListCache.delete(key);
+  if (sessionListLoads.has(key)) {
+    nextSessionListGeneration += 1;
+    sessionListGenerations.set(key, nextSessionListGeneration);
+    sessionListLoads.delete(key);
+  } else {
+    sessionListGenerations.delete(key);
+  }
 }
 
 export function __configureSessionListCacheForTests(options?: {
@@ -94,6 +141,9 @@ export function __configureSessionListCacheForTests(options?: {
   now?: () => number;
 }): void {
   sessionListCache.clear();
+  sessionListLoads.clear();
+  sessionListGenerations.clear();
+  nextSessionListGeneration = 0;
   sessionListCacheMaxEntries = options?.maxEntries ?? DEFAULT_SESSION_LIST_CACHE_MAX_ENTRIES;
   sessionListCacheNow = options?.now ?? (() => Date.now());
 }

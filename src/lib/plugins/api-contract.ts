@@ -4,6 +4,7 @@ import path from 'node:path';
 import { APP_VERSION } from '@/lib/app-version';
 import { validatePluginManifest } from '@/lib/plugins/validate';
 import type { PluginValidationIssue } from '@/lib/plugins/types';
+import { cacheStablePluginData } from './plugin-stable-cache.server';
 type JsonRecord = Record<string, unknown>;
 
 export type FileChangeType = 'added' | 'modified' | 'unchanged';
@@ -43,10 +44,9 @@ export const getPluginsRoot = (): string => path.join(process.cwd(), 'plugins');
 const toRelativeRepoPath = (absolutePath: string): string =>
   path.relative(process.cwd(), absolutePath).replace(/\\/g, '/');
 
-export const listStoredPluginManifests = async (): Promise<
-  StoredPluginManifest[]
-> => {
-  const pluginsRoot = getPluginsRoot();
+const listStoredPluginManifestsFromRoot = async (
+  pluginsRoot: string
+): Promise<StoredPluginManifest[]> => {
   const entries = await (async () => {
     try {
       return await readdir(pluginsRoot, { withFileTypes: true });
@@ -85,6 +85,15 @@ export const listStoredPluginManifests = async (): Promise<
     (manifest): manifest is StoredPluginManifest => !!manifest
   );
 };
+
+const listStoredPluginManifestsCached = cacheStablePluginData(
+  'manifest-list',
+  listStoredPluginManifestsFromRoot
+);
+
+export const listStoredPluginManifests = async (): Promise<
+  StoredPluginManifest[]
+> => listStoredPluginManifestsCached(getPluginsRoot());
 
 export const findStoredPluginManifestById = async (
   pluginId: string

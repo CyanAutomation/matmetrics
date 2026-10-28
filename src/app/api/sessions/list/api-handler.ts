@@ -14,8 +14,7 @@ import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 import {
-  cacheSessionList,
-  getCachedSessionList,
+  getOrLoadSessionList,
 } from '@/lib/session-list-cache.server';
 import {
   isKeikoCutoverUser,
@@ -150,14 +149,16 @@ async function respondFromSessionStorage(
 ): Promise<NextResponse> {
   context.stage = 'session_storage';
   const force = request.nextUrl.searchParams.get('force') === '1';
-  const cached = getCachedSessionList(userId, config);
-  const result =
-    !force && cached ? cached : await listSessionsForConfigWithIssues(config);
-  if (!force && !cached) cacheSessionList(userId, config, result);
+  const result = await getOrLoadSessionList(
+    userId,
+    config,
+    () => listSessionsForConfigWithIssues(config),
+    force
+  );
 
   const etag = createResponseEtag(result);
   const responseHeaders = {
-    'Cache-Control': 'private, max-age=30, stale-while-revalidate=120',
+    'Cache-Control': 'private, no-cache, must-revalidate',
     ETag: etag,
     Vary: 'Authorization',
   };

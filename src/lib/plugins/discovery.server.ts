@@ -13,6 +13,7 @@ import {
   type PluginEnabledOverrides,
 } from '@/lib/plugins/state.server';
 import { validatePluginManifest } from '@/lib/plugins/validate';
+import { cacheStablePluginData } from './plugin-stable-cache.server';
 
 type DiscoveryOptions = {
   userId?: string;
@@ -25,7 +26,7 @@ const isDashboardTabExtension = (
   extension: PluginManifest['uiExtensions'][number]
 ): extension is DashboardTabExtension => extension.type === 'dashboard_tab';
 
-const loadFilesystemManifestCandidates = async (
+const loadFilesystemManifestCandidatesUncached = async (
   rootDir: string
 ): Promise<unknown[]> => {
   try {
@@ -67,6 +68,11 @@ const loadFilesystemManifestCandidates = async (
     throw error;
   }
 };
+
+const loadFilesystemManifestCandidates = cacheStablePluginData(
+  'discovery-manifests',
+  loadFilesystemManifestCandidatesUncached
+);
 
 const discoverValidatedPluginManifests = async (
   options: DiscoveryOptions = {}
