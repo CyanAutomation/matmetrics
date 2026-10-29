@@ -121,7 +121,7 @@ See [docs/blueprint.md](docs/blueprint.md) for full design specifications.
 
 - Node.js 24.x
 - npm 11.x
-- Go 1.25.x only if you are building or using the Go CLI/API
+- Go 1.26.x only if you are building or using the Go CLI/API
 - Integration credentials only for the features that use them (see
   [`.env.example`](.env.example))
 
