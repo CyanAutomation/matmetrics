@@ -211,13 +211,16 @@ func TestListSessionsUsesRecentCache(t *testing.T) {
 		Token: "test-token",
 	}
 
-	first, err := client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	first, firstOutcome, err := client.ListSessionsWithCacheOutcome(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
 	if err != nil {
-		t.Fatalf("ListSessions() first call error = %v", err)
+		t.Fatalf("ListSessionsWithCacheOutcome() first call error = %v", err)
 	}
-	second, err := client.ListSessions(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
+	second, secondOutcome, err := client.ListSessionsWithCacheOutcome(model.GitHubConfig{Owner: "o", Repo: "r"}, false)
 	if err != nil {
-		t.Fatalf("ListSessions() second call error = %v", err)
+		t.Fatalf("ListSessionsWithCacheOutcome() second call error = %v", err)
+	}
+	if firstOutcome != "miss" || secondOutcome != "hit" {
+		t.Fatalf("cache outcomes = %q, %q; want miss, hit", firstOutcome, secondOutcome)
 	}
 
 	if len(first) != 1 || len(second) != 1 {

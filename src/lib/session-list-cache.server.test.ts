@@ -56,6 +56,35 @@ test('concurrent cold session list requests share one load', async () => {
   __configureSessionListCacheForTests();
 });
 
+test('session list cache records bounded request outcomes and load duration', async () => {
+  const metrics: Array<{ name: string; value: number; tags?: Record<string, string> }> = [];
+  __configureSessionListCacheForTests({
+    recordMetric: (name, value, tags) => metrics.push({ name, value, tags }),
+  });
+
+  await getOrLoadSessionList('user', undefined, async () => payload('loaded'));
+  await getOrLoadSessionList('user', undefined, async () => payload('unused'));
+
+  assert.deepEqual(
+    metrics.filter((entry) => entry.name === 'sessions.list_cache.request'),
+    [
+      { name: 'sessions.list_cache.request', value: 1, tags: { outcome: 'miss' } },
+      { name: 'sessions.list_cache.request', value: 1, tags: { outcome: 'hit' } },
+    ]
+  );
+  assert.ok(
+    metrics.some(
+      (entry) => entry.name === 'sessions.list_cache.load' && entry.tags?.outcome === 'success'
+    )
+  );
+  assert.ok(
+    metrics.some(
+      (entry) => entry.name === 'sessions.list_cache.load_duration_ms' && entry.value >= 0
+    )
+  );
+  __configureSessionListCacheForTests();
+});
+
 test('invalidating during a load prevents the stale result being cached', async () => {
   __configureSessionListCacheForTests();
   let releaseLoad!: (value: ReturnType<typeof payload>) => void;

@@ -9,6 +9,9 @@
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.5",
+    "@vercel/cli-config": {
+      "zod": "4.6.6"
+    },
     "jose": "6.2.12"
   },
   "scripts": {
@@ -60,6 +63,7 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@sentry/nextjs": "^10.71.0",
+    "@vercel/functions": "^3.10.4",
     "better-auth": "1.7.7",
     "class-variance-authority": "^0.7.1",
     "jose": "6.2.12",

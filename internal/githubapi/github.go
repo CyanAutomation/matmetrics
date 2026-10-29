@@ -450,27 +450,38 @@ func isSafeLogDoctorPath(filePath string) bool {
 }
 
 func (c *Client) ListSessions(config model.GitHubConfig, force bool) ([]model.Session, error) {
+	sessions, _, err := c.ListSessionsWithCacheOutcome(config, force)
+	return sessions, err
+}
+
+func (c *Client) ListSessionsWithCacheOutcome(config model.GitHubConfig, force bool) ([]model.Session, string, error) {
 	branch, err := c.resolveBranch(config)
 	if err != nil {
-		return nil, err
+		return nil, "error", err
 	}
 
 	cacheKey := c.listSessionsCacheKey(config, branch)
 	if !force {
 		if sessions, ok := loadCachedSessions(cacheKey); ok {
-			return cloneSessions(sessions), nil
+			return cloneSessions(sessions), "hit", nil
 		}
 	}
 
 	call, leader := beginListSessionsCall(cacheKey, force)
 	if !leader {
 		<-call.done
-		return cloneSessions(call.sessions), call.err
+		return cloneSessions(call.sessions), "coalesced", call.err
 	}
 
 	sessions, err := c.listSessionsUncached(config, branch)
 	finishListSessionsCall(cacheKey, call, sessions, err)
-	return cloneSessions(sessions), err
+	if err != nil {
+		return cloneSessions(sessions), "error", err
+	}
+	if force {
+		return cloneSessions(sessions), "forced", nil
+	}
+	return cloneSessions(sessions), "miss", nil
 }
 
 func (c *Client) listSessionsUncached(config model.GitHubConfig, branch string) ([]model.Session, error) {

@@ -88,6 +88,76 @@ test('proxyGoFunction preserves empty non-JSON responses', async () => {
   }
 });
 
+test('proxyGoFunction forwards session list validators and preserves private cache headers', async () => {
+  const originalFetch = global.fetch;
+  let requestHeaders: Headers | undefined;
+  let cacheOutcome: string | undefined;
+  global.fetch = async (_input, init) => {
+    requestHeaders = new Headers(init?.headers);
+    return new Response(JSON.stringify([{ id: 'session-1' }]), {
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': 'private, no-cache, must-revalidate',
+        etag: '"session-list-v1"',
+        vary: 'Authorization',
+        'x-matmetrics-session-cache': 'hit',
+      },
+    });
+  };
+
+  try {
+    const request = new NextRequest('http://localhost/api/sessions/list', {
+      headers: {
+        authorization: 'Bearer test-token',
+        'if-none-match': '"session-list-v1"',
+      },
+    });
+    const response = await proxyGoFunction(request, {
+      path: '/api/go/sessions/list?owner=test',
+      method: 'GET',
+      onCacheOutcome: (outcome: string) => {
+        cacheOutcome = outcome;
+      },
+    });
+
+    assert.equal(requestHeaders?.get('if-none-match'), '"session-list-v1"');
+    assert.equal(response.headers.get('cache-control'), 'private, no-cache, must-revalidate');
+    assert.equal(response.headers.get('etag'), '"session-list-v1"');
+    assert.equal(response.headers.get('vary'), 'Authorization');
+    assert.equal(response.headers.get('x-matmetrics-session-cache'), null);
+    assert.equal(cacheOutcome, 'hit');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('proxyGoFunction preserves upstream 304 without trying to parse a JSON body', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () =>
+    new Response(null, {
+      status: 304,
+      headers: {
+        'cache-control': 'private, no-cache, must-revalidate',
+        etag: '"session-list-v1"',
+        vary: 'Authorization',
+      },
+    });
+
+  try {
+    const response = await proxyGoFunction(buildRequest(), {
+      path: '/api/go/sessions/list',
+      method: 'GET',
+    });
+
+    assert.equal(response.status, 304);
+    assert.equal(await response.text(), '');
+    assert.equal(response.headers.get('etag'), '"session-list-v1"');
+    assert.equal(response.headers.get('cache-control'), 'private, no-cache, must-revalidate');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('proxyGoFunction turns endpoint disconnectivity into a useful retryable response', async () => {
   const originalFetch = global.fetch;
   global.fetch = async () => {
