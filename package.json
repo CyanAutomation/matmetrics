@@ -9,6 +9,9 @@
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.5",
+    "@vercel/cli-config": {
+      "zod": "4.6.6"
+    },
     "jose": "6.2.12"
   },
   "scripts": {
