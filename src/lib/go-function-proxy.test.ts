@@ -91,6 +91,7 @@ test('proxyGoFunction preserves empty non-JSON responses', async () => {
 test('proxyGoFunction forwards session list validators and preserves private cache headers', async () => {
   const originalFetch = global.fetch;
   let requestHeaders: Headers | undefined;
+  let cacheOutcome: string | undefined;
   global.fetch = async (_input, init) => {
     requestHeaders = new Headers(init?.headers);
     return new Response(JSON.stringify([{ id: 'session-1' }]), {
@@ -112,8 +113,11 @@ test('proxyGoFunction forwards session list validators and preserves private cac
       },
     });
     const response = await proxyGoFunction(request, {
-      path: '/api/go/sessions/list',
+      path: '/api/go/sessions/list?owner=test',
       method: 'GET',
+      onCacheOutcome: (outcome: string) => {
+        cacheOutcome = outcome;
+      },
     });
 
     assert.equal(requestHeaders?.get('if-none-match'), '"session-list-v1"');
@@ -121,6 +125,7 @@ test('proxyGoFunction forwards session list validators and preserves private cac
     assert.equal(response.headers.get('etag'), '"session-list-v1"');
     assert.equal(response.headers.get('vary'), 'Authorization');
     assert.equal(response.headers.get('x-matmetrics-session-cache'), null);
+    assert.equal(cacheOutcome, 'hit');
   } finally {
     global.fetch = originalFetch;
   }

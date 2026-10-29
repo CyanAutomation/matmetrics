@@ -1,6 +1,7 @@
 // Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
+import { metric } from '@vercel/functions';
 import {
   listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
@@ -122,6 +123,16 @@ function logForcedProxyCompletion(
   });
 }
 
+function recordGoSessionListCacheOutcome(
+  outcome: 'hit' | 'miss' | 'coalesced' | 'forced'
+): void {
+  try {
+    metric('sessions.list_cache.request', 1, { outcome });
+  } catch {
+    // Cache telemetry must not affect the session list response.
+  }
+}
+
 async function proxySessionList(
   request: NextRequest,
   config: NonNullable<Awaited<ReturnType<typeof normalizeGitHubConfig>>>,
@@ -136,6 +147,7 @@ async function proxySessionList(
     path: '/api/go/sessions/list',
     method: 'GET',
     searchParams,
+    onCacheOutcome: recordGoSessionListCacheOutcome,
   });
   logProxyFailure(response, context);
   logForcedProxyCompletion(request, response, context);

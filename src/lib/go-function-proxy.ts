@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { metric } from '@vercel/functions';
 import type { GitHubConfig, JudoSession } from '@/lib/types';
+
+type ProxyCacheOutcome = 'hit' | 'miss' | 'coalesced' | 'forced';
 
 type ProxyOptions = {
   path: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   searchParams?: URLSearchParams;
+  onCacheOutcome?: (outcome: ProxyCacheOutcome) => void;
 };
 
 type GitHubConfigLike = Partial<GitHubConfig> | null | undefined;
@@ -103,19 +105,17 @@ export async function proxyGoFunction(
     throw error;
   }
 
-  if (options.path === '/api/go/sessions/list') {
-    const outcome = response.headers.get('x-matmetrics-session-cache');
-    if (
-      outcome === 'hit' ||
-      outcome === 'miss' ||
-      outcome === 'coalesced' ||
-      outcome === 'forced'
-    ) {
-      try {
-        metric('sessions.list_cache.request', 1, { outcome });
-      } catch {
-        // Cache telemetry must not affect the session response.
-      }
+  const cacheOutcome = response.headers.get('x-matmetrics-session-cache');
+  if (
+    cacheOutcome === 'hit' ||
+    cacheOutcome === 'miss' ||
+    cacheOutcome === 'coalesced' ||
+    cacheOutcome === 'forced'
+  ) {
+    try {
+      options.onCacheOutcome?.(cacheOutcome);
+    } catch {
+      // Optional cache telemetry must not affect the proxied response.
     }
   }
 
