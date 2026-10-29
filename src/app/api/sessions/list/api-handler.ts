@@ -11,6 +11,7 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { ifNoneMatchMatches } from '@/lib/http-etag';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 import {
@@ -162,7 +163,7 @@ async function respondFromSessionStorage(
     ETag: etag,
     Vary: 'Authorization',
   };
-  if (!force && request.headers.get('if-none-match') === etag) {
+  if (!force && ifNoneMatchMatches(request.headers.get('if-none-match'), etag)) {
     return new NextResponse(null, { status: 304, headers: responseHeaders });
   }
   if (force) {
