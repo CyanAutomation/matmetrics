@@ -1,5 +1,6 @@
 // Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
+import { metric } from '@vercel/functions';
 
 import {
   autoDisablePluginIfNeeded,
@@ -52,6 +53,14 @@ const jsonNoStore = (body: unknown, init?: ResponseInit) =>
 
 const asErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const recordPluginListMetric = (name: string, value: number): void => {
+  try {
+    metric(name, value);
+  } catch {
+    // Metrics must not affect plugin discovery or validation.
+  }
+};
 
 const throwForConfiguredPlugin = (directoryName: string): void => {
   const configuredDirectory = process.env.MATMETRICS_PLUGIN_GATE_THROW_FOR_DIR;
@@ -113,6 +122,7 @@ export async function GET(request: NextRequest) {
     const pluginsRoot = getPluginsRoot();
 
     const pluginProcessingErrors: string[] = [];
+    const pluginProcessingStartedAt = Date.now();
     const pluginRows = await Promise.all(
       manifests.map(async (entry) => {
         try {
@@ -189,6 +199,11 @@ export async function GET(request: NextRequest) {
         }
       })
     );
+    recordPluginListMetric(
+      'plugins.list.processing_duration_ms',
+      Math.max(0, Date.now() - pluginProcessingStartedAt)
+    );
+    recordPluginListMetric('plugins.list.manifest_count', manifests.length);
 
     const response = {
       plugins: pluginRows,

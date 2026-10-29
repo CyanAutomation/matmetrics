@@ -1,4 +1,5 @@
 import type { GitHubConfig } from './types';
+import { metric } from '@vercel/functions';
 import {
   listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
@@ -28,6 +29,24 @@ let sessionListCacheMaxEntries = readPositiveInteger(
   process.env.SESSION_LIST_CACHE_MAX_ENTRIES,
   DEFAULT_SESSION_LIST_CACHE_MAX_ENTRIES
 );
+type SessionListCacheMetric = (
+  name: string,
+  value: number,
+  tags?: Record<string, string>
+) => void;
+let recordCacheMetric: SessionListCacheMetric = metric;
+
+function emitCacheMetric(
+  name: string,
+  value: number,
+  tags?: Record<string, string>
+): void {
+  try {
+    recordCacheMetric(name, value, tags);
+  } catch {
+    // Metrics must never prevent a session refresh from completing.
+  }
+}
 
 function readPositiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -94,22 +113,33 @@ export async function getOrLoadSessionList(
   load: () => Promise<SessionListPayload>,
   force = false
 ): Promise<SessionListPayload> {
-  if (force) return load();
+  if (force) {
+    emitCacheMetric('sessions.list_cache.request', 1, { outcome: 'forced' });
+    return loadAndMeasure(load);
+  }
 
   const key = cacheKey(uid, config);
   const cached = getCachedSessionList(uid, config);
-  if (cached) return cached;
+  if (cached) {
+    emitCacheMetric('sessions.list_cache.request', 1, { outcome: 'hit' });
+    return cached;
+  }
 
   const generation = sessionListGenerations.get(key) ?? 0;
   const currentLoad = sessionListLoads.get(key);
-  if (currentLoad?.generation === generation) return currentLoad.promise;
+  if (currentLoad?.generation === generation) {
+    emitCacheMetric('sessions.list_cache.request', 1, { outcome: 'coalesced' });
+    return currentLoad.promise;
+  }
+  emitCacheMetric('sessions.list_cache.request', 1, { outcome: 'miss' });
 
-  const promise = load().then((payload) => {
-    if ((sessionListGenerations.get(key) ?? 0) === generation) {
-      cacheSessionList(uid, config, payload);
-    }
-    return payload;
-  });
+  const promise = loadAndMeasure(load)
+    .then((payload) => {
+      if ((sessionListGenerations.get(key) ?? 0) === generation) {
+        cacheSessionList(uid, config, payload);
+      }
+      return payload;
+    });
   const entry = { generation, promise };
   sessionListLoads.set(key, entry);
 
@@ -118,6 +148,25 @@ export async function getOrLoadSessionList(
   } finally {
     if (sessionListLoads.get(key) === entry) sessionListLoads.delete(key);
     if (!sessionListLoads.has(key)) sessionListGenerations.delete(key);
+  }
+}
+
+async function loadAndMeasure(
+  load: () => Promise<SessionListPayload>
+): Promise<SessionListPayload> {
+  const startedAt = Date.now();
+  try {
+    const payload = await load();
+    emitCacheMetric('sessions.list_cache.load', 1, { outcome: 'success' });
+    return payload;
+  } catch (error) {
+    emitCacheMetric('sessions.list_cache.load', 1, { outcome: 'error' });
+    throw error;
+  } finally {
+    emitCacheMetric(
+      'sessions.list_cache.load_duration_ms',
+      Math.max(0, Date.now() - startedAt)
+    );
   }
 }
 
@@ -139,6 +188,7 @@ export function invalidateSessionListCache(
 export function __configureSessionListCacheForTests(options?: {
   maxEntries?: number;
   now?: () => number;
+  recordMetric?: SessionListCacheMetric;
 }): void {
   sessionListCache.clear();
   sessionListLoads.clear();
@@ -146,4 +196,5 @@ export function __configureSessionListCacheForTests(options?: {
   nextSessionListGeneration = 0;
   sessionListCacheMaxEntries = options?.maxEntries ?? DEFAULT_SESSION_LIST_CACHE_MAX_ENTRIES;
   sessionListCacheNow = options?.now ?? (() => Date.now());
+  recordCacheMetric = options?.recordMetric ?? metric;
 }

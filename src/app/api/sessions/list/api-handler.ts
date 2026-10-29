@@ -1,6 +1,7 @@
 // Internal handler dispatched by app/api/[...path]/route.ts.
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
+import { metric } from '@vercel/functions';
 import {
   listSessionsForConfigWithIssues,
   normalizeGitHubConfig,
@@ -11,6 +12,7 @@ import {
   shouldProxyGitHubRequests,
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
+import { ifNoneMatchMatches } from '@/lib/http-etag';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
 import {
@@ -121,6 +123,16 @@ function logForcedProxyCompletion(
   });
 }
 
+function recordGoSessionListCacheOutcome(
+  outcome: 'hit' | 'miss' | 'coalesced' | 'forced'
+): void {
+  try {
+    metric('sessions.list_cache.request', 1, { outcome });
+  } catch {
+    // Cache telemetry must not affect the session list response.
+  }
+}
+
 async function proxySessionList(
   request: NextRequest,
   config: NonNullable<Awaited<ReturnType<typeof normalizeGitHubConfig>>>,
@@ -135,6 +147,7 @@ async function proxySessionList(
     path: '/api/go/sessions/list',
     method: 'GET',
     searchParams,
+    onCacheOutcome: recordGoSessionListCacheOutcome,
   });
   logProxyFailure(response, context);
   logForcedProxyCompletion(request, response, context);
@@ -162,7 +175,7 @@ async function respondFromSessionStorage(
     ETag: etag,
     Vary: 'Authorization',
   };
-  if (!force && request.headers.get('if-none-match') === etag) {
+  if (!force && ifNoneMatchMatches(request.headers.get('if-none-match'), etag)) {
     return new NextResponse(null, { status: 304, headers: responseHeaders });
   }
   if (force) {

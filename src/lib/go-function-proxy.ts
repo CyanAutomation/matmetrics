@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { GitHubConfig, JudoSession } from '@/lib/types';
 
+type ProxyCacheOutcome = 'hit' | 'miss' | 'coalesced' | 'forced';
+
 type ProxyOptions = {
   path: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   searchParams?: URLSearchParams;
+  onCacheOutcome?: (outcome: ProxyCacheOutcome) => void;
 };
 
 type GitHubConfigLike = Partial<GitHubConfig> | null | undefined;
@@ -28,15 +31,9 @@ function isJsonContentType(contentType: string | null): boolean {
 
 function buildProxyResponseHeaders(response: Response): Headers {
   const headers = new Headers();
-  const contentType = response.headers.get('content-type');
-  const cacheControl = response.headers.get('cache-control');
-
-  if (contentType) {
-    headers.set('content-type', contentType);
-  }
-
-  if (cacheControl) {
-    headers.set('cache-control', cacheControl);
+  for (const name of ['content-type', 'cache-control', 'etag', 'vary']) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
   }
 
   return headers;
@@ -73,6 +70,11 @@ export async function proxyGoFunction(
   if (authorization) {
     headers.set('authorization', authorization);
   }
+  const ifNoneMatch =
+    (options.method ?? 'POST') === 'GET'
+      ? request.headers.get('if-none-match')
+      : null;
+  if (ifNoneMatch) headers.set('if-none-match', ifNoneMatch);
 
   let response: Response;
   try {
@@ -103,11 +105,35 @@ export async function proxyGoFunction(
     throw error;
   }
 
+  const cacheOutcome = response.headers.get('x-matmetrics-session-cache');
+  if (
+    cacheOutcome === 'hit' ||
+    cacheOutcome === 'miss' ||
+    cacheOutcome === 'coalesced' ||
+    cacheOutcome === 'forced'
+  ) {
+    try {
+      options.onCacheOutcome?.(cacheOutcome);
+    } catch {
+      // Optional cache telemetry must not affect the proxied response.
+    }
+  }
+
   const contentType = response.headers.get('content-type');
+
+  if (response.status === 304) {
+    return new NextResponse(null, {
+      status: 304,
+      headers: buildProxyResponseHeaders(response),
+    });
+  }
 
   if (isJsonContentType(contentType)) {
     const payload = await response.json().catch(() => null);
-    return NextResponse.json(payload, { status: response.status });
+    return NextResponse.json(payload, {
+      status: response.status,
+      headers: buildProxyResponseHeaders(response),
+    });
   }
 
   const rawBody = await response.text().catch(() => '');
