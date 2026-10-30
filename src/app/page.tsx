@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { Info, Loader2, LockKeyhole } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { DashboardDialogs } from '@/components/dashboard-dialogs';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { GuestWorkspaceNotice } from '@/components/guest-workspace-notice';
 import { PasskeyManagementDialog } from '@/components/passkey-management-dialog';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { useSessionsData } from '@/hooks/use-sessions-data';
@@ -122,8 +123,6 @@ export default function Home() {
           activeTab={activeTab}
           visibleTabs={visibleTabs}
           onTabChange={setActiveTab}
-          isGuest={isGuest}
-          guestWorkspaceSource={guestWorkspace.source}
         />
 
         <SidebarInset className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
@@ -206,32 +205,16 @@ export default function Home() {
                 </Alert>
               )}
               {isGuest && (
-                <Alert className="border-[hsl(var(--color-outline-variant)/0.15)] bg-[hsl(var(--color-primary-fixed)/0.45)] shadow-[0_16px_30px_-28px_hsl(var(--primary)/0.18)]">
-                  <LockKeyhole className="h-4 w-4 text-[hsl(var(--color-on-primary-fixed))]" />
-                  <AlertTitle className="flex items-center gap-2">
-                    Guest access is active
-                    {guestWorkspace.source === 'custom' && (
-                      <span className="text-xs px-2 py-1 rounded border border-current">
-                        Guest Workspace
-                      </span>
-                    )}
-                    {guestWorkspace.source === 'demo' && (
-                      <span className="text-xs px-2 py-1 rounded border border-current">
-                        Demo Preview
-                      </span>
-                    )}
-                  </AlertTitle>
-                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>{alertMessage}</span>
-                    <Button
-                      size="sm"
-                      onClick={() => setIsAuthDialogOpen(true)}
-                      variant="outline"
-                    >
-                      {signInButtonText}
-                    </Button>
-                  </AlertDescription>
-                </Alert>
+                <GuestWorkspaceNotice
+                  workspaceLabel={
+                    guestWorkspace.source === 'custom'
+                      ? 'Guest Workspace'
+                      : 'Demo Preview'
+                  }
+                  message={alertMessage}
+                  signInButtonText={signInButtonText}
+                  onSignIn={() => setIsAuthDialogOpen(true)}
+                />
               )}
               {!isGuest && sessionListRefreshError && (
                 <Alert className="ui-alert-warning">

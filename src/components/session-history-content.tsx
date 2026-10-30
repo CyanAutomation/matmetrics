@@ -1,7 +1,6 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataSurface } from '@/components/ui/data-display';
 import { PageShell } from '@/components/ui/page-shell';
@@ -30,10 +29,6 @@ interface SessionHistoryContentProps {
   deletingSessionId: string | null;
   density: SessionHistoryDensity;
   onDensityChange: (density: SessionHistoryDensity) => void;
-  onReviewHistory: () => Promise<void>;
-  hasUnreviewedDescriptions: boolean;
-  isReviewingHistory: boolean;
-  reviewProgress: { completed: number; total: number };
   semanticSearchActive: boolean;
   onRequestDelete: (session: JudoSession) => void;
   onEditSession: (session: JudoSession) => void;
@@ -77,42 +72,11 @@ export function SessionHistoryEmptyState({
 }
 
 function SessionHistoryHeaderActions({
-  onReviewHistory,
-  hasUnreviewedDescriptions,
-  isReviewingHistory,
-  reviewProgress,
   density,
   onDensityChange,
-  canUseAi,
-}: Pick<
-  SessionHistoryContentProps,
-  | 'onReviewHistory'
-  | 'hasUnreviewedDescriptions'
-  | 'isReviewingHistory'
-  | 'reviewProgress'
-  | 'density'
-  | 'onDensityChange'
-> & { canUseAi: boolean }) {
+}: Pick<SessionHistoryContentProps, 'density' | 'onDensityChange'>) {
   return (
     <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11"
-        onClick={() => void onReviewHistory()}
-        disabled={!canUseAi || isReviewingHistory || !hasUnreviewedDescriptions}
-      >
-        {isReviewingHistory ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Sparkles className="h-4 w-4" />
-        )}
-        {isReviewingHistory
-          ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
-          : hasUnreviewedDescriptions
-            ? 'Review all sessions'
-            : 'All sessions reviewed'}
-      </Button>
       <SegmentedControl
         aria-label="History display density"
         value={density}
@@ -194,10 +158,6 @@ export function SessionHistoryContent({
   deletingSessionId,
   density,
   onDensityChange,
-  onReviewHistory,
-  hasUnreviewedDescriptions,
-  isReviewingHistory,
-  reviewProgress,
   semanticSearchActive,
   onRequestDelete,
   onEditSession,
@@ -212,11 +172,6 @@ export function SessionHistoryContent({
       description="Search, filter, and revisit your training sessions."
       actions={
         <SessionHistoryHeaderActions
-          onReviewHistory={onReviewHistory}
-          canUseAi={reviewPanelProps.canUseAi}
-          hasUnreviewedDescriptions={hasUnreviewedDescriptions}
-          isReviewingHistory={isReviewingHistory}
-          reviewProgress={reviewProgress}
           density={density}
           onDensityChange={onDensityChange}
         />

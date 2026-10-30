@@ -259,7 +259,7 @@ test('progresses through the session steps and submits only at the end', () => {
   assert.ok(screen.getByText('Technique tags'));
   assert.equal(submissionCount, 0);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
   assertCurrentStep(4);
   assert.ok(screen.getByText('Uchi mata entries and finishes'));
   assert.equal(submissionCount, 0);
@@ -282,6 +282,21 @@ test('progresses through the session steps and submits only at the end', () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Save session' }));
   assert.equal(submissionCount, 1);
+});
+
+test('skips an empty optional practice description and continues to techniques', () => {
+  renderForm();
+  fireEvent.change(screen.getByLabelText('Session date *'), {
+    target: { value: '2026-09-28' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  assertCurrentStep(2);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+
+  assertCurrentStep(3);
+  assert.ok(screen.getByRole('heading', { name: 'Techniques practiced' }));
+  assert.equal(submissionCount, 0);
 });
 
 test('back navigation preserves entered values', () => {
