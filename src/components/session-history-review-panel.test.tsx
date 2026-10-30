@@ -14,10 +14,9 @@ const session: JudoSession = {
   techniques: ['Uchi mata'],
 };
 
-function renderPanel(entries: HistoryReviewResult[], canUseAi = true) {
+function renderPanel(entries: HistoryReviewResult[]) {
   return renderToStaticMarkup(
     React.createElement(SessionHistoryReviewPanel, {
-      canUseAi,
       entries,
       sessions: [session],
       recurringThemeSummary: {
@@ -29,8 +28,8 @@ function renderPanel(entries: HistoryReviewResult[], canUseAi = true) {
   );
 }
 
-test('shows the sign-in guidance when AI review is unavailable', () => {
-  assert.match(renderPanel([], false), /Sign in to review session history/);
+test('does not render an empty review panel before a review has run', () => {
+  assert.equal(renderPanel([]), '');
 });
 
 test('renders per-session review failures and an edit action', () => {
@@ -42,17 +41,15 @@ test('renders per-session review failures and an edit action', () => {
     error: true,
   };
   const markup = renderPanel([failedEntry]);
-  const signedOutMarkup = renderPanel([failedEntry], false);
 
   assert.match(markup, /This session could not be reviewed/);
   assert.match(markup, /Edit session/);
-  assert.match(signedOutMarkup, /Sign in to review session history/);
+  assert.doesNotMatch(markup, /Optional review sends descriptions/);
 });
 
 test('renders actionable suggestions and recurring theme counts', () => {
   const markup = renderToStaticMarkup(
     React.createElement(SessionHistoryReviewPanel, {
-      canUseAi: true,
       entries: [
         {
           sessionId: session.id,

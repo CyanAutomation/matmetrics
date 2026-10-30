@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { getHistoryReviewFindings } from '@/lib/jev-history-review';
 import {
   type HistoryReviewResult,
@@ -19,7 +18,6 @@ const trainingThemeLabels: Record<TrainingTheme, string> = {
 };
 
 interface SessionHistoryReviewPanelProps {
-  canUseAi: boolean;
   entries: HistoryReviewResult[];
   sessions: JudoSession[];
   recurringThemeSummary: RecurringTrainingThemeSummary;
@@ -170,38 +168,31 @@ function HistoryReviewEntry({
 }
 
 export function SessionHistoryReviewPanel({
-  canUseAi,
   entries,
   sessions,
   recurringThemeSummary,
   onEditSession,
 }: SessionHistoryReviewPanelProps) {
+  if (entries.length === 0) return null;
+
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
 
   return (
     <section
-      aria-label="Optional training review"
+      aria-label="Training review results"
       className="mb-4 rounded-lg bg-primary/5 px-3 py-2"
     >
-      <DataUseNotice variant="history" />
-      {!canUseAi ? (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Sign in to review session history.
-        </p>
-      ) : null}
-      {entries.length > 0 ? (
-        <div className="mt-3 space-y-3">
-          <RecurringTrainingThemes summary={recurringThemeSummary} />
-          {entries.map((entry) => (
-            <HistoryReviewEntry
-              key={entry.sessionId}
-              entry={entry}
-              session={sessionsById.get(entry.sessionId)}
-              onEditSession={onEditSession}
-            />
-          ))}
-        </div>
-      ) : null}
+      <div className="space-y-3">
+        <RecurringTrainingThemes summary={recurringThemeSummary} />
+        {entries.map((entry) => (
+          <HistoryReviewEntry
+            key={entry.sessionId}
+            entry={entry}
+            session={sessionsById.get(entry.sessionId)}
+            onEditSession={onEditSession}
+          />
+        ))}
+      </div>
     </section>
   );
 }

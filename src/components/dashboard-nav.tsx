@@ -5,7 +5,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -14,12 +13,6 @@ import {
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
-import { Sparkles } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import {
-  getGuestBadgeLabel,
-  getGuestWorkspaceDescription,
-} from '@/lib/dashboard-utils';
 import type { DashboardTab } from '@/lib/navigation/tab-definitions';
 import { groupDashboardTabs } from '@/lib/navigation/navigation-groups';
 
@@ -27,8 +20,6 @@ interface DashboardNavProps {
   activeTab: string;
   visibleTabs: DashboardTab[];
   onTabChange: (tabId: string) => void;
-  isGuest: boolean;
-  guestWorkspaceSource: 'custom' | 'demo';
 }
 
 const navigationLabels: Record<string, string> = {
@@ -46,11 +37,7 @@ export function DashboardNav({
   activeTab,
   visibleTabs,
   onTabChange,
-  isGuest,
-  guestWorkspaceSource,
 }: DashboardNavProps) {
-  const guestBadgeLabel = getGuestBadgeLabel(guestWorkspaceSource);
-  const guestWorkspaceDesc = getGuestWorkspaceDescription(guestWorkspaceSource);
   const navigationGroups = groupDashboardTabs(visibleTabs);
 
   const renderTabs = (
@@ -92,11 +79,6 @@ export function DashboardNav({
             <div className="text-display-sm font-black text-primary">
               MatMetrics
             </div>
-            {isGuest && (
-              <Badge variant="outline" className="mt-1 border-primary/20">
-                {guestBadgeLabel}
-              </Badge>
-            )}
           </div>
         </div>
       </SidebarHeader>
@@ -124,16 +106,6 @@ export function DashboardNav({
         ))}
       </SidebarContent>
 
-      {isGuest && (
-        <SidebarFooter className="p-4">
-          <div className="flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-xl bg-[hsl(var(--color-surface-container-low))]">
-            <Sparkles className="h-3 w-3 text-[hsl(var(--color-on-primary-fixed))]" />
-            <span className="text-[hsl(var(--color-on-primary-fixed))]">
-              {guestWorkspaceDesc}
-            </span>
-          </div>
-        </SidebarFooter>
-      )}
     </Sidebar>
   );
 }

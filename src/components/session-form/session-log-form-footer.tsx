@@ -12,6 +12,8 @@ type SessionLogFormFooterProps = {
   feedbackState: 'idle' | 'loading' | 'success' | 'error';
   currentStep: number;
   totalSteps: number;
+  stepIsOptional: boolean;
+  stepHasContent: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onFinish: () => void;
@@ -25,6 +27,8 @@ export function SessionLogFormFooter({
   feedbackState,
   currentStep,
   totalSteps,
+  stepIsOptional,
+  stepHasContent,
   onPrevious,
   onNext,
   onFinish,
@@ -96,7 +100,7 @@ export function SessionLogFormFooter({
           interaction="primary-action"
           className="h-12 gap-2 px-5 font-semibold sm:px-8"
         >
-          Continue
+          {stepIsOptional && !stepHasContent ? 'Skip for now' : 'Continue'}
           <ArrowRight className="h-4 w-4" />
         </Button>
       )}
