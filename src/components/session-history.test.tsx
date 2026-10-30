@@ -74,7 +74,7 @@ before(async () => {
         handleReviewHistory: () => undefined,
         hasUnreviewedDescriptions: false,
         isReviewingHistory: false,
-        reviewProgress: null,
+        reviewProgress: { completed: 0, total: 0 },
         historyReviewEntries: [],
         recurringThemeSummary: null,
       }),
