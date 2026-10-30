@@ -1,4 +1,6 @@
 import {
+  getAssessSessionsRequestByteSize,
+  JEV_ASSESSMENT_REQUEST_MAX_BYTES,
   TRAINING_THEMES,
   isSessionThemeAssessment,
   type SessionAssessment,
@@ -18,7 +20,9 @@ import {
   shouldIncludeRecurringTheme,
 } from './jev-policy';
 
-export const HISTORY_REVIEW_BATCH_SIZE = 5;
+export const HISTORY_REVIEW_BATCH_SIZE = 3;
+export const HISTORY_REVIEW_BATCH_MAX_BYTES = 12 * 1024;
+const MAX_ASSESSMENT_REQUEST_BYTES = 16 * 1024;
 
 export type HistoryAssessmentInput = {
   description: string;
@@ -28,9 +32,9 @@ export type HistoryAssessmentInput = {
   techniques: string[];
 };
 
-export type HistoryAssessmentRequest = (
-  input: HistoryAssessmentInput
-) => Promise<SessionAssessment>;
+export type HistoryAssessmentBatchRequest = (
+  inputs: HistoryAssessmentInput[]
+) => Promise<SessionAssessment[]>;
 
 export type HistoryReviewResult = {
   sessionId: string;
@@ -72,8 +76,7 @@ export function getRecurringTrainingThemeSummary(
       (left, right) =>
         right.entry.sessionDate.localeCompare(left.entry.sessionDate) ||
         right.entry.sessionId.localeCompare(left.entry.sessionId)
-    )
-    .slice(0, HISTORY_REVIEW_BATCH_SIZE);
+    );
 
   const themes = TRAINING_THEMES.flatMap((theme) => {
     const matchingSessionIds = recentAssessments
@@ -129,7 +132,7 @@ export function getHistoryReviewFindings(entry: HistoryReviewResult) {
 export async function reviewHistoryBatch(
   sessions: JudoSession[],
   reviewedSessionIds: ReadonlySet<string>,
-  assess: HistoryAssessmentRequest,
+  assessBatch: HistoryAssessmentBatchRequest,
   limit = HISTORY_REVIEW_BATCH_SIZE,
   onProgress?: (result: HistoryReviewResult) => void
 ): Promise<HistoryReviewResult[]> {
@@ -139,45 +142,93 @@ export async function reviewHistoryBatch(
         !reviewedSessionIds.has(session.id) &&
         Boolean(session.description?.trim())
     )
-    .sort((left, right) => right.date.localeCompare(left.date))
-    .slice(0, Math.max(0, Math.min(limit, HISTORY_REVIEW_BATCH_SIZE)));
+    .sort((left, right) => right.date.localeCompare(left.date));
   const results: HistoryReviewResult[] = [];
+  const batchSize = Math.max(1, Math.min(limit, HISTORY_REVIEW_BATCH_SIZE));
+  const requestSize = (items: HistoryAssessmentInput[]) =>
+    new TextEncoder().encode(JSON.stringify({ sessions: items })).byteLength;
 
-  for (const session of candidates) {
-    const resultBase = {
+  const saveResult = (session: JudoSession, assessment?: SessionAssessment) => {
+    const result: HistoryReviewResult = {
       sessionId: session.id,
       sessionDate: session.date,
       currentCategory: session.category,
       currentEffort: session.effort,
+      ...(assessment ? { assessment } : { error: true as const }),
     };
-    const description = session.description?.trim() ?? '';
-    const notes = session.notes?.trim() || undefined;
+    results.push(result);
+    onProgress?.(result);
+  };
 
-    if (
-      exceedsUtf8Limit(description, AI_DESCRIPTION_MAX_BYTES) ||
-      (notes !== undefined && exceedsUtf8Limit(notes, AI_DESCRIPTION_MAX_BYTES))
-    ) {
-      const result: HistoryReviewResult = { ...resultBase, error: true };
-      results.push(result);
-      onProgress?.(result);
-      continue;
-    }
-
-    try {
-      const assessment = await assess({
-        description,
-        notes,
-        category: session.category,
-        effort: session.effort,
-        techniques: session.techniques,
+  for (let start = 0; start < candidates.length; start += batchSize) {
+    const chunk = candidates.slice(start, start + batchSize);
+    const valid: Array<{ session: JudoSession; input: HistoryAssessmentInput }> = [];
+    for (const session of chunk) {
+      const description = session.description?.trim() ?? '';
+      const notes = session.notes?.trim() || undefined;
+      if (
+        exceedsUtf8Limit(description, AI_DESCRIPTION_MAX_BYTES) ||
+        (notes !== undefined && exceedsUtf8Limit(notes, AI_DESCRIPTION_MAX_BYTES))
+      ) {
+        saveResult(session);
+        continue;
+      }
+      valid.push({
+        session,
+        input: {
+          description,
+          notes,
+          category: session.category,
+          effort: session.effort,
+          techniques: session.techniques,
+        },
       });
-      const result: HistoryReviewResult = { ...resultBase, assessment };
-      results.push(result);
-      onProgress?.(result);
-    } catch {
-      const result: HistoryReviewResult = { ...resultBase, error: true };
-      results.push(result);
-      onProgress?.(result);
+    }
+    if (valid.length === 0) continue;
+
+    const batches: typeof valid[] = [];
+    let pending: typeof valid = [];
+    for (const item of valid) {
+      if (requestSize([item.input]) > MAX_ASSESSMENT_REQUEST_BYTES) {
+        saveResult(item.session);
+        continue;
+      }
+      const candidate = [...pending, item];
+      const candidateInputs = candidate.map(({ input }) => input);
+      const encodedBytes = requestSize(candidateInputs);
+      const estimatedJevBytes = getAssessSessionsRequestByteSize(candidateInputs);
+      if (
+        pending.length > 0 &&
+        (candidate.length > batchSize ||
+          encodedBytes > HISTORY_REVIEW_BATCH_MAX_BYTES ||
+          estimatedJevBytes > JEV_ASSESSMENT_REQUEST_MAX_BYTES)
+      ) {
+        batches.push(pending);
+        pending = [item];
+      } else {
+        pending = candidate;
+      }
+    }
+    if (pending.length > 0) batches.push(pending);
+
+    for (const batch of batches) {
+      try {
+        const assessments = await assessBatch(batch.map(({ input }) => input));
+        if (assessments.length !== batch.length) throw new Error('Invalid batch response');
+        batch.forEach(({ session }, index) => saveResult(session, assessments[index]));
+      } catch {
+        // Retry individually so a malformed answer does not discard usable
+        // reviews from the other sessions in a batch.
+        for (const { session, input } of batch) {
+          try {
+            const [assessment] = await assessBatch([input]);
+            if (!assessment) throw new Error('Invalid batch response');
+            saveResult(session, assessment);
+          } catch {
+            saveResult(session);
+          }
+        }
+      }
     }
   }
 

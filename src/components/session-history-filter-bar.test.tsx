@@ -20,7 +20,6 @@ function renderFilterBar(canUseAi: boolean) {
       averageEffort: 3.5,
       duration: 90,
       canUseAi,
-      canSemanticSearch: true,
       isSemanticSearching: false,
       semanticSearchResultCount: null,
       semanticSearchError: null,
@@ -32,25 +31,22 @@ function renderFilterBar(canUseAi: boolean) {
       onToggleFilters: () => {},
       onQuickFilter: () => {},
       onClearFilters: () => {},
-      onSemanticSearch: () => {},
-      onClearSemanticSearch: () => {},
     })
   );
 }
 
-test('history filter presents semantic search with an external-data notice', () => {
+test('history filter presents automatic semantic search with an external-data notice', () => {
   const markup = renderFilterBar(true);
 
-  assert.match(markup, />Search by meaning</);
   assert.match(markup, /up to eight sessions/i);
-  assert.match(markup, /chosen locally by text overlap and recency/i);
+  assert.match(markup, /chosen locally by text relevance and recency/i);
   assert.match(markup, /your query/i);
   assert.match(markup, /Session IDs and your full history are not sent/i);
+  assert.match(markup, /text matches appear immediately/i);
 });
 
 test('history filter tells signed-out users semantic search requires sign-in', () => {
   const markup = renderFilterBar(false);
 
-  assert.match(markup, /Sign in to search training history by meaning/);
-  assert.match(markup, /<button[^>]*disabled="">[\s\S]*?Search by meaning<\/button>/);
+  assert.match(markup, /Sign in to rank training history by meaning/);
 });

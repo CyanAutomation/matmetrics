@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { getHistoryReviewFindings } from '@/lib/jev-history-review';
 import {
-  HISTORY_REVIEW_BATCH_SIZE,
   type HistoryReviewResult,
   type RecurringTrainingThemeSummary,
 } from '@/lib/jev-history-review';
@@ -41,9 +40,8 @@ function RecurringTrainingThemes({
     >
       <h3 className="text-sm font-semibold">Recurring themes</h3>
       <p className="mt-1 text-xs text-muted-foreground">
-        Based on up to the {HISTORY_REVIEW_BATCH_SIZE} most recent sessions
-        reviewed with AI. Themes are shown after appearing in at least two
-        sessions.
+        Based on all successfully reviewed sessions. Themes are shown after
+        appearing in at least two sessions.
       </p>
       {summary.themes.length > 0 ? (
         <ul className="mt-3 space-y-2">

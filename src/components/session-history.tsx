@@ -6,6 +6,7 @@ import type { JudoSession } from '@/lib/types';
 import { formatDateLabel, parseDateOnly } from '@/lib/utils';
 import {
   isSessionHistorySearchMatches,
+  mergeSemanticAndTextSessions,
   selectSessionHistorySearchCandidates,
   type SessionHistorySearchMatch,
 } from '@/lib/session-history-search';
@@ -79,9 +80,12 @@ export function SessionHistory({
     null
   );
   const semanticRequestId = useRef(0);
+  const semanticAbortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     semanticRequestId.current += 1;
+    semanticAbortController.current?.abort();
+    semanticAbortController.current = null;
     setIsSemanticSearching(false);
     setSemanticMatches(null);
     setSemanticSearchError(null);
@@ -119,14 +123,11 @@ export function SessionHistory({
     [categoryFilter, effortFilter, fromDate, searchQuery, sessions, toDate]
   );
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
-  const semanticSearchResults =
-    semanticMatches?.flatMap((match) => {
-      const session = sessionsById.get(match.id);
-      return session ? [session] : [];
-    }) ?? [];
-  const displayedSessions = semanticMatches
-    ? semanticSearchResults
-    : filteredSessions;
+  const displayedSessions = mergeSemanticAndTextSessions(
+    semanticMatches,
+    sessionsById,
+    filteredSessions
+  );
   const grouped = groupSessionsByMonth(displayedSessions);
   const { averageEffort, duration } = getSessionHistoryStats(displayedSessions);
   const activeFilterCount = getSessionHistoryActiveFilterCount({
@@ -146,65 +147,82 @@ export function SessionHistory({
   };
   const clearSemanticSearch = () => {
     semanticRequestId.current += 1;
+    semanticAbortController.current?.abort();
+    semanticAbortController.current = null;
     setIsSemanticSearching(false);
     setSemanticMatches(null);
     setSemanticSearchError(null);
   };
-  const handleSemanticSearch = async () => {
+  useEffect(() => {
     if (
       !historyReview.canUseAi ||
-      isSemanticSearching ||
-      semanticSearchCandidates.length === 0 ||
-      !searchQuery.trim()
+      !searchQuery.trim() ||
+      semanticSearchCandidates.length === 0
     ) {
       return;
     }
 
-    setIsSemanticSearching(true);
+    const controller = new AbortController();
+    semanticAbortController.current = controller;
     const requestId = ++semanticRequestId.current;
+    setIsSemanticSearching(true);
     setSemanticMatches(null);
     setSemanticSearchError(null);
-    try {
-      const response = await fetch('/api/ai/search-sessions', {
-        method: 'POST',
-        headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          query: searchQuery.trim(),
-          candidates: semanticSearchCandidates,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('The semantic search request failed.');
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch('/api/ai/search-sessions', {
+            method: 'POST',
+            headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+              query: searchQuery.trim(),
+              candidates: semanticSearchCandidates,
+            }),
+            signal: controller.signal,
+          });
+          if (!response.ok) {
+            throw new Error('The semantic search request failed.');
+          }
+          const payload: unknown = await response.json();
+          const matches =
+            payload && typeof payload === 'object'
+              ? (payload as { matches?: unknown }).matches
+              : undefined;
+          const candidateIds = new Set(
+            semanticSearchCandidates.map((candidate) => candidate.id)
+          );
+          if (!isSessionHistorySearchMatches(matches, candidateIds)) {
+            throw new Error('The semantic search response was invalid.');
+          }
+          if (requestId === semanticRequestId.current) {
+            setSemanticMatches(matches);
+          }
+        } catch (error) {
+          if (!controller.signal.aborted && requestId === semanticRequestId.current) {
+            setSemanticSearchError(
+              error instanceof Error &&
+                error.message === 'The semantic search response was invalid.'
+                ? error.message
+                : 'Semantic ranking is unavailable; showing text matches.'
+            );
+          }
+        } finally {
+          if (requestId === semanticRequestId.current) {
+            semanticAbortController.current = null;
+            setIsSemanticSearching(false);
+          }
+        }
+      })();
+    }, 600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+      if (semanticAbortController.current === controller) {
+        semanticAbortController.current = null;
       }
-      const payload: unknown = await response.json();
-      const matches =
-        payload && typeof payload === 'object'
-          ? (payload as { matches?: unknown }).matches
-          : undefined;
-      const candidateIds = new Set(
-        semanticSearchCandidates.map((candidate) => candidate.id)
-      );
-      if (!isSessionHistorySearchMatches(matches, candidateIds)) {
-        throw new Error('The semantic search response was invalid.');
-      }
-      if (requestId === semanticRequestId.current) {
-        setSemanticMatches(matches);
-      }
-    } catch (error) {
-      if (requestId === semanticRequestId.current) {
-        setSemanticSearchError(
-          error instanceof Error &&
-            error.message === 'The semantic search response was invalid.'
-            ? error.message
-            : 'Semantic search could not be completed. Please try again.'
-        );
-      }
-    } finally {
-      if (requestId === semanticRequestId.current) {
-        setIsSemanticSearching(false);
-      }
-    }
-  };
+    };
+  }, [historyReview.canUseAi, searchQuery, semanticSearchCandidates]);
   const updateSearchQuery = (value: string) => {
     clearSemanticSearch();
     setSearchQuery(value);
@@ -273,7 +291,6 @@ export function SessionHistory({
         averageEffort,
         duration,
         canUseAi: historyReview.canUseAi,
-        canSemanticSearch: semanticSearchCandidates.length > 0,
         isSemanticSearching,
         semanticSearchResultCount: semanticMatches?.length ?? null,
         semanticSearchError,
@@ -285,8 +302,6 @@ export function SessionHistory({
         onToggleFilters: () => setFiltersOpen((open) => !open),
         onQuickFilter: applyQuickFilter,
         onClearFilters: clearFilters,
-        onSemanticSearch: () => void handleSemanticSearch(),
-        onClearSemanticSearch: clearSemanticSearch,
       }}
       reviewPanelProps={{
         canUseAi: historyReview.canUseAi,

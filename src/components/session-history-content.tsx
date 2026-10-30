@@ -110,8 +110,8 @@ function SessionHistoryHeaderActions({
         {isReviewingHistory
           ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
           : hasUnreviewedDescriptions
-            ? 'Review up to 5 sessions'
-            : 'This view is reviewed'}
+            ? 'Review all sessions'
+            : 'All sessions reviewed'}
       </Button>
       <SegmentedControl
         aria-label="History display density"

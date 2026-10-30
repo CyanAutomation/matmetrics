@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   isSessionHistorySearchMatches,
+  mergeSemanticAndTextSessions,
   SESSION_HISTORY_SEARCH_CANDIDATE_LIMIT,
   selectSessionHistorySearchCandidates,
 } from './session-history-search';
@@ -60,6 +61,23 @@ test('candidate retrieval selects recent sessions when a paraphrase has no lexic
   );
 });
 
+test('candidate retrieval ranks exact term frequency and avoids substring-only matches', () => {
+  const candidates = selectSessionHistorySearchCandidates(
+    [
+      session('substring', '2026-10-19', 'Grippling with a bigger partner.'),
+      session('weak', '2026-08-01', 'Grip work.'),
+      session('strong', '2020-01-01', 'Grip, grip, grip fighting.'),
+      session('recent', '2026-10-20', 'General practice.'),
+    ],
+    'grip'
+  );
+
+  assert.deepEqual(
+    candidates.slice(0, 2).map((candidate) => candidate.id),
+    ['strong', 'weak']
+  );
+});
+
 test('candidate retrieval returns no candidates for a blank query and bounds text sent for each session', () => {
   const longSession = session(
     'session-1',
@@ -107,6 +125,31 @@ test('semantic result validation only accepts unique candidates above the displa
       allowedIds
     ),
     false
+  );
+});
+
+test('semantic history results keep text matches during loading and after empty or partial ranking', () => {
+  const sessions = new Map([
+    ['semantic', session('semantic', '2026-10-01', 'Paraphrase match.')],
+    ['text', session('text', '2026-10-02', 'Exact text match.')],
+  ]);
+  const textMatches = [sessions.get('text')!];
+
+  assert.deepEqual(
+    mergeSemanticAndTextSessions(null, sessions, textMatches).map(({ id }) => id),
+    ['text']
+  );
+  assert.deepEqual(
+    mergeSemanticAndTextSessions(
+      [{ id: 'semantic', relevance: 0.9 }],
+      sessions,
+      textMatches
+    ).map(({ id }) => id),
+    ['semantic', 'text']
+  );
+  assert.deepEqual(
+    mergeSemanticAndTextSessions([], sessions, textMatches).map(({ id }) => id),
+    ['text']
   );
 });
 

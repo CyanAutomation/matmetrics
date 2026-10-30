@@ -22,6 +22,8 @@ const OPENROUTER_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
 const JEV_MODEL = '~typesafe/jev-latest';
 const JEV_REQUEST_TIMEOUT_MS = 15_000;
 const MAX_TECHNIQUE_CANDIDATES = 12;
+export const JEV_ASSESSMENT_BATCH_MAX = 3;
+export const JEV_ASSESSMENT_REQUEST_MAX_BYTES = 30_000;
 const TRAINING_ONLY_ASSESSMENT_SCOPE =
   'Assess training details only. Ignore mentions of physical symptoms, pain, injury, illness, treatment, or recovery; do not classify, infer, summarize, or advise on them.';
 
@@ -64,6 +66,15 @@ type JevRequest = {
       category?: SessionCategory;
       effort?: EffortLevel;
     };
+    sessions?: Record<
+      string,
+      {
+        description: string;
+        notes?: string;
+        category?: SessionCategory;
+        effort?: EffortLevel;
+      }
+    >;
     technique_candidates?: Record<string, string>;
     transformation?: { description: string };
     session_search?: { query: string };
@@ -85,6 +96,7 @@ type JevRequest = {
 type JevResponse = {
   model?: string;
   answers?: Record<string, JevAnswer>;
+  usageCostUsd?: number;
 };
 
 export type JevDecisionClient = (request: JevRequest) => Promise<JevResponse>;
@@ -165,9 +177,17 @@ function parseJevResponse(value: unknown): JevResponse {
     typeof value.model === 'string'
       ? normalizeResolvedModel(value.model)
       : undefined;
+  const usageCostUsd = isRecord(value.usage)
+    ? value.usage.cost
+    : undefined;
   return {
     ...(model ? { model } : {}),
     answers,
+    ...(typeof usageCostUsd === 'number' &&
+    Number.isFinite(usageCostUsd) &&
+    usageCostUsd >= 0
+      ? { usageCostUsd }
+      : {}),
   };
 }
 
@@ -191,6 +211,7 @@ async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
   const operation = getJevOperation(request);
   let outcome: 'success' | 'error' = 'error';
   let resolvedModel: string | undefined;
+  let costUsd: number | undefined;
 
   try {
     const response = await fetch(OPENROUTER_DECISIONS_URL, {
@@ -214,6 +235,7 @@ async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
     }
     const parsed = parseJevResponse(payload);
     resolvedModel = parsed.model;
+    costUsd = parsed.usageCostUsd;
     outcome = 'success';
     return parsed;
   } catch (error) {
@@ -228,6 +250,7 @@ async function callOpenRouterJev(request: JevRequest): Promise<JevResponse> {
       resolvedModel,
       questionCount: Object.keys(request.questions).length,
       durationMs: Math.max(0, Date.now() - startedAt),
+      ...(costUsd === undefined ? {} : { costUsd }),
     });
   }
 }
@@ -236,11 +259,15 @@ function getJevOperation(request: JevRequest): string {
   const questionNames = Object.keys(request.questions);
   if (questionNames.includes('unsupported_detail'))
     return 'description_fidelity';
-  if (questionNames.some((name) => name.startsWith('training_theme_')))
+  if (questionNames.some((name) => name.includes('training_theme_')))
     return 'training_theme_review';
   if (questionNames.some((name) => name.startsWith('session_match_')))
     return 'session_history_search';
-  if (questionNames.some((name) => name.startsWith('candidate_')))
+  if (
+    questionNames.some(
+      (name) => name.startsWith('candidate_') || name.includes('_saved_tag_')
+    )
+  )
     return 'technique_verification';
   return 'session_checkin';
 }
@@ -252,6 +279,7 @@ function recordJevObservability(metadata: {
   resolvedModel?: string;
   questionCount: number;
   durationMs: number;
+  costUsd?: number;
 }): void {
   if (process.env.MATMETRICS_JEV_OBSERVABILITY !== 'true') return;
 
@@ -340,7 +368,10 @@ const trainingThemeQuestions = {
   },
 } satisfies Record<string, JevQuestion>;
 
-function getAssessmentQuestions(input: SessionAssessmentInput) {
+function getAssessmentQuestions(
+  input: SessionAssessmentInput,
+  prefix = ''
+) {
   const questions: Record<string, JevQuestion> = Object.fromEntries(
     Object.entries(assessmentQuestions).map(([key, question]) => [
       key,
@@ -348,7 +379,15 @@ function getAssessmentQuestions(input: SessionAssessmentInput) {
     ])
   );
   if (input.includeTrainingThemes) {
-    Object.assign(questions, trainingThemeQuestions);
+    Object.assign(
+      questions,
+      Object.fromEntries(
+        Object.entries(trainingThemeQuestions).map(([key, question]) => [
+          key,
+          { ...question },
+        ])
+      )
+    );
   }
   if (input.effort !== undefined) {
     questions.effort_conflict = {
@@ -381,10 +420,26 @@ function getAssessmentQuestions(input: SessionAssessmentInput) {
       },
     };
   }
-  for (const question of Object.values(questions)) {
+  const qualifiedQuestions: Record<string, JevQuestion> = {};
+  for (const [key, question] of Object.entries(questions)) {
+    const qualifiedKey = `${prefix ? `${prefix}_` : ''}${key}`;
+    const unprefixedKey = prefix && key.startsWith(`${prefix}_`)
+      ? key.slice(prefix.length + 1)
+      : key;
+    const techniqueKey = unprefixedKey.startsWith('saved_tag_')
+      ? `${prefix ? `${prefix}_` : ''}${unprefixedKey}`
+      : unprefixedKey;
+    const sessionReference = prefix ? `sessions.${prefix}` : 'session';
+    question.instructions = question.instructions
+      .replaceAll('session.', `${sessionReference}.`)
+      .replaceAll(
+        `technique_candidates.${unprefixedKey}`,
+        `technique_candidates.${techniqueKey}`
+      );
     question.instructions = `${question.instructions} ${TRAINING_ONLY_ASSESSMENT_SCOPE}`;
+    qualifiedQuestions[qualifiedKey] = question;
   }
-  return { questions, candidates };
+  return { questions: qualifiedQuestions, candidates };
 }
 
 export async function assessSessionWithJev(
@@ -410,32 +465,38 @@ export async function assessSessionWithJev(
     },
     questions,
   });
-  const categoryAnswer = answer(
-    response.answers,
-    'suggested_category',
-    'choice'
-  );
+  return sessionAssessmentFromResponse(input, response);
+}
+
+function sessionAssessmentFromResponse(
+  input: SessionAssessmentInput,
+  response: JevResponse,
+  prefix = ''
+): SessionAssessment {
+  const key = (name: string) => `${prefix ? `${prefix}_` : ''}${name}`;
+  const candidates = normalizeTechniqueCandidates(input.techniques ?? []);
+  const categoryAnswer = answer(response.answers, key('suggested_category'), 'choice');
   const trainingThemes = input.includeTrainingThemes
     ? {
         kumi_kata: numberInRange(
-          answer(response.answers, 'training_theme_kumi_kata', 'noul').noul,
+          answer(response.answers, key('training_theme_kumi_kata'), 'noul').noul,
           0,
           1
         ),
         ne_waza: numberInRange(
-          answer(response.answers, 'training_theme_ne_waza', 'noul').noul,
+          answer(response.answers, key('training_theme_ne_waza'), 'noul').noul,
           0,
           1
         ),
         transitions: numberInRange(
-          answer(response.answers, 'training_theme_transitions', 'noul').noul,
+          answer(response.answers, key('training_theme_transitions'), 'noul').noul,
           0,
           1
         ),
         competition_tactics: numberInRange(
           answer(
             response.answers,
-            'training_theme_competition_tactics',
+            key('training_theme_competition_tactics'),
             'noul'
           ).noul,
           0,
@@ -447,24 +508,24 @@ export async function assessSessionWithJev(
     suggestedCategory: category(categoryAnswer.choice),
     categoryConfidence: numberInRange(categoryAnswer.confidence, 0, 1),
     categoryFitProbability: numberInRange(
-      answer(response.answers, 'category_fit', 'noul').noul,
+      answer(response.answers, key('category_fit'), 'noul').noul,
       0,
       1
     ),
     hasUsefulDetail: numberInRange(
-      answer(response.answers, 'has_useful_detail', 'noul').noul,
+      answer(response.answers, key('has_useful_detail'), 'noul').noul,
       0,
       1
     ),
     hasReflection: numberInRange(
-      answer(response.answers, 'has_reflection', 'noul').noul,
+      answer(response.answers, key('has_reflection'), 'noul').noul,
       0,
       1
     ),
     ...(input.effort !== undefined
       ? {
           effortConflictProbability: numberInRange(
-            answer(response.answers, 'effort_conflict', 'noul').noul,
+            answer(response.answers, key('effort_conflict'), 'noul').noul,
             0,
             1
           ),
@@ -473,7 +534,7 @@ export async function assessSessionWithJev(
     unsupportedTechniqueTags: candidates.filter((_, index) =>
       shouldFlagUnsupportedTechniqueTag(
         numberInRange(
-          answer(response.answers, `saved_tag_${index}`, 'noul').noul,
+          answer(response.answers, key(`saved_tag_${index}`), 'noul').noul,
           0,
           1
         )
@@ -481,6 +542,70 @@ export async function assessSessionWithJev(
     ),
     ...(trainingThemes ? { trainingThemes } : {}),
   };
+}
+
+function createAssessSessionsRequest(inputs: SessionAssessmentInput[]): JevRequest {
+  if (inputs.length === 0 || inputs.length > JEV_ASSESSMENT_BATCH_MAX) {
+    throw new Error('Invalid session assessment batch');
+  }
+  const sessions: NonNullable<JevRequest['state']['sessions']> = {};
+  const techniqueCandidates: Record<string, string> = {};
+  const questions: Record<string, JevQuestion> = {};
+
+  inputs.forEach((input, index) => {
+    const prefix = `session_${index}`;
+    const { questions: sessionQuestions, candidates } = getAssessmentQuestions(
+      input,
+      prefix
+    );
+    sessions[prefix] = {
+      description: input.description,
+      notes: input.notes,
+      category: input.category,
+      effort: input.effort,
+    };
+    candidates.forEach((candidate, candidateIndex) => {
+      techniqueCandidates[`${prefix}_saved_tag_${candidateIndex}`] = candidate;
+    });
+    Object.assign(questions, sessionQuestions);
+  });
+
+  return {
+    model: JEV_MODEL,
+    state: {
+      sessions,
+      ...(Object.keys(techniqueCandidates).length > 0
+        ? { technique_candidates: techniqueCandidates }
+        : {}),
+    },
+    questions,
+  };
+}
+
+export function getAssessSessionsRequestByteSize(
+  inputs: SessionAssessmentInput[]
+): number {
+  return new TextEncoder().encode(
+    JSON.stringify(createAssessSessionsRequest(inputs))
+  ).byteLength;
+}
+
+export async function assessSessionsWithJev(
+  inputs: SessionAssessmentInput[],
+  client: JevDecisionClient = callOpenRouterJev
+): Promise<SessionAssessment[]> {
+  const request = createAssessSessionsRequest(inputs);
+  const requestBytes = new TextEncoder().encode(JSON.stringify(request)).byteLength;
+  if (requestBytes > JEV_ASSESSMENT_REQUEST_MAX_BYTES && inputs.length > 1) {
+    const midpoint = Math.ceil(inputs.length / 2);
+    const first = await assessSessionsWithJev(inputs.slice(0, midpoint), client);
+    const second = await assessSessionsWithJev(inputs.slice(midpoint), client);
+    return [...first, ...second];
+  }
+  const response = await client(request);
+  return inputs.map((input, index) =>
+    sessionAssessmentFromResponse(input, response, `session_${index}`)
+  );
 }
 
 /**

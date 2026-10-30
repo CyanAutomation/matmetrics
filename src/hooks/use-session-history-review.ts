@@ -40,27 +40,31 @@ export function useSessionHistoryReview(sessions: JudoSession[]) {
       Boolean(session.description?.trim())
   );
 
-  const assessHistorySession = async (
-    input: HistoryAssessmentInput
-  ): Promise<SessionAssessment> => {
-    const response = await fetch('/api/ai/assess-session', {
+  const assessHistoryBatch = async (
+    inputs: HistoryAssessmentInput[]
+  ): Promise<SessionAssessment[]> => {
+    const response = await fetch('/api/ai/assess-sessions', {
       method: 'POST',
       headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ ...input, includeTrainingThemes: true }),
+      body: JSON.stringify({ sessions: inputs }),
     });
     const payload: unknown = await response.json();
-    const assessment =
+    const assessments =
       payload && typeof payload === 'object'
-        ? (payload as { assessment?: unknown }).assessment
+        ? (payload as { assessments?: unknown }).assessments
         : undefined;
 
     if (!response.ok) {
       throw new Error('History review request failed');
     }
-    if (!isSessionAssessment(assessment)) {
+    if (
+      !Array.isArray(assessments) ||
+      assessments.length !== inputs.length ||
+      !assessments.every(isSessionAssessment)
+    ) {
       throw new Error('History review response was invalid');
     }
-    return assessment;
+    return assessments;
   };
 
   const handleReviewHistory = async () => {
@@ -75,20 +79,20 @@ export function useSessionHistoryReview(sessions: JudoSession[]) {
     setIsReviewingHistory(true);
     setReviewProgress({
       completed: 0,
-      total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
+      total: pendingCount,
     });
     let completed = 0;
     try {
       await reviewHistoryBatch(
         sessions,
         reviewedSessionIds,
-        assessHistorySession,
+        assessHistoryBatch,
         HISTORY_REVIEW_BATCH_SIZE,
         (entry) => {
           completed += 1;
           setReviewProgress({
             completed,
-            total: Math.min(pendingCount, HISTORY_REVIEW_BATCH_SIZE),
+            total: pendingCount,
           });
           if (!entry.error) {
             setReviewedSessionIds((current) =>

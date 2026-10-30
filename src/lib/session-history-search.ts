@@ -31,6 +31,20 @@ export interface SessionHistorySearchMatch {
   relevance: number;
 }
 
+export function mergeSemanticAndTextSessions<T extends { id: string }>(
+  semanticMatches: SessionHistorySearchMatch[] | null,
+  sessionsById: ReadonlyMap<string, T>,
+  textMatches: T[]
+): T[] {
+  if (semanticMatches === null) return textMatches;
+  const ranked = semanticMatches.flatMap((match) => {
+    const session = sessionsById.get(match.id);
+    return session ? [session] : [];
+  });
+  const rankedIds = new Set(ranked.map(({ id }) => id));
+  return [...ranked, ...textMatches.filter(({ id }) => !rankedIds.has(id))];
+}
+
 const QUERY_STOP_WORDS = new Set([
   'about',
   'after',
@@ -59,6 +73,8 @@ const QUERY_STOP_WORDS = new Set([
   'with',
   'would',
 ]);
+const BM25_K1 = 1.2;
+const BM25_B = 0.75;
 
 function truncateUtf8(value: string | undefined, maxBytes: number): string {
   const cleaned = (value ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ');
@@ -122,24 +138,51 @@ export function selectSessionHistorySearchCandidates(
         right.session.date.localeCompare(left.session.date) ||
         left.index - right.index
     );
-  const scored = datedSessions
-    .map(({ session, index }) => {
-      const searchableText = [
+  const documents = datedSessions.map(({ session, index }) => {
+    const tokens = tokenize([
         session.date,
         session.category,
         session.effort.toString(),
         ...session.techniques,
         session.description ?? '',
         session.notes ?? '',
-      ]
-        .join(' ')
-        .normalize('NFKC')
-        .toLocaleLowerCase();
-      const score = queryTokens.reduce(
-        (total, token) => total + (searchableText.includes(token) ? 1 : 0),
-        0
-      );
-      return { session, index, score };
+      ].join(' '));
+    return { session, index, tokens, length: tokens.length };
+  });
+  const documentFrequency = new Map<string, number>();
+  for (const token of queryTokens) {
+    documentFrequency.set(
+      token,
+      documents.filter(({ tokens }) => tokens.includes(token)).length
+    );
+  }
+  const averageLength = documents.length
+    ? documents.reduce((sum, document) => sum + document.length, 0) /
+      documents.length
+    : 0;
+  const scored = documents
+    .map((document) => {
+      const frequencies = new Map<string, number>();
+      for (const token of document.tokens) {
+        frequencies.set(token, (frequencies.get(token) ?? 0) + 1);
+      }
+      const score = queryTokens.reduce((total, token) => {
+        const frequency = frequencies.get(token) ?? 0;
+        const frequencyInCorpus = documentFrequency.get(token) ?? 0;
+        if (frequency === 0 || frequencyInCorpus === 0) return total;
+        const inverseDocumentFrequency = Math.log(
+          1 + (documents.length - frequencyInCorpus + 0.5) /
+            (frequencyInCorpus + 0.5)
+        );
+        const lengthNormalization = averageLength > 0
+          ? BM25_K1 * (1 - BM25_B + BM25_B * document.length / averageLength)
+          : BM25_K1;
+        return total +
+          inverseDocumentFrequency *
+          (frequency * (BM25_K1 + 1)) /
+          (frequency + lengthNormalization);
+      }, 0);
+      return { session: document.session, index: document.index, score };
     })
     .sort(
       (left, right) =>
