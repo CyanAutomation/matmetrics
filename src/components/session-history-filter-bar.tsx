@@ -1,6 +1,6 @@
 'use client';
 
-import { Filter, Search, Sparkles, X } from 'lucide-react';
+import { Filter, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { FilterBar } from '@/components/ui/filter-bar';
@@ -22,7 +22,6 @@ interface SessionHistoryFilterBarProps {
   averageEffort: number;
   duration: number;
   canUseAi: boolean;
-  canSemanticSearch: boolean;
   isSemanticSearching: boolean;
   semanticSearchResultCount: number | null;
   semanticSearchError: string | null;
@@ -34,8 +33,6 @@ interface SessionHistoryFilterBarProps {
   onToggleFilters: () => void;
   onQuickFilter: (kind: SessionHistoryQuickFilter) => void;
   onClearFilters: () => void;
-  onSemanticSearch: () => void;
-  onClearSemanticSearch: () => void;
 }
 
 function QuickFilters({
@@ -164,25 +161,10 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
           icon={<Search className="h-4 w-4" />}
           value={props.searchQuery}
           onChange={(event) => props.onSearchQueryChange(event.target.value)}
-          placeholder="Search techniques or notes"
+          placeholder="Search training history"
           aria-label="Search training history"
           wrapperClassName="min-w-0 flex-1"
         />
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full shrink-0 @min-[48rem]/filters:w-auto"
-          onClick={props.onSemanticSearch}
-          disabled={
-            !props.canUseAi ||
-            !props.canSemanticSearch ||
-            props.isSemanticSearching ||
-            !props.searchQuery.trim()
-          }
-        >
-          <Sparkles className="h-4 w-4" />
-          {props.isSemanticSearching ? 'Searching…' : 'Search by meaning'}
-        </Button>
         <Button
           type="button"
           variant="outline"
@@ -196,23 +178,16 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
       </div>
       <div className="mt-2 space-y-1">
         <DataUseNotice variant="semantic-history-search" />
-        {props.semanticSearchResultCount !== null ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <p role="status">
-              {props.semanticSearchResultCount > 0
-                ? `JEV found ${props.semanticSearchResultCount} likely ${props.semanticSearchResultCount === 1 ? 'match' : 'matches'}.`
-                : 'JEV found no likely matches among the sessions checked.'}
-            </p>
-            <Button
-              type="button"
-              variant="link"
-              size="text"
-              className="text-muted-foreground underline underline-offset-2"
-              onClick={props.onClearSemanticSearch}
-            >
-              Clear semantic results
-            </Button>
-          </div>
+        {props.isSemanticSearching ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            Finding sessions by meaning. Text matches are shown while this runs.
+          </p>
+        ) : props.semanticSearchResultCount !== null ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            {props.semanticSearchResultCount > 0
+              ? 'Meaning matches are ranked first; text matches are also shown.'
+              : 'No meaning matches were found; showing text matches.'}
+          </p>
         ) : null}
         {props.semanticSearchError ? (
           <p role="alert" className="text-xs text-destructive">
@@ -221,7 +196,7 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
         ) : null}
         {!props.canUseAi ? (
           <p className="text-xs text-muted-foreground">
-            Sign in to search training history by meaning.
+            Sign in to rank training history by meaning.
           </p>
         ) : null}
       </div>

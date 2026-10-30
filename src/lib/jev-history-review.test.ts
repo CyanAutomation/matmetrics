@@ -6,6 +6,7 @@ import type { JudoSession } from './types';
 import {
   getRecurringTrainingThemeSummary,
   getHistoryReviewFindings,
+  HISTORY_REVIEW_BATCH_MAX_BYTES,
   reviewHistoryBatch,
   type HistoryReviewResult,
 } from './jev-history-review';
@@ -51,8 +52,8 @@ function reviewedThemeSession(
   };
 }
 
-test('history review processes the next five newest described sessions without sending IDs', async () => {
-  const calls: unknown[] = [];
+test('history review processes the full corpus in batches without sending IDs', async () => {
+  const calls: unknown[][] = [];
   const sessions = [
     session('old', '2026-01-01', 'Old session.'),
     session('skip-reviewed', '2026-09-20', 'Already reviewed.'),
@@ -76,24 +77,24 @@ test('history review processes the next five newest described sessions without s
   const result = await reviewHistoryBatch(
     sessions,
     new Set(['skip-reviewed']),
-    async (input) => {
-      calls.push(input);
-      return assessment;
+    async (inputs) => {
+      calls.push(inputs);
+      return inputs.map(() => assessment);
     }
   );
 
   assert.deepEqual(
     result.map((entry) => entry.sessionId),
-    ['newest', 'second', 'third', 'fourth', 'fifth']
+    ['newest', 'second', 'third', 'fourth', 'fifth', 'sixth', 'old']
   );
-  assert.deepEqual(calls[0], {
+  assert.deepEqual(calls[0]?.[0], {
     description: 'Newest description.',
     notes: 'Private note.',
     category: 'Technical',
     effort: 3,
     techniques: ['Uchi-mata'],
   });
-  assert.deepEqual(Object.keys(calls[0] as Record<string, unknown>), [
+  assert.deepEqual(Object.keys(calls[0]?.[0] ?? {}), [
     'description',
     'notes',
     'category',
@@ -101,6 +102,7 @@ test('history review processes the next five newest described sessions without s
     'techniques',
   ]);
   assert.equal(JSON.stringify(calls).includes('skip-reviewed'), false);
+  assert.deepEqual(calls.map((batch) => batch.length), [3, 3, 1]);
   assert.equal(
     result.every((entry) => entry.assessment === assessment),
     true
@@ -114,10 +116,12 @@ test('history review records per-session failures and continues through the batc
       session('second', '2026-09-27', 'Second session.'),
     ],
     new Set(),
-    async ({ description }) => {
-      if (description.startsWith('First'))
+    async (inputs) => {
+      if (inputs.length > 1)
+        throw new Error('batch unavailable');
+      if (inputs[0]?.description.startsWith('First'))
         throw new Error('private provider text');
-      return assessment;
+      return inputs.map(() => assessment);
     }
   );
 
@@ -130,6 +134,25 @@ test('history review records per-session failures and continues through the batc
     error: true,
   });
   assert.equal(result[1]?.assessment, assessment);
+});
+
+test('history review splits batches to fit the request byte budget', async () => {
+  const requests: string[] = [];
+  const sessions = Array.from({ length: 5 }, (_, index) =>
+    session(`session-${index}`, `2026-09-${String(28 - index).padStart(2, '0')}`, 'd'.repeat(5000))
+  );
+  const results = await reviewHistoryBatch(sessions, new Set(), async (inputs) => {
+    requests.push(JSON.stringify({ sessions: inputs }));
+    return inputs.map(() => assessment);
+  });
+
+  assert.equal(results.length, 5);
+  assert.ok(requests.length > 1);
+  assert.ok(
+    requests.every(
+      (request) => new TextEncoder().encode(request).byteLength <= HISTORY_REVIEW_BATCH_MAX_BYTES
+    )
+  );
 });
 
 test('history review findings keep category, effort, and detail suggestions distinct', () => {
@@ -175,7 +198,7 @@ test('history review does not call a short but specific entry incomplete', () =>
   assert.equal(findings.effortMismatch, false);
 });
 
-test('recurring-theme summary counts the latest five successful assessments deterministically', () => {
+test('recurring-theme summary counts successful assessments across the reviewed corpus', () => {
   const summary = getRecurringTrainingThemeSummary([
     {
       sessionId: 'failed-newest',
@@ -222,19 +245,31 @@ test('recurring-theme summary counts the latest five successful assessments dete
     }),
   ]);
 
-  assert.equal(summary.consideredSessions, 5);
+  assert.equal(summary.consideredSessions, 6);
   assert.deepEqual(summary.themes, [
     {
       theme: 'kumi_kata',
-      matchingSessions: 3,
-      consideredSessions: 5,
-      recentSessionIds: ['newest', 'second', 'fourth'],
+      matchingSessions: 4,
+      consideredSessions: 6,
+      recentSessionIds: ['newest', 'second', 'fourth', 'outside-window'],
     },
     {
       theme: 'ne_waza',
+      matchingSessions: 3,
+      consideredSessions: 6,
+      recentSessionIds: ['second', 'third', 'outside-window'],
+    },
+    {
+      theme: 'transitions',
       matchingSessions: 2,
-      consideredSessions: 5,
-      recentSessionIds: ['second', 'third'],
+      consideredSessions: 6,
+      recentSessionIds: ['third', 'outside-window'],
+    },
+    {
+      theme: 'competition_tactics',
+      matchingSessions: 2,
+      consideredSessions: 6,
+      recentSessionIds: ['fourth', 'outside-window'],
     },
   ]);
 });
