@@ -19,6 +19,8 @@ test(
           feedbackState: 'idle',
           currentStep: 1,
           totalSteps: 4,
+          stepIsOptional: true,
+          stepHasContent: false,
           onPrevious: () => undefined,
           onNext: () => undefined,
           onFinish: () => undefined,
@@ -36,3 +38,44 @@ test(
     );
   }
 );
+
+test('offers an explicit skip action when an optional step is empty', () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(SessionLogFormFooter, {
+      isSubmitting: false,
+      isEditing: false,
+      shouldHideHeader: true,
+      feedbackState: 'idle',
+      currentStep: 1,
+      totalSteps: 4,
+      stepIsOptional: true,
+      stepHasContent: false,
+      onPrevious: () => undefined,
+      onNext: () => undefined,
+      onFinish: () => undefined,
+    })
+  );
+
+  assert.match(markup, /Skip for now/);
+});
+
+test('keeps Continue as the action after an optional step has content', () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(SessionLogFormFooter, {
+      isSubmitting: false,
+      isEditing: false,
+      shouldHideHeader: true,
+      feedbackState: 'idle',
+      currentStep: 2,
+      totalSteps: 4,
+      stepIsOptional: true,
+      stepHasContent: true,
+      onPrevious: () => undefined,
+      onNext: () => undefined,
+      onFinish: () => undefined,
+    })
+  );
+
+  assert.match(markup, /Continue/);
+  assert.doesNotMatch(markup, /Skip for now/);
+});

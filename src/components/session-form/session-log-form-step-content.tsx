@@ -85,6 +85,10 @@ export function SessionLogFormStepContent({
         >
           Describe your practice
         </h2>
+        <p className="-mt-3 text-sm text-muted-foreground">
+          Optional. Add a few details about the drills, throws, or focus, or
+          skip this step.
+        </p>
         <PracticeDescriptionSection
           description={formState.description}
           setDescription={formState.setDescription}
@@ -131,8 +135,8 @@ export function SessionLogFormStepContent({
           Techniques practiced
         </h2>
         <p className="text-sm text-muted-foreground">
-          Add technique tags to make this session easier to find later. You can
-          continue without adding any.
+          Optional. Add technique tags to make this session easier to find
+          later, or skip this step.
         </p>
         <TechniqueTagsSection
           techniques={formState.techniques}

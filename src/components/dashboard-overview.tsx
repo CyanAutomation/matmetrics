@@ -34,6 +34,7 @@ import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { MetricBarList } from '@/components/ui/metric-bar-list';
+import { TrainingAnalyticsDisclosure } from '@/components/training-analytics-disclosure';
 
 interface DashboardOverviewProps {
   sessions: JudoSession[];
@@ -276,7 +277,7 @@ export function DashboardOverview({
           <p className="text-sm text-muted-foreground">
             {isRefreshing
               ? 'Updating your training data…'
-              : `Last session ${stats.latestSessionLabel} · ${stats.completedRollingTarget} of ${stats.effectiveRollingTarget} planned sessions in the last 30 days`}
+              : `Last session ${stats.latestSessionLabel}`}
           </p>
         </div>
       </div>
@@ -477,87 +478,89 @@ export function DashboardOverview({
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 items-start gap-8 @min-[64rem]/main:grid-cols-2">
-        <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <h3 className="text-headline-sm">Training load</h3>
-            <Dumbbell className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-sm font-semibold">{stats.effortInsight.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {stats.effortInsight.detail}
-          </p>
-          <EffortTrend
-            entries={stats.recentEfforts}
-            average={stats.recentEffortAverage}
-          />
-        </DataSurface>
+      <TrainingAnalyticsDisclosure>
+        <div className="grid grid-cols-1 items-start gap-8 @min-[64rem]/main:grid-cols-2">
+          <DataSurface className="bg-[hsl(var(--color-surface-container-low))]">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h3 className="text-headline-sm">Training load</h3>
+              <Dumbbell className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-sm font-semibold">{stats.effortInsight.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {stats.effortInsight.detail}
+            </p>
+            <EffortTrend
+              entries={stats.recentEfforts}
+              average={stats.recentEffortAverage}
+            />
+          </DataSurface>
 
-        {/* Training Distribution — surface, not card */}
-        <DataSurface className="@container/distribution bg-[hsl(var(--color-surface-container-low))]">
-          <div className="mb-6 flex flex-col gap-3 @min-[32rem]/distribution:flex-row @min-[32rem]/distribution:items-center @min-[32rem]/distribution:justify-between">
-            <div>
-              <h3 className="text-headline-sm">Training Distribution</h3>
-              <span className="text-xs text-muted-foreground">
-                {stats.trainingDataRange}
-              </span>
+          {/* Training Distribution — surface, not card */}
+          <DataSurface className="@container/distribution bg-[hsl(var(--color-surface-container-low))]">
+            <div className="mb-6 flex flex-col gap-3 @min-[32rem]/distribution:flex-row @min-[32rem]/distribution:items-center @min-[32rem]/distribution:justify-between">
+              <div>
+                <h3 className="text-headline-sm">Training Distribution</h3>
+                <span className="text-xs text-muted-foreground">
+                  {stats.trainingDataRange}
+                </span>
+              </div>
+              <SegmentedControl
+                className="flex w-full flex-wrap @min-[32rem]/distribution:w-fit"
+                aria-label="Training distribution timeframe"
+                value={String(distributionWindow)}
+                onValueChange={(value) =>
+                  setDistributionWindow(
+                    value === 'all' ? 'all' : (Number(value) as 30 | 90)
+                  )
+                }
+              >
+                {([30, 90, 'all'] as const).map((window) => (
+                  <SegmentedControl.Item
+                    key={window}
+                    value={String(window)}
+                    className="min-w-fit flex-1 whitespace-nowrap"
+                  >
+                    {window === 'all' ? 'All time' : `${window} days`}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl>
             </div>
-            <SegmentedControl
-              className="flex w-full flex-wrap @min-[32rem]/distribution:w-fit"
-              aria-label="Training distribution timeframe"
-              value={String(distributionWindow)}
-              onValueChange={(value) =>
-                setDistributionWindow(
-                  value === 'all' ? 'all' : (Number(value) as 30 | 90)
-                )
-              }
-            >
-              {([30, 90, 'all'] as const).map((window) => (
-                <SegmentedControl.Item
-                  key={window}
-                  value={String(window)}
-                  className="min-w-fit flex-1 whitespace-nowrap"
-                >
-                  {window === 'all' ? 'All time' : `${window} days`}
-                </SegmentedControl.Item>
-              ))}
-            </SegmentedControl>
-          </div>
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <p className="text-label-md text-muted-foreground">
-                Session Types
-              </p>
-              <MetricBarList
-                ariaLabel="Session type distribution"
-                items={stats.categoryStats.map((cat) => ({
-                  label: cat.name,
-                  value: cat.count,
-                  barClassName: cn(
-                    'transition-all duration-500',
-                    resolveDashboardCategoryBarClass(cat.name)
-                  ),
-                }))}
-              />
-            </div>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <p className="text-label-md text-muted-foreground">
+                  Session Types
+                </p>
+                <MetricBarList
+                  ariaLabel="Session type distribution"
+                  items={stats.categoryStats.map((cat) => ({
+                    label: cat.name,
+                    value: cat.count,
+                    barClassName: cn(
+                      'transition-all duration-500',
+                      resolveDashboardCategoryBarClass(cat.name)
+                    ),
+                  }))}
+                />
+              </div>
 
-            <div className="space-y-4">
-              <p className="text-label-md text-muted-foreground">
-                Top Techniques
-              </p>
-              <MetricBarList
-                ariaLabel="Top techniques"
-                items={stats.topTechniques.map((tech, idx) => ({
-                  label: tech.name,
-                  value: tech.count,
-                  valueLabel: `${tech.count}x`,
-                  barClassName: resolveDashboardTechniqueBarClass(idx),
-                }))}
-              />
+              <div className="space-y-4">
+                <p className="text-label-md text-muted-foreground">
+                  Top Techniques
+                </p>
+                <MetricBarList
+                  ariaLabel="Top techniques"
+                  items={stats.topTechniques.map((tech, idx) => ({
+                    label: tech.name,
+                    value: tech.count,
+                    valueLabel: `${tech.count}x`,
+                    barClassName: resolveDashboardTechniqueBarClass(idx),
+                  }))}
+                />
+              </div>
             </div>
-          </div>
-        </DataSurface>
-      </div>
+          </DataSurface>
+        </div>
+      </TrainingAnalyticsDisclosure>
     </div>
   );
 }

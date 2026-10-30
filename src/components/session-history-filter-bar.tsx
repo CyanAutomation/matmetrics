@@ -1,6 +1,6 @@
 'use client';
 
-import { Filter, Search, X } from 'lucide-react';
+import { ChevronDown, Filter, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { FilterBar } from '@/components/ui/filter-bar';
@@ -22,7 +22,11 @@ interface SessionHistoryFilterBarProps {
   averageEffort: number;
   duration: number;
   canUseAi: boolean;
+  canSemanticSearch: boolean;
   isSemanticSearching: boolean;
+  hasUnreviewedDescriptions: boolean;
+  isReviewingHistory: boolean;
+  reviewProgress: { completed: number; total: number };
   semanticSearchResultCount: number | null;
   semanticSearchError: string | null;
   onSearchQueryChange: (value: string) => void;
@@ -33,6 +37,9 @@ interface SessionHistoryFilterBarProps {
   onToggleFilters: () => void;
   onQuickFilter: (kind: SessionHistoryQuickFilter) => void;
   onClearFilters: () => void;
+  onSemanticSearch: () => void;
+  onClearSemanticSearch: () => void;
+  onReviewHistory: () => Promise<void>;
 }
 
 function QuickFilters({
@@ -41,32 +48,41 @@ function QuickFilters({
   onQuickFilter: SessionHistoryFilterBarProps['onQuickFilter'];
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick filters">
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => onQuickFilter('week')}
-      >
-        This week
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => onQuickFilter('month')}
-      >
-        Last 30 days
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => onQuickFilter('high-effort')}
-      >
-        High effort
-      </Button>
-    </div>
+    <details aria-label="Quick filters" className="group">
+      <summary className="flex min-h-11 w-full cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 @min-[48rem]/filters:w-auto marker:content-none">
+        Quick filters
+        <ChevronDown
+          className="h-4 w-4 transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onQuickFilter('week')}
+        >
+          This week
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onQuickFilter('month')}
+        >
+          Last 30 days
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onQuickFilter('high-effort')}
+        >
+          High effort
+        </Button>
+      </div>
+    </details>
   );
 }
 
@@ -96,6 +112,7 @@ function SessionHistoryAdvancedFilters({
 >) {
   return (
     <div
+      id="training-history-filters"
       className={`mt-3 grid gap-3 @min-[32rem]/filters:grid-cols-2 @min-[62rem]/filters:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden'}`}
     >
       <select
@@ -150,6 +167,150 @@ function SessionHistoryAdvancedFilters({
   );
 }
 
+function AiTools({
+  searchQuery,
+  canUseAi,
+  canSemanticSearch,
+  isSemanticSearching,
+  hasUnreviewedDescriptions,
+  isReviewingHistory,
+  reviewProgress,
+  onSemanticSearch,
+  onReviewHistory,
+}: Pick<
+  SessionHistoryFilterBarProps,
+  | 'searchQuery'
+  | 'canUseAi'
+  | 'canSemanticSearch'
+  | 'isSemanticSearching'
+  | 'hasUnreviewedDescriptions'
+  | 'isReviewingHistory'
+  | 'reviewProgress'
+  | 'onSemanticSearch'
+  | 'onReviewHistory'
+>) {
+  return (
+    <details aria-label="AI tools" className="group rounded-lg border border-border/70 bg-background/75 p-3">
+      <summary className="flex min-h-6 cursor-pointer list-none items-center gap-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 marker:content-none">
+        <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+        <span className="flex-1">AI search and review</span>
+        {!canUseAi ? (
+          <span className="text-xs text-muted-foreground">Sign in required</span>
+        ) : null}
+        <ChevronDown
+          className="h-4 w-4 transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="mt-3 grid gap-3 @min-[48rem]/filters:grid-cols-2">
+        {!canUseAi ? (
+          <p className="text-xs text-muted-foreground @min-[48rem]/filters:col-span-2">
+            Sign in to use AI search and review.
+          </p>
+        ) : null}
+        <section className="space-y-3 rounded-lg bg-muted/35 p-3">
+          <div>
+            <h3 className="text-sm font-semibold">Search by meaning</h3>
+            <DataUseNotice
+              variant="semantic-history-search"
+              className="mt-1"
+            />
+          </div>
+          {canUseAi && !searchQuery.trim() ? (
+            <p className="text-xs text-muted-foreground">
+              Enter a search term above to enable this action.
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full @min-[48rem]/filters:w-auto"
+            onClick={onSemanticSearch}
+            disabled={
+              !canUseAi ||
+              !canSemanticSearch ||
+              !searchQuery.trim() ||
+              isSemanticSearching
+            }
+          >
+            {isSemanticSearching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {isSemanticSearching ? 'Searching…' : 'Search by meaning'}
+          </Button>
+        </section>
+        <section className="space-y-3 rounded-lg bg-muted/35 p-3">
+          <div>
+            <h3 className="text-sm font-semibold">Review recent sessions</h3>
+            <DataUseNotice variant="history" className="mt-1" />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full @min-[48rem]/filters:w-auto"
+            onClick={() => void onReviewHistory()}
+            disabled={
+              !canUseAi ||
+              isReviewingHistory ||
+              !hasUnreviewedDescriptions
+            }
+          >
+            {isReviewingHistory ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {isReviewingHistory
+              ? `Reviewing ${reviewProgress.completed} of ${reviewProgress.total}`
+              : hasUnreviewedDescriptions
+                ? 'Review up to 5 sessions'
+                : 'This view is reviewed'}
+          </Button>
+        </section>
+      </div>
+    </details>
+  );
+}
+
+function SemanticSearchStatus({
+  semanticSearchResultCount,
+  semanticSearchError,
+  onClearSemanticSearch,
+}: Pick<
+  SessionHistoryFilterBarProps,
+  'semanticSearchResultCount' | 'semanticSearchError' | 'onClearSemanticSearch'
+>) {
+  return (
+    <>
+      {semanticSearchResultCount !== null ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <p role="status">
+            {semanticSearchResultCount > 0
+              ? `JEV found ${semanticSearchResultCount} likely ${semanticSearchResultCount === 1 ? 'match' : 'matches'}.`
+              : 'JEV found no likely matches among the sessions checked.'}
+          </p>
+          <Button
+            type="button"
+            variant="link"
+            size="text"
+            className="text-muted-foreground underline underline-offset-2"
+            onClick={onClearSemanticSearch}
+          >
+            Clear semantic results
+          </Button>
+        </div>
+      ) : null}
+      {semanticSearchError ? (
+        <p role="alert" className="text-xs text-destructive">
+          {semanticSearchError}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
   return (
     <FilterBar
@@ -161,48 +322,41 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
           icon={<Search className="h-4 w-4" />}
           value={props.searchQuery}
           onChange={(event) => props.onSearchQueryChange(event.target.value)}
-          placeholder="Search training history"
+          placeholder="Search techniques or notes"
           aria-label="Search training history"
           wrapperClassName="min-w-0 flex-1"
         />
+        <QuickFilters onQuickFilter={props.onQuickFilter} />
         <Button
           type="button"
           variant="outline"
           className="min-h-11 w-full shrink-0 @min-[30rem]/filters:w-auto"
           onClick={props.onToggleFilters}
           aria-expanded={props.filtersOpen}
+          aria-controls="training-history-filters"
         >
           <Filter className="h-4 w-4" />
           Filters{props.activeFilterCount ? ` (${props.activeFilterCount})` : ''}
         </Button>
       </div>
-      <div className="mt-2 space-y-1">
-        <DataUseNotice variant="semantic-history-search" />
-        {props.isSemanticSearching ? (
-          <p role="status" className="text-xs text-muted-foreground">
-            Finding sessions by meaning. Text matches are shown while this runs.
-          </p>
-        ) : props.semanticSearchResultCount !== null ? (
-          <p role="status" className="text-xs text-muted-foreground">
-            {props.semanticSearchResultCount > 0
-              ? 'Meaning matches are ranked first; text matches are also shown.'
-              : 'No meaning matches were found; showing text matches.'}
-          </p>
-        ) : null}
-        {props.semanticSearchError ? (
-          <p role="alert" className="text-xs text-destructive">
-            {props.semanticSearchError}
-          </p>
-        ) : null}
-        {!props.canUseAi ? (
-          <p className="text-xs text-muted-foreground">
-            Sign in to rank training history by meaning.
-          </p>
-        ) : null}
-      </div>
-      <QuickFilters onQuickFilter={props.onQuickFilter} />
       <SessionHistoryAdvancedFilters {...props} />
-      <p className="mt-3 text-sm text-muted-foreground">
+      <AiTools
+        searchQuery={props.searchQuery}
+        canUseAi={props.canUseAi}
+        canSemanticSearch={props.canSemanticSearch}
+        isSemanticSearching={props.isSemanticSearching}
+        hasUnreviewedDescriptions={props.hasUnreviewedDescriptions}
+        isReviewingHistory={props.isReviewingHistory}
+        reviewProgress={props.reviewProgress}
+        onSemanticSearch={props.onSemanticSearch}
+        onReviewHistory={props.onReviewHistory}
+      />
+      <SemanticSearchStatus
+        semanticSearchResultCount={props.semanticSearchResultCount}
+        semanticSearchError={props.semanticSearchError}
+        onClearSemanticSearch={props.onClearSemanticSearch}
+      />
+      <p className="text-sm text-muted-foreground">
         Showing {props.filteredCount} of {props.sessionCount} sessions · average
         effort {props.averageEffort.toFixed(1)}/5
         {props.duration ? ` · ${props.duration} minutes` : ''}
