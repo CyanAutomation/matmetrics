@@ -8,7 +8,7 @@ Session Audit combines deterministic checks with optional semantic checks. Deter
 
 When a semantic audit runs, it sends the session description, notes, selected category, effort rating, and up to 12 saved technique tags. It does not send the session ID, date, duration, or video URL. The assessment uses the existing training-only scope instruction: it ignores mentions of symptoms, pain, injury, illness, treatment, and recovery. Findings never edit a session. If an assessment fails, deterministic findings remain available and other sessions continue to be assessed.
 
-The current model setting is the moving alias `~typesafe/jev-latest`. Thresholds can therefore behave differently if the alias resolves to a newer model. Evaluation files must record the resolved model returned for each prediction; compare thresholds using one resolved model version at a time before changing production policy.
+MatMetrics requests `~typesafe/jev-latest`. Because this alias may resolve to a newer model over time, record the resolved model returned for each prediction and compare thresholds separately for each resolved version. Opt-in observability records the resolved model, operation, question count, latency, and provider-reported cost without logging prompts or answer values.
 
 The repository includes synthetic reference labels in [`testdata/jev/semantic-audit-examples.json`](../testdata/jev/semantic-audit-examples.json), including intentionally vague and mixed-category entries. Use these cases to collect model probabilities, then record the sanitized numeric predictions in the existing threshold-evaluation format below. Keep descriptions, notes, names, and session IDs out of prediction files.
 
@@ -23,14 +23,14 @@ Collect predictions from one resolved JEV model version. For a Choice question, 
   "kind": "choice",
   "outcomes": [
     {
-      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "resolvedModel": "typesafe/jev-1.14",
       "predictedCategory": "Technical",
       "actualCategory": "Technical",
       "confidence": 0.91,
       "categoryFitProbability": 0.94
     },
     {
-      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "resolvedModel": "typesafe/jev-1.14",
       "predictedCategory": "Randori",
       "actualCategory": "Technical",
       "confidence": 0.62,
@@ -40,7 +40,7 @@ Collect predictions from one resolved JEV model version. For a Choice question, 
 }
 ```
 
-For a Noul question such as category fit or technique verification, use `"kind": "noul"` and rows shaped like `{"resolvedModel":"typesafe/jev-1.13-20260917","probability":0.96,"actual":true}`. For fatigue, use `"kind": "score"` and rows shaped like `{"resolvedModel":"typesafe/jev-1.13-20260917","score":1.2,"actual":true}`. `actual` records the reviewer’s binary decision for the behavior being gated. Keep the JSON file outside the repository if it contains private evaluation records. The evaluator rejects files with mixed or partially recorded model versions.
+For a Noul question such as category fit or technique verification, use `"kind": "noul"` and rows shaped like `{"resolvedModel":"typesafe/jev-1.14","probability":0.96,"actual":true}`. For fatigue, use `"kind": "score"` and rows shaped like `{"resolvedModel":"typesafe/jev-1.14","score":1.2,"actual":true}`. `actual` records the reviewer’s binary decision for the behavior being gated. Keep the JSON file outside the repository if it contains private evaluation records. The evaluator rejects files with mixed or partially recorded model versions.
 
 ## Compare thresholds
 
@@ -67,7 +67,7 @@ For Score questions, the output reports the same binary metrics after applying e
   "categoryFitThresholds": [0.6, 0.8, 0.9],
   "outcomes": [
     {
-      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "resolvedModel": "typesafe/jev-1.14",
       "predictedCategory": "Technical",
       "actualCategory": "Technical",
       "confidence": 0.91,
@@ -83,7 +83,7 @@ Choose a threshold based on the tradeoff between accepted accuracy and coverage.
 
 ## Evaluate recurring training themes
 
-The optional history review asks JEV four bounded Noul questions for each reviewed session: kumi-kata, ne-waza, transitions, and competition tactics. JEV returns one probability per theme. MatMetrics applies the provisional `0.7` probability threshold in policy code, then deterministically counts matches across the five most recent successfully assessed sessions. The UI only labels a theme recurring when it appears in at least two of those sessions. Counts and session ordering are application logic; JEV does not calculate them.
+The optional history review asks JEV four bounded Noul questions for each reviewed session: kumi-kata, ne-waza, transitions, and competition tactics. A user-started run covers every described session in the loaded corpus, grouped into requests of up to three sessions (and kept below the API body-size limit). JEV returns one probability per theme. MatMetrics applies the provisional `0.7` probability threshold, then counts matches across all successfully reviewed sessions. A failed batch is retried session by session so one bad response does not discard other results. Counts and session ordering are application logic; JEV does not calculate them.
 
 Theme probabilities and counts exist only in the current history-review UI state. They are not written to session files, preferences, or analytics records; re-running the review derives them again from the selected sessions.
 
@@ -94,12 +94,12 @@ Use a separate `kind: "noul"` evaluation file for each theme so one theme's cali
   "kind": "noul",
   "outcomes": [
     {
-      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "resolvedModel": "typesafe/jev-1.14",
       "probability": 0.88,
       "actual": true
     },
     {
-      "resolvedModel": "typesafe/jev-1.13-20260917",
+      "resolvedModel": "typesafe/jev-1.14",
       "probability": 0.24,
       "actual": false
     }
@@ -121,4 +121,4 @@ Log Doctor's file validation remains deterministic. Markdown structure, frontmat
 
 ### Semantic history search
 
-History search currently performs literal matching over techniques, categories, descriptions, notes, and dates. If broader search is added, retrieve a small candidate set with text or embedding search first, then use JEV as a bounded relevance judge for a query such as “When did I struggle with taller opponents?”. Do not send the full archive as one prompt or use JEV as the initial search engine. A relevance threshold, candidate cap, and any decision caching need evaluation before this becomes a product feature.
+History search automatically reranks a bounded set of up to eight locally selected sessions after a short debounce. Local BM25 term ranking retains up to four lexical candidates, and recent sessions fill remaining slots so JEV can recognize paraphrases. JEV's relevance threshold is provisional and should be evaluated with labeled search queries before changing it. Text matches display immediately, are retained alongside semantic matches, and remain available if JEV fails. The query and short excerpts are sent only for the current search; session IDs and the full corpus are not sent to JEV.

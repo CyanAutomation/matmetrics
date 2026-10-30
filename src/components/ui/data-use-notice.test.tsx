@@ -22,11 +22,13 @@ test('data use notices explain each optional review without exposing implementat
   assert.match(html[0], /external service/i);
   assert.match(html[1], /suggestions/i);
   assert.match(html[1], /external service/i);
-  assert.match(html[2], /up to five sessions/i);
+  assert.match(html[2], /every described session/i);
+  assert.match(html[2], /small batches/i);
   assert.match(html[2], /classifies recurring training themes/i);
   assert.match(html[2], /don&#x27;t change anything/i);
   assert.match(html[3], /up to eight sessions/i);
-  assert.match(html[3], /chosen locally by text overlap and recency/i);
+  assert.match(html[3], /chosen locally by text relevance and recency/i);
+  assert.match(html[3], /text matches appear immediately/i);
   assert.match(html[3], /external AI service/i);
   assert.match(html[3], /Session IDs and your full history are not sent/i);
   assert.match(html[4], /description, notes, selected type, effort rating/i);
