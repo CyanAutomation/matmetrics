@@ -153,76 +153,67 @@ export function SessionHistory({
     setSemanticMatches(null);
     setSemanticSearchError(null);
   };
-  useEffect(() => {
+  const handleSemanticSearch = async () => {
     if (
       !historyReview.canUseAi ||
-      !searchQuery.trim() ||
-      semanticSearchCandidates.length === 0
+      isSemanticSearching ||
+      semanticSearchCandidates.length === 0 ||
+      !searchQuery.trim()
     ) {
       return;
     }
 
+    semanticAbortController.current?.abort();
     const controller = new AbortController();
     semanticAbortController.current = controller;
     const requestId = ++semanticRequestId.current;
     setIsSemanticSearching(true);
     setSemanticMatches(null);
     setSemanticSearchError(null);
-    const timeoutId = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const response = await fetch('/api/ai/search-sessions', {
-            method: 'POST',
-            headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({
-              query: searchQuery.trim(),
-              candidates: semanticSearchCandidates,
-            }),
-            signal: controller.signal,
-          });
-          if (!response.ok) {
-            throw new Error('The semantic search request failed.');
-          }
-          const payload: unknown = await response.json();
-          const matches =
-            payload && typeof payload === 'object'
-              ? (payload as { matches?: unknown }).matches
-              : undefined;
-          const candidateIds = new Set(
-            semanticSearchCandidates.map((candidate) => candidate.id)
-          );
-          if (!isSessionHistorySearchMatches(matches, candidateIds)) {
-            throw new Error('The semantic search response was invalid.');
-          }
-          if (requestId === semanticRequestId.current) {
-            setSemanticMatches(matches);
-          }
-        } catch (error) {
-          if (!controller.signal.aborted && requestId === semanticRequestId.current) {
-            setSemanticSearchError(
-              error instanceof Error &&
-                error.message === 'The semantic search response was invalid.'
-                ? error.message
-                : 'Semantic ranking is unavailable; showing text matches.'
-            );
-          }
-        } finally {
-          if (requestId === semanticRequestId.current) {
-            semanticAbortController.current = null;
-            setIsSemanticSearching(false);
-          }
-        }
-      })();
-    }, 600);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-      if (semanticAbortController.current === controller) {
-        semanticAbortController.current = null;
+    try {
+      const response = await fetch('/api/ai/search-sessions', {
+        method: 'POST',
+        headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          query: searchQuery.trim(),
+          candidates: semanticSearchCandidates,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error('The semantic search request failed.');
       }
-    };
-  }, [historyReview.canUseAi, searchQuery, semanticSearchCandidates]);
+      const payload: unknown = await response.json();
+      const matches =
+        payload && typeof payload === 'object'
+          ? (payload as { matches?: unknown }).matches
+          : undefined;
+      const candidateIds = new Set(
+        semanticSearchCandidates.map((candidate) => candidate.id)
+      );
+      if (!isSessionHistorySearchMatches(matches, candidateIds)) {
+        throw new Error('The semantic search response was invalid.');
+      }
+      if (requestId === semanticRequestId.current) {
+        setSemanticMatches(matches);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted && requestId === semanticRequestId.current) {
+        setSemanticSearchError(
+          error instanceof Error &&
+            error.message === 'The semantic search response was invalid.'
+            ? error.message
+            : 'Semantic ranking is unavailable; showing text matches.'
+        );
+      }
+    } finally {
+      if (requestId === semanticRequestId.current) {
+        semanticAbortController.current = null;
+        setIsSemanticSearching(false);
+      }
+    }
+  };
   const updateSearchQuery = (value: string) => {
     clearSemanticSearch();
     setSearchQuery(value);
@@ -270,10 +261,6 @@ export function SessionHistory({
       deletingSessionId={deletingSessionId}
       density={density}
       onDensityChange={setDensity}
-      onReviewHistory={historyReview.handleReviewHistory}
-      hasUnreviewedDescriptions={historyReview.hasUnreviewedDescriptions}
-      isReviewingHistory={historyReview.isReviewingHistory}
-      reviewProgress={historyReview.reviewProgress}
       semanticSearchActive={semanticMatches !== null}
       onRequestDelete={requestDelete}
       onEditSession={setEditingSession}
@@ -291,7 +278,11 @@ export function SessionHistory({
         averageEffort,
         duration,
         canUseAi: historyReview.canUseAi,
+        canSemanticSearch: semanticSearchCandidates.length > 0,
         isSemanticSearching,
+        hasUnreviewedDescriptions: historyReview.hasUnreviewedDescriptions,
+        isReviewingHistory: historyReview.isReviewingHistory,
+        reviewProgress: historyReview.reviewProgress,
         semanticSearchResultCount: semanticMatches?.length ?? null,
         semanticSearchError,
         onSearchQueryChange: updateSearchQuery,
@@ -302,9 +293,11 @@ export function SessionHistory({
         onToggleFilters: () => setFiltersOpen((open) => !open),
         onQuickFilter: applyQuickFilter,
         onClearFilters: clearFilters,
+        onSemanticSearch: () => void handleSemanticSearch(),
+        onClearSemanticSearch: clearSemanticSearch,
+        onReviewHistory: historyReview.handleReviewHistory,
       }}
       reviewPanelProps={{
-        canUseAi: historyReview.canUseAi,
         entries: historyReview.historyReviewEntries,
         sessions,
         recurringThemeSummary: historyReview.recurringThemeSummary,

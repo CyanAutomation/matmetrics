@@ -218,6 +218,14 @@ export function SessionLogForm({
           feedbackState={submitFeedback.feedbackState}
           currentStep={currentStep}
           totalSteps={SESSION_FORM_STEPS.length}
+          stepIsOptional={currentStep === 1 || currentStep === 2}
+          stepHasContent={
+            currentStep === 1
+              ? Boolean(formState.description.trim())
+              : currentStep === 2
+                ? formState.techniques.length > 0
+                : false
+          }
           onPrevious={handlePrevious}
           onNext={handleNext}
           onFinish={handleFinish}

@@ -32,6 +32,7 @@ interface FilterBarProps {
   isSemanticSearching: boolean;
   semanticSearchError: string | null;
   onSearchQueryChange: (value: string) => void;
+  onSemanticSearch: () => void;
 }
 
 interface ContentProps {
@@ -99,6 +100,11 @@ before(async () => {
             onChange: (event: { target: { value: string } }) =>
               filterBarProps.onSearchQueryChange(event.target.value),
           }),
+          React.createElement(
+            'button',
+            { onClick: filterBarProps.onSemanticSearch },
+            'Search by meaning'
+          ),
           filterBarProps.isSemanticSearching
             ? React.createElement('p', { role: 'status' }, 'Finding sessions by meaning')
             : null,
@@ -147,7 +153,7 @@ function searchFor(query: string) {
   });
 }
 
-test('search shows text matches immediately and merges automatic semantic matches', async () => {
+test('text search stays local until requested semantic search merges likely matches', async () => {
   globalThis.fetch = (async (_url, init) => {
     assert.ok(init?.signal instanceof AbortSignal);
     const body = JSON.parse(String(init?.body)) as { query: string };
@@ -161,6 +167,11 @@ test('search shows text matches immediately and merges automatic semantic matche
   renderHistory();
   searchFor('larger partner');
   assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
+  assert.equal(screen.queryByRole('status'), null);
+  assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
+  assert.equal(screen.getByRole('button', { name: 'Search by meaning' }).textContent, 'Search by meaning');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
   await waitFor(() =>
     assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-2,session-1')
   );
@@ -171,6 +182,7 @@ test('ordinary search results remain visible when semantic ranking fails', async
   globalThis.fetch = (async () => ({ ok: false }) as Response) as typeof fetch;
   renderHistory();
   searchFor('larger partner');
+  fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
 
   assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
   await waitFor(() => assert.ok(screen.getByRole('alert')));
@@ -184,9 +196,13 @@ test('a stale request does not clear the loading state of a newer request', asyn
 
   renderHistory();
   searchFor('larger partner');
+  fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
   await waitFor(() => assert.equal(pending.length, 1));
 
-  await act(async () => searchFor('different wording'));
+  await act(async () => {
+    searchFor('different wording');
+    fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
+  });
   await waitFor(() => assert.equal(pending.length, 2));
 
   await act(async () => {
@@ -219,6 +235,7 @@ test('a failed HTTP response is rejected without parsing its body', async () => 
 
   renderHistory();
   searchFor('larger partner');
+  fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
   await waitFor(() => assert.ok(screen.getByRole('alert')));
   assert.equal(jsonCalls, 0);
 });
