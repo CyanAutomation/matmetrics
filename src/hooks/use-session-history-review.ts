@@ -48,15 +48,15 @@ export function useSessionHistoryReview(sessions: JudoSession[]) {
       headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ sessions: inputs }),
     });
+    if (!response.ok) {
+      throw new Error('History review request failed');
+    }
+
     const payload: unknown = await response.json();
     const assessments =
       payload && typeof payload === 'object'
         ? (payload as { assessments?: unknown }).assessments
         : undefined;
-
-    if (!response.ok) {
-      throw new Error('History review request failed');
-    }
     if (
       !Array.isArray(assessments) ||
       assessments.length !== inputs.length ||
