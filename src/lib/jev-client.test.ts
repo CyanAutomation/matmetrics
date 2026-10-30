@@ -4,6 +4,7 @@ import test from 'node:test';
 import { classifyAiError } from './ai-api-error';
 import {
   assessSessionWithJev,
+  assessSessionsWithJev,
   getTransformFidelityStatus,
   isSessionAssessment,
   rankSessionHistorySearchCandidatesWithJev,
@@ -64,7 +65,7 @@ test('assessSessionWithJev turns typed Jev answers into a safe assessment', asyn
     assert.equal('fatigue_signal' in request.questions, false);
     assert.equal('injury_signal' in request.questions, false);
     return {
-      model: 'typesafe/jev-1.13-20260917',
+      model: '~typesafe/jev-latest',
       answers: {
         suggested_category: {
           type: 'choice',
@@ -107,6 +108,105 @@ test('assessSessionWithJev rejects malformed provider answers', async () => {
       answers: { suggested_category: { type: 'choice' } },
     })),
     /invalid/i
+  );
+});
+
+test('assessSessionsWithJev combines bounded session checks in one request without identifiers', async () => {
+  const inputs = [
+    {
+      description: 'Worked on grip fighting.',
+      category: 'Randori' as const,
+      effort: 3 as const,
+      techniques: ['Kumi-kata'],
+      includeTrainingThemes: true,
+    },
+    {
+      description: 'Practiced uchi-mata entries.',
+      category: 'Technical' as const,
+      effort: 4 as const,
+      techniques: ['Uchi-mata'],
+      includeTrainingThemes: true,
+    },
+  ];
+  let calls = 0;
+  const results = await assessSessionsWithJev(inputs, async (request) => {
+    calls += 1;
+    assert.deepEqual(Object.keys(request.state.sessions ?? {}), [
+      'session_0',
+      'session_1',
+    ]);
+    assert.equal(
+      request.state.sessions?.session_1.description,
+      inputs[1]?.description
+    );
+    assert.match(
+      request.questions.session_1_saved_tag_0?.instructions ?? '',
+      /technique_candidates\.session_1_saved_tag_0/
+    );
+    assert.match(
+      request.questions.session_0_category_fit?.instructions ?? '',
+      /sessions\.session_0\.description/
+    );
+    assert.equal(
+      JSON.stringify(request).includes('private-session-id'),
+      false
+    );
+    return {
+      answers: Object.fromEntries(
+        inputs.flatMap((_, index) => {
+          const prefix = `session_${index}_`;
+          return [
+            [`${prefix}suggested_category`, { type: 'choice', choice: index ? 'Technical' : 'Randori', confidence: 0.9 }],
+            [`${prefix}category_fit`, { type: 'noul', noul: 0.95 }],
+            [`${prefix}has_useful_detail`, { type: 'noul', noul: 0.9 }],
+            [`${prefix}has_reflection`, { type: 'noul', noul: 0.8 }],
+            [`${prefix}effort_conflict`, { type: 'noul', noul: 0.1 }],
+            [`${prefix}training_theme_kumi_kata`, { type: 'noul', noul: 0.8 }],
+            [`${prefix}training_theme_ne_waza`, { type: 'noul', noul: 0.2 }],
+            [`${prefix}training_theme_transitions`, { type: 'noul', noul: 0.3 }],
+            [`${prefix}training_theme_competition_tactics`, { type: 'noul', noul: 0.1 }],
+            [`${prefix}saved_tag_0`, { type: 'noul', noul: 0.95 }],
+          ];
+        })
+      ),
+    };
+  });
+
+  assert.equal(calls, 1);
+  assert.equal(results.length, 2);
+  assert.equal(results[0]?.suggestedCategory, 'Randori');
+  assert.equal(results[1]?.unsupportedTechniqueTags.length, 0);
+  assert.equal(results[0]?.trainingThemes?.kumi_kata, 0.8);
+});
+
+test('history assessment batches stay under the default JEV request-size boundary', async () => {
+  const requestSizes: number[] = [];
+  const inputs = Array.from({ length: 3 }, () => ({
+    description: 'd'.repeat(3000),
+    notes: 'n'.repeat(500),
+    category: 'Technical' as const,
+    effort: 4 as const,
+    techniques: Array.from({ length: 12 }, (_, index) => `Technique ${index}`),
+    includeTrainingThemes: true,
+  }));
+  await assessSessionsWithJev(inputs, async (request) => {
+    requestSizes.push(new TextEncoder().encode(JSON.stringify(request)).byteLength);
+    return {
+      answers: Object.fromEntries(
+        Object.entries(request.questions).map(([key, question]) => [
+          key,
+          question.type === 'choice'
+            ? { type: 'choice', choice: 'Technical', confidence: 0.9 }
+            : { type: 'noul', noul: 0.9 },
+        ])
+      ),
+    };
+  });
+
+  assert.ok(requestSizes.length > 1);
+  assert.ok(
+    requestSizes.every((bytes) => bytes < 32_000),
+    `JEV requests were ${requestSizes.join(', ')} bytes`
   );
 });
 
@@ -473,7 +573,7 @@ test('verifyDescriptionFidelityWithJev asks about unsupported facts in one reque
     async (request) => {
       seenRequest = request;
       return {
-        model: 'typesafe/jev-1.13-20260917',
+        model: '~typesafe/jev-latest',
         answers: {
           unsupported_detail: { type: 'noul', noul: 0.82 },
         },
@@ -632,6 +732,7 @@ test('opt-in JEV observability logs model and outcome metadata without session t
       status: 200,
       json: async () => ({
         model: 'typesafe/jev-observability-test',
+        usage: { cost: 0.00123 },
         answers: {
           suggested_category: {
             type: 'choice',
@@ -653,6 +754,7 @@ test('opt-in JEV observability logs model and outcome metadata without session t
     const serialized = JSON.stringify(logEntries);
 
     assert.match(serialized, /typesafe\/jev-observability-test/);
+    assert.match(serialized, /"costUsd":0\.00123/);
     assert.match(serialized, /session_checkin/);
     assert.match(serialized, /success/);
     assert.doesNotMatch(serialized, /PRIVATE DESCRIPTION TEXT/);

@@ -32,11 +32,11 @@ interface FilterBarProps {
   isSemanticSearching: boolean;
   semanticSearchError: string | null;
   onSearchQueryChange: (value: string) => void;
-  onSemanticSearch: () => void;
 }
 
 interface ContentProps {
   filterBarProps: FilterBarProps;
+  filteredSessions: JudoSession[];
 }
 
 const sessions: JudoSession[] = [
@@ -48,10 +48,17 @@ const sessions: JudoSession[] = [
     techniques: ['Uchi-mata'],
     description: 'Practiced entries against a larger partner.',
   },
+  {
+    id: 'session-2',
+    date: '2026-10-18',
+    category: 'Technical',
+    effort: 3,
+    techniques: ['Newaza'],
+    description: 'Worked on groundwork escapes.',
+  },
 ];
 
 let SessionHistory: typeof import('./session-history').SessionHistory;
-let triggerSemanticSearch: (() => void) | undefined;
 let originalFetch: typeof fetch;
 
 before(async () => {
@@ -82,8 +89,7 @@ before(async () => {
   });
   mock.module('./session-history-content', {
     namedExports: {
-      SessionHistoryContent: ({ filterBarProps }: ContentProps) => {
-        triggerSemanticSearch = filterBarProps.onSemanticSearch;
+      SessionHistoryContent: ({ filterBarProps, filteredSessions }: ContentProps) => {
         return React.createElement(
           'section',
           null,
@@ -93,15 +99,13 @@ before(async () => {
             onChange: (event: { target: { value: string } }) =>
               filterBarProps.onSearchQueryChange(event.target.value),
           }),
+          filterBarProps.isSemanticSearching
+            ? React.createElement('p', { role: 'status' }, 'Finding sessions by meaning')
+            : null,
           React.createElement(
-            'button',
-            {
-              disabled: filterBarProps.isSemanticSearching,
-              onClick: filterBarProps.onSemanticSearch,
-            },
-            filterBarProps.isSemanticSearching
-              ? 'Searching…'
-              : 'Search by meaning'
+            'p',
+            { 'data-testid': 'visible-sessions' },
+            filteredSessions.map((session) => session.id).join(',')
           ),
           filterBarProps.semanticSearchError
             ? React.createElement(
@@ -121,7 +125,6 @@ before(async () => {
 
 beforeEach(() => {
   originalFetch = globalThis.fetch;
-  triggerSemanticSearch = undefined;
 });
 
 afterEach(() => {
@@ -144,6 +147,36 @@ function searchFor(query: string) {
   });
 }
 
+test('search shows text matches immediately and merges automatic semantic matches', async () => {
+  globalThis.fetch = (async (_url, init) => {
+    assert.ok(init?.signal instanceof AbortSignal);
+    const body = JSON.parse(String(init?.body)) as { query: string };
+    assert.equal(body.query, 'larger partner');
+    return {
+      ok: true,
+      json: async () => ({ matches: [{ id: 'session-2', relevance: 0.9 }] }),
+    } as Response;
+  }) as typeof fetch;
+
+  renderHistory();
+  searchFor('larger partner');
+  assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
+  await waitFor(() =>
+    assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-2,session-1')
+  );
+  assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-2,session-1');
+});
+
+test('ordinary search results remain visible when semantic ranking fails', async () => {
+  globalThis.fetch = (async () => ({ ok: false }) as Response) as typeof fetch;
+  renderHistory();
+  searchFor('larger partner');
+
+  assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
+  await waitFor(() => assert.ok(screen.getByRole('alert')));
+  assert.equal(screen.getByTestId('visible-sessions').textContent, 'session-1');
+});
+
 test('a stale request does not clear the loading state of a newer request', async () => {
   const pending: Array<(response: Response) => void> = [];
   globalThis.fetch = (() =>
@@ -151,18 +184,9 @@ test('a stale request does not clear the loading state of a newer request', asyn
 
   renderHistory();
   searchFor('larger partner');
-  await waitFor(() => assert.ok(triggerSemanticSearch));
-
-  await act(async () => {
-    triggerSemanticSearch?.();
-  });
   await waitFor(() => assert.equal(pending.length, 1));
 
   await act(async () => searchFor('different wording'));
-  await waitFor(() =>
-    assert.equal(screen.getByRole('button').textContent, 'Search by meaning')
-  );
-  await act(async () => triggerSemanticSearch?.());
   await waitFor(() => assert.equal(pending.length, 2));
 
   await act(async () => {
@@ -172,7 +196,7 @@ test('a stale request does not clear the loading state of a newer request', asyn
     } as Response);
   });
 
-  assert.equal(screen.getByRole('button').textContent, 'Searching…');
+  assert.equal(screen.getByRole('status').textContent, 'Finding sessions by meaning');
 
   await act(async () => {
     pending[1]?.({
@@ -180,9 +204,7 @@ test('a stale request does not clear the loading state of a newer request', asyn
       json: async () => ({ matches: [{ id: 'session-1', relevance: 0.9 }] }),
     } as Response);
   });
-  await waitFor(() =>
-    assert.equal(screen.getByRole('button').textContent, 'Search by meaning')
-  );
+  await waitFor(() => assert.equal(screen.queryByRole('status'), null), { timeout: 1500 });
 });
 
 test('a failed HTTP response is rejected without parsing its body', async () => {
@@ -197,9 +219,6 @@ test('a failed HTTP response is rejected without parsing its body', async () => 
 
   renderHistory();
   searchFor('larger partner');
-  await waitFor(() => assert.ok(triggerSemanticSearch));
-  await act(async () => triggerSemanticSearch?.());
-
   await waitFor(() => assert.ok(screen.getByRole('alert')));
   assert.equal(jsonCalls, 0);
 });
