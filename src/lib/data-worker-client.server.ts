@@ -7,7 +7,8 @@ export class DataWorkerError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly category: 'configuration' | 'unavailable' = 'unavailable'
+    readonly category: 'configuration' | 'unavailable' = 'unavailable',
+    readonly upstreamStatus?: number
   ) {
     super(message);
     this.name = 'DataWorkerError';
@@ -132,7 +133,8 @@ export async function requestDataWorker<T>(
       throw new DataWorkerError(
         'The background data service is not configured correctly. Contact the site administrator.',
         503,
-        'configuration'
+        'configuration',
+        response.status
       );
     }
     if (response.status >= 500) {
