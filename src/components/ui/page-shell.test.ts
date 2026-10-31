@@ -40,7 +40,7 @@ test('PageShell keeps every application page on the same semantic hierarchy', ()
   );
 });
 
-test('PageShell avoids empty optional regions', () => {
+test('PageShell omits eyebrow and action regions when those options are absent', () => {
   const document = parse(
     renderToStaticMarkup(
       React.createElement(
