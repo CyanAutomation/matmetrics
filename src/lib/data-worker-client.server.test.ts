@@ -243,6 +243,7 @@ test('an expired data Worker secret is reported as a server-side connection prob
         error instanceof DataWorkerError &&
         error.status === 503 &&
         error.category === 'configuration' &&
+        error.upstreamStatus === 401 &&
         error.message ===
           'The background data service is not configured correctly. Contact the site administrator.'
     );
