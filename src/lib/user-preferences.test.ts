@@ -367,6 +367,50 @@ test('preference request errors make permanent auth configuration failures actio
   }
 });
 
+test('preference storage authentication failures are clearly described and non-retryable', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = 'false';
+  clearUserPreferencesState();
+  globalThis.fetch = async () =>
+    Response.json(
+      {
+        error: 'upstream authentication details',
+        code: 'PREFERENCE_STORE_AUTHENTICATION',
+      },
+      { status: 503 }
+    );
+
+  try {
+    await assert.rejects(
+      initializeUserPreferences('preference-store-auth-failure-user'),
+      (error) => {
+        assert.ok(error instanceof PreferenceRequestError);
+        assert.equal(error.category, 'store-authentication');
+        assert.equal(error.canRetry, false);
+        assert.equal(
+          error.message,
+          'Saved preferences could not authenticate with the data service. Contact the site administrator.'
+        );
+        assert.equal(
+          error.diagnostic,
+          'Preferences GET request could not authenticate with the data service (HTTP 503)'
+        );
+        assert.equal(error.message.includes('upstream authentication details'), false);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearUserPreferencesState();
+    if (originalBetterAuthFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED = originalBetterAuthFlag;
+    }
+  }
+});
+
 test('preference request errors do not offer retry for permanent request failures', async () => {
   const originalFetch = globalThis.fetch;
   const originalBetterAuthFlag = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLED;

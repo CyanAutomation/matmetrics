@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextRequest } from 'next/server';
 
+import { DataWorkerError } from '@/lib/data-worker-client.server';
 import { GET, PUT } from './api-handler';
 
 process.env.MATMETRICS_AUTH_TEST_MODE = 'true';
@@ -176,11 +177,14 @@ test('preferences route makes Worker authentication failures actionable without 
   const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
   const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
   const originalConsoleError = console.error;
+  let loggedError: unknown;
   process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data.example.workers.dev';
   process.env.MATMETRICS_INTERNAL_API_SECRET = 'expired-test-secret';
   globalThis.fetch = async () =>
-    Response.json({ error: 'Unauthorized: secret mismatch' }, { status: 401 });
-  console.error = () => {};
+    Response.json({ error: 'Expired signature' }, { status: 401 });
+  console.error = (_message, error) => {
+    loggedError = error;
+  };
 
   try {
     const response = await GET(
@@ -189,12 +193,15 @@ test('preferences route makes Worker authentication failures actionable without 
       })
     );
 
-    assert.equal(response.status, 500);
+    assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), {
       error:
-        'Saved preferences are not configured. Contact the site administrator.',
-      code: 'PREFERENCE_STORE_CONFIGURATION',
+        'Saved preferences could not authenticate with the data service. Contact the site administrator.',
+      code: 'PREFERENCE_STORE_AUTHENTICATION',
     });
+    assert.ok(loggedError instanceof DataWorkerError);
+    assert.equal(loggedError.upstreamAuthFailure, 'expired-signature');
+    assert.equal(loggedError.message.includes('expired-test-secret'), false);
   } finally {
     globalThis.fetch = originalFetch;
     console.error = originalConsoleError;

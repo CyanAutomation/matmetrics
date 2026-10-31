@@ -4,6 +4,7 @@ export const PREFERENCE_API_ERROR_CODES = {
   authenticationUnavailable: 'AUTHENTICATION_UNAVAILABLE',
   authenticationConfiguration: 'AUTH_CONFIGURATION',
   storeConfiguration: 'PREFERENCE_STORE_CONFIGURATION',
+  storeAuthentication: 'PREFERENCE_STORE_AUTHENTICATION',
   unavailable: 'PREFERENCES_UNAVAILABLE',
   conflict: 'PREFERENCE_CONFLICT',
   requestFailed: 'PREFERENCE_REQUEST_FAILED',
@@ -16,6 +17,7 @@ export type PreferenceApiErrorCode =
 export type PreferenceFailureCategory =
   | 'authentication'
   | 'configuration'
+  | 'store-authentication'
   | 'unavailable'
   | 'request';
 

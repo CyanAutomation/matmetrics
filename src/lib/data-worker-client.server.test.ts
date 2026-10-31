@@ -224,14 +224,14 @@ test('a disconnected data Worker endpoint becomes a retryable service error', as
   }
 });
 
-test('an expired data Worker secret is reported as a server-side connection problem', async () => {
+test('an expired data Worker signature is classified without exposing upstream details', async () => {
   const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
   const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
   const originalFetch = globalThis.fetch;
   process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data.example.workers.dev';
   process.env.MATMETRICS_INTERNAL_API_SECRET = 'expired-test-secret';
   globalThis.fetch = async () =>
-    Response.json({ error: 'Unauthorized' }, { status: 401 });
+    Response.json({ error: 'Expired signature' }, { status: 401 });
 
   try {
     await assert.rejects(
@@ -242,10 +242,11 @@ test('an expired data Worker secret is reported as a server-side connection prob
       (error: unknown) =>
         error instanceof DataWorkerError &&
         error.status === 503 &&
-        error.category === 'configuration' &&
+        error.category === 'authentication' &&
         error.upstreamStatus === 401 &&
+        error.upstreamAuthFailure === 'expired-signature' &&
         error.message ===
-          'The background data service is not configured correctly. Contact the site administrator.'
+          'The background data service rejected request authentication.'
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -253,6 +254,39 @@ test('an expired data Worker secret is reported as a server-side connection prob
     else process.env.CLOUDFLARE_DATA_WORKER_URL = previousUrl;
     if (previousSecret === undefined)
       delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+    else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
+  }
+});
+
+test('data Worker auth failures do not echo untrusted response text', async () => {
+  const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+  const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+  const originalFetch = globalThis.fetch;
+  process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data.example.workers.dev';
+  process.env.MATMETRICS_INTERNAL_API_SECRET = 'test-secret';
+  globalThis.fetch = async () =>
+    Response.json(
+      { error: 'Unauthorized: secret mismatch test detail' },
+      { status: 401 }
+    );
+
+  try {
+    await assert.rejects(
+      requestDataWorker('/v1/preferences', {
+        method: 'GET',
+        userId: 'user-1',
+      }),
+      (error: unknown) =>
+        error instanceof DataWorkerError &&
+        error.category === 'authentication' &&
+        error.upstreamAuthFailure === 'request-rejected' &&
+        !error.message.includes('secret mismatch')
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    else process.env.CLOUDFLARE_DATA_WORKER_URL = previousUrl;
+    if (previousSecret === undefined) delete process.env.MATMETRICS_INTERNAL_API_SECRET;
     else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
   }
 });

@@ -21,8 +21,9 @@ Browser -> same-origin /api/auth/* -> Cloudflare Better Auth Worker -> D1
 ```
 
 The browser only calls same-origin Next.js routes. Vercel verifies the Better
-Auth service JWT, then signs each data Worker request with the target path,
-HTTP method, timestamp, and SHA-256 of the request body. The data Worker
+Auth service JWT, then signs each data Worker request with the protocol
+version, timestamp, HTTP method, target path and query, user ID, and SHA-256 of
+the request body. The data Worker
 rejects signatures older than 60 seconds. The Better Auth Worker uses its own
 native D1 binding and auth tables in the same database; it does not use the
 signed data API. Do not expose either Worker secret to the browser or use D1's
@@ -48,6 +49,14 @@ administrative REST API from Vercel.
 6. Before routing users to an environment, confirm its D1 data is populated and
    reconciled. The application requires these Worker settings for preference
    and plugin state operations.
+
+The signed request contract is implemented in both
+`src/lib/data-worker-client.server.ts` and
+`workers/matmetrics-data/src/index.ts`. It binds the signature to the version,
+timestamp, HTTP method, path and query, user ID, and request-body hash. Deploy
+the Worker before deploying an app change to that contract, and verify signed
+preference reads and writes against the target environment after both deploys.
+Updating only the shared secret does not update the Worker request verifier.
 
 The incremental Better Auth passkey Worker shares the environment's D1 database
 but owns a separate native D1 binding for auth reads and writes. Its additive
