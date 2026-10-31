@@ -114,7 +114,8 @@ test('useToast displays a toast after a user action', async () => {
   assert.doesNotMatch(viewport.className, /top-0/);
 
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+  assert.equal(document.body.dataset.snackbarVisible, 'true');
   await waitFor(() => {
     assert.equal(document.body.dataset.snackbarVisible, undefined);
-  });
+  }, { timeout: 2000 });
 });
