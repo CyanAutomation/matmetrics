@@ -157,7 +157,7 @@ for (const [status, expectedDescription] of transformFailures) {
     });
 
     assert.equal(
-      harness.view.getByTestId('toast-description').textContent,
+      harness.state().transformMessage,
       expectedDescription
     );
   });
@@ -180,7 +180,7 @@ test('transform handles a non-JSON error response using its status', async () =>
     await completed;
   });
   assert.equal(
-    harness.view.getByTestId('toast-description').textContent,
+    harness.state().transformMessage,
     'The AI service is temporarily unavailable. Please try again later.'
   );
 });
@@ -207,7 +207,7 @@ test('suggestions show a review reminder when the optional accuracy check is una
   );
   assert.equal(
     harness.view.getByTestId('toast-description').textContent,
-    harness.state().suggestMessage
+    ''
   );
 });
 
@@ -228,7 +228,7 @@ test('suggestions report provider credential failures as service outages, not ex
   });
 
   assert.equal(
-    harness.view.getByTestId('toast-description').textContent,
+    harness.state().suggestMessage,
     'The AI service is temporarily unavailable. Please try again later.'
   );
 });
@@ -246,7 +246,7 @@ test('transform reports network failures without exposing the rejection', async 
     await completed;
   });
   assert.equal(
-    harness.view.getByTestId('toast-description').textContent,
+    harness.state().transformMessage,
     'Check your connection and try again.'
   );
   assert.equal(
@@ -284,7 +284,7 @@ for (const [name, resolvedResponse] of [
     assert.equal(harness.state().description, null);
     assert.deepEqual(harness.successes, []);
     assert.equal(
-      harness.view.getByTestId('toast-description').textContent,
+      harness.state().transformMessage,
       'The AI returned an unusable result. Please try again.'
     );
   });
@@ -362,11 +362,11 @@ for (const [fidelityStatus, expectedMessage] of fidelityMessages) {
     assert.equal(harness.state().description, 'A polished draft.');
     assert.equal(harness.state().transformMessage, expectedMessage);
     assert.equal(
-      harness.view.getByTestId('toast-description').textContent,
+      harness.state().transformMessage,
       expectedMessage
     );
     assert.doesNotMatch(
-      `${harness.state().transformMessage} ${harness.view.getByTestId('toast-description').textContent}`,
+      harness.state().transformMessage,
       /JEV|Cloudflare|OpenRouter|TypeSafe/i
     );
   });
@@ -469,8 +469,9 @@ test('AbortError is hidden while genuine request failures are shown', async () =
   });
   assert.equal(
     harness.view.getByTestId('toast').textContent,
-    'AI Suggestion Failed'
+    ''
   );
+  assert.match(harness.state().suggestMessage, /Check your connection/i);
 });
 
 test('unmounting aborts outstanding requests', async () => {

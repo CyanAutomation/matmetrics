@@ -48,6 +48,8 @@ Object.defineProperty(globalThis, 'navigator', {
 const React = require('react') as typeof import('react');
 const { cleanup, fireEvent, render, screen } =
   require('@testing-library/react') as typeof import('@testing-library/react');
+const { waitFor } =
+  require('@testing-library/react') as typeof import('@testing-library/react');
 const { useToast } = require('./use-toast') as typeof import('./use-toast');
 const { Toaster } =
   require('../components/ui/toaster') as typeof import('../components/ui/toaster');
@@ -95,8 +97,25 @@ test('useToast displays a toast after a user action', async () => {
     (await screen.findByText('Session saved')).textContent,
     'Session saved'
   );
+  assert.equal(document.body.dataset.snackbarVisible, 'true');
   assert.equal(
     (await screen.findByText('Your training session is ready.')).textContent,
     'Your training session is ready.'
   );
+  assert.ok(screen.getByRole('button', { name: 'Dismiss notification' }));
+
+  const viewport = screen
+    .getByRole('region', { name: 'Notifications (F8)' })
+    .querySelector('ol');
+  assert.ok(viewport);
+  assert.match(viewport.className, /bottom-\[/);
+  assert.match(viewport.className, /left-1\/2/);
+  assert.match(viewport.className, /-translate-x-1\/2/);
+  assert.doesNotMatch(viewport.className, /top-0/);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+  assert.equal(document.body.dataset.snackbarVisible, 'true');
+  await waitFor(() => {
+    assert.equal(document.body.dataset.snackbarVisible, undefined);
+  }, { timeout: 2000 });
 });

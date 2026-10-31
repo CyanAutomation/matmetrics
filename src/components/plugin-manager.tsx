@@ -18,7 +18,6 @@ import {
 } from '@/components/plugins/plugin-state';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth-provider';
-import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '@/lib/auth-session';
 import {
   fetchInstalledPlugins,
@@ -351,7 +350,9 @@ export function PluginManagerInstalledContent(props: {
                     Saved
                   </span>
                 ) : (
-                  <span className="text-destructive">Failed to update</span>
+                  <span className="text-destructive">
+                    {plugin.statusMessage || 'Failed to update'}
+                  </span>
                 )}
               </div>
             ) : null}
@@ -364,7 +365,6 @@ export function PluginManagerInstalledContent(props: {
 
 export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
   const MATURITY_REASONS_PREVIEW_COUNT = 3;
-  const { toast } = useToast();
   const { user, authAvailable } = useAuth();
   const toggleRequestVersionRef = React.useRef<Map<string, number>>(new Map());
   const refreshRequestIdRef = React.useRef(0);
@@ -523,32 +523,12 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       return;
     }
 
-    void refreshInstalledPlugins().catch((error) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Could not load installed plugins from the API.';
-      toast({
-        variant: 'destructive',
-        title: 'Failed to load plugins',
-        description: message,
-      });
-    });
-  }, [canManagePlugins, refreshInstalledPlugins, toast]);
+    void refreshInstalledPlugins().catch(() => undefined);
+  }, [canManagePlugins, refreshInstalledPlugins]);
 
   const handleManualRefresh = React.useCallback(() => {
-    void refreshInstalledPlugins().catch((error) => {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Could not load installed plugins from the API.';
-      toast({
-        variant: 'destructive',
-        title: 'Failed to load plugins',
-        description: message,
-      });
-    });
-  }, [refreshInstalledPlugins, toast]);
+    void refreshInstalledPlugins().catch(() => undefined);
+  }, [refreshInstalledPlugins]);
 
   const installedPlugins = React.useMemo<InstalledPluginRow[]>(() => {
     return deriveInstalledPlugins({
@@ -601,11 +581,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
       },
     }));
 
-    toast({
-      title: 'Plugin update pending',
-      description: `${plugin.name}: applying enabled state change...`,
-    });
-
     try {
       await toggleInstalledPlugin({
         pluginId,
@@ -633,10 +608,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         },
       }));
 
-      toast({
-        title: 'Plugin updated',
-        description: `${plugin.name} is now ${nextEnabled ? 'enabled' : 'disabled'}.`,
-      });
     } catch (error) {
       const latestVersion = toggleRequestVersionRef.current.get(pluginId);
       if (latestVersion !== requestVersion) {
@@ -656,11 +627,6 @@ export function PluginManager({ onPluginsChanged }: PluginManagerProps) {
         },
       }));
 
-      toast({
-        variant: 'destructive',
-        title: 'Plugin update failed',
-        description: `${plugin.name} could not be updated: ${message}`,
-      });
     }
   };
 

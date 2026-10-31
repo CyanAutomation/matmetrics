@@ -80,6 +80,7 @@ export default function Home() {
     isImportDialogOpen,
     setIsImportDialogOpen,
     isImportingGuestData,
+    importError,
     handleDismissGuestImport,
     handleImportGuestData,
   } = useGuestImport({
@@ -286,6 +287,7 @@ export default function Home() {
         isImportDialogOpen={isImportDialogOpen}
         setIsImportDialogOpen={setIsImportDialogOpen}
         isImportingGuestData={isImportingGuestData}
+        guestImportError={importError}
         isVersionHistoryOpen={isVersionHistoryOpen}
         setIsVersionHistoryOpen={setIsVersionHistoryOpen}
         onSessionAdded={handleSessionAdded}

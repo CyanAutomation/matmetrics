@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
 import { useActionFeedback } from '@/hooks/use-action-feedback';
 import { getAuthErrorMessage } from '@/lib/auth-error-message';
@@ -16,7 +15,6 @@ export function SignInScreen({
   onContinueAsGuest,
   onAuthenticated,
 }: SignInScreenProps) {
-  const { toast } = useToast();
   const {
     isConfigured,
     betterAuthConfigured,
@@ -32,11 +30,13 @@ export function SignInScreen({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const emailFeedback = useActionFeedback();
   const passkeyFeedback = useActionFeedback();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setAuthError(null);
     setIsSubmitting(true);
     emailFeedback.startLoading();
 
@@ -59,17 +59,14 @@ export function SignInScreen({
       emailFeedback.showSuccess();
     } catch (error) {
       emailFeedback.showError();
-      toast({
-        title: 'Authentication error',
-        description: getAuthErrorMessage(error),
-        variant: 'destructive',
-      });
+      setAuthError(getAuthErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handlePasskeySignIn = async () => {
+    setAuthError(null);
     setIsSubmitting(true);
     passkeyFeedback.startLoading();
     try {
@@ -77,33 +74,24 @@ export function SignInScreen({
       onAuthenticated?.();
     } catch (error) {
       passkeyFeedback.showError();
-      toast({
-        title: 'Passkey sign-in failed',
-        description: getAuthErrorMessage(
+      setAuthError(
+        getAuthErrorMessage(
           error,
           'Could not sign in with a passkey. Please try again.'
-        ),
-        variant: 'destructive',
-      });
+        )
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleResendVerification = async () => {
+    setAuthError(null);
     setIsSubmitting(true);
     try {
       await sendEmailVerification(email);
-      toast({
-        title: 'If verification is needed, an email is on its way',
-        description: 'Check your inbox for a MatMetrics verification link.',
-      });
     } catch (error) {
-      toast({
-        title: 'Could not send verification email',
-        description: getAuthErrorMessage(error),
-        variant: 'destructive',
-      });
+      setAuthError(getAuthErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -125,6 +113,7 @@ export function SignInScreen({
       setPassword={setPassword}
       emailFeedbackState={emailFeedback.feedbackState}
       passkeyFeedbackState={passkeyFeedback.feedbackState}
+      authError={authError}
       onSubmit={handleSubmit}
       onPasskeySignIn={handlePasskeySignIn}
       onResendVerification={() => void handleResendVerification()}
