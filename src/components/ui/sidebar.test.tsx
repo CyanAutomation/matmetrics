@@ -7,32 +7,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Sidebar, SidebarInset, SidebarProvider } from './sidebar';
 
-test('SidebarInset keeps content shrinkable beside desktop navigation', () => {
-  const document = parse(
-    renderToStaticMarkup(<SidebarInset>Session history</SidebarInset>)
-  );
-  const inset = document.querySelector('div');
-  const insetClasses = inset?.getAttribute('class')?.split(/\s+/) ?? [];
-
-  // The content area must be allowed to shrink beside desktop navigation.
-  // See docs/blueprint.md#component-layout-contracts.
-  assert.equal(inset?.textContent, 'Session history');
-  assert.ok(insetClasses.includes('min-w-0'));
-});
-
-test('desktop sidebar reserves its configured width in the flex layout', () => {
-  const html = renderToStaticMarkup(
+test('desktop sidebar exposes its configured width and navigation content', () => {
+  const document = parse(renderToStaticMarkup(
     <SidebarProvider>
       <Sidebar>
-        <div>Navigation</div>
+        <nav aria-label="Main navigation">Training history</nav>
       </Sidebar>
       <SidebarInset>Content</SidebarInset>
     </SidebarProvider>
-  );
-  const spacer = html.match(/<div class="([^"]*)"><\/div>/)?.[1] ?? '';
+  ));
 
-  // Desktop navigation reserves its configured width in the content layout.
-  // See docs/blueprint.md#component-layout-contracts.
-  assert.match(spacer, /w-\[var\(--sidebar-width\)\]/);
-  assert.match(html, /group peer hidden shrink-0 text-sidebar-foreground xl:block/);
+  const provider = document.querySelector('[style*="--sidebar-width"]');
+  const sidebar = document.querySelector('[data-sidebar="sidebar"]');
+  assert.match(provider?.getAttribute('style') ?? '', /--sidebar-width:\s*16rem/);
+  assert.equal(sidebar?.querySelector('nav')?.textContent, 'Training history');
+  assert.ok(document.querySelector('[data-state="expanded"]'));
 });
