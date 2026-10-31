@@ -90,11 +90,13 @@ export class PreferenceRequestError extends Error {
     super(
       category === 'authentication'
         ? 'Your session could not be verified. Sign in again to refresh saved preferences.'
-        : category === 'configuration'
-          ? 'Saved preferences are not configured. Contact the site administrator.'
-          : category === 'unavailable'
-            ? 'Your saved preferences are temporarily unavailable. You can continue using MatMetrics and try again.'
-            : 'Saved preferences could not be refreshed. Reload the page or contact support if the issue continues.'
+        : category === 'store-authentication'
+          ? 'Saved preferences could not authenticate with the data service. Contact the site administrator.'
+          : category === 'configuration'
+            ? 'Saved preferences are not configured. Contact the site administrator.'
+            : category === 'unavailable'
+              ? 'Your saved preferences are temporarily unavailable. You can continue using MatMetrics and try again.'
+              : 'Saved preferences could not be refreshed. Reload the page or contact support if the issue continues.'
     );
     this.name = 'PreferenceRequestError';
   }
@@ -111,6 +113,9 @@ export class PreferenceRequestError extends Error {
     }
     if (this.stage === 'network') {
       return `Could not reach the server for preferences ${this.method} request`;
+    }
+    if (this.category === 'store-authentication') {
+      return `Preferences ${this.method} request could not authenticate with the data service (HTTP ${this.status})`;
     }
     return `Preferences ${this.method} request returned HTTP ${this.status}`;
   }
@@ -129,6 +134,9 @@ function getPreferenceFailureCategory(
   }
   if (code === PREFERENCE_API_ERROR_CODES.authenticationUnavailable) {
     return 'unavailable';
+  }
+  if (code === PREFERENCE_API_ERROR_CODES.storeAuthentication) {
+    return 'store-authentication';
   }
   if (
     code === PREFERENCE_API_ERROR_CODES.authenticationConfiguration ||

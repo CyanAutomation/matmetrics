@@ -3,12 +3,21 @@ import { createHash, createHmac } from 'node:crypto';
 const SIGNATURE_VERSION = 'v2';
 export const DATA_WORKER_REQUEST_TIMEOUT_MS = 8_000;
 
+export type DataWorkerAuthFailure =
+  | 'expired-signature'
+  | 'request-rejected'
+  | 'access-denied';
+
 export class DataWorkerError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly category: 'configuration' | 'unavailable' = 'unavailable',
-    readonly upstreamStatus?: number
+    readonly category:
+      | 'authentication'
+      | 'configuration'
+      | 'unavailable' = 'unavailable',
+    readonly upstreamStatus?: number,
+    readonly upstreamAuthFailure?: DataWorkerAuthFailure
   ) {
     super(message);
     this.name = 'DataWorkerError';
@@ -130,11 +139,18 @@ export async function requestDataWorker<T>(
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     if (response.status === 401 || response.status === 403) {
+      const upstreamAuthFailure: DataWorkerAuthFailure =
+        response.status === 403
+          ? 'access-denied'
+          : payload?.error === 'Expired signature'
+            ? 'expired-signature'
+            : 'request-rejected';
       throw new DataWorkerError(
-        'The background data service is not configured correctly. Contact the site administrator.',
+        'The background data service rejected request authentication.',
         503,
-        'configuration',
-        response.status
+        'authentication',
+        response.status,
+        upstreamAuthFailure
       );
     }
     if (response.status >= 500) {
