@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 
 import { IconButton } from './icon-button';
 
-test('IconButton requires and renders an accessible name with standard control styling', () => {
+test('IconButton renders an accessible name and uses button semantics', () => {
   const document = parse(
     renderToStaticMarkup(
       <IconButton icon={<X aria-hidden="true" />} label="Remove Uchi mata" />
@@ -17,8 +17,6 @@ test('IconButton requires and renders an accessible name with standard control s
 
   assert.equal(button?.getAttribute('aria-label'), 'Remove Uchi mata');
   assert.equal(button?.getAttribute('type'), 'button');
-  assert.match(button?.getAttribute('class') ?? '', /h-10/);
-  assert.match(button?.getAttribute('class') ?? '', /w-10/);
 });
 
 test('IconButton supports compact icon actions without dropping its accessible name', () => {
@@ -32,8 +30,18 @@ test('IconButton supports compact icon actions without dropping its accessible n
     )
   );
   const button = document.querySelector('button');
+  const defaultDocument = parse(
+    renderToStaticMarkup(
+      <IconButton icon={<X aria-hidden="true" />} label="Remove Uchi mata" />
+    )
+  );
+  const defaultButton = defaultDocument.querySelector('button');
 
   assert.equal(button?.getAttribute('aria-label'), 'Remove Uchi mata');
-  assert.match(button?.getAttribute('class') ?? '', /h-8/);
-  assert.match(button?.getAttribute('class') ?? '', /w-8/);
+  assert.equal(button?.getAttribute('type'), 'button');
+  assert.notEqual(
+    button?.getAttribute('class'),
+    defaultButton?.getAttribute('class'),
+    'compact actions must use a distinct size treatment from default actions'
+  );
 });

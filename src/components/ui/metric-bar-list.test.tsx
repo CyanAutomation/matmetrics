@@ -37,6 +37,13 @@ test('MetricBarList renders every metric with a value and proportional bar', () 
 
   const bars = document.querySelectorAll('[data-slot="metric-bar"]');
   assert.equal(bars.length, 2);
-  assert.match(bars[0]?.getAttribute('style') ?? '', /width:100%/);
-  assert.match(bars[1]?.getAttribute('style') ?? '', /width:66\.6667%/);
+  const widths = Array.from(bars, (bar) => {
+    const value = bar.getAttribute('style')?.match(/width:\s*([\d.]+)%/);
+    return Number(value?.[1]);
+  });
+  assert.equal(widths[0], 100, 'the largest metric fills its track');
+  assert.ok(
+    Math.abs((widths[1] ?? 0) - (200 / 3)) < 0.001,
+    'each other metric occupies its share of the largest value'
+  );
 });

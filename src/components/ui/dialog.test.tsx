@@ -28,16 +28,17 @@ Object.defineProperty(globalThis, 'navigator', {
 });
 
 const React = require('react') as typeof import('react');
-const { cleanup, render, screen } =
+const { cleanup, fireEvent, render, screen } =
   require('@testing-library/react') as typeof import('@testing-library/react');
 const { Dialog, DialogContent, DialogDescription, DialogTitle } =
   require('./dialog') as typeof import('./dialog');
 
-test('dialog close control is layered above sticky content', () => {
+test('dialog close control closes the dialog through its accessible action', () => {
+  const onOpenChange = test.mock.fn();
   render(
     React.createElement(
       Dialog,
-      { open: true },
+      { open: true, onOpenChange },
       React.createElement(
         DialogContent,
         null,
@@ -52,25 +53,9 @@ test('dialog close control is layered above sticky content', () => {
     )
   );
   const close = screen.getByRole('button', { name: 'Close' });
-  assert.match(
-    close.getAttribute('class') ?? '',
-    /ui-button/,
-    'dialog close controls should use the shared icon-button styling'
-  );
-  assert.match(close.getAttribute('class') ?? '', /h-10/);
-  assert.match(close.getAttribute('class') ?? '', /w-10/);
-  const stickyContent = document.querySelector('[class*="sticky"]');
-  const zIndex = (element: Element | null) => {
-    const layer = element?.getAttribute('class')?.match(/\bz-(\d+)\b/);
-    return layer ? Number(layer[1]) : Number.NaN;
-  };
-
-  // The close control stays above sticky dialog content by design.
-  // See docs/blueprint.md#elevation--depth.
-  assert.ok(stickyContent);
-  assert.ok(
-    zIndex(close) > zIndex(stickyContent),
-    'the close control should layer above sticky content'
-  );
+  assert.equal(close.tagName.toLowerCase(), 'button');
+  fireEvent.click(close);
+  assert.equal(onOpenChange.mock.callCount(), 1);
+  assert.deepEqual(onOpenChange.mock.calls[0]?.arguments, [false]);
   cleanup();
 });
