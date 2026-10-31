@@ -28,6 +28,7 @@ const { cleanup, fireEvent, render, screen, waitFor } =
 
 const calls: Array<[string, ...string[]]> = [];
 const toastCalls: unknown[] = [];
+let authFailure: Error | null = null;
 let SignInScreen: typeof import('./sign-in-screen').SignInScreen;
 
 const auth = {
@@ -39,6 +40,7 @@ const auth = {
   },
   signInWithEmail: async (email: string, password: string) => {
     calls.push(['sign-in', email, password]);
+    if (authFailure) throw authFailure;
   },
   signUpWithEmail: async (name: string, email: string, password: string) => {
     calls.push(['sign-up', name, email, password]);
@@ -76,6 +78,7 @@ before(async () => {
 beforeEach(() => {
   calls.length = 0;
   toastCalls.length = 0;
+  authFailure = null;
 });
 
 afterEach(cleanup);
@@ -155,4 +158,21 @@ test('sign-up collects a display name and moves to the verification state', asyn
     ]);
     assert.ok(screen.getByRole('heading', { name: 'Check your inbox' }));
   });
+});
+
+test('sign-in errors stay beside the form instead of appearing as a snackbar', async () => {
+  authFailure = new Error('The credentials were rejected.');
+  renderSignInScreen();
+
+  fireEvent.change(screen.getByLabelText('Email'), {
+    target: { value: 'user@example.com' },
+  });
+  fireEvent.change(screen.getByLabelText('Password'), {
+    target: { value: 'wrong-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+  const error = await screen.findByRole('alert');
+  assert.match(error.textContent ?? '', /credentials were rejected/i);
+  assert.equal(toastCalls.length, 0);
 });

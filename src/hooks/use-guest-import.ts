@@ -25,6 +25,7 @@ export function useGuestImport(deps?: {
   const { toast } = useToast();
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImportingGuestData, setIsImportingGuestData] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const importInFlightRef = useRef<boolean>(false);
   const operations: GuestImportOperations = {
     getGuestSessionsForImport,
@@ -64,6 +65,7 @@ export function useGuestImport(deps?: {
     }
 
     await operations.dismissGuestImport(deps.userId);
+    setImportError(null);
     setIsImportDialogOpen(false);
   };
 
@@ -74,6 +76,7 @@ export function useGuestImport(deps?: {
 
     importInFlightRef.current = true;
     setIsImportingGuestData(true);
+    setImportError(null);
     try {
       // Do not allow later guest-storage mutations to change this import batch.
       const guestSessions = operations.getGuestSessionsForImport().map(
@@ -122,11 +125,9 @@ export function useGuestImport(deps?: {
               : `${importedSessionCount} local session${importedSessionCount === 1 ? '' : 's'} moved into your account.`,
         });
       } else {
-        toast({
-          variant: 'destructive',
-          title: 'Guest import incomplete',
-          description: `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} imported, ${permanentlyFailedSessions.length} left in guest mode for retry.`,
-        });
+        setImportError(
+          `${successfulSessions.length} session${successfulSessions.length === 1 ? '' : 's'} imported; ${permanentlyFailedSessions.length} remain in guest mode so you can retry.`
+        );
       }
 
       deps?.onImportComplete?.();
@@ -140,6 +141,7 @@ export function useGuestImport(deps?: {
     isImportDialogOpen,
     setIsImportDialogOpen,
     isImportingGuestData,
+    importError,
     handleDismissGuestImport,
     handleImportGuestData,
   };

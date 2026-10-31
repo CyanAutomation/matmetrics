@@ -20,7 +20,8 @@ const sessionAssessment = {
 function renderCheckin(
   assessment: typeof sessionAssessment,
   currentCategory:
-    'Technical' | 'Randori' | 'Shiai' | 'Cardio' | 'S&C' = 'Technical'
+    'Technical' | 'Randori' | 'Shiai' | 'Cardio' | 'S&C' = 'Technical',
+  errorMessage?: string
 ) {
   return renderToStaticMarkup(
     React.createElement(SessionCheckin, {
@@ -28,6 +29,7 @@ function renderCheckin(
       disabled: false,
       isLoading: false,
       assessment,
+      errorMessage,
       currentCategory,
       onAssess: () => undefined,
       onApplyCategory: () => undefined,
@@ -100,6 +102,17 @@ test('check-in keeps its feedback focused on training details', () => {
   const html = renderCheckin(sessionAssessment);
 
   assert.doesNotMatch(html, /pain|injur|fatigue|recovery|diagnos/i);
+});
+
+test('check-in failures stay beside the check-in action', () => {
+  const html = renderCheckin(
+    sessionAssessment,
+    'Technical',
+    'Could not reach training assistance. Check your connection and try again.'
+  );
+
+  assert.match(html, /role="alert"/);
+  assert.match(html, /Could not reach training assistance/);
 });
 
 test('AI form sections disclose external processing without naming providers or models', () => {
