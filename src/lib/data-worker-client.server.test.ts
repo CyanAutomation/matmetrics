@@ -290,3 +290,39 @@ test('data Worker auth failures do not echo untrusted response text', async () =
     else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
   }
 });
+
+test('data Worker non-auth failures do not echo untrusted response text', async () => {
+  const previousUrl = process.env.CLOUDFLARE_DATA_WORKER_URL;
+  const previousSecret = process.env.MATMETRICS_INTERNAL_API_SECRET;
+  const originalFetch = globalThis.fetch;
+  process.env.CLOUDFLARE_DATA_WORKER_URL = 'https://data.example.workers.dev';
+  process.env.MATMETRICS_INTERNAL_API_SECRET = 'test-secret';
+  globalThis.fetch = async () =>
+    Response.json(
+      { error: 'internal token=upstream-secret detail' },
+      { status: 400 }
+    );
+
+  try {
+    await assert.rejects(
+      requestDataWorker('/v1/background-jobs', {
+        method: 'POST',
+        userId: 'user-1',
+        body: { type: 'github-health' },
+      }),
+      (error: unknown) =>
+        error instanceof DataWorkerError &&
+        error.status === 400 &&
+        error.category === 'unavailable' &&
+        error.message === 'The background data service rejected the request.' &&
+        !error.message.includes('upstream-secret')
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.CLOUDFLARE_DATA_WORKER_URL;
+    else process.env.CLOUDFLARE_DATA_WORKER_URL = previousUrl;
+    if (previousSecret === undefined)
+      delete process.env.MATMETRICS_INTERNAL_API_SECRET;
+    else process.env.MATMETRICS_INTERNAL_API_SECRET = previousSecret;
+  }
+});
