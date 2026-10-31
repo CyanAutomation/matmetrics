@@ -20,6 +20,7 @@ import { SessionLogFormFooter } from './session-log-form-footer';
 import { AiUnavailableBanner } from './ai-unavailable-banner';
 import { useSessionAssessment } from '@/hooks/use-session-assessment';
 import { LinearStepProgress } from '@/components/ui/linear-step-progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SessionLogFormStepContent } from './session-log-form-step-content';
 
 const SESSION_FORM_STEPS = [
@@ -101,7 +102,11 @@ export function SessionLogForm({
   ]);
 
   // Form submit hook
-  const { isSubmitting, submit: submitForm } = useFormSubmit(
+  const {
+    isSubmitting,
+    errorMessage: submitErrorMessage,
+    submit: submitForm,
+  } = useFormSubmit(
     {
       date: formState.date,
       duration: formState.duration,
@@ -130,7 +135,6 @@ export function SessionLogForm({
       },
       showToast: (toastProps) => {
         toast({
-          variant: toastProps.variant as any,
           title: toastProps.title,
           description: toastProps.description,
         });
@@ -194,6 +198,15 @@ export function SessionLogForm({
             canUseAi={canUseAi}
             authAvailable={authAvailable}
           />
+
+          {submitErrorMessage ? (
+            <Alert variant="destructive">
+              <AlertTitle>
+                {formState.isEditing ? 'Session not updated' : 'Session not saved'}
+              </AlertTitle>
+              <AlertDescription>{submitErrorMessage}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <SessionLogFormStepContent
             step={currentStep}

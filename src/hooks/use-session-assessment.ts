@@ -9,16 +9,15 @@ import {
   type SessionAssessment,
   type SessionAssessmentInput,
 } from '@/lib/jev-client';
-import { useToast } from './use-toast';
 
 type AssessmentInput = SessionAssessmentInput;
 
 export function useSessionAssessment() {
   const { canUseAi } = useAuth();
-  const { toast } = useToast();
   const controller = useRef<AbortController | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [assessment, setAssessment] = useState<SessionAssessment | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const assessmentRef = useRef<SessionAssessment | null>(null);
 
   const assess = useCallback(
@@ -28,6 +27,7 @@ export function useSessionAssessment() {
       const nextController = new AbortController();
       controller.current = nextController;
       setIsLoading(true);
+      setErrorMessage(null);
       let failureMessage =
         'The training check-in could not be completed. Please try again.';
       try {
@@ -59,11 +59,7 @@ export function useSessionAssessment() {
         }
         assessmentRef.current = null;
         setAssessment(null);
-        toast({
-          variant: 'destructive',
-          title: 'Check-in unavailable',
-          description: failureMessage,
-        });
+        setErrorMessage(failureMessage);
       } finally {
         if (controller.current === nextController) {
           controller.current = null;
@@ -71,10 +67,11 @@ export function useSessionAssessment() {
         }
       }
     },
-    [canUseAi, toast]
+    [canUseAi]
   );
 
   const invalidate = useCallback(() => {
+    setErrorMessage(null);
     const activeController = controller.current;
     const hasAssessment = assessmentRef.current !== null;
 
@@ -91,5 +88,5 @@ export function useSessionAssessment() {
     }
   }, []);
 
-  return { assessment, assess, invalidate, isLoading };
+  return { assessment, assess, invalidate, isLoading, errorMessage };
 }

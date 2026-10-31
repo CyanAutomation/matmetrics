@@ -128,3 +128,27 @@ test('an idempotent create conflict is finalized instead of retained', async () 
   assert.equal(finalized, 1);
   assert.equal(retained, 0);
 });
+
+test('partial imports remain visible in the import flow instead of a snackbar', async () => {
+  let hook!: ReturnType<typeof useGuestImport>;
+
+  function Harness() {
+    hook = useGuestImport({
+      userId: 'user-one',
+      operations: {
+        getGuestSessionsForImport: () => sessions,
+        saveSession: async (session) => {
+          if (session.id === 'guest-two') throw new Error('temporary failure');
+          return { status: 'synced' };
+        },
+        retainGuestSessionsAfterPartialImport: () => undefined,
+      },
+    });
+    return null;
+  }
+
+  render(React.createElement(Harness));
+  await act(async () => hook.handleImportGuestData());
+
+  assert.match(hook.importError ?? '', /1 session imported; 1 remain in guest mode/i);
+});

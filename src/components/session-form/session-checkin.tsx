@@ -18,6 +18,7 @@ type Props = {
   disabled: boolean;
   isLoading: boolean;
   assessment: SessionAssessment | null;
+  errorMessage?: string | null;
   currentCategory: SessionCategory;
   onAssess: () => void;
   onApplyCategory: (category: SessionCategory) => void;
@@ -28,6 +29,7 @@ export function SessionCheckin({
   disabled,
   isLoading,
   assessment,
+  errorMessage,
   currentCategory,
   onAssess,
   onApplyCategory,
@@ -58,6 +60,11 @@ export function SessionCheckin({
           Check in
         </Button>
       </div>
+      {errorMessage ? (
+        <p role="alert" className="mt-3 text-xs text-destructive">
+          {errorMessage}
+        </p>
+      ) : null}
       {assessment ? (
         <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
           {hasClearSessionCategoryFit(assessment.categoryFitProbability) ? (
