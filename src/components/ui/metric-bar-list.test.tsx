@@ -37,7 +37,7 @@ test('MetricBarList renders every metric with a value and proportional bar', () 
 
   const bars = document.querySelectorAll('[data-slot="metric-bar"]');
   assert.equal(bars.length, 2);
-  const widths = Array.from(bars, (bar) => {
+  const widths = [bars[0], bars[1]].map((bar) => {
     const value = bar.getAttribute('style')?.match(/width:\s*([\d.]+)%/);
     return Number(value?.[1]);
   });
