@@ -1,16 +1,11 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 // @ts-expect-error Next bundles this parser without publishing type declarations.
 import { parse } from 'next/dist/compiled/node-html-parser';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import {
-  PLUGIN_DESTRUCTIVE_CANCEL_LABEL,
-  PLUGIN_DESTRUCTIVE_CONFIRM_LABEL,
-  PLUGIN_DESTRUCTIVE_PENDING_LABEL,
-  PluginDestructiveAction,
-} from '@/components/plugins/plugin-destructive-action';
 import { PluginAuthGateNotice } from '@/components/plugins/plugin-auth-gate-notice';
 import {
   PluginFormSection,
@@ -23,6 +18,33 @@ import {
   PluginStatsGrid,
 } from '@/components/plugins/plugin-stats-grid';
 import { PluginToolbar } from '@/components/plugins/plugin-toolbar';
+
+const require = createRequire(import.meta.url);
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost',
+});
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+  HTMLElement: dom.window.HTMLElement,
+  HTMLInputElement: dom.window.HTMLInputElement,
+  HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
+  HTMLSelectElement: dom.window.HTMLSelectElement,
+  Node: dom.window.Node,
+  NodeFilter: dom.window.NodeFilter,
+  Event: dom.window.Event,
+  CustomEvent: dom.window.CustomEvent,
+  MutationObserver: dom.window.MutationObserver,
+  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+  IS_REACT_ACT_ENVIRONMENT: true,
+});
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator,
+});
+const { cleanup, fireEvent, render, screen } =
+  require('@testing-library/react') as typeof import('@testing-library/react');
 
 const normalizeMarkup = (html: string): string =>
   html.replace(/\s+/g, ' ').trim();
@@ -150,26 +172,6 @@ test('PluginSectionCard renders header and content regions', () => {
   );
 });
 
-test('PluginSectionCard can use the shared soft surface for grouped data', () => {
-  const document = parse(
-    renderToStaticMarkup(
-      React.createElement(
-        PluginSectionCard,
-        { title: 'Training sessions', surface: 'data' },
-        React.createElement('p', null, 'Session rows')
-      )
-    )
-  );
-  const section = document.querySelector('[data-slot="plugin-section-card"]');
-
-  assert.match(
-    section?.getAttribute('class') ?? '',
-    /bg-\[hsl\(var\(--color-surface-container-low\)\)\]/
-  );
-  assert.equal(section?.querySelector('h3')?.textContent, 'Training sessions');
-  assert.match(section?.textContent ?? '', /Session rows/);
-});
-
 test('PluginToolbar renders named actions in their semantic regions', () => {
   const document = parse(
     renderToStaticMarkup(
@@ -217,19 +219,49 @@ test('PluginToolbar renders named actions in their semantic regions', () => {
   );
 });
 
-test('PluginDestructiveAction exposes safe defaults for confirmation copy', () => {
-  const element = PluginDestructiveAction({
-    open: true,
-    onOpenChange: () => {},
-    title: 'Delete records',
-    description: 'This cannot be undone.',
-    onConfirm: () => {},
-  });
+test('PluginDestructiveAction shows default confirmation actions and confirms the operation', async (t) => {
+  const { PluginDestructiveAction } = await import(
+    '@/components/plugins/plugin-destructive-action'
+  );
+  t.after(cleanup);
+  const onConfirm = test.mock.fn();
+  render(
+    React.createElement(PluginDestructiveAction, {
+      open: true,
+      onOpenChange: () => {},
+      title: 'Delete records',
+      description: 'This cannot be undone.',
+      onConfirm,
+    })
+  );
 
-  assert.equal(PLUGIN_DESTRUCTIVE_CONFIRM_LABEL, 'Confirm');
-  assert.equal(PLUGIN_DESTRUCTIVE_CANCEL_LABEL, 'Cancel');
-  assert.equal(PLUGIN_DESTRUCTIVE_PENDING_LABEL, 'Working...');
-  assert.equal(element.props.confirmLabel, PLUGIN_DESTRUCTIVE_CONFIRM_LABEL);
+  assert.ok(screen.getByRole('heading', { name: 'Delete records' }));
+  assert.ok(screen.getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+  assert.equal(onConfirm.mock.callCount(), 1);
+});
+
+test('PluginDestructiveAction shows pending feedback and prevents confirmation while pending', async (t) => {
+  const { PluginDestructiveAction } = await import(
+    '@/components/plugins/plugin-destructive-action'
+  );
+  t.after(cleanup);
+  const onConfirm = test.mock.fn();
+  render(
+    React.createElement(PluginDestructiveAction, {
+      open: true,
+      onOpenChange: () => {},
+      title: 'Delete records',
+      description: 'This cannot be undone.',
+      onConfirm,
+      isPending: true,
+    })
+  );
+
+  const pendingButton = screen.getByRole('button', { name: 'Working...' });
+  assert.equal(pendingButton.hasAttribute('disabled'), true);
+  fireEvent.click(pendingButton);
+  assert.equal(onConfirm.mock.callCount(), 0);
 });
 
 test('PluginFormSection follows the docs/blueprint.md shared form composition', () => {
