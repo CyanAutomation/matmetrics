@@ -15,7 +15,7 @@ export function Toaster() {
   const { toasts } = useToast();
 
   useEffect(() => {
-    if (toasts.some((toast) => toast.open)) {
+    if (toasts.length > 0) {
       document.body.dataset.snackbarVisible = 'true';
     } else {
       delete document.body.dataset.snackbarVisible;

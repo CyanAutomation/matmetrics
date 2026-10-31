@@ -528,6 +528,6 @@
 
 @layer components {
   body[data-snackbar-visible='true'] main {
-    margin-bottom: calc(9rem + env(safe-area-inset-bottom));
+    margin-bottom: calc(7rem + env(safe-area-inset-bottom));
   }
 }
