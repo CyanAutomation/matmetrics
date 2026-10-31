@@ -17,6 +17,19 @@ type PreferencesStore = Pick<
 
 function preferencesFailure(error: unknown): NextResponse {
   if (
+    error instanceof DataWorkerError && error.category === 'authentication'
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'Saved preferences could not authenticate with the data service. Contact the site administrator.',
+        code: PREFERENCE_API_ERROR_CODES.storeAuthentication,
+      },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
+
+  if (
     error instanceof DataWorkerError && error.category === 'configuration'
   ) {
     return NextResponse.json(
