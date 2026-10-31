@@ -160,9 +160,7 @@ export async function requestDataWorker<T>(
       );
     }
     throw new DataWorkerError(
-      typeof payload?.error === 'string'
-        ? payload.error
-        : `Cloudflare data Worker request failed (${response.status})`,
+      'The background data service rejected the request.',
       response.status
     );
   }
