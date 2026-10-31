@@ -8,7 +8,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthErrorMessage } from '@/lib/auth-error-message';
 
@@ -21,30 +20,29 @@ export function PasswordResetScreen({
   token,
   hasError,
 }: PasswordResetScreenProps) {
-  const { toast } = useToast();
   const { betterAuthConfigured, resetPassword } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || password !== confirmation) return;
 
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       await resetPassword(token, password);
       setIsComplete(true);
     } catch (error) {
-      toast({
-        title: 'Could not reset your password',
-        description: getAuthErrorMessage(
+      setErrorMessage(
+        getAuthErrorMessage(
           error,
           'This password link may have expired. Request a new one and try again.'
-        ),
-        variant: 'destructive',
-      });
+        )
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -98,6 +96,12 @@ export function PasswordResetScreen({
           </div>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {errorMessage ? (
+              <Alert variant="destructive">
+                <AlertTitle>Could not reset your password</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="new-password">New password</Label>
               <Input

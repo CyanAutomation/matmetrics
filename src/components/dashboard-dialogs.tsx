@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type DashboardDialogsProps = {
   isLogModalOpen: boolean;
@@ -22,6 +23,7 @@ type DashboardDialogsProps = {
   isImportDialogOpen: boolean;
   setIsImportDialogOpen: (open: boolean) => void;
   isImportingGuestData: boolean;
+  guestImportError: string | null;
   isVersionHistoryOpen: boolean;
   setIsVersionHistoryOpen: (open: boolean) => void;
   onSessionAdded: () => void;
@@ -37,6 +39,7 @@ export function DashboardDialogs({
   isImportDialogOpen,
   setIsImportDialogOpen,
   isImportingGuestData,
+  guestImportError,
   isVersionHistoryOpen,
   setIsVersionHistoryOpen,
   onSessionAdded,
@@ -96,6 +99,12 @@ export function DashboardDialogs({
               </DialogDescription>
             </DialogHeader>
           </div>
+          {guestImportError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Import incomplete</AlertTitle>
+              <AlertDescription>{guestImportError}</AlertDescription>
+            </Alert>
+          ) : null}
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={onDismissGuestImport}>
               Keep separate

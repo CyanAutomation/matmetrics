@@ -359,3 +359,17 @@ test('installed table exposes every validation severity on rendered badges', () 
     assert.match(tableMarkup, new RegExp(`data-severity="${severity}"`));
   }
 });
+
+test('plugin toggle failures keep the API error visible in the affected row', () => {
+  const markup = renderInstalledContentMarkup({
+    installedPluginsViewState: 'table',
+    installedPlugins: [
+      createInstalledPluginRow({
+        status: 'failure',
+        statusMessage: 'Permission denied. Check repository access and retry.',
+      }),
+    ],
+  });
+
+  assert.match(markup, /Permission denied\. Check repository access and retry\./);
+});

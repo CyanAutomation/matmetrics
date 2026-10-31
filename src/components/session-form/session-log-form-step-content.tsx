@@ -104,6 +104,7 @@ export function SessionLogFormStepContent({
           disabled={isSubmitting || !formState.description}
           isLoading={sessionAssessment.isLoading}
           assessment={sessionAssessment.assessment}
+          errorMessage={sessionAssessment.errorMessage}
           currentCategory={formState.category}
           onAssess={() =>
             sessionAssessment.assess({

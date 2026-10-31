@@ -5,7 +5,6 @@ import { useAuth } from '@/components/auth-provider';
 import { getAuthHeaders } from '@/lib/auth-session';
 import { getTransformerPrompt } from '@/lib/storage';
 import type { TransformFidelityStatus } from '@/lib/jev-client';
-import { useToast } from './use-toast';
 
 interface UseSessionFormAiState {
   isLoadingTransform: boolean;
@@ -147,10 +146,8 @@ function transformSuccessMessage(
 export function useSessionFormAi(
   options: UseSessionFormAiOptions = {}
 ): UseSessionFormAiState & UseSessionFormAiActions {
-  const { toast } = useToast();
   const auth = useAuth();
   const canUseAi = options.canUseAi ?? auth.canUseAi;
-  const authAvailable = options.authAvailable ?? auth.authAvailable;
   const request = options.fetch ?? fetch;
   const readAuthHeaders = options.getAuthHeaders ?? getAuthHeaders;
   const readTransformerPrompt =
@@ -172,21 +169,11 @@ export function useSessionFormAi(
   const transform = useCallback(
     async (description: string, onSuccess: (result: string) => void) => {
       if (!canUseAi) {
-        toast({
-          title: 'Sign-in required',
-          description: authAvailable
-            ? 'AI description transforms are available after sign-in.'
-            : 'AI description transforms are unavailable because authentication is not configured.',
-        });
         return;
       }
 
       if (!description.trim()) {
-        toast({
-          variant: 'destructive',
-          title: 'Nothing to transform',
-          description: 'Please write a draft of what you practiced first.',
-        });
+        setTransformMessage('Add practice notes before using AI Transform.');
         return;
       }
 
@@ -244,10 +231,6 @@ export function useSessionFormAi(
         const successMessage = transformSuccessMessage(fidelityStatus);
         setTransformMessage(successMessage);
         onSuccess(transformed);
-        toast({
-          title: 'Description Refined',
-          description: successMessage,
-        });
       } catch (error) {
         // Ignore abort errors (expected when cancelling)
         if (
@@ -259,11 +242,6 @@ export function useSessionFormAi(
         const failure =
           error instanceof TransformFailureError ? error.failure : 'network';
         setTransformMessage(transformFailureDescriptions[failure]);
-        toast({
-          variant: 'destructive',
-          title: 'Transformation Failed',
-          description: transformFailureDescriptions[failure],
-        });
       } finally {
         if (transformControllerRef.current === controller) {
           transformControllerRef.current = null;
@@ -273,8 +251,6 @@ export function useSessionFormAi(
     },
     [
       canUseAi,
-      authAvailable,
-      toast,
       readTransformerPrompt,
       readAuthHeaders,
       request,
@@ -288,21 +264,11 @@ export function useSessionFormAi(
       onSuccess: (suggestions: string[]) => void
     ) => {
       if (!canUseAi) {
-        toast({
-          title: 'Sign-in required',
-          description: authAvailable
-            ? 'AI tag suggestions are available after sign-in.'
-            : 'AI tag suggestions are unavailable because authentication is not configured.',
-        });
         return;
       }
 
       if (!description.trim()) {
-        toast({
-          variant: 'destructive',
-          title: 'Missing description',
-          description: 'Please write what you practiced to get suggestions.',
-        });
+        setSuggestMessage('Add practice notes before suggesting tags.');
         return;
       }
 
@@ -365,10 +331,6 @@ export function useSessionFormAi(
             .join(' ');
           setSuggestMessage(message);
           onSuccess(uniqueNew);
-          toast({
-            title: 'AI Suggestions Added',
-            description: message,
-          });
         } else {
           const resultMessage =
             suggestions.length > 0
@@ -378,9 +340,6 @@ export function useSessionFormAi(
             .filter(Boolean)
             .join(' ');
           setSuggestMessage(message);
-          toast({
-            description: message,
-          });
         }
       } catch (error) {
         // Ignore abort errors (expected when cancelling)
@@ -393,11 +352,6 @@ export function useSessionFormAi(
         const failure =
           error instanceof TransformFailureError ? error.failure : 'network';
         setSuggestMessage(transformFailureDescriptions[failure]);
-        toast({
-          variant: 'destructive',
-          title: 'AI Suggestion Failed',
-          description: transformFailureDescriptions[failure],
-        });
       } finally {
         if (suggestControllerRef.current === controller) {
           suggestControllerRef.current = null;
@@ -405,7 +359,7 @@ export function useSessionFormAi(
         }
       }
     },
-    [canUseAi, authAvailable, toast, readAuthHeaders, request]
+    [canUseAi, readAuthHeaders, request]
   );
 
   const reset = useCallback(() => {

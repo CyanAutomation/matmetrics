@@ -97,7 +97,6 @@ export interface FormSubmitOptions {
   onError: () => void;
   onStart: () => void;
   showToast: (toast: {
-    variant?: string;
     title: string;
     description?: string;
   }) => void;
@@ -118,9 +117,10 @@ export function useFormSubmit(
   options: FormSubmitOptions
 ) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isEditing = !!sessionToEdit;
 
-  const validateForm = useCallback((): boolean => {
+  const validateForm = useCallback((): string | null => {
     const trimmedVideoUrl = formData.videoUrl.trim();
     if (trimmedVideoUrl) {
       try {
@@ -132,18 +132,12 @@ export function useFormSubmit(
           throw new Error('unsupported protocol');
         }
       } catch {
-        options.showToast({
-          variant: 'destructive',
-          title: 'Invalid video URL',
-          description:
-            'Please provide a valid absolute http(s) URL (for example, a YouTube link).',
-        });
-        return false;
+        return 'Please provide a valid absolute http(s) URL (for example, a YouTube link).';
       }
     }
 
-    return true;
-  }, [formData, options]);
+    return null;
+  }, [formData.videoUrl]);
 
   const buildSessionData = useCallback((): JudoSession => {
     const parsedDuration =
@@ -180,7 +174,10 @@ export function useFormSubmit(
       return false;
     }
 
-    if (!validateForm()) {
+    setErrorMessage(null);
+    const validationError = validateForm();
+    if (validationError) {
+      setErrorMessage(validationError);
       return false;
     }
 
@@ -204,12 +201,9 @@ export function useFormSubmit(
       options.onSuccess();
       return true;
     } catch {
-      options.showToast({
-        variant: 'destructive',
-        title: isEditing ? 'Update Failed' : 'Save Failed',
-        description:
-          'The change could not be saved. Your local view has been reconciled to match persisted data.',
-      });
+      setErrorMessage(
+        `The session could not be ${isEditing ? 'updated' : 'saved'}. Your local view has been reconciled to match persisted data.`
+      );
       options.onError();
       return false;
     } finally {
@@ -219,6 +213,7 @@ export function useFormSubmit(
 
   return {
     isSubmitting,
+    errorMessage,
     submit,
   };
 }

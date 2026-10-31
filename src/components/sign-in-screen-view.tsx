@@ -26,6 +26,7 @@ type SignInScreenViewProps = {
   setPassword: (password: string) => void;
   emailFeedbackState: FeedbackState;
   passkeyFeedbackState: FeedbackState;
+  authError: string | null;
   onSubmit: (event: React.FormEvent) => void;
   onPasskeySignIn: () => void;
   onResendVerification: () => void;
@@ -384,6 +385,7 @@ export function SignInScreenView(props: SignInScreenViewProps) {
     onContinueAsGuest,
     isSubmitting,
     email,
+    authError,
     onResendVerification,
     onBackToSignIn,
   } = props;
@@ -393,6 +395,12 @@ export function SignInScreenView(props: SignInScreenViewProps) {
       <div className="w-full max-w-sm">
         <SignInScreenHeading mode={mode} isConfigured={isConfigured} />
         {!isConfigured && <AuthenticationUnavailableNotice />}
+        {authError ? (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Could not complete sign-in</AlertTitle>
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="space-y-4">
           {onContinueAsGuest && (
             <Button
