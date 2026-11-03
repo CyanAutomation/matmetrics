@@ -3,14 +3,13 @@
 import {
   History,
   KeyRound,
-  Loader2,
   LogIn,
   LogOut,
   Plus,
-  WifiOff,
   type LucideIcon,
 } from 'lucide-react';
 import { ModeToggle } from '@/components/mode-toggle';
+import { SyncIndicator } from '@/components/sync-indicator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,16 +82,12 @@ export function DashboardHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {!isOnline && (
-          <span title="Offline" className="flex items-center">
-            <WifiOff className="h-4 w-4 text-[hsl(var(--color-on-warning-container))]" />
-          </span>
-        )}
-        {isOnline && (isSyncing || pendingCount > 0) && (
-          <span title={syncStatusText} className="flex items-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--color-on-info-container))]" />
-          </span>
-        )}
+        <SyncIndicator
+          isOnline={isOnline}
+          isSyncing={isSyncing}
+          pendingCount={pendingCount}
+          statusText={syncStatusText}
+        />
         <Button
           className="min-h-11 min-w-11 shadow-sm"
           onClick={onLogSession}
