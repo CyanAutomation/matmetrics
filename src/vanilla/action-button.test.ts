@@ -28,3 +28,19 @@ test('action button escapes labels, updates its callback and disabled state, and
   assert.equal(calls, 11);
   dom.window.close();
 });
+
+test('mount synchronizes initial properties and repeated updates preserve the button', () => {
+  const dom = new JSDOM('<button type="button">stale</button>');
+  const button = dom.window.document.querySelector('button')!;
+  let calls = 0;
+  const controller = mountActionButton(button, { label: 'Ready', disabled: true, onClick: () => calls++ });
+  assert.equal(button.textContent, 'Ready');
+  assert.equal(button.disabled, true);
+  button.click();
+  assert.equal(calls, 0);
+  controller.update({ label: 'Ready', onClick: () => calls++ });
+  button.click();
+  assert.equal(calls, 1);
+  controller.destroy();
+  dom.window.close();
+});
