@@ -28,8 +28,8 @@ export function mountSessionDetails(host: HTMLElement, props: SessionDetailsProp
       if (nextContent !== rendered) {
         content.innerHTML = nextContent;
         rendered = nextContent;
+        details.hidden = !nextContent;
       }
-      details.hidden = !nextContent;
     },
     destroy() {},
   };
