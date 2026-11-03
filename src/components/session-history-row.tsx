@@ -9,7 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { VanillaActionChipList } from '@/components/vanilla-action-chip-list';
 import { IconButton } from '@/components/ui/icon-button';
 import {
   DropdownMenu,
@@ -111,24 +111,12 @@ function SessionRowTechniques({
   onFilterTechnique: (technique: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {techniques.slice(0, 3).map((technique, index) => (
-        <Button
-          key={`${technique}-${index}`}
-          type="button"
-          variant="secondary"
-          size="chip"
-          onClick={() => onFilterTechnique(technique)}
-          className="max-w-full justify-start break-words text-left font-medium hover:bg-[hsl(var(--color-primary-fixed)/0.18)] hover:text-primary"
-          title={`Show sessions tagged ${technique}`}
-        >
-          {technique}
-        </Button>
-      ))}
-      {techniques.length > 3 ? (
-        <Badge variant="secondary">+{techniques.length - 3} more</Badge>
-      ) : null}
-    </div>
+    <VanillaActionChipList
+      items={techniques}
+      limit={3}
+      title={(technique) => `Show sessions tagged ${technique}`}
+      onSelect={onFilterTechnique}
+    />
   );
 }
 
