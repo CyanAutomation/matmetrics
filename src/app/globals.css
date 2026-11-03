@@ -1,3 +1,4 @@
+@import "../vanilla/guest-workspace-notice.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";
