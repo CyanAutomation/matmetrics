@@ -4,12 +4,12 @@ import { useState } from 'react';
 import {
   Calendar,
   Edit2,
-  ExternalLink,
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { VanillaActionChipList } from '@/components/vanilla-action-chip-list';
+import { VanillaSessionDetails } from '@/components/vanilla-session-details';
 import { IconButton } from '@/components/ui/icon-button';
 import {
   DropdownMenu,
@@ -19,9 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { deferMenuDialogOpen } from '@/lib/interaction';
 import {
-  getSafeVideoUrl,
   getSessionNotePreview,
-  getVideoHostname,
 } from '@/lib/session-history-format';
 import { EFFORT_LABELS, type JudoSession } from '@/lib/types';
 import { cn, formatDateLabel, parseDateOnly } from '@/lib/utils';
@@ -120,46 +118,6 @@ function SessionRowTechniques({
   );
 }
 
-function SessionRowDetails({ session }: { session: JudoSession }) {
-  const safeVideoUrl = getSafeVideoUrl(session.videoUrl);
-  if (!session.description && !session.notes && !safeVideoUrl) return null;
-
-  return (
-    <details className="group mt-4 pl-7">
-      <summary className="cursor-pointer select-none text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm">
-        <span className="group-open:hidden">View session details</span>
-        <span className="hidden group-open:inline">Hide session details</span>
-      </summary>
-      <div className="mt-3 space-y-3">
-        {safeVideoUrl ? (
-          <a
-            href={safeVideoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex max-w-full items-center gap-2 rounded-lg bg-[hsl(var(--color-surface-container-high))] px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-[hsl(var(--color-primary-fixed)/0.16)]"
-          >
-            <ExternalLink className="h-4 w-4 shrink-0" />
-            <span className="truncate">Watch relevant video</span>
-            <span className="truncate text-xs font-normal text-muted-foreground">
-              ({getVideoHostname(safeVideoUrl)})
-            </span>
-          </a>
-        ) : null}
-        {session.description ? (
-          <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-            {session.description}
-          </p>
-        ) : null}
-        {session.notes ? (
-          <p className="text-sm text-muted-foreground italic">
-            &quot;{session.notes}&quot;
-          </p>
-        ) : null}
-      </div>
-    </details>
-  );
-}
-
 export function SessionHistoryRow({
   session,
   onDelete,
@@ -233,7 +191,7 @@ export function SessionHistoryRow({
           />
         </div>
       </div>
-      <SessionRowDetails session={session} />
+      <VanillaSessionDetails description={session.description} notes={session.notes} videoUrl={session.videoUrl} />
     </div>
   );
 }
