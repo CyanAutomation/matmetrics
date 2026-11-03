@@ -204,3 +204,30 @@ test('VersionHistoryModal ignores a response that arrives after unmount', async 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('version history uses the vanilla modal and requests close from its close button', async () => {
+  const prototype = dom.window.HTMLDialogElement.prototype;
+  const originalShowModal = prototype.showModal;
+  const originalClose = prototype.close;
+  prototype.showModal = function () { this.setAttribute('open', ''); };
+  prototype.close = function () { this.removeAttribute('open'); };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => ({ ok: true, json: async () => ({ releases: [] }) }) as Response) as typeof fetch;
+  let closed = false;
+  try {
+    const view = render(React.createElement(VersionHistoryModal, {
+      open: true,
+      onOpenChange: (open: boolean) => { closed = !open; },
+    }));
+    const dialog = await view.findByRole('dialog', { name: 'Version History' });
+    assert.ok(dialog.hasAttribute('open'));
+    assert.ok(view.getByText('Recent changes across the three most recent versions'));
+    await React.act(async () => { view.getByRole('button', { name: 'Close' }).click(); });
+    assert.equal(closed, true);
+  } finally {
+    cleanup();
+    prototype.showModal = originalShowModal;
+    prototype.close = originalClose;
+    globalThis.fetch = originalFetch;
+  }
+});
