@@ -68,3 +68,25 @@ test('a stale request cannot overwrite a changed or destroyed screen', async () 
   assert.match(host.textContent!, /invalid or expired/);
   controller.destroy(); dom.window.close();
 });
+
+test('submit availability matches password length boundaries and exposes the requirement', () => {
+  const dom = new JSDOM('<div></div>');
+  const host = dom.window.document.querySelector('div')!;
+  const props = { token: 'token', hasError: false, configured: true, resetPassword: async () => {}, errorMessage: () => 'Failed' };
+  host.innerHTML = passwordResetHtml(props);
+  const inputs = host.querySelectorAll('input');
+  const button = host.querySelector('button')!;
+  const hintId = inputs[0].getAttribute('aria-describedby');
+  assert.ok(hintId);
+  assert.match(host.querySelector(`#${hintId}`)!.textContent!, /8.*128/);
+  assert.equal(button.disabled, true, 'initial HTML starts disabled');
+  const controller = mountPasswordReset(host, props);
+  for (const [length, disabled] of [[0, true], [7, true], [8, false], [128, false], [129, true]] as const) {
+    for (const input of inputs) {
+      input.value = 'a'.repeat(length);
+      input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    }
+    assert.equal(button.disabled, disabled, `password length ${length}`);
+  }
+  controller.destroy(); dom.window.close();
+});

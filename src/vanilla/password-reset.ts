@@ -12,6 +12,7 @@ export interface PasswordResetProps {
 
 const MIN_LENGTH = 8;
 const MAX_LENGTH = 128;
+const PASSWORD_HINT = `Use ${MIN_LENGTH} to ${MAX_LENGTH} characters.`;
 
 function field(id: string, label: string): TextFieldProps {
   return { id, label, value: '', type: 'password', autoComplete: 'new-password', minLength: MIN_LENGTH, maxLength: MAX_LENGTH, required: true, onInput() {} };
@@ -20,7 +21,7 @@ function field(id: string, label: string): TextFieldProps {
 export function passwordResetHtml(props: PasswordResetProps): string {
   if (!props.configured) return noticeHtml({ title: 'Password reset is unavailable', message: 'Authentication is not configured in this deployment.', tone: 'warning' });
   if (!props.token || props.hasError) return `${noticeHtml({ title: 'This password link is invalid or expired', message: 'Request a new password link from the sign-in screen.', tone: 'error' })}<a class="password-reset__link" href="/">Return to sign in</a>`;
-  return `<form class="password-reset__form"><div data-reset-error></div><div data-reset-password>${textFieldHtml(field('new-password', 'New password'))}</div><div data-reset-confirmation>${textFieldHtml({ ...field('confirm-password', 'Confirm password'), hint: 'Use at least 8 characters.' })}</div><button class="password-reset__submit" type="submit">Update password</button></form>`;
+  return `<form class="password-reset__form"><div data-reset-error></div><div data-reset-password>${textFieldHtml({ ...field('new-password', 'New password'), hint: PASSWORD_HINT })}</div><div data-reset-confirmation>${textFieldHtml({ ...field('confirm-password', 'Confirm password'), hint: 'Use at least 8 characters.' })}</div><button class="password-reset__submit" type="submit" disabled>Update password</button></form>`;
 }
 
 export function mountPasswordReset(host: HTMLElement, initial: PasswordResetProps): ComponentController<PasswordResetProps> {
@@ -39,14 +40,14 @@ export function mountPasswordReset(host: HTMLElement, initial: PasswordResetProp
     const confirmationHost = host.querySelector<HTMLElement>('[data-reset-confirmation]')!;
     const button = form.querySelector<HTMLButtonElement>('button')!;
     const error = form.querySelector<HTMLElement>('[data-reset-error]')!;
-    const passwordProps = (): TextFieldProps => ({ ...field('new-password', 'New password'), value: password, onInput: value => { password = value; refresh(); } });
+    const passwordProps = (): TextFieldProps => ({ ...field('new-password', 'New password'), hint: PASSWORD_HINT, value: password, onInput: value => { password = value; refresh(); } });
     const confirmationProps = (): TextFieldProps => ({ ...field('confirm-password', 'Confirm password'), value: confirmation, invalid: confirmation.length > 0 && password !== confirmation, hint: confirmation.length > 0 && password !== confirmation ? 'Passwords do not match.' : 'Use at least 8 characters.', onInput: value => { confirmation = value; refresh(); } });
     const passwordController = mountTextField(passwordHost, passwordProps());
     const confirmationController = mountTextField(confirmationHost, confirmationProps());
     function refresh() {
       passwordController.update(passwordProps());
       confirmationController.update(confirmationProps());
-      button.disabled = submitting || password !== confirmation;
+      button.disabled = submitting || password.length < MIN_LENGTH || password.length > MAX_LENGTH || password !== confirmation;
       button.textContent = submitting ? 'Updating password…' : 'Update password';
     }
     const submit = async (event: Event) => {
