@@ -33,3 +33,22 @@ test('renders escaped chips and overflow; updates callbacks and preserves focus 
   assert.equal(calls.length, 2);
   dom.window.close();
 });
+
+test('updates titles once per item when rebuilding and refreshes titles without replacing unchanged chips', () => {
+  const dom = new JSDOM('<div></div>');
+  const host = dom.window.document.querySelector('div') as HTMLElement;
+  const props: ActionChipListProps = { items: ['Uchi'], limit: 3, title: value => `Show ${value}`, onSelect: () => {} };
+  host.innerHTML = actionChipListHtml(props);
+  const root = host.firstElementChild as HTMLElement;
+  const controller = mountActionChipList(root, props);
+  let calls = 0;
+  controller.update({ ...props, items: ['Osoto', 'Kesa'], title: value => { calls++; return `Filter ${value}`; } });
+  assert.equal(calls, 2);
+  const button = root.querySelector('button')!;
+  assert.equal(button.title, 'Filter Osoto');
+  controller.update({ ...props, items: ['Osoto', 'Kesa'], title: value => `Find ${value}` });
+  assert.equal(root.querySelector('button'), button);
+  assert.equal(button.title, 'Find Osoto');
+  controller.destroy();
+  dom.window.close();
+});
