@@ -10,6 +10,9 @@ import { VanillaTextField } from '@/components/vanilla-text-field';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthErrorMessage } from '@/lib/auth-error-message';
 
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+
 type PasswordResetScreenProps = {
   token: string | null;
   hasError: boolean;
@@ -28,7 +31,12 @@ export function PasswordResetScreen({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || password !== confirmation) return;
+    if (
+      !token ||
+      password.length < MIN_PASSWORD_LENGTH ||
+      password.length > MAX_PASSWORD_LENGTH ||
+      password !== confirmation
+    ) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -106,8 +114,8 @@ export function PasswordResetScreen({
               label="New password"
               type="password"
               autoComplete="new-password"
-              minLength={8}
-              maxLength={128}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
               required
               value={password}
               onInput={setPassword}
@@ -117,8 +125,8 @@ export function PasswordResetScreen({
               label="Confirm password"
               type="password"
               autoComplete="new-password"
-              minLength={8}
-              maxLength={128}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
               required
               value={confirmation}
               onInput={setConfirmation}

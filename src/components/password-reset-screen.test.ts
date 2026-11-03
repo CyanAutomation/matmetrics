@@ -42,3 +42,17 @@ test('an invalid reset link does not display password inputs', () => {
   assert.ok(screen.getByText('This password link is invalid or expired'));
   assert.equal(screen.queryByLabelText('New password'), null);
 });
+
+test('direct submit events reject empty, short, and overlong matching passwords', () => {
+  render(React.createElement(PasswordResetScreen, { token: 'token', hasError: false }));
+  const password = screen.getByLabelText('New password') as HTMLInputElement;
+  const confirmation = screen.getByLabelText('Confirm password') as HTMLInputElement;
+  const form = password.closest('form')!;
+
+  for (const value of ['', 'short', 'a'.repeat(129)]) {
+    fireEvent.input(password, { target: { value } });
+    fireEvent.input(confirmation, { target: { value } });
+    fireEvent.submit(form);
+    assert.deepEqual(calls, [], `should reject password length ${value.length}`);
+  }
+});
