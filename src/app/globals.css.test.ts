@@ -38,6 +38,8 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.equal(declarationValueFor('.ui-dialog[open]', 'display'), 'flex');
   assert.ok(declarationValueFor('.ui-dialog::backdrop', 'background'));
   assert.ok(declarationValueFor('.ui-status-message', 'color'));
+  assert.equal(declarationValueFor('.ui-segmented-control', 'display'), 'inline-flex');
+  assert.ok(declarationValueFor(".ui-segmented-control__item[aria-pressed='true']", 'background'));
   assert.equal(declarationValueFor('.version-history', 'overflow-y'), 'auto');
   assert.equal(
     declarationValueFor("body[data-snackbar-visible='true'] main", 'margin-bottom'),
