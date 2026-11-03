@@ -6,8 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { MatMetricsLogo } from '@/components/matmetrics-logo';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { VanillaTextField } from '@/components/vanilla-text-field';
 import { useAuth } from '@/components/auth-provider';
 import { getAuthErrorMessage } from '@/lib/auth-error-message';
 
@@ -102,39 +101,32 @@ export function PasswordResetScreen({
                 <AlertDescription>{errorMessage}</AlertDescription>
               </Alert>
             ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={128}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={128}
-                required
-                value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)}
-                aria-invalid={confirmation.length > 0 && password !== confirmation}
-                aria-describedby="password-match"
-              />
-              <p id="password-match" className="text-xs text-muted-foreground">
-                {confirmation.length > 0 && password !== confirmation
-                  ? 'Passwords do not match.'
-                  : 'Use at least 8 characters.'}
-              </p>
-            </div>
+            <VanillaTextField
+              id="new-password"
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              required
+              value={password}
+              onInput={setPassword}
+            />
+            <VanillaTextField
+              id="confirm-password"
+              label="Confirm password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              required
+              value={confirmation}
+              onInput={setConfirmation}
+              invalid={confirmation.length > 0 && password !== confirmation}
+              hint={confirmation.length > 0 && password !== confirmation
+                ? 'Passwords do not match.'
+                : 'Use at least 8 characters.'}
+            />
             <Button
               type="submit"
               className="w-full"
