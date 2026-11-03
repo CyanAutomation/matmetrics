@@ -13,13 +13,15 @@ export function actionButtonHtml(props: ActionButtonProps, className = ''): stri
 export function mountActionButton(button: HTMLButtonElement, props: ActionButtonProps): ComponentController<ActionButtonProps> {
   let current = props;
   const handleClick = () => current.onClick();
+  const update = (next: ActionButtonProps) => {
+    current = next;
+    if (button.textContent !== next.label) button.textContent = next.label;
+    if (button.disabled !== Boolean(next.disabled)) button.disabled = Boolean(next.disabled);
+  };
+  update(props);
   button.addEventListener('click', handleClick);
   return {
-    update(next) {
-      current = next;
-      if (button.textContent !== next.label) button.textContent = next.label;
-      if (button.disabled !== Boolean(next.disabled)) button.disabled = Boolean(next.disabled);
-    },
+    update,
     destroy() { button.removeEventListener('click', handleClick); },
   };
 }

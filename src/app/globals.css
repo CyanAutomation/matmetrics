@@ -1,6 +1,7 @@
 @import "../vanilla/action-button.css";
 @import "../vanilla/guest-workspace-notice.css";
 @import "../vanilla/version-history.css";
+@import "../vanilla/status-message.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";

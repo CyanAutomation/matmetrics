@@ -1,0 +1,2 @@
+.ui-status-message { font-size: .875rem; color: hsl(var(--muted-foreground)); }
+.ui-status-message[data-tone='error'] { color: hsl(var(--destructive)); }
