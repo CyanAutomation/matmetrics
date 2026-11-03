@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import {
   Dialog,
   DialogContent,
@@ -823,21 +824,16 @@ function VideoLibraryView({
             <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto]">
               <div className="space-y-2">
                 <Label>Mode</Label>
-                <SegmentedControl
-                  aria-label="Presentation mode"
+                <VanillaSegmentedControl
+                  label="Presentation mode"
                   value={presentationMode}
-                  onValueChange={(mode) =>
+                  onChange={(mode) =>
                     setPresentationMode(mode as VideoLibraryPresentationMode)
                   }
-                >
-                  {(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
-                    (mode) => (
-                      <SegmentedControl.Item key={mode} value={mode}>
-                        {getPresentationLabel(mode)}
-                      </SegmentedControl.Item>
-                    )
+                  options={(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
+                    (mode) => ({ value: mode, label: getPresentationLabel(mode) })
                   )}
-                </SegmentedControl>
+                />
               </div>
 
               <div className="space-y-2">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DataSurface } from '@/components/ui/data-display';
 import { PageShell } from '@/components/ui/page-shell';
 import { RessaImage } from '@/components/ressa-image';
-import { SegmentedControl } from '@/components/ui/segmented-control';
+import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import { SessionHistoryDialogs as SessionHistoryDialogsView } from './session-history-dialogs';
 import { SessionHistoryFilterBar } from './session-history-filter-bar';
 import { SessionHistoryReviewPanel } from './session-history-review-panel';
@@ -77,18 +77,15 @@ function SessionHistoryHeaderActions({
 }: Pick<SessionHistoryContentProps, 'density' | 'onDensityChange'>) {
   return (
     <div className="flex items-center gap-2">
-      <SegmentedControl
-        aria-label="History display density"
+      <VanillaSegmentedControl
+        label="History display density"
         value={density}
-        onValueChange={(value) =>
-          onDensityChange(value as SessionHistoryDensity)
-        }
-      >
-        <SegmentedControl.Item value="compact">Compact</SegmentedControl.Item>
-        <SegmentedControl.Item value="comfortable">
-          Comfortable
-        </SegmentedControl.Item>
-      </SegmentedControl>
+        options={[
+          { value: 'compact', label: 'Compact' },
+          { value: 'comfortable', label: 'Comfortable' },
+        ]}
+        onChange={(value) => onDensityChange(value as SessionHistoryDensity)}
+      />
     </div>
   );
 }
