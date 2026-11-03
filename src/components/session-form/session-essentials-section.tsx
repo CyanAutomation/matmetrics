@@ -3,13 +3,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { VanillaSelectField } from '@/components/vanilla-select-field';
 import { Toggle } from '@/components/ui/toggle';
 import { RessaImage } from '@/components/ressa-image';
 import { EFFORT_LABELS, SessionCategory } from '@/lib/types';
@@ -120,35 +114,14 @@ export function SessionEssentialsSection({
             </div>
 
             {/* Session Type */}
-            <div className="space-y-2.5">
-              <Label
-                htmlFor={fid('category')}
-                className="text-sm font-semibold block h-5"
-              >
-                Session type <span aria-hidden="true">*</span>
-              </Label>
-              <Select
-                value={category}
-                onValueChange={(val) => setCategory(val as typeof category)}
-              >
-                <SelectTrigger
-                  id={fid('category')}
-                  className="bg-background h-11"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCategories.map((availableCategory) => (
-                    <SelectItem
-                      key={availableCategory}
-                      value={availableCategory}
-                    >
-                      {availableCategory}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <VanillaSelectField
+              id={fid('category')}
+              label="Session type"
+              value={category}
+              options={availableCategories.map(value => ({ value, label: value }))}
+              required
+              onChange={(value) => setCategory(value as SessionCategory)}
+            />
           </div>
 
           {/* Row 2: Effort Level (Full Width) */}
