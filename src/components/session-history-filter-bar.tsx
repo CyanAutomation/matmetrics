@@ -4,6 +4,7 @@ import { ChevronDown, Filter, Loader2, Search, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { FilterBar } from '@/components/ui/filter-bar';
+import { VanillaActionDisclosure } from '@/components/vanilla-action-disclosure';
 import { Input } from '@/components/ui/input';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
 import { EFFORT_LABELS, SESSION_CATEGORIES } from '@/lib/types';
@@ -42,49 +43,11 @@ interface SessionHistoryFilterBarProps {
   onReviewHistory: () => Promise<void>;
 }
 
-function QuickFilters({
-  onQuickFilter,
-}: {
-  onQuickFilter: SessionHistoryFilterBarProps['onQuickFilter'];
-}) {
-  return (
-    <details aria-label="Quick filters" className="group">
-      <summary className="flex min-h-11 w-full cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 @min-[48rem]/filters:w-auto marker:content-none">
-        Quick filters
-        <ChevronDown
-          className="h-4 w-4 transition-transform group-open:rotate-180"
-          aria-hidden="true"
-        />
-      </summary>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onQuickFilter('week')}
-        >
-          This week
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onQuickFilter('month')}
-        >
-          Last 30 days
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onQuickFilter('high-effort')}
-        >
-          High effort
-        </Button>
-      </div>
-    </details>
-  );
-}
+const quickFilterOptions = [
+  { value: 'week', label: 'This week' },
+  { value: 'month', label: 'Last 30 days' },
+  { value: 'high-effort', label: 'High effort' },
+] as const;
 
 function SessionHistoryAdvancedFilters({
   categoryFilter,
@@ -326,7 +289,15 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
           aria-label="Search training history"
           wrapperClassName="min-w-0 flex-1"
         />
-        <QuickFilters onQuickFilter={props.onQuickFilter} />
+        <VanillaActionDisclosure
+          label="Quick filters"
+          options={quickFilterOptions}
+          onAction={(value) => {
+            if (value === 'week' || value === 'month' || value === 'high-effort') {
+              props.onQuickFilter(value);
+            }
+          }}
+        />
         <Button
           type="button"
           variant="outline"
