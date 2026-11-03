@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { formatReleaseTag } from '@/lib/release-tag';
+import { VersionHistoryContent } from '@/components/version-history-content';
 import type { ReleaseEntry } from '@/lib/releases';
 
 type RecentReleasesResponse = {
@@ -107,55 +107,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   }, [open, releases.length]);
 
   const body = (
-    <div className="overflow-y-auto pr-4 space-y-6 flex-1">
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">
-          Loading recent releases...
-        </p>
-      ) : null}
-      {error ? (
-        <p className="text-sm text-destructive">
-          Unable to load release history. {error}
-        </p>
-      ) : null}
-      {!isLoading && !error
-        ? releases.map((entry) => (
-            <div key={entry.version}>
-              <div className="mb-3">
-                <h3 className="font-semibold text-sm">
-                  {formatReleaseTag(entry.version)}
-                </h3>
-                <p className="text-xs text-muted-foreground">{entry.date}</p>
-              </div>
-              <div className="space-y-3">
-                {entry.sections.map((section) => (
-                  <div key={`${entry.version}-${section.label}`}>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-                      {section.label}
-                    </h4>
-                    <ul className="space-y-1 ml-3">
-                      {section.items.map((item) => (
-                        <li
-                          key={`${entry.version}-${section.label}-${item}`}
-                          className="text-xs leading-relaxed"
-                        >
-                          <span className="inline-block w-1 h-1 bg-muted-foreground rounded-full mr-2 align-middle"></span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        : null}
-      {!isLoading && !error && releases.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No recent releases are available.
-        </p>
-      ) : null}
-    </div>
+    <VersionHistoryContent releases={releases} isLoading={isLoading} error={error} />
   );
 
   if (disableDialogWrapper) {
