@@ -1,0 +1,10 @@
+.ui-dialog { position: fixed; width: min(28rem, calc(100% - 2rem)); max-height: 80vh; padding: 1.5rem; border: 0; border-radius: .5rem; background: hsl(var(--card)); color: hsl(var(--card-foreground)); box-shadow: 0 20px 25px -5px rgb(0 0 0 / .2); overflow: hidden; }
+.ui-dialog[open] { display: flex; flex-direction: column; gap: 1rem; }
+.ui-dialog::backdrop { background: rgb(0 0 0 / .8); }
+.ui-dialog__header { padding-right: 2rem; }
+.ui-dialog__header h2 { font-size: 1.125rem; font-weight: 600; line-height: 1; }
+.ui-dialog__header p { margin-top: .375rem; font-size: .875rem; color: hsl(var(--muted-foreground)); }
+.ui-dialog__close { position: absolute; top: 1rem; right: 1rem; width: 2rem; height: 2rem; border: 0; border-radius: .375rem; background: transparent; color: inherit; font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.ui-dialog__close:hover { background: hsl(var(--color-surface-container-low)); }
+.ui-dialog__close:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-dialog__content { min-height: 0; overflow-y: auto; }
