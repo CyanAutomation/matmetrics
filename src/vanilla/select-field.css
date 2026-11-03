@@ -1,0 +1,8 @@
+.ui-select-field { display: flex; flex-direction: column; gap: .625rem; }
+.ui-select-field__label { font-size: .875rem; font-weight: 600; line-height: 1.25rem; }
+.ui-select-field__label:has(+ .ui-select-field__select:required)::after { content: " *"; }
+.ui-select-field__select { box-sizing: border-box; width: 100%; height: 2.75rem; border: 1px solid hsl(var(--color-outline-variant)); border-radius: .375rem; background: hsl(var(--background)); color: hsl(var(--foreground)); padding: .5rem .75rem; font-size: 1rem; }
+.ui-select-field__select:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-select-field__select:disabled { cursor: not-allowed; opacity: .5; }
+.ui-select-field__hint { color: hsl(var(--muted-foreground)); font-size: .75rem; }
+@media (min-width: 768px) { .ui-select-field__select { font-size: .875rem; } }
