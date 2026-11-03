@@ -13,8 +13,10 @@ test('version history renders loading, error, empty, and escaped release data', 
   host.innerHTML = versionHistoryHtml(initial);
   const controller = mountVersionHistory(host, initial);
   assert.match(host.textContent!, /Loading recent releases/);
+  assert.equal(host.querySelector('.ui-status-message')?.getAttribute('role'), 'status');
   controller.update({ ...initial, isLoading: false, error: '<offline>' });
   assert.match(host.textContent!, /<offline>/);
+  assert.equal(host.querySelector('.ui-status-message')?.getAttribute('role'), 'alert');
   assert.equal(host.querySelector('offline'), null);
   controller.update({ ...initial, isLoading: false });
   assert.match(host.textContent!, /No recent releases/);

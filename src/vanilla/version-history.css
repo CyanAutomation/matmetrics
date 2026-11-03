@@ -1,7 +1,5 @@
 .version-history { overflow-y: auto; padding-right: 1rem; flex: 1; }
 .version-history > * + * { margin-top: 1.5rem; }
-.version-history__message { font-size: .875rem; color: hsl(var(--muted-foreground)); }
-.version-history__error { font-size: .875rem; color: hsl(var(--destructive)); }
 .version-history__heading { margin-bottom: .75rem; }
 .version-history__heading h3 { font-size: .875rem; font-weight: 600; }
 .version-history__heading p { font-size: .75rem; color: hsl(var(--muted-foreground)); }
