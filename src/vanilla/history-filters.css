@@ -1,0 +1,7 @@
+.ui-history-filters { display: grid; gap: .75rem; margin-top: .75rem; }
+.ui-history-filters[hidden] { display: none; }
+.ui-history-filters__control { box-sizing: border-box; width: 100%; min-width: 0; height: 2.75rem; border: 1px solid hsl(var(--input)); border-radius: .375rem; background: hsl(var(--background)); color: hsl(var(--foreground)); padding: .5rem .75rem; font-size: .875rem; }
+.ui-history-filters__control:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-history-filters__clear { min-height: 2.75rem; }
+@container filters (min-width: 32rem) { .ui-history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container filters (min-width: 62rem) { .ui-history-filters { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
