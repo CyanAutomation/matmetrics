@@ -33,9 +33,9 @@ export function mountGuestWorkspaceNotice(host: HTMLElement, props: GuestWorkspa
   return {
     update(next: GuestWorkspaceNoticeProps) {
       current = next;
-      label.textContent = next.workspaceLabel;
-      message.textContent = next.message;
-      button.textContent = next.signInButtonText;
+      if (label.textContent !== next.workspaceLabel) label.textContent = next.workspaceLabel;
+      if (message.textContent !== next.message) message.textContent = next.message;
+      if (button.textContent !== next.signInButtonText) button.textContent = next.signInButtonText;
     },
     destroy() { button.removeEventListener('click', handleClick); },
   };
