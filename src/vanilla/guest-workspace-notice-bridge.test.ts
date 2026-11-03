@@ -37,3 +37,18 @@ test('React bridge updates the vanilla notice and cleans up in Strict Mode', () 
   assert.equal(nextCalls, 1);
   cleanup();
 });
+
+test('React bridge updates a changed callback without rewriting unchanged text', () => {
+  let calls = 0;
+  const props = { workspaceLabel: 'Demo', message: 'Message', signInButtonText: 'Sign in', onSignIn: () => undefined };
+  const view = render(React.createElement(GuestWorkspaceNotice, props));
+  const observer = new dom.window.MutationObserver(() => undefined);
+  observer.observe(view.container, { subtree: true, childList: true, characterData: true });
+
+  view.rerender(React.createElement(GuestWorkspaceNotice, { ...props, onSignIn: () => calls++ }));
+  assert.equal(observer.takeRecords().length, 0);
+  fireEvent.click(view.getByRole('button', { name: 'Sign in' }));
+  assert.equal(calls, 1);
+  observer.disconnect();
+  view.unmount();
+});

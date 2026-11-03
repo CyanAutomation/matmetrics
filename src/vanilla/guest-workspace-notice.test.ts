@@ -31,3 +31,26 @@ test('notice renders escaped content and updates without losing disclosure state
   host.querySelector('button')!.click();
   assert.equal(updatedCalls, 1);
 });
+
+test('callback changes do not rewrite live-region text', () => {
+  const dom = new JSDOM('<div id="host"></div>');
+  const host = dom.window.document.querySelector('#host') as HTMLElement;
+  let calls = 0;
+  const props = { workspaceLabel: 'Demo', message: 'Message', signInButtonText: 'Sign in', onSignIn: () => undefined };
+  host.innerHTML = guestWorkspaceNoticeHtml(props);
+  const notice = mountGuestWorkspaceNotice(host, props);
+  const observer = new dom.window.MutationObserver(() => undefined);
+  observer.observe(host, { subtree: true, childList: true, characterData: true });
+
+  notice.update({ ...props, onSignIn: () => calls++ });
+  assert.equal(observer.takeRecords().length, 0);
+  host.querySelector('button')!.click();
+  assert.equal(calls, 1);
+
+  notice.update({ ...props, message: 'Changed' });
+  const mutations = observer.takeRecords();
+  assert.equal(mutations.length, 1);
+  assert.equal(mutations[0].target, host.querySelector('[data-notice-message]'));
+  notice.destroy();
+  observer.disconnect();
+});

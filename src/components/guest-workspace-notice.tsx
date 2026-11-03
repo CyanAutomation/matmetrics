@@ -25,7 +25,10 @@ export function GuestWorkspaceNotice(props: GuestWorkspaceNoticeProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { controller.current?.update(props); }, [props]);
+  const { workspaceLabel, message, signInButtonText, onSignIn } = props;
+  useEffect(() => {
+    controller.current?.update({ workspaceLabel, message, signInButtonText, onSignIn });
+  }, [workspaceLabel, message, signInButtonText, onSignIn]);
 
   return <div ref={host} dangerouslySetInnerHTML={initialMarkup} />;
 }
