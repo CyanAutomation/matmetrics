@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import {
   Dialog,
   DialogContent,
@@ -520,10 +521,61 @@ export function VideoLibrary({ onRefresh }: VideoLibraryProps) {
   });
 }
 
+type VideoLibraryViewProps = Pick<
+  ReturnType<typeof useVideoLibraryController>,
+  | 'summaryCounts'
+  | 'tabCounts'
+  | 'controlVisibility'
+  | 'bulkActionState'
+  | 'sortedFilteredRows'
+  | 'loungeRows'
+  | 'browseState'
+  | 'starterDomains'
+  | 'hasAdvancedFiltersApplied'
+  | 'hostnameOptions'
+  | 'filteredRows'
+> & ReturnType<typeof useVideoLibraryViewState> & {
+  getTabLabel: typeof getTabLabel;
+  getEntryStatusLabel: typeof getEntryStatusLabel;
+  getStatusVariant: typeof getStatusVariant;
+  buildVideoDomainRemovalConfirmationDescription:
+    typeof buildVideoDomainRemovalConfirmationDescription;
+  handleCheckFiltered: () => Promise<void>;
+  isCheckingLinks: boolean;
+  handleEmptyStateAction: () => void;
+  editingSession: JudoSession | null;
+  setEditingSession: React.Dispatch<React.SetStateAction<JudoSession | null>>;
+  handleEditSuccess: () => void;
+  expectedVideoCategories: SessionCategory[];
+  canSavePreferences: boolean;
+  isSavingCategoryExpectations: boolean;
+  handleExpectedCategoryToggle: (category: SessionCategory) => Promise<void>;
+  customAllowedDomains: string[];
+  isSavingDomains: boolean;
+  handleAddDomain: () => Promise<void>;
+  handlePromptRemoveDomain: (domain: string) => void;
+  isRemovingDomain: boolean;
+  domainPendingRemoval: DomainRemovalDialogState | null;
+  handleConfirmRemoveDomain: () => Promise<void>;
+  sessionPendingClear: JudoSession | null;
+  isClearingVideo: boolean;
+  handleClearVideo: () => Promise<void>;
+  handleCheckLinks: (
+    sessionIds: string[],
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  setSessionPendingClear: React.Dispatch<
+    React.SetStateAction<JudoSession | null>
+  >;
+  setDomainPendingRemoval: React.Dispatch<
+    React.SetStateAction<DomainRemovalDialogState | null>
+  >;
+};
+
 function VideoLibraryView({
   props,
 }: {
-  props: Record<string, any>;
+  props: VideoLibraryViewProps;
 }): React.ReactElement {
   const {
     summaryCounts,
@@ -614,7 +666,7 @@ function VideoLibraryView({
             aria-label="Browse videos"
             value={filters.tab}
             onValueChange={(tab) =>
-              setFilters((current: any) => ({
+              setFilters((current) => ({
                 ...current,
                 tab: tab as VideoLibraryTab,
               }))
@@ -658,7 +710,7 @@ function VideoLibraryView({
               id="video-library-search"
               value={filters.search}
               onChange={(event) =>
-                setFilters((current: any) => ({
+                setFilters((current) => ({
                   ...current,
                   search: event.target.value,
                 }))
@@ -688,7 +740,7 @@ function VideoLibraryView({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setShowAdvanced((current: any) => !current)}
+            onClick={() => setShowAdvanced((current) => !current)}
             aria-expanded={showAdvanced}
             aria-controls="video-library-advanced-filters"
           >
@@ -719,7 +771,7 @@ function VideoLibraryView({
                 <Select
                   value={filters.status}
                   onValueChange={(value) =>
-                    setFilters((current: any) => ({
+                    setFilters((current) => ({
                       ...current,
                       status: value as VideoLibraryStatusFilter,
                     }))
@@ -754,7 +806,7 @@ function VideoLibraryView({
                 <Select
                   value={filters.category}
                   onValueChange={(value) =>
-                    setFilters((current: any) => ({
+                    setFilters((current) => ({
                       ...current,
                       category: value as SessionCategory | 'all',
                     }))
@@ -777,7 +829,7 @@ function VideoLibraryView({
                 <Select
                   value={filters.checked}
                   onValueChange={(value) =>
-                    setFilters((current: any) => ({
+                    setFilters((current) => ({
                       ...current,
                       checked: value as VideoLibraryCheckedFilter,
                     }))
@@ -799,7 +851,7 @@ function VideoLibraryView({
                 <Select
                   value={filters.hostname || 'all'}
                   onValueChange={(value) =>
-                    setFilters((current: any) => ({
+                    setFilters((current) => ({
                       ...current,
                       hostname: value === 'all' ? '' : value,
                     }))
@@ -810,7 +862,7 @@ function VideoLibraryView({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All hosts</SelectItem>
-                    {hostnameOptions.map((hostname: any) => (
+                    {hostnameOptions.map((hostname) => (
                       <SelectItem key={hostname} value={hostname}>
                         {hostname}
                       </SelectItem>
@@ -823,21 +875,16 @@ function VideoLibraryView({
             <PluginToolbar className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto]">
               <div className="space-y-2">
                 <Label>Mode</Label>
-                <SegmentedControl
-                  aria-label="Presentation mode"
+                <VanillaSegmentedControl
+                  label="Presentation mode"
                   value={presentationMode}
-                  onValueChange={(mode) =>
+                  onChange={(mode) =>
                     setPresentationMode(mode as VideoLibraryPresentationMode)
                   }
-                >
-                  {(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
-                    (mode) => (
-                      <SegmentedControl.Item key={mode} value={mode}>
-                        {getPresentationLabel(mode)}
-                      </SegmentedControl.Item>
-                    )
+                  options={(['lounge', 'table'] as VideoLibraryPresentationMode[]).map(
+                    (mode) => ({ value: mode, label: getPresentationLabel(mode) })
                   )}
-                </SegmentedControl>
+                />
               </div>
 
               <div className="space-y-2">
@@ -885,7 +932,7 @@ function VideoLibraryView({
               <div className="flex items-end lg:col-span-2">
                 <PluginBulkActions
                   selectedCount={
-                    filteredRows.filter((row: any) => row.isCheckable).length
+                    filteredRows.filter((row) => row.isCheckable).length
                   }
                   itemLabel="checkable link"
                   isDisabled={!bulkActionState.canRefreshLinkHealth}
@@ -996,7 +1043,7 @@ function VideoLibraryView({
               description="Providers included in the default allowlist."
               contentClassName="flex flex-wrap gap-2"
             >
-              {starterDomains.map((domain: any) => (
+              {starterDomains.map((domain) => (
                 <Badge key={domain} variant="outline">
                   {domain}
                 </Badge>
@@ -1047,7 +1094,7 @@ function VideoLibraryView({
                     No custom domains saved yet.
                   </p>
                 ) : (
-                  customAllowedDomains.map((domain: any) => (
+                  customAllowedDomains.map((domain) => (
                     <Badge key={domain} variant="outline" className="gap-2">
                       {domain}
                         <IconButton
