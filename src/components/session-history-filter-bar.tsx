@@ -1,13 +1,12 @@
 'use client';
 
-import { ChevronDown, Filter, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Filter, Loader2, Search, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataUseNotice } from '@/components/ui/data-use-notice';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { VanillaActionDisclosure } from '@/components/vanilla-action-disclosure';
-import { Input } from '@/components/ui/input';
+import { VanillaHistoryFilters } from '@/components/vanilla-history-filters';
 import { InputWithIcon } from '@/components/ui/input-with-icon';
-import { EFFORT_LABELS, SESSION_CATEGORIES } from '@/lib/types';
 import type { SessionHistoryQuickFilter } from '@/lib/session-history-filter';
 
 interface SessionHistoryFilterBarProps {
@@ -48,87 +47,6 @@ const quickFilterOptions = [
   { value: 'month', label: 'Last 30 days' },
   { value: 'high-effort', label: 'High effort' },
 ] as const;
-
-function SessionHistoryAdvancedFilters({
-  categoryFilter,
-  effortFilter,
-  fromDate,
-  toDate,
-  filtersOpen,
-  onCategoryFilterChange,
-  onEffortFilterChange,
-  onFromDateChange,
-  onToDateChange,
-  onClearFilters,
-}: Pick<
-  SessionHistoryFilterBarProps,
-  | 'categoryFilter'
-  | 'effortFilter'
-  | 'fromDate'
-  | 'toDate'
-  | 'filtersOpen'
-  | 'onCategoryFilterChange'
-  | 'onEffortFilterChange'
-  | 'onFromDateChange'
-  | 'onToDateChange'
-  | 'onClearFilters'
->) {
-  return (
-    <div
-      id="training-history-filters"
-      className={`mt-3 grid gap-3 @min-[32rem]/filters:grid-cols-2 @min-[62rem]/filters:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden'}`}
-    >
-      <select
-        value={categoryFilter}
-        onChange={(event) => onCategoryFilterChange(event.target.value)}
-        aria-label="Filter by session type"
-        className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-      >
-        <option value="all">All session types</option>
-        {SESSION_CATEGORIES.map((category) => (
-          <option key={category} value={category}>
-            {category}
-          </option>
-        ))}
-      </select>
-      <select
-        value={effortFilter}
-        onChange={(event) => onEffortFilterChange(event.target.value)}
-        aria-label="Filter by effort level"
-        className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-      >
-        <option value="all">All effort levels</option>
-        {[1, 2, 3, 4, 5].map((effort) => (
-          <option key={effort} value={effort}>
-            {EFFORT_LABELS[effort as keyof typeof EFFORT_LABELS]}
-          </option>
-        ))}
-      </select>
-      <Input
-        type="date"
-        value={fromDate}
-        onChange={(event) => onFromDateChange(event.target.value)}
-        aria-label="Sessions from date"
-        className="h-11"
-      />
-      <Input
-        type="date"
-        value={toDate}
-        onChange={(event) => onToDateChange(event.target.value)}
-        aria-label="Sessions to date"
-        className="h-11"
-      />
-      <Button
-        type="button"
-        variant="ghost"
-        className="min-h-11"
-        onClick={onClearFilters}
-      >
-        <X className="h-4 w-4" /> Clear filters
-      </Button>
-    </div>
-  );
-}
 
 function AiTools({
   searchQuery,
@@ -310,7 +228,18 @@ export function SessionHistoryFilterBar(props: SessionHistoryFilterBarProps) {
           Filters{props.activeFilterCount ? ` (${props.activeFilterCount})` : ''}
         </Button>
       </div>
-      <SessionHistoryAdvancedFilters {...props} />
+      <VanillaHistoryFilters
+        category={props.categoryFilter}
+        effort={props.effortFilter}
+        fromDate={props.fromDate}
+        toDate={props.toDate}
+        open={props.filtersOpen}
+        onCategoryChange={props.onCategoryFilterChange}
+        onEffortChange={props.onEffortFilterChange}
+        onFromDateChange={props.onFromDateChange}
+        onToDateChange={props.onToDateChange}
+        onClear={props.onClearFilters}
+      />
       <AiTools
         searchQuery={props.searchQuery}
         canUseAi={props.canUseAi}
