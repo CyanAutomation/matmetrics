@@ -1,0 +1,5 @@
+.ui-notice { padding: 1rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius); background: hsl(var(--background)); font-size: .875rem; }
+.ui-notice strong { display: block; font-weight: 600; }
+.ui-notice p { margin: .25rem 0 0; }
+.ui-notice[data-tone='error'] { border-color: hsl(var(--destructive)); color: hsl(var(--destructive)); }
+.ui-notice[data-tone='warning'] { background: hsl(var(--color-warning-container)); color: hsl(var(--color-on-warning-container)); }
