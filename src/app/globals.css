@@ -1,3 +1,5 @@
+@import "../vanilla/notice.css";
+@import "../vanilla/password-reset.css";
 @import "../vanilla/action-button.css";
 @import "../vanilla/dialog.css";
 @import "../vanilla/guest-workspace-notice.css";
