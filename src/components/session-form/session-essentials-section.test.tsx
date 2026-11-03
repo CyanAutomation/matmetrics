@@ -55,3 +55,12 @@ test('effort options expose which level is selected to assistive technology', ()
   assert.equal(selected?.getAttribute('aria-pressed'), 'true');
   assert.equal(unselected?.getAttribute('aria-pressed'), 'false');
 });
+
+test('session type uses a labeled required native select', () => {
+  const document = renderEssentials(false);
+  const select = document.querySelector('select#category');
+  assert.ok(select);
+  assert.ok(select.hasAttribute('required'));
+  assert.equal(document.querySelector('label[for="category"]')?.textContent, 'Session type');
+  assert.equal(select.querySelector('option[selected]')?.getAttribute('value'), 'Technical');
+});
