@@ -1,13 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { VanillaDialog } from '@/components/vanilla-dialog';
 import { VersionHistoryContent } from '@/components/version-history-content';
 import type { ReleaseEntry } from '@/lib/releases';
 
@@ -121,16 +115,13 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] flex flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Version History</DialogTitle>
-          <DialogDescription>
-            Recent changes across the three most recent versions
-          </DialogDescription>
-        </DialogHeader>
-        {body}
-      </DialogContent>
-    </Dialog>
+    <VanillaDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Version History"
+      description="Recent changes across the three most recent versions"
+    >
+      {body}
+    </VanillaDialog>
   );
 };
