@@ -4,9 +4,11 @@ import { dialogHtml, mountDialog } from './dialog';
 import { mountVersionHistory, versionHistoryHtml, type VersionHistoryProps } from './version-history';
 
 export interface VersionHistoryDialogProps {
+  /** Markup identity is fixed for the lifetime of a mounted instance. */
   id: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Selects the initial markup. Destroy and remount to change this value. */
   disableDialogWrapper?: boolean;
 }
 

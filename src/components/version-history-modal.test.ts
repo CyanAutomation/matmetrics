@@ -79,6 +79,37 @@ after(() => {
   }
 });
 
+test('an initially open modal fetches once, including on an open rerender', async () => {
+  const response = createDeferred<Response>();
+  const originalFetch = globalThis.fetch;
+  let requestCount = 0;
+  globalThis.fetch = (() => {
+    requestCount += 1;
+    return response.promise;
+  }) as typeof fetch;
+
+  try {
+    const props = { open: true, onOpenChange: () => undefined, disableDialogWrapper: true };
+    const view = render(React.createElement(VersionHistoryModal, props));
+    assert.equal(requestCount, 1);
+
+    view.rerender(React.createElement(VersionHistoryModal, {
+      ...props,
+      onOpenChange: () => undefined,
+    }));
+    assert.equal(requestCount, 1);
+
+    await React.act(async () => {
+      response.resolve({ ok: true, json: async () => ({ releases: [] }) } as Response);
+    });
+    assert.equal(requestCount, 1);
+    assert.ok(view.getByText('No recent releases are available.'));
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('VersionHistoryModal shows release content after a successful fetch', async () => {
   const response = createDeferred<Response>();
   const originalFetch = globalThis.fetch;

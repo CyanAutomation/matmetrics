@@ -6,6 +6,7 @@ import { mountVersionHistoryDialog, versionHistoryDialogHtml, type VersionHistor
 interface VersionHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Selects the initial markup. Remount the component to change this value. */
   disableDialogWrapper?: boolean;
 }
 
