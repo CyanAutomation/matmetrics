@@ -3,6 +3,7 @@
 @import "../vanilla/guest-workspace-notice.css";
 @import "../vanilla/version-history.css";
 @import "../vanilla/status-message.css";
+@import "../vanilla/text-field.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";
