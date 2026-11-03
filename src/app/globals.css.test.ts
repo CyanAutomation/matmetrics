@@ -34,6 +34,8 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.equal(declarationValueFor('.flex', 'display'), 'flex');
   assert.ok(declarationValueFor('.bg-background', 'background-color'));
   assert.ok(declarationValueFor('.text-foreground', 'color'));
+  assert.equal(declarationValueFor('.ui-action-button', 'cursor'), 'pointer');
+  assert.equal(declarationValueFor('.version-history', 'overflow-y'), 'auto');
   assert.equal(
     declarationValueFor("body[data-snackbar-visible='true'] main", 'margin-bottom'),
     'calc(7rem + env(safe-area-inset-bottom))'

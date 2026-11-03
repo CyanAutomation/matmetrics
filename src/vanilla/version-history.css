@@ -1,0 +1,13 @@
+.version-history { overflow-y: auto; padding-right: 1rem; flex: 1; }
+.version-history > * + * { margin-top: 1.5rem; }
+.version-history__message { font-size: .875rem; color: hsl(var(--muted-foreground)); }
+.version-history__error { font-size: .875rem; color: hsl(var(--destructive)); }
+.version-history__heading { margin-bottom: .75rem; }
+.version-history__heading h3 { font-size: .875rem; font-weight: 600; }
+.version-history__heading p { font-size: .75rem; color: hsl(var(--muted-foreground)); }
+.version-history__sections > * + * { margin-top: .75rem; }
+.version-history__sections h4 { margin-bottom: .375rem; font-size: .75rem; font-weight: 500; letter-spacing: .025em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.version-history__sections ul { margin-left: .75rem; }
+.version-history__sections li { font-size: .75rem; line-height: 1.625; }
+.version-history__sections li + li { margin-top: .25rem; }
+.version-history__bullet { display: inline-block; width: .25rem; height: .25rem; margin-right: .5rem; vertical-align: middle; border-radius: 50%; background: hsl(var(--muted-foreground)); }
