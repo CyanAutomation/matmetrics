@@ -17,9 +17,8 @@
 .guest-notice__details { margin-top: .25rem; }
 .guest-notice__details summary { width: fit-content; cursor: pointer; font-size: .75rem; font-weight: 500; color: hsl(var(--muted-foreground)); text-decoration: underline dotted; text-underline-offset: 4px; }
 .guest-notice__details p { max-width: 48rem; margin-top: .5rem; font-size: .875rem; }
-.guest-notice__button { grid-column: 2; grid-row: 2; justify-self: start; height: 2.25rem; padding: 0 .75rem; border: 1px solid hsl(var(--color-outline-variant) / .48); border-radius: .375rem; background: hsl(var(--card)); color: inherit; font-size: .875rem; font-weight: 500; cursor: pointer; }
-.guest-notice__button:hover { background: hsl(var(--color-surface-container-low)); }
-.guest-notice__button:focus-visible, .guest-notice__details summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.guest-notice__button { grid-column: 2; grid-row: 2; justify-self: start; }
+.guest-notice__details summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 @media (min-width: 640px) {
   .guest-notice { grid-template-columns: auto minmax(0, 1fr) auto; padding: .75rem 1rem; }
   .guest-notice__button { grid-column: 3; grid-row: 1; justify-self: end; }
