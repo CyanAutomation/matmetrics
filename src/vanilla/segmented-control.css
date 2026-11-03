@@ -1,0 +1,12 @@
+.ui-segmented-control { display: inline-flex; width: fit-content; align-items: center; gap: .25rem; border-radius: .5rem; background: hsl(var(--secondary) / .55); padding: .25rem; }
+.ui-segmented-control__item { border: 0; border-radius: .375rem; background: transparent; color: hsl(var(--muted-foreground)); cursor: pointer; min-height: 2rem; padding: .375rem .625rem; font-size: .75rem; font-weight: 600; line-height: 1rem; }
+.ui-segmented-control__item:hover { color: hsl(var(--foreground)); }
+.ui-segmented-control__item[aria-pressed='true'] { background: hsl(var(--background)); color: hsl(var(--foreground)); box-shadow: 0 1px 2px hsl(0 0% 0% / .05); }
+.ui-segmented-control__item:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-segmented-control__item:disabled { cursor: not-allowed; opacity: .5; }
+
+.dashboard-cadence-control .ui-segmented-control__item { padding: .5rem .75rem; font-size: .875rem; }
+.dashboard-distribution-control { width: 100%; }
+.dashboard-distribution-control .ui-segmented-control { display: flex; width: 100%; flex-wrap: wrap; }
+.dashboard-distribution-control .ui-segmented-control__item { flex: 1; white-space: nowrap; }
+@container distribution (min-width: 32rem) { .dashboard-distribution-control, .dashboard-distribution-control .ui-segmented-control { width: fit-content; } }

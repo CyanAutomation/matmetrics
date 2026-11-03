@@ -32,7 +32,7 @@ import {
 } from '@/lib/dashboard-overview-stats';
 import { saveTrainingPlanPreference } from '@/lib/user-preferences';
 import { DataSurface } from '@/components/ui/data-display';
-import { SegmentedControl } from '@/components/ui/segmented-control';
+import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import { MetricBarList } from '@/components/ui/metric-bar-list';
 import { TrainingAnalyticsDisclosure } from '@/components/training-analytics-disclosure';
 
@@ -440,23 +440,18 @@ export function DashboardOverview({
                     </div>
                     <div className="space-y-2">
                       <Label>Cadence</Label>
-                      <SegmentedControl
-                        aria-label={`${category} plan cadence`}
+                      <VanillaSegmentedControl
+                        className="dashboard-cadence-control"
+                        label={`${category} plan cadence`}
                         value={plan.cadence}
-                        onValueChange={(value) =>
+                        onChange={(value) =>
                           updatePlanCadence(category, value as 'week' | 'month')
                         }
-                      >
-                        {(['week', 'month'] as const).map((cadence) => (
-                          <SegmentedControl.Item
-                            key={cadence}
-                            value={cadence}
-                            className="px-3 py-2 text-sm"
-                          >
-                            Per {cadence}
-                          </SegmentedControl.Item>
-                        ))}
-                      </SegmentedControl>
+                        options={(['week', 'month'] as const).map((cadence) => ({
+                          value: cadence,
+                          label: `Per ${cadence}`,
+                        }))}
+                      />
                     </div>
                   </div>
                 </div>
@@ -504,26 +499,20 @@ export function DashboardOverview({
                   {stats.trainingDataRange}
                 </span>
               </div>
-              <SegmentedControl
-                className="flex w-full flex-wrap @min-[32rem]/distribution:w-fit"
-                aria-label="Training distribution timeframe"
+              <VanillaSegmentedControl
+                className="dashboard-distribution-control"
+                label="Training distribution timeframe"
                 value={String(distributionWindow)}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setDistributionWindow(
                     value === 'all' ? 'all' : (Number(value) as 30 | 90)
                   )
                 }
-              >
-                {([30, 90, 'all'] as const).map((window) => (
-                  <SegmentedControl.Item
-                    key={window}
-                    value={String(window)}
-                    className="min-w-fit flex-1 whitespace-nowrap"
-                  >
-                    {window === 'all' ? 'All time' : `${window} days`}
-                  </SegmentedControl.Item>
-                ))}
-              </SegmentedControl>
+                options={([30, 90, 'all'] as const).map((window) => ({
+                  value: String(window),
+                  label: window === 'all' ? 'All time' : `${window} days`,
+                }))}
+              />
             </div>
             <div className="space-y-8">
               <div className="space-y-4">
