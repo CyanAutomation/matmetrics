@@ -27,3 +27,26 @@ test('bridge updates callbacks and selection, preserves focus and cleans up in S
   assert.deepEqual(calls, ['old:full', 'new:full']);
   cleanup();
 });
+
+test('keyed remount uses current props and detaches the old control', () => {
+  const calls: string[] = [];
+  const options = [{ value: 'compact', label: 'Compact' }, { value: 'full', label: 'Full' }];
+  const view = render(React.createElement(VanillaSegmentedControl, {
+    key: 'first', label: 'Density', value: 'compact', options,
+    onChange: (value: string) => calls.push(`old:${value}`),
+  }));
+  const oldButton = view.getByRole('button', { name: 'Full' });
+  view.rerender(React.createElement(VanillaSegmentedControl, {
+    key: 'second', label: 'Display density', value: 'full', options,
+    onChange: (value: string) => calls.push(`new:${value}`),
+  }));
+  assert.ok(view.getByRole('group', { name: 'Display density' }));
+  const newButton = view.getByRole('button', { name: 'Full' });
+  assert.notEqual(oldButton, newButton);
+  assert.equal(newButton.getAttribute('aria-pressed'), 'true');
+  fireEvent.click(oldButton);
+  fireEvent.click(newButton);
+  assert.deepEqual(calls, ['new:full']);
+  view.unmount();
+  cleanup();
+});
