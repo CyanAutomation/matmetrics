@@ -30,7 +30,10 @@ export function mountActionChipList(root: HTMLElement, props: ActionChipListProp
     const nextItems = visibleItems(next);
     const changed = previousItems.length !== nextItems.length || previousItems.some((item, index) => item !== nextItems[index]) || current.items.length - previousItems.length !== next.items.length - nextItems.length;
     current = next;
-    if (changed) root.innerHTML = contentsHtml(next);
+    if (changed) {
+      root.innerHTML = contentsHtml(next);
+      return;
+    }
     root.querySelectorAll<HTMLButtonElement>('button[data-chip-index]').forEach((button, index) => {
       button.title = next.title(nextItems[index]);
     });
