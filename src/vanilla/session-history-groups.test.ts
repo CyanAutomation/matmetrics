@@ -27,6 +27,13 @@ const secondSession: JudoSession = {
   techniques: ['Kesa gatame'],
 };
 
+const thirdSession: JudoSession = {
+  ...firstSession,
+  id: 'session-three',
+  date: '2026-09-16',
+  techniques: ['Tai otoshi'],
+};
+
 function makeProps(
   overrides: Partial<SessionHistoryGroupsProps> = {}
 ): SessionHistoryGroupsProps {
@@ -188,6 +195,69 @@ test('removes stale rows and tears down their controls', () => {
   assert.equal(root.querySelector('[data-session-id="session-two"]'), null);
   removedChip.click();
   assert.deepEqual(calls, []);
+  controller.destroy();
+  dom.window.close();
+});
+
+test('removes stale group children before ordering rows that remain or move', () => {
+  const initial = makeProps({
+    grouped: [
+      {
+        monthLabel: 'September 2026',
+        sessions: [firstSession, secondSession, thirdSession],
+      },
+    ],
+    filteredSessions: [firstSession, secondSession, thirdSession],
+  });
+  const dom = new JSDOM('<div id="host"></div>');
+  const host = dom.window.document.querySelector('#host') as HTMLElement;
+  host.innerHTML = sessionHistoryGroupsHtml(initial);
+  const root = host.querySelector(
+    '[data-ui-session-history-groups]'
+  ) as HTMLElement;
+  const controller = mountSessionHistoryGroups(root, initial);
+  const septemberSurface = root.querySelector(
+    '[data-session-history-group="September 2026"] [data-session-history-group-surface]'
+  ) as HTMLElement;
+  const firstRow = septemberSurface.querySelector(
+    '[data-session-id="session-one"]'
+  ) as HTMLElement;
+  const secondRow = septemberSurface.querySelector(
+    '[data-session-id="session-two"]'
+  ) as HTMLElement;
+  const thirdRow = septemberSurface.querySelector(
+    '[data-session-id="session-three"]'
+  ) as HTMLElement;
+  const staleAnchors: Node[] = [];
+  const originalInsertBefore = septemberSurface.insertBefore.bind(
+    septemberSurface
+  );
+  septemberSurface.insertBefore = function <T extends Node>(
+    node: T,
+    referenceNode: Node | null
+  ): T {
+    if (referenceNode === firstRow) staleAnchors.push(referenceNode);
+    return originalInsertBefore(node, referenceNode);
+  };
+
+  controller.update(
+    makeProps({
+      grouped: [
+        { monthLabel: 'September 2026', sessions: [secondSession, thirdSession] },
+        { monthLabel: 'October 2026', sessions: [firstSession] },
+      ],
+      filteredSessions: [secondSession, thirdSession, firstSession],
+    })
+  );
+
+  assert.deepEqual(staleAnchors, []);
+  assert.deepEqual(Array.from(septemberSurface.children), [secondRow, thirdRow]);
+  assert.equal(
+    root.querySelector(
+      '[data-session-history-group="October 2026"] [data-session-id="session-one"]'
+    ),
+    firstRow
+  );
   controller.destroy();
   dom.window.close();
 });
