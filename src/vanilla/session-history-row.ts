@@ -134,19 +134,55 @@ function requireElement<T extends Element>(root: ParentNode, selector: string): 
   return element;
 }
 
+interface SessionHistoryRowElements {
+  row: HTMLElement;
+  date: HTMLElement;
+  categoryBadgeElement: HTMLElement;
+  duration: HTMLElement;
+  effortBadgeElement: HTMLElement;
+  notePreview: HTMLElement;
+  techniques: HTMLElement;
+  detailsHost: HTMLElement;
+  actionsElement: HTMLDetailsElement;
+}
+
+function getSessionHistoryRowElements(
+  host: HTMLElement
+): SessionHistoryRowElements {
+  const row = requireElement<HTMLElement>(host, '[data-ui-session-history-row]');
+  return {
+    row,
+    date: requireElement<HTMLElement>(row, '[data-session-date]'),
+    categoryBadgeElement: requireElement<HTMLElement>(row, '[data-session-category]'),
+    duration: requireElement<HTMLElement>(row, '[data-session-duration]'),
+    effortBadgeElement: requireElement<HTMLElement>(row, '[data-session-effort]'),
+    notePreview: requireElement<HTMLElement>(row, '[data-session-note-preview]'),
+    techniques: requireElement<HTMLElement>(row, '[data-session-techniques] .ui-action-chip-list'),
+    detailsHost: requireElement<HTMLElement>(row, '[data-session-details-host]'),
+    actionsElement: requireElement<HTMLDetailsElement>(row, '[data-session-actions] > .ui-action-disclosure'),
+  };
+}
+
+/** Validate row markup before a parent component mounts any row listeners. */
+export function validateSessionHistoryRow(host: HTMLElement): void {
+  getSessionHistoryRowElements(host);
+}
+
 export function mountSessionHistoryRow(
   host: HTMLElement,
   initialProps: SessionHistoryRowProps
 ): ComponentController<SessionHistoryRowProps> {
-  const row = requireElement<HTMLElement>(host, '[data-ui-session-history-row]');
-  const date = requireElement<HTMLElement>(row, '[data-session-date]');
-  const categoryBadgeElement = requireElement<HTMLElement>(row, '[data-session-category]');
-  const duration = requireElement<HTMLElement>(row, '[data-session-duration]');
-  const effortBadgeElement = requireElement<HTMLElement>(row, '[data-session-effort]');
-  const notePreview = requireElement<HTMLElement>(row, '[data-session-note-preview]');
-  const techniques = requireElement<HTMLElement>(row, '[data-session-techniques] .ui-action-chip-list');
-  const detailsHost = requireElement<HTMLElement>(row, '[data-session-details-host]');
-  const actionsElement = requireElement<HTMLDetailsElement>(row, '[data-session-actions] > .ui-action-disclosure');
+  const {
+    row,
+    date,
+    categoryBadgeElement,
+    duration,
+    effortBadgeElement,
+    notePreview,
+    techniques,
+    detailsHost,
+    actionsElement,
+  } = getSessionHistoryRowElements(host);
   const categoryBadge = mountBadge(categoryBadgeElement, { label: initialProps.session.category || 'Technical', variant: categoryBadgeVariants[initialProps.session.category || 'Technical'] });
   const effortBadge = mountBadge(effortBadgeElement, { label: EFFORT_LABELS[initialProps.session.effort], variant: effortBadgeVariants[initialProps.session.effort] });
   const techniqueList = mountActionChipList(techniques, getTechniqueProps(initialProps));

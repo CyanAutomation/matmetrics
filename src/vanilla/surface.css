@@ -1,0 +1,60 @@
+@layer components {
+  .ui-surface {
+    border-radius: 1rem;
+    color: hsl(var(--card-foreground));
+  }
+
+  .ui-surface--default {
+    background-color: hsl(var(--card));
+    box-shadow: 0 18px 32px -30px hsl(var(--foreground) / 0.32);
+  }
+
+  .ui-surface--subtle {
+    background-color: hsl(var(--color-surface-container-low));
+  }
+
+  .ui-surface--elevated {
+    background-color: hsl(var(--card));
+    box-shadow: 0 22px 42px -32px hsl(var(--foreground) / 0.42);
+  }
+
+  .ui-surface--interactive {
+    background-color: hsl(var(--card));
+    transition: background-color var(--motion-duration-fast) ease;
+  }
+
+  .ui-surface--interactive:hover {
+    background-color: hsl(var(--color-surface-container-high) / 0.52);
+  }
+
+  .ui-surface--interactive:focus-within {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .ui-surface--padding-none {
+    padding: 0;
+  }
+
+  .ui-surface--padding-sm {
+    padding: 1rem;
+  }
+
+  .ui-surface--padding-default {
+    padding: 1.25rem;
+  }
+
+  .ui-surface--padding-lg {
+    padding: 1.5rem;
+  }
+
+  @media (min-width: 40rem) {
+    .ui-surface--padding-default {
+      padding: 1.5rem;
+    }
+
+    .ui-surface--padding-lg {
+      padding: 2rem;
+    }
+  }
+}

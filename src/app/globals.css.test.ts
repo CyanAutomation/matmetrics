@@ -47,6 +47,27 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
     declarationValueFor('.ui-session-history-row--compact .ui-session-history-row__note-preview', '-webkit-line-clamp'),
     '1'
   );
+  assert.equal(declarationValueFor('.ui-surface', 'border-radius'), '1rem');
+  assert.equal(
+    declarationValueFor('.ui-surface--default', 'background-color'),
+    'hsl(var(--card))'
+  );
+  assert.equal(
+    declarationValueFor('.ui-surface--subtle', 'background-color'),
+    'hsl(var(--color-surface-container-low))'
+  );
+  assert.equal(
+    declarationValueFor('.ui-surface--padding-sm', 'padding'),
+    '1rem'
+  );
+  assert.equal(
+    declarationValueFor('.ui-session-history-groups__group:last-child', 'margin-block-end'),
+    '0'
+  );
+  assert.equal(
+    declarationValueFor('.ui-session-history-groups__heading', 'font-size'),
+    '1.125rem'
+  );
   assert.ok(declarationValueFor('.ui-session-details__summary:focus-visible', 'outline'));
   assert.equal(declarationValueFor('.ui-dialog[open]', 'display'), 'flex');
   assert.ok(declarationValueFor('.ui-dialog::backdrop', 'background'));

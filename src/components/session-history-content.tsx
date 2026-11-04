@@ -2,29 +2,24 @@
 
 import type { ComponentProps } from 'react';
 import { Button } from '@/components/ui/button';
-import { DataSurface } from '@/components/ui/data-display';
 import { PageShell } from '@/components/ui/page-shell';
 import { RessaImage } from '@/components/ressa-image';
 import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import { SessionHistoryDialogs as SessionHistoryDialogsView } from './session-history-dialogs';
 import { SessionHistoryFilterBar } from './session-history-filter-bar';
 import { SessionHistoryReviewPanel } from './session-history-review-panel';
-import { SessionHistoryRow } from './session-history-row';
+import { VanillaSessionHistoryGroups } from './vanilla-session-history-groups';
 import type { JudoSession } from '@/lib/types';
+import type { SessionHistoryMonthGroup } from '@/vanilla/session-history-groups';
 
 export type SessionHistoryDensity = 'comfortable' | 'compact';
-
-type GroupedSessions = Array<{
-  monthLabel: string;
-  sessions: JudoSession[];
-}>;
 
 type FilterBarProps = ComponentProps<typeof SessionHistoryFilterBar>;
 type ReviewPanelProps = ComponentProps<typeof SessionHistoryReviewPanel>;
 type DialogProps = ComponentProps<typeof SessionHistoryDialogsView>;
 
 interface SessionHistoryContentProps {
-  grouped: GroupedSessions;
+  grouped: SessionHistoryMonthGroup[];
   filteredSessions: JudoSession[];
   deletingSessionId: string | null;
   density: SessionHistoryDensity;
@@ -90,65 +85,6 @@ function SessionHistoryHeaderActions({
   );
 }
 
-function SessionHistorySessionGroups({
-  grouped,
-  filteredSessions,
-  deletingSessionId,
-  density,
-  semanticSearchActive,
-  onRequestDelete,
-  onEditSession,
-  onFilterTechnique,
-}: Pick<
-  SessionHistoryContentProps,
-  | 'grouped'
-  | 'filteredSessions'
-  | 'deletingSessionId'
-  | 'density'
-  | 'semanticSearchActive'
-  | 'onRequestDelete'
-  | 'onEditSession'
-  | 'onFilterTechnique'
->) {
-  return (
-    <>
-      {filteredSessions.length === 0 ? (
-        <div className="rounded-xl bg-muted/45 p-8 text-center">
-          <p className="font-semibold">
-            {semanticSearchActive
-              ? 'JEV found no likely sessions among the candidates checked.'
-              : 'No sessions match these filters.'}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {semanticSearchActive
-              ? 'Try another query or broaden the date, type, or effort filters.'
-              : 'Try a different technique, date range, or effort level.'}
-          </p>
-        </div>
-      ) : null}
-      {grouped.map(({ monthLabel, sessions }) => (
-        <div key={monthLabel} className="mb-8 last:mb-0">
-          <h3 className="text-headline-sm mb-4">{monthLabel}</h3>
-          <DataSurface className="space-y-3" padding="sm" variant="subtle">
-            {sessions.map((session) => (
-              <div key={session.id}>
-                <SessionHistoryRow
-                  session={session}
-                  onDelete={() => onRequestDelete(session)}
-                  onEdit={onEditSession}
-                  onFilterTechnique={onFilterTechnique}
-                  deletingSessionId={deletingSessionId}
-                  density={density}
-                />
-              </div>
-            ))}
-          </DataSurface>
-        </div>
-      ))}
-    </>
-  );
-}
-
 export function SessionHistoryContent({
   grouped,
   filteredSessions,
@@ -177,7 +113,7 @@ export function SessionHistoryContent({
     >
       <SessionHistoryFilterBar {...filterBarProps} />
       <SessionHistoryReviewPanel {...reviewPanelProps} />
-      <SessionHistorySessionGroups
+      <VanillaSessionHistoryGroups
         grouped={grouped}
         filteredSessions={filteredSessions}
         semanticSearchActive={semanticSearchActive}
