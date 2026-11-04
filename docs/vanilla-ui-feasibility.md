@@ -1,6 +1,6 @@
 # Vanilla UI Feasibility Assessment
 
-**Baseline:** `origin/main` at `803880400681f6e94ffb564e035fc3327b492e62` (2026-11-03).
+**Baseline:** `origin/main` at `96ae108f0bd5e3f0ac3e8503260f21023c950850` (2026-11-04).
 
 ## Decision
 
@@ -14,15 +14,15 @@ The scope depends on what “vanilla” means:
 | Remove React from the browser UI while retaining the current Next.js API service | Feasible, but the UI must be served outside Next.js App Router pages or through a separate static frontend | Large, with a hosting boundary change |
 | Remove Next.js as well as React | Feasible as a separate initiative | Very large; includes server, auth routing, security headers, and deployment work |
 
-Next.js App Router pages are React-rendered. A fully React-free interface therefore cannot remain an ordinary `page.tsx` app; retaining Next.js as the API service is possible, but the UI needs a static or otherwise non-React delivery path. The existing migration document already treats removing Next.js as separate work.
+Next.js App Router pages are React-rendered, so a fully React-free interface cannot remain an ordinary `page.tsx` app. Next.js can still host the APIs while the UI is served as HTML and bundled TypeScript from a route handler or a separate static frontend. Removing Next.js itself is a separate server and deployment migration. A vanilla TypeScript UI also needs a client build step; browsers do not execute TypeScript source directly.
 
 ## Current baseline
 
-- `src/vanilla/` has 17 non-test TypeScript modules and 14 component stylesheets. Eight `vanilla-*` React adapters bridge vanilla controls into React-owned views. The shared controller contract covers update and cleanup, and the HTML helper escapes text and attributes in [component.ts](../src/vanilla/component.ts#L1-L12).
+- `src/vanilla/` has 19 non-test TypeScript modules and 17 component stylesheets. Eight `vanilla-*` React adapters bridge vanilla controls into React-owned views. The shared controller contract covers update and cleanup, and the HTML helper escapes text and attributes in [component.ts](../src/vanilla/component.ts#L1-L12).
 - `src/app/` and `src/components/` contain 102 production TSX files, including 33 UI primitive files in `src/components/ui/`. The main page is a client component that coordinates authentication, preferences, session data, navigation, dialogs, and plugins ([page.tsx](../src/app/page.tsx#L1-L25), [page.tsx](../src/app/page.tsx#L30-L90)).
 - Authentication is shared state, not just screen markup: the provider observes Better Auth sessions and exposes passkey, email, reset, and sign-out operations ([auth-provider.tsx](../src/components/auth-provider.tsx#L97-L119), [auth-provider.tsx](../src/components/auth-provider.tsx#L227-L302)).
 - All six first-party dashboard plugins register React renderers. Replacing React UI therefore requires a new plugin mount/update/destroy contract, plus a compatibility period or coordinated conversion ([plugin-component-registry.ts](../src/lib/plugins/plugin-component-registry.ts#L1-L27)).
-- The latest `main` commit converted session details in a history row, adding a vanilla module, adapter, and tests. This demonstrates the component pattern, but does not convert history state or the surrounding screen.
+- The latest `main` commit converted the full session-history row to a vanilla module and controller, with a temporary React adapter and tests. The history screen, filters, dialogs, and surrounding state are still React-owned.
 
 ## Recommended path
 
@@ -31,7 +31,7 @@ Keep the existing API routes, Workers, session data shape, and storage behavior 
 1. Continue with shared controls and self-contained history interactions. Keep temporary adapters only at React-owned boundaries.
 2. Move history state, dialogs, filtering, and session-form flows into vanilla controllers. Preserve focus, keyboard behavior, loading/error states, and existing API contracts.
 3. Define and document the vanilla plugin lifecycle, then convert the six first-party plugins and their validation before retiring React plugin adapters.
-4. Convert the dashboard shell and auth flows. Reassess UI delivery at this point: keep a thin React host if that is acceptable, or serve the vanilla application separately if eliminating React from the browser is a firm requirement.
+4. Convert the dashboard shell and auth flows. Reassess UI delivery at this point: keep a thin React host if vanilla implementation is the goal, or replace the React page boundary with HTML and a bundled vanilla client if eliminating React from the browser is a firm requirement.
 5. Only after the UI boundary is settled, decide whether Next.js remains the API host or is replaced in a separate server migration.
 
 This sequence follows the current migration guide and avoids coupling UI conversion to changes in session storage or Go/TypeScript contracts.

@@ -1,0 +1,5 @@
+.ui-data-use-notice {
+  color: hsl(var(--muted-foreground));
+  font-size: .75rem;
+  line-height: 1.2rem;
+}

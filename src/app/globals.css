@@ -15,6 +15,10 @@
 @import "../vanilla/badge.css";
 @import "../vanilla/session-details.css";
 @import "../vanilla/session-history-row.css";
+@import "../vanilla/button.css";
+@import "../vanilla/search-field.css";
+@import "../vanilla/data-use-notice.css";
+@import "../vanilla/session-history-filter-bar.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";
