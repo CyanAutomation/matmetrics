@@ -19,6 +19,8 @@
 @import "../vanilla/search-field.css";
 @import "../vanilla/data-use-notice.css";
 @import "../vanilla/session-history-filter-bar.css";
+@import "../vanilla/surface.css";
+@import "../vanilla/session-history-groups.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";

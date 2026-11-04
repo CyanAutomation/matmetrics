@@ -13,10 +13,14 @@ Reusable vanilla components live in `src/vanilla/`. A component exposes an HTML-
 
 Components must work without React. While a parent is still React-owned, a temporary adapter renders the same markup, mounts the controller, forwards updates and destroys it on unmount. The adapter disappears when its parent is converted. Component tests cover rendering, interaction, updates and cleanup; adapter tests cover integration and React Strict Mode where relevant.
 
+## Current conversion slice
+
+The training-history filter bar and grouped results now render through vanilla components inside the existing React-owned history screen. The grouped results component composes the shared session-history row controller and the `Surface` style primitive. Its adapter forwards updates and cleans up row listeners while the history state, review panel, dialogs, and session form remain in their existing owners. This keeps the existing route and API integration in place during conversion.
+
 ## Migration order
 
 1. Convert reusable controls and complete individual history interactions in the existing view.
-2. Move history state and its remaining presentation behind a vanilla controller, preserving session storage, search, dialogs and accessibility behavior.
+2. Move history state, review behavior, and dialogs behind vanilla controllers, preserving session storage, search, and accessibility behavior.
 3. Define a vanilla plugin mount/update/destroy contract and a compatibility adapter for existing React plugins. Migrate plugin validation and each plugin before retiring the adapter.
 4. Migrate the dashboard shell, authentication and remaining views, then remove unused React UI dependencies.
 
