@@ -155,12 +155,9 @@ function clearSemanticProps(
 }
 
 function buttonController(
-  root: ParentNode,
-  selector: string,
+  button: HTMLButtonElement,
   props: ButtonProps
 ): ComponentController<ButtonProps> {
-  const button = root.querySelector<HTMLButtonElement>(selector);
-  if (!button) throw new Error(`History filter bar markup is missing ${selector}`);
   return mountButton(button, props);
 }
 
@@ -242,25 +239,17 @@ export function mountSessionHistoryFilterBar(
   const advancedFilters = root.querySelector<HTMLElement>(
     '#training-history-filters'
   );
-  const filterToggle = buttonController(
-    root,
-    '[data-ui-action="toggle-filters"]',
-    filterToggleProps(initialProps)
+  const filterToggleButton = root.querySelector<HTMLButtonElement>(
+    '[data-ui-action="toggle-filters"]'
   );
-  const semanticSearch = buttonController(
-    root,
-    '[data-ui-action="semantic-search"]',
-    semanticSearchProps(initialProps)
+  const semanticSearchButton = root.querySelector<HTMLButtonElement>(
+    '[data-ui-action="semantic-search"]'
   );
-  const reviewHistory = buttonController(
-    root,
-    '[data-ui-action="review-history"]',
-    reviewHistoryProps(initialProps)
+  const reviewHistoryButton = root.querySelector<HTMLButtonElement>(
+    '[data-ui-action="review-history"]'
   );
-  const clearSemantic = buttonController(
-    root,
-    '[data-ui-action="clear-semantic"]',
-    clearSemanticProps(initialProps)
+  const clearSemanticButton = root.querySelector<HTMLButtonElement>(
+    '[data-ui-action="clear-semantic"]'
   );
   const resultRegion = root.querySelector<HTMLElement>('[data-semantic-results]');
   const resultCopy = root.querySelector<HTMLElement>('[data-semantic-result-copy]');
@@ -270,10 +259,41 @@ export function mountSessionHistoryFilterBar(
   const aiGuidance = root.querySelector<HTMLElement>('[data-ai-guidance]');
   const queryGuidance = root.querySelector<HTMLElement>('[data-query-guidance]');
 
-  if (!searchHost || !quickFilterElement || !advancedFilters || !resultRegion || !resultCopy || !semanticError || !summary || !signInLabel || !aiGuidance || !queryGuidance) {
+  if (
+    !searchHost ||
+    !quickFilterElement ||
+    !advancedFilters ||
+    !filterToggleButton?.querySelector('[data-button-label]') ||
+    !semanticSearchButton?.querySelector('[data-button-label]') ||
+    !reviewHistoryButton?.querySelector('[data-button-label]') ||
+    !clearSemanticButton?.querySelector('[data-button-label]') ||
+    !resultRegion ||
+    !resultCopy ||
+    !semanticError ||
+    !summary ||
+    !signInLabel ||
+    !aiGuidance ||
+    !queryGuidance
+  ) {
     throw new Error('History filter bar markup is incomplete');
   }
 
+  const filterToggle = buttonController(
+    filterToggleButton,
+    filterToggleProps(initialProps)
+  );
+  const semanticSearch = buttonController(
+    semanticSearchButton,
+    semanticSearchProps(initialProps)
+  );
+  const reviewHistory = buttonController(
+    reviewHistoryButton,
+    reviewHistoryProps(initialProps)
+  );
+  const clearSemantic = buttonController(
+    clearSemanticButton,
+    clearSemanticProps(initialProps)
+  );
   const search = mountSearchField(searchHost, searchProps(initialProps));
   const quickFilters = mountActionDisclosure(
     quickFilterElement,

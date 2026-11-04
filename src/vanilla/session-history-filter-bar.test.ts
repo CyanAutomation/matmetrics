@@ -141,3 +141,24 @@ test('history filter bar updates controls in place, routes events to current pro
   assert.equal(calls.length, 8);
   dom.window.close();
 });
+
+test('history filter bar does not attach listeners when required markup is missing', () => {
+  const dom = new JSDOM('<div id="host"></div>');
+  const host = dom.window.document.querySelector('#host') as HTMLElement;
+  let toggleCalls = 0;
+  const props = makeProps({ onToggleFilters: () => { toggleCalls += 1; } });
+  host.innerHTML = sessionHistoryFilterBarHtml(props);
+  const root = host.firstElementChild as HTMLElement;
+  const toggleButton = root.querySelector<HTMLButtonElement>(
+    '[data-ui-action="toggle-filters"]'
+  )!;
+  root.querySelector('[data-history-summary]')?.remove();
+
+  assert.throws(
+    () => mountSessionHistoryFilterBar(root, props),
+    /History filter bar markup is incomplete/
+  );
+  toggleButton.click();
+  assert.equal(toggleCalls, 0);
+  dom.window.close();
+});
