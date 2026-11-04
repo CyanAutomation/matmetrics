@@ -12,6 +12,9 @@
 @import "../vanilla/version-history.css";
 @import "../vanilla/status-message.css";
 @import "../vanilla/text-field.css";
+@import "../vanilla/badge.css";
+@import "../vanilla/session-details.css";
+@import "../vanilla/session-history-row.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";
