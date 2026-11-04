@@ -1,0 +1,100 @@
+.ui-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid transparent;
+  border-radius: .5rem;
+  padding: 0 .875rem;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ui-button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.ui-button[data-variant='primary'] {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.ui-button[data-variant='primary']:hover:not(:disabled) {
+  background: hsl(var(--color-primary-hover));
+}
+
+.ui-button[data-variant='secondary'] {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.ui-button[data-variant='secondary']:hover:not(:disabled) {
+  background: hsl(var(--secondary) / .82);
+}
+
+.ui-button[data-variant='outline'] {
+  border-color: hsl(var(--input));
+  background: hsl(var(--background));
+}
+
+.ui-button[data-variant='outline']:hover:not(:disabled) {
+  background: hsl(var(--muted) / .55);
+}
+
+.ui-button[data-variant='ghost'] {
+  background: transparent;
+}
+
+.ui-button[data-variant='ghost']:hover:not(:disabled) {
+  background: hsl(var(--muted) / .65);
+}
+
+.ui-button[data-variant='link'] {
+  min-height: 2rem;
+  padding: 0 .25rem;
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.ui-button[data-variant='destructive'] {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.ui-button[data-variant='destructive']:hover:not(:disabled) {
+  background: hsl(var(--color-error) / .88);
+}
+
+.ui-button[data-size='small'] {
+  min-height: 2.25rem;
+  padding: 0 .625rem;
+  font-size: .8125rem;
+}
+
+.ui-button__icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.ui-button__icon--spin {
+  animation: ui-button-spin .9s linear infinite;
+}
+
+@keyframes ui-button-spin {
+  to { transform: rotate(360deg); }
+}
