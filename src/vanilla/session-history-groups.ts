@@ -342,6 +342,13 @@ export function mountSessionHistoryGroups(
       group.setAttribute('aria-label', month.monthLabel);
       group.querySelector('h3')!.textContent = month.monthLabel;
       const surface = groupSurface(group);
+      const monthSessionIds = new Set(
+        month.sessions.map(({ id }) => id)
+      );
+      for (const child of Array.from(surface.children)) {
+        const sessionId = child.getAttribute('data-session-id');
+        if (!sessionId || !monthSessionIds.has(sessionId)) child.remove();
+      }
       let rowIndex = 0;
 
       for (const session of month.sessions) {
