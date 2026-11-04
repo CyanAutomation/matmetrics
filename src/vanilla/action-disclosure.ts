@@ -61,7 +61,12 @@ export function mountActionDisclosure(element: HTMLDetailsElement, props: Action
     const icon = summary.querySelector<SVGElement>('[data-icon]');
     const nextIcon = next.triggerIcon ?? 'chevron';
     if (!icon || icon.dataset.icon !== nextIcon) {
-      icon?.replaceWith(summary.ownerDocument.createRange().createContextualFragment(triggerIconHtml(nextIcon)));
+      const newIcon = summary.ownerDocument.createRange().createContextualFragment(triggerIconHtml(nextIcon));
+      if (icon) {
+        icon.replaceWith(newIcon);
+      } else {
+        summary.append(newIcon);
+      }
     }
     const buttons = Array.from(actions.querySelectorAll<HTMLButtonElement>(':scope > button'));
     const sameOrder = buttons.length === next.options.length && next.options.every((option, index) => buttons[index].dataset.actionValue === option.value);

@@ -92,7 +92,7 @@ function sessionBadgeHtml(
   variant: BadgeVariant,
   dataAttribute: 'data-session-category' | 'data-session-effort'
 ): string {
-  return badgeHtml({ label, variant }).replace('data-ui-badge', `data-ui-badge ${dataAttribute}`);
+  return badgeHtml({ label, variant }).replace(' data-ui-badge>', ` data-ui-badge ${dataAttribute}>`);
 }
 
 export function sessionHistoryRowHtml(props: SessionHistoryRowProps): string {

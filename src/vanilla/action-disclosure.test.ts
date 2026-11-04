@@ -66,3 +66,22 @@ test('supports separate visible and accessible labels plus action tones', () => 
   assert.equal(action.dataset.tone, 'destructive');
   dom.window.close();
 });
+
+test('restores a missing trigger icon when the disclosure is mounted', () => {
+  const props = {
+    label: 'Session actions',
+    triggerIcon: 'more' as const,
+    options,
+    onAction() {},
+  };
+  const dom = new JSDOM(actionDisclosureHtml(props));
+  const details = dom.window.document.querySelector('details')!;
+  const summary = details.querySelector('summary')!;
+  summary.querySelector('[data-icon]')?.remove();
+
+  const controller = mountActionDisclosure(details, props);
+
+  assert.equal(summary.querySelector('[data-icon]')?.getAttribute('data-icon'), 'more');
+  controller.destroy();
+  dom.window.close();
+});
