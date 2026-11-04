@@ -1,0 +1,95 @@
+.ui-session-details {
+  margin-top: 1rem;
+  padding-left: 1.75rem;
+}
+
+.ui-session-details__summary {
+  width: fit-content;
+  border-radius: 0.25rem;
+  color: hsl(var(--primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ui-session-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.ui-session-details__summary:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ui-session-details__summary:hover {
+  color: hsl(var(--primary) / 0.8);
+}
+
+.ui-session-details__label--open,
+.ui-session-details[open] .ui-session-details__label--closed {
+  display: none;
+}
+
+.ui-session-details[open] .ui-session-details__label--open {
+  display: inline;
+}
+
+.ui-session-details__content {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.ui-session-details__content[hidden] {
+  display: none;
+}
+
+.ui-session-details__video {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  background: hsl(var(--color-surface-container-high));
+  padding: 0.5rem 0.75rem;
+  color: hsl(var(--primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 140ms ease;
+}
+
+.ui-session-details__video:hover {
+  background: hsl(var(--color-primary-fixed) / 0.16);
+}
+
+.ui-session-details__video-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.ui-session-details__video > span,
+.ui-session-details__hostname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-session-details__hostname {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.ui-session-details__description {
+  color: hsl(var(--foreground) / 0.9);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.ui-session-details__notes {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  font-style: italic;
+}

@@ -35,6 +35,19 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.ok(declarationValueFor('.bg-background', 'background-color'));
   assert.ok(declarationValueFor('.text-foreground', 'color'));
   assert.equal(declarationValueFor('.ui-action-button', 'cursor'), 'pointer');
+  assert.equal(
+    declarationValueFor('.ui-badge--technical', 'background-color'),
+    'hsl(var(--color-category-technical-container))'
+  );
+  assert.equal(
+    declarationValueFor('.ui-session-history-row', 'container'),
+    'ui-session-row / inline-size'
+  );
+  assert.equal(
+    declarationValueFor('.ui-session-history-row--compact .ui-session-history-row__note-preview', '-webkit-line-clamp'),
+    '1'
+  );
+  assert.ok(declarationValueFor('.ui-session-details__summary:focus-visible', 'outline'));
   assert.equal(declarationValueFor('.ui-dialog[open]', 'display'), 'flex');
   assert.ok(declarationValueFor('.ui-dialog::backdrop', 'background'));
   assert.ok(declarationValueFor('.ui-status-message', 'color'));

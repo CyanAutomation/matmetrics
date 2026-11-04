@@ -1,197 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Calendar,
-  Edit2,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { VanillaActionChipList } from '@/components/vanilla-action-chip-list';
-import { VanillaSessionDetails } from '@/components/vanilla-session-details';
-import { IconButton } from '@/components/ui/icon-button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { deferMenuDialogOpen } from '@/lib/interaction';
-import {
-  getSessionNotePreview,
-} from '@/lib/session-history-format';
-import { EFFORT_LABELS, type JudoSession } from '@/lib/types';
-import { cn, formatDateLabel, parseDateOnly } from '@/lib/utils';
+  mountSessionHistoryRow,
+  sessionHistoryRowHtml,
+  type SessionHistoryRowProps,
+} from '@/vanilla/session-history-row';
 
-interface SessionHistoryRowProps {
-  session: JudoSession;
-  onDelete: (id: string) => void;
-  onEdit: (session: JudoSession) => void;
-  onFilterTechnique: (technique: string) => void;
-  deletingSessionId: string | null;
-  density: 'comfortable' | 'compact';
-}
+export type { SessionHistoryRowProps } from '@/vanilla/session-history-row';
 
-const categoryBadgeVariants = {
-  Technical: 'technical',
-  Randori: 'randori',
-  Shiai: 'shiai',
-  Cardio: 'cardio',
-  'S&C': 'strengthConditioning',
-} as const;
+/** Temporary React host while the history screen and data state are migrated. */
+export function SessionHistoryRow(props: SessionHistoryRowProps) {
+  const host = useRef<HTMLDivElement>(null);
+  const controller = useRef<ReturnType<typeof mountSessionHistoryRow> | null>(null);
+  const [markup] = useState(() => ({ __html: sessionHistoryRowHtml(props) }));
 
-const effortBadgeVariants = {
-  1: 'effortEasy',
-  2: 'effortLight',
-  3: 'effortNormal',
-  4: 'effortHard',
-  5: 'effortIntense',
-} as const;
+  useEffect(() => {
+    if (!host.current) return;
+    const instance = mountSessionHistoryRow(host.current, props);
+    controller.current = instance;
+    return () => {
+      instance.destroy();
+      controller.current = null;
+    };
+    // The controller belongs to this host; subsequent props are applied below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-function SessionRowActions({
-  session,
-  sessionDateLabel,
-  onDelete,
-  onEdit,
-  deletingSessionId,
-}: Pick<
-  SessionHistoryRowProps,
-  'session' | 'onDelete' | 'onEdit' | 'deletingSessionId'
-> & { sessionDateLabel: string }) {
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  useEffect(() => {
+    controller.current?.update(props);
+  });
 
-  return (
-    <DropdownMenu
-      open={isActionsMenuOpen}
-      onOpenChange={setIsActionsMenuOpen}
-    >
-      <DropdownMenuTrigger asChild>
-        <IconButton
-          variant="ghost"
-          className="h-11 w-11 text-muted-foreground hover:bg-primary/5 hover:text-primary"
-          label={`Actions for session from ${sessionDateLabel}`}
-          title="Session actions"
-          icon={<MoreHorizontal aria-hidden="true" className="h-5 w-5" />}
-        />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onSelect={() => {
-            setIsActionsMenuOpen(false);
-            deferMenuDialogOpen(() => onEdit(session));
-          }}
-        >
-          <Edit2 className="mr-2 h-4 w-4" />
-          Edit session
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={deletingSessionId === session.id}
-          onSelect={() => {
-            setIsActionsMenuOpen(false);
-            deferMenuDialogOpen(() => onDelete(session.id));
-          }}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete session
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function SessionRowTechniques({
-  techniques,
-  onFilterTechnique,
-}: {
-  techniques: string[];
-  onFilterTechnique: (technique: string) => void;
-}) {
-  return (
-    <VanillaActionChipList
-      items={techniques}
-      limit={3}
-      title={(technique) => `Show sessions tagged ${technique}`}
-      onSelect={onFilterTechnique}
-    />
-  );
-}
-
-export function SessionHistoryRow({
-  session,
-  onDelete,
-  onEdit,
-  onFilterTechnique,
-  deletingSessionId,
-  density,
-}: SessionHistoryRowProps) {
-  const sessionDateLabel = formatDateLabel(
-    parseDateOnly(session.date),
-    'weekday-month-day-year'
-  );
-  const sessionCategory = session.category || 'Technical';
-  const notePreview = getSessionNotePreview(session);
-
-  return (
-    <div
-      className={cn(
-        '@container/session-row rounded-xl bg-card/42 px-4 reveal-fade transition-colors hover:bg-card sm:px-5',
-        density === 'compact' ? 'py-3' : 'py-4'
-      )}
-    >
-      <div className="flex flex-col justify-between gap-3 @min-[44rem]/session-row:flex-row @min-[44rem]/session-row:items-center">
-        <div className="min-w-0 space-y-2">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-base">
-                {formatDateLabel(parseDateOnly(session.date), 'weekday-month-day')}
-              </span>
-              <Badge variant={categoryBadgeVariants[sessionCategory]}>
-                {sessionCategory}
-              </Badge>
-              {session.duration ? (
-                <span className="text-xs font-medium text-muted-foreground">
-                  {session.duration} min
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <SessionRowTechniques
-            techniques={session.techniques}
-            onFilterTechnique={onFilterTechnique}
-          />
-          {notePreview ? (
-            <p
-              className={cn(
-                'max-w-2xl text-sm leading-6 text-muted-foreground',
-                density === 'compact' ? 'line-clamp-1' : 'line-clamp-2'
-              )}
-            >
-              {notePreview}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 @min-[44rem]/session-row:w-auto @min-[44rem]/session-row:shrink-0 @min-[44rem]/session-row:justify-end">
-          <div className="mr-1 flex flex-col items-end @min-[44rem]/session-row:mr-3">
-            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
-              Effort
-            </span>
-            <Badge variant={effortBadgeVariants[session.effort]}>
-              {EFFORT_LABELS[session.effort]}
-            </Badge>
-          </div>
-          <SessionRowActions
-            session={session}
-            sessionDateLabel={sessionDateLabel}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            deletingSessionId={deletingSessionId}
-          />
-        </div>
-      </div>
-      <VanillaSessionDetails description={session.description} notes={session.notes} videoUrl={session.videoUrl} />
-    </div>
-  );
+  return <div ref={host} dangerouslySetInnerHTML={markup} />;
 }

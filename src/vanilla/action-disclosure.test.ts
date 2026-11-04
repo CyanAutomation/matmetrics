@@ -29,6 +29,8 @@ test('updates actions and callbacks without closing the disclosure or replacing 
   button.click();
   controller.update({ ...initial, label: 'Shortcuts', onAction: value => calls.push(`new:${value}`) });
   assert.equal(details.open, true);
+  assert.equal(details.getAttribute('aria-label'), 'Shortcuts');
+  assert.equal(details.querySelector('summary')?.getAttribute('aria-label'), 'Shortcuts');
   assert.equal(details.querySelector('button'), button);
   assert.equal(dom.window.document.activeElement, button);
   button.click();
@@ -41,4 +43,26 @@ test('updates actions and callbacks without closing the disclosure or replacing 
   replacement.disabled = false;
   replacement.click();
   assert.deepEqual(calls, ['old:week', 'new:week']);
+});
+
+test('supports separate visible and accessible labels plus action tones', () => {
+  const dom = new JSDOM(actionDisclosureHtml({
+    label: 'Session actions',
+    ariaLabel: 'Actions for Sunday training',
+    triggerText: '',
+    triggerIcon: 'more',
+    className: 'ui-action-disclosure--menu',
+    options: [{ value: 'delete', label: 'Delete session', tone: 'destructive' }],
+    onAction() {},
+  }));
+  const details = dom.window.document.querySelector('details')!;
+  const summary = details.querySelector('summary')!;
+  const action = details.querySelector('button')!;
+
+  assert.equal(details.classList.contains('ui-action-disclosure--menu'), true);
+  assert.equal(summary.getAttribute('aria-label'), 'Actions for Sunday training');
+  assert.equal(summary.querySelector('svg')?.getAttribute('data-icon'), 'more');
+  assert.equal(summary.textContent?.trim(), 'Session actions');
+  assert.equal(action.dataset.tone, 'destructive');
+  dom.window.close();
 });
