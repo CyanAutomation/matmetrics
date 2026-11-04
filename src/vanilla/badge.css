@@ -1,0 +1,102 @@
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  box-shadow: 0 0 0 1px hsl(var(--color-outline-variant) / 0.12);
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+[data-contrast='high'] .ui-badge {
+  box-shadow: 0 0 0 1px hsl(var(--color-outline-variant) / 0.9);
+}
+
+.dark .ui-badge {
+  box-shadow: 0 0 0 1px hsl(0 0% 100% / 0.1);
+}
+
+.ui-badge--default {
+  background-color: hsl(var(--color-primary-fixed));
+  color: hsl(var(--color-on-primary-fixed));
+  box-shadow: none;
+}
+
+.ui-badge--secondary {
+  background-color: hsl(var(--color-secondary-container));
+  color: hsl(var(--color-on-secondary-container));
+  box-shadow: none;
+}
+
+.ui-badge--destructive {
+  background-color: hsl(var(--color-error-container));
+  color: hsl(var(--color-on-error-container));
+  box-shadow: none;
+}
+
+.ui-badge--outline {
+  background-color: hsl(var(--card));
+}
+
+.ui-badge--technical {
+  background-color: hsl(var(--color-category-technical-container));
+  color: hsl(var(--color-on-category-technical-container));
+  box-shadow: none;
+}
+
+.ui-badge--randori {
+  background-color: hsl(var(--color-category-randori-container));
+  color: hsl(var(--color-on-category-randori-container));
+  box-shadow: none;
+}
+
+.ui-badge--shiai {
+  background-color: hsl(var(--color-category-shiai-container));
+  color: hsl(var(--color-on-category-shiai-container));
+  box-shadow: none;
+}
+
+.ui-badge--cardio {
+  background-color: hsl(var(--color-category-cardio-container));
+  color: hsl(var(--color-on-category-cardio-container));
+  box-shadow: none;
+}
+
+.ui-badge--strength-conditioning {
+  background-color: hsl(var(--color-category-strength-conditioning-container));
+  color: hsl(var(--color-on-category-strength-conditioning-container));
+  box-shadow: none;
+}
+
+.ui-badge--effort-easy {
+  background-color: hsl(var(--color-surface-container-high));
+  color: hsl(var(--muted-foreground));
+  box-shadow: none;
+}
+
+.ui-badge--effort-light {
+  background-color: hsl(var(--color-info-container));
+  color: hsl(var(--color-on-info-container));
+  box-shadow: none;
+}
+
+.ui-badge--effort-normal {
+  background-color: hsl(var(--color-secondary-container));
+  color: hsl(var(--color-on-secondary-container));
+  box-shadow: none;
+}
+
+.ui-badge--effort-hard {
+  background-color: hsl(var(--color-warning-container));
+  color: hsl(var(--color-on-warning-container));
+  box-shadow: none;
+}
+
+.ui-badge--effort-intense {
+  background-color: hsl(var(--color-error-container));
+  color: hsl(var(--color-on-error-container));
+  box-shadow: none;
+}

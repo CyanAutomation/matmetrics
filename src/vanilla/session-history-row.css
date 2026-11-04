@@ -1,0 +1,135 @@
+.ui-session-history-row {
+  container: ui-session-row / inline-size;
+  border-radius: 0.75rem;
+  background: hsl(var(--card) / 0.42);
+  padding: 1rem;
+  transition: background-color 140ms ease;
+}
+
+.ui-session-history-row:hover {
+  background: hsl(var(--card));
+}
+
+.ui-session-history-row--compact {
+  padding-block: 0.75rem;
+}
+
+.ui-session-history-row__layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ui-session-history-row__main {
+  min-width: 0;
+}
+
+.ui-session-history-row__date-line,
+.ui-session-history-row__date-content,
+.ui-session-history-row__side {
+  display: flex;
+  align-items: center;
+}
+
+.ui-session-history-row__date-line {
+  gap: 0.75rem;
+}
+
+.ui-session-history-row__calendar {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: hsl(var(--muted-foreground));
+}
+
+.ui-session-history-row__date-content {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ui-session-history-row__date {
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ui-session-history-row__duration {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ui-session-history-row__duration[hidden],
+.ui-session-history-row__note-preview[hidden] {
+  display: none;
+}
+
+.ui-session-history-row__techniques {
+  margin-top: 0.5rem;
+}
+
+.ui-session-history-row__note-preview {
+  display: -webkit-box;
+  max-width: 42rem;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ui-session-history-row--compact .ui-session-history-row__note-preview {
+  -webkit-line-clamp: 1;
+}
+
+.ui-session-history-row__note-preview--empty {
+  display: none;
+}
+
+.ui-session-history-row__side {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ui-session-history-row__effort {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-right: 0.25rem;
+}
+
+.ui-session-history-row__effort-label {
+  margin-bottom: 0.25rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ui-session-history-row [data-session-actions] {
+  flex: 0 0 auto;
+}
+
+@container ui-session-row (min-width: 44rem) {
+  .ui-session-history-row__layout {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .ui-session-history-row__side {
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+
+  .ui-session-history-row__effort {
+    margin-right: 0.75rem;
+  }
+}
