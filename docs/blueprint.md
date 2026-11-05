@@ -95,7 +95,7 @@ token; the fallback is a fixed palette slot, not a category-specific color.
 | `Technical`      | `chart-1`   | Supported category |
 | `Randori`        | `chart-2`   | Supported category |
 | `Shiai`          | `chart-3`   | Supported category |
-| `Cardio`         | `chart-4`   | Supported category |
+| `Cardio`         | `chart-6`   | Supported category |
 | `S&C`            | `chart-5`   | Supported category |
 | Unknown category | `chart-4`   | Reserved fallback  |
 
