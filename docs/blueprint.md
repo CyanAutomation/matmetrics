@@ -86,15 +86,17 @@ All design tokens use **kebab-case** naming and are exported from `src/lib/desig
 
 Dashboard category bars use the chart palette in session-contract order. Each
 supported category receives a unique token so the series remain visually
-distinct. Category data outside the frozen session contract is displayed with
-the reserved fallback token rather than being assigned a supported category's
-color.
+distinct. Category data outside the frozen session contract is displayed
+with the reserved fallback token (`chart-4`) instead of a category-derived
+token; the fallback is a fixed palette slot, not a category-specific color.
 
 | Session category | Chart token | Behavior           |
 | ---------------- | ----------- | ------------------ |
 | `Technical`      | `chart-1`   | Supported category |
 | `Randori`        | `chart-2`   | Supported category |
 | `Shiai`          | `chart-3`   | Supported category |
+| `Cardio`         | `chart-4`   | Supported category |
+| `S&C`            | `chart-5`   | Supported category |
 | Unknown category | `chart-4`   | Reserved fallback  |
 
 Category bar implementations must resolve these semantic chart token names and
