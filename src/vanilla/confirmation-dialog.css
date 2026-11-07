@@ -1,0 +1,15 @@
+.ui-dialog--wide {
+  width: min(64rem, calc(100% - 2rem));
+  max-height: 90vh;
+}
+
+.ui-dialog--wide .ui-dialog__content {
+  overflow-y: auto;
+}
+
+.ui-confirmation-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .75rem;
+}

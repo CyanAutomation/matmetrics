@@ -15,12 +15,12 @@ Components must work without React. While a parent is still React-owned, a tempo
 
 ## Current conversion slice
 
-The training-history filter bar and grouped results now render through vanilla components inside the existing React-owned history screen. The grouped results component composes the shared session-history row controller and the `Surface` style primitive. Its adapter forwards updates and cleans up row listeners while the history state, review panel, dialogs, and session form remain in their existing owners. This keeps the existing route and API integration in place during conversion.
+The training-history filter bar, grouped results, and review results panel render through vanilla components inside the existing React-owned history screen. The grouped results and review panel compose shared session-row, `Surface`, and button primitives. Edit and delete dialogs use the shared native dialog and confirmation components; the edit form remains React content inside the vanilla dialog shell. Temporary adapters forward updates and clean up listeners while history state, review orchestration, and the session form remain in their existing owners. This keeps the existing route and API integration in place during conversion.
 
 ## Migration order
 
-1. Convert reusable controls and complete individual history interactions in the existing view.
-2. Move history state, review behavior, and dialogs behind vanilla controllers, preserving session storage, search, and accessibility behavior.
+1. Convert reusable controls, dialogs, and individual history interactions in the existing view.
+2. Move history state and review orchestration behind vanilla controllers, preserving session storage, search, and accessibility behavior.
 3. Define a vanilla plugin mount/update/destroy contract and a compatibility adapter for existing React plugins. Migrate plugin validation and each plugin before retiring the adapter.
 4. Migrate the dashboard shell, authentication and remaining views, then remove unused React UI dependencies.
 

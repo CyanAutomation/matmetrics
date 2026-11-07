@@ -8,6 +8,7 @@
 @import "../vanilla/password-reset.css";
 @import "../vanilla/action-button.css";
 @import "../vanilla/dialog.css";
+@import "../vanilla/confirmation-dialog.css";
 @import "../vanilla/guest-workspace-notice.css";
 @import "../vanilla/version-history.css";
 @import "../vanilla/status-message.css";
@@ -21,6 +22,7 @@
 @import "../vanilla/session-history-filter-bar.css";
 @import "../vanilla/surface.css";
 @import "../vanilla/session-history-groups.css";
+@import "../vanilla/session-history-review-panel.css";
 @config "../../tailwind.config.mjs";
 @import "tailwindcss" source(none);
 @source "../";

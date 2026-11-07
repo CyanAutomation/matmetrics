@@ -26,7 +26,7 @@ Next.js App Router pages are React-rendered, so a fully React-free interface can
 
 ## Implementation progress
 
-The assessment worktree adds a vanilla grouped-session-results component that reuses the existing session-row controller and a shared `Surface` style primitive. Its React adapter keeps the component in the existing history screen; it adds no route or API endpoint. In this worktree, `src/vanilla/` has 25 non-test TypeScript modules and 23 component stylesheets, with nine React adapters. The history state, review panel, dialogs, and session form remain the next conversion work.
+The assessment worktree adds a vanilla grouped-session-results component that reuses the existing session-row controller and a shared `Surface` style primitive. Its React adapter keeps the component in the existing history screen; it adds no route or API endpoint. Follow-up slices add a reusable confirmation component, move the edit/delete dialog shells to native HTML dialogs, and render review results through a vanilla panel that composes shared surface and button primitives. The current implementation worktree has 27 non-test TypeScript modules in `src/vanilla/`, 25 component stylesheets, and eleven temporary React adapters. History state, review orchestration, and the session form remain React-owned.
 
 ## Recommended path
 
