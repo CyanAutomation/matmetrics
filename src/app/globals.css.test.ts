@@ -68,9 +68,19 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
     declarationValueFor('.ui-session-history-groups__heading', 'font-size'),
     '1.125rem'
   );
+  assert.equal(
+    declarationValueFor('.ui-session-history-review__entry', 'border-radius'),
+    '.5rem'
+  );
+  assert.equal(
+    declarationValueFor('.ui-session-history-review__theme-count', 'font-variant-numeric'),
+    'tabular-nums'
+  );
   assert.ok(declarationValueFor('.ui-session-details__summary:focus-visible', 'outline'));
   assert.equal(declarationValueFor('.ui-dialog[open]', 'display'), 'flex');
   assert.ok(declarationValueFor('.ui-dialog::backdrop', 'background'));
+  assert.equal(declarationValueFor('.ui-dialog--wide', 'max-height'), '90vh');
+  assert.equal(declarationValueFor('.ui-confirmation-dialog__actions', 'justify-content'), 'flex-end');
   assert.ok(declarationValueFor('.ui-status-message', 'color'));
   assert.equal(declarationValueFor('.ui-segmented-control', 'display'), 'inline-flex');
   assert.ok(declarationValueFor(".ui-segmented-control__item[aria-pressed='true']", 'background'));
