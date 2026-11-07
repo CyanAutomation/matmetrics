@@ -1,0 +1,98 @@
+.ui-session-history-review {
+  margin-block-end: 1rem;
+  border-radius: .75rem;
+  background: hsl(var(--primary) / .05);
+  padding: .5rem .75rem;
+}
+
+.ui-session-history-review__content {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.ui-session-history-review__themes {
+  border: 1px solid hsl(var(--primary) / .2);
+}
+
+.ui-session-history-review__themes h3 {
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.ui-session-history-review__theme-description {
+  margin-block-start: .25rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .75rem;
+}
+
+.ui-session-history-review__themes-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-block-start: .75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-session-history-review__themes-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  font-size: .875rem;
+}
+
+.ui-session-history-review__theme-name {
+  font-weight: 500;
+}
+
+.ui-session-history-review__theme-count {
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-session-history-review__empty-themes {
+  margin-block-start: .75rem;
+  font-size: .875rem;
+}
+
+.ui-session-history-review__entry {
+  border: 1px solid hsl(var(--border) / .7);
+  border-radius: .5rem;
+  background: hsl(var(--background));
+  padding: .75rem;
+}
+
+.ui-session-history-review__entry-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-size: .875rem;
+  font-weight: 500;
+}
+
+.ui-session-history-review__suggestions,
+.ui-session-history-review__failure {
+  margin-block-start: .5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .875rem;
+}
+
+.ui-session-history-review__suggestions p + p {
+  margin-block-start: .25rem;
+}
+
+.ui-session-history-review__suggestions strong {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.ui-session-history-review__edit {
+  min-height: 2rem;
+  margin-block-start: .5rem;
+  padding-inline: .5rem;
+  font-size: .875rem;
+}

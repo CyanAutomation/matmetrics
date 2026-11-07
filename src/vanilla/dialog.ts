@@ -5,7 +5,10 @@ export interface DialogContent {
   id: string;
   title: string;
   description: string;
+  size?: DialogSize;
 }
+
+export type DialogSize = 'default' | 'wide';
 
 export interface DialogProps {
   open: boolean;
@@ -15,7 +18,8 @@ export interface DialogProps {
 /** The caller owns the content slot, including escaping its trusted HTML. */
 export function dialogHtml(content: DialogContent, contentHtml = ''): string {
   const id = escapeHtml(content.id);
-  return `<dialog class="ui-dialog" aria-labelledby="${id}-title" aria-describedby="${id}-description">
+  const sizeClass = content.size === 'wide' ? ' ui-dialog--wide' : '';
+  return `<dialog id="${id}" class="ui-dialog${sizeClass}" aria-labelledby="${id}-title" aria-describedby="${id}-description">
     <header class="ui-dialog__header"><h2 id="${id}-title" data-dialog-title>${escapeHtml(content.title)}</h2><p id="${id}-description" data-dialog-description>${escapeHtml(content.description)}</p></header>
     <button type="button" class="ui-dialog__close" data-dialog-close aria-label="Close">&#215;</button>
     <div class="ui-dialog__content" data-dialog-content>${contentHtml}</div>
