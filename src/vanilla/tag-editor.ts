@@ -26,9 +26,10 @@ function tagListHtml(props: TagEditorProps): string {
       escapeHtml(props.emptyMessage ?? 'No tags added yet.') + '</li>';
   }
   return props.values.map((value, index) =>
-    '<li class="ui-tag-editor__tag" data-tag-value="' + escapeHtml(value) + '" data-tag-index="' + index +
+    '<li class="ui-tag-editor__tag" data-tag-entry data-tag-index="' + index +
     '"><span class="ui-tag-editor__text" data-tag-text>' +
-    escapeHtml(value) + '</span><button class="ui-tag-editor__remove" type="button" data-tag-remove="' +
+    escapeHtml(value) + '</span><button class="ui-tag-editor__remove" type="button" data-tag-value="' +
+    escapeHtml(value) + '" data-tag-remove="' +
     index + '"' + (props.disabled ? ' disabled' : '') +
     ' aria-label="Remove ' + escapeHtml(value) +
     ' ' + escapeHtml(props.itemLabel ?? 'tag') + '" title="Remove ' + escapeHtml(value) +
@@ -110,9 +111,9 @@ export function mountTagEditor(
     }
     const remove = target?.closest<HTMLButtonElement>('[data-tag-remove]');
     if (!remove || !root.contains(remove) || remove.disabled) return;
-    const item = remove.closest<HTMLElement>('[data-tag-value]');
+    const item = remove.closest<HTMLElement>('[data-tag-entry]');
     if (!item || !list.contains(item)) return;
-    const value = item.dataset.tagValue;
+    const value = remove.dataset.tagValue;
     if (value !== undefined) current.onRemove(value);
   };
 
