@@ -22,6 +22,7 @@ test('tag editor adapter updates props and removes event listeners in Strict Mod
     id: 'technique',
     label: 'Technique tags',
     inputLabel: 'Add a technique tag',
+    itemLabel: 'technique tag',
     values: ['Uchi mata'],
     newValue: '',
     placeholder: 'Add a technique',

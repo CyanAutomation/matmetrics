@@ -5,6 +5,8 @@ export interface TagEditorProps {
   id: string;
   label: string;
   inputLabel: string;
+  /** Item description used in each remove button's accessible label. */
+  itemLabel?: string;
   name?: string;
   values: readonly string[];
   newValue: string;
@@ -24,12 +26,12 @@ function tagListHtml(props: TagEditorProps): string {
       escapeHtml(props.emptyMessage ?? 'No tags added yet.') + '</li>';
   }
   return props.values.map((value, index) =>
-    '<li class="ui-tag-editor__tag" data-tag-value data-tag-index="' + index +
+    '<li class="ui-tag-editor__tag" data-tag-value="' + escapeHtml(value) + '" data-tag-index="' + index +
     '"><span class="ui-tag-editor__text" data-tag-text>' +
     escapeHtml(value) + '</span><button class="ui-tag-editor__remove" type="button" data-tag-remove="' +
     index + '"' + (props.disabled ? ' disabled' : '') +
     ' aria-label="Remove ' + escapeHtml(value) +
-    ' technique tag" title="Remove ' + escapeHtml(value) +
+    ' ' + escapeHtml(props.itemLabel ?? 'tag') + '" title="Remove ' + escapeHtml(value) +
     '">×</button></li>'
   ).join('');
 }
@@ -65,14 +67,23 @@ export function mountTagEditor(
   }
 
   let current = props;
+  let renderedValues = Array.from(props.values);
+  let renderedEmptyMessage = props.emptyMessage;
+  let renderedItemLabel = props.itemLabel;
   const update = (next: TagEditorProps) => {
     if (next.id !== props.id) throw new Error('Tag editor id must remain stable');
-    const valuesChanged = current.values.length !== next.values.length ||
-      current.values.some((value, index) => value !== next.values[index]) ||
-      current.emptyMessage !== next.emptyMessage;
+    const listChanged = renderedValues.length !== next.values.length ||
+      renderedValues.some((value, index) => value !== next.values[index]) ||
+      renderedEmptyMessage !== next.emptyMessage ||
+      renderedItemLabel !== next.itemLabel;
     current = next;
     root.setAttribute('aria-label', next.label);
-    if (valuesChanged) list.innerHTML = tagListHtml(next);
+    if (listChanged) {
+      list.innerHTML = tagListHtml(next);
+      renderedValues = Array.from(next.values);
+      renderedEmptyMessage = next.emptyMessage;
+      renderedItemLabel = next.itemLabel;
+    }
     inputLabel.textContent = next.inputLabel;
     if (input.value !== next.newValue) input.value = next.newValue;
     input.placeholder = next.placeholder;
@@ -99,7 +110,9 @@ export function mountTagEditor(
     }
     const remove = target?.closest<HTMLButtonElement>('[data-tag-remove]');
     if (!remove || !root.contains(remove) || remove.disabled) return;
-    const value = current.values[Number(remove.dataset.tagRemove)];
+    const item = remove.closest<HTMLElement>('[data-tag-value]');
+    if (!item || !list.contains(item)) return;
+    const value = item.dataset.tagValue;
     if (value !== undefined) current.onRemove(value);
   };
 

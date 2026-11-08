@@ -12,6 +12,7 @@ test('tag editor escapes values and renders labeled removal controls', () => {
     id: 'technique',
     label: 'Technique tags',
     inputLabel: 'Add a technique tag',
+    itemLabel: 'technique tag',
     values: ['Uchi mata', '<O-soto & gari>'],
     newValue: '',
     placeholder: 'Add a technique',
@@ -41,6 +42,7 @@ test('tag editor updates values in place, handles add/remove and cleans up', () 
     id: 'technique',
     label: 'Technique tags',
     inputLabel: 'Add a technique tag',
+    itemLabel: 'technique tag',
     values: ['Uchi mata'],
     newValue: '',
     placeholder: 'Add a technique',
@@ -89,5 +91,66 @@ test('tag editor updates values in place, handles add/remove and cleans up', () 
   editor.querySelector<HTMLButtonElement>('[data-tag-remove="0"]')!.click();
   assert.equal(events.length, 4);
   assert.throws(() => controller.update({ ...initial, id: 'other' }), /stable/);
+  dom.window.close();
+});
+
+test('tag editor updates the accessible remove label when the item label changes', () => {
+  const dom = new JSDOM('<div></div>');
+  const host = dom.window.document.querySelector('div') as HTMLElement;
+  const initial = {
+    id: 'items',
+    label: 'Items',
+    inputLabel: 'Add an item',
+    itemLabel: 'technique tag',
+    values: ['Uchi mata'],
+    newValue: '',
+    placeholder: 'Add an item',
+    onInput() {},
+    onAdd() {},
+    onRemove() {},
+  };
+  host.innerHTML = tagEditorHtml(initial);
+  const editor = host.querySelector<HTMLElement>('[data-ui-tag-editor]')!;
+  const controller = mountTagEditor(editor, initial);
+
+  assert.equal(editor.querySelector('[data-tag-remove]')?.getAttribute('aria-label'), 'Remove Uchi mata technique tag');
+  controller.update({ ...initial, itemLabel: 'topic' });
+  assert.equal(editor.querySelector('[data-tag-remove]')?.getAttribute('aria-label'), 'Remove Uchi mata topic');
+
+  dom.window.close();
+});
+
+test('tag editor keeps removal values aligned when the values array is mutated in place', () => {
+  const dom = new JSDOM('<div></div>');
+  const host = dom.window.document.querySelector('div') as HTMLElement;
+  const values = ['Alpha', 'Beta'];
+  const removed: string[] = [];
+  const initial = {
+    id: 'items',
+    label: 'Items',
+    inputLabel: 'Add an item',
+    values,
+    newValue: '',
+    placeholder: 'Add an item',
+    onInput() {},
+    onAdd() {},
+    onRemove: (value: string) => removed.push(value),
+  };
+  host.innerHTML = tagEditorHtml(initial);
+  const editor = host.querySelector<HTMLElement>('[data-ui-tag-editor]')!;
+  const controller = mountTagEditor(editor, initial);
+
+  values.reverse();
+  editor.querySelector<HTMLButtonElement>('[data-tag-remove="0"]')!.click();
+  assert.deepEqual(removed, ['Alpha']);
+
+  controller.update({ ...initial, values });
+  assert.deepEqual(
+    Array.from(editor.querySelectorAll('[data-tag-text]'), (node) => node.textContent),
+    ['Beta', 'Alpha']
+  );
+  editor.querySelector<HTMLButtonElement>('[data-tag-remove="0"]')!.click();
+  assert.deepEqual(removed, ['Alpha', 'Beta']);
+
   dom.window.close();
 });
