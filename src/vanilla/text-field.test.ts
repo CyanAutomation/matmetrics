@@ -8,13 +8,15 @@ const { JSDOM } = createRequire(import.meta.url)('jsdom');
 test('text field renders escaped, associated label, hint and constraints', () => {
   const dom = new JSDOM('<div></div>');
   const host = dom.window.document.querySelector('div')!;
-  host.innerHTML = textFieldHtml({ id: 'password', label: '<Password>', value: '"<secret>', type: 'password', autoComplete: 'new-password', minLength: 8, maxLength: 128, required: true, hint: 'Use & keep safe', onInput() {} });
+  host.innerHTML = textFieldHtml({ id: 'password', label: '<Password>', value: '"<secret>', type: 'password', autoComplete: 'new-password', minLength: 8, maxLength: 128, required: true, showRequiredIndicator: true, hint: 'Use & keep safe', onInput() {} });
   const input = host.querySelector('input')!;
   assert.equal(host.querySelector('[data-field-label-text]')!.textContent, '<Password>');
   assert.equal(host.querySelector('label')!.htmlFor, input.id);
   assert.equal(input.value, '"<secret>');
   assert.equal(input.type, 'password');
   assert.equal(input.required, true);
+  assert.equal(host.querySelector('[data-field-required]')?.textContent, ' *');
+  assert.equal(host.querySelector('[data-field-optional]')?.textContent, '');
   assert.equal(input.minLength, 8);
   assert.equal(input.maxLength, 128);
   assert.equal(input.getAttribute('aria-describedby'), 'password-hint');
@@ -83,5 +85,35 @@ test('field updates without replacing input, forwards input to latest callback a
   input.value = 'Grace';
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   assert.equal(received, 'new:Ada');
+  dom.window.close();
+});
+
+test('required and optional label markers track updated field props', () => {
+  const dom = new JSDOM('<div></div>');
+  const host = dom.window.document.querySelector('div')!;
+  const initial = {
+    id: 'profile',
+    label: 'Display name',
+    value: '',
+    optional: true,
+    onInput() {},
+  };
+  host.innerHTML = textFieldHtml(initial);
+  const controller = mountTextField(host, initial);
+  const optional = host.querySelector('[data-field-optional]') as HTMLElement;
+  const required = host.querySelector('[data-field-required]') as HTMLElement;
+
+  assert.equal(optional.textContent, 'optional');
+  assert.equal(optional.hidden, false);
+  assert.equal(required.textContent, '');
+  assert.equal(required.hidden, true);
+
+  controller.update({ ...initial, optional: false, required: true, showRequiredIndicator: true });
+  assert.equal(optional.textContent, '');
+  assert.equal(optional.hidden, true);
+  assert.equal(required.textContent, ' *');
+  assert.equal(required.hidden, false);
+  assert.equal(host.querySelector('label')?.textContent, 'Display name *');
+
   dom.window.close();
 });
