@@ -5,13 +5,23 @@ export interface TextFieldProps {
   id: string;
   label: string;
   value: string;
-  type?: 'text' | 'email' | 'password' | 'search' | 'url' | 'tel';
+  type?: 'text' | 'email' | 'password' | 'search' | 'url' | 'tel' | 'date' | 'number';
+  name?: string;
+  ariaLabel?: string;
+  placeholder?: string;
+  title?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
   autoComplete?: string;
   minLength?: number;
   maxLength?: number;
   required?: boolean;
   disabled?: boolean;
   invalid?: boolean;
+  optional?: boolean;
+  size?: 'default' | 'comfortable';
+  surface?: 'card' | 'background';
   hint?: string;
   onInput: (value: string) => void;
 }
@@ -19,21 +29,67 @@ export interface TextFieldProps {
 /** Render a labeled text input with an optional accessible description. */
 export function textFieldHtml(props: TextFieldProps): string {
   const id = escapeHtml(props.id);
-  return `<div class="ui-text-field"><label class="ui-text-field__label" for="${id}" data-field-label>${escapeHtml(props.label)}</label><input class="ui-text-field__input" id="${id}" type="${props.type ?? 'text'}" value="${escapeHtml(props.value)}"${props.autoComplete ? ` autocomplete="${escapeHtml(props.autoComplete)}"` : ''}${props.minLength !== undefined ? ` minlength="${props.minLength}"` : ''}${props.maxLength !== undefined ? ` maxlength="${props.maxLength}"` : ''}${props.required ? ' required' : ''}${props.disabled ? ' disabled' : ''}${props.invalid ? ' aria-invalid="true"' : ''}${props.hint ? ` aria-describedby="${id}-hint"` : ''}><p class="ui-text-field__hint" id="${id}-hint" data-field-hint${props.hint ? '' : ' hidden'}>${escapeHtml(props.hint ?? '')}</p></div>`;
+  const optional = props.optional
+    ? '<span class="ui-text-field__optional" data-field-optional>optional</span>'
+    : '<span class="ui-text-field__optional" data-field-optional hidden>optional</span>';
+  const attributes = [
+    'class="ui-text-field__input"',
+    'id="' + id + '"',
+    'type="' + escapeHtml(props.type ?? 'text') + '"',
+    'value="' + escapeHtml(props.value) + '"',
+    'data-size="' + escapeHtml(props.size ?? 'default') + '"',
+    'data-surface="' + escapeHtml(props.surface ?? 'card') + '"',
+    props.name ? 'name="' + escapeHtml(props.name) + '"' : '',
+    props.ariaLabel ? 'aria-label="' + escapeHtml(props.ariaLabel) + '"' : '',
+    props.placeholder ? 'placeholder="' + escapeHtml(props.placeholder) + '"' : '',
+    props.title ? 'title="' + escapeHtml(props.title) + '"' : '',
+    props.autoComplete ? 'autocomplete="' + escapeHtml(props.autoComplete) + '"' : '',
+    props.min !== undefined ? 'min="' + escapeHtml(String(props.min)) + '"' : '',
+    props.max !== undefined ? 'max="' + escapeHtml(String(props.max)) + '"' : '',
+    props.step !== undefined ? 'step="' + escapeHtml(String(props.step)) + '"' : '',
+    props.minLength !== undefined ? 'minlength="' + props.minLength + '"' : '',
+    props.maxLength !== undefined ? 'maxlength="' + props.maxLength + '"' : '',
+    props.required ? 'required' : '',
+    props.disabled ? 'disabled' : '',
+    props.invalid ? 'aria-invalid="true"' : '',
+    props.hint ? 'aria-describedby="' + id + '-hint"' : '',
+  ].filter(Boolean).join(' ');
+  return '<div class="ui-text-field"><label class="ui-text-field__label" for="' +
+    id + '" data-field-label><span data-field-label-text>' +
+    escapeHtml(props.label) + '</span>' + optional +
+    '</label><input ' + attributes + '><p class="ui-text-field__hint" id="' +
+    id + '-hint" data-field-hint' + (props.hint ? '' : ' hidden') + '>' +
+    escapeHtml(props.hint ?? '') + '</p></div>';
 }
 
 export function mountTextField(host: HTMLElement, props: TextFieldProps): ComponentController<TextFieldProps> {
   const input = host.querySelector<HTMLInputElement>('.ui-text-field__input');
   const label = host.querySelector<HTMLLabelElement>('[data-field-label]');
+  const labelText = host.querySelector<HTMLElement>('[data-field-label-text]');
+  const optional = host.querySelector<HTMLElement>('[data-field-optional]');
   const hint = host.querySelector<HTMLElement>('[data-field-hint]');
-  if (!input || !label || !hint) throw new Error('Text field markup is incomplete');
+  if (!input || !label || !labelText || !optional || !hint) {
+    throw new Error('Text field markup is incomplete');
+  }
   let current = props;
   const update = (next: TextFieldProps) => {
     if (next.id !== props.id) throw new Error('Text field id must remain stable');
     current = next;
-    label.textContent = next.label;
+    labelText.textContent = next.label;
+    optional.hidden = !next.optional;
     if (input.value !== next.value) input.value = next.value;
     input.type = next.type ?? 'text';
+    input.name = next.name ?? '';
+    input.placeholder = next.placeholder ?? '';
+    input.title = next.title ?? '';
+    if (next.ariaLabel) input.setAttribute('aria-label', next.ariaLabel);
+    else input.removeAttribute('aria-label');
+    for (const [name, value] of [['min', next.min], ['max', next.max], ['step', next.step]] as const) {
+      if (value === undefined) input.removeAttribute(name);
+      else input.setAttribute(name, String(value));
+    }
+    input.dataset.size = next.size ?? 'default';
+    input.dataset.surface = next.surface ?? 'card';
     if (next.autoComplete) input.setAttribute('autocomplete', next.autoComplete);
     else input.removeAttribute('autocomplete');
     for (const [name, value] of [['minlength', next.minLength], ['maxlength', next.maxLength]] as const) {
