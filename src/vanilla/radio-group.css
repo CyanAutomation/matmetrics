@@ -1,0 +1,20 @@
+.ui-radio-group { min-width: 0; margin: 0; border: 0; padding: 0; }
+.ui-radio-group__legend { display: flex; width: 100%; min-height: 1.25rem; align-items: center; justify-content: space-between; gap: .75rem; padding: 0; color: hsl(var(--foreground)); font-size: .875rem; font-weight: 600; line-height: 1.25rem; }
+.ui-radio-group__title { display: inline-flex; align-items: center; gap: .125rem; }
+.ui-radio-group__required { color: hsl(var(--error)); }
+.ui-radio-group__summary { color: hsl(var(--muted-foreground)); font-size: .75rem; font-weight: 400; }
+.ui-radio-group__options { display: flex; flex-direction: column; gap: .5rem; margin-top: .625rem; }
+.ui-radio-group[data-layout='horizontal'] .ui-radio-group__options { flex-direction: row; flex-wrap: wrap; }
+.ui-radio-group[data-layout='responsive'] .ui-radio-group__options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ui-radio-group__option { position: relative; min-width: 0; }
+.ui-radio-group__input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+.ui-radio-group__label { display: flex; min-height: 2.5rem; align-items: center; justify-content: center; border: 1px solid hsl(var(--input)); border-radius: .5rem; background: hsl(var(--background)); color: hsl(var(--foreground)); cursor: pointer; padding: .375rem .5rem; text-align: center; font-size: .6875rem; font-weight: 600; line-height: 1rem; transition: background-color var(--motion-duration-fast), color var(--motion-duration-fast), border-color var(--motion-duration-fast); }
+.ui-radio-group__label:hover { background: hsl(var(--muted)); }
+.ui-radio-group__input:checked + .ui-radio-group__label { border-color: hsl(var(--primary)); background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-container)) 100%); color: hsl(var(--primary-foreground)); box-shadow: 0 1px 2px hsl(0 0% 0% / .08); }
+.ui-radio-group__input:focus-visible + .ui-radio-group__label { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-radio-group__input:disabled + .ui-radio-group__label { cursor: not-allowed; opacity: .5; }
+.ui-radio-group[data-layout='responsive'] .ui-radio-group__label { padding-inline: .25rem; }
+@container essentials (min-width: 30rem) {
+  .ui-radio-group[data-layout='responsive'] .ui-radio-group__options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ui-radio-group[data-layout='responsive'] .ui-radio-group__label { font-size: .875rem; padding-inline: .5rem; }
+}

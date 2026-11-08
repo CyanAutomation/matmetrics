@@ -1,0 +1,15 @@
+.ui-tag-editor { display: flex; flex-direction: column; gap: .5rem; }
+.ui-tag-editor__list { display: flex; min-height: 3rem; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; border-radius: .75rem; background: hsl(var(--muted) / .45); padding: 1rem; list-style: none; }
+.ui-tag-editor__tag { display: inline-flex; align-items: center; gap: .375rem; border-radius: 999px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: .375rem .75rem; font-size: .875rem; line-height: 1.25rem; }
+.ui-tag-editor__remove { display: inline-flex; width: 1.5rem; height: 1.5rem; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; font-size: 1.125rem; line-height: 1; }
+.ui-tag-editor__remove:hover { background: hsl(var(--primary-foreground) / .12); }
+.ui-tag-editor__remove:focus-visible { outline: 2px solid hsl(var(--primary-foreground)); outline-offset: 2px; }
+.ui-tag-editor__empty { display: flex; min-height: 1.5rem; align-items: center; color: hsl(var(--muted-foreground) / .75); font-size: .875rem; }
+.ui-tag-editor__entry { display: flex; gap: .5rem; }
+.ui-tag-editor__input-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+.ui-tag-editor__input { flex: 1; min-width: 0; height: 2.5rem; }
+.ui-tag-editor__add { min-height: 2.5rem; border: 1px solid hsl(var(--secondary)); border-radius: .5rem; background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); cursor: pointer; padding: .5rem 1.5rem; font-size: .875rem; font-weight: 600; }
+.ui-tag-editor__add:hover { background: hsl(var(--secondary) / .8); }
+.ui-tag-editor__add:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.ui-tag-editor__add:disabled { cursor: not-allowed; opacity: .5; }
+[data-contrast='high'] .ui-tag-editor__list { outline: 1px solid hsl(var(--color-outline-variant) / .9); }

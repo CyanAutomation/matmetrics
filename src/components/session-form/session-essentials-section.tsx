@@ -1,10 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { VanillaRadioGroup } from '@/components/vanilla-radio-group';
 import { VanillaSelectField } from '@/components/vanilla-select-field';
-import { Toggle } from '@/components/ui/toggle';
+import { VanillaTextField } from '@/components/vanilla-text-field';
 import { RessaImage } from '@/components/ressa-image';
 import { EFFORT_LABELS, SessionCategory } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -66,52 +64,38 @@ export function SessionEssentialsSection({
           {/* Row 1: Date, Duration, Type */}
           <div className="grid grid-cols-1 items-start gap-4 @min-[34rem]/essentials:grid-cols-2 @min-[48rem]/essentials:grid-cols-3 @min-[56rem]/essentials:gap-6">
             {/* Session Date */}
-            <div className="space-y-2.5">
-              <Label
-                htmlFor={fid('date')}
-                className="text-sm font-semibold block h-5"
-              >
-                Session date <span aria-hidden="true">*</span>
-              </Label>
-              <Input
-                id={fid('date')}
-                name="sessionDate"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-background h-11"
-              />
-            </div>
+            <VanillaTextField
+              id={fid('date')}
+              name="sessionDate"
+              label="Session date"
+              type="date"
+              value={date}
+              onInput={setDate}
+              required
+              showRequiredIndicator
+              size="comfortable"
+              surface="background"
+            />
 
             {/* Duration */}
-            <div className="space-y-2.5">
-              <Label
-                htmlFor={fid('duration')}
-                className="text-sm font-semibold block h-5"
-              >
-                Duration (minutes){' '}
-                <span className="font-normal text-muted-foreground">
-                  optional
-                </span>
-              </Label>
-              <Input
-                id={fid('duration')}
-                name="sessionDuration"
-                type="number"
-                min="1"
-                max="999"
-                placeholder="90"
-                title="How long was your practice session in minutes?"
-                aria-label="Session duration in minutes"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="bg-background h-11"
-              />
-              <p className="text-xs text-muted-foreground">
-                An estimate is fine.
-              </p>
-            </div>
+            <VanillaTextField
+              id={fid('duration')}
+              name="sessionDuration"
+              label="Duration (minutes)"
+              type="number"
+              value={duration}
+              onInput={setDuration}
+              min={1}
+              max={999}
+              step={1}
+              placeholder="90"
+              title="How long was your practice session in minutes?"
+              ariaLabel="Session duration in minutes"
+              optional
+              hint="An estimate is fine."
+              size="comfortable"
+              surface="background"
+            />
 
             {/* Session Type */}
             <VanillaSelectField
@@ -126,45 +110,19 @@ export function SessionEssentialsSection({
 
           {/* Row 2: Effort Level (Full Width) */}
           <div className="space-y-2.5">
-            <div className="h-5 flex items-center justify-between">
-              <Label className="text-sm font-semibold">
-                Effort level <span aria-hidden="true">*</span>
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                {EFFORT_LABELS[effort]}
-              </span>
-            </div>
-            <div
-              className="grid grid-cols-2 gap-2 rounded-md bg-background/90 p-1.5 @min-[30rem]/essentials:grid-cols-5"
-              role="group"
-              aria-label="Perceived session effort, from easy to intense"
-            >
-              {[1, 2, 3, 4, 5].map((val) => {
-                const effortVal = val as typeof effort;
-                const isSelected = effort === effortVal;
-                return (
-                  <Toggle
-                    key={fid(`effort-${val}`)}
-                    pressed={isSelected}
-                    pressedVariant="default"
-                    unpressedVariant="outline"
-                    onPressedChange={(nextPressed) => {
-                      if (nextPressed) setEffort(effortVal);
-                    }}
-                    className={cn(
-                      'min-h-10 min-w-0 px-1 text-[11px] font-semibold leading-none transition-all duration-200 @min-[30rem]/essentials:px-2 @min-[30rem]/essentials:text-sm',
-                      isSelected
-                        ? 'border border-primary text-primary-foreground shadow-sm'
-                        : 'border border-input bg-background text-foreground hover:bg-muted'
-                    )}
-                    title={EFFORT_LABELS[effortVal]}
-                    aria-label={`Effort level: ${EFFORT_LABELS[effortVal]}`}
-                  >
-                    {EFFORT_LABELS[effortVal]}
-                  </Toggle>
-                );
-              })}
-            </div>
+            <VanillaRadioGroup
+              id={fid('effort')}
+              label="Effort level"
+              value={String(effort)}
+              summary={EFFORT_LABELS[effort]}
+              layout="responsive"
+              required
+              options={[1, 2, 3, 4, 5].map((value) => ({
+                value: String(value),
+                label: EFFORT_LABELS[value as typeof effort],
+              }))}
+              onChange={(value) => setEffort(Number(value) as typeof effort)}
+            />
             <p className="text-xs text-muted-foreground">
               Required fields are marked with an asterisk. Technique tags and
               reflection are optional.

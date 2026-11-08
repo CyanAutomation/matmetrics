@@ -1,6 +1,6 @@
 # Vanilla UI Feasibility Assessment
 
-**Baseline:** `origin/main` at `14fc12073ac0c0acc8a1bc16ad89ac6acef25065` (2026-11-04).
+**Baseline:** `origin/main` at `2f86736e7e82974ab503a2f9509e34ecd39a4143` (2026-11-08).
 
 ## Decision
 
@@ -18,15 +18,15 @@ Next.js App Router pages are React-rendered, so a fully React-free interface can
 
 ## Current baseline
 
-- At this baseline, `src/vanilla/` has 23 non-test TypeScript modules and 21 component stylesheets. Eight React adapters bridge vanilla controls into React-owned views. The shared controller contract covers update and cleanup, and the HTML helper escapes text and attributes in [component.ts](../src/vanilla/component.ts#L1-L12).
-- `src/app/` and `src/components/` contain 102 production TSX files, including 33 UI primitive files in `src/components/ui/`. The main page is a client component that coordinates authentication, preferences, session data, navigation, dialogs, and plugins ([page.tsx](../src/app/page.tsx#L1-L25), [page.tsx](../src/app/page.tsx#L30-L90)).
+- At this baseline, `src/vanilla/` has 27 non-test TypeScript modules and 25 component stylesheets. Temporary React adapters let vanilla controls render inside React-owned views. The shared controller contract covers update and cleanup, and the HTML helper escapes text and attributes in [component.ts](../src/vanilla/component.ts#L1-L12).
+- `src/app/` and `src/components/` contain 104 production TSX files, including 33 UI primitive files in `src/components/ui/`. The main page is a client component that coordinates authentication, preferences, session data, navigation, dialogs, and plugins ([page.tsx](../src/app/page.tsx#L1-L25), [page.tsx](../src/app/page.tsx#L30-L90)).
 - Authentication is shared state, not just screen markup: the provider observes Better Auth sessions and exposes passkey, email, reset, and sign-out operations ([auth-provider.tsx](../src/components/auth-provider.tsx#L97-L119), [auth-provider.tsx](../src/components/auth-provider.tsx#L227-L302)).
 - All six first-party dashboard plugins register React renderers. Replacing React UI therefore requires a new plugin mount/update/destroy contract, plus a compatibility period or coordinated conversion ([plugin-component-registry.ts](../src/lib/plugins/plugin-component-registry.ts#L1-L27)).
 - The fetched `main` already converts the session-history row, filter bar, and several controls to vanilla modules and controllers, with temporary React adapters. History state, review panel, dialogs, and surrounding composition remain React-owned.
 
 ## Implementation progress
 
-The assessment worktree adds a vanilla grouped-session-results component that reuses the existing session-row controller and a shared `Surface` style primitive. Its React adapter keeps the component in the existing history screen; it adds no route or API endpoint. Follow-up slices add a reusable confirmation component, move the edit/delete dialog shells to native HTML dialogs, and render review results through a vanilla panel that composes shared surface and button primitives. The current implementation worktree has 27 non-test TypeScript modules in `src/vanilla/`, 25 component stylesheets, and eleven temporary React adapters. History state, review orchestration, and the session form remain React-owned.
+The fetched `main` already converts grouped session results, history dialogs, and review results into vanilla components inside the existing React-owned history screen. This implementation worktree adds reusable native radio-group, textarea, and tag-editor components, extends the shared text field for date and numeric inputs, and uses them in the existing session form. The form still owns state and submission in React through temporary adapters. The worktree now has 30 non-test TypeScript modules in `src/vanilla/` and 28 component stylesheets. These conversions add no route or API endpoint.
 
 ## Recommended path
 

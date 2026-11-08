@@ -15,7 +15,9 @@ Components must work without React. While a parent is still React-owned, a tempo
 
 ## Current conversion slice
 
-The training-history filter bar, grouped results, and review results panel render through vanilla components inside the existing React-owned history screen. The grouped results and review panel compose shared session-row, `Surface`, and button primitives. Edit and delete dialogs use the shared native dialog and confirmation components; the edit form remains React content inside the vanilla dialog shell. Temporary adapters forward updates and clean up listeners while history state, review orchestration, and the session form remain in their existing owners. This keeps the existing route and API integration in place during conversion.
+The training-history filter bar, grouped results, and review results panel render through vanilla components inside the existing React-owned history screen. The grouped results and review panel compose shared session-row, `Surface`, and button primitives. Edit and delete dialogs use the shared native dialog and confirmation components; the edit form remains React content inside the vanilla dialog shell.
+
+The session essentials reuse vanilla text and select fields plus a native radio group for effort selection. Practice notes use a shared vanilla textarea, and technique tags use a reusable tag editor with native entry, add, and remove controls. Temporary React adapters forward updates and clean up listeners while the session form still owns state, AI actions, and submission. History state and review orchestration also remain in their existing owners. These slices keep the current routes and API integration in place.
 
 ## Migration order
 
