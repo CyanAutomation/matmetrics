@@ -72,6 +72,7 @@ export function SessionEssentialsSection({
               value={date}
               onInput={setDate}
               required
+              showRequiredIndicator
               size="comfortable"
               surface="background"
             />

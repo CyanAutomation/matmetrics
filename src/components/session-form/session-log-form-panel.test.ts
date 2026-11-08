@@ -177,15 +177,18 @@ function renderForm() {
 }
 
 function assertCurrentStep(step: number) {
+  const progress = screen
+    .getByRole('navigation', { name: 'Form progress' })
+    .querySelector('[role="status"]');
   assert.match(
-    screen.getByRole('status').textContent ?? '',
+    progress?.textContent ?? '',
     new RegExp(`Step ${step} of 4`)
   );
 }
 
 test('typing in the session description remains controlled without an update-depth error', () => {
   renderForm();
-  fireEvent.change(screen.getByLabelText('Session date *'), {
+  fireEvent.input(screen.getByLabelText('Session date *'), {
     target: { value: '2026-09-28' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -194,8 +197,8 @@ test('typing in the session description remains controlled without an update-dep
   }) as HTMLTextAreaElement;
 
   assert.doesNotThrow(() => {
-    fireEvent.change(description, { target: { value: 'Uchi mata entries' } });
-    fireEvent.change(description, {
+    fireEvent.input(description, { target: { value: 'Uchi mata entries' } });
+    fireEvent.input(description, {
       target: { value: 'Uchi mata entries and finishes' },
     });
   });
@@ -206,7 +209,7 @@ test('typing in the session description remains controlled without an update-dep
 test('editing assessed input clears the stale assessment exactly once', () => {
   initialAssessment = assessment;
   renderForm();
-  fireEvent.change(screen.getByLabelText('Session date *'), {
+  fireEvent.input(screen.getByLabelText('Session date *'), {
     target: { value: '2026-09-28' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -217,8 +220,8 @@ test('editing assessed input clears the stale assessment exactly once', () => {
   // Strict Mode sets the effect up twice, but guarded invalidation only changes
   // assessment state once. Further keystrokes are no-ops while it is null.
   assert.equal(invalidationCount, 1);
-  fireEvent.change(description, { target: { value: 'First edit' } });
-  fireEvent.change(description, { target: { value: 'Second edit' } });
+  fireEvent.input(description, { target: { value: 'First edit' } });
+  fireEvent.input(description, { target: { value: 'Second edit' } });
 
   assert.equal(description.value, 'Second edit');
   assert.equal(invalidationCount, 1);
@@ -242,13 +245,13 @@ test('progresses through the session steps and submits only at the end', () => {
   );
   assert.equal(submissionCount, 0);
 
-  fireEvent.change(screen.getByLabelText('Session date *'), {
+  fireEvent.input(screen.getByLabelText('Session date *'), {
     target: { value: '2026-09-28' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   assertCurrentStep(2);
 
-  fireEvent.change(
+  fireEvent.input(
     screen.getByRole('textbox', { name: 'What did you practise?' }),
     {
       target: { value: 'Uchi mata entries and finishes' },
@@ -286,7 +289,7 @@ test('progresses through the session steps and submits only at the end', () => {
 
 test('skips an empty optional practice description and continues to techniques', () => {
   renderForm();
-  fireEvent.change(screen.getByLabelText('Session date *'), {
+  fireEvent.input(screen.getByLabelText('Session date *'), {
     target: { value: '2026-09-28' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -301,7 +304,7 @@ test('skips an empty optional practice description and continues to techniques',
 
 test('back navigation preserves entered values', () => {
   renderForm();
-  fireEvent.change(screen.getByLabelText('Session date *'), {
+  fireEvent.input(screen.getByLabelText('Session date *'), {
     target: { value: '2026-09-28' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -309,7 +312,7 @@ test('back navigation preserves entered values', () => {
   const description = screen.getByRole('textbox', {
     name: 'What did you practise?',
   }) as HTMLTextAreaElement;
-  fireEvent.change(description, { target: { value: 'Grip fighting rounds' } });
+  fireEvent.input(description, { target: { value: 'Grip fighting rounds' } });
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 

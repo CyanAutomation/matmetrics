@@ -17,6 +17,8 @@ export interface TextFieldProps {
   minLength?: number;
   maxLength?: number;
   required?: boolean;
+  /** Render a visual required asterisk beside the label. */
+  showRequiredIndicator?: boolean;
   disabled?: boolean;
   invalid?: boolean;
   optional?: boolean;
@@ -29,9 +31,11 @@ export interface TextFieldProps {
 /** Render a labeled text input with an optional accessible description. */
 export function textFieldHtml(props: TextFieldProps): string {
   const id = escapeHtml(props.id);
-  const optional = props.optional
-    ? '<span class="ui-text-field__optional" data-field-optional>optional</span>'
-    : '<span class="ui-text-field__optional" data-field-optional hidden>optional</span>';
+  const optional = '<span class="ui-text-field__optional" data-field-optional' +
+    (props.optional ? '' : ' hidden') + '>' + (props.optional ? 'optional' : '') + '</span>';
+  const requiredMarker = '<span aria-hidden="true" data-field-required' +
+    (props.showRequiredIndicator ? '' : ' hidden') + '>' +
+    (props.showRequiredIndicator ? ' *' : '') + '</span>';
   const attributes = [
     'class="ui-text-field__input"',
     'id="' + id + '"',
@@ -56,7 +60,7 @@ export function textFieldHtml(props: TextFieldProps): string {
   ].filter(Boolean).join(' ');
   return '<div class="ui-text-field"><label class="ui-text-field__label" for="' +
     id + '" data-field-label><span data-field-label-text>' +
-    escapeHtml(props.label) + '</span>' + optional +
+    escapeHtml(props.label) + '</span>' + requiredMarker + optional +
     '</label><input ' + attributes + '><p class="ui-text-field__hint" id="' +
     id + '-hint" data-field-hint' + (props.hint ? '' : ' hidden') + '>' +
     escapeHtml(props.hint ?? '') + '</p></div>';
@@ -66,9 +70,10 @@ export function mountTextField(host: HTMLElement, props: TextFieldProps): Compon
   const input = host.querySelector<HTMLInputElement>('.ui-text-field__input');
   const label = host.querySelector<HTMLLabelElement>('[data-field-label]');
   const labelText = host.querySelector<HTMLElement>('[data-field-label-text]');
+  const requiredMarker = host.querySelector<HTMLElement>('[data-field-required]');
   const optional = host.querySelector<HTMLElement>('[data-field-optional]');
   const hint = host.querySelector<HTMLElement>('[data-field-hint]');
-  if (!input || !label || !labelText || !optional || !hint) {
+  if (!input || !label || !labelText || !requiredMarker || !optional || !hint) {
     throw new Error('Text field markup is incomplete');
   }
   let current = props;
@@ -76,6 +81,9 @@ export function mountTextField(host: HTMLElement, props: TextFieldProps): Compon
     if (next.id !== props.id) throw new Error('Text field id must remain stable');
     current = next;
     labelText.textContent = next.label;
+    requiredMarker.textContent = next.showRequiredIndicator ? ' *' : '';
+    requiredMarker.hidden = !next.showRequiredIndicator;
+    optional.textContent = next.optional ? 'optional' : '';
     optional.hidden = !next.optional;
     if (input.value !== next.value) input.value = next.value;
     input.type = next.type ?? 'text';
