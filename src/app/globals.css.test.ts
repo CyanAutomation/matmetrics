@@ -82,6 +82,13 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.equal(declarationValueFor('.ui-dialog--wide', 'max-height'), '90vh');
   assert.equal(declarationValueFor('.ui-confirmation-dialog__actions', 'justify-content'), 'flex-end');
   assert.ok(declarationValueFor('.ui-status-message', 'color'));
+  assert.equal(declarationValueFor(".ui-textarea__input[data-size='large']", 'min-height'), '7rem');
+  assert.ok(declarationValueFor('.ui-textarea__input:focus-visible', 'outline'));
+  assert.equal(declarationValueFor(".ui-radio-group[data-layout='responsive'] .ui-radio-group__options", 'grid-template-columns'), 'repeat(5, minmax(0, 1fr))');
+  assert.ok(declarationValueFor('.ui-radio-group__input:focus-visible + .ui-radio-group__label', 'outline'));
+  assert.equal(declarationValueFor('.ui-tag-editor__list', 'list-style'), 'none');
+  assert.ok(declarationValueFor('.ui-tag-editor__remove:focus-visible', 'outline'));
+  assert.ok(declarationValueFor("[data-contrast='high'] .ui-tag-editor__list", 'outline'));
   assert.equal(declarationValueFor('.ui-segmented-control', 'display'), 'inline-flex');
   assert.ok(declarationValueFor(".ui-segmented-control__item[aria-pressed='true']", 'background'));
   assert.equal(declarationValueFor('.version-history', 'overflow-y'), 'auto');

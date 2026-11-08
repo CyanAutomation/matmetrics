@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { VanillaTextarea } from '@/components/vanilla-textarea';
 import { Wand2, Loader2 } from 'lucide-react';
 
 interface PracticeDescriptionSectionProps {
@@ -55,14 +54,15 @@ export function PracticeDescriptionSection({
           AI Transform
         </Button>
       </div>
-      <Textarea
+      <VanillaTextarea
         id={fid('description')}
         name="practiceDescription"
-        aria-label="What did you practise?"
+        ariaLabel="What did you practise?"
         placeholder="A few notes about drills, throws, or focus..."
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="min-h-[112px] bg-background text-base"
+        size="large"
+        surface="background"
+        onInput={setDescription}
       />
       <p className="text-xs text-muted-foreground">
         A sentence or two is enough. AI can polish the entry or suggest
