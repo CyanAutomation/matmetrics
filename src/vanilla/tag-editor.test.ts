@@ -24,9 +24,10 @@ test('tag editor escapes values and renders labeled removal controls', () => {
   const editor = host.querySelector('[data-ui-tag-editor]')!;
   const input = editor.querySelector('input')!;
   assert.equal(editor.getAttribute('aria-label'), 'Technique tags');
+  assert.equal(editor.querySelectorAll('[data-tag-entry]').length, 2);
   assert.equal(editor.querySelectorAll('[data-tag-value]').length, 2);
   assert.equal(editor.querySelectorAll('[data-tag-remove]').length, 2);
-  const tags = editor.querySelectorAll('[data-tag-value]');
+  const tags = editor.querySelectorAll('[data-tag-entry]');
   assert.equal(tags[1].querySelector('[data-tag-text]')?.textContent, '<O-soto & gari>');
   assert.equal(input.id, 'technique-input');
   assert.equal(editor.querySelector('label')?.textContent, 'Add a technique tag');
@@ -66,7 +67,7 @@ test('tag editor updates values in place, handles add/remove and cleans up', () 
   });
   assert.equal(editor.querySelector('input'), input);
   assert.equal(input.value, 'tai otoshi');
-  assert.equal(editor.querySelectorAll('[data-tag-value]').length, 2);
+  assert.equal(editor.querySelectorAll('[data-tag-entry]').length, 2);
   assert.equal(editor.querySelector('[data-tag-add]')?.hasAttribute('disabled'), true);
   input.value = 'Harai goshi';
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
