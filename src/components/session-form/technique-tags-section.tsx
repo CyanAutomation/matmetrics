@@ -65,6 +65,7 @@ export function TechniqueTagsSection({
         id={fid('manual-tag')}
         label="Technique tags"
         inputLabel="Add a technique tag"
+        itemLabel="technique tag"
         name="manualTagEntry"
         values={techniques}
         newValue={newTech}
