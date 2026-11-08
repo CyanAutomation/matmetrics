@@ -30,7 +30,11 @@ const scoreFixture = async (
   assertionMessage?: string
 ) => {
   const validation = validatePluginManifest(manifest);
-  assert.equal(validation.isValid, true, assertionMessage);
+  if (assertionMessage === undefined) {
+    assert.equal(validation.isValid, true);
+  } else {
+    assert.equal(validation.isValid, true, assertionMessage);
+  }
 
   return scorePluginMaturity({
     manifest: validation.manifest,

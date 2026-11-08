@@ -119,7 +119,7 @@ See [docs/blueprint.md](docs/blueprint.md) for full design specifications.
 
 ### Prerequisites
 
-- Node.js 24.x
+- Node.js 26.x
 - npm 11.x
 - Go 1.26.x only if you are building or using the Go CLI/API
 - Integration credentials only for the features that use them (see
@@ -262,7 +262,7 @@ below show the required bearer header.
 
 MatMetrics works well on Vercel and stores sessions as markdown files, with GitHub as the preferred remote backend.
 
-Use Node.js 24.x for local development and configure the deployment runtime to Node.js 24 as well.
+Use Node.js 26.x for local development. The root `package.json` engine range selects Node.js 26 for Vercel deployments and overrides the project-level Node.js version setting.
 
 1. **Push to GitHub**: Ensure your code is on GitHub
 
