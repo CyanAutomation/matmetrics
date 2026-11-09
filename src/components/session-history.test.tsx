@@ -239,3 +239,20 @@ test('a failed HTTP response is rejected without parsing its body', async () => 
   await waitFor(() => assert.ok(screen.getByRole('alert')));
   assert.equal(jsonCalls, 0);
 });
+
+test('unmounting history aborts an in-flight semantic search', async () => {
+  let requestSignal: AbortSignal | undefined;
+  globalThis.fetch = ((_url, init) => {
+    requestSignal = init?.signal as AbortSignal;
+    return new Promise<Response>(() => undefined);
+  }) as typeof fetch;
+
+  const view = renderHistory();
+  searchFor('larger partner');
+  fireEvent.click(screen.getByRole('button', { name: 'Search by meaning' }));
+  await waitFor(() => assert.ok(requestSignal));
+
+  view.unmount();
+
+  assert.equal(requestSignal?.aborted, true);
+});
