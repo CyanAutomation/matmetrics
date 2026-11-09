@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { getAuthHeaders } from '@/lib/auth-session';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { JudoSession } from '@/lib/types';
 import { formatDateLabel, parseDateOnly } from '@/lib/utils';
 import {
-  isSessionHistorySearchMatches,
   mergeSemanticAndTextSessions,
   selectSessionHistorySearchCandidates,
-  type SessionHistorySearchMatch,
 } from '@/lib/session-history-search';
 import { useSessionHistoryReview } from '@/hooks/use-session-history-review';
 import { useSessionHistoryActions } from '@/hooks/use-session-history-actions';
@@ -16,13 +18,13 @@ import {
   filterSessionHistory,
   getSessionHistoryActiveFilterCount,
   getSessionHistoryStats,
-  getSessionQuickFilterRange,
   type SessionHistoryQuickFilter,
 } from '@/lib/session-history-filter';
+import { SessionHistoryFilterController } from '@/vanilla/session-history-filter-controller';
+import { SessionHistorySemanticSearchController } from '@/vanilla/session-history-semantic-search-controller';
 import {
   SessionHistoryContent,
   SessionHistoryEmptyState,
-  type SessionHistoryDensity,
 } from './session-history-content';
 
 interface SessionHistoryProps {
@@ -57,6 +59,24 @@ export function SessionHistory({
   onRefresh,
   onLogSession,
 }: SessionHistoryProps) {
+  const filterController = useMemo(
+    () => new SessionHistoryFilterController(),
+    []
+  );
+  const semanticSearchController = useMemo(
+    () => new SessionHistorySemanticSearchController(),
+    []
+  );
+  const filterState = useSyncExternalStore(
+    filterController.subscribe,
+    filterController.getSnapshot,
+    filterController.getSnapshot
+  );
+  const semanticSearchState = useSyncExternalStore(
+    semanticSearchController.subscribe,
+    semanticSearchController.getSnapshot,
+    semanticSearchController.getSnapshot
+  );
   const historyReview = useSessionHistoryReview(sessions);
   const { deletingSessionId, handleDelete } = useSessionHistoryActions(
     onRefresh,
@@ -65,31 +85,29 @@ export function SessionHistory({
   const [editingSession, setEditingSession] = useState<JudoSession | null>(null);
   const [sessionPendingDeletion, setSessionPendingDeletion] =
     useState<JudoSession | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [effortFilter, setEffortFilter] = useState('all');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [density, setDensity] = useState<SessionHistoryDensity>('compact');
-  const [semanticMatches, setSemanticMatches] = useState<
-    SessionHistorySearchMatch[] | null
-  >(null);
-  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
-  const [semanticSearchError, setSemanticSearchError] = useState<string | null>(
-    null
-  );
-  const semanticRequestId = useRef(0);
-  const semanticAbortController = useRef<AbortController | null>(null);
+  const {
+    searchQuery,
+    categoryFilter,
+    effortFilter,
+    fromDate,
+    toDate,
+    filtersOpen,
+    density,
+  } = filterState;
+  const {
+    matches: semanticMatches,
+    isSearching: isSemanticSearching,
+    error: semanticSearchError,
+  } = semanticSearchState;
 
   useEffect(() => {
-    semanticRequestId.current += 1;
-    semanticAbortController.current?.abort();
-    semanticAbortController.current = null;
-    setIsSemanticSearching(false);
-    setSemanticMatches(null);
-    setSemanticSearchError(null);
-  }, [sessions]);
+    semanticSearchController.clear();
+  }, [sessions, semanticSearchController]);
+
+  useEffect(
+    () => () => semanticSearchController.destroy(),
+    [semanticSearchController]
+  );
 
   const sessionsWithinFilters = useMemo(
     () =>
@@ -139,112 +157,40 @@ export function SessionHistory({
 
   const clearFilters = () => {
     clearSemanticSearch();
-    setSearchQuery('');
-    setCategoryFilter('all');
-    setEffortFilter('all');
-    setFromDate('');
-    setToDate('');
+    filterController.clearFilters();
   };
-  const clearSemanticSearch = () => {
-    semanticRequestId.current += 1;
-    semanticAbortController.current?.abort();
-    semanticAbortController.current = null;
-    setIsSemanticSearching(false);
-    setSemanticMatches(null);
-    setSemanticSearchError(null);
-  };
-  const handleSemanticSearch = async () => {
-    if (
-      !historyReview.canUseAi ||
-      isSemanticSearching ||
-      semanticSearchCandidates.length === 0 ||
-      !searchQuery.trim()
-    ) {
-      return;
-    }
-
-    semanticAbortController.current?.abort();
-    const controller = new AbortController();
-    semanticAbortController.current = controller;
-    const requestId = ++semanticRequestId.current;
-    setIsSemanticSearching(true);
-    setSemanticMatches(null);
-    setSemanticSearchError(null);
-
-    try {
-      const response = await fetch('/api/ai/search-sessions', {
-        method: 'POST',
-        headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          query: searchQuery.trim(),
-          candidates: semanticSearchCandidates,
-        }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error('The semantic search request failed.');
-      }
-      const payload: unknown = await response.json();
-      const matches =
-        payload && typeof payload === 'object'
-          ? (payload as { matches?: unknown }).matches
-          : undefined;
-      const candidateIds = new Set(
-        semanticSearchCandidates.map((candidate) => candidate.id)
-      );
-      if (!isSessionHistorySearchMatches(matches, candidateIds)) {
-        throw new Error('The semantic search response was invalid.');
-      }
-      if (requestId === semanticRequestId.current) {
-        setSemanticMatches(matches);
-      }
-    } catch (error) {
-      if (!controller.signal.aborted && requestId === semanticRequestId.current) {
-        setSemanticSearchError(
-          error instanceof Error &&
-            error.message === 'The semantic search response was invalid.'
-            ? error.message
-            : 'Semantic ranking is unavailable; showing text matches.'
-        );
-      }
-    } finally {
-      if (requestId === semanticRequestId.current) {
-        semanticAbortController.current = null;
-        setIsSemanticSearching(false);
-      }
-    }
+  const clearSemanticSearch = semanticSearchController.clear;
+  const handleSemanticSearch = () => {
+    if (!historyReview.canUseAi) return;
+    void semanticSearchController.search(searchQuery, semanticSearchCandidates);
   };
   const updateSearchQuery = (value: string) => {
     clearSemanticSearch();
-    setSearchQuery(value);
+    filterController.setSearchQuery(value);
   };
   const updateCategoryFilter = (value: string) => {
     clearSemanticSearch();
-    setCategoryFilter(value);
+    filterController.setCategoryFilter(value);
   };
   const updateEffortFilter = (value: string) => {
     clearSemanticSearch();
-    setEffortFilter(value);
+    filterController.setEffortFilter(value);
   };
   const updateFromDate = (value: string) => {
     clearSemanticSearch();
-    setFromDate(value);
+    filterController.setFromDate(value);
   };
   const updateToDate = (value: string) => {
     clearSemanticSearch();
-    setToDate(value);
+    filterController.setToDate(value);
   };
   const filterByTechnique = (technique: string) => {
     clearSemanticSearch();
-    setSearchQuery(technique);
-    setFiltersOpen(false);
+    filterController.filterByTechnique(technique);
   };
   const applyQuickFilter = (kind: SessionHistoryQuickFilter) => {
     clearSemanticSearch();
-    const range = getSessionQuickFilterRange(kind);
-    setEffortFilter(range.effortFilter);
-    setFromDate(range.fromDate);
-    setToDate(range.toDate);
+    filterController.applyQuickFilter(kind);
   };
   const requestDelete = (session: JudoSession) => {
     if (!deletingSessionId) setSessionPendingDeletion(session);
@@ -260,7 +206,7 @@ export function SessionHistory({
       filteredSessions={displayedSessions}
       deletingSessionId={deletingSessionId}
       density={density}
-      onDensityChange={setDensity}
+      onDensityChange={filterController.setDensity}
       semanticSearchActive={semanticMatches !== null}
       onRequestDelete={requestDelete}
       onEditSession={setEditingSession}
@@ -290,7 +236,7 @@ export function SessionHistory({
         onEffortFilterChange: updateEffortFilter,
         onFromDateChange: updateFromDate,
         onToDateChange: updateToDate,
-        onToggleFilters: () => setFiltersOpen((open) => !open),
+        onToggleFilters: filterController.toggleFilters,
         onQuickFilter: applyQuickFilter,
         onClearFilters: clearFilters,
         onSemanticSearch: () => void handleSemanticSearch(),

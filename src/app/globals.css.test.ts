@@ -35,6 +35,9 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.ok(declarationValueFor('.bg-background', 'background-color'));
   assert.ok(declarationValueFor('.text-foreground', 'color'));
   assert.equal(declarationValueFor('.ui-action-button', 'cursor'), 'pointer');
+  assert.equal(declarationValueFor('.ui-empty-state', 'display'), 'flex');
+  assert.equal(declarationValueFor('.ui-empty-state', 'border-radius'), 'var(--radius)');
+  assert.ok(declarationValueFor('.ui-empty-state__description', 'color'));
   assert.equal(
     declarationValueFor('.ui-badge--technical', 'background-color'),
     'hsl(var(--color-category-technical-container))'
