@@ -50,10 +50,8 @@ export class SessionFormController {
     return () => this.listeners.delete(listener);
   };
 
-  setDate = (value: SessionFormStateUpdater<string>): void => {
+  setDate = (value: SessionFormStateUpdater<string>): void =>
     this.setField('date', value);
-    this.ensureDefaultDate();
-  };
 
   setDuration = (value: SessionFormStateUpdater<string>): void =>
     this.setField('duration', value);
