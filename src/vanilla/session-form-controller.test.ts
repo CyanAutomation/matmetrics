@@ -65,6 +65,15 @@ test('form controller can defer local date initialization until after the first 
   controller.destroy();
 });
 
+test('form controller preserves an explicitly cleared new-session date', () => {
+  const controller = makeController();
+
+  controller.setDate('');
+
+  assert.equal(controller.getSnapshot().date, '');
+  controller.destroy();
+});
+
 test('form controller supports functional updates and reset preserves the date', () => {
   const controller = makeController(session());
   controller.setTechniques((techniques) => [...techniques, 'Newaza']);

@@ -59,6 +59,76 @@ test('submit controller validates URLs before storage and exposes inline errors'
   controller.destroy();
 });
 
+test('submit controller rejects fractional duration before storage', async () => {
+  let storageCalls = 0;
+  const controller = new SessionFormSubmitController({
+    saveSession: async () => {
+      storageCalls += 1;
+      return { status: 'synced' };
+    },
+    updateSession: async () => ({ status: 'synced' }),
+  });
+  const callbacks = options();
+
+  const submitted = await controller.submit(
+    { ...formData, duration: '90.5' },
+    undefined,
+    callbacks.value
+  );
+
+  assert.equal(submitted, false);
+  assert.equal(storageCalls, 0);
+  assert.match(controller.getSnapshot().errorMessage ?? '', /whole number/i);
+  assert.deepEqual(callbacks.events, []);
+  controller.destroy();
+});
+
+test('submit controller parses scientific duration notation as its numeric value', async () => {
+  let saved: JudoSession | undefined;
+  const controller = new SessionFormSubmitController({
+    saveSession: async (session) => {
+      saved = session;
+      return { status: 'synced' };
+    },
+    updateSession: async () => ({ status: 'synced' }),
+  });
+
+  const submitted = await controller.submit(
+    { ...formData, duration: '1e2' },
+    undefined,
+    options().value
+  );
+
+  assert.equal(submitted, true);
+  assert.equal(saved?.duration, 100);
+  controller.destroy();
+});
+
+test('submit controller rejects durations outside the field range', async () => {
+  let storageCalls = 0;
+  const controller = new SessionFormSubmitController({
+    saveSession: async () => {
+      storageCalls += 1;
+      return { status: 'synced' };
+    },
+    updateSession: async () => ({ status: 'synced' }),
+  });
+
+  for (const duration of ['0', '-1', '1000', 'not-a-number']) {
+    const submitted = await controller.submit(
+      { ...formData, duration },
+      undefined,
+      options().value
+    );
+
+    assert.equal(submitted, false, `expected ${duration} to be rejected`);
+    assert.match(controller.getSnapshot().errorMessage ?? '', /1 and 999/i);
+  }
+
+  assert.equal(storageCalls, 0);
+  controller.destroy();
+});
+
 test('submit controller saves new sessions and reports queued persistence', async () => {
   let saved: JudoSession | undefined;
   const controller = new SessionFormSubmitController({

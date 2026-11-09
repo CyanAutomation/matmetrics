@@ -34,6 +34,11 @@ export interface SessionFormSubmitControllerDependencies {
   createSessionId: () => string;
 }
 
+interface DurationParseResult {
+  value: number | undefined;
+  error: string | null;
+}
+
 const initialState: SessionFormSubmitState = {
   isSubmitting: false,
   errorMessage: null,
@@ -58,6 +63,26 @@ function validateVideoUrl(videoUrl: string): string | null {
   return null;
 }
 
+function parseDuration(duration: string): DurationParseResult {
+  const trimmedDuration = duration.trim();
+  if (!trimmedDuration) return { value: undefined, error: null };
+
+  const parsedDuration = Number(trimmedDuration);
+  if (
+    !Number.isFinite(parsedDuration) ||
+    !Number.isInteger(parsedDuration) ||
+    parsedDuration < 1 ||
+    parsedDuration > 999
+  ) {
+    return {
+      value: undefined,
+      error: 'Duration must be a whole number between 1 and 999 minutes.',
+    };
+  }
+
+  return { value: parsedDuration, error: null };
+}
+
 function createSessionId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -75,11 +100,9 @@ function createSessionId(): string {
 function buildSessionData(
   formData: SessionFormData,
   sessionToEdit: JudoSession | undefined,
-  createId: () => string
+  createId: () => string,
+  duration: number | undefined
 ): JudoSession {
-  const parsedDuration = formData.duration.trim() !== ''
-    ? Number.parseInt(formData.duration, 10)
-    : undefined;
   const trimmedVideoUrl = formData.videoUrl.trim();
 
   return {
@@ -91,7 +114,7 @@ function buildSessionData(
     description: formData.description,
     notes: formData.notes,
     ...(trimmedVideoUrl && { videoUrl: trimmedVideoUrl }),
-    ...(Number.isFinite(parsedDuration) && { duration: parsedDuration }),
+    ...(duration !== undefined && { duration }),
   };
 }
 
@@ -132,6 +155,12 @@ export class SessionFormSubmitController {
       return false;
     }
 
+    const durationResult = parseDuration(formData.duration);
+    if (durationResult.error) {
+      this.publish({ errorMessage: durationResult.error });
+      return false;
+    }
+
     this.publish({ isSubmitting: true });
     const isEditing = Boolean(sessionToEdit);
     options.onStart();
@@ -140,7 +169,8 @@ export class SessionFormSubmitController {
       const sessionData = buildSessionData(
         formData,
         sessionToEdit,
-        this.createId
+        this.createId,
+        durationResult.value
       );
       const result = isEditing
         ? await this.updateSession(sessionData)
