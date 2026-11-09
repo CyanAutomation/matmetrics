@@ -7,6 +7,7 @@
 @import "../vanilla/notice.css";
 @import "../vanilla/password-reset.css";
 @import "../vanilla/action-button.css";
+@import "../vanilla/empty-state.css";
 @import "../vanilla/dialog.css";
 @import "../vanilla/confirmation-dialog.css";
 @import "../vanilla/guest-workspace-notice.css";

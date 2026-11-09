@@ -3,7 +3,7 @@
 import type { ComponentProps } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/ui/page-shell';
-import { RessaImage } from '@/components/ressa-image';
+import { VanillaEmptyState } from '@/components/vanilla-empty-state';
 import { VanillaSegmentedControl } from '@/components/vanilla-segmented-control';
 import { SessionHistoryDialogs as SessionHistoryDialogsView } from './session-history-dialogs';
 import { SessionHistoryFilterBar } from './session-history-filter-bar';
@@ -11,8 +11,9 @@ import { SessionHistoryReviewPanel } from './session-history-review-panel';
 import { VanillaSessionHistoryGroups } from './vanilla-session-history-groups';
 import type { JudoSession } from '@/lib/types';
 import type { SessionHistoryMonthGroup } from '@/vanilla/session-history-groups';
+import type { SessionHistoryDensity } from '@/vanilla/session-history-filter-controller';
 
-export type SessionHistoryDensity = 'comfortable' | 'compact';
+export type { SessionHistoryDensity } from '@/vanilla/session-history-filter-controller';
 
 type FilterBarProps = ComponentProps<typeof SessionHistoryFilterBar>;
 type ReviewPanelProps = ComponentProps<typeof SessionHistoryReviewPanel>;
@@ -48,20 +49,18 @@ export function SessionHistoryEmptyState({
         ) : undefined
       }
     >
-      <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl bg-muted/45">
-        <RessaImage
-          pose={2}
-          size="medium"
-          alt="Ressa encouraging you to log your first session"
-        />
-        <p className="text-center font-semibold mt-4 mb-1">No sessions yet</p>
-        <p className="text-center text-sm text-muted-foreground mb-6">
-          Log your first training session and it will appear here.
-        </p>
-        {onLogSession ? (
-          <Button onClick={onLogSession}>Log your first session</Button>
-        ) : null}
-      </div>
+      <VanillaEmptyState
+        title="No sessions yet"
+        description="Log your first training session and it will appear here."
+        illustration={{
+          src: '/images/ressa/ressa-pose-2.webp',
+          alt: 'Ressa encouraging you to log your first session',
+          size: 'medium',
+        }}
+        action={onLogSession
+          ? { label: 'Log your first session', onActivate: onLogSession }
+          : undefined}
+      />
     </PageShell>
   );
 }

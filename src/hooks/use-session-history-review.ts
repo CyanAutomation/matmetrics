@@ -1,134 +1,41 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { getAuthHeaders } from '@/lib/auth-session';
-import {
-  isSessionAssessment,
-  type SessionAssessment,
-} from '@/lib/jev-client';
-import {
-  HISTORY_REVIEW_BATCH_SIZE,
-  getRecurringTrainingThemeSummary,
-  reviewHistoryBatch,
-  type HistoryAssessmentInput,
-  type HistoryReviewResult,
-} from '@/lib/jev-history-review';
+import { getRecurringTrainingThemeSummary } from '@/lib/jev-history-review';
 import type { JudoSession } from '@/lib/types';
+import { SessionHistoryReviewController } from '@/vanilla/session-history-review-controller';
 
 export function useSessionHistoryReview(sessions: JudoSession[]) {
   const { canUseAi } = useAuth();
-  const [historyReviewEntries, setHistoryReviewEntries] = useState<
-    HistoryReviewResult[]
-  >([]);
-  const [reviewedSessionIds, setReviewedSessionIds] = useState<Set<string>>(
-    () => new Set()
+  const controller = useMemo(() => new SessionHistoryReviewController(), []);
+  const state = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot
   );
-  const [isReviewingHistory, setIsReviewingHistory] = useState(false);
-  const [reviewProgress, setReviewProgress] = useState({
-    completed: 0,
-    total: 0,
-  });
+
+  useEffect(() => () => controller.destroy(), [controller]);
 
   const recurringThemeSummary = useMemo(
-    () => getRecurringTrainingThemeSummary(historyReviewEntries),
-    [historyReviewEntries]
+    () => getRecurringTrainingThemeSummary(state.historyReviewEntries),
+    [state.historyReviewEntries]
   );
   const hasUnreviewedDescriptions = sessions.some(
     (session) =>
-      !reviewedSessionIds.has(session.id) &&
+      !state.reviewedSessionIds.has(session.id) &&
       Boolean(session.description?.trim())
   );
 
-  const assessHistoryBatch = async (
-    inputs: HistoryAssessmentInput[]
-  ): Promise<SessionAssessment[]> => {
-    const response = await fetch('/api/ai/assess-sessions', {
-      method: 'POST',
-      headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ sessions: inputs }),
-    });
-    if (!response.ok) {
-      throw new Error('History review request failed');
-    }
-
-    const payload: unknown = await response.json();
-    const assessments =
-      payload && typeof payload === 'object'
-        ? (payload as { assessments?: unknown }).assessments
-        : undefined;
-    if (
-      !Array.isArray(assessments) ||
-      assessments.length !== inputs.length ||
-      !assessments.every(isSessionAssessment)
-    ) {
-      throw new Error('History review response was invalid');
-    }
-    return assessments;
-  };
-
-  const handleReviewHistory = async () => {
-    if (!canUseAi || isReviewingHistory) return;
-    const pendingCount = sessions.filter(
-      (session) =>
-        !reviewedSessionIds.has(session.id) &&
-        Boolean(session.description?.trim())
-    ).length;
-    if (pendingCount === 0) return;
-
-    setIsReviewingHistory(true);
-    setReviewProgress({
-      completed: 0,
-      total: pendingCount,
-    });
-    let completed = 0;
-    try {
-      await reviewHistoryBatch(
-        sessions,
-        reviewedSessionIds,
-        assessHistoryBatch,
-        HISTORY_REVIEW_BATCH_SIZE,
-        (entry) => {
-          completed += 1;
-          setReviewProgress({
-            completed,
-            total: pendingCount,
-          });
-          if (!entry.error) {
-            setReviewedSessionIds((current) =>
-              new Set(current).add(entry.sessionId)
-            );
-          }
-          setHistoryReviewEntries((current) => [
-            entry,
-            ...current.filter((item) => item.sessionId !== entry.sessionId),
-          ]);
-        }
-      );
-    } finally {
-      setIsReviewingHistory(false);
-    }
-  };
-
-  const clearHistoryReview = (sessionId: string) => {
-    setHistoryReviewEntries((current) =>
-      current.filter((entry) => entry.sessionId !== sessionId)
-    );
-    setReviewedSessionIds((current) => {
-      const next = new Set(current);
-      next.delete(sessionId);
-      return next;
-    });
-  };
-
   return {
     canUseAi,
-    clearHistoryReview,
-    handleReviewHistory,
+    clearHistoryReview: controller.clearHistoryReview,
+    handleReviewHistory: () =>
+      controller.handleReviewHistory(sessions, canUseAi),
     hasUnreviewedDescriptions,
-    historyReviewEntries,
-    isReviewingHistory,
+    historyReviewEntries: state.historyReviewEntries,
+    isReviewingHistory: state.isReviewingHistory,
     recurringThemeSummary,
-    reviewProgress,
+    reviewProgress: state.reviewProgress,
   };
 }
