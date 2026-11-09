@@ -138,7 +138,9 @@ function reviewHistoryProps(
     ariaBusy: props.isReviewingHistory,
     dataAction: 'review-history',
     onClick: () => {
-      void props.onReviewHistory();
+      void props.onReviewHistory().catch((error: unknown) => {
+        console.error('Unexpected error while reviewing training history.', error);
+      });
     },
   };
 }

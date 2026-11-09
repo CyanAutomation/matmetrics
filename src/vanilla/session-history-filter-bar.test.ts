@@ -142,6 +142,36 @@ test('history filter bar updates controls in place, routes events to current pro
   dom.window.close();
 });
 
+test('history review action reports unexpected failures from its callback', async () => {
+  const dom = new JSDOM('<div id="host"></div>');
+  const host = dom.window.document.querySelector('#host') as HTMLElement;
+  const expectedError = new Error('unexpected review failure');
+  let reportedError: unknown;
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    reportedError = args[1];
+  };
+
+  const props = makeProps({
+    onReviewHistory: async () => {
+      throw expectedError;
+    },
+  });
+  host.innerHTML = sessionHistoryFilterBarHtml(props);
+  const root = host.firstElementChild as HTMLElement;
+  const controller = mountSessionHistoryFilterBar(root, props);
+
+  try {
+    root.querySelector<HTMLButtonElement>('[data-ui-action="review-history"]')!.click();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(reportedError, expectedError);
+  } finally {
+    console.error = originalConsoleError;
+    controller.destroy();
+    dom.window.close();
+  }
+});
+
 test('history filter bar does not attach listeners when required markup is missing', () => {
   const dom = new JSDOM('<div id="host"></div>');
   const host = dom.window.document.querySelector('#host') as HTMLElement;
