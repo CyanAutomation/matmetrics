@@ -10,6 +10,7 @@
 @import "../vanilla/empty-state.css";
 @import "../vanilla/dialog.css";
 @import "../vanilla/confirmation-dialog.css";
+@import "../vanilla/linear-step-progress.css";
 @import "../vanilla/guest-workspace-notice.css";
 @import "../vanilla/version-history.css";
 @import "../vanilla/status-message.css";

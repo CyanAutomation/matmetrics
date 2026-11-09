@@ -3,7 +3,6 @@
 import {
   useEffect,
   useMemo,
-  useState,
   useSyncExternalStore,
 } from 'react';
 import type { JudoSession } from '@/lib/types';
@@ -21,6 +20,7 @@ import {
   type SessionHistoryQuickFilter,
 } from '@/lib/session-history-filter';
 import { SessionHistoryFilterController } from '@/vanilla/session-history-filter-controller';
+import { SessionHistoryDialogController } from '@/vanilla/session-history-dialog-controller';
 import { SessionHistorySemanticSearchController } from '@/vanilla/session-history-semantic-search-controller';
 import {
   SessionHistoryContent,
@@ -67,6 +67,10 @@ export function SessionHistory({
     () => new SessionHistorySemanticSearchController(),
     []
   );
+  const dialogController = useMemo(
+    () => new SessionHistoryDialogController(),
+    []
+  );
   const filterState = useSyncExternalStore(
     filterController.subscribe,
     filterController.getSnapshot,
@@ -77,14 +81,16 @@ export function SessionHistory({
     semanticSearchController.getSnapshot,
     semanticSearchController.getSnapshot
   );
+  const dialogState = useSyncExternalStore(
+    dialogController.subscribe,
+    dialogController.getSnapshot,
+    dialogController.getSnapshot
+  );
   const historyReview = useSessionHistoryReview(sessions);
   const { deletingSessionId, handleDelete } = useSessionHistoryActions(
     onRefresh,
     historyReview.clearHistoryReview
   );
-  const [editingSession, setEditingSession] = useState<JudoSession | null>(null);
-  const [sessionPendingDeletion, setSessionPendingDeletion] =
-    useState<JudoSession | null>(null);
   const {
     searchQuery,
     categoryFilter,
@@ -105,8 +111,11 @@ export function SessionHistory({
   }, [sessions, semanticSearchController]);
 
   useEffect(
-    () => () => semanticSearchController.destroy(),
-    [semanticSearchController]
+    () => () => {
+      semanticSearchController.destroy();
+      dialogController.destroy();
+    },
+    [dialogController, semanticSearchController]
   );
 
   const sessionsWithinFilters = useMemo(
@@ -193,7 +202,7 @@ export function SessionHistory({
     filterController.applyQuickFilter(kind);
   };
   const requestDelete = (session: JudoSession) => {
-    if (!deletingSessionId) setSessionPendingDeletion(session);
+    dialogController.requestDelete(session, Boolean(deletingSessionId));
   };
 
   if (sessions.length === 0) {
@@ -209,7 +218,7 @@ export function SessionHistory({
       onDensityChange={filterController.setDensity}
       semanticSearchActive={semanticMatches !== null}
       onRequestDelete={requestDelete}
-      onEditSession={setEditingSession}
+      onEditSession={dialogController.requestEdit}
       onFilterTechnique={filterByTechnique}
       filterBarProps={{
         searchQuery,
@@ -247,20 +256,23 @@ export function SessionHistory({
         entries: historyReview.historyReviewEntries,
         sessions,
         recurringThemeSummary: historyReview.recurringThemeSummary,
-        onEditSession: setEditingSession,
+        onEditSession: dialogController.requestEdit,
       }}
       dialogProps={{
-        editingSession,
-        sessionPendingDeletion,
+        editingSession: dialogState.editingSession,
+        sessionPendingDeletion: dialogState.sessionPendingDeletion,
         deletingSessionId,
-        onCloseEdit: () => setEditingSession(null),
+        onCloseEdit: dialogController.closeEdit,
         onEditSaved: (session) => {
           historyReview.clearHistoryReview(session.id);
-          setEditingSession(null);
+          dialogController.completeEdit(session.id);
           onRefresh();
         },
-        onCloseDelete: () => setSessionPendingDeletion(null),
-        onDelete: handleDelete,
+        onCloseDelete: dialogController.closeDelete,
+        onDelete: async (session) => {
+          await handleDelete(session);
+          dialogController.completeDelete(session.id);
+        },
       }}
     />
   );

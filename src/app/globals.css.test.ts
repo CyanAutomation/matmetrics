@@ -94,6 +94,9 @@ test('[req:docs/blueprint.md#dashboard-session-category-chart-palette] Tailwind 
   assert.ok(declarationValueFor("[data-contrast='high'] .ui-tag-editor__list", 'outline'));
   assert.equal(declarationValueFor('.ui-segmented-control', 'display'), 'inline-flex');
   assert.ok(declarationValueFor(".ui-segmented-control__item[aria-pressed='true']", 'background'));
+  assert.equal(declarationValueFor('.ui-linear-step-progress', 'display'), 'grid');
+  assert.ok(declarationValueFor(".ui-linear-step-progress__indicator[data-state='current']", 'background'));
+  assert.equal(declarationValueFor('.ui-linear-step-progress__label--current', 'font-weight'), '600');
   assert.equal(declarationValueFor('.version-history', 'overflow-y'), 'auto');
   assert.equal(
     declarationValueFor("body[data-snackbar-visible='true'] main", 'margin-bottom'),
