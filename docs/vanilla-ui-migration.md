@@ -17,7 +17,9 @@ Components must work without React. While a parent is still React-owned, a tempo
 
 The training-history filter bar, grouped results, and review results panel render through vanilla components inside the existing React-owned history screen. The grouped results and review panel compose shared session-row, `Surface`, and button primitives. Edit and delete dialogs use the shared native dialog and confirmation components; the edit form remains React content inside the vanilla dialog shell.
 
-The session essentials reuse vanilla text and select fields plus a native radio group for effort selection. Practice notes use a shared vanilla textarea, and technique tags use a reusable tag editor with native entry, add, and remove controls. Temporary React adapters forward updates and clean up listeners while the session form still owns state, AI actions, and submission. Training-history filter values, semantic search, and session-review orchestration now live in framework-neutral controllers; React subscribes to their snapshots while edit/delete dialogs and the overall history composition remain React-owned. These slices keep the current routes and API integration in place.
+The session essentials reuse vanilla text and select fields plus a native radio group for effort selection. Practice notes use a shared vanilla textarea, and technique tags use a reusable tag editor with native entry, add, and remove controls. A framework-neutral session-form controller now owns field values, and a submit controller owns URL validation, pending/error state, and save/update orchestration; React subscribes to both through temporary adapters. AI actions and the form composition remain React-owned. Training-history filter values, semantic search, and session-review orchestration also live in framework-neutral controllers; React subscribes to their snapshots while the history composition remains React-owned. These slices keep the current routes and API integration in place.
+
+The edit and delete dialog targets now live in a framework-neutral controller; the history screen subscribes to it through the same temporary React boundary. Delete persistence and toast behavior still use the existing action hook. The session form's step indicator is also a reusable vanilla component with standalone CSS, hosted by a temporary React adapter while the form shell remains React-owned.
 
 The training-history empty state uses a reusable vanilla empty-state component for its illustration, copy, and primary action. The component escapes text and attributes, restricts illustrations to same-origin paths, preserves keyboard focus when updated, and removes its delegated event listener when destroyed. Its temporary React adapter keeps the current page composition in place while the rest of the history view is migrated.
 
@@ -26,7 +28,7 @@ Framework-neutral state controllers expose stable `getSnapshot` and `subscribe` 
 ## Migration order
 
 1. Convert reusable controls, empty states, dialogs, and individual history interactions in the existing view.
-2. Move remaining history edit and delete state behind framework-neutral controllers, preserving session storage, search, and accessibility behavior.
+2. Move remaining history delete persistence/toast behavior and session-form AI enhancements behind framework-neutral controllers, preserving session storage, search, and accessibility behavior.
 3. Define a vanilla plugin mount/update/destroy contract and a compatibility adapter for existing React plugins. Migrate plugin validation and each plugin before retiring the adapter.
 4. Migrate the dashboard shell, authentication and remaining views, then remove unused React UI dependencies.
 
