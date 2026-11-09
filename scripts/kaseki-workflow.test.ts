@@ -75,7 +75,7 @@ test("routes both Kaseki workflows through the shared API and poll helper", () =
 test("runs zizmor in CI and disables persisted checkout credentials", () => {
   assert.match(
     ciWorkflow,
-    /zizmorcore\/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b/,
+    /zizmorcore\/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd/,
   );
   assert.match(ciWorkflow, /advanced-security: false/);
   const checkoutCount = (ciWorkflow.match(/uses: actions\/checkout@/g) ?? [])
