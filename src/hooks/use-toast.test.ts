@@ -118,4 +118,7 @@ test('useToast displays a toast after a user action', async () => {
   await waitFor(() => {
     assert.equal(document.body.dataset.snackbarVisible, undefined);
   }, { timeout: 2000 });
+  await waitFor(() => {
+    assert.equal(screen.queryByText('Session saved'), null);
+  }, { timeout: 2000 });
 });

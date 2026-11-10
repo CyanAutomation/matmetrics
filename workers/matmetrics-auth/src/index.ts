@@ -416,15 +416,20 @@ export default {
     if (finalPasskeyResponse) return finalPasskeyResponse;
 
     const response = await auth.handler(request);
-    if (
-      pathname.endsWith('/passkey/delete-passkey') &&
-      response.status >= 500
-    ) {
-      const body = await response
-        .clone()
-        .text()
-        .catch(() => '');
-      if (body.includes('LAST_PASSKEY_REQUIRED')) return lastPasskeyResponse();
+    if (pathname.endsWith('/passkey/delete-passkey') && response.status >= 500) {
+      try {
+        const session = await auth.api.getSession({ headers: request.headers });
+        if (session?.user?.id) {
+          const remaining = await env.DB.prepare(
+            'SELECT count(*) AS count FROM passkey WHERE userId = ?'
+          )
+            .bind(session.user.id)
+            .first<{ count: number }>();
+          if ((remaining?.count ?? 0) <= 1) return lastPasskeyResponse();
+        }
+      } catch {
+        // Keep the original 500 if the session or DB status cannot be checked.
+      }
     }
     return response;
   },
