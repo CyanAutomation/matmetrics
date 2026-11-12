@@ -83,9 +83,9 @@ the Worker flag is false.
 Only after the existing account and protected API checks pass, enable
 `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in the Cloudflare environment
 and `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in the matching Vercel
-build. Before launch, set Vercel Firewall limits for browser-facing sign-in,
-signup, verification, and password recovery routes; proxied traffic can share
-Vercel egress IPs and the Worker IP limiter is a coarse guard.
+build. The Auth Worker enforces Cloudflare rate limits for sign-in, signup,
+verification, and password recovery. Requests proxied through Vercel can share
+an egress IP; email password sign-in also has a hashed account bucket.
 
 ## Firebase retirement
 

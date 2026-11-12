@@ -2,9 +2,10 @@
 
 ## Better Auth deployment
 
-The maintainer confirmed the production verification, Vercel Firewall limits,
-and signup rollout decision are complete as of 2026-10-17. Keep the Worker and
-Vercel signup flags aligned if the decision changes.
+The maintainer confirmed the production verification and signup rollout
+decision are complete as of 2026-10-17. The Auth Worker enforces its configured
+Cloudflare rate limits. Keep the Worker and Vercel signup flags aligned if the
+decision changes.
 
 The auth Worker uses the exact frontend origin and RP ID for WebAuthn. Do not
 allow wildcard preview origins. See the [auth rollout checklist](docs/better-auth-passkey-migration.md).
