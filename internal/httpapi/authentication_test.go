@@ -188,6 +188,23 @@ func TestBetterAuthVerifierKeepsInvalidCredentialsUnauthorizedDuringJWKSOutage(t
 	}
 }
 
+func TestBetterAuthVerifierRejectsKeysAfterProlongedJWKSOutage(t *testing.T) {
+	publicKey, privateKey := testEd25519Key(t)
+	jwks := &testJWKS{}
+	jwks.set(testJWKSJSON(t, testAuthKeyID, publicKey), http.StatusOK)
+	verifier := newTestBetterAuthVerifier(t, jwks)
+	verifier.health.mu.Lock()
+	verifier.health.lastSuccess = time.Now().Add(-betterAuthJWKSMaxStale - time.Minute)
+	verifier.health.lastFailure = time.Now()
+	verifier.health.mu.Unlock()
+
+	token := signBetterAuthToken(t, testAuthKeyID, privateKey, validBetterAuthClaims(time.Now(), verifier.config.Issuer))
+	_, err := verifier.verify(context.Background(), token)
+	if !errors.Is(err, errAuthVerificationUnavailable) {
+		t.Fatalf("verify() error = %v, want JWKS unavailable after stale-key window", err)
+	}
+}
+
 func TestBetterAuthVerifierRejectsInvalidClaims(t *testing.T) {
 	publicKey, privateKey := testEd25519Key(t)
 	jwks := &testJWKS{}

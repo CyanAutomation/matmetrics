@@ -49,6 +49,32 @@ describe('authentication rate limit policy', () => {
     });
   });
 
+  it('adds a normalized, hashed account bucket to email password sign-in', async () => {
+    const keys: string[] = [];
+    const limiter = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: true };
+      },
+    } as unknown as RateLimit;
+    const request = new Request('https://auth.example.test/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: {
+        'CF-Connecting-IP': '203.0.113.7',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: '  User@Example.test ', password: 'secret' }),
+    });
+
+    const response = await applyRateLimit(request, limiter);
+
+    expect(response).toBeNull();
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBe('203.0.113.7');
+    expect(keys[1]).toMatch(/^account:[a-f0-9]{64}$/);
+    expect(keys[1]).not.toContain('user@example.test');
+  });
+
   it('fails closed with a safe 503 if the rate limit binding fails', async () => {
     const limiter = {
       limit: async () => {

@@ -22,6 +22,7 @@ import (
 const (
 	betterAuthJWKSRequestTimeout = 5 * time.Second
 	betterAuthJWKSRefreshEvery   = 15 * time.Minute
+	betterAuthJWKSMaxStale       = 24 * time.Hour
 	betterAuthJWKSMaxBytes       = 256 * 1024
 )
 
@@ -181,6 +182,12 @@ func (h *jwksHealth) unavailableAfterLastSuccess() bool {
 	return h.lastFailure.After(h.lastSuccess)
 }
 
+func (h *jwksHealth) staleBeyond(maxAge time.Duration) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.lastSuccess.IsZero() || time.Since(h.lastSuccess) > maxAge
+}
+
 var betterAuthVerifierCache struct {
 	sync.Mutex
 	config   betterAuthConfig
@@ -322,6 +329,13 @@ func newBetterAuthVerifier(ctx context.Context, config betterAuthConfig, transpo
 }
 
 func (v *betterAuthVerifier) verify(ctx context.Context, raw string) (AuthenticatedPrincipal, error) {
+	// keyfunc retains previously loaded keys when a scheduled refresh fails.
+	// Keep those keys usable during a bounded outage, then fail closed instead
+	// of accepting a signing key that may have been revoked indefinitely.
+	if v.health.staleBeyond(betterAuthJWKSMaxStale) {
+		return AuthenticatedPrincipal{}, fmt.Errorf("%w: cached Better Auth signing keys are stale", errAuthVerificationUnavailable)
+	}
+
 	claims := &betterAuthTokenClaims{}
 	verificationContext, cancel := context.WithTimeout(ctx, betterAuthJWKSRequestTimeout)
 	defer cancel()

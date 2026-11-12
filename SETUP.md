@@ -152,8 +152,9 @@ protected Next.js and Go APIs.
 Only after those checks pass should public signup be opened by setting both
 `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in Cloudflare and
 `NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED=true` in the corresponding Vercel
-build. Add Vercel Firewall rate limits for sign-in, signup, verification, and
-password recovery endpoints before launch.
+build. The Auth Worker enforces Cloudflare rate limits on sign-in, signup,
+verification, and password recovery endpoints. Email password sign-in also
+uses an account bucket in addition to its source-IP bucket.
 
 Firebase and Firestore are no longer part of the MatMetrics runtime. Production
 data reconciliation found one Firestore preference document, no plugin config

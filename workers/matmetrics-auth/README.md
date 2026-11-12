@@ -92,10 +92,12 @@ with the same generic HTTP 503 when the Resend key or sender is missing;
 transient Resend errors are retried up to three times with the same idempotency
 key and final failures are logged. Delivery runs under Cloudflare `waitUntil`;
 links expire after one hour. Signup and recovery endpoints are rate limited by
-Cloudflare bindings. Because requests proxied through Vercel may share egress
-IP, add per-client Vercel Firewall limits for the browser auth endpoints before
-opening public signup. Forwarded client-IP headers are not trusted by the
-Worker, and rate-limit binding failures return HTTP 503.
+Cloudflare bindings. Password sign-in uses both the Cloudflare connection IP
+and a hashed, normalized account key, which limits distributed password
+guessing without storing email addresses in limiter keys. Requests proxied
+through Vercel may share egress IP, so the IP bucket remains a coarse shared
+limit. Forwarded client-IP headers are not trusted by the Worker, and
+rate-limit binding failures return HTTP 503.
 
 ## Deployment and account migration
 
