@@ -30,17 +30,16 @@ Better Auth user and passkey guard triggers remain, and the existing D1
 preference row is preserved. The migration removed one redundant Firebase
 identity mapping and one completed legacy registration claim/completion.
 
-Public password signup remains disabled by default. Before opening signup,
-configure Vercel Firewall limits for `/api/auth/sign-in/*`,
-`/api/auth/sign-up/*`, `/api/auth/request-password-reset`,
-`/api/auth/reset-password`, and `/api/auth/send-verification-email`, then decide
-whether public signup should be enabled in both the Worker and Next.js build.
+Public password signup remains disabled by default. Enabling public signup is a
+separate product decision and requires coordinating the Worker and browser
+flags.
 
 The Worker applies Cloudflare limits to sign-in and account-recovery routes,
-keyed by `CF-Connecting-IP`. A request proxied through Vercel can share egress
-IP with other users, so the Worker limit is only a coarse safeguard for
-browser traffic. A rate-limit binding failure returns HTTP 503. Do not trust
-forwarded client-IP headers at the Worker boundary.
+keyed by `CF-Connecting-IP`; email password sign-in also uses a normalized,
+hashed account key. A request proxied through Vercel can share Vercel egress IP
+with other users, so the IP limit remains a coarse safeguard for browser
+traffic. A rate-limit binding failure returns HTTP 503. Do not trust forwarded
+client-IP headers at the Worker boundary.
 
 ## External Service Retirement
 
