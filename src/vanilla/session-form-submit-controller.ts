@@ -1,9 +1,9 @@
 import { saveSession, updateSession } from '../lib/storage';
 import type {
   EffortLevel,
-  JudoSession,
   SessionCategory,
 } from '../lib/types';
+import { isKeikoRevision, type SessionSnapshot } from '../lib/keiko-session-revision';
 
 export interface SessionFormData {
   date: string;
@@ -99,10 +99,10 @@ function createSessionId(): string {
 
 function buildSessionData(
   formData: SessionFormData,
-  sessionToEdit: JudoSession | undefined,
+  sessionToEdit: SessionSnapshot | undefined,
   createId: () => string,
   duration: number | undefined
-): JudoSession {
+): SessionSnapshot {
   const trimmedVideoUrl = formData.videoUrl.trim();
 
   return {
@@ -115,7 +115,32 @@ function buildSessionData(
     notes: formData.notes,
     ...(trimmedVideoUrl && { videoUrl: trimmedVideoUrl }),
     ...(duration !== undefined && { duration }),
+    ...(isKeikoRevision(sessionToEdit?.keikoRevision)
+      ? { keikoRevision: sessionToEdit.keikoRevision }
+      : {}),
   };
+}
+
+function submitErrorMessage(error: unknown, isEditing: boolean): string {
+  const status =
+    error && typeof error === 'object' && 'status' in error &&
+    typeof error.status === 'number'
+      ? error.status
+      : undefined;
+
+  if (status === 412) {
+    return 'This session changed elsewhere. Your edits are preserved. Close this form and reopen the session to load the current version.';
+  }
+  if (status === 428) {
+    return 'The session revision is missing. Your edits are preserved. Close this form and reload the session from history before trying again.';
+  }
+  if (status === 404) {
+    return 'This session no longer exists. Your edits are preserved in this form; close it only after saving a copy of your changes.';
+  }
+  if (status === 401 || status === 403) {
+    return 'Your sign-in or access expired. Your edits are preserved. Sign in again, then reopen the session before trying again.';
+  }
+  return `The session could not be ${isEditing ? 'updated' : 'saved'}. Your local view has been reconciled to match persisted data.`;
 }
 
 /** Framework-neutral owner for session submission state and persistence flow. */
@@ -143,7 +168,7 @@ export class SessionFormSubmitController {
 
   submit = async (
     formData: SessionFormData,
-    sessionToEdit: JudoSession | undefined,
+    sessionToEdit: SessionSnapshot | undefined,
     options: SessionFormSubmitOptions
   ): Promise<boolean> => {
     if (this.state.isSubmitting) return false;
@@ -186,10 +211,8 @@ export class SessionFormSubmitController {
 
       options.onSuccess();
       return true;
-    } catch {
-      this.publish({
-        errorMessage: `The session could not be ${isEditing ? 'updated' : 'saved'}. Your local view has been reconciled to match persisted data.`,
-      });
+    } catch (error) {
+      this.publish({ errorMessage: submitErrorMessage(error, isEditing) });
       options.onError();
       return false;
     } finally {

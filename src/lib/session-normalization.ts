@@ -1,12 +1,12 @@
 import { validateSessionFields } from './session-validation-fields';
-import type { JudoSession } from './types';
+import { isKeikoRevision, type SessionSnapshot } from './keiko-session-revision';
 
 const MAX_PERSISTED_SESSION_ID_LENGTH = 100;
 const HTML_INJECTION_CHARACTER_PATTERN = /[<>&"']/;
 
 function normalizePersistedSession(
   payload: Record<string, unknown>
-): JudoSession | null {
+): SessionSnapshot | null {
   if (
     typeof payload.id !== 'string' ||
     payload.id.trim().length === 0 ||
@@ -28,6 +28,9 @@ function normalizePersistedSession(
     ...(typeof payload.revisionSha === 'string' && payload.revisionSha
       ? { revisionSha: payload.revisionSha }
       : {}),
+    ...(isKeikoRevision(payload.keikoRevision)
+      ? { keikoRevision: payload.keikoRevision }
+      : {}),
   };
 }
 
@@ -38,7 +41,7 @@ function normalizePersistedSession(
  * required. Treat a missing or null techniques value as an empty list, then
  * reject records that still fail the current session validation rules.
  */
-export function normalizeSessionList(value: unknown): JudoSession[] {
+export function normalizeSessionList(value: unknown): SessionSnapshot[] {
   if (!Array.isArray(value)) {
     return [];
   }

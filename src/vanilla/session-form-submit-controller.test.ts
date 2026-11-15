@@ -150,7 +150,7 @@ test('submit controller saves new sessions and reports queued persistence', asyn
     duration: 75,
     description: 'Practiced entries against a moving partner.',
     techniques: ['Uchi-mata'],
-    effort: 4,
+    effort: 4 as const,
     category: 'Randori',
     notes: 'Keep the head up.',
     videoUrl: 'https://example.com/session.mp4',
@@ -172,7 +172,7 @@ test('submit controller updates edited sessions and reports storage failures', a
     id: 'existing-session',
     date: '2026-11-01',
     category: 'Technical',
-    effort: 3,
+    effort: 3 as const,
     techniques: [],
     description: 'Before edit',
   };
@@ -193,6 +193,36 @@ test('submit controller updates edited sessions and reports storage failures', a
   assert.equal(updated?.id, edited.id);
   assert.equal(updated?.description, formData.description);
   assert.match(controller.getSnapshot().errorMessage ?? '', /could not be updated/i);
+  assert.deepEqual(callbacks.events, ['start', 'error']);
+  controller.destroy();
+});
+
+test('stale Keiko edits retain their original revision and leave the form data intact', async () => {
+  const edited = {
+    id: 'keiko-session',
+    date: '2026-11-01',
+    category: 'Technical' as SessionCategory,
+    effort: 3 as const,
+    techniques: [],
+    keikoRevision: 4,
+  };
+  let updated: JudoSession | undefined;
+  const controller = new SessionFormSubmitController({
+    saveSession: async () => ({ status: 'synced' }),
+    updateSession: async (session) => {
+      updated = session;
+      throw Object.assign(new Error('stale revision'), { status: 412 });
+    },
+  });
+  const callbacks = options();
+
+  const submitted = await controller.submit(formData, edited, callbacks.value);
+
+  assert.equal(submitted, false);
+  assert.equal((updated as (JudoSession & { keikoRevision?: number }) | undefined)?.keikoRevision, 4);
+  assert.equal(updated?.notes, formData.notes);
+  assert.match(controller.getSnapshot().errorMessage ?? '', /changed elsewhere/i);
+  assert.match(controller.getSnapshot().errorMessage ?? '', /edits are preserved/i);
   assert.deepEqual(callbacks.events, ['start', 'error']);
   controller.destroy();
 });

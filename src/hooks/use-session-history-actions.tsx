@@ -5,6 +5,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSession, saveSession } from '@/lib/storage';
 import type { JudoSession } from '@/lib/types';
+import type { SessionSnapshot } from '@/lib/keiko-session-revision';
 
 export function useSessionHistoryActions(
   onRefresh: () => void,
@@ -20,7 +21,10 @@ export function useSessionHistoryActions(
 
     setDeletingSessionId(session.id);
     try {
-      const result = await deleteSession(session.id);
+      const result = await deleteSession(
+        session.id,
+        (session as SessionSnapshot).keikoRevision
+      );
       onRefresh();
       toast({
         title: 'Session deleted',

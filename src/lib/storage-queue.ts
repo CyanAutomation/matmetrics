@@ -18,8 +18,11 @@
  * - Coordinating with lease ownership and dirty mutation tracking
  */
 
-import type { JudoSession, GitHubConfig } from './types';
+import type { GitHubConfig } from './types';
+import type { SessionSnapshot } from './keiko-session-revision';
 import type { SyncOperation } from './sync-queue';
+import type { SyncOperationIssue } from './sync-queue';
+import { keikoIfMatch } from './keiko-session-revision';
 import { clearDirtyMutation } from './mutation-state';
 import {
   hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
@@ -35,7 +38,8 @@ export class SyncRequestError extends Error {
   constructor(
     message: string,
     public readonly retryable: boolean,
-    public readonly retryAfterMs: number | null = null
+    public readonly retryAfterMs: number | null = null,
+    public readonly status?: number
   ) {
     super(message);
     this.name = 'SyncRequestError';
@@ -78,8 +82,13 @@ function buildOperationRequestBody(
 
   switch (operation.type) {
     case 'CREATE':
-    case 'UPDATE':
       Object.assign(body, operation.session);
+      break;
+    case 'UPDATE':
+      {
+        const { keikoRevision: _keikoRevision, ...session } = operation.session;
+        Object.assign(body, session);
+      }
       break;
     case 'DELETE':
       if (operation.revisionSha) {
@@ -170,6 +179,24 @@ export async function handleOperationError(
     return { retryable: true, retryAfterMs: null };
   }
 
+  const syncIssue: SyncOperationIssue | undefined =
+    error.status === 404 || error.status === 412 || error.status === 428
+      ? { type: 'conflict', status: error.status }
+      : error.status === 401 || error.status === 403
+        ? { type: 'authentication', status: error.status }
+        : undefined;
+  if (syncIssue) {
+    if (isStorageGenerationCurrent(generation)) {
+      const retainedOperations = queue.map((queuedOperation, operationIndex) =>
+        operationIndex === index
+          ? { ...queuedOperation, syncIssue }
+          : queuedOperation
+      );
+      await setQueue(retainedOperations, queue);
+    }
+    return { retryable: false, retryAfterMs: null };
+  }
+
   // Handle permanent failures (mark as synced to avoid retry loop)
   if (!error.retryable) {
     const remainingOperations = queue.filter((_, i) => i !== index);
@@ -221,8 +248,8 @@ export async function processSingleQueueOperation(
     input: RequestInfo | URL,
     init?: RequestInit
   ) => Promise<Response>,
-  parseMutationSession: (response: Response) => Promise<JudoSession>,
-  reconcileSuccessfulSession: (session: JudoSession, version: number) => void,
+  parseMutationSession: (response: Response) => Promise<SessionSnapshot>,
+  reconcileSuccessfulSession: (session: SessionSnapshot, version: number) => void,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,
   getAuthHeaders: (extras?: any) => Promise<any>,
   reconcilePermanentFailure: () => Promise<void>
@@ -247,9 +274,16 @@ export async function processSingleQueueOperation(
     const url = getOperationUrl(operation);
     const method = getOperationMethod(operation);
 
-    const headers = await getAuthHeaders({
+    const headers = new Headers(await getAuthHeaders({
       'Content-Type': 'application/json',
-    });
+    }));
+    const expectedRevision = operation.type === 'DELETE'
+      ? operation.expectedRevision
+      : operation.type === 'UPDATE'
+        ? operation.expectedRevision ?? operation.session.keikoRevision
+        : undefined;
+    const ifMatch = keikoIfMatch(expectedRevision);
+    if (ifMatch) headers.set('If-Match', ifMatch);
 
     if (!isStorageGenerationCurrent(generation)) {
       return { success: false, shouldContinue: false };
@@ -272,15 +306,31 @@ export async function processSingleQueueOperation(
             queuedOperation.type === 'UPDATE') &&
           queuedOperation.session.id === serverSession.id
         ) {
-          queuedOperation.session = {
-            ...queuedOperation.session,
-            revisionSha: serverSession.revisionSha,
-          };
+          if (queuedOperation.type === 'UPDATE') {
+            queuedOperation.session = {
+              ...queuedOperation.session,
+              revisionSha: serverSession.revisionSha,
+              ...(typeof serverSession.keikoRevision === 'number'
+                ? { keikoRevision: serverSession.keikoRevision }
+                : {}),
+            };
+            if (typeof serverSession.keikoRevision === 'number') {
+              queuedOperation.expectedRevision = serverSession.keikoRevision;
+            }
+          } else {
+            queuedOperation.session = {
+              ...queuedOperation.session,
+              revisionSha: serverSession.revisionSha,
+            };
+          }
         } else if (
           queuedOperation.type === 'DELETE' &&
           queuedOperation.id === serverSession.id
         ) {
           queuedOperation.revisionSha = serverSession.revisionSha;
+          if (typeof serverSession.keikoRevision === 'number') {
+            queuedOperation.expectedRevision = serverSession.keikoRevision;
+          }
         }
       }
     }

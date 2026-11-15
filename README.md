@@ -90,6 +90,7 @@ other commands and protected Go API configuration.
 | [Auth Worker](workers/matmetrics-auth/README.md) | Worker configuration, tests, and deployment |
 | [Auth migration](docs/better-auth-passkey-migration.md) | Auth rollout and post-deployment checks |
 | [D1 migration](docs/cloudflare-d1-migration.md) | D1-backed preference migration |
+| [Architecture stabilisation](docs/architecture/current-state.md) | Verified service boundaries, target architecture, and migration roadmap |
 | [Plugin UI contract](docs/plugin-ui-contract.md) | Plugin onboarding and UI requirements |
 
 ## Tech Stack

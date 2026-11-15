@@ -2859,3 +2859,191 @@ serialTest(
     }
   }
 );
+
+serialTest(
+  'Keiko updates send the revision from the loaded session without putting it in the body',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const session = {
+      ...makeSession('session-keiko-revision-direct'),
+      keikoRevision: 7,
+    };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([session])
+    );
+    const mutations: Array<{ headers: Headers; body: Record<string, unknown> }> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        mutations.push({
+          headers: new Headers(init?.headers),
+          body,
+        });
+        return Response.json({ ...session, ...body, keikoRevision: 8 });
+      }
+      if (url.pathname === '/api/sessions/list') {
+        return Response.json({
+          sessions: [{ ...session, keikoRevision: 8 }],
+          issues: [],
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      const result = await updateSession({
+        ...session,
+        notes: 'updated with original revision',
+      });
+      await flushAsyncWork();
+
+      assert.equal(result.status, 'synced');
+      const mutation = mutations[0];
+      assert.ok(mutation);
+      assert.equal(mutation.headers.get('if-match'), '"7"');
+      assert.equal(mutation.body.keikoRevision, undefined);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'Keiko deletes send the revision from the selected history snapshot',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    const session = {
+      ...makeSession('session-keiko-revision-delete'),
+      keikoRevision: 7,
+    };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([session])
+    );
+    const mutationHeaders: Headers[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        mutationHeaders.push(new Headers(init?.headers));
+        return new Response(null, { status: 204 });
+      }
+      if (url.pathname === '/api/sessions/list') {
+        return Response.json({ sessions: [], issues: [] });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      const result = await deleteSession(session.id, session.keikoRevision);
+      await flushAsyncWork();
+
+      assert.equal(result.status, 'synced');
+      const headers = mutationHeaders[0];
+      assert.ok(headers);
+      assert.equal(headers.get('if-match'), '"7"');
+      assert.deepEqual(getSessions(), []);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'offline Keiko updates keep their original revision through queue replay',
+  async () => {
+    const originalNavigator = globalThis.navigator;
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: false },
+    });
+    const session = {
+      ...makeSession('session-keiko-revision-offline'),
+      keikoRevision: 7,
+    };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([session])
+    );
+    const mutations: Array<{ headers: Headers; body: Record<string, unknown> }> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === `/api/sessions/${session.id}`) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        mutations.push({
+          headers: new Headers(init?.headers),
+          body,
+        });
+        return Response.json({ ...session, ...body, keikoRevision: 8 });
+      }
+      if (url.pathname === '/api/sessions/list') {
+        return Response.json({
+          sessions: [{ ...session, keikoRevision: 8 }],
+          issues: [],
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      window.dispatchEvent(new Event('offline'));
+      const queued = await updateSession({
+        ...session,
+        notes: 'captured while offline',
+      });
+      assert.equal(queued.status, 'queued');
+      assert.equal(getQueue()[0]?.type, 'UPDATE');
+      const queuedOperation = getQueue()[0];
+      assert.equal(
+        queuedOperation?.type === 'UPDATE' && queuedOperation.expectedRevision,
+        7
+      );
+
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: { onLine: true },
+      });
+      window.dispatchEvent(new Event('online'));
+      await flushSyncLoopWork();
+
+      const mutation = mutations[0];
+      assert.ok(mutation);
+      assert.equal(mutation.headers.get('if-match'), '"7"');
+      assert.equal(mutation.body.keikoRevision, undefined);
+      assert.deepEqual(getQueue(), []);
+    } finally {
+      global.fetch = originalFetch;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: originalNavigator,
+      });
+    }
+  }
+);

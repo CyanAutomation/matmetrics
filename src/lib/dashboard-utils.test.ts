@@ -157,6 +157,21 @@ test('dashboard utilities - sync status text generation', async (t) => {
   });
 });
 
+test('sync status text makes unresolved conflicts and authentication pauses visible', () => {
+  assert.equal(getSyncStatusText({
+    isOnline: true,
+    isSyncing: false,
+    pendingCount: 0,
+    conflictCount: 2,
+  }), '2 conflicts need review');
+  assert.equal(getSyncStatusText({
+    isOnline: false,
+    isSyncing: false,
+    pendingCount: 0,
+    authenticationBlockedCount: 1,
+  }), 'Sign in to sync changes');
+});
+
 test('getGuestWorkspaceDescription follows the footer copy requirement', async (t) => {
   const cases: Array<{
     workspaceSource: Parameters<typeof getGuestWorkspaceDescription>[0];
