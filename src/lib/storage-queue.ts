@@ -22,8 +22,9 @@ import type { GitHubConfig } from './types';
 import type { SessionSnapshot } from './keiko-session-revision';
 import type { SyncOperation } from './sync-queue';
 import type { SyncOperationIssue } from './sync-queue';
+import { rememberVolatileSyncIssue } from './sync-queue';
 import { keikoIfMatch } from './keiko-session-revision';
-import { clearDirtyMutation } from './mutation-state';
+import { clearDirtyMutation, markDirtyMutationIssue } from './mutation-state';
 import {
   hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
   renewSyncLease as coreRenewSyncLease,
@@ -44,6 +45,24 @@ export class SyncRequestError extends Error {
     super(message);
     this.name = 'SyncRequestError';
   }
+}
+
+/** Return a safe, typed recovery category for a permanent HTTP rejection. */
+export function classifySyncOperationIssue(
+  error: unknown
+): SyncOperationIssue | null {
+  if (!(error instanceof SyncRequestError) || error.retryable) return null;
+
+  if ([404, 409, 412, 428].includes(error.status ?? -1)) {
+    return { type: 'conflict', status: error.status as 404 | 409 | 412 | 428 };
+  }
+  if (error.status === 401 || error.status === 403) {
+    return { type: 'authentication', status: error.status };
+  }
+  return {
+    type: 'rejected',
+    ...(typeof error.status === 'number' ? { status: error.status } : {}),
+  };
 }
 
 /**
@@ -150,6 +169,22 @@ function getSessionIdFromOperation(operation: SyncOperation): string {
   }
 }
 
+function getOperationIdentityKey(operation: SyncOperation): string {
+  return `${operation.type}:${getSessionIdFromOperation(operation)}:${operation.queuedAt}`;
+}
+
+function retainExcludedOperations(
+  remaining: SyncOperation[],
+  activeQueue: SyncOperation[],
+  baseQueue: SyncOperation[]
+): SyncOperation[] {
+  const activeKeys = new Set(activeQueue.map(getOperationIdentityKey));
+  const excluded = baseQueue.filter(
+    (queuedOperation) => !activeKeys.has(getOperationIdentityKey(queuedOperation))
+  );
+  return [...remaining, ...excluded];
+}
+
 /**
  * Handle a successful sync operation.
  * Clears the dirty mutation flag so optimistic updates are no longer tracked.
@@ -172,7 +207,10 @@ export async function handleOperationError(
   generation: number,
   isStorageGenerationCurrent: (gen: number) => boolean,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,
-  reconcilePermanentFailure: () => Promise<void>,
+  reconcilePermanentFailure: (
+    operation: SyncOperation,
+    issue: SyncOperationIssue
+  ) => Promise<void>,
   baseQueue: SyncOperation[] = queue
 ): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
   if (!(error instanceof SyncRequestError)) {
@@ -180,35 +218,27 @@ export async function handleOperationError(
     return { retryable: true, retryAfterMs: null };
   }
 
-  const syncIssue: SyncOperationIssue | undefined =
-    error.status === 404 || error.status === 412 || error.status === 428
-      ? { type: 'conflict', status: error.status }
-      : error.status === 401 || error.status === 403
-        ? { type: 'authentication', status: error.status }
-        : undefined;
+  const syncIssue = classifySyncOperationIssue(error);
   if (syncIssue) {
-    if (isStorageGenerationCurrent(generation)) {
-      const retainedOperations = queue.slice(index).map((queuedOperation, operationIndex) =>
-        operationIndex === 0
-          ? { ...queuedOperation, syncIssue }
-          : queuedOperation
-      );
-      await setQueue(retainedOperations, baseQueue);
-    }
-    return { retryable: false, retryAfterMs: null };
-  }
-
-  // Handle permanent failures (mark as synced to avoid retry loop)
-  if (!error.retryable) {
-    const remainingOperations = queue.slice(index + 1);
+    const failedOperation = { ...operation, syncIssue } as SyncOperation;
+    const retainedOperations = retainExcludedOperations(
+      [failedOperation, ...queue.slice(index + 1)],
+      queue,
+      baseQueue
+    );
     if (isStorageGenerationCurrent(generation)) {
       const sessionId = getSessionIdFromOperation(operation);
-      clearDirtyMutation(sessionId, operation.queuedAt);
-      await setQueue(remainingOperations, baseQueue);
-      if (!isStorageGenerationCurrent(generation)) {
-        return { retryable: false, retryAfterMs: null };
+      markDirtyMutationIssue(sessionId, operation.queuedAt, syncIssue);
+      try {
+        await setQueue(retainedOperations, baseQueue);
+      } catch {
+        // Keep this tab from retrying automatically if the issue marker could
+        // not be written. The original queued payload remains in storage.
+        rememberVolatileSyncIssue(failedOperation, syncIssue);
       }
-      await reconcilePermanentFailure();
+      if (operation.type === 'DELETE') {
+        await reconcilePermanentFailure(failedOperation, syncIssue);
+      }
     }
     return { retryable: false, retryAfterMs: null };
   }
@@ -253,9 +283,17 @@ export async function processSingleQueueOperation(
   reconcileSuccessfulSession: (session: SessionSnapshot, version: number) => void,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,
   getAuthHeaders: (extras?: HeadersInit) => Promise<HeadersInit>,
-  reconcilePermanentFailure: () => Promise<void>,
+  reconcilePermanentFailure: (
+    operation: SyncOperation,
+    issue: SyncOperationIssue
+  ) => Promise<void>,
   baseQueue: SyncOperation[] = queue
-): Promise<{ success: boolean; shouldContinue: boolean; queue: SyncOperation[] }> {
+): Promise<{
+  success: boolean;
+  shouldContinue: boolean;
+  queue: SyncOperation[];
+  permanentFailure: boolean;
+}> {
   let nextQueue = queue;
 
   // Check lease ownership before operation
@@ -265,7 +303,7 @@ export async function processSingleQueueOperation(
     !coreRenewSyncLease()
   ) {
     await onAbort(queue.slice(index));
-    return { success: false, shouldContinue: false, queue };
+    return { success: false, shouldContinue: false, queue, permanentFailure: false };
   }
 
   try {
@@ -290,7 +328,7 @@ export async function processSingleQueueOperation(
     if (ifMatch) headers.set('If-Match', ifMatch);
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false, queue };
+      return { success: false, shouldContinue: false, queue, permanentFailure: false };
     }
 
     // Send request
@@ -357,13 +395,18 @@ export async function processSingleQueueOperation(
       !coreHasActiveSyncLeaseOwnership()
     ) {
       await onAbort(nextQueue.slice(index));
-      return { success: false, shouldContinue: false, queue: nextQueue };
+      return { success: false, shouldContinue: false, queue: nextQueue, permanentFailure: false };
     }
 
     // Mark mutation as synced
     handleOperationSuccess(operation);
 
-    return { success: true, shouldContinue: true, queue: nextQueue };
+    return {
+      success: true,
+      shouldContinue: true,
+      queue: nextQueue,
+      permanentFailure: false,
+    };
   } catch (error) {
     console.error('Error syncing operation', error);
 
@@ -375,12 +418,12 @@ export async function processSingleQueueOperation(
       generation,
       isStorageGenerationCurrent,
       setQueue,
-      reconcilePermanentFailure,
+      (failedOperation, issue) => reconcilePermanentFailure(failedOperation, issue),
       baseQueue
     );
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false, queue };
+      return { success: false, shouldContinue: false, queue, permanentFailure: false };
     }
 
     // Handle backoff for retryable errors with retry-after header
@@ -390,12 +433,21 @@ export async function processSingleQueueOperation(
 
     // Stop syncing on error; queue remaining operations for retry
     if (retryable) {
-      const remainingOperations = queue.slice(index);
+      const remainingOperations = retainExcludedOperations(
+        queue.slice(index),
+        queue,
+        baseQueue
+      );
       if (isStorageGenerationCurrent(generation)) {
         await setQueue(remainingOperations, baseQueue);
       }
     }
 
-    return { success: false, shouldContinue: false, queue };
+    return {
+      success: false,
+      shouldContinue: false,
+      queue,
+      permanentFailure: !retryable,
+    };
   }
 }

@@ -24,6 +24,10 @@ test('sync indicator safely renders and transitions between online, offline and 
   assert.equal(indicator.getAttribute('aria-label'), '2 pending <items>');
   assert.equal(indicator.querySelector('[data-sync-label]')?.textContent, '2 pending <items>');
   assert.equal(indicator.querySelector('items'), null);
+  controller.update({ ...initial, statusText: '1 rejected change needs review' });
+  assert.equal(indicator.hidden, false);
+  assert.equal(indicator.dataset.state, 'attention');
+  assert.ok(indicator.querySelector('.ui-sync-indicator__attention'));
   controller.update(initial);
   assert.equal(indicator.hidden, true);
   controller.destroy();

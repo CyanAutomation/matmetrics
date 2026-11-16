@@ -3,6 +3,8 @@ import test from 'node:test';
 import { getScopedStorageKey } from './client-identity';
 import type { SyncOperation } from './sync-queue';
 
+let failQueueStorageWrites = false;
+
 class LocalStorageMock implements Storage {
   private store = new Map<string, string>();
 
@@ -15,6 +17,11 @@ class LocalStorageMock implements Storage {
   }
 
   setItem(key: string, value: string): void {
+    if (failQueueStorageWrites && key === syncQueueModule.getSyncQueueStorageKey()) {
+      const error = new Error('quota exceeded');
+      error.name = 'QuotaExceededError';
+      throw error;
+    }
     this.store.set(key, value);
   }
 
@@ -67,11 +74,14 @@ const {
   getPendingOperationCount,
   getConflictOperationCount,
   getAuthenticationBlockedOperationCount,
+  getRejectedOperationCount,
+  getSyncQueueStorageError,
   hasPendingOperations,
   resumeAuthenticationBlockedOperations,
   queueOperation,
   removeOperationByIdentity,
   setQueue,
+  SyncQueuePersistenceError,
 } = syncQueueModule;
 import type { JudoSession } from './types';
 
@@ -96,7 +106,9 @@ function createOp(id: string, queuedAt: number): SyncOperation {
 }
 
 function resetQueue(initialQueue?: SyncOperation[]): void {
+  failQueueStorageWrites = false;
   localStorage.clear();
+  __testInternals.resetQueueStorageStateForTests();
   if (initialQueue) {
     localStorage.setItem(
       getSyncQueueStorageKey(),
@@ -117,7 +129,9 @@ function getLastQueuedAtStorageKey(): string {
 }
 
 test.afterEach(() => {
+  failQueueStorageWrites = false;
   __testInternals.resetLeaseTtlForTests();
+  __testInternals.resetQueueStorageStateForTests();
 });
 
 test('queueOperation timestamps operations and preserves insertion order', async () => {
@@ -472,6 +486,39 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
   });
 });
 
+test('a lease expiring after a synchronous queue commit does not report a failed save', async () => {
+  resetQueue();
+  let now = 1_000;
+  __testInternals.setLeaseTtlForTests(20);
+  __testInternals.setLeaseClockForTests(() => now);
+  __testInternals.disableLeaseRenewalForTests();
+
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = (key: string, value: string) => {
+    originalSetItem(key, value);
+    if (key === getSyncQueueStorageKey()) {
+      now += 21;
+    }
+  };
+
+  try {
+    await queueOperation({
+      type: 'CREATE',
+      session: makeSession('session-committed-before-expiry'),
+    });
+
+    const [savedOperation] = getQueue();
+    assert.ok(savedOperation);
+    if (savedOperation.type === 'DELETE') {
+      assert.fail('Expected the committed operation to be a create.');
+    }
+    assert.equal(savedOperation.session.id, 'session-committed-before-expiry');
+    assert.equal(getSyncQueueStorageError(), null);
+  } finally {
+    localStorage.setItem = originalSetItem;
+  }
+});
+
 test('identity-based removal succeeds under concurrent writes where index-based removal fails', async () => {
   const opA = createOp('session-a', 100);
   const opB = createOp('session-b', 200);
@@ -539,7 +586,12 @@ test('coalesces update then delete into delete', async () => {
   );
 
   assert.deepEqual(getQueue(), [
-    { type: 'DELETE', id: 'session-1', queuedAt: 200 },
+    {
+      type: 'DELETE',
+      id: 'session-1',
+      session: makeSession('session-1'),
+      queuedAt: 200,
+    },
   ]);
 });
 
@@ -602,6 +654,7 @@ test('coalescing an update then delete preserves the client revision', async () 
     {
       type: 'DELETE',
       id: 'session-1',
+      session: makeSession('session-1'),
       revisionSha: 'sha-observed-before-delete',
       queuedAt: 200,
     },
@@ -755,4 +808,89 @@ test('concurrent mixed mutators retain union of writes under lease', async () =>
 
   assert.ok(ids.includes('session-a'));
   assert.ok(ids.includes('session-b'));
+});
+
+test('paused operations keep their payload and block later same-session work', async () => {
+  const failed: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-paused'), notes: 'original rejected edit' },
+    expectedRevision: 4,
+    queuedAt: 10,
+    syncIssue: { type: 'rejected', status: 422 },
+  };
+  const later: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...makeSession('session-paused'), notes: 'later edit' },
+    expectedRevision: 4,
+    queuedAt: 20,
+  };
+  resetQueue([failed]);
+
+  await queueOperation(later);
+
+  assert.deepEqual(getQueue(), [failed, later]);
+  assert.equal(getQueue()[0]?.type === 'UPDATE' && getQueue()[0].session.notes, 'original rejected edit');
+  assert.equal(getPendingOperationCount(), 0);
+  assert.equal(hasPendingOperations(), false);
+});
+
+test('authentication recovery leaves rejected operations paused', async () => {
+  const auth: SyncOperation = {
+    type: 'CREATE',
+    session: makeSession('session-auth'),
+    queuedAt: 10,
+    syncIssue: { type: 'authentication', status: 401 },
+  };
+  const rejected: SyncOperation = {
+    type: 'CREATE',
+    session: makeSession('session-rejected'),
+    queuedAt: 20,
+    syncIssue: { type: 'rejected', status: 400 },
+  };
+  resetQueue([auth, rejected]);
+
+  await resumeAuthenticationBlockedOperations();
+
+  assert.equal(getQueue()[0]?.syncIssue, undefined);
+  assert.deepEqual(getQueue()[1]?.syncIssue, { type: 'rejected', status: 400 });
+  assert.equal(getRejectedOperationCount(), 1);
+});
+
+test('explicit removal deletes only the selected failed operation', async () => {
+  const selected: SyncOperation = {
+    type: 'CREATE',
+    session: makeSession('session-discard-one'),
+    queuedAt: 10,
+    syncIssue: { type: 'rejected', status: 422 },
+  };
+  const retained: SyncOperation = {
+    type: 'UPDATE',
+    session: makeSession('session-discard-two'),
+    expectedRevision: 3,
+    queuedAt: 20,
+    syncIssue: { type: 'conflict', status: 412 },
+  };
+  resetQueue([selected, retained]);
+
+  await removeOperationByIdentity(selected);
+
+  assert.deepEqual(getQueue(), [retained]);
+});
+
+test('quota failure does not replace a valid queue or claim persistence', async () => {
+  const existing: SyncOperation = {
+    type: 'CREATE',
+    session: makeSession('session-kept-after-quota'),
+    queuedAt: 10,
+  };
+  resetQueue([existing]);
+  failQueueStorageWrites = true;
+
+  await assert.rejects(
+    queueOperation({ type: 'CREATE', session: makeSession('session-not-saved') }),
+    SyncQueuePersistenceError
+  );
+
+  assert.deepEqual(getQueue(), [existing]);
+  assert.equal(getSyncQueueStorageError(), 'QuotaExceededError');
 });

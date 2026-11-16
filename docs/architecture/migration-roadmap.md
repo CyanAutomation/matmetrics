@@ -18,6 +18,23 @@ updated client sends its captured revision and gets lost-update protection.
 On rollback to old MatMetrics code, the blind-write defect returns for that
 client.
 
+## Phase 1.1 — Offline mutation safety and recovery
+
+**Implementation complete:** rejected direct and queued mutations remain in
+the account-scoped browser queue with a typed issue, original payload, and
+original Keiko revision. The dashboard provides status, recovery export, safe
+pending retry, and confirmed discard. Storage failures do not claim that work
+was queued. The repeatable production smoke-test plan is documented in
+[`offline-mutation-safety.md`](./offline-mutation-safety.md); production
+verification remains outstanding and must use a dedicated authorised test
+account.
+
+**Follow-up dependencies:** the Companion offline foundation should evaluate
+IndexedDB for drafts and quota resilience. Keiko must define an idempotency
+contract before create replay can resolve ambiguous lost responses or 409
+duplicates automatically. No MatMetrics production deployment is part of this
+phase.
+
 ## Phase 2 — Contract and auth-domain readiness
 
 1. Agree a durable public frontend/auth domain before Companion is built.
