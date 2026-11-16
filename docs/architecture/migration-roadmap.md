@@ -35,6 +35,24 @@ contract before create replay can resolve ambiguous lost responses or 409
 duplicates automatically. No MatMetrics production deployment is part of this
 phase.
 
+## Phase 2A — Canonical Keiko contract and Web integration
+
+**Implementation in this branch:** Keiko owns the validated OpenAPI contract and
+versioning rules. MatMetrics pins the contract to an immutable Keiko commit,
+generates its TypeScript API types in CI, and uses a typed Fetch client at the
+existing server-side Keiko boundary. Session list/detail/create/update/delete
+remain behind same-origin MatMetrics routes and the current Better Auth token
+exchange. The Phase 1.1 recovery follow-ups keep snapshot-less deletes visible,
+resume auth-paused work after durable queue updates, and allow independent safe
+operations to retry.
+
+**Remaining Phase 2B dependencies:** settle the durable public frontend/auth
+domain and deployment ownership; rehearse account/passkey migration while
+preserving the current RP ID; decide same-origin routing and trusted origins for
+independently deployed clients; define Keiko create idempotency before automatic
+replay; and complete consumer compatibility review before contract updates.
+No Companion, service, production deployment, or migration is part of Phase 2A.
+
 ## Phase 2 — Contract and auth-domain readiness
 
 1. Agree a durable public frontend/auth domain before Companion is built.
