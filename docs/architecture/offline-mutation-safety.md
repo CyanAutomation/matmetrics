@@ -59,8 +59,10 @@ the form remains open where possible and reports the error. The dashboard can
 export entries only while they remain readable from the browser queue.
 
 Older queued deletes may not include the session snapshot added in Phase 1.1.
-If their remote refresh also fails while offline, the app cannot reconstruct
-the missing session details from that delete entry alone.
+The app allows discard only after an authoritative session-list refresh
+succeeds. While offline or when that refresh fails, the operation stays in
+Recovery because the app cannot reconstruct the missing session details from
+the delete entry alone.
 
 Keiko writes continue using the originally observed revision in `If-Match`.
 This phase does not fetch a new revision to force a rejected write. Guest
