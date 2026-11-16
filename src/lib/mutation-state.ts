@@ -8,7 +8,7 @@
  */
 
 import { JudoSession } from './types';
-import { getQueue } from './sync-queue';
+import { getQueue, type SyncOperationIssue } from './sync-queue';
 
 // ============================================================================
 // Types
@@ -19,11 +19,14 @@ export type DirtyMutation =
       type: 'CREATE' | 'UPDATE';
       session: JudoSession;
       version: number;
+      syncIssue?: SyncOperationIssue;
     }
   | {
       type: 'DELETE';
       id: string;
       version: number;
+      session?: JudoSession;
+      syncIssue?: SyncOperationIssue;
     };
 
 export type DirtyMutationInput =
@@ -34,6 +37,7 @@ export type DirtyMutationInput =
   | {
       type: 'DELETE';
       id: string;
+      session?: JudoSession;
     };
 
 // ============================================================================
@@ -63,6 +67,7 @@ export function markDirtyMutation(
   mutation: DirtyMutationInput,
   version = nextMutationVersion()
 ): number {
+  mutationVersion = Math.max(mutationVersion, version);
   const id = mutation.type === 'DELETE' ? mutation.id : mutation.session.id;
   dirtyMutations.set(id, {
     ...mutation,
@@ -88,6 +93,33 @@ export function clearDirtyMutation(id: string, version?: number): void {
   dirtyMutations.delete(id);
 }
 
+export function markDirtyMutationIssue(
+  id: string,
+  version: number,
+  syncIssue: SyncOperationIssue
+): void {
+  const existing = dirtyMutations.get(id);
+  if (!existing || existing.version !== version) return;
+  dirtyMutations.set(id, { ...existing, syncIssue });
+}
+
+export function clearAuthenticationMutationIssue(
+  id: string,
+  version: number
+): void {
+  const existing = dirtyMutations.get(id);
+  if (
+    !existing ||
+    existing.version !== version ||
+    existing.syncIssue?.type !== 'authentication'
+  ) {
+    return;
+  }
+
+  const { syncIssue: _syncIssue, ...resumed } = existing;
+  dirtyMutations.set(id, resumed as DirtyMutation);
+}
+
 /**
  * Reload dirty mutations from the sync queue
  * This reconciles the mutation map with the persistent queue
@@ -97,10 +129,14 @@ export function hydrateDirtyMutationsFromQueue(): void {
 
   for (const operation of getQueue()) {
     if (operation.type === 'DELETE') {
-      markDirtyMutation(
-        { type: 'DELETE', id: operation.id },
-        operation.queuedAt
-      );
+      markDirtyMutation({
+        type: 'DELETE',
+        id: operation.id,
+        ...(operation.session ? { session: operation.session } : {}),
+      }, operation.queuedAt);
+      if (operation.syncIssue) {
+        markDirtyMutationIssue(operation.id, operation.queuedAt, operation.syncIssue);
+      }
       continue;
     }
 
@@ -108,6 +144,13 @@ export function hydrateDirtyMutationsFromQueue(): void {
       { type: operation.type, session: operation.session },
       operation.queuedAt
     );
+    if (operation.syncIssue) {
+      markDirtyMutationIssue(
+        operation.session.id,
+        operation.queuedAt,
+        operation.syncIssue
+      );
+    }
   }
 }
 
@@ -154,6 +197,15 @@ function applyOptimisticMutation(
   mutation: DirtyMutation
 ): JudoSession[] {
   if (mutation.type === 'DELETE') {
+    if (mutation.syncIssue) {
+      if (
+        mutation.session &&
+        !baseSessions.some((session) => session.id === mutation.id)
+      ) {
+        return [mutation.session, ...baseSessions];
+      }
+      return baseSessions;
+    }
     return baseSessions.filter((session) => session.id !== mutation.id);
   }
 

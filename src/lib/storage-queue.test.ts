@@ -207,3 +207,103 @@ test('authentication failures pause queued mutations without dropping their data
   assert.equal(savedQueue[0]?.type === 'UPDATE' && savedQueue[0].session.notes, 'captured offline');
   assert.equal(reconciled, false);
 });
+
+test('forbidden responses remain authentication-related pauses', async () => {
+  let savedQueue: SyncOperation[] = [];
+  await handleOperationError(
+    new SyncRequestError('Request failed with status 403', false, null, 403),
+    operation,
+    0,
+    [operation],
+    1,
+    () => true,
+    async (nextQueue) => { savedQueue = nextQueue; },
+    async () => {}
+  );
+
+  assert.deepEqual(savedQueue[0]?.syncIssue, {
+    type: 'authentication',
+    status: 403,
+  });
+});
+
+for (const { status, issue } of [
+  { status: 400, issue: { type: 'rejected', status: 400 } },
+  { status: 409, issue: { type: 'conflict', status: 409 } },
+  { status: 422, issue: { type: 'rejected', status: 422 } },
+  { status: 499, issue: { type: 'rejected', status: 499 } },
+] as const) {
+  test(`permanent HTTP ${status} failures retain the original operation for recovery`, async () => {
+    const later: SyncOperation = {
+      type: 'CREATE',
+      session: {
+        id: 'later-session',
+        date: '2026-11-01',
+        techniques: [],
+        effort: 3,
+        category: 'Technical',
+      },
+      queuedAt: 200,
+    };
+    const queue = [operation, later];
+    const baseQueue = structuredClone(queue);
+    let savedQueue: SyncOperation[] = [];
+
+    const result = await handleOperationError(
+      new SyncRequestError(`Request failed with status ${status}`, false, null, status),
+      operation,
+      0,
+      queue,
+      1,
+      () => true,
+      async (nextQueue) => { savedQueue = nextQueue; },
+      async () => {},
+      baseQueue
+    );
+
+    assert.equal(result.retryable, false);
+    assert.deepEqual(savedQueue, [
+      { ...operation, syncIssue: issue },
+      later,
+    ]);
+    assert.deepEqual(queue, baseQueue);
+    assert.equal(savedQueue[0]?.type === 'UPDATE' && savedQueue[0].session.notes, 'captured offline');
+    assert.equal(savedQueue[0]?.queuedAt, operation.queuedAt);
+    assert.equal(savedQueue[0]?.type === 'UPDATE' && savedQueue[0].expectedRevision, 2);
+  });
+}
+
+for (const status of [408, 429, 500, 503]) {
+  test(`HTTP ${status} remains retryable`, async () => {
+    let queueWrites = 0;
+    const result = await handleOperationError(
+      new SyncRequestError(`Request failed with status ${status}`, true, null, status),
+      operation,
+      0,
+      [operation],
+      1,
+      () => true,
+      async () => { queueWrites += 1; },
+      async () => {}
+    );
+
+    assert.equal(result.retryable, true);
+    assert.equal(queueWrites, 0);
+  });
+}
+
+test('network interruptions remain retryable', async () => {
+  const result = await handleOperationError(
+    new TypeError('network interrupted'),
+    operation,
+    0,
+    [operation],
+    1,
+    () => true,
+    async () => {},
+    async () => {}
+  );
+
+  assert.equal(result.retryable, true);
+  assert.equal(result.retryAfterMs, null);
+});

@@ -10,15 +10,18 @@ import {
 import {
   queueOperation,
   getQueue,
-  clearQueue,
   getPendingOperationCount,
   getConflictOperationCount,
   getAuthenticationBlockedOperationCount,
+  getRejectedOperationCount,
+  getSyncQueueStorageError,
   resumeAuthenticationBlockedOperations,
   hasPendingOperations,
   setQueue,
+  removeOperationByIdentity,
   getSyncQueueStorageKey,
   type SyncOperation,
+  type SyncOperationIssue,
 } from './sync-queue';
 import {
   getActiveUserId,
@@ -49,6 +52,8 @@ import {
 import type { LeaseTakeoverDiagnosticPayload } from './sync-lease';
 import {
   markDirtyMutation,
+  markDirtyMutationIssue,
+  clearAuthenticationMutationIssue,
   clearDirtyMutation,
   hydrateDirtyMutationsFromQueue,
   getOptimisticSessions,
@@ -59,6 +64,7 @@ import {
 } from './mutation-state';
 import {
   SyncRequestError,
+  classifySyncOperationIssue,
   processSingleQueueOperation,
   parseRetryAfterMs,
 } from './storage-queue';
@@ -394,7 +400,27 @@ function reconcileSuccessfulSession(
   dispatchStorageSync(reconciled);
 }
 
-async function reconcilePermanentFailure(): Promise<void> {
+async function reconcilePermanentFailure(
+  operation: SyncOperation,
+  issue: SyncOperationIssue
+): Promise<void> {
+  if (operation.type === 'DELETE') {
+    markDirtyMutationIssue(operation.id, operation.queuedAt, issue);
+    if (!operation.session && isOnline && !isGuestMode()) {
+      await refreshSessionsFromAPI({ force: true });
+      return;
+    }
+    const current = sessionCache ?? getLocalStorageCache();
+    const restored = operation.session &&
+      !current.some((session) => session.id === operation.id)
+      ? [operation.session, ...current]
+      : current;
+    const optimistic = getOptimisticSessions(restored);
+    commitLocalSessions(optimistic);
+    dispatchStorageSync(optimistic);
+    return;
+  }
+
   if (isOnline && !isGuestMode()) {
     await refreshSessionsFromAPI({ force: true });
     return;
@@ -407,23 +433,49 @@ async function reconcilePermanentFailure(): Promise<void> {
 
 function handleMutationSyncFailure(
   error: unknown,
-  retryOperation: () => void | Promise<void>,
+  operation: SyncOperation,
   mutationId: string,
-  version: number
+  version: number,
+  previousSessions: SessionSnapshot[]
 ): Promise<MutationResult> {
   console.error('Error syncing mutation', error);
-  if (error instanceof SyncRequestError && !error.retryable) {
-    clearDirtyMutation(mutationId, version);
-    return reconcilePermanentFailure().then(() => {
-      throw error;
-    });
-  }
+  const issue = classifySyncOperationIssue(error);
+  const failedOperation = issue ? { ...operation, syncIssue: issue } : operation;
 
-  const result = retryOperation();
-  if (result instanceof Promise) {
-    return result.then(() => ({ status: 'queued' }));
+  return queueOperation(failedOperation)
+    .then(async () => {
+      if (issue) {
+        markDirtyMutationIssue(mutationId, version, issue);
+        if (operation.type === 'DELETE') {
+          await reconcilePermanentFailure(failedOperation, issue);
+        }
+        throw error;
+      }
+      return { status: 'queued' as const };
+    })
+    .catch((queueError: unknown) => {
+      if (queueError === error) throw error;
+      clearDirtyMutation(mutationId, version);
+      commitLocalSessions(previousSessions);
+      dispatchStorageSync(previousSessions);
+      throw queueError;
+    });
+}
+
+async function persistOfflineMutation(
+  operation: SyncOperation,
+  mutationId: string,
+  version: number,
+  previousSessions: SessionSnapshot[]
+): Promise<void> {
+  try {
+    await queueOperation(operation);
+  } catch (error) {
+    clearDirtyMutation(mutationId, version);
+    commitLocalSessions(previousSessions);
+    dispatchStorageSync(previousSessions);
+    throw error;
   }
-  return Promise.resolve({ status: 'queued' });
 }
 
 /**
@@ -443,6 +495,7 @@ export function initializeStorage(): void {
   sessionListRefreshError = null;
   isSyncing = false;
   hydrateDirtyMutationsFromQueue();
+  commitLocalSessions(getOptimisticSessions(getLocalStorageCache()));
 
   if (isGuestMode()) {
     ensureGuestWorkspaceSeeded();
@@ -459,6 +512,14 @@ export function initializeStorage(): void {
   // Try to sync if we have pending operations
   if (!isGuestMode() && isOnline) {
     void resumeAuthenticationBlockedOperations().then(() => {
+      for (const operation of getQueue()) {
+        if (operation.syncIssue) continue;
+        const id = operation.type === 'DELETE' ? operation.id : operation.session.id;
+        clearAuthenticationMutationIssue(id, operation.queuedAt);
+      }
+      const optimisticSessions = getOptimisticSessions(getLocalStorageCache());
+      commitLocalSessions(optimisticSessions);
+      dispatchStorageSync(optimisticSessions);
       if (isStorageGenerationCurrent(generation) && hasPendingOperations()) {
         return syncPendingOperations();
       }
@@ -539,12 +600,13 @@ export async function saveSession(
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
   const { keikoRevision: _keikoRevision, ...sessionToCreate } = session;
+  const previousSessions = getOptimisticSessions(
+    sessionCache ?? getLocalStorageCache()
+  );
   const version = markDirtyMutation({ type: 'CREATE', session: sessionToCreate });
 
   // Update local cache immediately
-  const nextSessions = getOptimisticSessions(
-    sessionCache ?? getLocalStorageCache()
-  );
+  const nextSessions = getOptimisticSessions(previousSessions);
   commitLocalSessions(nextSessions);
   if (guestMode) {
     markGuestWorkspaceCustom();
@@ -575,9 +637,10 @@ export async function saveSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'CREATE', session: sessionToCreate, queuedAt: version }),
+        { type: 'CREATE', session: sessionToCreate, queuedAt: version },
         session.id,
-        version
+        version,
+        previousSessions
       );
     }
 
@@ -590,7 +653,12 @@ export async function saveSession(
   }
 
   // Offline: queue the operation
-  await queueOperation({ type: 'CREATE', session: sessionToCreate, queuedAt: version });
+  await persistOfflineMutation(
+    { type: 'CREATE', session: sessionToCreate, queuedAt: version },
+    session.id,
+    version,
+    previousSessions
+  );
   return { status: 'queued' };
 }
 
@@ -602,10 +670,16 @@ export async function updateSession(
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
+  const previousSessions = getOptimisticSessions(
+    sessionCache ?? getLocalStorageCache()
+  );
+  const previousSession = previousSessions.find(
+    (cachedSession) => cachedSession.id === session.id
+  );
   const version = markDirtyMutation({ type: 'UPDATE', session });
 
   // Update local cache immediately
-  const base = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
+  const base = getOptimisticSessions(previousSessions);
   const hasMatch = base.some((s) => s.id === session.id);
   const updated = hasMatch
     ? base.map((s) => (s.id === session.id ? session : s))
@@ -650,14 +724,16 @@ export async function updateSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({
+        {
           type: 'UPDATE',
           session,
+          ...(previousSession ? { previousSession } : {}),
           expectedRevision: session.keikoRevision,
           queuedAt: version,
-        }),
+        },
         session.id,
-        version
+        version,
+        previousSessions
       );
     }
 
@@ -670,12 +746,18 @@ export async function updateSession(
   }
 
   // Offline: queue the operation
-  await queueOperation({
-    type: 'UPDATE',
-    session,
-    expectedRevision: session.keikoRevision,
-    queuedAt: version,
-  });
+  await persistOfflineMutation(
+    {
+      type: 'UPDATE',
+      session,
+      ...(previousSession ? { previousSession } : {}),
+      expectedRevision: session.keikoRevision,
+      queuedAt: version,
+    },
+    session.id,
+    version,
+    previousSessions
+  );
   return { status: 'queued' };
 }
 
@@ -688,14 +770,21 @@ export async function deleteSession(
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
-  const version = markDirtyMutation({ type: 'DELETE', id });
+  const cachedSessions = sessionCache ?? getLocalStorageCache();
+  const previousSessions = getOptimisticSessions(cachedSessions);
+  const previousSession = previousSessions.find((session) => session.id === id);
+  const version = markDirtyMutation({
+    type: 'DELETE',
+    id,
+    ...(previousSession ? { session: previousSession } : {}),
+  });
 
   // Update local cache immediately
-  const cachedSessions = sessionCache ?? getLocalStorageCache();
-  const base = getOptimisticSessions(cachedSessions);
-  const revisionSha = base.find((session) => session.id === id)?.revisionSha;
+  const base = getOptimisticSessions(previousSessions);
+  const revisionSha = previousSession?.revisionSha;
   const keikoRevision =
-    expectedKeikoRevision ?? cachedSessions.find((session) => session.id === id)?.keikoRevision;
+    expectedKeikoRevision ??
+    (previousSession as SessionSnapshot | undefined)?.keikoRevision;
   const filtered = base.filter((s) => s.id !== id);
   commitLocalSessions(filtered);
   if (guestMode) {
@@ -733,16 +822,17 @@ export async function deleteSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () =>
-          queueOperation({
+        {
             type: 'DELETE',
             id,
+            ...(previousSession ? { session: previousSession } : {}),
             revisionSha,
             expectedRevision: keikoRevision,
             queuedAt: version,
-          }),
+          },
         id,
-        version
+        version,
+        previousSessions
       );
     }
 
@@ -755,13 +845,19 @@ export async function deleteSession(
   }
 
   // Offline: queue the operation
-  await queueOperation({
-    type: 'DELETE',
+  await persistOfflineMutation(
+    {
+      type: 'DELETE',
+      id,
+      ...(previousSession ? { session: previousSession } : {}),
+      revisionSha,
+      expectedRevision: keikoRevision,
+      queuedAt: version,
+    },
     id,
-    revisionSha,
-    expectedRevision: keikoRevision,
-    queuedAt: version,
-  });
+    version,
+    previousSessions
+  );
   return { status: 'queued' };
 }
 
@@ -835,6 +931,8 @@ export function getSyncStatus(): {
   pendingCount: number;
   conflictCount: number;
   authenticationBlockedCount: number;
+  rejectedCount: number;
+  storageUnavailable: boolean;
 } {
   if (isGuestMode()) {
     return {
@@ -843,6 +941,8 @@ export function getSyncStatus(): {
       pendingCount: 0,
       conflictCount: 0,
       authenticationBlockedCount: 0,
+      rejectedCount: 0,
+      storageUnavailable: false,
     };
   }
 
@@ -852,7 +952,54 @@ export function getSyncStatus(): {
     pendingCount: getPendingOperationCount(),
     conflictCount: getConflictOperationCount(),
     authenticationBlockedCount: getAuthenticationBlockedOperationCount(),
+    rejectedCount: getRejectedOperationCount(),
+    storageUnavailable: getSyncQueueStorageError() !== null,
   };
+}
+
+export function getMutationRecoveryQueue(): SyncOperation[] {
+  return getQueue();
+}
+
+export async function discardFailedMutation(
+  operation: SyncOperation
+): Promise<void> {
+  if (!operation.syncIssue) {
+    throw new Error('Only failed mutations can be discarded from recovery.');
+  }
+
+  await removeOperationByIdentity(operation);
+  const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
+  const dirtyMutation = getDirtyMutations().get(sessionId);
+  if (dirtyMutation?.version === operation.queuedAt) {
+    clearDirtyMutation(sessionId, operation.queuedAt);
+    const current = sessionCache ?? getLocalStorageCache();
+    let reconciled = current;
+
+    if (operation.type === 'CREATE') {
+      reconciled = current.filter((session) => session.id !== operation.session.id);
+    } else if (operation.type === 'UPDATE' && operation.previousSession) {
+      reconciled = current.some((session) => session.id === sessionId)
+        ? current.map((session) =>
+            session.id === sessionId ? operation.previousSession! : session
+          )
+        : [operation.previousSession, ...current];
+    } else if (operation.type === 'DELETE') {
+      reconciled = operation.syncIssue.status === 404
+        ? current.filter((session) => session.id !== sessionId)
+        : operation.session && !current.some((session) => session.id === sessionId)
+          ? [operation.session, ...current]
+          : current;
+    }
+
+    const optimistic = getOptimisticSessions(reconciled);
+    commitLocalSessions(optimistic);
+    dispatchStorageSync(optimistic);
+  }
+
+  if (isOnline && !isGuestMode()) {
+    await refreshSessionsFromAPI({ force: true });
+  }
 }
 
 export function retryCloudSync(): void {
@@ -1327,6 +1474,7 @@ async function syncPendingOperations(): Promise<void> {
     const generation = storageGeneration;
     isSyncing = true;
     let leaseAcquired = false;
+    let shouldContinueWithIndependentOperations = false;
     let clearLeaseHeartbeat = () => {};
 
     try {
@@ -1339,8 +1487,23 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
 
-      const baseQueue = getQueue().filter((operation) => !operation.syncIssue);
-      let queue = baseQueue;
+      const baseQueue = getQueue();
+      const pausedSessionIds = new Set(
+        baseQueue
+          .filter((operation) => operation.syncIssue)
+          .map((operation) =>
+            operation.type === 'DELETE' ? operation.id : operation.session.id
+          )
+      );
+      const activeQueueSnapshot = baseQueue.filter((operation) => {
+        const sessionId =
+          operation.type === 'DELETE' ? operation.id : operation.session.id;
+        return !operation.syncIssue && !pausedSessionIds.has(sessionId);
+      });
+      const inactiveQueue = baseQueue.filter(
+        (operation) => !activeQueueSnapshot.includes(operation)
+      );
+      let queue = activeQueueSnapshot;
       if (queue.length === 0) return;
       const gitHubConfig = getGitHubConfig();
       const gitHubEnabled = isGitHubEnabled();
@@ -1349,7 +1512,7 @@ async function syncPendingOperations(): Promise<void> {
       const onAbort = async (remainingOps: SyncOperation[]) => {
         lease.clearHeartbeat();
         if (isStorageGenerationCurrent(generation)) {
-          await setQueue(remainingOps, baseQueue);
+          await setQueue([...remainingOps, ...inactiveQueue], baseQueue);
         }
       };
 
@@ -1376,16 +1539,21 @@ async function syncPendingOperations(): Promise<void> {
         );
 
         if (!result.shouldContinue) {
+          shouldContinueWithIndependentOperations =
+            result.permanentFailure &&
+            isStorageGenerationCurrent(generation) &&
+            hasPendingOperations();
           return;
         }
         queue = result.queue;
       }
 
-      // All operations succeeded, clear queue and refresh
+      // All runnable operations succeeded. Keep failed and same-session
+      // downstream operations in the queue for explicit recovery.
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      await clearQueue(baseQueue);
+      await setQueue(inactiveQueue, baseQueue);
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {
@@ -1400,6 +1568,18 @@ async function syncPendingOperations(): Promise<void> {
       if (isStorageGenerationCurrent(generation)) {
         isSyncing = false;
         inFlightSync = null;
+      }
+      if (
+        shouldContinueWithIndependentOperations &&
+        isStorageGenerationCurrent(generation) &&
+        isOnline &&
+        !isGuestMode()
+      ) {
+        setTimeout(() => {
+          if (isStorageGenerationCurrent(generation)) {
+            void syncPendingOperations();
+          }
+        }, 0);
       }
     }
   })();
