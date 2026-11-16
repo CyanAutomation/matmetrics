@@ -15,6 +15,7 @@ import {
   getGitHubSyncStatus,
   getSyncStatus,
   getSessions,
+  discardFailedMutation,
   initializeStorage,
   forceRefreshSessionList,
   retryCloudSync,
@@ -136,6 +137,126 @@ function installBrowserEnv(options: { withLocks?: boolean } = {}) {
 
   return { localStorage, lockManager };
 }
+
+serialTest(
+  'legacy failed deletes cannot be discarded offline without a session snapshot',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: false },
+    });
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const legacyDelete: SyncOperation = {
+      type: 'DELETE',
+      id: 'session-legacy-delete',
+      expectedRevision: 4,
+      queuedAt: 10,
+      syncIssue: { type: 'conflict', status: 412 },
+    };
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([legacyDelete])
+    );
+
+    try {
+      await assert.rejects(
+        discardFailedMutation(legacyDelete),
+        /Reconnect and refresh sessions/
+      );
+      assert.deepEqual(getQueue(), [legacyDelete]);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'legacy failed deletes can be discarded after a successful session refresh',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const legacyDelete: SyncOperation = {
+      type: 'DELETE',
+      id: 'session-legacy-delete',
+      expectedRevision: 4,
+      queuedAt: 10,
+      syncIssue: { type: 'conflict', status: 412 },
+    };
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([legacyDelete])
+    );
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      assert.equal(url.pathname, '/api/sessions/list');
+      return new Response(JSON.stringify([makeSession('session-legacy-delete')]), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      await discardFailedMutation(legacyDelete);
+
+      assert.deepEqual(getQueue(), []);
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['session-legacy-delete']
+      );
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'legacy failed deletes stay in recovery when the session refresh fails',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const legacyDelete: SyncOperation = {
+      type: 'DELETE',
+      id: 'session-legacy-delete',
+      expectedRevision: 4,
+      queuedAt: 10,
+      syncIssue: { type: 'conflict', status: 412 },
+    };
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([legacyDelete])
+    );
+
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      assert.equal(url.pathname, '/api/sessions/list');
+      return new Response(null, { status: 503 });
+    }) as typeof fetch;
+
+    try {
+      await assert.rejects(
+        discardFailedMutation(legacyDelete),
+        /kept in Recovery/
+      );
+      assert.deepEqual(getQueue(), [legacyDelete]);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
 
 function dispatchStorageMutationEvent(
   key: string,

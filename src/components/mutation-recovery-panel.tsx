@@ -126,8 +126,12 @@ export function MutationRecoveryPanel({
       setMessage('The selected recovery operation was discarded.');
       setMessageIsError(false);
       refresh();
-    } catch {
-      setMessage('The recovery operation could not be discarded. It remains in the queue.');
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'The recovery operation could not be discarded. It remains in the queue.'
+      );
       setMessageIsError(true);
     }
   };

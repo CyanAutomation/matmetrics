@@ -961,11 +961,57 @@ export function getMutationRecoveryQueue(): SyncOperation[] {
   return getQueue();
 }
 
+async function refreshSessionListBeforeLegacyDeleteDiscard(): Promise<void> {
+  if (!isOnline || isGuestMode()) {
+    throw new Error(
+      'This older failed delete has no saved session snapshot. Reconnect and refresh sessions before discarding it; the operation remains in Recovery.'
+    );
+  }
+
+  const generation = storageGeneration;
+  const userId = getActiveUserId();
+  const contextKey = getSessionListContextKey();
+
+  await refreshSessionsFromAPI({ force: true });
+  while (inFlightRefresh) {
+    const refresh = inFlightRefresh;
+    await refresh;
+  }
+
+  if (
+    !isStorageGenerationCurrent(generation) ||
+    getActiveUserId() !== userId ||
+    getSessionListContextKey() !== contextKey
+  ) {
+    throw new Error(
+      'The active account or session source changed. This recovery operation was kept.'
+    );
+  }
+  if (!isOnline) {
+    throw new Error(
+      'MatMetrics went offline before sessions could be refreshed, so this older failed delete was kept in Recovery.'
+    );
+  }
+  if (sessionListRefreshError) {
+    throw new Error(
+      'MatMetrics could not refresh sessions, so this older failed delete was kept in Recovery. Try again when signed in and online.'
+    );
+  }
+}
+
 export async function discardFailedMutation(
   operation: SyncOperation
 ): Promise<void> {
   if (!operation.syncIssue) {
     throw new Error('Only failed mutations can be discarded from recovery.');
+  }
+
+  if (
+    operation.type === 'DELETE' &&
+    !operation.session &&
+    operation.syncIssue.status !== 404
+  ) {
+    await refreshSessionListBeforeLegacyDeleteDiscard();
   }
 
   await removeOperationByIdentity(operation);
