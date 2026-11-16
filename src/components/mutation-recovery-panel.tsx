@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Clipboard, Download, RotateCw, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import type { SessionSnapshot } from '@/lib/keiko-session-revision';
 import {
   discardFailedMutation,
   getMutationRecoveryQueue,
@@ -23,8 +24,16 @@ function getOperationId(operation: SyncOperation): string {
   return `${operation.type}:${sessionId}:${operation.queuedAt}`;
 }
 
-function getOperationSession(operation: SyncOperation) {
-  return operation.session;
+function getOperationSession(
+  operation: SyncOperation
+): SessionSnapshot | undefined {
+  switch (operation.type) {
+    case 'DELETE':
+      return operation.session;
+    case 'CREATE':
+    case 'UPDATE':
+      return operation.session;
+  }
 }
 
 function getIssueLabel(operation: SyncOperation): string {

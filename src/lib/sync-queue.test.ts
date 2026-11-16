@@ -486,6 +486,39 @@ test('stale owner commit is prevented after lease expiry and competing re-acquir
   });
 });
 
+test('a lease expiring after a synchronous queue commit does not report a failed save', async () => {
+  resetQueue();
+  let now = 1_000;
+  __testInternals.setLeaseTtlForTests(20);
+  __testInternals.setLeaseClockForTests(() => now);
+  __testInternals.disableLeaseRenewalForTests();
+
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = (key: string, value: string) => {
+    originalSetItem(key, value);
+    if (key === getSyncQueueStorageKey()) {
+      now += 21;
+    }
+  };
+
+  try {
+    await queueOperation({
+      type: 'CREATE',
+      session: makeSession('session-committed-before-expiry'),
+    });
+
+    const [savedOperation] = getQueue();
+    assert.ok(savedOperation);
+    if (savedOperation.type === 'DELETE') {
+      assert.fail('Expected the committed operation to be a create.');
+    }
+    assert.equal(savedOperation.session.id, 'session-committed-before-expiry');
+    assert.equal(getSyncQueueStorageError(), null);
+  } finally {
+    localStorage.setItem = originalSetItem;
+  }
+});
+
 test('identity-based removal succeeds under concurrent writes where index-based removal fails', async () => {
   const opA = createOp('session-a', 100);
   const opB = createOp('session-b', 200);

@@ -857,10 +857,9 @@ function writeQueueWithLatestMerge(
 
   ensureActiveStorageLeaseOwnership();
   localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(mergedQueue));
-  // Do not remove the queue if the lease check fails after writing. The write is
-  // synchronous, so another tab cannot interleave between setItem and this
-  // check; deleting the key here could erase recoverable operations.
-  ensureActiveStorageLeaseOwnership();
+  // The lease is checked immediately before this synchronous write. A check
+  // after the commit could report failure after the data is already persisted,
+  // and attempting rollback could erase a concurrent tab's newer queue.
 }
 
 export const __testInternals = {

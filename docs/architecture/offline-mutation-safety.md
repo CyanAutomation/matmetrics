@@ -58,6 +58,10 @@ and browser storage are unavailable, the app cannot guarantee persistence;
 the form remains open where possible and reports the error. The dashboard can
 export entries only while they remain readable from the browser queue.
 
+Older queued deletes may not include the session snapshot added in Phase 1.1.
+If their remote refresh also fails while offline, the app cannot reconstruct
+the missing session details from that delete entry alone.
+
 Keiko writes continue using the originally observed revision in `If-Match`.
 This phase does not fetch a new revision to force a rejected write. Guest
 storage and legacy GitHub-backed storage keep their existing routes; the queue
