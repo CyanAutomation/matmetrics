@@ -52,14 +52,54 @@ function getErrorType(error: unknown): string {
   return typeof error;
 }
 
+function getVolatileIssueKey(operation: SyncOperationInput): string {
+  return `${getSyncQueueStorageKey()}:${getOperationKey(operation)}`;
+}
+
+function clearVolatileQueueIssues(operations: SyncOperationInput[]): void {
+  for (const operation of operations) {
+    volatileQueueIssues.delete(getVolatileIssueKey(operation));
+  }
+}
+
+function quarantineQueueContents(rawQueue: string): void {
+  const primaryKey = getSyncQueueQuarantineStorageKey();
+  const existingPrimary = localStorage.getItem(primaryKey);
+  if (existingPrimary === rawQueue) return;
+
+  let quarantineKey = primaryKey;
+  if (existingPrimary !== null) {
+    quarantineKey = `${primaryKey}_${Date.now()}`;
+    let suffix = 1;
+    while (localStorage.getItem(quarantineKey) !== null) {
+      quarantineKey = `${primaryKey}_${Date.now()}_${suffix}`;
+      suffix += 1;
+    }
+  }
+
+  localStorage.setItem(quarantineKey, rawQueue);
+}
+
 export type SyncOperationIssue =
-  | { type: 'conflict'; status: 404 | 412 | 428 }
-  | { type: 'authentication'; status: 401 | 403 };
+  | { type: 'conflict'; status: 404 | 409 | 412 | 428 }
+  | { type: 'authentication'; status: 401 | 403 }
+  | { type: 'rejected'; status?: number };
 
 type SyncOperationPayload =
   | { type: 'CREATE'; session: JudoSession }
-  | { type: 'UPDATE'; session: SessionSnapshot; expectedRevision?: number }
-  | { type: 'DELETE'; id: string; revisionSha?: string; expectedRevision?: number };
+  | {
+      type: 'UPDATE';
+      session: SessionSnapshot;
+      previousSession?: SessionSnapshot;
+      expectedRevision?: number;
+    }
+  | {
+      type: 'DELETE';
+      id: string;
+      session?: SessionSnapshot;
+      revisionSha?: string;
+      expectedRevision?: number;
+    };
 
 export type SyncOperation = SyncOperationPayload & {
   queuedAt: number;
@@ -72,6 +112,8 @@ export type SyncStatus = {
   pendingCount: number;
   conflictCount?: number;
   authenticationBlockedCount?: number;
+  rejectedCount?: number;
+  storageUnavailable?: boolean;
 };
 
 type SyncOperationInput = SyncOperationPayload | SyncOperation;
@@ -91,6 +133,16 @@ let lastQueuedAt: number = (() => {
   }
   return 0;
 })();
+
+let queueStorageError: string | null = null;
+const volatileQueueIssues = new Map<string, SyncOperationIssue>();
+
+export class SyncQueuePersistenceError extends Error {
+  constructor() {
+    super('Unable to save the session recovery queue in this browser.');
+    this.name = 'SyncQueuePersistenceError';
+  }
+}
 
 function persistLastQueuedAt(): void {
   if (typeof window === 'undefined') return;
@@ -131,8 +183,13 @@ function isValidSyncOperationInput(
     }
     const { type, status } = value.syncIssue;
     if (
-      !((type === 'conflict' && [404, 412, 428].includes(status as number)) ||
-        (type === 'authentication' && [401, 403].includes(status as number)))
+      !(
+        (type === 'conflict' && [404, 409, 412, 428].includes(status as number)) ||
+        (type === 'authentication' && [401, 403].includes(status as number)) ||
+        (type === 'rejected' &&
+          (status === undefined ||
+            (typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599)))
+      )
     ) {
       return false;
     }
@@ -141,12 +198,20 @@ function isValidSyncOperationInput(
   if (value.type === 'DELETE') {
     return (
       typeof value.id === 'string' &&
+      (value.session === undefined ||
+        (isRecord(value.session) && typeof value.session.id === 'string')) &&
       (value.revisionSha === undefined || typeof value.revisionSha === 'string')
     );
   }
 
   if (value.type === 'CREATE' || value.type === 'UPDATE') {
-    return isRecord(value.session) && typeof value.session.id === 'string';
+    return (
+      isRecord(value.session) &&
+      typeof value.session.id === 'string' &&
+      (value.type !== 'UPDATE' ||
+        value.previousSession === undefined ||
+        (isRecord(value.previousSession) && typeof value.previousSession.id === 'string'))
+    );
   }
 
   return false;
@@ -228,10 +293,10 @@ function stableStringify(value: unknown): string {
 
 function getOperationPayloadKey(operation: SyncOperationInput): string {
   if (operation.type === 'DELETE') {
-    return `DELETE:${operation.id}:${operation.revisionSha ?? ''}:${operation.expectedRevision ?? ''}`;
+    return `DELETE:${operation.id}:${operation.revisionSha ?? ''}:${operation.expectedRevision ?? ''}:${operation.session ? stableStringify(operation.session) : ''}`;
   }
 
-  return `${operation.type}:${stableStringify(operation.session)}:${operation.type === 'UPDATE' ? operation.expectedRevision ?? '' : ''}`;
+  return `${operation.type}:${stableStringify(operation.session)}:${operation.type === 'UPDATE' ? `${operation.expectedRevision ?? ''}:${operation.previousSession ? stableStringify(operation.previousSession) : ''}` : ''}`;
 }
 
 function getOperationKey(operation: SyncOperationInput): string {
@@ -317,6 +382,7 @@ function mergeConsecutiveOperations(
       if (operation.type === 'DELETE') {
         reducedOperation = {
           ...operation,
+          session: reducedOperation.session ?? operation.session,
           expectedRevision:
             reducedOperation.expectedRevision ?? operation.expectedRevision,
           ...(reducedOperation.syncIssue &&
@@ -339,6 +405,11 @@ function mergeConsecutiveOperations(
         reducedOperation = {
           type: 'UPDATE',
           session: operation.session,
+          ...(reducedOperation.type === 'UPDATE' && reducedOperation.previousSession
+            ? { previousSession: reducedOperation.previousSession }
+            : operation.type === 'UPDATE' && operation.previousSession
+              ? { previousSession: operation.previousSession }
+              : {}),
           ...(expectedRevision === undefined ? {} : { expectedRevision }),
           queuedAt: operation.queuedAt,
           ...(keepsIssue ? { syncIssue: reducedOperation.syncIssue } : {}),
@@ -369,6 +440,10 @@ function mergeConsecutiveOperations(
 
       // DELETE followed by DELETE: keep the first DELETE (earliest timestamp)
       // Both deletes are equivalent, but preserve the original operation timing
+      // and fill in a captured session snapshot when migrating an older entry.
+      if (!reducedOperation.session && operation.session) {
+        reducedOperation = { ...reducedOperation, session: operation.session };
+      }
       continue;
     }
   }
@@ -384,11 +459,22 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
   // Reduce each session's operations to a single operation (or deletion)
   for (const operationsForSession of groupedBySession.values()) {
     const sortedOperations = [...operationsForSession].sort(compareOperations);
-    const reducedOperation = mergeConsecutiveOperations(sortedOperations);
+    let pendingSegment: SyncOperation[] = [];
+    const flushPendingSegment = () => {
+      const reducedOperation = mergeConsecutiveOperations(pendingSegment);
+      if (reducedOperation) reducedOperations.push(reducedOperation);
+      pendingSegment = [];
+    };
 
-    if (reducedOperation) {
-      reducedOperations.push(reducedOperation);
+    for (const operation of sortedOperations) {
+      if (operation.syncIssue) {
+        flushPendingSegment();
+        reducedOperations.push(operation);
+      } else {
+        pendingSegment.push(operation);
+      }
     }
+    flushPendingSegment();
   }
 
   return reducedOperations.sort(compareOperations);
@@ -686,6 +772,11 @@ function readQueueFromStorage(): SyncOperation[] {
   }
 
   const validOperations = parsed.filter(isValidSyncOperationInput);
+  if (validOperations.length !== parsed.length) {
+    queueStorageError = 'corrupt';
+    quarantineQueueContents(stored);
+  }
+
   if (validOperations.length === 0 && parsed.length > 0) {
     localStorage.removeItem(getSyncQueueStorageKey());
     console.warn('Sync queue storage contained only invalid entries', {
@@ -766,12 +857,10 @@ function writeQueueWithLatestMerge(
 
   ensureActiveStorageLeaseOwnership();
   localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify(mergedQueue));
-  try {
-    ensureActiveStorageLeaseOwnership();
-  } catch (error) {
-    localStorage.removeItem(getSyncQueueStorageKey());
-    throw error;
-  }
+  // Do not remove the queue if the lease check fails after writing. The write is
+  // synchronous, so another tab cannot interleave between setItem and this
+  // check; deleting the key here could erase recoverable operations.
+  ensureActiveStorageLeaseOwnership();
 }
 
 export const __testInternals = {
@@ -815,6 +904,10 @@ export const __testInternals = {
       setInterval(callback, intervalMs);
     cancelLeaseRenewal = (timer) => clearInterval(timer);
   },
+  resetQueueStorageStateForTests(): void {
+    queueStorageError = null;
+    volatileQueueIssues.clear();
+  },
 };
 
 /**
@@ -829,9 +922,13 @@ export async function queueOperation(
     await withQueueWriteLease(() => {
       const baseQueue = getQueue();
       writeQueueWithLatestMerge([...baseQueue, operation], baseQueue);
+      clearVolatileQueueIssues([...baseQueue, operation]);
     });
-  } catch (e) {
-    console.error('Failed to queue operation', e);
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to queue operation', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
   }
 }
 
@@ -844,28 +941,45 @@ export function getQueue(): SyncOperation[] {
   const queueStorageKey = getSyncQueueStorageKey();
 
   try {
-    return readQueueFromStorage();
+    const queue = readQueueFromStorage();
+    return queue.map((operation) => {
+      const volatileIssue = volatileQueueIssues.get(getVolatileIssueKey(operation));
+      return operation.syncIssue || !volatileIssue
+        ? operation
+        : { ...operation, syncIssue: volatileIssue };
+    });
   } catch (error) {
-    const rawStoredQueue = localStorage.getItem(queueStorageKey);
+    queueStorageError = getErrorType(error);
+    try {
+      const rawStoredQueue = localStorage.getItem(queueStorageKey);
 
-    if (rawStoredQueue !== null) {
-      const quarantineKey = getSyncQueueQuarantineStorageKey();
-      if (localStorage.getItem(quarantineKey) === null) {
-        localStorage.setItem(quarantineKey, rawStoredQueue);
+      if (rawStoredQueue !== null) {
+        quarantineQueueContents(rawStoredQueue);
+        localStorage.removeItem(queueStorageKey);
       }
 
-      localStorage.removeItem(queueStorageKey);
+      console.warn('Sync queue storage parse failure', {
+        key: queueStorageKey,
+        errorType: queueStorageError,
+        quarantined: rawStoredQueue !== null,
+        quarantineKey: getSyncQueueQuarantineStorageKey(),
+      });
+    } catch (recoveryError) {
+      queueStorageError = getErrorType(recoveryError);
     }
-
-    console.warn('Sync queue storage parse failure', {
-      key: queueStorageKey,
-      errorType: getErrorType(error),
-      quarantined: rawStoredQueue !== null,
-      quarantineKey: getSyncQueueQuarantineStorageKey(),
-    });
-
     return [];
   }
+}
+
+export function getSyncQueueStorageError(): string | null {
+  return queueStorageError;
+}
+
+export function rememberVolatileSyncIssue(
+  operation: SyncOperationInput,
+  issue: SyncOperationIssue
+): void {
+  volatileQueueIssues.set(getVolatileIssueKey(operation), issue);
 }
 
 /**
@@ -880,9 +994,13 @@ export async function setQueue(
   try {
     await withQueueWriteLease(() => {
       writeQueueWithLatestMerge(operations, baseQueue);
+      clearVolatileQueueIssues(operations);
     });
-  } catch (e) {
-    console.error('Failed to set sync queue', e);
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to set sync queue', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
   }
 }
 
@@ -897,9 +1015,13 @@ export async function clearQueue(
   try {
     await withQueueWriteLease(() => {
       writeQueueWithLatestMerge([], baseQueue);
+      if (baseQueue) clearVolatileQueueIssues(baseQueue);
     });
-  } catch (e) {
-    console.error('Failed to clear sync queue', e);
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to clear sync queue', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
   }
 }
 
@@ -929,9 +1051,13 @@ export async function removeOperationByIdentity(
           );
 
       writeQueueWithLatestMerge(queue, baseQueue);
+      volatileQueueIssues.delete(getVolatileIssueKey(operation));
     });
-  } catch (e) {
-    console.error('Failed to remove operation from queue', e);
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to remove operation from queue', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
   }
 }
 
@@ -939,14 +1065,28 @@ export async function removeOperationByIdentity(
  * Check if there are any pending operations
  */
 export function hasPendingOperations(): boolean {
-  return getQueue().some((operation) => !operation.syncIssue);
+  const queue = getQueue();
+  const pausedSessions = new Set(
+    queue.filter((operation) => operation.syncIssue).map(getOperationSessionId)
+  );
+  return queue.some(
+    (operation) =>
+      !operation.syncIssue && !pausedSessions.has(getOperationSessionId(operation))
+  );
 }
 
 /**
  * Get the count of pending operations
  */
 export function getPendingOperationCount(): number {
-  return getQueue().filter((operation) => !operation.syncIssue).length;
+  const queue = getQueue();
+  const pausedSessions = new Set(
+    queue.filter((operation) => operation.syncIssue).map(getOperationSessionId)
+  );
+  return queue.filter(
+    (operation) =>
+      !operation.syncIssue && !pausedSessions.has(getOperationSessionId(operation))
+  ).length;
 }
 
 export function getConflictOperationCount(): number {
@@ -955,6 +1095,10 @@ export function getConflictOperationCount(): number {
 
 export function getAuthenticationBlockedOperationCount(): number {
   return getQueue().filter((operation) => operation.syncIssue?.type === 'authentication').length;
+}
+
+export function getRejectedOperationCount(): number {
+  return getQueue().filter((operation) => operation.syncIssue?.type === 'rejected').length;
 }
 
 export async function resumeAuthenticationBlockedOperations(): Promise<void> {

@@ -27,6 +27,7 @@ import {
 import {
   getQueue,
   getSyncQueueStorageKey,
+  getSyncQueueStorageError,
   __testInternals as syncQueueTestInternals,
 } from './sync-queue';
 import type { SyncOperation } from './sync-queue';
@@ -697,7 +698,7 @@ serialTest(
 );
 
 serialTest(
-  'non-retryable create failures are not queued and optimistic state is reconciled away',
+  'non-retryable online create failures remain recoverable and visible',
   async () => {
     installBrowserEnv();
     setActiveUserId('user-1');
@@ -727,8 +728,16 @@ serialTest(
       );
       await flushAsyncWork();
 
-      assert.deepEqual(getQueue(), []);
-      assert.deepEqual(getSessions(), []);
+      assert.deepEqual(getQueue(), [{
+        type: 'CREATE',
+        session: makeSession('session-terminal-failure'),
+        queuedAt: getQueue()[0]?.queuedAt,
+        syncIssue: { type: 'rejected', status: 400 },
+      }]);
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['session-terminal-failure']
+      );
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -738,7 +747,133 @@ serialTest(
 );
 
 serialTest(
-  'forced refresh runs after a stale in-flight refresh when reconciling permanent mutation failures',
+  '422 online update keeps the attempted payload, original revision, and prior session',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const existing = { ...makeSession('session-online-update-rejected'), keikoRevision: 7 };
+    const attempted = { ...existing, notes: 'correctable user edit' };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([existing])
+    );
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      if (String(input).endsWith(`/api/sessions/${existing.id}`)) {
+        return new Response(JSON.stringify({ error: 'validation' }), { status: 422 });
+      }
+      throw new Error(`Unexpected fetch: ${input}`);
+    }) as typeof fetch;
+
+    try {
+      await assert.rejects(updateSession(attempted), (error: unknown) => {
+        assert.equal((error as { status?: number }).status, 422);
+        return true;
+      });
+
+      const queued = getQueue()[0];
+      assert.equal(queued?.type, 'UPDATE');
+      if (queued?.type !== 'UPDATE') return;
+      assert.equal(queued.session.notes, 'correctable user edit');
+      assert.equal(queued.previousSession?.notes, 'test');
+      assert.equal(queued.expectedRevision, 7);
+      assert.equal(queued.queuedAt > 0, true);
+      assert.deepEqual(queued.syncIssue, { type: 'rejected', status: 422 });
+      assert.equal(getSessions()[0]?.notes, 'correctable user edit');
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  '412 online delete restores the session and preserves the deletion intent',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const existing = { ...makeSession('session-online-delete-rejected'), keikoRevision: 5 };
+    localStorage.setItem(
+      getScopedStorageKey('matmetrics_sessions'),
+      JSON.stringify([existing])
+    );
+    let ifMatch: string | null = null;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith(`/api/sessions/${existing.id}`)) {
+        ifMatch = new Headers(init?.headers).get('If-Match');
+        return new Response(JSON.stringify({ error: 'stale' }), { status: 412 });
+      }
+      throw new Error(`Unexpected fetch: ${input}`);
+    }) as typeof fetch;
+
+    try {
+      await assert.rejects(deleteSession(existing.id, existing.keikoRevision));
+
+      const queued = getQueue()[0];
+      assert.equal(queued?.type, 'DELETE');
+      if (queued?.type !== 'DELETE') return;
+      assert.equal(queued.id, existing.id);
+      assert.equal(queued.session?.notes, 'test');
+      assert.equal(queued.expectedRevision, 5);
+      assert.deepEqual(queued.syncIssue, { type: 'conflict', status: 412 });
+      assert.equal(ifMatch, '"5"');
+      assert.equal(getSessions()[0]?.id, existing.id);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'offline queue write failure is visible and does not report a saved mutation',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { onLine: false },
+    });
+    const originalSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = (key: string, value: string) => {
+      if (key === getSyncQueueStorageKey()) {
+        const error = new Error('quota');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
+      originalSetItem(key, value);
+    };
+
+    try {
+      await assert.rejects(
+        saveSession(makeSession('session-storage-write-failed')),
+        (error: unknown) => {
+          assert.equal((error as { name?: string }).name, 'SyncQueuePersistenceError');
+          return true;
+        }
+      );
+
+      assert.deepEqual(getQueue(), []);
+      assert.deepEqual(getSessions(), []);
+      assert.equal(getSyncQueueStorageError(), 'QuotaExceededError');
+      assert.equal(getSyncStatus().storageUnavailable, true);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+    }
+  }
+);
+
+serialTest(
+  'permanent create rejection keeps the attempted payload through a stale in-flight refresh',
   async () => {
     installBrowserEnv();
     setActiveUserId('user-1');
@@ -792,9 +927,19 @@ serialTest(
       await flushAsyncWork();
       await flushAsyncWork();
 
-      assert.equal(listRequests, 2);
-      assert.deepEqual(getQueue(), []);
-      assert.deepEqual(getSessions(), [remoteCanonical]);
+      assert.equal(listRequests, 1);
+      assert.deepEqual(getQueue(), [{
+        type: 'CREATE',
+        session: makeSession('session-terminal-failure'),
+        queuedAt: getQueue()[0]?.queuedAt,
+        syncIssue: { type: 'conflict', status: 409 },
+      }]);
+      assert.deepEqual(
+        getSessions().map((session) => session.id),
+        ['session-terminal-failure']
+      );
+      assert.equal(getSessions()[0]?.notes, 'test');
+      assert.equal(remoteCanonical.notes, 'remote canonical');
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -1206,7 +1351,7 @@ serialTest(
 );
 
 serialTest(
-  'non-retryable queued create failures are removed during sync replay',
+  'non-retryable queued create failures remain recoverable and paused',
   async () => {
     const { localStorage } = installBrowserEnv();
     setActiveUserId('user-1');
@@ -1239,8 +1384,66 @@ serialTest(
       retryCloudSync();
       await flushSyncLoopWork();
 
-      assert.deepEqual(getQueue(), []);
-      assert.deepEqual(getSessions(), []);
+      assert.deepEqual(getQueue(), [{
+        type: 'CREATE',
+        session: queuedSession,
+        queuedAt: 1,
+        syncIssue: { type: 'rejected', status: 400 },
+      }]);
+      assert.deepEqual(getSessions(), [queuedSession]);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'a permanent failure pauses its session and lets an independent operation continue',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const failedSession = makeSession('session-independent-failure');
+    const independentSession = makeSession('session-independent-success');
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([
+        { type: 'CREATE', session: failedSession, queuedAt: 1 },
+        { type: 'CREATE', session: independentSession, queuedAt: 2 },
+      ])
+    );
+    let createRequests = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        createRequests += 1;
+        if (createRequests === 1) {
+          return new Response(JSON.stringify({ error: 'invalid' }), { status: 400 });
+        }
+        return Response.json(independentSession, { status: 201 });
+      }
+      if (url.endsWith('/api/sessions/list')) {
+        return Response.json([], { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      retryCloudSync();
+      await flushSyncLoopWork();
+
+      assert.equal(createRequests, 2);
+      assert.deepEqual(getQueue(), [{
+        type: 'CREATE',
+        session: failedSession,
+        queuedAt: 1,
+        syncIssue: { type: 'rejected', status: 400 },
+      }]);
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();

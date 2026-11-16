@@ -222,7 +222,7 @@ test('stale Keiko edits retain their original revision and leave the form data i
   assert.equal((updated as (JudoSession & { keikoRevision?: number }) | undefined)?.keikoRevision, 4);
   assert.equal(updated?.notes, formData.notes);
   assert.match(controller.getSnapshot().errorMessage ?? '', /changed elsewhere/i);
-  assert.match(controller.getSnapshot().errorMessage ?? '', /edits are preserved/i);
+  assert.match(controller.getSnapshot().errorMessage ?? '', /your changes are in recovery/i);
   assert.deepEqual(callbacks.events, ['start', 'error']);
   controller.destroy();
 });
