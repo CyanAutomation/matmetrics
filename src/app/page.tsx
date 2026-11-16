@@ -10,6 +10,7 @@ import { DashboardNav } from '@/components/dashboard-nav';
 import { DashboardDialogs } from '@/components/dashboard-dialogs';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { GuestWorkspaceNotice } from '@/components/guest-workspace-notice';
+import { MutationRecoveryPanel } from '@/components/mutation-recovery-panel';
 import { PasskeyManagementDialog } from '@/components/passkey-management-dialog';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { useSessionsData } from '@/hooks/use-sessions-data';
@@ -154,6 +155,13 @@ export default function Home() {
 
           <main className="@container/main mx-auto min-h-0 min-w-0 w-full max-w-7xl flex-1 overflow-y-auto p-4 md:p-8">
             <div className="space-y-6">
+              {!isGuest && (
+                <MutationRecoveryPanel
+                  onSignIn={() => setIsAuthDialogOpen(true)}
+                  isOnline={syncStatus.isOnline}
+                  isSyncing={syncStatus.isSyncing}
+                />
+              )}
               {githubBackupResult && (
                 <Alert
                   role={githubBackupResult === 'failed' ? 'alert' : 'status'}

@@ -170,6 +170,18 @@ test('sync status text makes unresolved conflicts and authentication pauses visi
     pendingCount: 0,
     authenticationBlockedCount: 1,
   }), 'Sign in to sync changes');
+  assert.equal(getSyncStatusText({
+    isOnline: true,
+    isSyncing: false,
+    pendingCount: 0,
+    rejectedCount: 2,
+  }), '2 rejected changes need review');
+  assert.equal(getSyncStatusText({
+    isOnline: true,
+    isSyncing: false,
+    pendingCount: 0,
+    storageUnavailable: true,
+  }), 'Recovery storage unavailable');
 });
 
 test('getGuestWorkspaceDescription follows the footer copy requirement', async (t) => {

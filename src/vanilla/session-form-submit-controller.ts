@@ -122,6 +122,15 @@ function buildSessionData(
 }
 
 function submitErrorMessage(error: unknown, isEditing: boolean): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'name' in error &&
+    error.name === 'SyncQueuePersistenceError'
+  ) {
+    return 'Your changes could not be saved to the browser recovery queue. Keep this form open and copy your changes before leaving.';
+  }
+
   const status =
     error && typeof error === 'object' && 'status' in error &&
     typeof error.status === 'number'
@@ -129,18 +138,24 @@ function submitErrorMessage(error: unknown, isEditing: boolean): string {
       : undefined;
 
   if (status === 412) {
-    return 'This session changed elsewhere. Your edits are preserved. Close this form and reopen the session to load the current version.';
+    return 'This session changed elsewhere. Keiko did not apply your edit. Your changes are in Recovery with the original revision; export them before loading the current session.';
   }
   if (status === 428) {
-    return 'The session revision is missing. Your edits are preserved. Close this form and reload the session from history before trying again.';
+    return 'The session revision is missing. Your changes are in Recovery. Reload the session from history and review it before trying again.';
   }
   if (status === 404) {
-    return 'This session no longer exists. Your edits are preserved in this form; close it only after saving a copy of your changes.';
+    return 'This session no longer exists on the server. Your attempted change is in Recovery; export it before closing this form.';
   }
   if (status === 401 || status === 403) {
-    return 'Your sign-in or access expired. Your edits are preserved. Sign in again, then reopen the session before trying again.';
+    return 'Your sign-in or access expired. Your change is in Recovery. Sign in again to resume it, or export it before making other changes.';
   }
-  return `The session could not be ${isEditing ? 'updated' : 'saved'}. Your local view has been reconciled to match persisted data.`;
+  if (status === 409) {
+    return 'The server reported an ID conflict. It may have received an earlier request, so MatMetrics kept this change for review instead of retrying it.';
+  }
+  if (status === 400 || status === 422) {
+    return `The server rejected this ${isEditing ? 'edit' : 'session'} (HTTP ${status}). Your change is in Recovery; correct it here or export it before closing.`;
+  }
+  return `The session could not be ${isEditing ? 'updated' : 'saved'}. Your change is in Recovery and will not be retried automatically.`;
 }
 
 /** Framework-neutral owner for session submission state and persistence flow. */

@@ -58,11 +58,23 @@ export function useSessionHistoryActions(
         ),
       });
       clearHistoryReview(session.id);
-    } catch {
+    } catch (error) {
+      const status =
+        error && typeof error === 'object' && 'status' in error &&
+        typeof error.status === 'number'
+          ? error.status
+          : undefined;
+      const storageFailed =
+        error && typeof error === 'object' && 'name' in error &&
+        error.name === 'SyncQueuePersistenceError';
       toast({
         variant: 'destructive',
-        title: 'Delete failed',
-        description: 'The session could not be deleted.',
+        title: status ? 'Delete needs review' : 'Delete failed',
+        description: storageFailed
+          ? 'The delete was not saved to Recovery. The session remains available; keep a copy of its details before leaving.'
+          : status
+            ? 'The server did not confirm deletion. The request is saved in Recovery and the session remains available for review.'
+            : 'The session could not be deleted.',
       });
     } finally {
       setDeletingSessionId(null);
