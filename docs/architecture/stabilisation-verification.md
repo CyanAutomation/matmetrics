@@ -1,6 +1,6 @@
 # Phase 1 stabilisation verification
 
-Assessment date: 2026-11-15. No application or Worker was deployed and no
+Assessment date: 2026-11-16. No application or Worker was deployed and no
 remote migration, D1 write, GitHub sync, or reconciliation was performed.
 
 ## Implemented in MatMetrics
@@ -22,7 +22,12 @@ remote migration, D1 write, GitHub sync, or reconciliation was performed.
   preserves the first read's expected revision. Conflict and auth-blocked
   operations remain persisted, are excluded from automatic retry, and show a
   distinct sync status. Network and transient HTTP failures retain retry
-  behavior.
+  behavior. Queue replay now returns revision-updated operations immutably and
+  preserves the original queue snapshot for cross-tab merge identity.
+- The queue replay auth-header callback now uses the same `HeadersInit` input
+  and output contract as `getAuthHeaders`.
+- Inter is bundled as a local variable font under its SIL Open Font License so
+  production builds do not fetch Google Fonts at build time.
 - No Keiko code change was necessary. Keiko's implementation already validates
   `If-Match`, checks D1 writes by verified `user_id` and revision, and returns
   the documented conflict statuses.
@@ -39,21 +44,21 @@ The following focused suites were executed during implementation:
 | Dashboard utility tests | Passed; conflict and authentication-paused states are distinguishable. |
 | Focused ESLint invocation on changed TypeScript files | Passed. |
 
-Final checks on 2026-11-15:
+Final MatMetrics checks on 2026-11-16. The unchanged Keiko tree was checked
+on 2026-11-15.
 
 | Check | Result |
 | --- | --- |
-| MatMetrics `npm run test:all` | Passed: 1,175 tests, plus the script's storage (56) and workflow (26) suites; 0 failures. |
-| MatMetrics `npm run typecheck` | Passed, including the Data Worker TypeScript check. |
+| MatMetrics `npm run test:all` | Passed: 1,176 tests, plus storage (56) and workflow (26) suites; 0 failures, including the queue snapshot regression test. |
+| MatMetrics `npm run typecheck` | Passed with Node 26.13.1, including the Data Worker TypeScript check. |
 | MatMetrics `npm run lint` | Passed, including plugin UI contract validation and ESLint. |
-| MatMetrics production build | Blocked: Next.js could not fetch the existing Inter font from Google Fonts while compiling `src/app/layout.tsx`. No source build error was reported before that fetch failure. |
+| MatMetrics production build | Passed with Node 26.13.1 after switching the existing Inter font to a local variable-font asset. |
 | Keiko `npm test` | Passed: 97 tests across 8 files. |
 | Keiko `npm run typecheck` | Passed. |
 
-The workspace runs Node 24.19.0 while MatMetrics declares Node `>=26 <27`;
-install emitted the resulting engine warning. The production build also needs
-access to Google Fonts for the existing `next/font` Inter import. Re-run the
-build in the supported Node environment with font network access before merge.
+The default workspace runtime is Node 24.19.0 while MatMetrics declares Node
+`>=26 <27`; the final production build was run with Node 26.13.1. Inter is now
+loaded locally, removing the build-time Google Fonts network requirement.
 
 ## Live Cloudflare checks
 

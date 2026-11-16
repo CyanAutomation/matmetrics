@@ -1339,7 +1339,8 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
 
-      const queue = getQueue().filter((operation) => !operation.syncIssue);
+      const baseQueue = getQueue().filter((operation) => !operation.syncIssue);
+      let queue = baseQueue;
       if (queue.length === 0) return;
       const gitHubConfig = getGitHubConfig();
       const gitHubEnabled = isGitHubEnabled();
@@ -1348,12 +1349,13 @@ async function syncPendingOperations(): Promise<void> {
       const onAbort = async (remainingOps: SyncOperation[]) => {
         lease.clearHeartbeat();
         if (isStorageGenerationCurrent(generation)) {
-          await setQueue(remainingOps, queue);
+          await setQueue(remainingOps, baseQueue);
         }
       };
 
       // Process each operation in the queue
-      for (const [index, operation] of queue.entries()) {
+      for (let index = 0; index < queue.length; index += 1) {
+        const operation = queue[index];
         const result = await processSingleQueueOperation(
           operation,
           index,
@@ -1369,19 +1371,21 @@ async function syncPendingOperations(): Promise<void> {
           reconcileSuccessfulSession,
           setQueue,
           getAuthHeaders,
-          reconcilePermanentFailure
+          reconcilePermanentFailure,
+          baseQueue
         );
 
         if (!result.shouldContinue) {
           return;
         }
+        queue = result.queue;
       }
 
       // All operations succeeded, clear queue and refresh
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      await clearQueue(queue);
+      await clearQueue(baseQueue);
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {
