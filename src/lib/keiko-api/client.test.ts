@@ -40,7 +40,7 @@ test('typed session client builds list, CRUD requests and keeps conditional meta
     assert.equal(new URL(calls[0]!.url).searchParams.get('category'), 'Technical');
     assert.equal(new Headers(calls[0]!.headers).get('authorization'), 'Bearer short-lived-token');
     assert.equal(listed.response.headers.get('etag'), '"3-0123456789abcdef01234567"');
-    assert.deepEqual((await listed.body.json()) as unknown, {
+    assert.deepEqual((await listed.facadeResponse.json()) as unknown, {
       data: [{ session, revision: 3 }], pagination: { nextCursor: null, hasMore: false },
     });
 
@@ -87,7 +87,7 @@ test('typed client preserves error status and retry metadata without retrying mu
       assert.equal(result.error?.retryable, status === 429);
       assert.equal(result.error?.requestId, `request-${status}`);
       if (status === 429) assert.equal(result.error?.retryAfterMs, 60_000);
-      const error = await result.body.json() as { error: { code: string }; requestId: string };
+      const error = await result.facadeResponse.json() as { error: { code: string }; requestId: string };
       assert.equal(error.error.code, `status_${status}`);
       assert.equal(error.requestId, `request-${status}`);
     }

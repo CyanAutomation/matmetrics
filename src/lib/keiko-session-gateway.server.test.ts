@@ -72,6 +72,18 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
         pagination: { hasMore: false, nextCursor: null },
       });
     }
+    if (url === `${keikoUrl}/v1/sessions/bearer-challenge`) {
+      return Response.json(
+        { error: { code: 'authentication_required', message: 'Denied' }, requestId: 'challenge-1' },
+        { status: 401, headers: { 'www-authenticate': 'Bearer' } }
+      );
+    }
+    if (url === `${keikoUrl}/v1/sessions/untrusted-challenge`) {
+      return Response.json(
+        { error: { code: 'authentication_required', message: 'Denied' }, requestId: 'challenge-2' },
+        { status: 401, headers: { 'www-authenticate': 'Basic realm="unexpected"' } }
+      );
+    }
     throw new Error(`Unexpected outbound request: ${url}`);
   }) as typeof fetch;
 
@@ -124,6 +136,45 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
         const keikoHeaders = new Headers(keikoCall.init?.headers);
         assert.equal(keikoHeaders.get('authorization'), `Bearer ${token}`);
         assert.equal(keikoHeaders.get('cookie'), null);
+
+        const principal = {
+          userId,
+          appUserId: userId,
+          provider: 'better-auth' as const,
+          email: null,
+          displayName: null,
+          emailVerified: true,
+        };
+        const requestHeaders = {
+          authorization: 'Bearer matmetrics-api-token',
+          cookie: '__Secure-better-auth.session_token=session-value',
+          origin: authOrigin,
+          'sec-fetch-site': 'same-origin',
+        };
+        const unsupportedMethod = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/session-smoke`, {
+            method: 'POST', headers: requestHeaders,
+          }),
+          principal,
+          { path: '/v1/sessions/session-smoke', method: 'POST', scope: 'sessions:read' }
+        );
+        assert.equal(unsupportedMethod.status, 500);
+
+        const validChallenge = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/bearer-challenge`, { headers: requestHeaders }),
+          principal,
+          { path: '/v1/sessions/bearer-challenge', method: 'GET', scope: 'sessions:read' }
+        );
+        assert.equal(validChallenge.status, 401);
+        assert.equal(validChallenge.headers.get('www-authenticate'), 'Bearer');
+
+        const invalidChallenge = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/untrusted-challenge`, { headers: requestHeaders }),
+          principal,
+          { path: '/v1/sessions/untrusted-challenge', method: 'GET', scope: 'sessions:read' }
+        );
+        assert.equal(invalidChallenge.status, 401);
+        assert.equal(invalidChallenge.headers.get('www-authenticate'), null);
       },
       {
         CLOUDFLARE_AUTH_WORKER_URL: authUrl,
