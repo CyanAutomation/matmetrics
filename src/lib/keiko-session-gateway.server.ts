@@ -2,6 +2,13 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
 import type { AuthenticatedPrincipal } from './server-auth-types';
 import { isKeikoRevision, type SessionSnapshot } from './keiko-session-revision';
+import {
+  createKeikoApiClient,
+  type KeikoCreateSession,
+  type KeikoSessionListQuery,
+  type KeikoUpdateSession,
+} from './keiko-api/client';
+import type { components } from './keiko-api/generated';
 
 const KEIKO_AUDIENCE = 'keiko-dojo-api';
 const SESSION_COOKIE_NAMES = [
@@ -285,26 +292,56 @@ export async function forwardSessionRequestToKeiko(
     const target = new URL(operation.path, keikoUrl);
     target.search = query.toString();
     if (target.origin !== keikoUrl.origin) fail(503, 'Session service is unavailable');
-    const headers = new Headers({
-      accept: 'application/json',
-      authorization: `Bearer ${token}`,
-    });
-    if (operation.body !== undefined) headers.set('content-type', 'application/json');
-    if (operation.ifMatch) headers.set('if-match', operation.ifMatch);
     let response: Response;
+    let responseBody: Response;
     try {
-      response = await fetch(target, {
-        method: operation.method,
-        headers,
-        ...(operation.body === undefined ? {} : { body: JSON.stringify(operation.body) }),
-        redirect: 'error',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000),
-      });
+      const sessionPath = operation.path.match(/^\/v1\/sessions(?:\/([^/]+))?$/);
+      if (sessionPath) {
+        const client = createKeikoApiClient(keikoUrl.origin, token);
+        let result;
+        if (!sessionPath[1] && operation.method === 'GET') {
+          const typedQuery: Record<string, string | number> = Object.fromEntries(query.entries());
+          if (typeof typedQuery.effort === 'string') typedQuery.effort = Number(typedQuery.effort);
+          if (typeof typedQuery.limit === 'string') typedQuery.limit = Number(typedQuery.limit);
+          result = await client.listSessions(typedQuery as KeikoSessionListQuery);
+        } else if (!sessionPath[1] && operation.method === 'POST') {
+          result = await client.createSession(operation.body as KeikoCreateSession);
+        } else if (sessionPath[1]) {
+          const id = decodeURIComponent(sessionPath[1]);
+          if (operation.method === 'GET') result = await client.getSession(id);
+          else if (operation.method === 'PUT') {
+            result = await client.updateSession(id, operation.body as KeikoUpdateSession, operation.ifMatch);
+          } else if (operation.method === 'DELETE') {
+            result = await client.deleteSession(id, operation.ifMatch);
+          } else {
+            fail(500, 'Invalid Keiko operation');
+          }
+        } else {
+          fail(500, 'Invalid Keiko operation');
+        }
+        response = result.response;
+        responseBody = result.body;
+      } else {
+        const headers = new Headers({
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+        });
+        if (operation.body !== undefined) headers.set('content-type', 'application/json');
+        if (operation.ifMatch) headers.set('if-match', operation.ifMatch);
+        response = await fetch(target, {
+          method: operation.method,
+          headers,
+          ...(operation.body === undefined ? {} : { body: JSON.stringify(operation.body) }),
+          redirect: 'error',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        });
+        responseBody = response;
+      }
     } catch {
       fail(503, 'Session service is unavailable');
     }
-    const body = await response.text();
+    const body = await responseBody.text();
     if (body.includes(token)) {
       fail(502, 'Session service returned an invalid response');
     }
@@ -315,6 +352,10 @@ export async function forwardSessionRequestToKeiko(
     const etag = response.headers.get('etag');
     const revisionEtag = etag?.match(/^(?:W\/)?("[1-9][0-9]{0,15}(?:-[a-f0-9]{24})?")$/);
     if (revisionEtag) safeHeaders.set('etag', revisionEtag[1]);
+    for (const name of ['retry-after', 'www-authenticate', 'x-request-id']) {
+      const value = response.headers.get(name);
+      if (value && value.length <= 256) safeHeaders.set(name, value);
+    }
     return new NextResponse(bodylessStatus ? null : body, {
       status: response.status,
       headers: safeHeaders,
@@ -344,8 +385,7 @@ export async function keikoSessionRecordResponse(
     const value: unknown = await response.json();
     if (
       !value || typeof value !== 'object' || !('data' in value) ||
-      !value.data || typeof value.data !== 'object' || !('session' in value.data) ||
-      !('revision' in value.data) || !isKeikoRevision(value.data.revision)
+      !isSessionRecord(value.data)
     ) {
       return NextResponse.json({ error: 'Session service returned an invalid response' }, {
         status: 502,
@@ -353,16 +393,11 @@ export async function keikoSessionRecordResponse(
       });
     }
     const etag = response.headers.get('etag');
-    const session = value.data.session;
-    if (!session || typeof session !== 'object' || Array.isArray(session)) {
-      return NextResponse.json({ error: 'Session service returned an invalid response' }, {
-        status: 502,
-        headers: { 'cache-control': 'no-store' },
-      });
-    }
+    const record = value.data as components['schemas']['SessionRecord'];
+    const session = record.session;
     return NextResponse.json({
       ...session,
-      keikoRevision: value.data.revision,
+      keikoRevision: record.revision,
     }, {
       status: response.status,
       headers: {
@@ -376,6 +411,22 @@ export async function keikoSessionRecordResponse(
       headers: { 'cache-control': 'no-store' },
     });
   }
+}
+
+function isSessionRecord(value: unknown): value is components['schemas']['SessionRecord'] {
+  if (!value || typeof value !== 'object' || !('session' in value) || !('revision' in value)) {
+    return false;
+  }
+  const record = value as { session?: unknown; revision?: unknown };
+  const session = record.session;
+  return Boolean(
+    isKeikoRevision(record.revision) && session && typeof session === 'object' &&
+    !Array.isArray(session) && 'id' in session && typeof session.id === 'string' &&
+    'date' in session && typeof session.date === 'string' &&
+    'techniques' in session && Array.isArray(session.techniques) &&
+    'effort' in session && typeof session.effort === 'number' &&
+    'category' in session && typeof session.category === 'string'
+  );
 }
 
 export async function listAllKeikoSessions(
@@ -414,23 +465,18 @@ export async function listAllKeikoSessions(
         headers: { 'cache-control': 'no-store' },
       });
     }
-    for (const record of value.data) {
-      if (
-        !record || typeof record !== 'object' || !('session' in record) ||
-        !('revision' in record) || !isKeikoRevision(record.revision) ||
-        !record.session || typeof record.session !== 'object' || Array.isArray(record.session)
-      ) {
+    const page = value as components['schemas']['SessionListResponse'];
+    for (const item of page.data) {
+      if (!isSessionRecord(item)) {
         return NextResponse.json({ error: 'Session service returned an invalid response' }, {
           status: 502,
           headers: { 'cache-control': 'no-store' },
         });
       }
-      sessions.push({
-        ...record.session,
-        keikoRevision: record.revision,
-      } as SessionSnapshot);
+      const record = item as components['schemas']['SessionRecord'];
+      sessions.push({ ...record.session, keikoRevision: record.revision } as SessionSnapshot);
     }
-    const pagination = value.pagination as { hasMore?: unknown; nextCursor?: unknown };
+    const pagination = page.pagination;
     if (pagination.hasMore !== true) {
       return NextResponse.json({ sessions, issues: [] }, {
         status: 200,

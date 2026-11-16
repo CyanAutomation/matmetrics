@@ -74,10 +74,9 @@ const {
   getPendingOperationCount,
   getConflictOperationCount,
   getAuthenticationBlockedOperationCount,
-  getRejectedOperationCount,
   getSyncQueueStorageError,
   hasPendingOperations,
-  resumeAuthenticationBlockedOperations,
+  getEligiblePendingOperations,
   queueOperation,
   removeOperationByIdentity,
   setQueue,
@@ -156,7 +155,7 @@ test('queueOperation timestamps operations and preserves insertion order', async
   );
 });
 
-test('queued conflict and authentication issues are separately counted and auth can resume', async () => {
+test('queued conflict and authentication issues are separately counted', () => {
   const conflict = {
     type: 'UPDATE',
     session: makeSession('session-conflict'),
@@ -175,17 +174,6 @@ test('queued conflict and authentication issues are separately counted and auth 
   assert.equal(getConflictOperationCount(), 1);
   assert.equal(getAuthenticationBlockedOperationCount(), 1);
   assert.equal(hasPendingOperations(), false);
-
-  await resumeAuthenticationBlockedOperations();
-
-  assert.deepEqual(getQueue(), [
-    conflict,
-    { type: 'UPDATE', session: authenticationBlocked.session, queuedAt: 101 },
-  ]);
-  assert.equal(getPendingOperationCount(), 1);
-  assert.equal(getConflictOperationCount(), 1);
-  assert.equal(getAuthenticationBlockedOperationCount(), 0);
-  assert.equal(hasPendingOperations(), true);
 });
 
 test('queueOperation uses persisted last queuedAt to recover from stale in-memory state', async () => {
@@ -834,26 +822,25 @@ test('paused operations keep their payload and block later same-session work', a
   assert.equal(hasPendingOperations(), false);
 });
 
-test('authentication recovery leaves rejected operations paused', async () => {
+test('shared eligibility allows independent pending operations and blocks paused session work', () => {
+  const conflict: SyncOperation = {
+    type: 'UPDATE', session: makeSession('conflict'), queuedAt: 1,
+    syncIssue: { type: 'conflict', status: 412 },
+  };
   const auth: SyncOperation = {
-    type: 'CREATE',
-    session: makeSession('session-auth'),
-    queuedAt: 10,
+    type: 'DELETE', id: 'auth', queuedAt: 2, expectedRevision: 6,
     syncIssue: { type: 'authentication', status: 401 },
   };
   const rejected: SyncOperation = {
-    type: 'CREATE',
-    session: makeSession('session-rejected'),
-    queuedAt: 20,
-    syncIssue: { type: 'rejected', status: 400 },
+    type: 'CREATE', session: makeSession('rejected'), queuedAt: 3,
+    syncIssue: { type: 'rejected', status: 422 },
   };
-  resetQueue([auth, rejected]);
+  const dependent = { type: 'UPDATE', session: makeSession('conflict'), queuedAt: 4 } as const;
+  const independent = { type: 'CREATE', session: makeSession('independent'), queuedAt: 5 } as const;
+  const operations = [conflict, auth, rejected, dependent, independent] as SyncOperation[];
 
-  await resumeAuthenticationBlockedOperations();
-
-  assert.equal(getQueue()[0]?.syncIssue, undefined);
-  assert.deepEqual(getQueue()[1]?.syncIssue, { type: 'rejected', status: 400 });
-  assert.equal(getRejectedOperationCount(), 1);
+  assert.deepEqual(getEligiblePendingOperations(operations), [independent]);
+  assert.equal(getEligiblePendingOperations([conflict, auth, rejected]).length, 0);
 });
 
 test('explicit removal deletes only the selected failed operation', async () => {

@@ -23,6 +23,7 @@ import {
   setGitHubSyncStatus,
   updateSession,
   deleteSession,
+  resumeAuthenticationPausedMutations,
   teardownStorageListeners,
 } from './storage';
 import {
@@ -32,6 +33,7 @@ import {
   __testInternals as syncQueueTestInternals,
 } from './sync-queue';
 import type { SyncOperation } from './sync-queue';
+import { getDirtyMutations, hydrateDirtyMutationsFromQueue } from './mutation-state';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
 
@@ -174,6 +176,65 @@ serialTest(
   }
 );
 
+serialTest('failed DELETE with a saved snapshot restores that session and retains its revision', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  const saved = { ...makeSession('delete-snapshot'), keikoRevision: 6 };
+  localStorage.setItem(getScopedStorageKey('matmetrics_sessions'), JSON.stringify([saved]));
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input), window.location.origin);
+    if (url.pathname === '/api/sessions/delete-snapshot') {
+      return Response.json({ error: { code: 'revision_conflict', message: 'stale' }, requestId: 'req' }, { status: 412 });
+    }
+    throw new Error(`Unexpected request: ${url.pathname}`);
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(deleteSession('delete-snapshot', 6));
+    assert.deepEqual(getSessions().map((session) => session.id), ['delete-snapshot']);
+    const failed = getQueue()[0];
+    assert.equal(failed?.type, 'DELETE');
+    assert.equal(failed?.type === 'DELETE' && failed.session?.id, 'delete-snapshot');
+    assert.equal(failed?.expectedRevision, 6);
+    assert.deepEqual(failed?.syncIssue, { type: 'conflict', status: 412 });
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
+serialTest('snapshot-less failed DELETE remains queued when its authoritative refresh fails', async () => {
+  installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  const originalFetch = global.fetch;
+  global.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input), window.location.origin);
+    if (url.pathname === '/api/sessions/legacy-delete') {
+      return Response.json({ error: { code: 'revision_conflict', message: 'stale' }, requestId: 'req' }, { status: 412 });
+    }
+    if (url.pathname === '/api/sessions/list') return new Response(null, { status: 503 });
+    throw new Error(`Unexpected request: ${url.pathname}`);
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(deleteSession('legacy-delete', 3));
+    const failed = getQueue()[0];
+    assert.equal(failed?.type, 'DELETE');
+    assert.equal(failed?.type === 'DELETE' && failed.session, undefined);
+    assert.equal(failed?.expectedRevision, 3);
+    assert.equal(failed?.syncIssue?.type, 'conflict');
+    assert.deepEqual(getSessions(), []);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+    global.fetch = originalFetch;
+  }
+});
+
 serialTest(
   'legacy failed deletes can be discarded after a successful session refresh',
   async () => {
@@ -257,6 +318,74 @@ serialTest(
     }
   }
 );
+
+serialTest('direct authentication resume updates durable and dirty state only for auth-paused work', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  const auth: SyncOperation = {
+    type: 'UPDATE', session: makeSession('auth-resume'), expectedRevision: 8,
+    queuedAt: 10, syncIssue: { type: 'authentication', status: 401 },
+  };
+  const conflict: SyncOperation = {
+    type: 'DELETE', id: 'conflict-resume', expectedRevision: 9,
+    queuedAt: 11, syncIssue: { type: 'conflict', status: 412 },
+  };
+  const rejected: SyncOperation = {
+    type: 'CREATE', session: makeSession('rejected-resume'), queuedAt: 12,
+    syncIssue: { type: 'rejected', status: 422 },
+  };
+  localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify([auth, conflict, rejected]));
+  hydrateDirtyMutationsFromQueue();
+
+  try {
+    await Promise.all([
+      resumeAuthenticationPausedMutations(),
+      resumeAuthenticationPausedMutations(),
+    ]);
+    const queue = getQueue();
+    assert.equal(queue[0]?.syncIssue, undefined);
+    assert.equal(queue[0]?.type === 'UPDATE' && queue[0].expectedRevision, 8);
+    assert.deepEqual(queue[1]?.syncIssue, conflict.syncIssue);
+    assert.deepEqual(queue[2]?.syncIssue, rejected.syncIssue);
+    assert.equal(getDirtyMutations().get('auth-resume')?.syncIssue, undefined);
+    assert.deepEqual(getDirtyMutations().get('conflict-resume')?.syncIssue, conflict.syncIssue);
+    assert.deepEqual(getDirtyMutations().get('rejected-resume')?.syncIssue, rejected.syncIssue);
+
+    await resumeAuthenticationPausedMutations();
+    assert.deepEqual(getQueue(), queue);
+  } finally {
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
+
+serialTest('failed authentication resume persistence keeps in-memory issue markers paused', async () => {
+  const { localStorage } = installBrowserEnv();
+  setActiveUserId('user-1');
+  __resetStorageStateForTests();
+  const auth: SyncOperation = {
+    type: 'UPDATE', session: makeSession('auth-persist-failure'), expectedRevision: 5,
+    queuedAt: 20, syncIssue: { type: 'authentication', status: 403 },
+  };
+  localStorage.setItem(getSyncQueueStorageKey(), JSON.stringify([auth]));
+  hydrateDirtyMutationsFromQueue();
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = (key: string, value: string) => {
+    if (key === getSyncQueueStorageKey()) throw new Error('quota exceeded');
+    originalSetItem(key, value);
+  };
+
+  try {
+    await assert.rejects(resumeAuthenticationPausedMutations());
+    assert.deepEqual(getQueue(), [auth]);
+    assert.deepEqual(getDirtyMutations().get('auth-persist-failure')?.syncIssue, auth.syncIssue);
+  } finally {
+    localStorage.setItem = originalSetItem;
+    teardownStorageListeners();
+    __resetStorageStateForTests();
+  }
+});
 
 function dispatchStorageMutationEvent(
   key: string,

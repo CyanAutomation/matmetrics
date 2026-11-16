@@ -44,6 +44,8 @@ jobs:
           cache: npm
       - name: Install full dependencies (includes devDependencies)
         run: npm ci
+      - name: Verify pinned Keiko contract and generated client
+        run: npm run keiko-api:check
       - name: Validate repository skills
         run: npm run validate:skills
       - name: Test skill validator
