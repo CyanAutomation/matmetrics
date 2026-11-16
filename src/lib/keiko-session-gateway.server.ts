@@ -5,6 +5,7 @@ import { isKeikoRevision, type SessionSnapshot } from './keiko-session-revision'
 import {
   createKeikoApiClient,
   type KeikoCreateSession,
+  type KeikoResponse,
   type KeikoSessionListQuery,
   type KeikoUpdateSession,
 } from './keiko-api/client';
@@ -298,7 +299,7 @@ export async function forwardSessionRequestToKeiko(
       const sessionPath = operation.path.match(/^\/v1\/sessions(?:\/([^/]+))?$/);
       if (sessionPath) {
         const client = createKeikoApiClient(keikoUrl.origin, token);
-        let result;
+        let result: KeikoResponse | undefined;
         if (!sessionPath[1] && operation.method === 'GET') {
           const typedQuery: Record<string, string | number> = Object.fromEntries(query.entries());
           if (typeof typedQuery.effort === 'string') typedQuery.effort = Number(typedQuery.effort);
@@ -319,8 +320,9 @@ export async function forwardSessionRequestToKeiko(
         } else {
           fail(500, 'Invalid Keiko operation');
         }
+        if (!result) fail(500, 'Invalid Keiko operation');
         response = result.response;
-        responseBody = result.body;
+        responseBody = result.facadeResponse;
       } else {
         const headers = new Headers({
           accept: 'application/json',
@@ -338,7 +340,8 @@ export async function forwardSessionRequestToKeiko(
         });
         responseBody = response;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof GatewayError) throw error;
       fail(503, 'Session service is unavailable');
     }
     const body = await responseBody.text();
@@ -352,9 +355,13 @@ export async function forwardSessionRequestToKeiko(
     const etag = response.headers.get('etag');
     const revisionEtag = etag?.match(/^(?:W\/)?("[1-9][0-9]{0,15}(?:-[a-f0-9]{24})?")$/);
     if (revisionEtag) safeHeaders.set('etag', revisionEtag[1]);
-    for (const name of ['retry-after', 'www-authenticate', 'x-request-id']) {
+    for (const name of ['retry-after', 'x-request-id']) {
       const value = response.headers.get(name);
       if (value && value.length <= 256) safeHeaders.set(name, value);
+    }
+    const authenticationChallenge = response.headers.get('www-authenticate');
+    if (authenticationChallenge?.trim().toLowerCase() === 'bearer') {
+      safeHeaders.set('www-authenticate', 'Bearer');
     }
     return new NextResponse(bodylessStatus ? null : body, {
       status: response.status,

@@ -11,7 +11,7 @@ export type KeikoUpdateSession = components['schemas']['UpdateSessionRequest'];
 
 export type KeikoResponse = {
   response: Response;
-  body: Response;
+  facadeResponse: Response;
   error?: KeikoHttpError;
 };
 
@@ -153,14 +153,14 @@ export function createKeikoApiClient(
     return response;
   }
 
-  async function makeKeikoResponse(response: Response, body: Response): Promise<KeikoResponse> {
-    if (response.ok) return { response, body };
+  async function makeKeikoResponse(response: Response, facadeResponse: Response): Promise<KeikoResponse> {
+    if (response.ok) return { response, facadeResponse };
     let envelope: unknown;
     try {
-      envelope = await body.clone().json();
+      envelope = await facadeResponse.clone().json();
     } catch {
       envelope = undefined;
     }
-    return { response, body, error: classifyKeikoError(response, envelope) };
+    return { response, facadeResponse, error: classifyKeikoError(response, envelope) };
   }
 }

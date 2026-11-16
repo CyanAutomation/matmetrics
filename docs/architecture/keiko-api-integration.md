@@ -2,7 +2,7 @@
 
 ## Contract source and pin
 
-Keiko Dojo owns the REST contract in `openapi.yaml`. This MatMetrics revision pins source repository `https://github.com/CyanAutomation/keiko-dojo`, commit `93676b9475657044378b895ac3f30b67a6b3b31b`, file `openapi.yaml`. A byte-for-byte snapshot is stored at `src/lib/keiko-api/openapi.yaml`; `metadata.ts` records the source revision, SHA-256, generator, and command. CI checks the snapshot checksum and regenerates `generated.ts`. Consumers do not follow Keiko `main` implicitly.
+Keiko Dojo owns the REST contract in `openapi.yaml`. This MatMetrics revision pins source repository `https://github.com/CyanAutomation/keiko-dojo`, commit `c0fb39348c0d20a70ae83efa2e20cf2b35cb92bb`, file `openapi.yaml`. A byte-for-byte snapshot is stored at `src/lib/keiko-api/openapi.yaml`; `metadata.ts` records the source revision, SHA-256, generator, and command. CI checks the snapshot checksum and regenerates `generated.ts`. Consumers do not follow Keiko `main` implicitly.
 
 To update the contract, review a Keiko contract commit, copy that commit's `openapi.yaml` snapshot, update its immutable source SHA and checksum in `metadata.ts`, regenerate with `npm run keiko-api:generate`, inspect the generated diff, and run `npm run keiko-api:check`. Do not hand-edit `generated.ts` or transport output.
 
