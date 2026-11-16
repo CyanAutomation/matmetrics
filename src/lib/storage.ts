@@ -12,6 +12,9 @@ import {
   getQueue,
   clearQueue,
   getPendingOperationCount,
+  getConflictOperationCount,
+  getAuthenticationBlockedOperationCount,
+  resumeAuthenticationBlockedOperations,
   hasPendingOperations,
   setQueue,
   getSyncQueueStorageKey,
@@ -35,6 +38,7 @@ import {
 } from './user-preferences';
 import type { UserPreferences } from './types';
 import { normalizeSessionList } from './session-normalization';
+import { keikoIfMatch, type SessionSnapshot } from './keiko-session-revision';
 import {
   initializeSyncLeaseModule,
   setActiveSyncLease,
@@ -118,7 +122,7 @@ function isStorageEventForKey(event: StorageEvent, key: string): boolean {
 }
 
 // Internal state
-let sessionCache: JudoSession[] | null = null;
+let sessionCache: SessionSnapshot[] | null = null;
 let sessionFileIssuesCache: SessionFileIssue[] = [];
 let isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
 let isSyncing = false;
@@ -186,7 +190,7 @@ function emitLeaseTakeoverDiagnostic(
   });
 }
 
-function commitLocalSessions(sessions: JudoSession[]): void {
+function commitLocalSessions(sessions: SessionSnapshot[]): void {
   sessionCache = sessions;
   updateLocalStorageCache(sessions);
 }
@@ -353,11 +357,12 @@ async function syncRequest(
   throw new SyncRequestError(
     `Request failed with status ${response.status}`,
     retryable,
-    retryAfterMs
+    retryAfterMs,
+    response.status
   );
 }
 
-async function parseMutationSession(response: Response): Promise<JudoSession> {
+async function parseMutationSession(response: Response): Promise<SessionSnapshot> {
   const sessions = normalizeSessionList([await response.json()]);
   if (sessions.length !== 1) {
     throw new Error('Mutation response did not contain a valid session');
@@ -366,7 +371,7 @@ async function parseMutationSession(response: Response): Promise<JudoSession> {
 }
 
 function reconcileSuccessfulSession(
-  serverSession: JudoSession,
+  serverSession: SessionSnapshot,
   version: number
 ): void {
   const dirty = getDirtyMutations().get(serverSession.id);
@@ -428,7 +433,7 @@ export function initializeStorage(): void {
   if (typeof window === 'undefined') return;
 
   // Increment generation to invalidate any in‑flight refreshes from a prior auth/config context
-  nextStorageGeneration();
+  const generation = nextStorageGeneration();
   clearScheduledRefresh();
   inFlightRefresh = null;
   inFlightRefreshForce = false;
@@ -452,8 +457,15 @@ export function initializeStorage(): void {
   }
 
   // Try to sync if we have pending operations
-  if (!isGuestMode() && isOnline && hasPendingOperations()) {
-    void syncPendingOperations();
+  if (!isGuestMode() && isOnline) {
+    void resumeAuthenticationBlockedOperations().then(() => {
+      if (isStorageGenerationCurrent(generation) && hasPendingOperations()) {
+        return syncPendingOperations();
+      }
+      if (isStorageGenerationCurrent(generation) && shouldThrottleGitHubRefresh()) {
+        scheduleRefresh({ immediate: true });
+      }
+    });
     return;
   }
 
@@ -479,7 +491,7 @@ export function teardownStorageListeners(): void {
 /**
  * Get all sessions from API (online) or cache (offline)
  */
-export function getSessions(): JudoSession[] {
+export function getSessions(): SessionSnapshot[] {
   if (typeof window === 'undefined') return [];
   const guestMode = isGuestMode();
 
@@ -522,11 +534,12 @@ export function getSessionFileIssues(): SessionFileIssue[] {
  * Save a new session (online -> API, offline -> queue + cache)
  */
 export async function saveSession(
-  session: JudoSession
+  session: SessionSnapshot
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
-  const version = markDirtyMutation({ type: 'CREATE', session });
+  const { keikoRevision: _keikoRevision, ...sessionToCreate } = session;
+  const version = markDirtyMutation({ type: 'CREATE', session: sessionToCreate });
 
   // Update local cache immediately
   const nextSessions = getOptimisticSessions(
@@ -542,7 +555,7 @@ export async function saveSession(
   if (isOnline) {
     // Send to API with GitHub config if available
     const gitHubConfig = getGitHubConfig();
-    const requestBody: any = { ...session };
+    const requestBody: any = { ...sessionToCreate };
     if (gitHubConfig && isGitHubEnabled()) {
       requestBody.gitHubConfig = gitHubConfig;
     }
@@ -562,7 +575,7 @@ export async function saveSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'CREATE', session, queuedAt: version }),
+        () => queueOperation({ type: 'CREATE', session: sessionToCreate, queuedAt: version }),
         session.id,
         version
       );
@@ -577,7 +590,7 @@ export async function saveSession(
   }
 
   // Offline: queue the operation
-  await queueOperation({ type: 'CREATE', session, queuedAt: version });
+  await queueOperation({ type: 'CREATE', session: sessionToCreate, queuedAt: version });
   return { status: 'queued' };
 }
 
@@ -585,7 +598,7 @@ export async function saveSession(
  * Update an existing session (online -> API, offline -> queue + cache)
  */
 export async function updateSession(
-  session: JudoSession
+  session: SessionSnapshot
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
@@ -614,15 +627,18 @@ export async function updateSession(
   if (isOnline) {
     // Send to API with GitHub config if available
     const gitHubConfig = getGitHubConfig();
-    const requestBody: any = { ...session };
+    const { keikoRevision: _keikoRevision, ...sessionToUpdate } = session;
+    const requestBody: any = { ...sessionToUpdate };
     if (gitHubConfig && isGitHubEnabled()) {
       requestBody.gitHubConfig = gitHubConfig;
     }
 
     try {
-      const headers = await getAuthHeaders({
+      const headers = new Headers(await getAuthHeaders({
         'Content-Type': 'application/json',
-      });
+      }));
+      const ifMatch = keikoIfMatch(session.keikoRevision);
+      if (ifMatch) headers.set('If-Match', ifMatch);
       const response = await syncRequest(`/api/sessions/${session.id}`, {
         method: 'PUT',
         headers,
@@ -634,7 +650,12 @@ export async function updateSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        () => queueOperation({ type: 'UPDATE', session, queuedAt: version }),
+        () => queueOperation({
+          type: 'UPDATE',
+          session,
+          expectedRevision: session.keikoRevision,
+          queuedAt: version,
+        }),
         session.id,
         version
       );
@@ -649,21 +670,32 @@ export async function updateSession(
   }
 
   // Offline: queue the operation
-  await queueOperation({ type: 'UPDATE', session, queuedAt: version });
+  await queueOperation({
+    type: 'UPDATE',
+    session,
+    expectedRevision: session.keikoRevision,
+    queuedAt: version,
+  });
   return { status: 'queued' };
 }
 
 /**
  * Delete a session (online -> API, offline -> queue + cache)
  */
-export async function deleteSession(id: string): Promise<MutationResult> {
+export async function deleteSession(
+  id: string,
+  expectedKeikoRevision?: number
+): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
   const version = markDirtyMutation({ type: 'DELETE', id });
 
   // Update local cache immediately
-  const base = getOptimisticSessions(sessionCache ?? getLocalStorageCache());
+  const cachedSessions = sessionCache ?? getLocalStorageCache();
+  const base = getOptimisticSessions(cachedSessions);
   const revisionSha = base.find((session) => session.id === id)?.revisionSha;
+  const keikoRevision =
+    expectedKeikoRevision ?? cachedSessions.find((session) => session.id === id)?.keikoRevision;
   const filtered = base.filter((s) => s.id !== id);
   commitLocalSessions(filtered);
   if (guestMode) {
@@ -684,9 +716,11 @@ export async function deleteSession(id: string): Promise<MutationResult> {
     }
 
     try {
-      const headers = await getAuthHeaders({
+      const headers = new Headers(await getAuthHeaders({
         'Content-Type': 'application/json',
-      });
+      }));
+      const ifMatch = keikoIfMatch(keikoRevision);
+      if (ifMatch) headers.set('If-Match', ifMatch);
       await syncRequest(`/api/sessions/${id}`, {
         method: 'DELETE',
         headers,
@@ -704,6 +738,7 @@ export async function deleteSession(id: string): Promise<MutationResult> {
             type: 'DELETE',
             id,
             revisionSha,
+            expectedRevision: keikoRevision,
             queuedAt: version,
           }),
         id,
@@ -720,7 +755,13 @@ export async function deleteSession(id: string): Promise<MutationResult> {
   }
 
   // Offline: queue the operation
-  await queueOperation({ type: 'DELETE', id, revisionSha, queuedAt: version });
+  await queueOperation({
+    type: 'DELETE',
+    id,
+    revisionSha,
+    expectedRevision: keikoRevision,
+    queuedAt: version,
+  });
   return { status: 'queued' };
 }
 
@@ -792,12 +833,16 @@ export function getSyncStatus(): {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  conflictCount: number;
+  authenticationBlockedCount: number;
 } {
   if (isGuestMode()) {
     return {
       isOnline,
       isSyncing: false,
       pendingCount: 0,
+      conflictCount: 0,
+      authenticationBlockedCount: 0,
     };
   }
 
@@ -805,6 +850,8 @@ export function getSyncStatus(): {
     isOnline,
     isSyncing,
     pendingCount: getPendingOperationCount(),
+    conflictCount: getConflictOperationCount(),
+    authenticationBlockedCount: getAuthenticationBlockedOperationCount(),
   };
 }
 
@@ -817,7 +864,7 @@ export function retryCloudSync(): void {
 // Private helper functions
 // ============================================================================
 
-function getLocalStorageCache(): JudoSession[] {
+function getLocalStorageCache(): SessionSnapshot[] {
   try {
     const stored = localStorage.getItem(getSessionsStorageKey());
     return stored ? normalizeSessionList(JSON.parse(stored)) : [];
@@ -907,7 +954,7 @@ function buildSessionListUrl(
  * Parse the API response and extract sessions and issues.
  */
 function parseSessionListResponse(payload: unknown): {
-  sessions: JudoSession[];
+  sessions: SessionSnapshot[];
   issues: SessionFileIssue[];
 } {
   const sessions = normalizeSessionList(
@@ -927,7 +974,7 @@ function parseSessionListResponse(payload: unknown): {
  * Reconcile dirty mutations against remote sessions.
  * Clears mutations that have been applied upstream.
  */
-function reconcileDirtyMutations(sessions: JudoSession[]): void {
+function reconcileDirtyMutations(sessions: SessionSnapshot[]): void {
   for (const [id, mutation] of getDirtyMutations().entries()) {
     if (mutation.type === 'DELETE') {
       if (!sessions.some((session) => session.id === id)) {
@@ -1292,7 +1339,9 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
 
-      const queue = getQueue();
+      const baseQueue = getQueue().filter((operation) => !operation.syncIssue);
+      let queue = baseQueue;
+      if (queue.length === 0) return;
       const gitHubConfig = getGitHubConfig();
       const gitHubEnabled = isGitHubEnabled();
 
@@ -1300,12 +1349,13 @@ async function syncPendingOperations(): Promise<void> {
       const onAbort = async (remainingOps: SyncOperation[]) => {
         lease.clearHeartbeat();
         if (isStorageGenerationCurrent(generation)) {
-          await setQueue(remainingOps, queue);
+          await setQueue(remainingOps, baseQueue);
         }
       };
 
       // Process each operation in the queue
-      for (const [index, operation] of queue.entries()) {
+      for (let index = 0; index < queue.length; index += 1) {
+        const operation = queue[index];
         const result = await processSingleQueueOperation(
           operation,
           index,
@@ -1321,19 +1371,21 @@ async function syncPendingOperations(): Promise<void> {
           reconcileSuccessfulSession,
           setQueue,
           getAuthHeaders,
-          reconcilePermanentFailure
+          reconcilePermanentFailure,
+          baseQueue
         );
 
         if (!result.shouldContinue) {
           return;
         }
+        queue = result.queue;
       }
 
       // All operations succeeded, clear queue and refresh
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      await clearQueue(queue);
+      await clearQueue(baseQueue);
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {

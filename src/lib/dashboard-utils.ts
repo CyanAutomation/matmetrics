@@ -54,6 +54,13 @@ export function getGuestBadgeLabel(workspaceSource: 'custom' | 'demo'): string {
  * @returns Status text suitable for display or title attribute
  */
 export function getSyncStatusText(syncStatus: SyncStatus): string {
+  if ((syncStatus.conflictCount ?? 0) > 0) {
+    const count = syncStatus.conflictCount ?? 0;
+    return `${count} conflict${count === 1 ? '' : 's'} need review`;
+  }
+  if ((syncStatus.authenticationBlockedCount ?? 0) > 0) {
+    return 'Sign in to sync changes';
+  }
   if (!syncStatus.isOnline) {
     return 'Offline';
   }

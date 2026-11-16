@@ -149,20 +149,12 @@ export async function PUT(
 
     if (isKeikoCutoverUser(user.appUserId)) {
       const path = `/v1/sessions/${encodeURIComponent(id)}`;
-      const current = await forwardSessionRequestToKeiko(request, user, {
-        path,
-        method: 'GET',
-        scope: 'sessions:read',
-      });
-      if (!current.ok) return current;
-      const etag = current.headers.get('etag');
-      if (!etag) return NextResponse.json({ error: 'Session revision is unavailable' }, { status: 502 });
       const response = await forwardSessionRequestToKeiko(request, user, {
         path,
         method: 'PUT',
         scope: ['sessions:read', 'sessions:write'],
         body: session,
-        ifMatch: etag,
+        ifMatch: request.headers.get('if-match') ?? undefined,
       });
       if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
       return keikoSessionRecordResponse(response);
@@ -273,19 +265,11 @@ export async function DELETE(
 
     if (isKeikoCutoverUser(user.appUserId)) {
       const path = `/v1/sessions/${encodeURIComponent(id)}`;
-      const current = await forwardSessionRequestToKeiko(request, user, {
-        path,
-        method: 'GET',
-        scope: 'sessions:read',
-      });
-      if (!current.ok) return current;
-      const etag = current.headers.get('etag');
-      if (!etag) return NextResponse.json({ error: 'Session revision is unavailable' }, { status: 502 });
       const response = await forwardSessionRequestToKeiko(request, user, {
         path,
         method: 'DELETE',
         scope: ['sessions:read', 'sessions:write'],
-        ifMatch: etag,
+        ifMatch: request.headers.get('if-match') ?? undefined,
       });
       if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
       return response;

@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
 import type { AuthenticatedPrincipal } from './server-auth-types';
+import { isKeikoRevision, type SessionSnapshot } from './keiko-session-revision';
 
 const KEIKO_AUDIENCE = 'keiko-dojo-api';
 const SESSION_COOKIE_NAMES = [
@@ -312,8 +313,8 @@ export async function forwardSessionRequestToKeiko(
     const contentType = response.headers.get('content-type');
     if (!bodylessStatus && contentType) safeHeaders.set('content-type', contentType);
     const etag = response.headers.get('etag');
-    const revisionEtag = etag?.match(/^(?:W\/)?"([1-9][0-9]{0,8})"$/);
-    if (revisionEtag) safeHeaders.set('etag', `"${revisionEtag[1]}"`);
+    const revisionEtag = etag?.match(/^(?:W\/)?("[1-9][0-9]{0,15}(?:-[a-f0-9]{24})?")$/);
+    if (revisionEtag) safeHeaders.set('etag', revisionEtag[1]);
     return new NextResponse(bodylessStatus ? null : body, {
       status: response.status,
       headers: safeHeaders,
@@ -343,7 +344,8 @@ export async function keikoSessionRecordResponse(
     const value: unknown = await response.json();
     if (
       !value || typeof value !== 'object' || !('data' in value) ||
-      !value.data || typeof value.data !== 'object' || !('session' in value.data)
+      !value.data || typeof value.data !== 'object' || !('session' in value.data) ||
+      !('revision' in value.data) || !isKeikoRevision(value.data.revision)
     ) {
       return NextResponse.json({ error: 'Session service returned an invalid response' }, {
         status: 502,
@@ -351,7 +353,17 @@ export async function keikoSessionRecordResponse(
       });
     }
     const etag = response.headers.get('etag');
-    return NextResponse.json(value.data.session, {
+    const session = value.data.session;
+    if (!session || typeof session !== 'object' || Array.isArray(session)) {
+      return NextResponse.json({ error: 'Session service returned an invalid response' }, {
+        status: 502,
+        headers: { 'cache-control': 'no-store' },
+      });
+    }
+    return NextResponse.json({
+      ...session,
+      keikoRevision: value.data.revision,
+    }, {
       status: response.status,
       headers: {
         'cache-control': 'no-store',
@@ -371,7 +383,7 @@ export async function listAllKeikoSessions(
   user: AuthenticatedPrincipal,
   filters: URLSearchParams
 ): Promise<NextResponse> {
-  const sessions: unknown[] = [];
+  const sessions: SessionSnapshot[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < 100; page += 1) {
     const query = new URLSearchParams(filters);
@@ -402,9 +414,22 @@ export async function listAllKeikoSessions(
         headers: { 'cache-control': 'no-store' },
       });
     }
-    sessions.push(...value.data.map((record) =>
-      record && typeof record === 'object' && 'session' in record ? record.session : null
-    ).filter((session) => session !== null));
+    for (const record of value.data) {
+      if (
+        !record || typeof record !== 'object' || !('session' in record) ||
+        !('revision' in record) || !isKeikoRevision(record.revision) ||
+        !record.session || typeof record.session !== 'object' || Array.isArray(record.session)
+      ) {
+        return NextResponse.json({ error: 'Session service returned an invalid response' }, {
+          status: 502,
+          headers: { 'cache-control': 'no-store' },
+        });
+      }
+      sessions.push({
+        ...record.session,
+        keikoRevision: record.revision,
+      } as SessionSnapshot);
+    }
     const pagination = value.pagination as { hasMore?: unknown; nextCursor?: unknown };
     if (pagination.hasMore !== true) {
       return NextResponse.json({ sessions, issues: [] }, {
