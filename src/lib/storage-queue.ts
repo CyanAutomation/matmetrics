@@ -18,8 +18,11 @@
  * - Coordinating with lease ownership and dirty mutation tracking
  */
 
-import type { JudoSession, GitHubConfig } from './types';
+import type { GitHubConfig } from './types';
+import type { SessionSnapshot } from './keiko-session-revision';
 import type { SyncOperation } from './sync-queue';
+import type { SyncOperationIssue } from './sync-queue';
+import { keikoIfMatch } from './keiko-session-revision';
 import { clearDirtyMutation } from './mutation-state';
 import {
   hasActiveSyncLeaseOwnership as coreHasActiveSyncLeaseOwnership,
@@ -35,7 +38,8 @@ export class SyncRequestError extends Error {
   constructor(
     message: string,
     public readonly retryable: boolean,
-    public readonly retryAfterMs: number | null = null
+    public readonly retryAfterMs: number | null = null,
+    public readonly status?: number
   ) {
     super(message);
     this.name = 'SyncRequestError';
@@ -78,8 +82,13 @@ function buildOperationRequestBody(
 
   switch (operation.type) {
     case 'CREATE':
-    case 'UPDATE':
       Object.assign(body, operation.session);
+      break;
+    case 'UPDATE':
+      {
+        const { keikoRevision: _keikoRevision, ...session } = operation.session;
+        Object.assign(body, session);
+      }
       break;
     case 'DELETE':
       if (operation.revisionSha) {
@@ -163,20 +172,39 @@ export async function handleOperationError(
   generation: number,
   isStorageGenerationCurrent: (gen: number) => boolean,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,
-  reconcilePermanentFailure: () => Promise<void>
+  reconcilePermanentFailure: () => Promise<void>,
+  baseQueue: SyncOperation[] = queue
 ): Promise<{ retryable: boolean; retryAfterMs: number | null }> {
   if (!(error instanceof SyncRequestError)) {
     // Non-SyncRequestError: assume network error, retryable
     return { retryable: true, retryAfterMs: null };
   }
 
+  const syncIssue: SyncOperationIssue | undefined =
+    error.status === 404 || error.status === 412 || error.status === 428
+      ? { type: 'conflict', status: error.status }
+      : error.status === 401 || error.status === 403
+        ? { type: 'authentication', status: error.status }
+        : undefined;
+  if (syncIssue) {
+    if (isStorageGenerationCurrent(generation)) {
+      const retainedOperations = queue.slice(index).map((queuedOperation, operationIndex) =>
+        operationIndex === 0
+          ? { ...queuedOperation, syncIssue }
+          : queuedOperation
+      );
+      await setQueue(retainedOperations, baseQueue);
+    }
+    return { retryable: false, retryAfterMs: null };
+  }
+
   // Handle permanent failures (mark as synced to avoid retry loop)
   if (!error.retryable) {
-    const remainingOperations = queue.filter((_, i) => i !== index);
+    const remainingOperations = queue.slice(index + 1);
     if (isStorageGenerationCurrent(generation)) {
       const sessionId = getSessionIdFromOperation(operation);
       clearDirtyMutation(sessionId, operation.queuedAt);
-      await setQueue(remainingOperations, queue);
+      await setQueue(remainingOperations, baseQueue);
       if (!isStorageGenerationCurrent(generation)) {
         return { retryable: false, retryAfterMs: null };
       }
@@ -221,12 +249,15 @@ export async function processSingleQueueOperation(
     input: RequestInfo | URL,
     init?: RequestInit
   ) => Promise<Response>,
-  parseMutationSession: (response: Response) => Promise<JudoSession>,
-  reconcileSuccessfulSession: (session: JudoSession, version: number) => void,
+  parseMutationSession: (response: Response) => Promise<SessionSnapshot>,
+  reconcileSuccessfulSession: (session: SessionSnapshot, version: number) => void,
   setQueue: (ops: SyncOperation[], current: SyncOperation[]) => Promise<void>,
-  getAuthHeaders: (extras?: any) => Promise<any>,
-  reconcilePermanentFailure: () => Promise<void>
-): Promise<{ success: boolean; shouldContinue: boolean }> {
+  getAuthHeaders: (extras?: HeadersInit) => Promise<HeadersInit>,
+  reconcilePermanentFailure: () => Promise<void>,
+  baseQueue: SyncOperation[] = queue
+): Promise<{ success: boolean; shouldContinue: boolean; queue: SyncOperation[] }> {
+  let nextQueue = queue;
+
   // Check lease ownership before operation
   if (
     !isStorageGenerationCurrent(generation) ||
@@ -234,7 +265,7 @@ export async function processSingleQueueOperation(
     !coreRenewSyncLease()
   ) {
     await onAbort(queue.slice(index));
-    return { success: false, shouldContinue: false };
+    return { success: false, shouldContinue: false, queue };
   }
 
   try {
@@ -247,12 +278,19 @@ export async function processSingleQueueOperation(
     const url = getOperationUrl(operation);
     const method = getOperationMethod(operation);
 
-    const headers = await getAuthHeaders({
+    const headers = new Headers(await getAuthHeaders({
       'Content-Type': 'application/json',
-    });
+    }));
+    const expectedRevision = operation.type === 'DELETE'
+      ? operation.expectedRevision
+      : operation.type === 'UPDATE'
+        ? operation.expectedRevision ?? operation.session.keikoRevision
+        : undefined;
+    const ifMatch = keikoIfMatch(expectedRevision);
+    if (ifMatch) headers.set('If-Match', ifMatch);
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false };
+      return { success: false, shouldContinue: false, queue };
     }
 
     // Send request
@@ -265,24 +303,52 @@ export async function processSingleQueueOperation(
     if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
       const serverSession = await parseMutationSession(response);
       reconcileSuccessfulSession(serverSession, operation.queuedAt);
-      // Update revision SHAs in queued operations to prevent conflicts
-      for (const queuedOperation of queue.slice(index + 1)) {
+      // Carry the server's new revision into later operations without changing
+      // the queue snapshot used as the storage merge baseline.
+      nextQueue = queue.map((queuedOperation, queuedIndex) => {
+        if (queuedIndex <= index) return queuedOperation;
         if (
           (queuedOperation.type === 'CREATE' ||
             queuedOperation.type === 'UPDATE') &&
           queuedOperation.session.id === serverSession.id
         ) {
-          queuedOperation.session = {
-            ...queuedOperation.session,
-            revisionSha: serverSession.revisionSha,
+          if (queuedOperation.type === 'UPDATE') {
+            return {
+              ...queuedOperation,
+              session: {
+                ...queuedOperation.session,
+                revisionSha: serverSession.revisionSha,
+                ...(typeof serverSession.keikoRevision === 'number'
+                  ? { keikoRevision: serverSession.keikoRevision }
+                  : {}),
+              },
+              ...(typeof serverSession.keikoRevision === 'number'
+                ? { expectedRevision: serverSession.keikoRevision }
+                : {}),
+            };
+          }
+          return {
+            ...queuedOperation,
+            session: {
+              ...queuedOperation.session,
+              revisionSha: serverSession.revisionSha,
+            },
           };
-        } else if (
+        }
+        if (
           queuedOperation.type === 'DELETE' &&
           queuedOperation.id === serverSession.id
         ) {
-          queuedOperation.revisionSha = serverSession.revisionSha;
+          return {
+            ...queuedOperation,
+            revisionSha: serverSession.revisionSha,
+            ...(typeof serverSession.keikoRevision === 'number'
+              ? { expectedRevision: serverSession.keikoRevision }
+              : {}),
+          };
         }
-      }
+        return queuedOperation;
+      });
     }
 
     // Verify lease still owned after operation
@@ -290,14 +356,14 @@ export async function processSingleQueueOperation(
       !isStorageGenerationCurrent(generation) ||
       !coreHasActiveSyncLeaseOwnership()
     ) {
-      await onAbort(queue.slice(index));
-      return { success: false, shouldContinue: false };
+      await onAbort(nextQueue.slice(index));
+      return { success: false, shouldContinue: false, queue: nextQueue };
     }
 
     // Mark mutation as synced
     handleOperationSuccess(operation);
 
-    return { success: true, shouldContinue: true };
+    return { success: true, shouldContinue: true, queue: nextQueue };
   } catch (error) {
     console.error('Error syncing operation', error);
 
@@ -309,11 +375,12 @@ export async function processSingleQueueOperation(
       generation,
       isStorageGenerationCurrent,
       setQueue,
-      reconcilePermanentFailure
+      reconcilePermanentFailure,
+      baseQueue
     );
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false };
+      return { success: false, shouldContinue: false, queue };
     }
 
     // Handle backoff for retryable errors with retry-after header
@@ -325,10 +392,10 @@ export async function processSingleQueueOperation(
     if (retryable) {
       const remainingOperations = queue.slice(index);
       if (isStorageGenerationCurrent(generation)) {
-        await setQueue(remainingOperations, queue);
+        await setQueue(remainingOperations, baseQueue);
       }
     }
 
-    return { success: false, shouldContinue: false };
+    return { success: false, shouldContinue: false, queue };
   }
 }

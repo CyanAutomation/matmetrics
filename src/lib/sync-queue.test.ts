@@ -64,6 +64,11 @@ const {
   clearQueue,
   getSyncQueueStorageKey,
   getQueue,
+  getPendingOperationCount,
+  getConflictOperationCount,
+  getAuthenticationBlockedOperationCount,
+  hasPendingOperations,
+  resumeAuthenticationBlockedOperations,
   queueOperation,
   removeOperationByIdentity,
   setQueue,
@@ -135,6 +140,38 @@ test('queueOperation timestamps operations and preserves insertion order', async
       Number.isFinite(operation.queuedAt)
     )
   );
+});
+
+test('queued conflict and authentication issues are separately counted and auth can resume', async () => {
+  const conflict = {
+    type: 'UPDATE',
+    session: makeSession('session-conflict'),
+    queuedAt: 100,
+    syncIssue: { type: 'conflict', status: 412 },
+  } satisfies Extract<SyncOperation, { type: 'UPDATE' }>;
+  const authenticationBlocked = {
+    type: 'UPDATE',
+    session: makeSession('session-auth-blocked'),
+    queuedAt: 101,
+    syncIssue: { type: 'authentication', status: 401 },
+  } satisfies Extract<SyncOperation, { type: 'UPDATE' }>;
+  resetQueue([conflict, authenticationBlocked]);
+
+  assert.equal(getPendingOperationCount(), 0);
+  assert.equal(getConflictOperationCount(), 1);
+  assert.equal(getAuthenticationBlockedOperationCount(), 1);
+  assert.equal(hasPendingOperations(), false);
+
+  await resumeAuthenticationBlockedOperations();
+
+  assert.deepEqual(getQueue(), [
+    conflict,
+    { type: 'UPDATE', session: authenticationBlocked.session, queuedAt: 101 },
+  ]);
+  assert.equal(getPendingOperationCount(), 1);
+  assert.equal(getConflictOperationCount(), 1);
+  assert.equal(getAuthenticationBlockedOperationCount(), 0);
+  assert.equal(hasPendingOperations(), true);
 });
 
 test('queueOperation uses persisted last queuedAt to recover from stale in-memory state', async () => {
@@ -503,6 +540,45 @@ test('coalesces update then delete into delete', async () => {
 
   assert.deepEqual(getQueue(), [
     { type: 'DELETE', id: 'session-1', queuedAt: 200 },
+  ]);
+});
+
+test('coalescing local updates keeps the revision from the original read', async () => {
+  resetQueue();
+
+  await setQueue(
+    [
+      {
+        type: 'UPDATE',
+        session: { ...makeSession('session-versioned'), keikoRevision: 4 },
+        expectedRevision: 4,
+        queuedAt: 100,
+      } as SyncOperation,
+      {
+        type: 'UPDATE',
+        session: {
+          ...makeSession('session-versioned'),
+          notes: 'latest offline edit',
+          keikoRevision: 7,
+        },
+        expectedRevision: 7,
+        queuedAt: 200,
+      } as SyncOperation,
+    ],
+    []
+  );
+
+  assert.deepEqual(getQueue(), [
+    {
+      type: 'UPDATE',
+      session: {
+        ...makeSession('session-versioned'),
+        notes: 'latest offline edit',
+        keikoRevision: 7,
+      },
+      expectedRevision: 4,
+      queuedAt: 200,
+    },
   ]);
 });
 

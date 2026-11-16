@@ -1,4 +1,5 @@
 import { JudoSession } from './types';
+import type { SessionSnapshot } from './keiko-session-revision';
 import { getScopedStorageKey } from './client-identity';
 
 /**
@@ -51,17 +52,26 @@ function getErrorType(error: unknown): string {
   return typeof error;
 }
 
+export type SyncOperationIssue =
+  | { type: 'conflict'; status: 404 | 412 | 428 }
+  | { type: 'authentication'; status: 401 | 403 };
+
 type SyncOperationPayload =
   | { type: 'CREATE'; session: JudoSession }
-  | { type: 'UPDATE'; session: JudoSession }
-  | { type: 'DELETE'; id: string; revisionSha?: string };
+  | { type: 'UPDATE'; session: SessionSnapshot; expectedRevision?: number }
+  | { type: 'DELETE'; id: string; revisionSha?: string; expectedRevision?: number };
 
-export type SyncOperation = SyncOperationPayload & { queuedAt: number };
+export type SyncOperation = SyncOperationPayload & {
+  queuedAt: number;
+  syncIssue?: SyncOperationIssue;
+};
 
 export type SyncStatus = {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  conflictCount?: number;
+  authenticationBlockedCount?: number;
 };
 
 type SyncOperationInput = SyncOperationPayload | SyncOperation;
@@ -104,6 +114,28 @@ function isValidSyncOperationInput(
     (typeof value.queuedAt === 'number' && Number.isFinite(value.queuedAt));
   if (!hasValidQueuedAt) {
     return false;
+  }
+
+  if (
+    value.expectedRevision !== undefined &&
+    (typeof value.expectedRevision !== 'number' ||
+      !Number.isSafeInteger(value.expectedRevision) ||
+      value.expectedRevision < 1)
+  ) {
+    return false;
+  }
+
+  if (value.syncIssue !== undefined) {
+    if (!isRecord(value.syncIssue) || typeof value.syncIssue.type !== 'string') {
+      return false;
+    }
+    const { type, status } = value.syncIssue;
+    if (
+      !((type === 'conflict' && [404, 412, 428].includes(status as number)) ||
+        (type === 'authentication' && [401, 403].includes(status as number)))
+    ) {
+      return false;
+    }
   }
 
   if (value.type === 'DELETE') {
@@ -196,10 +228,10 @@ function stableStringify(value: unknown): string {
 
 function getOperationPayloadKey(operation: SyncOperationInput): string {
   if (operation.type === 'DELETE') {
-    return `DELETE:${operation.id}:${operation.revisionSha ?? ''}`;
+    return `DELETE:${operation.id}:${operation.revisionSha ?? ''}:${operation.expectedRevision ?? ''}`;
   }
 
-  return `${operation.type}:${stableStringify(operation.session)}`;
+  return `${operation.type}:${stableStringify(operation.session)}:${operation.type === 'UPDATE' ? operation.expectedRevision ?? '' : ''}`;
 }
 
 function getOperationKey(operation: SyncOperationInput): string {
@@ -283,16 +315,33 @@ function mergeConsecutiveOperations(
 
     if (reducedOperation.type === 'UPDATE') {
       if (operation.type === 'DELETE') {
-        reducedOperation = operation;
+        reducedOperation = {
+          ...operation,
+          expectedRevision:
+            reducedOperation.expectedRevision ?? operation.expectedRevision,
+          ...(reducedOperation.syncIssue &&
+          operation.expectedRevision === reducedOperation.expectedRevision
+            ? { syncIssue: reducedOperation.syncIssue }
+            : {}),
+        };
         continue;
       }
 
       // UPDATE followed by UPDATE or CREATE (edge case: treat as UPDATE with latest data)
       if (operation.type === 'UPDATE' || operation.type === 'CREATE') {
+        const expectedRevision =
+          reducedOperation.expectedRevision ??
+          (operation.type === 'UPDATE' ? operation.expectedRevision : undefined);
+        const keepsIssue =
+          reducedOperation.syncIssue &&
+          (operation.type !== 'UPDATE' ||
+            operation.expectedRevision === reducedOperation.expectedRevision);
         reducedOperation = {
           type: 'UPDATE',
           session: operation.session,
+          ...(expectedRevision === undefined ? {} : { expectedRevision }),
           queuedAt: operation.queuedAt,
+          ...(keepsIssue ? { syncIssue: reducedOperation.syncIssue } : {}),
         };
         continue;
       }
@@ -890,12 +939,30 @@ export async function removeOperationByIdentity(
  * Check if there are any pending operations
  */
 export function hasPendingOperations(): boolean {
-  return getQueue().length > 0;
+  return getQueue().some((operation) => !operation.syncIssue);
 }
 
 /**
  * Get the count of pending operations
  */
 export function getPendingOperationCount(): number {
-  return getQueue().length;
+  return getQueue().filter((operation) => !operation.syncIssue).length;
+}
+
+export function getConflictOperationCount(): number {
+  return getQueue().filter((operation) => operation.syncIssue?.type === 'conflict').length;
+}
+
+export function getAuthenticationBlockedOperationCount(): number {
+  return getQueue().filter((operation) => operation.syncIssue?.type === 'authentication').length;
+}
+
+export async function resumeAuthenticationBlockedOperations(): Promise<void> {
+  const queue = getQueue();
+  if (!queue.some((operation) => operation.syncIssue?.type === 'authentication')) return;
+  await setQueue(queue.map((operation) => {
+    if (operation.syncIssue?.type !== 'authentication') return operation;
+    const { syncIssue: _syncIssue, ...resumed } = operation;
+    return resumed;
+  }), queue);
 }
