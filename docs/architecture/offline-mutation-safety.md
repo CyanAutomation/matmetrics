@@ -62,7 +62,23 @@ Older queued deletes may not include the session snapshot added in Phase 1.1.
 The app allows discard only after an authoritative session-list refresh
 succeeds. While offline or when that refresh fails, the operation stays in
 Recovery because the app cannot reconstruct the missing session details from
-the delete entry alone.
+the delete entry alone. The Recovery panel labels this as an unresolved
+deletion and explains that there is no saved session copy; the ordinary history
+does not invent a session when its details are unavailable. A successful
+authoritative refresh repopulates the history when the session still exists.
+The original operation identity and revision remain attached until the user
+discards it after confirmation or otherwise resolves it.
+
+Authentication resume is coordinated by the storage orchestration layer. It
+first persists the removal of authentication-paused markers, then clears only
+matching in-memory authentication issue markers. If persistence fails, the
+dirty state remains paused. Conflicts, permanent rejections, operation
+identity, expected revisions, and account scoping are preserved.
+
+Manual retry uses the same eligibility helper as the queue runner. A failed
+operation blocks later work for its own session, while unrelated sessions
+remain eligible. Conflict and rejection states cannot be bypassed by the Retry
+button.
 
 Keiko writes continue using the originally observed revision in `If-Match`.
 This phase does not fetch a new revision to force a rejected write. Guest

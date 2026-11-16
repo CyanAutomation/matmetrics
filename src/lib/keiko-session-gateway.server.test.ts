@@ -56,7 +56,12 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
   const seen: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
-    seen.push({ url, init });
+    seen.push({
+      url,
+      init: input instanceof Request
+        ? { method: input.method, headers: input.headers }
+        : init,
+    });
     if (url === `${authUrl}/__internal/keiko-token`) {
       return Response.json({ token, scopes: ['sessions:read'] });
     }
@@ -66,6 +71,18 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
         data: [],
         pagination: { hasMore: false, nextCursor: null },
       });
+    }
+    if (url === `${keikoUrl}/v1/sessions/bearer-challenge`) {
+      return Response.json(
+        { error: { code: 'authentication_required', message: 'Denied' }, requestId: 'challenge-1' },
+        { status: 401, headers: { 'www-authenticate': 'Bearer' } }
+      );
+    }
+    if (url === `${keikoUrl}/v1/sessions/untrusted-challenge`) {
+      return Response.json(
+        { error: { code: 'authentication_required', message: 'Denied' }, requestId: 'challenge-2' },
+        { status: 401, headers: { 'www-authenticate': 'Basic realm="unexpected"' } }
+      );
     }
     throw new Error(`Unexpected outbound request: ${url}`);
   }) as typeof fetch;
@@ -119,6 +136,45 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
         const keikoHeaders = new Headers(keikoCall.init?.headers);
         assert.equal(keikoHeaders.get('authorization'), `Bearer ${token}`);
         assert.equal(keikoHeaders.get('cookie'), null);
+
+        const principal = {
+          userId,
+          appUserId: userId,
+          provider: 'better-auth' as const,
+          email: null,
+          displayName: null,
+          emailVerified: true,
+        };
+        const requestHeaders = {
+          authorization: 'Bearer matmetrics-api-token',
+          cookie: '__Secure-better-auth.session_token=session-value',
+          origin: authOrigin,
+          'sec-fetch-site': 'same-origin',
+        };
+        const unsupportedMethod = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/session-smoke`, {
+            method: 'POST', headers: requestHeaders,
+          }),
+          principal,
+          { path: '/v1/sessions/session-smoke', method: 'POST', scope: 'sessions:read' }
+        );
+        assert.equal(unsupportedMethod.status, 500);
+
+        const validChallenge = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/bearer-challenge`, { headers: requestHeaders }),
+          principal,
+          { path: '/v1/sessions/bearer-challenge', method: 'GET', scope: 'sessions:read' }
+        );
+        assert.equal(validChallenge.status, 401);
+        assert.equal(validChallenge.headers.get('www-authenticate'), 'Bearer');
+
+        const invalidChallenge = await forwardSessionRequestToKeiko(
+          new NextRequest(`${authOrigin}/api/sessions/untrusted-challenge`, { headers: requestHeaders }),
+          principal,
+          { path: '/v1/sessions/untrusted-challenge', method: 'GET', scope: 'sessions:read' }
+        );
+        assert.equal(invalidChallenge.status, 401);
+        assert.equal(invalidChallenge.headers.get('www-authenticate'), null);
       },
       {
         CLOUDFLARE_AUTH_WORKER_URL: authUrl,
@@ -244,8 +300,11 @@ test('preserves a bodyless successful DELETE response from Keiko', async () => {
     }
     if (url === deleteJwksUrl) return Response.json({ keys: [publicJwk] });
     if (url === `${keikoUrl}/v1/sessions/session-smoke`) {
-      assert.equal(init?.method, 'DELETE');
-      assert.equal(new Headers(init?.headers).get('if-match'), '"1"');
+      assert.equal(input instanceof Request ? input.method : init?.method, 'DELETE');
+      assert.equal(
+        new Headers(input instanceof Request ? input.headers : init?.headers).get('if-match'),
+        '"1"'
+      );
       return new Response(null, { status: 204 });
     }
     throw new Error(`Unexpected outbound request: ${url}`);

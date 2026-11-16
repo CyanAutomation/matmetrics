@@ -60,13 +60,16 @@ async function withKeikoRoute(
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
-    const method = init?.method ?? 'GET';
-    const headers = new Headers(init?.headers);
+    const method = input instanceof Request ? input.method : init?.method ?? 'GET';
+    const headers = new Headers(input instanceof Request ? input.headers : init?.headers);
+    const body = input instanceof Request
+      ? await input.clone().text()
+      : init?.body === undefined ? undefined : String(init.body);
     requests.push({
       url,
       method,
       headers,
-      ...(init?.body === undefined ? {} : { body: String(init.body) }),
+      ...(body === undefined ? {} : { body }),
     });
     if (url === `${authWorkerUrl}/__internal/keiko-token`) {
       assert.deepEqual(JSON.parse(String(init?.body)), {
