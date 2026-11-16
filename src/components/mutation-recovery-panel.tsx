@@ -10,8 +10,13 @@ import {
   getMutationRecoveryQueue,
   retryCloudSync,
 } from '@/lib/storage';
-import { getSyncQueueStorageError, type SyncOperation } from '@/lib/sync-queue';
+import {
+  getEligiblePendingOperations,
+  getSyncQueueStorageError,
+  type SyncOperation,
+} from '@/lib/sync-queue';
 import { buildMutationRecoveryExport } from '@/lib/mutation-recovery';
+import { getRecoveryOperationLabel } from '@/lib/mutation-recovery-presentation';
 
 type MutationRecoveryPanelProps = {
   onSignIn?: () => void;
@@ -33,22 +38,6 @@ function getOperationSession(
     case 'CREATE':
     case 'UPDATE':
       return operation.session;
-  }
-}
-
-function getIssueLabel(operation: SyncOperation): string {
-  if (!operation.syncIssue) return 'Pending';
-  const status = operation.syncIssue.status
-    ? ` · HTTP ${operation.syncIssue.status}`
-    : '';
-
-  switch (operation.syncIssue.type) {
-    case 'conflict':
-      return `Conflict needs review${status}`;
-    case 'authentication':
-      return `Sign-in required${status}`;
-    case 'rejected':
-      return `Rejected; review or correct${status}`;
   }
 }
 
@@ -82,14 +71,9 @@ export function MutationRecoveryPanel({
 
   const failedOperations = queue.filter((operation) => operation.syncIssue);
   const pendingOperations = queue.filter((operation) => !operation.syncIssue);
-  const pausedSessionIds = new Set(
-    failedOperations.map((operation) =>
-      operation.type === 'DELETE' ? operation.id : operation.session.id
-    )
-  );
-  const retryablePendingCount = pendingOperations.filter((operation) =>
-    pausedSessionIds.has(operation.type === 'DELETE' ? operation.id : operation.session.id)
-  ).length;
+  const eligiblePendingOperations = getEligiblePendingOperations(queue);
+  const eligibleOperationIds = new Set(eligiblePendingOperations.map(getOperationId));
+  const blockedPendingCount = pendingOperations.length - eligiblePendingOperations.length;
 
   if (queue.length === 0 && !storageUnavailable) return null;
 
@@ -174,13 +158,19 @@ export function MutationRecoveryPanel({
                 size="sm"
                 variant="outline"
                 onClick={() => retryCloudSync()}
-                disabled={!isOnline || isSyncing || retryablePendingCount > 0}
+                disabled={!isOnline || isSyncing || eligiblePendingOperations.length === 0}
               >
                 <RotateCw className="mr-2 h-4 w-4" aria-hidden="true" />
-                {retryablePendingCount > 0 ? 'Review blocked changes first' : 'Retry pending changes'}
+                {eligiblePendingOperations.length === 0 ? 'No safe pending changes to retry' : 'Retry pending changes'}
               </Button>
             )}
           </div>
+        )}
+
+        {blockedPendingCount > 0 && eligiblePendingOperations.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Pending changes are waiting behind an earlier conflict, sign-in failure, or rejected operation for the same session. Review that operation before retrying.
+          </p>
         )}
 
         {queue.length > 0 && (
@@ -189,8 +179,7 @@ export function MutationRecoveryPanel({
               const operationId = getOperationId(operation);
               const session = getOperationSession(operation);
               const sessionId = operation.type === 'DELETE' ? operation.id : operation.session.id;
-              const blockedByIssue =
-                !operation.syncIssue && pausedSessionIds.has(sessionId);
+              const blockedByIssue = !operation.syncIssue && !eligibleOperationIds.has(operationId);
               const confirming = confirmingOperationId === operationId;
               return (
                 <li
@@ -206,7 +195,7 @@ export function MutationRecoveryPanel({
                       <p className="text-sm text-muted-foreground">
                         {blockedByIssue
                           ? 'Waiting behind an earlier operation that needs review'
-                          : getIssueLabel(operation)}
+                          : getRecoveryOperationLabel(operation)}
                         {operation.type !== 'CREATE' && operation.expectedRevision !== undefined
                           ? ` · Expected revision ${operation.expectedRevision}`
                           : ''}

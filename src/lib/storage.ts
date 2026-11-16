@@ -15,7 +15,7 @@ import {
   getAuthenticationBlockedOperationCount,
   getRejectedOperationCount,
   getSyncQueueStorageError,
-  resumeAuthenticationBlockedOperations,
+  getEligiblePendingOperations,
   hasPendingOperations,
   setQueue,
   removeOperationByIdentity,
@@ -133,6 +133,7 @@ let sessionFileIssuesCache: SessionFileIssue[] = [];
 let isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
 let isSyncing = false;
 let inFlightSync: Promise<void> | null = null;
+let inFlightAuthenticationResume: Promise<void> | null = null;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
@@ -217,6 +218,33 @@ function nextStorageGeneration(): number {
 
 function isStorageGenerationCurrent(generation: number): boolean {
   return generation === storageGeneration;
+}
+
+/** Resume persisted auth-paused work and its in-memory markers as one operation.
+ * Dirty markers are cleared only after the queue write succeeds.
+ */
+export function resumeAuthenticationPausedMutations(): Promise<void> {
+  if (inFlightAuthenticationResume) return inFlightAuthenticationResume;
+  const generation = storageGeneration;
+  const userId = getActiveUserId();
+  inFlightAuthenticationResume = (async () => {
+    const queue = getQueue();
+    const resumed = queue.filter((operation) => operation.syncIssue?.type === 'authentication');
+    if (!resumed.length) return;
+    await setQueue(queue.map((operation) => {
+      if (operation.syncIssue?.type !== 'authentication') return operation;
+      const { syncIssue: _syncIssue, ...resumedOperation } = operation;
+      return resumedOperation;
+    }), queue);
+    if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
+    for (const operation of resumed) {
+      const id = operation.type === 'DELETE' ? operation.id : operation.session.id;
+      clearAuthenticationMutationIssue(id, operation.queuedAt);
+    }
+  })().finally(() => {
+    inFlightAuthenticationResume = null;
+  });
+  return inFlightAuthenticationResume;
 }
 
 function shouldThrottleGitHubRefresh(): boolean {
@@ -511,12 +539,7 @@ export function initializeStorage(): void {
 
   // Try to sync if we have pending operations
   if (!isGuestMode() && isOnline) {
-    void resumeAuthenticationBlockedOperations().then(() => {
-      for (const operation of getQueue()) {
-        if (operation.syncIssue) continue;
-        const id = operation.type === 'DELETE' ? operation.id : operation.session.id;
-        clearAuthenticationMutationIssue(id, operation.queuedAt);
-      }
+    void resumeAuthenticationPausedMutations().then(() => {
       const optimisticSessions = getOptimisticSessions(getLocalStorageCache());
       commitLocalSessions(optimisticSessions);
       dispatchStorageSync(optimisticSessions);
@@ -526,6 +549,10 @@ export function initializeStorage(): void {
       if (isStorageGenerationCurrent(generation) && shouldThrottleGitHubRefresh()) {
         scheduleRefresh({ immediate: true });
       }
+    }).catch((error: unknown) => {
+      console.error('Unable to resume authentication-paused mutations', {
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
     });
     return;
   }
@@ -1534,18 +1561,7 @@ async function syncPendingOperations(): Promise<void> {
       }
 
       const baseQueue = getQueue();
-      const pausedSessionIds = new Set(
-        baseQueue
-          .filter((operation) => operation.syncIssue)
-          .map((operation) =>
-            operation.type === 'DELETE' ? operation.id : operation.session.id
-          )
-      );
-      const activeQueueSnapshot = baseQueue.filter((operation) => {
-        const sessionId =
-          operation.type === 'DELETE' ? operation.id : operation.session.id;
-        return !operation.syncIssue && !pausedSessionIds.has(sessionId);
-      });
+      const activeQueueSnapshot = getEligiblePendingOperations(baseQueue);
       const inactiveQueue = baseQueue.filter(
         (operation) => !activeQueueSnapshot.includes(operation)
       );
@@ -1641,6 +1657,7 @@ export function __resetStorageStateForTests(): void {
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
+  inFlightAuthenticationResume = null;
   inFlightRefresh = null;
   inFlightRefreshForce = false;
   queuedForcedRefresh = false;

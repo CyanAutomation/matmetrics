@@ -56,7 +56,12 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
   const seen: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
-    seen.push({ url, init });
+    seen.push({
+      url,
+      init: input instanceof Request
+        ? { method: input.method, headers: input.headers }
+        : init,
+    });
     if (url === `${authUrl}/__internal/keiko-token`) {
       return Response.json({ token, scopes: ['sessions:read'] });
     }
@@ -244,8 +249,11 @@ test('preserves a bodyless successful DELETE response from Keiko', async () => {
     }
     if (url === deleteJwksUrl) return Response.json({ keys: [publicJwk] });
     if (url === `${keikoUrl}/v1/sessions/session-smoke`) {
-      assert.equal(init?.method, 'DELETE');
-      assert.equal(new Headers(init?.headers).get('if-match'), '"1"');
+      assert.equal(input instanceof Request ? input.method : init?.method, 'DELETE');
+      assert.equal(
+        new Headers(input instanceof Request ? input.headers : init?.headers).get('if-match'),
+        '"1"'
+      );
       return new Response(null, { status: 204 });
     }
     throw new Error(`Unexpected outbound request: ${url}`);

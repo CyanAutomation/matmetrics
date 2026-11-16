@@ -1064,11 +1064,19 @@ export async function removeOperationByIdentity(
  * Check if there are any pending operations
  */
 export function hasPendingOperations(): boolean {
-  const queue = getQueue();
+  return getEligiblePendingOperations(getQueue()).length > 0;
+}
+
+/** Return pending operations that are not blocked by an earlier failed operation
+ * for the same session. This is shared by the queue runner and recovery UI.
+ */
+export function getEligiblePendingOperations(
+  operations: readonly SyncOperation[]
+): SyncOperation[] {
   const pausedSessions = new Set(
-    queue.filter((operation) => operation.syncIssue).map(getOperationSessionId)
+    operations.filter((operation) => operation.syncIssue).map(getOperationSessionId)
   );
-  return queue.some(
+  return operations.filter(
     (operation) =>
       !operation.syncIssue && !pausedSessions.has(getOperationSessionId(operation))
   );
@@ -1078,14 +1086,7 @@ export function hasPendingOperations(): boolean {
  * Get the count of pending operations
  */
 export function getPendingOperationCount(): number {
-  const queue = getQueue();
-  const pausedSessions = new Set(
-    queue.filter((operation) => operation.syncIssue).map(getOperationSessionId)
-  );
-  return queue.filter(
-    (operation) =>
-      !operation.syncIssue && !pausedSessions.has(getOperationSessionId(operation))
-  ).length;
+  return getEligiblePendingOperations(getQueue()).length;
 }
 
 export function getConflictOperationCount(): number {
@@ -1098,14 +1099,4 @@ export function getAuthenticationBlockedOperationCount(): number {
 
 export function getRejectedOperationCount(): number {
   return getQueue().filter((operation) => operation.syncIssue?.type === 'rejected').length;
-}
-
-export async function resumeAuthenticationBlockedOperations(): Promise<void> {
-  const queue = getQueue();
-  if (!queue.some((operation) => operation.syncIssue?.type === 'authentication')) return;
-  await setQueue(queue.map((operation) => {
-    if (operation.syncIssue?.type !== 'authentication') return operation;
-    const { syncIssue: _syncIssue, ...resumed } = operation;
-    return resumed;
-  }), queue);
 }
