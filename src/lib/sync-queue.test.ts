@@ -240,6 +240,21 @@ test('freezing a create sends the latest pre-attempt coalesced body', async () =
   }
 });
 
+test('freezing an unkeyed legacy create persists the attempted marker by queue identity', async () => {
+  resetQueue();
+  const session = makeSession('legacy-create-freeze');
+  await queueOperation({ type: 'CREATE', session, queuedAt: 350 });
+
+  const queued = getQueue()[0];
+  assert.equal(queued?.type, 'CREATE');
+  if (queued?.type !== 'CREATE') return;
+
+  const attempted = await markCreateOperationAttempted(queued);
+  assert.equal(attempted.idempotencyKey, undefined);
+  assert.equal(attempted.attempted, true);
+  assert.deepEqual(getQueue(), [{ ...queued, attempted: true }]);
+});
+
 test('queued conflict and authentication issues are separately counted', () => {
   const conflict = {
     type: 'UPDATE',

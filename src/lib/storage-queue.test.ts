@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   handleOperationError,
+  classifySyncOperationIssue,
+  parseSafeSyncErrorCode,
   processSingleQueueOperation,
   SyncRequestError,
 } from './storage-queue';
@@ -496,4 +498,25 @@ test('network interruptions remain retryable', async () => {
 
   assert.equal(result.retryable, true);
   assert.equal(result.retryAfterMs, null);
+});
+
+test('sync recovery preserves only recognised bounded server error codes', async () => {
+  const reuseCode = await parseSafeSyncErrorCode(Response.json({
+    error: { code: 'idempotency_key_reuse', message: 'private backend text' },
+  }, { status: 409 }));
+  const untrustedCode = await parseSafeSyncErrorCode(Response.json({
+    error: { code: 'arbitrary_server_message', message: 'do not persist' },
+  }, { status: 409 }));
+  const oversized = new Response('{"error":{"code":"session_conflict"}}', {
+    status: 409,
+    headers: { 'content-length': '9000' },
+  });
+
+  assert.equal(reuseCode, 'idempotency_key_reuse');
+  assert.equal(untrustedCode, undefined);
+  assert.equal(await parseSafeSyncErrorCode(oversized), undefined);
+  assert.deepEqual(
+    classifySyncOperationIssue(new SyncRequestError('409', false, null, 409, reuseCode)),
+    { type: 'conflict', status: 409, code: 'idempotency_key_reuse' }
+  );
 });

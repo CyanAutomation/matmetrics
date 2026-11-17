@@ -30,10 +30,9 @@ verification remains outstanding and must use a dedicated authorised test
 account.
 
 **Follow-up dependencies:** the Companion offline foundation should evaluate
-IndexedDB for drafts and quota resilience. Keiko must define an idempotency
-contract before create replay can resolve ambiguous lost responses or 409
-duplicates automatically. No MatMetrics production deployment is part of this
-phase.
+IndexedDB for drafts and quota resilience. Phase 2B now defines the Keiko
+idempotency contract; its production Worker rollout remains a prerequisite
+before keyed traffic is enabled.
 
 ## Phase 2A — Canonical Keiko contract and Web integration
 
@@ -68,33 +67,48 @@ until Keiko is live. Rollback MatMetrics while retaining the additive ledger;
 never roll back the database schema or delete ledger rows while old clients may
 retry.
 
+**Production check (2026-11-17):** migration 0008 and the unique
+`(user_id, idempotency_key)` table exist in production D1. MatMetrics production
+is at commit `c5a0377cebdcb157adfe5935044de61d6ae2ed50`, but active Keiko
+deployment `a7c66220-8a1d-4326-b7e0-0366b87e68c3` predates the contract and
+does not implement it. Production cutover allowlist is empty, so current users
+are not routed to that unsupported Worker. See
+[`idempotent-create-replay.md`](./idempotent-create-replay.md) for the approved
+Keiko deployment and verification procedure.
+
+## Phase 2B.1 — Durable mutation recovery
+
+Authenticated create operations are persisted before the server create-mode
+probe or first create request. Keiko creates persist their UUID key and frozen
+attempt marker before sending. The authenticated mode endpoint derives
+`legacy`, `keiko-idempotent`, or `keiko-unavailable` from the verified account
+and server rollout flag. Legacy ambiguous creates are held for review instead
+of replayed as if the legacy backend were idempotent. Recognized bounded
+Keiko error codes are preserved and rendered distinctly in Recovery.
+
+The feature switch remains off by default. The Keiko deployment blocker above
+must be resolved before any cutover account is enabled.
+
 ## Phase 2C — Contract and auth-domain readiness
 
-Settle the durable public frontend/auth domain and deployment ownership;
-rehearse account/passkey migration while preserving the current RP ID; decide
-same-origin routing and trusted origins for independently deployed clients;
-and complete consumer compatibility review before future contract changes.
-No Companion, service, production deployment, or migration is part of Phase
-2B.
+**Implementation prepared:** exact configured frontend-origin parsing now
+supports explicitly approved additional origins under one RP ID. The current
+origin, issuer, RP ID, cookie scope, Auth Worker, and production trusted-origin
+list remain unchanged by default. The domain options and pending ownership
+decisions are recorded in
+[`adr-companion-domain-auth.md`](./adr-companion-domain-auth.md); the passkey
+recovery and migration sequence is in
+[`passkey-domain-migration.md`](./passkey-domain-migration.md).
 
-## Phase 2 — Contract and auth-domain readiness
+**Still requires approval:** permanent domain, DNS/routing owner, future RP ID,
+auth service origin/issuer strategy, and staged passkey migration. No Companion,
+new auth Worker deployment, production origin, identity change, or passkey
+operation is part of this phase.
 
-1. Agree a durable public frontend/auth domain before Companion is built.
-2. Test a staged passkey/account migration from the current exact RP ID; preserve
-   the old login host and do not switch RP IDs without a tested recovery path.
-3. Pin a tagged Keiko OpenAPI artifact and establish contract compatibility
-   checks. Generate TypeScript client types from the spec in both consuming
-   repositories; add a package only when duplication justifies distribution.
-4. Decide whether same-origin path routing can support independent Web and
-   Companion releases. If not, design per-origin same-origin proxies and
-   trusted origins without sharing host-only cookies.
-5. Reuse the Keiko idempotency contract for mobile create mutations; do not
-   invent a separate create key format or retention policy.
-
-**Dependencies:** domain/DNS and deployment ownership; auth and passkey test
-accounts; Keiko OpenAPI release process. **Rollback:** keep the current origin,
-RP ID, auth Worker and API facade active; do not move session data as part of
-the auth-domain change.
+**Pre-Companion checklist:** approve the domain and deployment owner; complete
+the staged passkey rehearsal with test accounts; verify independent Web and
+Companion route/caching/PWA scopes; deploy the compatible Keiko Worker; then
+review the Companion foundation plan.
 
 ## Phase 3 — Companion offline client
 
@@ -151,22 +165,26 @@ testing, and Cloudflare operational access. **Rollback:** keep recovery tooling
 read-only until dry-runs and restore rehearsals pass; do not treat a GitHub
 Markdown commit as a D1 snapshot.
 
-## Deployment and rollback for Phase 1
+## Deployment and rollback for Phases 2B.1 and 2C
 
-- No production migration or Worker deployment is part of this branch.
-- Keiko production `0007` is already applied; its latest production Worker
-  deployment was verified at 100% traffic on 2026-10-25. No coordinated Keiko
-  change is needed.
-- Review and merge the MatMetrics PR first. Deploy MatMetrics through the
-  existing Vercel release process only after standard CI and auth/guest/legacy
-  checks pass.
-- Roll back the MatMetrics deployment through the normal Vercel mechanism if
-  form, session history, or queue behavior regresses. This changes no D1 data.
-  Be aware that rolling back the app also removes the newly enforced client
-  revision propagation until the corrected release is restored.
-- Do not alter `KEIKO_SESSION_CUTOVER_USER_IDS`, apply remote migrations, invoke
-  sync-all/reconciliation, change GitHub installations, or delete Worker/D1
-  resources as part of this release.
+- This MatMetrics change does not deploy production code, apply remote
+  migrations, change authentication identity settings, alter DNS, or enable
+  account cutover.
+- Keiko production migration 0008 is already applied. Deploy the reviewed
+  Keiko Worker version that implements the pinned idempotency contract before
+  enabling `KEIKO_IDEMPOTENT_CREATE_ENABLED` or adding a cutover account. The
+  production procedure is in [`idempotent-create-replay.md`](./idempotent-create-replay.md).
+- Keep the production allowlist empty and the create feature switch false
+  until the Keiko deployment is verified. Existing production accounts
+  continue to use legacy routes under the current allowlist state.
+- After review and merge, deploy MatMetrics through the normal Vercel release
+  process. Roll back the frontend normally if queue or Recovery behavior
+  regresses; retain Keiko migration 0008 and all idempotency ledger rows.
+- Do not activate additional Auth Worker origins or change RP ID, issuer,
+  cookie scope, secrets, or production identity configuration as part of this
+  release. Follow the staged plan in
+  [`passkey-domain-migration.md`](./passkey-domain-migration.md) after domain
+  and routing ownership are approved.
 
 ## Explicitly out of scope
 

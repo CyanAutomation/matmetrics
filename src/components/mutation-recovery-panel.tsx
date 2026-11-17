@@ -8,6 +8,7 @@ import type { SessionSnapshot } from '@/lib/keiko-session-revision';
 import {
   discardFailedMutation,
   getMutationRecoveryQueue,
+  retryUnavailableCreate,
   retryCloudSync,
 } from '@/lib/storage';
 import {
@@ -120,6 +121,18 @@ export function MutationRecoveryPanel({
     }
   };
 
+  const retryPausedCreate = async (operation: SyncOperation) => {
+    try {
+      await retryUnavailableCreate(operation);
+      setMessage('MatMetrics rechecked the server route. The saved create remains recoverable until it syncs safely.');
+      setMessageIsError(false);
+      refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The saved create could not be retried.');
+      setMessageIsError(true);
+    }
+  };
+
   return (
     <Alert
       className="space-y-4"
@@ -204,6 +217,17 @@ export function MutationRecoveryPanel({
                     {operation.syncIssue?.type === 'authentication' && onSignIn && (
                       <Button type="button" size="sm" variant="outline" onClick={onSignIn}>
                         Sign in to resume
+                      </Button>
+                    )}
+                    {operation.syncIssue?.code === 'idempotency_unavailable' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!isOnline || isSyncing}
+                        onClick={() => void retryPausedCreate(operation)}
+                      >
+                        Retry when available
                       </Button>
                     )}
                     {operation.syncIssue && !confirming && (

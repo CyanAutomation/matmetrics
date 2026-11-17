@@ -19,15 +19,20 @@ expected revision, and later operations. They do not clear dirty mutation state.
 Later work for the same session stays behind the failed operation, while
 independent sessions can continue. Authentication recovery only resumes
 authentication-paused operations; it does not clear conflict or rejection
-markers. A 409 create remains unresolved because the response cannot establish
-whether an earlier request succeeded or another record owns the ID.
+markers. A 409 create remains recoverable. `idempotency_key_reuse` and
+`session_conflict` are shown separately: the former means the original key was
+associated with different content; the latter means another session already
+owns the requested ID, and neither message claims the prior create succeeded.
 
-Direct online submissions use the same classification. A failed create or
-update remains optimistically visible and is recorded in the queue. A failed
-delete is restored locally with its deletion intent retained. Permanent errors
-are returned to the form so it stays open and does not report a successful
-save. If queue persistence fails, the optimistic cache is rolled back, the
-storage failure is shown, and the form retains its contents.
+Authenticated creates are persisted to the queue before the server mode probe
+or first create request. Keiko creates persist their key and attempted marker
+before sending. A write failure rolls the optimistic cache back, prevents the
+create request, and leaves the form open with a storage error. A mode or
+authentication failure keeps the operation in Recovery; a legacy create that
+may already have been sent is never replayed automatically without
+idempotency. Online updates and deletes retain their existing classification:
+a failed update stays visible in the queue and a failed delete is restored
+locally with its deletion intent retained.
 
 ## User recovery
 
@@ -113,8 +118,9 @@ created, updated, or deleted.
 ## Deferred work and remaining risks
 
 The queue still depends on browser `localStorage`; IndexedDB drafts/outbox,
-quota-pressure recovery, and process-kill rehearsals belong to the Companion
-offline foundation. Create idempotency is also deferred: until Keiko defines
-and enforces an idempotency contract, a 409 or lost create response requires
-manual investigation. This phase does not provide import, automatic merge, or
-server-side restoration.
+quota-pressure recovery, and device-level process-kill rehearsals belong to
+the Companion offline foundation. Keiko create idempotency is implemented in
+source and pinned by MatMetrics, but production traffic must stay off until
+the compatible Keiko Worker deployment is verified. The browser write-ahead
+queue preserves the key and payload across reloads. This phase does not
+provide queue import, automatic conflict merge, or server-side restoration.

@@ -74,11 +74,11 @@ flowchart LR
 6. List consumers use keyset pagination and filters. Use private, user-scoped
    caching only when the client forwards ETags correctly. MatMetrics BFF
    responses remain `no-store`; do not share a cache across identities.
-7. Current `POST` create is not idempotent by operation key: duplicate session
-   ID returns 409. Before Companion has a durable outbox, add an explicit
-   `Idempotency-Key` contract backed by a unique `(user_id, key)` record and
-   request-body digest. Keep update/delete protected by revision checks; a
-   stable mutation ID should make retries observable and deduplicable.
+7. Keiko `POST` create has a Phase 2B idempotency contract backed by a unique
+   `(user_id, key)` record and request-body fingerprint. The active production
+   Worker still needs a verified deployment of that contract before cutover or
+   Companion traffic uses it. Keep update/delete protected by revision checks;
+   a stable mutation ID should make retries observable and deduplicable.
 
 ### Typed SDK strategy
 
@@ -97,11 +97,13 @@ Do not create a new repository or publish a package during Phase 1.
 
 ## Stable domain and passkeys
 
-The current production source configuration uses the exact frontend origin
-`https://matmetrics-teal.vercel.app` as Better Auth origin/issuer and as the
-WebAuthn RP ID. The Auth Worker trusts one frontend origin in
-`workers/matmetrics-auth/src/auth.ts`. Do not add cross-origin cookie access or
-wildcard preview origins.
+The current production Auth Worker uses the exact frontend origin
+`https://matmetrics-teal.vercel.app` as Better Auth base URL, issuer, trusted
+origin, and WebAuthn origin; its RP ID is `matmetrics-teal.vercel.app`. The
+current browser session cookie is host-only. The Auth Worker source now accepts
+additional exact frontend origins only when explicitly configured and when
+they remain under the configured RP ID. No additional origin is enabled by
+default. Do not add parent-domain cookie access or wildcard preview origins.
 
 Before launching Companion, choose and establish a durable branded origin.
 Prefer routing Web and Companion under one stable site origin (for example,

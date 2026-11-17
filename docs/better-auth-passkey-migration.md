@@ -16,6 +16,37 @@ Cloudflare `waitUntil`. Email-dependent auth requests return the same generic
 503 if the sender configuration is missing. Transient send failures are
 retried with an idempotency key and logged if all attempts fail.
 
+## Verified production origin and authentication flow
+
+Read-only verification on 2026-11-17 found the active frontend and browser auth
+origin at `https://matmetrics-teal.vercel.app`. The Auth Worker uses that value
+for Better Auth `baseURL`, JWT issuer, trusted origin, and passkey WebAuthn
+origin; its RP ID is `matmetrics-teal.vercel.app` and JWT audience is
+`matmetrics-api`. The browser calls `/api/auth/*` through the same-origin Next.js
+rewrite. The Worker verifies password or passkey authentication and sets a
+host-only Better Auth session cookie (`__Secure-better-auth.session_token` in
+production; `Path=/`, `HttpOnly`, `Secure`, `SameSite=Lax`, with no `Domain`).
+
+For application APIs, the browser obtains a Better Auth JWT with the
+`matmetrics-api` audience. Next.js verifies it against the Auth Worker JWKS,
+issuer, and audience. Keiko routes then send the matching session cookie and
+verified bearer only to the fixed Auth Worker token-exchange endpoint. The
+Worker requires an exact trusted `Origin`, `Sec-Fetch-Site: same-origin`, a
+valid session, and a bearer identifying the same user before issuing a
+user-scoped `keiko-dojo-api` token with a maximum five-minute lifetime. The
+browser-facing cookie and JWT are never sent to Keiko. The Better Auth session
+defaults to seven days with renewal after one day; the API JWT defaults to 15
+minutes. A Keiko outage does not invalidate or revoke the browser session.
+
+The Auth Worker now validates its public Better Auth URL separately from its
+browser frontend origin. It accepts only exact origins, requires HTTPS in
+production, permits localhost HTTP only in explicit development mode, and
+supports additional origins only when listed explicitly and inside the chosen
+RP ID. The active production allowlist remains the current Vercel origin; no
+new origin, RP ID, issuer, cookie scope, or credential is activated by this
+change. See the [Companion domain ADR](architecture/adr-companion-domain-auth.md)
+and [passkey migration plan](architecture/passkey-domain-migration.md).
+
 ## Production verification
 
 On 2026-10-11, the maintainer confirmed the deployed Worker has its Resend
@@ -35,7 +66,11 @@ In Cloudflare, configure:
 - `MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED=false` until launch.
 - `MATMETRICS_AUTH_SIGNIN_ENABLED=true` and
   `MATMETRICS_PASSKEY_ENROLMENT_ENABLED=true`.
-- The exact frontend origin, WebAuthn RP ID, JWT issuer, and audience.
+- `ENVIRONMENT` as `development` or `production`, the exact frontend origin,
+  WebAuthn RP ID, JWT issuer, and audience.
+- Optionally, `MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS` as a comma-separated
+  list of exact approved HTTPS origins under the RP ID. Leave it empty until
+  domain ownership, routing, CSRF, and passkey compatibility are approved.
 
 In Vercel, configure the auth Worker URL, the same-origin JWKS URL, issuer and
 audience, `NEXT_PUBLIC_BETTER_AUTH_ENABLED=true`,
