@@ -191,6 +191,105 @@ test('forwards only the Better Auth session cookie to the trusted Worker and onl
   }
 });
 
+test('forwards the idempotency key through the typed gateway and preserves its conflict code', async () => {
+  const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
+  const keyId = 'keiko-idempotency-gateway-test-key';
+  const gatewayJwksUrl = `${authOrigin}/api/auth/jwks-idempotency-test`;
+  const publicJwk = { ...(await exportJWK(publicKey)), alg: 'EdDSA', kid: keyId, use: 'sig' };
+  const token = await new SignJWT({ appUserId: userId, scope: 'sessions:write' })
+    .setProtectedHeader({ alg: 'EdDSA', kid: keyId })
+    .setSubject(userId)
+    .setIssuer(issuer)
+    .setAudience('keiko-dojo-api')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey);
+  const originalFetch = globalThis.fetch;
+  const idempotencyKey = crypto.randomUUID();
+  let keikoHeaders = new Headers();
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const headers = input instanceof Request ? input.headers : new Headers(init?.headers);
+    if (url === `${authUrl}/__internal/keiko-token`) {
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        expectedUserId: userId,
+        scopes: ['sessions:write'],
+      });
+      return Response.json({ token, scopes: ['sessions:write'] });
+    }
+    if (url === gatewayJwksUrl) return Response.json({ keys: [publicJwk] });
+    if (url === `${keikoUrl}/v1/sessions`) {
+      keikoHeaders = headers;
+      return Response.json({
+        error: { code: 'idempotency_key_reuse', message: 'Key was used for another request' },
+        requestId: 'keiko-conflict-1',
+      }, { status: 409 });
+    }
+    throw new Error(`Unexpected outbound request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    let response: Response | undefined;
+    await withEnv(async () => {
+      const request = new NextRequest(`${authOrigin}/api/sessions/create`, {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer matmetrics-api-token',
+          cookie: '__Secure-better-auth.session_token=session-value',
+          origin: authOrigin,
+          'sec-fetch-site': 'same-origin',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 'gateway-idempotency-session',
+          date: '2026-11-01',
+          techniques: [],
+          effort: 3,
+          category: 'Technical',
+        }),
+      });
+      response = await forwardSessionRequestToKeiko(request, {
+        userId,
+        appUserId: userId,
+        provider: 'better-auth',
+        email: null,
+        displayName: null,
+        emailVerified: true,
+      }, {
+        path: '/v1/sessions',
+        method: 'POST',
+        scope: 'sessions:write',
+        body: {
+          id: 'gateway-idempotency-session',
+          date: '2026-11-01',
+          techniques: [],
+          effort: 3,
+          category: 'Technical',
+        },
+        idempotencyKey,
+      });
+    }, {
+      CLOUDFLARE_AUTH_WORKER_URL: authUrl,
+      CLOUDFLARE_AUTH_WORKER_HOST: new URL(authUrl).hostname,
+      KEIKO_API_BASE_URL: keikoUrl,
+      MATMETRICS_AUTH_FRONTEND_ORIGIN: authOrigin,
+      MATMETRICS_AUTH_ISSUER: issuer,
+      MATMETRICS_AUTH_JWKS_URL: gatewayJwksUrl,
+      NODE_ENV: 'production',
+    });
+
+    assert.ok(response);
+    assert.equal(response.status, 409);
+    assert.equal(keikoHeaders.get('Idempotency-Key'), idempotencyKey);
+    assert.deepEqual(await response.json(), {
+      error: { code: 'idempotency_key_reuse', message: 'Key was used for another request' },
+      requestId: 'keiko-conflict-1',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('forwards selected-repository GitHub operations using the new Keiko scopes', async () => {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const keyId = 'keiko-github-gateway-test-key';

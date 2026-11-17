@@ -12,7 +12,7 @@ import {
 } from '@/lib/go-function-proxy';
 import { requireAuthenticatedUser } from '@/lib/server-auth';
 import { resolveAuthorizedGitHubConfig } from '@/lib/server-github-authz';
-import { validateSessionPayload } from '@/lib/session-validation';
+import { prepareSessionCreate } from '@/lib/session-create-request';
 import { parseJsonObjectBody } from '@/lib/request-body';
 import { invalidateSessionListCache } from '@/lib/session-list-cache.server';
 import { persistentSessionStorageUnavailableResponse } from '@/lib/session-storage-http';
@@ -21,6 +21,7 @@ import {
   isKeikoCutoverUser,
   keikoSessionRecordResponse,
 } from '@/lib/keiko-session-gateway.server';
+import { isValidIdempotencyKey } from '@/lib/keiko-api/idempotency';
 
 const CREATE_CONFLICT_ERROR =
   'Session conflict: this ID already exists with different content. Use a new ID or update the existing session.';
@@ -40,6 +41,14 @@ export async function POST(request: NextRequest) {
       return user;
     }
 
+    const idempotencyKey = request.headers.get('Idempotency-Key');
+    if (idempotencyKey !== null && !isValidIdempotencyKey(idempotencyKey)) {
+      return NextResponse.json(
+        { error: 'Idempotency-Key must contain 1 to 128 ASCII letters, digits, periods, underscores, tildes, or hyphens' },
+        { status: 400 }
+      );
+    }
+
     const payload = await parseJsonObjectBody(request);
     if (!payload.ok) {
       return NextResponse.json(
@@ -49,22 +58,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = payload.value;
-
-    const validation = validateSessionPayload(body as Record<string, unknown>, {
-      generateIdWhenMissing: true,
-    });
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+    const useKeiko = isKeikoCutoverUser(user.appUserId);
+    const prepared = prepareSessionCreate(
+      body,
+      useKeiko && idempotencyKey !== null
+    );
+    if (!prepared.ok) {
+      return NextResponse.json({ error: prepared.error }, { status: 400 });
     }
 
-    const session: JudoSession = validation.session;
+    const session: JudoSession = prepared.session;
 
-    if (isKeikoCutoverUser(user.appUserId)) {
+    if (useKeiko) {
       const response = await forwardSessionRequestToKeiko(request, user, {
         path: '/v1/sessions',
         method: 'POST',
         scope: 'sessions:write',
-        body: session,
+        body: prepared.keikoBody,
+        ...(idempotencyKey === null ? {} : { idempotencyKey }),
       });
       if (response.ok) invalidateSessionListCache(user.appUserId, undefined);
       return keikoSessionRecordResponse(response);

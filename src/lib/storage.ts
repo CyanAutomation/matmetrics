@@ -18,6 +18,7 @@ import {
   getEligiblePendingOperations,
   hasPendingOperations,
   setQueue,
+  markCreateOperationAttempted,
   removeOperationByIdentity,
   getSyncQueueStorageKey,
   type SyncOperation,
@@ -40,6 +41,7 @@ import {
   saveGitHubSettingsPreference,
 } from './user-preferences';
 import type { UserPreferences } from './types';
+import { createIdempotencyKey } from './keiko-api/idempotency';
 import { normalizeSessionList } from './session-normalization';
 import { keikoIfMatch, type SessionSnapshot } from './keiko-session-revision';
 import {
@@ -641,6 +643,14 @@ export async function saveSession(
     return { status: 'synced' };
   }
 
+  const idempotencyKey = createIdempotencyKey();
+  const createOperation = {
+    type: 'CREATE' as const,
+    session: sessionToCreate,
+    idempotencyKey,
+    queuedAt: version,
+  };
+
   if (isOnline) {
     // Send to API with GitHub config if available
     const gitHubConfig = getGitHubConfig();
@@ -653,9 +663,11 @@ export async function saveSession(
       const headers = await getAuthHeaders({
         'Content-Type': 'application/json',
       });
+      const requestHeaders = new Headers(headers);
+      requestHeaders.set('Idempotency-Key', idempotencyKey);
       const response = await syncRequest('/api/sessions/create', {
         method: 'POST',
-        headers,
+        headers: requestHeaders,
         body: JSON.stringify(requestBody),
       });
       const serverSession = await parseMutationSession(response);
@@ -664,7 +676,7 @@ export async function saveSession(
     } catch (error) {
       return handleMutationSyncFailure(
         error,
-        { type: 'CREATE', session: sessionToCreate, queuedAt: version },
+        { ...createOperation, attempted: true },
         session.id,
         version,
         previousSessions
@@ -681,7 +693,7 @@ export async function saveSession(
 
   // Offline: queue the operation
   await persistOfflineMutation(
-    { type: 'CREATE', session: sessionToCreate, queuedAt: version },
+    createOperation,
     session.id,
     version,
     previousSessions
@@ -1560,7 +1572,7 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
 
-      const baseQueue = getQueue();
+      let baseQueue = getQueue();
       const activeQueueSnapshot = getEligiblePendingOperations(baseQueue);
       const inactiveQueue = baseQueue.filter(
         (operation) => !activeQueueSnapshot.includes(operation)
@@ -1571,10 +1583,13 @@ async function syncPendingOperations(): Promise<void> {
       const gitHubEnabled = isGitHubEnabled();
 
       // Abort handler: clear heartbeat and update queue on lease loss
-      const onAbort = async (remainingOps: SyncOperation[]) => {
+      const onAbort = async (
+        remainingOps: SyncOperation[],
+        mergeBase: SyncOperation[] = baseQueue
+      ) => {
         lease.clearHeartbeat();
         if (isStorageGenerationCurrent(generation)) {
-          await setQueue([...remainingOps, ...inactiveQueue], baseQueue);
+          await setQueue([...remainingOps, ...inactiveQueue], mergeBase);
         }
       };
 
@@ -1597,9 +1612,12 @@ async function syncPendingOperations(): Promise<void> {
           setQueue,
           getAuthHeaders,
           reconcilePermanentFailure,
-          baseQueue
+          baseQueue,
+          () => getEligiblePendingOperations(getQueue()),
+          markCreateOperationAttempted
         );
 
+        baseQueue = result.baseQueue ?? baseQueue;
         if (!result.shouldContinue) {
           shouldContinueWithIndependentOperations =
             result.permanentFailure &&
@@ -1616,6 +1634,7 @@ async function syncPendingOperations(): Promise<void> {
         return;
       }
       await setQueue(inactiveQueue, baseQueue);
+      shouldContinueWithIndependentOperations = hasPendingOperations();
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {

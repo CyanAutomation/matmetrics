@@ -7,6 +7,8 @@ export type RecoveryExportOperation = {
   sessionId: string;
   queuedAt: number;
   expectedRevision?: number;
+  idempotencyKey?: string;
+  attempted?: boolean;
   payload?: Omit<SessionSnapshot, 'keikoRevision' | 'revisionSha'>;
   previousSession?: Omit<SessionSnapshot, 'keikoRevision' | 'revisionSha'>;
   issueCategory?: {
@@ -95,6 +97,12 @@ export function buildMutationRecoveryExport(
 
       return {
         ...common,
+        ...(operation.idempotencyKey === undefined
+          ? {}
+          : { idempotencyKey: operation.idempotencyKey }),
+        ...(operation.attempted === undefined
+          ? {}
+          : { attempted: operation.attempted }),
         payload: safeSessionPayload(operation.session),
       };
     }),

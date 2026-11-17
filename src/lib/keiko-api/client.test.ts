@@ -112,3 +112,42 @@ test('typed client does not log credentials and propagates transport failures', 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('typed create client forwards an optional idempotency key', async () => {
+  const originalFetch = globalThis.fetch;
+  const idempotencyKey = crypto.randomUUID();
+  let requestHeaders = new Headers();
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const request = input instanceof Request ? input : new Request(input);
+    requestHeaders = request.headers;
+    return Response.json({
+      data: {
+        session: {
+          id: 'typed-client-session',
+          date: '2026-11-01',
+          techniques: [],
+          effort: 3,
+          category: 'Technical',
+        },
+        revision: 1,
+      },
+    }, { status: 201, headers: { etag: '"1-0123456789abcdef01234567"' } });
+  }) as typeof fetch;
+
+  try {
+    const client = createKeikoApiClient('https://keiko.example.test', 'keiko-token');
+    const result = await client.createSession({
+      id: 'typed-client-session',
+      date: '2026-11-01',
+      techniques: [],
+      effort: 3,
+      category: 'Technical',
+    }, idempotencyKey);
+
+    assert.equal(result.response.status, 201);
+    assert.equal(requestHeaders.get('Idempotency-Key'), idempotencyKey);
+    assert.equal(requestHeaders.get('Authorization'), 'Bearer keiko-token');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
