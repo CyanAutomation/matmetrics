@@ -978,12 +978,12 @@ serialTest(
       );
       await flushAsyncWork();
 
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: makeSession('session-terminal-failure'),
-        queuedAt: getQueue()[0]?.queuedAt,
-        syncIssue: { type: 'rejected', status: 400 },
-      }]);
+      const [queuedCreate] = getQueue();
+      assertCreateOperation(queuedCreate);
+      assert.deepEqual(queuedCreate.session, makeSession('session-terminal-failure'));
+      assert.equal(typeof queuedCreate.idempotencyKey, 'string');
+      assert.equal(queuedCreate.attempted, true);
+      assert.deepEqual(queuedCreate.syncIssue, { type: 'rejected', status: 400 });
       assert.deepEqual(
         getSessions().map((session) => session.id),
         ['session-terminal-failure']
@@ -1178,12 +1178,12 @@ serialTest(
       await flushAsyncWork();
 
       assert.equal(listRequests, 1);
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: makeSession('session-terminal-failure'),
-        queuedAt: getQueue()[0]?.queuedAt,
-        syncIssue: { type: 'conflict', status: 409 },
-      }]);
+      const [queuedCreate] = getQueue();
+      assertCreateOperation(queuedCreate);
+      assert.deepEqual(queuedCreate.session, makeSession('session-terminal-failure'));
+      assert.equal(typeof queuedCreate.idempotencyKey, 'string');
+      assert.equal(queuedCreate.attempted, true);
+      assert.deepEqual(queuedCreate.syncIssue, { type: 'conflict', status: 409 });
       assert.deepEqual(
         getSessions().map((session) => session.id),
         ['session-terminal-failure']
@@ -1540,6 +1540,61 @@ serialTest(
         getSessions().map((entry) => entry.id),
         ['session-retryable-failure']
       );
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'an uncertain create replays with the same persisted key and clears after success',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('user-idempotent-create');
+    __resetStorageStateForTests();
+
+    const session = makeSession('session-idempotent-replay');
+    const requestKeys: Array<string | null> = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') {
+        requestKeys.push(new Headers(init?.headers).get('Idempotency-Key'));
+        if (requestKeys.length === 1) {
+          return Response.json({ error: 'temporarily unavailable' }, { status: 503 });
+        }
+        return Response.json({ ...session, keikoRevision: 1, revisionSha: 'created-etag' }, {
+          status: 201,
+        });
+      }
+      if (url.pathname === '/api/sessions/list') {
+        return Response.json({ sessions: [{ ...session, keikoRevision: 1 }], issues: [] });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      const result = await saveSession(session);
+      assert.equal(result.status, 'queued');
+      const queued = getQueue()[0];
+      assertCreateOperation(queued);
+      const originalKey = queued.idempotencyKey;
+      assert.match(originalKey ?? '', /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      assert.equal(queued.attempted, true);
+      assert.equal(requestKeys[0], originalKey);
+
+      retryCloudSync();
+      await flushSyncLoopWork();
+
+      assert.equal(requestKeys.length, 2);
+      assert.equal(requestKeys[1], originalKey);
+      assert.deepEqual(getQueue(), []);
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();

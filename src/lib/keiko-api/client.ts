@@ -119,8 +119,13 @@ export function createKeikoApiClient(
       const result = await client.GET('/v1/sessions/{id}', { params: { path: { id } } });
       return makeKeikoResponse(result.response, takeFacadeResponse());
     },
-    async createSession(body: KeikoCreateSession): Promise<KeikoResponse> {
-      const result = await client.POST('/v1/sessions', { body });
+    async createSession(body: KeikoCreateSession, idempotencyKey?: string): Promise<KeikoResponse> {
+      const result = await client.POST('/v1/sessions', {
+        body,
+        ...(idempotencyKey === undefined
+          ? {}
+          : { params: { header: { 'Idempotency-Key': idempotencyKey } } }),
+      });
       return makeKeikoResponse(result.response, takeFacadeResponse());
     },
     async updateSession(id: string, body: KeikoUpdateSession, ifMatch: string | undefined): Promise<KeikoResponse> {

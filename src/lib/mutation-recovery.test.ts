@@ -72,3 +72,24 @@ test('delete recovery export records the deletion intent and captured session', 
   assert.equal(operation?.payload?.date, '2026-11-11');
   assert.deepEqual(operation?.issueCategory, { category: 'conflict', status: 412 });
 });
+
+test('create recovery export preserves the idempotency key and attempted state', () => {
+  const create: SyncOperation = {
+    type: 'CREATE',
+    session: {
+      id: 'session-keyed-recovery',
+      date: '2026-11-11',
+      techniques: [],
+      effort: 3,
+      category: 'Technical',
+    },
+    idempotencyKey: 'create-key-123',
+    attempted: true,
+    queuedAt: 9876,
+  };
+
+  const operation = buildMutationRecoveryExport([create]).operations[0];
+
+  assert.equal(operation?.idempotencyKey, 'create-key-123');
+  assert.equal(operation?.attempted, true);
+});

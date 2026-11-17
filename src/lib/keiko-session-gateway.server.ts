@@ -10,6 +10,7 @@ import {
   type KeikoUpdateSession,
 } from './keiko-api/client';
 import type { components } from './keiko-api/generated';
+import { isValidIdempotencyKey } from './keiko-api/idempotency';
 
 const KEIKO_AUDIENCE = 'keiko-dojo-api';
 const SESSION_COOKIE_NAMES = [
@@ -33,6 +34,7 @@ export type KeikoOperation = {
   scope: string | string[];
   body?: unknown;
   ifMatch?: string;
+  idempotencyKey?: string;
 };
 
 class GatewayError extends Error {
@@ -285,6 +287,13 @@ export async function forwardSessionRequestToKeiko(
   operation: KeikoOperation
 ): Promise<NextResponse> {
   try {
+    if (operation.idempotencyKey !== undefined && (
+      !isValidIdempotencyKey(operation.idempotencyKey) ||
+      operation.method !== 'POST' ||
+      operation.path !== '/v1/sessions'
+    )) {
+      fail(500, 'Invalid Keiko operation');
+    }
     assertSafePath(operation.path);
     const scopes = requestedScopes(operation.scope);
     const query = safeQuery(operation.query);
@@ -306,7 +315,10 @@ export async function forwardSessionRequestToKeiko(
           if (typeof typedQuery.limit === 'string') typedQuery.limit = Number(typedQuery.limit);
           result = await client.listSessions(typedQuery as KeikoSessionListQuery);
         } else if (!sessionPath[1] && operation.method === 'POST') {
-          result = await client.createSession(operation.body as KeikoCreateSession);
+          result = await client.createSession(
+            operation.body as KeikoCreateSession,
+            operation.idempotencyKey
+          );
         } else if (sessionPath[1]) {
           const id = decodeURIComponent(sessionPath[1]);
           if (operation.method === 'GET') result = await client.getSession(id);

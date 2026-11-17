@@ -46,12 +46,36 @@ exchange. The Phase 1.1 recovery follow-ups keep snapshot-less deletes visible,
 resume auth-paused work after durable queue updates, and allow independent safe
 operations to retry.
 
-**Remaining Phase 2B dependencies:** settle the durable public frontend/auth
-domain and deployment ownership; rehearse account/passkey migration while
-preserving the current RP ID; decide same-origin routing and trusted origins for
-independently deployed clients; define Keiko create idempotency before automatic
-replay; and complete consumer compatibility review before contract updates.
-No Companion, service, production deployment, or migration is part of Phase 2A.
+**Implementation complete.** Phase 2B adds the Keiko create idempotency
+contract and the MatMetrics keyed create/replay flow. Its coordinated changes
+are in the Keiko and MatMetrics branches. Deploy the Keiko migration and Worker
+before enabling the MatMetrics client. No production deployment or migration
+was performed as part of this work.
+
+## Phase 2B — Idempotent Session Creation & Safe Offline Replay
+
+**Implementation complete:** Keiko stores a per-user idempotency ledger and the
+immutable original revision-1 result in the same D1 transaction as the session.
+MatMetrics pins that OpenAPI contract, sends one cryptographic key per logical
+create, and preserves it with queued retries and recovery exports. Unattempted
+offline creates can absorb edits; after the first send is persisted, later edits
+stay separate operations. Details and rollout checks are in
+[`idempotent-create-replay.md`](./idempotent-create-replay.md).
+
+**Rollout:** apply Keiko migration 0008 and deploy the Worker before enabling
+MatMetrics code that sends idempotency keys. Keep MatMetrics cutover disabled
+until Keiko is live. Rollback MatMetrics while retaining the additive ledger;
+never roll back the database schema or delete ledger rows while old clients may
+retry.
+
+## Phase 2C — Contract and auth-domain readiness
+
+Settle the durable public frontend/auth domain and deployment ownership;
+rehearse account/passkey migration while preserving the current RP ID; decide
+same-origin routing and trusted origins for independently deployed clients;
+and complete consumer compatibility review before future contract changes.
+No Companion, service, production deployment, or migration is part of Phase
+2B.
 
 ## Phase 2 — Contract and auth-domain readiness
 
@@ -64,8 +88,8 @@ No Companion, service, production deployment, or migration is part of Phase 2A.
 4. Decide whether same-origin path routing can support independent Web and
    Companion releases. If not, design per-origin same-origin proxies and
    trusted origins without sharing host-only cookies.
-5. Plan an explicit Keiko idempotency contract before automatic replay of
-   mobile create mutations.
+5. Reuse the Keiko idempotency contract for mobile create mutations; do not
+   invent a separate create key format or retention policy.
 
 **Dependencies:** domain/DNS and deployment ownership; auth and passkey test
 accounts; Keiko OpenAPI release process. **Rollback:** keep the current origin,
@@ -82,7 +106,8 @@ the auth-domain change.
 4. Export and recover local drafts through app restart, browser process kill,
    storage quota pressure and deployment upgrades.
 
-**Dependencies:** Phase 2 auth/API decisions and Keiko idempotency support.
+**Dependencies:** Phase 2C auth/API decisions and the Phase 2B Keiko
+idempotency support.
 **Rollback:** disable the Companion entry route or release while leaving Keiko
 records and the Web client untouched; never delete queued local drafts during
 rollback.

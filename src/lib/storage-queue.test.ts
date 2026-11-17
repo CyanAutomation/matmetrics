@@ -23,6 +23,127 @@ const operation = {
   queuedAt: 100,
 } as SyncOperation;
 
+test('queued creates replay with their persisted idempotency key', async () => {
+  const idempotencyKey = crypto.randomUUID();
+  const createOperation: SyncOperation = {
+    type: 'CREATE',
+    session: {
+      id: 'idempotent-create',
+      date: '2026-11-01',
+      techniques: ['Uchi mata'],
+      effort: 3,
+      category: 'Technical',
+    },
+    idempotencyKey,
+    queuedAt: 50,
+  };
+  let requestHeaders = new Headers();
+  let persistedQueue: SyncOperation[] = [];
+  const serverSession = {
+    ...createOperation.session,
+    keikoRevision: 1,
+    revisionSha: 'create-etag',
+  };
+  setActiveSyncLease({ mode: 'web-lock', release: () => {} });
+
+  try {
+    await processSingleQueueOperation(
+      createOperation,
+      0,
+      [createOperation],
+      1,
+      null,
+      false,
+      async () => {},
+      () => true,
+      async (_input, init) => {
+        requestHeaders = new Headers(init?.headers);
+        return new Response('{}', { status: 201 });
+      },
+      async () => serverSession,
+      () => {},
+      async () => {},
+      async () => ({}),
+      async () => {},
+      [createOperation],
+      () => persistedQueue,
+      async (queued) => {
+        const marked = { ...queued, attempted: true };
+        persistedQueue = [marked];
+        return marked;
+      }
+    );
+
+    assert.equal(requestHeaders.get('Idempotency-Key'), idempotencyKey);
+    assert.equal(persistedQueue[0]?.type, 'CREATE');
+    if (persistedQueue[0]?.type === 'CREATE') assert.equal(persistedQueue[0].attempted, true);
+  } finally {
+    setActiveSyncLease(null);
+  }
+});
+
+test('a later edit queued during create replay gets the returned Keiko revision', async () => {
+  const idempotencyKey = crypto.randomUUID();
+  const created: SyncOperation = {
+    type: 'CREATE',
+    session: {
+      id: 'inflight-create-edit',
+      date: '2026-11-01',
+      techniques: [],
+      effort: 3,
+      category: 'Technical',
+    },
+    idempotencyKey,
+    queuedAt: 100,
+  };
+  const markedCreate: SyncOperation = { ...created, attempted: true };
+  const laterUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...created.session, notes: 'edited during replay' },
+    queuedAt: 101,
+  };
+  const serverSession = {
+    ...created.session,
+    keikoRevision: 1,
+    revisionSha: 'create-etag',
+  };
+  setActiveSyncLease({ mode: 'web-lock', release: () => {} });
+
+  try {
+    const result = await processSingleQueueOperation(
+      created,
+      0,
+      [created],
+      1,
+      null,
+      false,
+      async () => {},
+      () => true,
+      async () => new Response('{}', { status: 201 }),
+      async () => serverSession,
+      () => {},
+      async () => {},
+      async () => ({}),
+      async () => {},
+      [created],
+      () => [markedCreate, laterUpdate],
+      async () => markedCreate
+    );
+
+    assert.equal(result.queue.length, 2);
+    const nextUpdate = result.queue[1];
+    assert.equal(nextUpdate?.type, 'UPDATE');
+    if (nextUpdate?.type === 'UPDATE') {
+      assert.equal(nextUpdate.expectedRevision, 1);
+      assert.equal(nextUpdate.session.keikoRevision, 1);
+      assert.equal(nextUpdate.session.revisionSha, 'create-etag');
+    }
+    assert.equal(result.baseQueue?.length, 2);
+  } finally {
+    setActiveSyncLease(null);
+  }
+});
+
 test('successful mutations update downstream revisions without mutating the queue snapshot', async () => {
   const created: SyncOperation = {
     type: 'CREATE',
@@ -70,7 +191,10 @@ test('successful mutations update downstream revisions without mutating the queu
       () => {},
       async () => {},
       async () => ({}),
-      async () => {}
+      async () => {},
+      queue,
+      () => queue,
+      async (queued) => queued
     );
 
     assert.deepEqual(queue, originalQueue);
@@ -101,7 +225,9 @@ test('successful mutations update downstream revisions without mutating the queu
       },
       async () => ({}),
       async () => {},
-      queue
+      queue,
+      () => queue,
+      async (queued) => queued
     );
 
     assert.equal(requestIfMatch, '"7"');
