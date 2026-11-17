@@ -1086,7 +1086,8 @@ export async function updateQueue(
 /** Atomically freeze the latest unattempted CREATE payload before its first send. */
 export async function markCreateOperationAttempted(
   operation: Extract<SyncOperation, { type: 'CREATE' }>,
-  expectedUserId?: string
+  expectedUserId?: string,
+  shouldProceed?: () => boolean
 ): Promise<Extract<SyncOperation, { type: 'CREATE' }>> {
   if (typeof window === 'undefined') {
     throw new SyncQueuePersistenceError();
@@ -1096,6 +1097,10 @@ export async function markCreateOperationAttempted(
   try {
     await withQueueWriteLease(() => {
       assertExpectedQueueUser(expectedUserId);
+      if (shouldProceed && !shouldProceed()) {
+        markedOperation = operation;
+        return;
+      }
       const latestQueue = readQueueFromStorage();
       const index = latestQueue.findIndex((queuedOperation) =>
         queuedOperation.type === 'CREATE' &&

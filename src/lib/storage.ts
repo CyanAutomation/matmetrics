@@ -593,7 +593,16 @@ async function persistOfflineMutation(
   context?: { generation: number; userId: string }
 ): Promise<void> {
   try {
-    await queueOperation(operation, context?.userId);
+    await updateQueue((queue) => {
+      if (
+        context &&
+        (!isStorageGenerationCurrent(context.generation) ||
+          getActiveUserId() !== context.userId)
+      ) {
+        return queue;
+      }
+      return [...queue, operation];
+    }, context?.userId);
   } catch (error) {
     if (
       !context ||
@@ -801,6 +810,10 @@ export async function updateSession(
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
+  const mutationContext = {
+    generation: storageGeneration,
+    userId: getActiveUserId(),
+  };
   const previousSessions = getOptimisticSessions(
     sessionCache ?? getLocalStorageCache()
   );
@@ -887,7 +900,8 @@ export async function updateSession(
     },
     session.id,
     version,
-    previousSessions
+    previousSessions,
+    mutationContext
   );
   return { status: 'queued' };
 }
@@ -901,6 +915,10 @@ export async function deleteSession(
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
+  const mutationContext = {
+    generation: storageGeneration,
+    userId: getActiveUserId(),
+  };
   const cachedSessions = sessionCache ?? getLocalStorageCache();
   const previousSessions = getOptimisticSessions(cachedSessions);
   const previousSession = previousSessions.find((session) => session.id === id);
@@ -987,7 +1005,8 @@ export async function deleteSession(
     },
     id,
     version,
-    previousSessions
+    previousSessions,
+    mutationContext
   );
   return { status: 'queued' };
 }
@@ -1725,11 +1744,16 @@ async function syncPendingOperations(
         }
         if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
         baseQueue = await updateQueue(
-          (latestQueue) => prepareCreatesForMode(
-            latestQueue,
-            createMode,
-            createModeFailureIssue
-          ),
+          (latestQueue) => {
+            if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) {
+              return latestQueue;
+            }
+            return prepareCreatesForMode(
+              latestQueue,
+              createMode,
+              createModeFailureIssue
+            );
+          },
           userId
         );
         if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
@@ -1751,7 +1775,11 @@ async function syncPendingOperations(
         setQueue(operations, mergeBase, userId);
       const markCreateForUser = (
         operation: Extract<SyncOperation, { type: 'CREATE' }>
-      ) => markCreateOperationAttempted(operation, userId);
+      ) => markCreateOperationAttempted(
+        operation,
+        userId,
+        () => isStorageGenerationCurrent(generation) && getActiveUserId() === userId
+      );
 
       // Abort handler: clear heartbeat and update queue on lease loss
       const onAbort = async (

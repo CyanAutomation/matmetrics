@@ -235,7 +235,11 @@ serialTest('failed DELETE with a saved snapshot restores that session and retain
     assert.equal(failed?.type, 'DELETE');
     assert.equal(failed?.type === 'DELETE' && failed.session?.id, 'delete-snapshot');
     assert.equal(failed?.expectedRevision, 6);
-    assert.deepEqual(failed?.syncIssue, { type: 'conflict', status: 412 });
+    assert.deepEqual(failed?.syncIssue, {
+      type: 'conflict',
+      status: 412,
+      code: 'revision_conflict',
+    });
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
@@ -1010,9 +1014,8 @@ serialTest(
     try {
       initializeStorage();
 
-      await assert.rejects(
-        saveSession(makeSession('session-terminal-failure'))
-      );
+      const result = await saveSession(makeSession('session-terminal-failure'));
+      assert.equal(result.status, 'queued');
       await flushAsyncWork();
 
       const [queuedCreate] = getQueue();
@@ -1387,14 +1390,13 @@ serialTest(
       getSessions();
       await flushAsyncWork();
 
-      const saveRejection = assert.rejects(
-        saveSession(makeSession('session-terminal-failure'))
-      );
+      const savePromise = saveSession(makeSession('session-terminal-failure'));
       await flushAsyncWork();
 
       resolveFirstList?.(new Response(JSON.stringify([]), { status: 200 }));
 
-      await saveRejection;
+      const saveResult = await savePromise;
+      assert.equal(saveResult.status, 'queued');
       await flushAsyncWork();
       await flushAsyncWork();
 
@@ -1925,10 +1927,17 @@ serialTest(
       await flushSyncLoopWork();
 
       assert.equal(createRequests, 1);
-      assert.deepEqual(getQueue(), [
-        { type: 'CREATE', session: firstSession, queuedAt: 1 },
-        { type: 'CREATE', session: secondSession, queuedAt: 2 },
-      ]);
+      const [failedCreate, laterCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assertCreateOperation(laterCreate);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.deepEqual(failedCreate.session, firstSession);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.equal(laterCreate.queuedAt, 2);
+      assert.deepEqual(laterCreate.session, secondSession);
+      assert.equal(laterCreate.attempted, undefined);
+      assert.match(laterCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -1971,12 +1980,13 @@ serialTest(
       retryCloudSync();
       await flushSyncLoopWork();
 
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: queuedSession,
-        queuedAt: 1,
-        syncIssue: { type: 'rejected', status: 400 },
-      }]);
+      const [failedCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assert.deepEqual(failedCreate.session, queuedSession);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.deepEqual(failedCreate.syncIssue, { type: 'rejected', status: 400 });
       assert.deepEqual(getSessions(), [queuedSession]);
     } finally {
       teardownStorageListeners();
@@ -2025,12 +2035,13 @@ serialTest(
       await flushSyncLoopWork();
 
       assert.equal(createRequests, 2);
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: failedSession,
-        queuedAt: 1,
-        syncIssue: { type: 'rejected', status: 400 },
-      }]);
+      const [failedCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assert.deepEqual(failedCreate.session, failedSession);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.deepEqual(failedCreate.syncIssue, { type: 'rejected', status: 400 });
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -3381,11 +3392,16 @@ serialTest(
     const createPending = new Promise<Response>((resolve) => {
       resolveCreate = resolve;
     });
+    let resolveCreateStarted: (() => void) | undefined;
+    const createStarted = new Promise<void>((resolve) => {
+      resolveCreateStarted = resolve;
+    });
 
     const originalFetch = global.fetch;
     global.fetch = (async (input: string | URL | Request) => {
       const url = String(input);
       if (url.endsWith('/api/sessions/create')) {
+        resolveCreateStarted?.();
         return createPending;
       }
       if (url.includes('/api/sessions/list')) {
@@ -3397,7 +3413,7 @@ serialTest(
     try {
       initializeStorage();
       const savePromise = saveSession(makeSession('session-stale-sync'));
-      await flushAsyncWork();
+      await createStarted;
 
       clearAllData();
       assert.equal(getQueue().length, 0);
