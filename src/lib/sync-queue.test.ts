@@ -78,6 +78,7 @@ const {
   hasPendingOperations,
   getEligiblePendingOperations,
   queueOperation,
+  markCreateOperationAttempted,
   removeOperationByIdentity,
   setQueue,
   SyncQueuePersistenceError,
@@ -153,6 +154,90 @@ test('queueOperation timestamps operations and preserves insertion order', async
       Number.isFinite(operation.queuedAt)
     )
   );
+});
+
+test('coalescing an unattempted create preserves its original idempotency key', async () => {
+  resetQueue();
+  const idempotencyKey = crypto.randomUUID();
+  const original = makeSession('keyed-create');
+
+  await queueOperation({
+    type: 'CREATE',
+    session: original,
+    idempotencyKey,
+    queuedAt: 100,
+  });
+  await queueOperation({
+    type: 'UPDATE',
+    session: { ...original, notes: 'edited before first replay' },
+    queuedAt: 101,
+  });
+
+  const queue = getQueue();
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].type, 'CREATE');
+  if (queue[0].type !== 'CREATE') return;
+  assert.equal(queue[0].idempotencyKey, idempotencyKey);
+  assert.equal(queue[0].session.notes, 'edited before first replay');
+});
+
+test('an attempted idempotent create keeps its original body ahead of later edits', async () => {
+  resetQueue();
+  const idempotencyKey = crypto.randomUUID();
+  const original = makeSession('uncertain-create');
+  const edited = { ...original, notes: 'edit after uncertain create' };
+
+  await queueOperation({
+    type: 'CREATE',
+    session: original,
+    idempotencyKey,
+    attempted: true,
+    queuedAt: 200,
+  });
+  await queueOperation({ type: 'UPDATE', session: edited, queuedAt: 201 });
+
+  const queue = getQueue();
+  assert.equal(queue.length, 2);
+  assert.equal(queue[0].type, 'CREATE');
+  assert.equal(queue[1].type, 'UPDATE');
+  if (queue[0].type !== 'CREATE' || queue[1].type !== 'UPDATE') return;
+  assert.equal(queue[0].idempotencyKey, idempotencyKey);
+  assert.equal(queue[0].attempted, true);
+  assert.equal(queue[0].session.notes, original.notes);
+  assert.equal(queue[1].session.notes, edited.notes);
+});
+
+test('freezing a create sends the latest pre-attempt coalesced body', async () => {
+  resetQueue();
+  const idempotencyKey = crypto.randomUUID();
+  const original = makeSession('create-freeze-race');
+  await queueOperation({
+    type: 'CREATE',
+    session: original,
+    idempotencyKey,
+    queuedAt: 300,
+  });
+  const initialSnapshot = getQueue()[0];
+  await queueOperation({
+    type: 'UPDATE',
+    session: { ...original, notes: 'latest edit before send' },
+    queuedAt: 301,
+  });
+
+  assert.ok(initialSnapshot?.type === 'CREATE');
+  if (initialSnapshot?.type !== 'CREATE') return;
+  const frozen = await markCreateOperationAttempted(initialSnapshot);
+
+  assert.equal(frozen.attempted, true);
+  assert.equal(frozen.session.notes, 'latest edit before send');
+  const persisted = getQueue();
+  assert.equal(persisted.length, 1);
+  assert.ok(persisted[0]?.type === 'CREATE');
+  if (persisted[0]?.type === 'CREATE') {
+    assert.equal(persisted[0].idempotencyKey, idempotencyKey);
+    assert.equal(persisted[0].attempted, true);
+    assert.equal(persisted[0].session.notes, 'latest edit before send');
+  }
 });
 
 test('queued conflict and authentication issues are separately counted', () => {
