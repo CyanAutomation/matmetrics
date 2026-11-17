@@ -66,8 +66,6 @@ test('rejects wildcards, credentials, paths, queries, and lookalike origins', ()
         ...productionConfig,
         MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS: origin,
       }),
-      undefined,
-      origin,
     );
   }
 });

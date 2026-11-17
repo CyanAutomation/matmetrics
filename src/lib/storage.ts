@@ -246,8 +246,7 @@ export function resumeAuthenticationPausedMutations(): Promise<void> {
     inFlightAuthenticationResumeGeneration === generation
   ) return inFlightAuthenticationResume;
 
-  let resumePromise: Promise<void>;
-  resumePromise = (async () => {
+  const resumePromise = (async () => {
     const queue = getQueue();
     const resumed = queue.filter((operation) => operation.syncIssue?.type === 'authentication');
     if (!resumed.length) return;
@@ -1685,8 +1684,7 @@ async function syncPendingOperations(
     emitLeaseTakeoverDiagnostic: emitLeaseTakeoverDiagnostic,
   });
 
-  let syncPromise: Promise<void>;
-  syncPromise = (async () => {
+  const syncPromise = (async () => {
     const generation = storageGeneration;
     const userId = getActiveUserId();
     isSyncing = true;
@@ -1824,11 +1822,6 @@ async function syncPendingOperations(
       if (isStorageGenerationCurrent(generation)) {
         isSyncing = false;
       }
-      if (inFlightSync === syncPromise) {
-        inFlightSync = null;
-        inFlightSyncUserId = null;
-        inFlightSyncGeneration = null;
-      }
       if (
         shouldContinueWithIndependentOperations &&
         isStorageGenerationCurrent(generation) &&
@@ -1842,7 +1835,13 @@ async function syncPendingOperations(
         }, 0);
       }
     }
-  })();
+  })().finally(() => {
+    if (inFlightSync === syncPromise) {
+      inFlightSync = null;
+      inFlightSyncUserId = null;
+      inFlightSyncGeneration = null;
+    }
+  });
   inFlightSync = syncPromise;
   inFlightSyncUserId = getActiveUserId();
   inFlightSyncGeneration = storageGeneration;
