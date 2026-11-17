@@ -97,6 +97,36 @@ test('POST persists the session to local markdown storage when GitHub is not con
   });
 });
 
+test('POST fails closed for a Keiko cutover account until idempotent create is enabled', async () => {
+  const originalCutoverUsers = process.env.KEIKO_SESSION_CUTOVER_USER_IDS;
+  const originalEnabled = process.env.KEIKO_IDEMPOTENT_CREATE_ENABLED;
+  process.env.KEIKO_SESSION_CUTOVER_USER_IDS = 'test-user';
+  process.env.KEIKO_IDEMPOTENT_CREATE_ENABLED = 'false';
+
+  try {
+    const response = await POST(
+      new NextRequest('http://localhost/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer test-token',
+          'content-type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(makeSession('create-keiko-paused')),
+      })
+    );
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: { code: 'idempotency_unavailable' },
+    });
+  } finally {
+    if (originalCutoverUsers === undefined) delete process.env.KEIKO_SESSION_CUTOVER_USER_IDS;
+    else process.env.KEIKO_SESSION_CUTOVER_USER_IDS = originalCutoverUsers;
+    if (originalEnabled === undefined) delete process.env.KEIKO_IDEMPOTENT_CREATE_ENABLED;
+    else process.env.KEIKO_IDEMPOTENT_CREATE_ENABLED = originalEnabled;
+  }
+});
+
 test('POST returns 503 instead of falling back to local files on Vercel Preview', async () => {
   const previousVercel = process.env.VERCEL;
   const previousVercelEnv = process.env.VERCEL_ENV;

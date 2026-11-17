@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { getScopedStorageKey, setActiveUserId } from './client-identity';
+import { getScopedStorageKey, getScopedStorageKeyForUser, setActiveUserId } from './client-identity';
 import {
   __setGitHubRefreshTimingForTests,
   __renewSyncLeaseForTests,
@@ -36,6 +36,43 @@ import type { SyncOperation } from './sync-queue';
 import { getDirtyMutations, hydrateDirtyMutationsFromQueue } from './mutation-state';
 import type { JudoSession } from './types';
 import { DEFAULT_USER_PREFERENCES } from './user-preferences';
+
+// Storage tests use a controlled authenticated server capability. Keep the
+// capability probe out of each individual mutation fixture so each fixture
+// can focus on its own POST/list behavior.
+const originalFetchImpl = globalThis.fetch;
+let fetchImpl = originalFetchImpl;
+let createModeRequestCount = 0;
+let createModeForTests = 'keiko-idempotent';
+let createModeRequestOverride:
+  | ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>)
+  | null = null;
+const wrappedFetchTargets = new WeakMap<typeof fetch, typeof fetch>();
+Object.defineProperty(globalThis, 'fetch', {
+  configurable: true,
+  get() {
+    const delegate = fetchImpl;
+    const wrapped = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/sessions/create-mode') {
+        createModeRequestCount += 1;
+        if (createModeRequestOverride) {
+          return createModeRequestOverride(input, init);
+        }
+        return Response.json(
+          { mode: createModeForTests },
+          { headers: { 'x-matmetrics-session-create-mode': createModeForTests } }
+        );
+      }
+      return delegate(input, init);
+    }) as typeof fetch;
+    wrappedFetchTargets.set(wrapped, delegate);
+    return wrapped;
+  },
+  set(value: typeof fetch) {
+    fetchImpl = wrappedFetchTargets.get(value) ?? value;
+  },
+});
 
 function serialTest(name: string, fn: any): ReturnType<typeof test> {
   return test(name, { concurrency: false }, fn);
@@ -198,7 +235,11 @@ serialTest('failed DELETE with a saved snapshot restores that session and retain
     assert.equal(failed?.type, 'DELETE');
     assert.equal(failed?.type === 'DELETE' && failed.session?.id, 'delete-snapshot');
     assert.equal(failed?.expectedRevision, 6);
-    assert.deepEqual(failed?.syncIssue, { type: 'conflict', status: 412 });
+    assert.deepEqual(failed?.syncIssue, {
+      type: 'conflict',
+      status: 412,
+      code: 'revision_conflict',
+    });
   } finally {
     teardownStorageListeners();
     __resetStorageStateForTests();
@@ -973,9 +1014,8 @@ serialTest(
     try {
       initializeStorage();
 
-      await assert.rejects(
-        saveSession(makeSession('session-terminal-failure'))
-      );
+      const result = await saveSession(makeSession('session-terminal-failure'));
+      assert.equal(result.status, 'queued');
       await flushAsyncWork();
 
       const [queuedCreate] = getQueue();
@@ -1123,6 +1163,190 @@ serialTest(
 );
 
 serialTest(
+  'online queue write failure prevents the first create request',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+    let createRequests = 0;
+    createModeRequestCount = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') createRequests += 1;
+      return Response.json({ error: { code: 'unavailable' } }, { status: 503 });
+    }) as typeof fetch;
+
+    const originalSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = (key: string, value: string) => {
+      if (key === getSyncQueueStorageKey()) {
+        const error = new Error('quota');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
+      originalSetItem(key, value);
+    };
+
+    try {
+      await assert.rejects(
+        saveSession(makeSession('session-online-storage-write-failed')),
+        (error: unknown) => {
+          assert.equal((error as { name?: string }).name, 'SyncQueuePersistenceError');
+          return true;
+        }
+      );
+
+      assert.equal(createRequests, 0);
+      assert.equal(createModeRequestCount, 0);
+      assert.deepEqual(getQueue(), []);
+      assert.deepEqual(getSessions(), []);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'account switch during create-mode lookup leaves the write-ahead record with its owner and sends no request',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-a');
+    __resetStorageStateForTests();
+    let releaseMode: ((response: Response) => void) | undefined;
+    const modeResponse = new Promise<Response>((resolve) => {
+      releaseMode = resolve;
+    });
+    let resolveModeStarted: (() => void) | undefined;
+    const modeStarted = new Promise<void>((resolve) => {
+      resolveModeStarted = resolve;
+    });
+    let createRequests = 0;
+    createModeRequestOverride = () => {
+      resolveModeStarted?.();
+      return modeResponse;
+    };
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') createRequests += 1;
+      return Response.json({}, { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      const save = saveSession(makeSession('session-account-switch-write-ahead'));
+      await modeStarted;
+      assert.equal(
+        JSON.parse(localStorage.getItem(getScopedStorageKeyForUser('matmetrics_sync_queue', 'user-a')) ?? '[]').length,
+        1
+      );
+
+      setActiveUserId('user-b');
+      initializeStorage();
+      releaseMode?.(Response.json(
+        { mode: 'keiko-idempotent' },
+        { headers: { 'x-matmetrics-session-create-mode': 'keiko-idempotent' } }
+      ));
+      await save;
+      await flushSyncLoopWork();
+
+      assert.equal(createRequests, 0);
+      assert.deepEqual(getQueue(), []);
+      const ownerQueue = JSON.parse(
+        localStorage.getItem(getScopedStorageKeyForUser('matmetrics_sync_queue', 'user-a')) ?? '[]'
+      );
+      assert.equal(ownerQueue.length, 1);
+      assert.equal(ownerQueue[0].session.id, 'session-account-switch-write-ahead');
+      assert.equal(ownerQueue[0].attempted, undefined);
+    } finally {
+      createModeRequestOverride = null;
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'legacy online create removes its unused key before the first send',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('legacy-user');
+    __resetStorageStateForTests();
+    createModeForTests = 'legacy';
+    let sentIdempotencyKey: string | null = 'not-requested';
+    const session = makeSession('session-legacy-create');
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') {
+        sentIdempotencyKey = new Headers(init?.headers).get('Idempotency-Key');
+        return Response.json(session, { status: 201 });
+      }
+      if (url.pathname === '/api/sessions/list') return Response.json([session]);
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }) as typeof fetch;
+
+    try {
+      assert.equal((await saveSession(session)).status, 'synced');
+      assert.equal(sentIdempotencyKey, null);
+      assert.deepEqual(getQueue(), []);
+    } finally {
+      createModeForTests = 'keiko-idempotent';
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'ambiguous legacy create is retained for review and is not replayed automatically',
+  async () => {
+    installBrowserEnv();
+    setActiveUserId('legacy-user');
+    __resetStorageStateForTests();
+    createModeForTests = 'legacy';
+    let createRequests = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') {
+        createRequests += 1;
+        assert.equal(new Headers(init?.headers).get('Idempotency-Key'), null);
+        return Response.json({ error: 'temporary failure' }, { status: 503 });
+      }
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }) as typeof fetch;
+
+    try {
+      const session = makeSession('session-legacy-ambiguous');
+      assert.equal((await saveSession(session)).status, 'queued');
+      const [operation] = getQueue();
+      assertCreateOperation(operation);
+      assert.equal(operation.idempotencyKey, undefined);
+      assert.equal(operation.attempted, true);
+      assert.deepEqual(operation.syncIssue, {
+        type: 'rejected',
+        status: 503,
+        code: 'idempotency_not_supported',
+      });
+
+      retryCloudSync();
+      await flushSyncLoopWork();
+      assert.equal(createRequests, 1);
+      assert.equal(getQueue().length, 1);
+    } finally {
+      createModeForTests = 'keiko-idempotent';
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
   'permanent create rejection keeps the attempted payload through a stale in-flight refresh',
   async () => {
     installBrowserEnv();
@@ -1166,14 +1390,13 @@ serialTest(
       getSessions();
       await flushAsyncWork();
 
-      const saveRejection = assert.rejects(
-        saveSession(makeSession('session-terminal-failure'))
-      );
+      const savePromise = saveSession(makeSession('session-terminal-failure'));
       await flushAsyncWork();
 
       resolveFirstList?.(new Response(JSON.stringify([]), { status: 200 }));
 
-      await saveRejection;
+      const saveResult = await savePromise;
+      assert.equal(saveResult.status, 'queued');
       await flushAsyncWork();
       await flushAsyncWork();
 
@@ -1604,6 +1827,67 @@ serialTest(
 );
 
 serialTest(
+  'a process restart replays the write-ahead create with its frozen key and payload',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-create-restart');
+    __resetStorageStateForTests();
+
+    const session = makeSession('session-create-restart');
+    const sentKeys: Array<string | null> = [];
+    const persistedBeforeSend: SyncOperation[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === '/api/sessions/create') {
+        sentKeys.push(new Headers(init?.headers).get('Idempotency-Key'));
+        const queued = getQueue();
+        persistedBeforeSend.push(...queued);
+        assert.ok(queued.some((operation) =>
+          operation.type === 'CREATE' &&
+          operation.session.id === session.id &&
+          operation.attempted === true &&
+          operation.idempotencyKey === sentKeys.at(-1)
+        ));
+        if (sentKeys.length === 1) throw new TypeError('browser process ended after send');
+        return Response.json({ ...session, keikoRevision: 1 }, { status: 201 });
+      }
+      if (url.pathname === '/api/sessions/list') {
+        return Response.json({ sessions: [{ ...session, keikoRevision: 1 }], issues: [] });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      initializeStorage();
+      const firstResult = await saveSession(session);
+      assert.equal(firstResult.status, 'queued');
+      assert.equal(sentKeys.length, 1);
+      const firstCreate = persistedBeforeSend[0];
+      assertCreateOperation(firstCreate);
+      assert.equal(firstCreate.attempted, true);
+      assert.equal(firstCreate.session.notes, session.notes);
+
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      initializeStorage();
+      await flushSyncLoopWork();
+
+      assert.equal(sentKeys.length, 2);
+      assert.ok(sentKeys[0]);
+      assert.equal(sentKeys[1], sentKeys[0]);
+      assert.deepEqual(getQueue(), []);
+      assert.deepEqual(getSessions().map((entry) => entry.id), [session.id]);
+      assert.ok(localStorage.length > 0);
+    } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
   '429 replay failure keeps failed and later queued operations',
   async () => {
     const { localStorage } = installBrowserEnv();
@@ -1643,10 +1927,17 @@ serialTest(
       await flushSyncLoopWork();
 
       assert.equal(createRequests, 1);
-      assert.deepEqual(getQueue(), [
-        { type: 'CREATE', session: firstSession, queuedAt: 1 },
-        { type: 'CREATE', session: secondSession, queuedAt: 2 },
-      ]);
+      const [failedCreate, laterCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assertCreateOperation(laterCreate);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.deepEqual(failedCreate.session, firstSession);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.equal(laterCreate.queuedAt, 2);
+      assert.deepEqual(laterCreate.session, secondSession);
+      assert.equal(laterCreate.attempted, undefined);
+      assert.match(laterCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -1689,12 +1980,13 @@ serialTest(
       retryCloudSync();
       await flushSyncLoopWork();
 
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: queuedSession,
-        queuedAt: 1,
-        syncIssue: { type: 'rejected', status: 400 },
-      }]);
+      const [failedCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assert.deepEqual(failedCreate.session, queuedSession);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.deepEqual(failedCreate.syncIssue, { type: 'rejected', status: 400 });
       assert.deepEqual(getSessions(), [queuedSession]);
     } finally {
       teardownStorageListeners();
@@ -1743,12 +2035,13 @@ serialTest(
       await flushSyncLoopWork();
 
       assert.equal(createRequests, 2);
-      assert.deepEqual(getQueue(), [{
-        type: 'CREATE',
-        session: failedSession,
-        queuedAt: 1,
-        syncIssue: { type: 'rejected', status: 400 },
-      }]);
+      const [failedCreate] = getQueue();
+      assertCreateOperation(failedCreate);
+      assert.deepEqual(failedCreate.session, failedSession);
+      assert.equal(failedCreate.queuedAt, 1);
+      assert.equal(failedCreate.attempted, true);
+      assert.match(failedCreate.idempotencyKey ?? '', /^[0-9a-f-]{36}$/i);
+      assert.deepEqual(failedCreate.syncIssue, { type: 'rejected', status: 400 });
     } finally {
       teardownStorageListeners();
       __resetStorageStateForTests();
@@ -3099,11 +3392,16 @@ serialTest(
     const createPending = new Promise<Response>((resolve) => {
       resolveCreate = resolve;
     });
+    let resolveCreateStarted: (() => void) | undefined;
+    const createStarted = new Promise<void>((resolve) => {
+      resolveCreateStarted = resolve;
+    });
 
     const originalFetch = global.fetch;
     global.fetch = (async (input: string | URL | Request) => {
       const url = String(input);
       if (url.endsWith('/api/sessions/create')) {
+        resolveCreateStarted?.();
         return createPending;
       }
       if (url.includes('/api/sessions/list')) {
@@ -3115,7 +3413,7 @@ serialTest(
     try {
       initializeStorage();
       const savePromise = saveSession(makeSession('session-stale-sync'));
-      await flushAsyncWork();
+      await createStarted;
 
       clearAllData();
       assert.equal(getQueue().length, 0);

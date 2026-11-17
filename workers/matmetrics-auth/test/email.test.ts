@@ -22,6 +22,36 @@ describe('auth email delivery', () => {
     expect(isSafeAuthEmailUrl('not a URL')).toBe(false);
   });
 
+  it('allows callback redirects only to explicitly trusted frontend origins', () => {
+    const previousValues = {
+      publicUrl: env.MATMETRICS_AUTH_PUBLIC_URL,
+      frontendOrigin: env.MATMETRICS_AUTH_FRONTEND_ORIGIN,
+      rpId: env.MATMETRICS_AUTH_RP_ID,
+      additionalOrigins: env.MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS,
+    };
+    env.MATMETRICS_AUTH_PUBLIC_URL = 'https://auth.example.test';
+    env.MATMETRICS_AUTH_FRONTEND_ORIGIN = 'https://app.example.test';
+    env.MATMETRICS_AUTH_RP_ID = 'example.test';
+    env.MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS = 'https://companion.example.test';
+
+    try {
+      const authUrl = (callback: string) => {
+        const url = new URL('/api/auth/verify-email?token=test', env.MATMETRICS_AUTH_PUBLIC_URL);
+        url.searchParams.set('callbackURL', callback);
+        return url.toString();
+      };
+
+      expect(isSafeAuthEmailUrl(authUrl('https://app.example.test/'))).toBe(true);
+      expect(isSafeAuthEmailUrl(authUrl('https://companion.example.test/'))).toBe(true);
+      expect(isSafeAuthEmailUrl(authUrl('https://attacker.example.test/'))).toBe(false);
+    } finally {
+      env.MATMETRICS_AUTH_PUBLIC_URL = previousValues.publicUrl;
+      env.MATMETRICS_AUTH_FRONTEND_ORIGIN = previousValues.frontendOrigin;
+      env.MATMETRICS_AUTH_RP_ID = previousValues.rpId;
+      env.MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS = previousValues.additionalOrigins ?? '';
+    }
+  });
+
   it('retries transient Resend failures with the same idempotency key', async () => {
     const previousApiKey = env.RESEND_API_KEY;
     const previousSender = env.MATMETRICS_AUTH_EMAIL_FROM;

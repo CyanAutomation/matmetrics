@@ -1,5 +1,6 @@
 import { env, waitUntil } from 'cloudflare:workers';
 import { Resend } from 'resend';
+import { getTrustedAuthOriginConfiguration } from '../../../src/lib/trusted-auth-origins';
 
 export type AuthEmailKind = 'verification' | 'password-reset';
 
@@ -81,26 +82,11 @@ function isSecureOrigin(url: URL): boolean {
   return url.protocol === 'https:' || (isLoopback && url.protocol === 'http:');
 }
 
-function hasTrustedAuthOriginConfiguration(): boolean {
+function getTrustedOrigins() {
   try {
-    const publicUrl = new URL(env.MATMETRICS_AUTH_PUBLIC_URL);
-    const frontendOrigin = new URL(env.MATMETRICS_AUTH_FRONTEND_ORIGIN);
-    return (
-      publicUrl.origin === frontendOrigin.origin &&
-      publicUrl.pathname === '/' &&
-      !publicUrl.search &&
-      !publicUrl.hash &&
-      !publicUrl.username &&
-      !publicUrl.password &&
-      frontendOrigin.pathname === '/' &&
-      !frontendOrigin.search &&
-      !frontendOrigin.hash &&
-      !frontendOrigin.username &&
-      !frontendOrigin.password &&
-      isSecureOrigin(publicUrl)
-    );
+    return getTrustedAuthOriginConfiguration(env);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -129,16 +115,17 @@ export function hasAuthEmailConfiguration(): boolean {
   return Boolean(
     env.RESEND_API_KEY?.trim() &&
       env.MATMETRICS_AUTH_EMAIL_FROM?.trim() &&
-      hasTrustedAuthOriginConfiguration()
+      getTrustedOrigins()
   );
 }
 
 export function isSafeAuthEmailUrl(value: string): boolean {
   let link: URL;
-  let configuredOrigin: URL;
+  const origins = getTrustedOrigins();
+  if (!origins) return false;
+  const configuredOrigin = new URL(origins.publicUrl);
   try {
     link = new URL(value);
-    configuredOrigin = new URL(env.MATMETRICS_AUTH_PUBLIC_URL);
   } catch {
     return false;
   }
@@ -154,7 +141,7 @@ export function isSafeAuthEmailUrl(value: string): boolean {
   if (redirectUrl) {
     try {
       const redirect = new URL(redirectUrl, configuredOrigin);
-      if (redirect.origin !== configuredOrigin.origin || !isSecureOrigin(redirect)) {
+      if (!origins.trustedOrigins.includes(redirect.origin) || !isSecureOrigin(redirect)) {
         return false;
       }
     } catch {

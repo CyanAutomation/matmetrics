@@ -1,5 +1,6 @@
 declare namespace Cloudflare {
   interface Env {
+    ENVIRONMENT: string;
     DB: D1Database;
     BETTER_AUTH_SECRET: string;
     RESEND_API_KEY: string;
@@ -7,6 +8,7 @@ declare namespace Cloudflare {
     MATMETRICS_EMAIL_PASSWORD_SIGNUP_ENABLED: string;
     MATMETRICS_AUTH_PUBLIC_URL: string;
     MATMETRICS_AUTH_FRONTEND_ORIGIN: string;
+    MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS?: string;
     MATMETRICS_AUTH_RP_ID: string;
     MATMETRICS_AUTH_ISSUER: string;
     MATMETRICS_AUTH_AUDIENCE: string;

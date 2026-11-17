@@ -7,9 +7,10 @@ D1 through the signed data Worker.
 
 The Next.js app exposes the Worker through a same-origin `/api/auth/*` rewrite.
 The browser keeps a host-only Better Auth session cookie on the MatMetrics
-origin. Configure the exact frontend origin and WebAuthn RP hostname; do not
-use wildcard origins. Local development uses `http://localhost:9002` and RP ID
-`localhost`.
+origin. Configure the exact browser frontend origin separately from the Auth
+Worker's public Better Auth URL. Local development uses `http://localhost:9002`
+and RP ID `localhost`; production origins require HTTPS. Do not use wildcard
+origins.
 
 The production `workers.dev` endpoint is intentionally enabled because Vercel
 uses it for the auth rewrite and the server-side Keiko token exchange. It is
@@ -48,10 +49,16 @@ bypass.
 Set these non-secret values in `workers/matmetrics-auth/wrangler.jsonc` or the
 matching Cloudflare environment:
 
-- `MATMETRICS_AUTH_PUBLIC_URL`: public MatMetrics origin used for Better Auth
-  links and cookies.
+- `MATMETRICS_AUTH_PUBLIC_URL`: public origin used for Better Auth links and
+  cookies. It may be a separate stable auth-service origin.
 - `MATMETRICS_AUTH_FRONTEND_ORIGIN`: exact trusted browser origin.
+- `MATMETRICS_AUTH_ADDITIONAL_FRONTEND_ORIGINS`: optional comma-separated list
+  of additional exact first-party browser origins. Every origin must use HTTPS
+  in production and be within the configured passkey RP ID. Keep this unset
+  until ownership, routing, and passkey compatibility are approved.
 - `MATMETRICS_AUTH_RP_ID`: frontend hostname or controlled parent domain.
+- `ENVIRONMENT`: explicit `development` or `production`; localhost HTTP is
+  accepted only in development.
 - `MATMETRICS_AUTH_ISSUER` and `MATMETRICS_AUTH_AUDIENCE`: service JWT claims.
 - `MATMETRICS_AUTH_EMAIL_FROM`: verified Resend sender, such as
   `MatMetrics <auth@scheimann.xyz>`.

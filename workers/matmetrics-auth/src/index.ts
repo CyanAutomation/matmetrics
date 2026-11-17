@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { isPasskeyRegistrationAllowed } from '../../../src/lib/passkey-policy';
+import { getTrustedAuthOriginConfiguration } from '../../../src/lib/trusted-auth-origins';
 import { auth } from './auth';
 import { hasAuthEmailConfiguration } from './email';
 import {
@@ -8,6 +9,7 @@ import {
 } from './rate-limit';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+const trustedAuthOrigins = getTrustedAuthOriginConfiguration(env).trustedOrigins;
 // Kept outside /api/auth/* so the browser-facing Next.js auth rewrite cannot
 // expose the short-lived Keiko token response.
 const KEIKO_TOKEN_PATH = '/__internal/keiko-token';
@@ -183,7 +185,7 @@ async function issueKeikoToken(request: Request): Promise<Response> {
   }
 
   if (
-    request.headers.get('Origin') !== env.MATMETRICS_AUTH_FRONTEND_ORIGIN ||
+    !trustedAuthOrigins.includes(request.headers.get('Origin') ?? '') ||
     request.headers.get('Sec-Fetch-Site') !== 'same-origin'
   ) {
     return Response.json(

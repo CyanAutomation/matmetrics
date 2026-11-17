@@ -154,6 +154,7 @@ Important credential sources:
 | `MATMETRICS_AUTH_ISSUER` | Public MatMetrics frontend origin used by Better Auth JWTs |
 | `MATMETRICS_AUTH_AUDIENCE` | Better Auth JWT audience; defaults to `matmetrics-api` |
 | `MATMETRICS_AUTH_FRONTEND_ORIGIN` | Exact MatMetrics origin used to validate the session-cookie exchange |
+| `KEIKO_IDEMPOTENT_CREATE_ENABLED` | Server-only switch for Keiko creates; keep `false` until the active Keiko Worker supports the pinned idempotency contract |
 | `KEIKO_API_BASE_URL` | Server-only Keiko Worker/API origin |
 | `KEIKO_SESSION_CUTOVER_USER_IDS` | Server-only comma-separated Better Auth user IDs routed to Keiko |
 | `SENTRY_DSN` | Sentry dashboard → Project settings → Client keys (DSN) |
@@ -165,6 +166,7 @@ Important credential sources:
 - Better Auth handles password and passkey sign-in in the Cloudflare auth Worker. Preferences and plugin overrides use the signed Cloudflare data Worker and D1.
 - `GITHUB_TOKEN` enables the legacy GitHub-backed session storage and sync path for accounts outside the Keiko cutover allowlist.
 - Allowlisted Keiko accounts use their selected GitHub App connection for backups, health checks, and Log Doctor; those operations do not require MatMetrics `GITHUB_TOKEN`.
+- `KEIKO_IDEMPOTENT_CREATE_ENABLED` controls the authenticated create capability only for accounts in `KEIKO_SESSION_CUTOVER_USER_IDS`. The server rejects Keiko creates if the switch is off; deploy and verify the idempotency-capable Keiko Worker before enabling either the switch or account cutover.
 - `CLOUDFLARE_API_TOKEN` is required for AI-assisted technique suggestions and description transforms.
 - `OPENROUTER_API_KEY` enables the optional JEV training check-in, verification of AI technique-tag candidates, and review-only checks for unsupported facts in transformed descriptions. It is read only by server-side routes; add it as an encrypted Vercel environment variable and never use a `NEXT_PUBLIC_` prefix. Without it, check-ins and fidelity checks are skipped, and technique suggestions remain available without verification. If JEV is unreachable or rejects the key, suggestions and rewrites remain available and the UI asks users to review unchecked results.
 - The optional history review runs when a user starts it and reviews every described session in the loaded history, in batches of up to three. It sends each selected session's description, notes, selected category, effort rating, and up to 12 saved technique tags to OpenRouter/TypeSafe. Session IDs stay in MatMetrics, and JEV offers suggestions without changing or saving sessions.

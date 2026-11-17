@@ -59,6 +59,18 @@ export async function POST(request: NextRequest) {
 
     const body = payload.value;
     const useKeiko = isKeikoCutoverUser(user.appUserId);
+    if (useKeiko && process.env.KEIKO_IDEMPOTENT_CREATE_ENABLED !== 'true') {
+      return NextResponse.json(
+        { error: { code: 'idempotency_unavailable' } },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+    if (useKeiko && idempotencyKey === null) {
+      return NextResponse.json(
+        { error: { code: 'idempotency_key_required' } },
+        { status: 428, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
     const prepared = prepareSessionCreate(
       body,
       useKeiko && idempotencyKey !== null

@@ -22,7 +22,7 @@ import type { GitHubConfig } from './types';
 import type { SessionSnapshot } from './keiko-session-revision';
 import type { SyncOperation } from './sync-queue';
 import type { SyncOperationIssue } from './sync-queue';
-import { rememberVolatileSyncIssue } from './sync-queue';
+import { isSafeSyncErrorCode, rememberVolatileSyncIssue } from './sync-queue';
 import { keikoIfMatch } from './keiko-session-revision';
 import { clearDirtyMutation, markDirtyMutationIssue } from './mutation-state';
 import {
@@ -40,7 +40,8 @@ export class SyncRequestError extends Error {
     message: string,
     public readonly retryable: boolean,
     public readonly retryAfterMs: number | null = null,
-    public readonly status?: number
+    public readonly status?: number,
+    public readonly code?: string
   ) {
     super(message);
     this.name = 'SyncRequestError';
@@ -54,15 +55,68 @@ export function classifySyncOperationIssue(
   if (!(error instanceof SyncRequestError) || error.retryable) return null;
 
   if ([404, 409, 412, 428].includes(error.status ?? -1)) {
-    return { type: 'conflict', status: error.status as 404 | 409 | 412 | 428 };
+    return {
+      type: 'conflict',
+      status: error.status as 404 | 409 | 412 | 428,
+      ...(isSafeSyncErrorCode(error.code) ? { code: error.code } : {}),
+    };
   }
   if (error.status === 401 || error.status === 403) {
-    return { type: 'authentication', status: error.status };
+    return {
+      type: 'authentication',
+      status: error.status,
+      ...(isSafeSyncErrorCode(error.code) ? { code: error.code } : {}),
+    };
   }
   return {
     type: 'rejected',
     ...(typeof error.status === 'number' ? { status: error.status } : {}),
+    ...(isSafeSyncErrorCode(error.code) ? { code: error.code } : {}),
   };
+}
+
+/** Read at most 8 KiB and retain only an allowlisted machine-readable code. */
+export async function parseSafeSyncErrorCode(response: Response): Promise<string | undefined> {
+  const declaredLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > 8192) return undefined;
+  const reader = response.clone().body?.getReader();
+  if (!reader) return undefined;
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > 8192) {
+        await reader.cancel();
+        return undefined;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return undefined;
+  }
+
+  try {
+    const bytes = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const envelope: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!envelope || typeof envelope !== 'object') return undefined;
+    const root = envelope as Record<string, unknown>;
+    const error = root.error && typeof root.error === 'object'
+      ? root.error as Record<string, unknown>
+      : undefined;
+    const code = error?.code ?? root.code;
+    return isSafeSyncErrorCode(code) ? code : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -315,12 +369,11 @@ export async function processSingleQueueOperation(
   }
 
   try {
-    if (
-      operation.type === 'CREATE' &&
-      operation.idempotencyKey !== undefined &&
-      operation.attempted !== true
-    ) {
+    if (operation.type === 'CREATE' && operation.attempted !== true) {
       const attemptedCreate = await markCreateAttempted(operation);
+      if (!isStorageGenerationCurrent(generation)) {
+        return { success: false, shouldContinue: false, queue, permanentFailure: false, baseQueue };
+      }
       activeOperation = attemptedCreate;
       activeQueue = queue.map((queuedOperation, queuedIndex) =>
         queuedIndex === index ? activeOperation : queuedOperation
@@ -328,7 +381,7 @@ export async function processSingleQueueOperation(
       const baseIndex = activeBaseQueue.findIndex((queuedOperation) =>
         queuedOperation.type === 'CREATE' &&
         queuedOperation.session.id === attemptedCreate.session.id &&
-        queuedOperation.idempotencyKey === attemptedCreate.idempotencyKey
+        queuedOperation.queuedAt === attemptedCreate.queuedAt
       );
       activeBaseQueue = [...activeBaseQueue];
       if (baseIndex >= 0) activeBaseQueue[baseIndex] = activeOperation;
@@ -379,8 +432,15 @@ export async function processSingleQueueOperation(
       body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });
 
+    if (!isStorageGenerationCurrent(generation)) {
+      return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
+    }
+
     if (activeOperation.type === 'CREATE' || activeOperation.type === 'UPDATE') {
       const serverSession = await parseMutationSession(response);
+      if (!isStorageGenerationCurrent(generation)) {
+        return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
+      }
       reconcileSuccessfulSession(serverSession, activeOperation.queuedAt);
       // Carry the server's new revision into later operations without changing
       // the queue snapshot used as the storage merge baseline.
@@ -494,6 +554,45 @@ export async function processSingleQueueOperation(
     };
   } catch (error) {
     console.error('Error syncing operation', error);
+
+    if (!isStorageGenerationCurrent(generation)) {
+      return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
+    }
+
+    if (
+      activeOperation.type === 'CREATE' &&
+      !activeOperation.idempotencyKey &&
+      (!(error instanceof SyncRequestError) || error.retryable)
+    ) {
+      const issue: SyncOperationIssue = {
+        type: 'rejected',
+        ...(error instanceof SyncRequestError && typeof error.status === 'number'
+          ? { status: error.status }
+          : {}),
+        code: 'idempotency_not_supported',
+      };
+      const failedOperation = { ...activeOperation, syncIssue: issue } as SyncOperation;
+      markDirtyMutationIssue(activeOperation.session.id, activeOperation.queuedAt, issue);
+      try {
+        await setQueue(
+          retainExcludedOperations(
+            [failedOperation, ...activeQueue.slice(index + 1)],
+            activeQueue,
+            activeBaseQueue
+          ),
+          activeBaseQueue
+        );
+      } catch {
+        rememberVolatileSyncIssue(failedOperation, issue);
+      }
+      return {
+        success: false,
+        shouldContinue: false,
+        queue: activeQueue,
+        permanentFailure: true,
+        baseQueue: activeBaseQueue,
+      };
+    }
 
     const { retryable, retryAfterMs } = await handleOperationError(
       error,

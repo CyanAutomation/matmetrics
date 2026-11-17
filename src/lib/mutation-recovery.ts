@@ -14,6 +14,7 @@ export type RecoveryExportOperation = {
   issueCategory?: {
     category: SyncOperationIssue['type'];
     status?: number;
+    code?: string;
   };
 };
 
@@ -65,6 +66,9 @@ export function buildMutationRecoveryExport(
                 ...(operation.syncIssue.status === undefined
                   ? {}
                   : { status: operation.syncIssue.status }),
+                ...(operation.syncIssue.code === undefined
+                  ? {}
+                  : { code: operation.syncIssue.code }),
               },
             }
           : {}),

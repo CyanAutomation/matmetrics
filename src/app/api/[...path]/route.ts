@@ -25,6 +25,7 @@ import * as preferences from '../preferences/api-handler';
 import * as recentReleases from '../releases/recent/api-handler';
 import * as sessionById from '../sessions/[id]/api-handler';
 import * as sessionCreate from '../sessions/create/api-handler';
+import * as sessionCreateMode from '../sessions/create-mode/api-handler';
 import * as sessionList from '../sessions/list/api-handler';
 import * as videoLibrary from '../video-library/check-links/api-handler';
 
@@ -66,6 +67,7 @@ const routes: Record<string, ApiRoute> = {
   '/api/preferences': { GET: preferences.GET, PUT: preferences.PUT },
   '/api/releases/recent': { GET: recentReleases.GET },
   '/api/sessions/create': { POST: sessionCreate.POST },
+  '/api/sessions/create-mode': { GET: sessionCreateMode.GET },
   '/api/sessions/list': { GET: sessionList.GET },
   '/api/video-library/check-links': { POST: videoLibrary.POST },
 };
