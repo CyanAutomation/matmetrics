@@ -272,7 +272,7 @@ export async function processSingleQueueOperation(
   generation: number,
   gitHubConfig: GitHubConfig | null,
   gitHubEnabled: boolean,
-  onAbort: (remainingOps: SyncOperation[]) => Promise<void>,
+  onAbort: (remainingOps: SyncOperation[], mergeBase?: SyncOperation[]) => Promise<void>,
   // Helper functions injected for testability
   isStorageGenerationCurrent: (gen: number) => boolean,
   syncRequest: (
@@ -287,14 +287,22 @@ export async function processSingleQueueOperation(
     operation: SyncOperation,
     issue: SyncOperationIssue
   ) => Promise<void>,
-  baseQueue: SyncOperation[] = queue
+  baseQueue: SyncOperation[] = queue,
+  getLatestQueue: () => SyncOperation[],
+  markCreateAttempted: (
+    operation: Extract<SyncOperation, { type: 'CREATE' }>
+  ) => Promise<Extract<SyncOperation, { type: 'CREATE' }>>
 ): Promise<{
   success: boolean;
   shouldContinue: boolean;
   queue: SyncOperation[];
   permanentFailure: boolean;
+  baseQueue?: SyncOperation[];
 }> {
+  let activeOperation = operation;
+  let activeQueue = queue;
   let nextQueue = queue;
+  let activeBaseQueue = baseQueue;
 
   // Check lease ownership before operation
   if (
@@ -303,32 +311,65 @@ export async function processSingleQueueOperation(
     !coreRenewSyncLease()
   ) {
     await onAbort(queue.slice(index));
-    return { success: false, shouldContinue: false, queue, permanentFailure: false };
+    return { success: false, shouldContinue: false, queue, permanentFailure: false, baseQueue };
   }
 
   try {
+    if (
+      operation.type === 'CREATE' &&
+      operation.idempotencyKey !== undefined &&
+      operation.attempted !== true
+    ) {
+      const attemptedCreate = await markCreateAttempted(operation);
+      activeOperation = attemptedCreate;
+      activeQueue = queue.map((queuedOperation, queuedIndex) =>
+        queuedIndex === index ? activeOperation : queuedOperation
+      );
+      const baseIndex = activeBaseQueue.findIndex((queuedOperation) =>
+        queuedOperation.type === 'CREATE' &&
+        queuedOperation.session.id === attemptedCreate.session.id &&
+        queuedOperation.idempotencyKey === attemptedCreate.idempotencyKey
+      );
+      activeBaseQueue = [...activeBaseQueue];
+      if (baseIndex >= 0) activeBaseQueue[baseIndex] = activeOperation;
+      else activeBaseQueue.push(activeOperation);
+      nextQueue = activeQueue;
+      // The operation is atomically frozen in local storage before network I/O.
+      if (
+        !isStorageGenerationCurrent(generation) ||
+        !coreHasActiveSyncLeaseOwnership() ||
+        !coreRenewSyncLease()
+      ) {
+        await onAbort(activeQueue.slice(index), activeBaseQueue);
+        return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
+      }
+    }
+
     // Build request
     const body = buildOperationRequestBody(
-      operation,
+      activeOperation,
       gitHubConfig,
       gitHubEnabled
     );
-    const url = getOperationUrl(operation);
-    const method = getOperationMethod(operation);
+    const url = getOperationUrl(activeOperation);
+    const method = getOperationMethod(activeOperation);
 
     const headers = new Headers(await getAuthHeaders({
       'Content-Type': 'application/json',
     }));
-    const expectedRevision = operation.type === 'DELETE'
-      ? operation.expectedRevision
-      : operation.type === 'UPDATE'
-        ? operation.expectedRevision ?? operation.session.keikoRevision
+    const expectedRevision = activeOperation.type === 'DELETE'
+      ? activeOperation.expectedRevision
+      : activeOperation.type === 'UPDATE'
+        ? activeOperation.expectedRevision ?? activeOperation.session.keikoRevision
         : undefined;
     const ifMatch = keikoIfMatch(expectedRevision);
     if (ifMatch) headers.set('If-Match', ifMatch);
+    if (activeOperation.type === 'CREATE' && activeOperation.idempotencyKey) {
+      headers.set('Idempotency-Key', activeOperation.idempotencyKey);
+    }
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false, queue, permanentFailure: false };
+      return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
     }
 
     // Send request
@@ -338,13 +379,13 @@ export async function processSingleQueueOperation(
       body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });
 
-    if (operation.type === 'CREATE' || operation.type === 'UPDATE') {
+    if (activeOperation.type === 'CREATE' || activeOperation.type === 'UPDATE') {
       const serverSession = await parseMutationSession(response);
-      reconcileSuccessfulSession(serverSession, operation.queuedAt);
+      reconcileSuccessfulSession(serverSession, activeOperation.queuedAt);
       // Carry the server's new revision into later operations without changing
       // the queue snapshot used as the storage merge baseline.
-      nextQueue = queue.map((queuedOperation, queuedIndex) => {
-        if (queuedIndex <= index) return queuedOperation;
+      const withServerRevision = (queuedOperation: SyncOperation): SyncOperation => {
+        if (queuedOperation.queuedAt <= activeOperation.queuedAt) return queuedOperation;
         if (
           (queuedOperation.type === 'CREATE' ||
             queuedOperation.type === 'UPDATE') &&
@@ -386,7 +427,50 @@ export async function processSingleQueueOperation(
           };
         }
         return queuedOperation;
-      });
+      };
+      nextQueue = activeQueue.map(withServerRevision);
+      const latestQueue = getLatestQueue();
+      const hasConcurrentDownstreamMutation = latestQueue.some((queuedOperation) =>
+        queuedOperation.queuedAt > activeOperation.queuedAt &&
+        (
+          queuedOperation.type === 'DELETE'
+            ? queuedOperation.id === serverSession.id
+            : queuedOperation.session.id === serverSession.id
+        ) &&
+        !activeQueue.some((activeQueuedOperation) =>
+          activeQueuedOperation.type === queuedOperation.type &&
+          activeQueuedOperation.queuedAt === queuedOperation.queuedAt
+        )
+      );
+      if (hasConcurrentDownstreamMutation) {
+        const isConcurrentDownstreamMutation = (queuedOperation: SyncOperation) =>
+          queuedOperation.queuedAt > activeOperation.queuedAt &&
+          (
+            queuedOperation.type === 'DELETE'
+              ? queuedOperation.id === serverSession.id
+              : queuedOperation.session.id === serverSession.id
+          ) &&
+          !activeQueue.some((activeQueuedOperation) =>
+            activeQueuedOperation.type === queuedOperation.type &&
+            activeQueuedOperation.queuedAt === queuedOperation.queuedAt
+          );
+        const originalConcurrentDownstream = latestQueue.filter(isConcurrentDownstreamMutation);
+        const revisedLatestQueue = latestQueue.map(withServerRevision);
+        const concurrentDownstream = revisedLatestQueue.filter(isConcurrentDownstreamMutation);
+        let downstreamBaseline = concurrentDownstream;
+        try {
+          await setQueue(revisedLatestQueue, latestQueue);
+        } catch (error) {
+          // The remote mutation already succeeded. Do not send it again just
+          // because persisting a later operation's new revision failed.
+          downstreamBaseline = originalConcurrentDownstream;
+          console.error('Failed to persist downstream revision after successful mutation', {
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+          });
+        }
+        nextQueue = [...nextQueue, ...concurrentDownstream];
+        activeBaseQueue = [...activeBaseQueue, ...downstreamBaseline];
+      }
     }
 
     // Verify lease still owned after operation
@@ -394,36 +478,37 @@ export async function processSingleQueueOperation(
       !isStorageGenerationCurrent(generation) ||
       !coreHasActiveSyncLeaseOwnership()
     ) {
-      await onAbort(nextQueue.slice(index));
-      return { success: false, shouldContinue: false, queue: nextQueue, permanentFailure: false };
+      await onAbort(nextQueue.slice(index), activeBaseQueue);
+      return { success: false, shouldContinue: false, queue: nextQueue, permanentFailure: false, baseQueue: activeBaseQueue };
     }
 
     // Mark mutation as synced
-    handleOperationSuccess(operation);
+    handleOperationSuccess(activeOperation);
 
     return {
       success: true,
       shouldContinue: true,
       queue: nextQueue,
       permanentFailure: false,
+      baseQueue: activeBaseQueue,
     };
   } catch (error) {
     console.error('Error syncing operation', error);
 
     const { retryable, retryAfterMs } = await handleOperationError(
       error,
-      operation,
+      activeOperation,
       index,
-      queue,
+      activeQueue,
       generation,
       isStorageGenerationCurrent,
       setQueue,
       (failedOperation, issue) => reconcilePermanentFailure(failedOperation, issue),
-      baseQueue
+      activeBaseQueue
     );
 
     if (!isStorageGenerationCurrent(generation)) {
-      return { success: false, shouldContinue: false, queue, permanentFailure: false };
+      return { success: false, shouldContinue: false, queue: activeQueue, permanentFailure: false, baseQueue: activeBaseQueue };
     }
 
     // Handle backoff for retryable errors with retry-after header
@@ -434,20 +519,21 @@ export async function processSingleQueueOperation(
     // Stop syncing on error; queue remaining operations for retry
     if (retryable) {
       const remainingOperations = retainExcludedOperations(
-        queue.slice(index),
-        queue,
-        baseQueue
+        activeQueue.slice(index),
+        activeQueue,
+        activeBaseQueue
       );
       if (isStorageGenerationCurrent(generation)) {
-        await setQueue(remainingOperations, baseQueue);
+        await setQueue(remainingOperations, activeBaseQueue);
       }
     }
 
     return {
       success: false,
       shouldContinue: false,
-      queue,
+      queue: activeQueue,
       permanentFailure: !retryable,
+      baseQueue: activeBaseQueue,
     };
   }
 }

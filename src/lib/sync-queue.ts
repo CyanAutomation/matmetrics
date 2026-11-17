@@ -1,6 +1,7 @@
 import { JudoSession } from './types';
 import type { SessionSnapshot } from './keiko-session-revision';
 import { getScopedStorageKey } from './client-identity';
+import { isValidIdempotencyKey } from './keiko-api/idempotency';
 
 /**
  * Shared localStorage key for offline sync operations.
@@ -86,7 +87,12 @@ export type SyncOperationIssue =
   | { type: 'rejected'; status?: number };
 
 type SyncOperationPayload =
-  | { type: 'CREATE'; session: JudoSession }
+  | {
+      type: 'CREATE';
+      session: JudoSession;
+      idempotencyKey?: string;
+      attempted?: boolean;
+    }
   | {
       type: 'UPDATE';
       session: SessionSnapshot;
@@ -205,6 +211,13 @@ function isValidSyncOperationInput(
   }
 
   if (value.type === 'CREATE' || value.type === 'UPDATE') {
+    if (value.type === 'CREATE' && (
+      (value.idempotencyKey !== undefined && !isValidIdempotencyKey(value.idempotencyKey)) ||
+      (value.attempted !== undefined && typeof value.attempted !== 'boolean') ||
+      (value.attempted === true && value.idempotencyKey === undefined)
+    )) {
+      return false;
+    }
     return (
       isRecord(value.session) &&
       typeof value.session.id === 'string' &&
@@ -296,7 +309,11 @@ function getOperationPayloadKey(operation: SyncOperationInput): string {
     return `DELETE:${operation.id}:${operation.revisionSha ?? ''}:${operation.expectedRevision ?? ''}:${operation.session ? stableStringify(operation.session) : ''}`;
   }
 
-  return `${operation.type}:${stableStringify(operation.session)}:${operation.type === 'UPDATE' ? `${operation.expectedRevision ?? ''}:${operation.previousSession ? stableStringify(operation.previousSession) : ''}` : ''}`;
+  if (operation.type === 'CREATE') {
+    return `CREATE:${stableStringify(operation.session)}:${operation.idempotencyKey ?? ''}`;
+  }
+
+  return `${operation.type}:${stableStringify(operation.session)}:${operation.expectedRevision ?? ''}:${operation.previousSession ? stableStringify(operation.previousSession) : ''}`;
 }
 
 function getOperationKey(operation: SyncOperationInput): string {
@@ -361,6 +378,12 @@ function mergeConsecutiveOperations(
           type: 'CREATE',
           session: operation.session,
           queuedAt: reducedOperation.queuedAt,
+          ...(reducedOperation.type === 'CREATE' && reducedOperation.idempotencyKey
+            ? { idempotencyKey: reducedOperation.idempotencyKey }
+            : {}),
+          ...(reducedOperation.type === 'CREATE' && reducedOperation.attempted !== undefined
+            ? { attempted: reducedOperation.attempted }
+            : {}),
         };
         continue;
       }
@@ -374,6 +397,12 @@ function mergeConsecutiveOperations(
         type: 'CREATE',
         session: operation.session,
         queuedAt: operation.queuedAt,
+        ...(reducedOperation.type === 'CREATE' && reducedOperation.idempotencyKey
+          ? { idempotencyKey: reducedOperation.idempotencyKey }
+          : {}),
+        ...(reducedOperation.type === 'CREATE' && reducedOperation.attempted !== undefined
+          ? { attempted: reducedOperation.attempted }
+          : {}),
       };
       continue;
     }
@@ -467,7 +496,11 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
     };
 
     for (const operation of sortedOperations) {
-      if (operation.syncIssue) {
+      if (operation.syncIssue || (
+        operation.type === 'CREATE' &&
+        operation.idempotencyKey !== undefined &&
+        operation.attempted === true
+      )) {
         flushPendingSegment();
         reducedOperations.push(operation);
       } else {
@@ -1001,6 +1034,49 @@ export async function setQueue(
     console.error('Failed to set sync queue', { errorType: queueStorageError });
     throw new SyncQueuePersistenceError();
   }
+}
+
+/** Atomically freeze the latest unattempted CREATE payload before its first send. */
+export async function markCreateOperationAttempted(
+  operation: Extract<SyncOperation, { type: 'CREATE' }>
+): Promise<Extract<SyncOperation, { type: 'CREATE' }>> {
+  if (typeof window === 'undefined' || !operation.idempotencyKey) {
+    throw new SyncQueuePersistenceError();
+  }
+
+  let markedOperation: Extract<SyncOperation, { type: 'CREATE' }> | undefined;
+  try {
+    await withQueueWriteLease(() => {
+      const latestQueue = readQueueFromStorage();
+      const index = latestQueue.findIndex((queuedOperation) =>
+        queuedOperation.type === 'CREATE' &&
+        queuedOperation.session.id === operation.session.id &&
+        queuedOperation.idempotencyKey === operation.idempotencyKey
+      );
+      if (index < 0) throw new Error('Queued create was not found');
+
+      const latestOperation = latestQueue[index];
+      if (latestOperation?.type !== 'CREATE') {
+        throw new Error('Queued create is invalid');
+      }
+      markedOperation = latestOperation.attempted === true
+        ? latestOperation
+        : { ...latestOperation, attempted: true };
+      if (latestOperation.attempted !== true) {
+        const nextQueue = [...latestQueue];
+        nextQueue[index] = markedOperation;
+        writeQueueWithLatestMerge(nextQueue, latestQueue);
+      }
+    });
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to freeze queued create', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
+  }
+
+  if (!markedOperation) throw new SyncQueuePersistenceError();
+  return markedOperation;
 }
 
 /**
