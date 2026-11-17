@@ -120,6 +120,13 @@ export function clearAuthenticationMutationIssue(
   dirtyMutations.set(id, resumed as DirtyMutation);
 }
 
+export function clearDirtyMutationIssue(id: string, version: number): void {
+  const existing = dirtyMutations.get(id);
+  if (!existing || existing.version !== version || !existing.syncIssue) return;
+  const { syncIssue: _syncIssue, ...resumed } = existing;
+  dirtyMutations.set(id, resumed as DirtyMutation);
+}
+
 /**
  * Reload dirty mutations from the sync queue
  * This reconciles the mutation map with the persistent queue

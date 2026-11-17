@@ -18,6 +18,7 @@ import {
   getEligiblePendingOperations,
   hasPendingOperations,
   setQueue,
+  updateQueue,
   markCreateOperationAttempted,
   removeOperationByIdentity,
   getSyncQueueStorageKey,
@@ -42,6 +43,11 @@ import {
 } from './user-preferences';
 import type { UserPreferences } from './types';
 import { createIdempotencyKey } from './keiko-api/idempotency';
+import {
+  parseSessionCreateMode,
+  SESSION_CREATE_MODE_HEADER,
+  type SessionCreateMode,
+} from './session-create-mode';
 import { normalizeSessionList } from './session-normalization';
 import { keikoIfMatch, type SessionSnapshot } from './keiko-session-revision';
 import {
@@ -56,6 +62,7 @@ import {
   markDirtyMutation,
   markDirtyMutationIssue,
   clearAuthenticationMutationIssue,
+  clearDirtyMutationIssue,
   clearDirtyMutation,
   hydrateDirtyMutationsFromQueue,
   getOptimisticSessions,
@@ -69,6 +76,7 @@ import {
   classifySyncOperationIssue,
   processSingleQueueOperation,
   parseRetryAfterMs,
+  parseSafeSyncErrorCode,
 } from './storage-queue';
 
 const STORAGE_KEY_BASE = 'matmetrics_sessions';
@@ -135,7 +143,11 @@ let sessionFileIssuesCache: SessionFileIssue[] = [];
 let isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
 let isSyncing = false;
 let inFlightSync: Promise<void> | null = null;
+let inFlightSyncUserId: string | null = null;
+let inFlightSyncGeneration: number | null = null;
 let inFlightAuthenticationResume: Promise<void> | null = null;
+let inFlightAuthenticationResumeUserId: string | null = null;
+let inFlightAuthenticationResumeGeneration: number | null = null;
 let listenersInitialized = false;
 let refreshSeq = 0;
 let latestAppliedSeq = 0;
@@ -226,10 +238,16 @@ function isStorageGenerationCurrent(generation: number): boolean {
  * Dirty markers are cleared only after the queue write succeeds.
  */
 export function resumeAuthenticationPausedMutations(): Promise<void> {
-  if (inFlightAuthenticationResume) return inFlightAuthenticationResume;
   const generation = storageGeneration;
   const userId = getActiveUserId();
-  inFlightAuthenticationResume = (async () => {
+  if (
+    inFlightAuthenticationResume &&
+    inFlightAuthenticationResumeUserId === userId &&
+    inFlightAuthenticationResumeGeneration === generation
+  ) return inFlightAuthenticationResume;
+
+  let resumePromise: Promise<void>;
+  resumePromise = (async () => {
     const queue = getQueue();
     const resumed = queue.filter((operation) => operation.syncIssue?.type === 'authentication');
     if (!resumed.length) return;
@@ -237,16 +255,23 @@ export function resumeAuthenticationPausedMutations(): Promise<void> {
       if (operation.syncIssue?.type !== 'authentication') return operation;
       const { syncIssue: _syncIssue, ...resumedOperation } = operation;
       return resumedOperation;
-    }), queue);
+    }), queue, userId);
     if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
     for (const operation of resumed) {
       const id = operation.type === 'DELETE' ? operation.id : operation.session.id;
       clearAuthenticationMutationIssue(id, operation.queuedAt);
     }
   })().finally(() => {
-    inFlightAuthenticationResume = null;
+    if (inFlightAuthenticationResume === resumePromise) {
+      inFlightAuthenticationResume = null;
+      inFlightAuthenticationResumeUserId = null;
+      inFlightAuthenticationResumeGeneration = null;
+    }
   });
-  return inFlightAuthenticationResume;
+  inFlightAuthenticationResume = resumePromise;
+  inFlightAuthenticationResumeUserId = userId;
+  inFlightAuthenticationResumeGeneration = generation;
+  return resumePromise;
 }
 
 function shouldThrottleGitHubRefresh(): boolean {
@@ -394,8 +419,77 @@ async function syncRequest(
     `Request failed with status ${response.status}`,
     retryable,
     retryAfterMs,
-    response.status
+    response.status,
+    await parseSafeSyncErrorCode(response)
   );
+}
+
+async function getServerSessionCreateMode(): Promise<SessionCreateMode> {
+  const response = await syncRequest('/api/sessions/create-mode', {
+    method: 'GET',
+    headers: await getAuthHeaders({ Accept: 'application/json' }),
+    cache: 'no-store',
+  });
+  let mode = parseSessionCreateMode(
+    response.headers.get(SESSION_CREATE_MODE_HEADER)
+  );
+  if (!mode) {
+    try {
+      const body: unknown = await response.json();
+      if (body && typeof body === 'object' && 'mode' in body) {
+        mode = parseSessionCreateMode(
+          typeof body.mode === 'string' ? body.mode : null
+        );
+      }
+    } catch {
+      mode = null;
+    }
+  }
+  if (!mode) throw new Error('Server did not provide a trusted session create mode');
+  return mode;
+}
+
+function prepareCreatesForMode(
+  operations: SyncOperation[],
+  mode: SessionCreateMode | null,
+  modeFailureIssue: SyncOperationIssue = {
+    type: 'rejected',
+    code: 'idempotency_unavailable',
+  }
+): SyncOperation[] {
+  return operations.map((operation) => {
+    if (operation.type !== 'CREATE' || operation.syncIssue) return operation;
+
+    if (mode === 'keiko-idempotent') {
+      if (operation.attempted === true && !operation.idempotencyKey) {
+        return {
+          ...operation,
+          syncIssue: { type: 'rejected', code: 'idempotency_not_supported' },
+        };
+      }
+      return operation.idempotencyKey
+        ? operation
+        : { ...operation, idempotencyKey: createIdempotencyKey() };
+    }
+
+    if (mode === 'legacy') {
+      if (operation.attempted === true) {
+        return {
+          ...operation,
+          syncIssue: { type: 'rejected', code: 'idempotency_not_supported' },
+        };
+      }
+      const { idempotencyKey: _unusedKey, ...legacyCreate } = operation;
+      return legacyCreate;
+    }
+
+    return {
+      ...operation,
+      syncIssue: mode === 'keiko-unavailable'
+        ? { type: 'rejected', code: 'idempotency_unavailable' }
+        : modeFailureIssue,
+    };
+  });
 }
 
 async function parseMutationSession(response: Response): Promise<SessionSnapshot> {
@@ -496,14 +590,20 @@ async function persistOfflineMutation(
   operation: SyncOperation,
   mutationId: string,
   version: number,
-  previousSessions: SessionSnapshot[]
+  previousSessions: SessionSnapshot[],
+  context?: { generation: number; userId: string }
 ): Promise<void> {
   try {
-    await queueOperation(operation);
+    await queueOperation(operation, context?.userId);
   } catch (error) {
-    clearDirtyMutation(mutationId, version);
-    commitLocalSessions(previousSessions);
-    dispatchStorageSync(previousSessions);
+    if (
+      !context ||
+      (isStorageGenerationCurrent(context.generation) && getActiveUserId() === context.userId)
+    ) {
+      clearDirtyMutation(mutationId, version);
+      commitLocalSessions(previousSessions);
+      dispatchStorageSync(previousSessions);
+    }
     throw error;
   }
 }
@@ -620,14 +720,13 @@ export function getSessionFileIssues(): SessionFileIssue[] {
   return [...sessionFileIssuesCache];
 }
 
-/**
- * Save a new session (online -> API, offline -> queue + cache)
- */
+/** Persist every authenticated create before queue replay can issue its first request. */
 export async function saveSession(
   session: SessionSnapshot
 ): Promise<MutationResult> {
   if (typeof window === 'undefined') return { status: 'synced' };
   const guestMode = isGuestMode();
+  const saveContext = { generation: storageGeneration, userId: getActiveUserId() };
   const { keikoRevision: _keikoRevision, ...sessionToCreate } = session;
   const previousSessions = getOptimisticSessions(
     sessionCache ?? getLocalStorageCache()
@@ -651,53 +750,47 @@ export async function saveSession(
     queuedAt: version,
   };
 
-  if (isOnline) {
-    // Send to API with GitHub config if available
-    const gitHubConfig = getGitHubConfig();
-    const requestBody: any = { ...sessionToCreate };
-    if (gitHubConfig && isGitHubEnabled()) {
-      requestBody.gitHubConfig = gitHubConfig;
-    }
-
-    try {
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-      });
-      const requestHeaders = new Headers(headers);
-      requestHeaders.set('Idempotency-Key', idempotencyKey);
-      const response = await syncRequest('/api/sessions/create', {
-        method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify(requestBody),
-      });
-      const serverSession = await parseMutationSession(response);
-      reconcileSuccessfulSession(serverSession, version);
-      clearDirtyMutation(session.id, version);
-    } catch (error) {
-      return handleMutationSyncFailure(
-        error,
-        { ...createOperation, attempted: true },
-        session.id,
-        version,
-        previousSessions
-      );
-    }
-
-    if (shouldThrottleGitHubRefresh()) {
-      scheduleRefresh();
-    } else {
-      void refreshSessionsFromAPI();
-    }
-    return { status: 'synced' };
-  }
-
-  // Offline: queue the operation
+  // This write is the create's write-ahead record. No session create request
+  // may start until the durable queue write has completed.
   await persistOfflineMutation(
     createOperation,
     session.id,
     version,
-    previousSessions
+    previousSessions,
+    saveContext
   );
+
+  if (
+    !isStorageGenerationCurrent(saveContext.generation) ||
+    getActiveUserId() !== saveContext.userId
+  ) {
+    return { status: 'queued' };
+  }
+
+  if (isOnline) {
+    await syncPendingOperations(false);
+    if (
+      !isStorageGenerationCurrent(saveContext.generation) ||
+      getActiveUserId() !== saveContext.userId
+    ) {
+      return { status: 'queued' };
+    }
+    const stillQueued = getQueue().some(
+      (operation) =>
+        operation.type === 'CREATE' &&
+        operation.session.id === session.id &&
+        operation.queuedAt === version
+    );
+    if (!stillQueued) {
+      if (shouldThrottleGitHubRefresh()) {
+        scheduleRefresh();
+      } else {
+        void refreshSessionsFromAPI();
+      }
+    }
+    return { status: stillQueued ? 'queued' : 'synced' };
+  }
+
   return { status: 'queued' };
 }
 
@@ -1090,6 +1183,36 @@ export async function discardFailedMutation(
 export function retryCloudSync(): void {
   if (typeof window === 'undefined') return;
   void syncPendingOperations();
+}
+
+/** Explicitly resume a create held because the server could not confirm a safe route. */
+export async function retryUnavailableCreate(operation: SyncOperation): Promise<void> {
+  if (
+    operation.type !== 'CREATE' ||
+    operation.syncIssue?.code !== 'idempotency_unavailable'
+  ) {
+    throw new Error('Only creates paused by unavailable idempotent storage can be retried here.');
+  }
+  const generation = storageGeneration;
+  const userId = getActiveUserId();
+  const queue = getQueue();
+  const updated = queue.map((current) => {
+    if (
+      current.type !== 'CREATE' ||
+      current.session.id !== operation.session.id ||
+      current.queuedAt !== operation.queuedAt ||
+      current.syncIssue?.code !== 'idempotency_unavailable'
+    ) return current;
+    const { syncIssue: _syncIssue, ...pendingCreate } = current;
+    return pendingCreate;
+  });
+  if (updated.every((current, index) => current === queue[index])) {
+    throw new Error('The paused create is no longer in the recovery queue.');
+  }
+  await setQueue(updated, queue, userId);
+  if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
+  clearDirtyMutationIssue(operation.session.id, operation.queuedAt);
+  await syncPendingOperations();
 }
 
 // ============================================================================
@@ -1539,9 +1662,16 @@ async function prepareAndStartLease(generation: number): Promise<{
   };
 }
 
-async function syncPendingOperations(): Promise<void> {
+async function syncPendingOperations(
+  refreshSessionsAfterSync = true
+): Promise<void> {
   if (!isOnline || isGuestMode()) return;
-  if (inFlightSync) {
+  const currentUserId = getActiveUserId();
+  if (
+    inFlightSync &&
+    inFlightSyncUserId === currentUserId &&
+    inFlightSyncGeneration === storageGeneration
+  ) {
     return inFlightSync;
   }
 
@@ -1555,8 +1685,10 @@ async function syncPendingOperations(): Promise<void> {
     emitLeaseTakeoverDiagnostic: emitLeaseTakeoverDiagnostic,
   });
 
-  inFlightSync = (async () => {
+  let syncPromise: Promise<void>;
+  syncPromise = (async () => {
     const generation = storageGeneration;
+    const userId = getActiveUserId();
     isSyncing = true;
     let leaseAcquired = false;
     let shouldContinueWithIndependentOperations = false;
@@ -1568,11 +1700,47 @@ async function syncPendingOperations(): Promise<void> {
       leaseAcquired = lease.acquired;
       clearLeaseHeartbeat = lease.clearHeartbeat;
 
-      if (!leaseAcquired || !isStorageGenerationCurrent(generation)) {
+      if (
+        !leaseAcquired ||
+        !isStorageGenerationCurrent(generation) ||
+        getActiveUserId() !== userId
+      ) {
         return;
       }
 
       let baseQueue = getQueue();
+      let createMode: SessionCreateMode | null = null;
+      let createModeFailureIssue: SyncOperationIssue = {
+        type: 'rejected',
+        code: 'idempotency_unavailable',
+      };
+      if (baseQueue.some((operation) => operation.type === 'CREATE' && !operation.syncIssue)) {
+        try {
+          createMode = await getServerSessionCreateMode();
+        } catch (error) {
+          if (error instanceof SyncRequestError && (error.status === 401 || error.status === 403)) {
+            createModeFailureIssue = {
+              type: 'authentication',
+              status: error.status,
+            };
+          }
+        }
+        if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
+        baseQueue = await updateQueue(
+          (latestQueue) => prepareCreatesForMode(
+            latestQueue,
+            createMode,
+            createModeFailureIssue
+          ),
+          userId
+        );
+        if (!isStorageGenerationCurrent(generation) || getActiveUserId() !== userId) return;
+        for (const operation of baseQueue) {
+          if (operation.type === 'CREATE' && operation.syncIssue) {
+            markDirtyMutationIssue(operation.session.id, operation.queuedAt, operation.syncIssue);
+          }
+        }
+      }
       const activeQueueSnapshot = getEligiblePendingOperations(baseQueue);
       const inactiveQueue = baseQueue.filter(
         (operation) => !activeQueueSnapshot.includes(operation)
@@ -1581,6 +1749,11 @@ async function syncPendingOperations(): Promise<void> {
       if (queue.length === 0) return;
       const gitHubConfig = getGitHubConfig();
       const gitHubEnabled = isGitHubEnabled();
+      const setQueueForUser = (operations: SyncOperation[], mergeBase: SyncOperation[]) =>
+        setQueue(operations, mergeBase, userId);
+      const markCreateForUser = (
+        operation: Extract<SyncOperation, { type: 'CREATE' }>
+      ) => markCreateOperationAttempted(operation, userId);
 
       // Abort handler: clear heartbeat and update queue on lease loss
       const onAbort = async (
@@ -1588,8 +1761,8 @@ async function syncPendingOperations(): Promise<void> {
         mergeBase: SyncOperation[] = baseQueue
       ) => {
         lease.clearHeartbeat();
-        if (isStorageGenerationCurrent(generation)) {
-          await setQueue([...remainingOps, ...inactiveQueue], mergeBase);
+        if (isStorageGenerationCurrent(generation) && getActiveUserId() === userId) {
+          await setQueueForUser([...remainingOps, ...inactiveQueue], mergeBase);
         }
       };
 
@@ -1609,12 +1782,12 @@ async function syncPendingOperations(): Promise<void> {
           syncRequest,
           parseMutationSession,
           reconcileSuccessfulSession,
-          setQueue,
+          setQueueForUser,
           getAuthHeaders,
           reconcilePermanentFailure,
           baseQueue,
           () => getEligiblePendingOperations(getQueue()),
-          markCreateOperationAttempted
+          markCreateForUser
         );
 
         baseQueue = result.baseQueue ?? baseQueue;
@@ -1633,14 +1806,16 @@ async function syncPendingOperations(): Promise<void> {
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      await setQueue(inactiveQueue, baseQueue);
+      await setQueueForUser(inactiveQueue, baseQueue);
       shouldContinueWithIndependentOperations = hasPendingOperations();
 
       // Refresh sessions from API to ensure cache is up-to-date
       if (!isStorageGenerationCurrent(generation)) {
         return;
       }
-      await refreshSessionsFromAPI({ force: true });
+      if (refreshSessionsAfterSync) {
+        await refreshSessionsFromAPI({ force: true });
+      }
     } finally {
       clearLeaseHeartbeat();
       if (leaseAcquired && isStorageGenerationCurrent(generation)) {
@@ -1648,7 +1823,11 @@ async function syncPendingOperations(): Promise<void> {
       }
       if (isStorageGenerationCurrent(generation)) {
         isSyncing = false;
+      }
+      if (inFlightSync === syncPromise) {
         inFlightSync = null;
+        inFlightSyncUserId = null;
+        inFlightSyncGeneration = null;
       }
       if (
         shouldContinueWithIndependentOperations &&
@@ -1664,8 +1843,10 @@ async function syncPendingOperations(): Promise<void> {
       }
     }
   })();
-
-  return inFlightSync;
+  inFlightSync = syncPromise;
+  inFlightSyncUserId = getActiveUserId();
+  inFlightSyncGeneration = storageGeneration;
+  return syncPromise;
 }
 
 export function __resetStorageStateForTests(): void {
@@ -1676,7 +1857,11 @@ export function __resetStorageStateForTests(): void {
   isOnline = typeof window !== 'undefined' ? navigator.onLine : true;
   isSyncing = false;
   inFlightSync = null;
+  inFlightSyncUserId = null;
+  inFlightSyncGeneration = null;
   inFlightAuthenticationResume = null;
+  inFlightAuthenticationResumeUserId = null;
+  inFlightAuthenticationResumeGeneration = null;
   inFlightRefresh = null;
   inFlightRefreshForce = false;
   queuedForcedRefresh = false;

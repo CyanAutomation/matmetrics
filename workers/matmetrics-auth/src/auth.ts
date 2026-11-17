@@ -3,12 +3,15 @@ import { passkey } from '@better-auth/passkey';
 import { betterAuth } from 'better-auth';
 import { jwt } from 'better-auth/plugins';
 import { queueAuthEmail } from './email';
+import { getTrustedAuthOriginConfiguration } from '../../../src/lib/trusted-auth-origins';
+
+const authOrigins = getTrustedAuthOriginConfiguration(env);
 
 export const auth = betterAuth({
   appName: 'MatMetrics',
-  baseURL: env.MATMETRICS_AUTH_PUBLIC_URL,
+  baseURL: authOrigins.publicUrl,
   secret: env.BETTER_AUTH_SECRET,
-  trustedOrigins: [env.MATMETRICS_AUTH_FRONTEND_ORIGIN],
+  trustedOrigins: authOrigins.trustedOrigins,
   database: env.DB,
   // Better Auth's generic SQLite introspection reports no tables for the
   // Cloudflare D1 adapter. The versioned D1 migrations and Worker integration
@@ -43,8 +46,8 @@ export const auth = betterAuth({
   plugins: [
     passkey({
       rpName: 'MatMetrics',
-      rpID: env.MATMETRICS_AUTH_RP_ID,
-      origin: env.MATMETRICS_AUTH_FRONTEND_ORIGIN,
+      rpID: authOrigins.rpId,
+      origin: authOrigins.passkeyOrigins,
     }),
     jwt({
       jwt: {

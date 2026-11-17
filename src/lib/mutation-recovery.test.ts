@@ -86,10 +86,16 @@ test('create recovery export preserves the idempotency key and attempted state',
     idempotencyKey: 'create-key-123',
     attempted: true,
     queuedAt: 9876,
+    syncIssue: { type: 'conflict', status: 409, code: 'idempotency_key_reuse' },
   };
 
   const operation = buildMutationRecoveryExport([create]).operations[0];
 
   assert.equal(operation?.idempotencyKey, 'create-key-123');
   assert.equal(operation?.attempted, true);
+  assert.deepEqual(operation?.issueCategory, {
+    category: 'conflict',
+    status: 409,
+    code: 'idempotency_key_reuse',
+  });
 });

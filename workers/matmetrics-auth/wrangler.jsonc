@@ -5,6 +5,7 @@
   "compatibility_date": "2026-09-15",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
+    "ENVIRONMENT": "development",
     "MATMETRICS_AUTH_PUBLIC_URL": "http://localhost:9002",
     "MATMETRICS_AUTH_FRONTEND_ORIGIN": "http://localhost:9002",
     "MATMETRICS_AUTH_RP_ID": "localhost",
@@ -47,6 +48,7 @@
       // authoritative for direct workers.dev requests as well.
       "workers_dev": true,
       "vars": {
+        "ENVIRONMENT": "production",
         "MATMETRICS_AUTH_PUBLIC_URL": "https://matmetrics-teal.vercel.app",
         "MATMETRICS_AUTH_FRONTEND_ORIGIN": "https://matmetrics-teal.vercel.app",
         "MATMETRICS_AUTH_RP_ID": "matmetrics-teal.vercel.app",

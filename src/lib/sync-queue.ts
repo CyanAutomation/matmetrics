@@ -1,6 +1,6 @@
 import { JudoSession } from './types';
 import type { SessionSnapshot } from './keiko-session-revision';
-import { getScopedStorageKey } from './client-identity';
+import { getActiveUserId, getScopedStorageKey } from './client-identity';
 import { isValidIdempotencyKey } from './keiko-api/idempotency';
 
 /**
@@ -63,6 +63,12 @@ function clearVolatileQueueIssues(operations: SyncOperationInput[]): void {
   }
 }
 
+function assertExpectedQueueUser(expectedUserId?: string): void {
+  if (expectedUserId !== undefined && getActiveUserId() !== expectedUserId) {
+    throw new Error('The active account changed before the queue write completed');
+  }
+}
+
 function quarantineQueueContents(rawQueue: string): void {
   const primaryKey = getSyncQueueQuarantineStorageKey();
   const existingPrimary = localStorage.getItem(primaryKey);
@@ -81,10 +87,25 @@ function quarantineQueueContents(rawQueue: string): void {
   localStorage.setItem(quarantineKey, rawQueue);
 }
 
+const SAFE_SYNC_ERROR_CODES = new Set([
+  'idempotency_key_reuse',
+  'session_conflict',
+  'revision_conflict',
+  'revision_mismatch',
+  'precondition_required',
+  'idempotency_not_supported',
+  'idempotency_key_required',
+  'idempotency_unavailable',
+]);
+
+export function isSafeSyncErrorCode(value: unknown): value is string {
+  return typeof value === 'string' && SAFE_SYNC_ERROR_CODES.has(value);
+}
+
 export type SyncOperationIssue =
-  | { type: 'conflict'; status: 404 | 409 | 412 | 428 }
-  | { type: 'authentication'; status: 401 | 403 }
-  | { type: 'rejected'; status?: number };
+  | { type: 'conflict'; status: 404 | 409 | 412 | 428; code?: string }
+  | { type: 'authentication'; status: 401 | 403; code?: string }
+  | { type: 'rejected'; status?: number; code?: string };
 
 type SyncOperationPayload =
   | {
@@ -187,7 +208,8 @@ function isValidSyncOperationInput(
     if (!isRecord(value.syncIssue) || typeof value.syncIssue.type !== 'string') {
       return false;
     }
-    const { type, status } = value.syncIssue;
+    const { type, status, code } = value.syncIssue;
+    if (code !== undefined && !isSafeSyncErrorCode(code)) return false;
     if (
       !(
         (type === 'conflict' && [404, 409, 412, 428].includes(status as number)) ||
@@ -213,8 +235,7 @@ function isValidSyncOperationInput(
   if (value.type === 'CREATE' || value.type === 'UPDATE') {
     if (value.type === 'CREATE' && (
       (value.idempotencyKey !== undefined && !isValidIdempotencyKey(value.idempotencyKey)) ||
-      (value.attempted !== undefined && typeof value.attempted !== 'boolean') ||
-      (value.attempted === true && value.idempotencyKey === undefined)
+      (value.attempted !== undefined && typeof value.attempted !== 'boolean')
     )) {
       return false;
     }
@@ -496,11 +517,7 @@ function dedupeOperations(operations: SyncOperationInput[]): SyncOperation[] {
     };
 
     for (const operation of sortedOperations) {
-      if (operation.syncIssue || (
-        operation.type === 'CREATE' &&
-        operation.idempotencyKey !== undefined &&
-        operation.attempted === true
-      )) {
+      if (operation.syncIssue || (operation.type === 'CREATE' && operation.attempted === true)) {
         flushPendingSegment();
         reducedOperations.push(operation);
       } else {
@@ -946,12 +963,14 @@ export const __testInternals = {
  * Add an operation to the sync queue (called when offline)
  */
 export async function queueOperation(
-  operation: SyncOperationInput
+  operation: SyncOperationInput,
+  expectedUserId?: string
 ): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
     await withQueueWriteLease(() => {
+      assertExpectedQueueUser(expectedUserId);
       const baseQueue = getQueue();
       writeQueueWithLatestMerge([...baseQueue, operation], baseQueue);
       clearVolatileQueueIssues([...baseQueue, operation]);
@@ -1019,12 +1038,14 @@ export function rememberVolatileSyncIssue(
  */
 export async function setQueue(
   operations: SyncOperationInput[],
-  baseQueue?: SyncOperationInput[]
+  baseQueue?: SyncOperationInput[],
+  expectedUserId?: string
 ): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
     await withQueueWriteLease(() => {
+      assertExpectedQueueUser(expectedUserId);
       writeQueueWithLatestMerge(operations, baseQueue);
       clearVolatileQueueIssues(operations);
     });
@@ -1036,22 +1057,50 @@ export async function setQueue(
   }
 }
 
+/** Apply a transformation to the latest queue while holding the cross-tab write lease. */
+export async function updateQueue(
+  transform: (queue: SyncOperation[]) => SyncOperationInput[],
+  expectedUserId?: string
+): Promise<SyncOperation[]> {
+  if (typeof window === 'undefined') return [];
+
+  let updatedQueue: SyncOperation[] = [];
+  try {
+    await withQueueWriteLease(() => {
+      assertExpectedQueueUser(expectedUserId);
+      const currentQueue = readQueueFromStorage();
+      const nextQueue = transform(currentQueue);
+      writeQueueWithLatestMerge(nextQueue, currentQueue);
+      clearVolatileQueueIssues(nextQueue);
+      updatedQueue = readQueueFromStorage();
+    });
+    queueStorageError = null;
+  } catch (error) {
+    queueStorageError = getErrorType(error);
+    console.error('Failed to update sync queue', { errorType: queueStorageError });
+    throw new SyncQueuePersistenceError();
+  }
+  return updatedQueue;
+}
+
 /** Atomically freeze the latest unattempted CREATE payload before its first send. */
 export async function markCreateOperationAttempted(
-  operation: Extract<SyncOperation, { type: 'CREATE' }>
+  operation: Extract<SyncOperation, { type: 'CREATE' }>,
+  expectedUserId?: string
 ): Promise<Extract<SyncOperation, { type: 'CREATE' }>> {
-  if (typeof window === 'undefined' || !operation.idempotencyKey) {
+  if (typeof window === 'undefined') {
     throw new SyncQueuePersistenceError();
   }
 
   let markedOperation: Extract<SyncOperation, { type: 'CREATE' }> | undefined;
   try {
     await withQueueWriteLease(() => {
+      assertExpectedQueueUser(expectedUserId);
       const latestQueue = readQueueFromStorage();
       const index = latestQueue.findIndex((queuedOperation) =>
         queuedOperation.type === 'CREATE' &&
         queuedOperation.session.id === operation.session.id &&
-        queuedOperation.idempotencyKey === operation.idempotencyKey
+        queuedOperation.queuedAt === operation.queuedAt
       );
       if (index < 0) throw new Error('Queued create was not found');
 

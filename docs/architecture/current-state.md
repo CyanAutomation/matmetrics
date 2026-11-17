@@ -1,6 +1,6 @@
 # Current architecture
 
-Assessment date: 2026-11-15. This describes the repository code and the
+Assessment date: 2026-11-17. This describes the repository code and the
 production checks recorded below; source configuration is not treated as proof
 that a component is deployed.
 
@@ -24,11 +24,11 @@ for tenant checks, validation, and conditional persistence.
 
 | Component | Current responsibility and boundary | Evidence and production status |
 | --- | --- | --- |
-| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | `next.config.ts`, `src/app/api/[...path]/route.ts`, `README.md`. Production availability was not queried for this assessment. |
-| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | `workers/matmetrics-auth/src/auth.ts`, `src/index.ts`, `wrangler.jsonc`. Source config names `matmetrics-auth`; live status was not queried. |
+| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | Production deployment `dpl_A6YFhtYrQPzeDhzHcihnDRZhzzms`, READY on 2026-11-17, branch `main`, commit `c5a0377cebdcb157adfe5935044de61d6ae2ed50`. |
+| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | Active Worker `matmetrics-auth-production`, deployment `04120ad4-4e43-4a87-beae-a6a4d448ec07`, version `5bc57665-9c06-4507-9562-c502935a3f10` at 100% traffic. |
 | MatMetrics Data Worker | Signed per-user preference and plugin-override API; persisted `log-doctor-scan` and `github-health` jobs. | `workers/matmetrics-data/src/index.ts`, `wrangler.jsonc`, `migrations/`. Source config names `matmetrics-data`; live status was not queried. |
 | Keiko Dojo Worker | Versioned REST API, session domain service, analytics, GitHub App integration and jobs, read-only MCP endpoint. | `keiko-dojo/src/index.ts`, `openapi.yaml`, `wrangler.jsonc`. Cloudflare read-only inspection confirmed production Worker `keiko-dojo`, deployment `5303f76c-8a56-4151-bdd9-b6b0d69c8c03` at 100% traffic, version `a7c66220-8a1d-4326-b7e0-0366b87e68c3`, created 2026-10-25 23:31:59 UTC. |
-| Keiko D1 | Authoritative session records for Keiko-routed accounts; revisioned rows and GitHub sync state. | Production D1 `keiko-dojo`, ID `750315f8-ef51-4d6e-86ea-41b076ec9de8`, matches the production `DB` binding in Keiko `wrangler.jsonc`. A read-only query confirmed migrations `0001`–`0007`; `0007_github_session_sync.sql` applied at 2026-10-25 23:30:09 UTC. |
+| Keiko D1 | Authoritative session records for Keiko-routed accounts; revisioned rows and GitHub sync state. | Production D1 `keiko-dojo`, ID `750315f8-ef51-4d6e-86ea-41b076ec9de8`. Read-only verification found migration `0008_session_create_idempotency.sql` applied at 2026-11-17 07:30:49 UTC and table `session_create_idempotency` with `(user_id, idempotency_key)` primary-key uniqueness. |
 | MatMetrics D1 | Better Auth tables, user preferences, plugin overrides, and legacy background-job records. Auth and Data Worker configs point to the same D1 ID. | `workers/matmetrics-auth/wrangler.jsonc`, `workers/matmetrics-data/wrangler.jsonc`, `workers/matmetrics-data/migrations/`. Live Auth/Data Worker bindings and migration state were not queried. |
 | GitHub Markdown | User-selected, portable copy. For Keiko accounts it is asynchronously derived from D1; for legacy accounts it remains the session persistence path. | Keiko `src/http/github-sync.ts`; MatMetrics `src/lib/session-storage.ts`, `src/lib/github-storage.ts`. It is not a transactional database or a D1 restore source. |
 | Go API and CLI | Go source contains protected session and GitHub HTTP handlers plus CLI and shared Markdown/session libraries. Next routes can proxy selected-repository operations through `/api/go/*`. | `api/go/`, `internal/`, `go/`; `src/lib/go-function-proxy.ts`. The exact deployed Go handler target was not independently checked. |
@@ -39,6 +39,25 @@ database-list `num_tables` field did not agree with the read-only SQLite query,
 so table counts are taken from the query, not that summary field. No remote
 migration, D1 write, queue trigger, reconciliation, or deployment was run for
 this assessment.
+
+## Phase 2B production compatibility
+
+The latest production MatMetrics deployment contains Phase 2B client code, but
+the active Keiko Worker does not yet implement the `Idempotency-Key` request
+header or the idempotency ledger lookup. Its deployed bundle is the 2026-10-25
+version listed above. The migration and D1 table are present; that schema does
+not prove that the running Worker uses them. Keiko `main` source at the time of
+review includes the Phase 2B implementation, and MatMetrics' generated API
+contract pins the corresponding Keiko revision
+`fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`.
+
+The production Vercel `KEIKO_SESSION_CUTOVER_USER_IDS` allowlist was empty at
+inspection. Therefore no authenticated production account was routed from the
+newest frontend to the incompatible Worker. The rollout blocker remains:
+deploy and verify the compatible Keiko Worker before enabling any cutover
+identity or the new `KEIKO_IDEMPOTENT_CREATE_ENABLED` switch. Keep the latter
+false until that verification. The approved deployment order and checks are
+recorded in [`idempotent-create-replay.md`](./idempotent-create-replay.md).
 
 ## Runtime topology
 
@@ -82,6 +101,33 @@ sent to Keiko. Keiko validates issuer, audience, subject, `appUserId`, lifetime,
 and scope. The Keiko D1 repository filters every read and write by the verified
 user ID.
 
+## Authentication journey and hostname bindings
+
+The active production configuration is grounded in the Auth Worker deployment
+and Vercel environment: the browser-facing origin is
+`https://matmetrics-teal.vercel.app`; Better Auth `baseURL` and JWT issuer are
+also that origin; the JWT audience is `matmetrics-api`; the JWKS URL is served
+through the same-origin `/api/auth` rewrite; the passkey RP ID is
+`matmetrics-teal.vercel.app`; and the expected WebAuthn origin is exactly
+`https://matmetrics-teal.vercel.app`.
+
+| Step | Current behavior |
+| --- | --- |
+| Password sign-in | The browser calls same-origin `/api/auth/sign-in/email`; Next rewrites it to the Auth Worker. The Worker enforces email verification, rate limits, and configured sign-in policy, then Better Auth sets the session cookie. |
+| Passkey sign-in or registration | The browser calls Better Auth passkey endpoints through the same rewrite. The Auth Worker checks registration policy. Better Auth verifies WebAuthn responses against the configured RP ID and exact origin. Existing passkey records remain in the shared MatMetrics D1. |
+| Session cookie | Better Auth's default cookie name is `better-auth.session_token` in development and `__Secure-better-auth.session_token` on HTTPS production. The source does not set a `Domain`, so it is host-only; defaults are `Path=/`, `HttpOnly`, `Secure` on HTTPS, and `SameSite=Lax`. No cookie-cache plugin is configured. |
+| Browser API token | `getAuthHeaders` first calls `authClient.getSession()` and then `authClient.token()`. The JWT plugin uses the configured issuer and `matmetrics-api` audience; its expiry defaults to 15 minutes. The bearer is sent to the same-origin MatMetrics API facade, not directly to Keiko. |
+| API verification | Next verifies the JWT signature using the Auth Worker JWKS, configured issuer, and audience, then uses the verified `appUserId` for routing and ownership. The Go API uses the same issuer/audience configuration. |
+| Keiko exchange | For a Keiko request, Next forwards the matching host cookie and verified bearer only to `__internal/keiko-token`, after exact-origin and `Sec-Fetch-Site: same-origin` checks. The Auth Worker verifies the Better Auth session and bearer belong to the same user, then issues a `keiko-dojo-api` token with requested scopes and a five-minute maximum lifetime. The browser cookie is never forwarded to Keiko. |
+| Renewal and expiry | A valid Better Auth session expires after seven days by default and is extended when used after the one-day `updateAge`; the Worker does not override these defaults. `getAuthHeaders` gets a fresh 15-minute API JWT for requests. If session verification fails, API writes pause in the account-scoped queue and authentication recovery can resume them. Keiko availability failures do not themselves sign the user out. |
+| Sign-out and recovery | The browser calls Better Auth sign-out through the same-origin rewrite, which revokes the server session. Password-reset email is the existing fallback for verified accounts; an account holder can then use or add passkeys through account settings. The passkey migration guide documents the operational checks. |
+
+The Vercel auth rewrite is `/api/auth/:path*` to the configured Auth Worker
+URL. The API facade's internal exchange URL is separately pinned to the
+expected `workers.dev` host. No broad CORS or parent-domain cookie setting is
+configured. See [the Companion domain ADR](./adr-companion-domain-auth.md)
+for the future routing decision and its approval boundary.
+
 ## Responsibility matrix
 
 | Responsibility | Current owner | Target owner | Action |
@@ -102,14 +148,14 @@ user ID.
 
 | Workflow | Execution path, checks, storage, and failure behavior |
 | --- | --- |
-| Sign in | Browser calls same-origin `/api/auth/*`; Next rewrites to the Auth Worker (`next.config.ts`). Better Auth verifies trusted origin, uses its D1 binding, and issues the `matmetrics-api` JWT. Passkey endpoints use the configured exact origin and RP ID (`workers/matmetrics-auth/src/auth.ts`, `wrangler.jsonc`). Auth Worker source applies rate limits and sign-up/enrolment gates in `workers/matmetrics-auth/src/index.ts`. |
-| Create | Form calls `saveSession` (`src/lib/storage.ts`); `/api/sessions/create` authenticates and validates. Keiko-routed account: token exchange, then `POST /v1/sessions` to Keiko validation and D1. Legacy account: authorized GitHub config routes to Go `/api/go/sessions/create` when configured, otherwise TypeScript GitHub or local development storage. Keiko insert is revision 1 and enqueues backup state transactionally; queue dispatch is asynchronous. |
+| Sign in | Browser calls same-origin `/api/auth/*`; Next rewrites to the Auth Worker (`next.config.ts`). Better Auth verifies trusted origin, uses its D1 binding, and issues the `matmetrics-api` JWT. Passkey endpoints use configured allowed origins and RP ID (`workers/matmetrics-auth/src/auth.ts`, `wrangler.jsonc`). Auth Worker source applies rate limits and sign-up/enrolment gates in `workers/matmetrics-auth/src/index.ts`. |
+| Create | `saveSession` writes an account-scoped create operation and its UUID key to the durable browser queue before the create-mode probe or first create POST. Authenticated `/api/sessions/create-mode` derives `legacy`, `keiko-idempotent`, or `keiko-unavailable` from the verified account allowlist and server rollout flag. Queue replay freezes the payload and persists `attempted` before sending. Keiko replay uses the same key; legacy mode strips only an unattempted key and pauses an ambiguous attempted create. The create route independently fails closed for cutover accounts until idempotent create is enabled. |
 | List | `getSessions` reads the scoped browser cache and refreshes `/api/sessions/list`. The authenticated route sends cutover accounts through `listAllKeikoSessions`, aggregating Keiko pages and their `{session, revision}` records; other accounts use authorized GitHub/local storage or Go proxy. The browser normalizes fields and retains the Keiko revision snapshot. Network failures leave cached sessions visible and surface refresh status. |
 | Retrieve one | `/api/sessions/[id]` authenticates and checks the account route; Keiko returns the record and strong user-scoped ETag. The MatMetrics facade exposes the numeric revision snapshot separately and passes through only recognized revision ETags. Legacy retrieval reads the authorized Markdown file and its GitHub SHA where applicable. |
 | Update | The form retains the originally loaded `keikoRevision`. The route validates the body and forwards the client's `If-Match` without a fresh read. Keiko requires `If-Match`, conditions D1 update on `(user_id, id, revision)`, increments revision, returns 428 when missing, 412 when stale, and 404 when absent. The form leaves input open on errors. Legacy GitHub updates use GitHub blob SHA conflict handling; guest updates stay local. |
 | Delete | History retains the list snapshot and sends its Keiko revision. The route forwards `If-Match` directly. Keiko conditionally deletes on the verified user, ID, and revision; stale/missing responses are not converted into an unconditional deletion. Legacy Markdown deletes use the optional `revisionSha`; guest deletes remain local. |
 | Offline edit | `updateSession` optimistically updates scoped local cache and queues an `UPDATE` with its original expected revision. The persistent queue is coalesced and uses a cross-tab write lease. Retry sends the same revision. A 412/428/404 is stored as a conflict marker; 401/403 pauses the operation as authentication-blocked. The payload stays in the queue and is excluded from automatic retries. Network/408/429/5xx failures remain retryable. |
-| Replay pending mutations | `initializeStorage`/online events call `syncPendingOperations` under a sync lease. Each operation sends through the same Next API path; successful returned revision updates local state. Retryable errors preserve current and later work. Conflict/auth markers remain persisted; unrelated active operations can proceed on a later sync. |
+| Replay pending mutations | `initializeStorage`/online events call `syncPendingOperations` under a sync lease. Each operation sends through the same Next API path; successful returned revision updates local state. Retryable Keiko errors retain the original key and payload. Only bounded allowlisted error codes are persisted. Idempotency-key reuse, session-ID conflict, and stale revision conflicts have separate Recovery messages; unrelated active operations can proceed. |
 | GitHub Markdown sync | Keiko session-table triggers 0007 update `github_session_sync_state` and per-session items in the same D1 transaction. A 60-second debounce coalesces changes. Queue sends are recovered by a one-minute scheduled handler; a lease/generation guards workers, GitHub failures retry with backoff and terminal failure after configured attempts. Session writes do not wait for GitHub. Legacy accounts still use MatMetrics/Go synchronous Markdown writes. |
 | Read preferences | Browser uses `/api/preferences`; Next verifies the user JWT, then signs a short-lived HMAC request binding method, path/query, user ID, body hash, and timestamp to the Data Worker. Worker verifies it and reads the user-scoped preference row. Browser cache provides responsive UI but remote D1 is account persistence. |
 | Background GitHub operation | For legacy users, Next validates user and repository then writes a user-scoped Data Worker job; D1 persists before Queue publication, Queue message carries job ID, consumer retries and calls the signed Next executor. For Keiko users, the same product actions route to Keiko job endpoints, which persist tenant-scoped jobs and enqueue Cloudflare Queue work using the GitHub App installation limited to the selected repository. |
@@ -139,9 +185,10 @@ verifies its repository identity before saving it. This differs from the
 legacy path, where selected repository config plus MatMetrics' `GITHUB_TOKEN`
 is authorized and forwarded to the Go or TypeScript GitHub implementation.
 Keiko uses D1 revision/generation bookkeeping and a selected-repository
-Markdown manifest. It does not expose an `Idempotency-Key` for frontend REST
-mutations; session IDs and revision checks help but are not a general
-request-deduplication contract.
+Markdown manifest. Keiko `main` source now implements the Phase 2B
+`Idempotency-Key` contract backed by D1, while the production Worker bundle
+has not yet been deployed with that implementation; see the compatibility
+assessment above.
 
 The current full GitHub reconciliation query loads at most 501 session rows
 before enforcing `MAX_FULL_SYNC_SESSIONS = 500`. Over the cap, the sync or
