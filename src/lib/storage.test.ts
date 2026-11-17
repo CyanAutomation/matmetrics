@@ -44,6 +44,9 @@ const originalFetchImpl = globalThis.fetch;
 let fetchImpl = originalFetchImpl;
 let createModeRequestCount = 0;
 let createModeForTests = 'keiko-idempotent';
+let createModeRequestOverride:
+  | ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>)
+  | null = null;
 const wrappedFetchTargets = new WeakMap<typeof fetch, typeof fetch>();
 Object.defineProperty(globalThis, 'fetch', {
   configurable: true,
@@ -53,6 +56,9 @@ Object.defineProperty(globalThis, 'fetch', {
       const url = new URL(String(input), 'http://localhost');
       if (url.pathname === '/api/sessions/create-mode') {
         createModeRequestCount += 1;
+        if (createModeRequestOverride) {
+          return createModeRequestOverride(input, init);
+        }
         return Response.json(
           { mode: createModeForTests },
           { headers: { 'x-matmetrics-session-create-mode': createModeForTests } }
@@ -1214,13 +1220,13 @@ serialTest(
       resolveModeStarted = resolve;
     });
     let createRequests = 0;
+    createModeRequestOverride = () => {
+      resolveModeStarted?.();
+      return modeResponse;
+    };
     const originalFetch = global.fetch;
     global.fetch = (async (input: string | URL | Request) => {
       const url = new URL(String(input), window.location.origin);
-      if (url.pathname === '/api/sessions/create-mode') {
-        resolveModeStarted?.();
-        return modeResponse;
-      }
       if (url.pathname === '/api/sessions/create') createRequests += 1;
       return Response.json({}, { status: 200 });
     }) as typeof fetch;
@@ -1251,6 +1257,7 @@ serialTest(
       assert.equal(ownerQueue[0].session.id, 'session-account-switch-write-ahead');
       assert.equal(ownerQueue[0].attempted, undefined);
     } finally {
+      createModeRequestOverride = null;
       teardownStorageListeners();
       __resetStorageStateForTests();
       global.fetch = originalFetch;
