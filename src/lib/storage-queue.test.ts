@@ -144,6 +144,70 @@ test('a later edit queued during create replay gets the returned Keiko revision'
   }
 });
 
+test('queue persistence failure after a successful update does not replay that update', async () => {
+  const currentUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: {
+      id: 'successful-update-with-later-edit',
+      date: '2026-11-01',
+      techniques: [],
+      effort: 3,
+      category: 'Technical',
+      keikoRevision: 2,
+    },
+    expectedRevision: 2,
+    queuedAt: 200,
+  };
+  const laterUpdate: SyncOperation = {
+    type: 'UPDATE',
+    session: { ...currentUpdate.session, notes: 'later edit' },
+    queuedAt: 201,
+  };
+  const serverSession = {
+    ...currentUpdate.session,
+    keikoRevision: 3,
+    revisionSha: 'updated-etag',
+  };
+  let requestCount = 0;
+  setActiveSyncLease({ mode: 'web-lock', release: () => {} });
+
+  try {
+    const result = await processSingleQueueOperation(
+      currentUpdate,
+      0,
+      [currentUpdate],
+      1,
+      null,
+      false,
+      async () => {},
+      () => true,
+      async () => {
+        requestCount += 1;
+        return new Response('{}', { status: 200 });
+      },
+      async () => serverSession,
+      () => {},
+      async () => { throw new Error('quota exceeded'); },
+      async () => ({}),
+      async () => {},
+      [currentUpdate],
+      () => [currentUpdate, laterUpdate],
+      async (queued) => queued
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(requestCount, 1);
+    const queuedUpdate = result.queue[1];
+    assert.equal(queuedUpdate?.type, 'UPDATE');
+    if (queuedUpdate?.type === 'UPDATE') {
+      assert.equal(queuedUpdate.expectedRevision, 3);
+      assert.equal(queuedUpdate.session.keikoRevision, 3);
+    }
+  } finally {
+    setActiveSyncLease(null);
+  }
+});
+
 test('successful mutations update downstream revisions without mutating the queue snapshot', async () => {
   const created: SyncOperation = {
     type: 'CREATE',

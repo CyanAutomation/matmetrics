@@ -443,8 +443,7 @@ export async function processSingleQueueOperation(
         )
       );
       if (hasConcurrentDownstreamMutation) {
-        const revisedLatestQueue = latestQueue.map(withServerRevision);
-        const concurrentDownstream = revisedLatestQueue.filter((queuedOperation) =>
+        const isConcurrentDownstreamMutation = (queuedOperation: SyncOperation) =>
           queuedOperation.queuedAt > activeOperation.queuedAt &&
           (
             queuedOperation.type === 'DELETE'
@@ -454,11 +453,23 @@ export async function processSingleQueueOperation(
           !activeQueue.some((activeQueuedOperation) =>
             activeQueuedOperation.type === queuedOperation.type &&
             activeQueuedOperation.queuedAt === queuedOperation.queuedAt
-          )
-        );
-        await setQueue(revisedLatestQueue, latestQueue);
+          );
+        const originalConcurrentDownstream = latestQueue.filter(isConcurrentDownstreamMutation);
+        const revisedLatestQueue = latestQueue.map(withServerRevision);
+        const concurrentDownstream = revisedLatestQueue.filter(isConcurrentDownstreamMutation);
+        let downstreamBaseline = concurrentDownstream;
+        try {
+          await setQueue(revisedLatestQueue, latestQueue);
+        } catch (error) {
+          // The remote mutation already succeeded. Do not send it again just
+          // because persisting a later operation's new revision failed.
+          downstreamBaseline = originalConcurrentDownstream;
+          console.error('Failed to persist downstream revision after successful mutation', {
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+          });
+        }
         nextQueue = [...nextQueue, ...concurrentDownstream];
-        activeBaseQueue = [...activeBaseQueue, ...concurrentDownstream];
+        activeBaseQueue = [...activeBaseQueue, ...downstreamBaseline];
       }
     }
 
