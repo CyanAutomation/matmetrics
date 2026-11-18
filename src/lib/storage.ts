@@ -157,6 +157,8 @@ let queuedForcedRefresh = false;
 let scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledRefreshAt = 0;
 let scheduledRefreshForce = false;
+let cancelScheduledSyncContinuation: (() => void) | null = null;
+const pendingStorageTasksForTests = new Set<Promise<unknown>>();
 interface SessionListRefreshMetadata {
   lastSuccessfulRemoteRefreshAt: number;
   etag: string | null;
@@ -225,6 +227,53 @@ function clearScheduledRefresh(): void {
   scheduledRefreshForce = false;
 }
 
+function trackStorageTaskForTests<T>(task: Promise<T>): void {
+  pendingStorageTasksForTests.add(task);
+  void task.then(
+    () => pendingStorageTasksForTests.delete(task),
+    () => pendingStorageTasksForTests.delete(task)
+  );
+}
+
+function clearScheduledSyncContinuation(): void {
+  cancelScheduledSyncContinuation?.();
+  cancelScheduledSyncContinuation = null;
+}
+
+function scheduleSyncContinuation(generation: number): void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let resolveTask!: () => void;
+  let isSettled = false;
+  const task = new Promise<void>((resolve) => {
+    resolveTask = resolve;
+  });
+  const finish = () => {
+    if (isSettled) return;
+    isSettled = true;
+    if (cancelScheduledSyncContinuation === cancel) {
+      cancelScheduledSyncContinuation = null;
+    }
+    resolveTask();
+  };
+  const cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    finish();
+  };
+
+  trackStorageTaskForTests(task);
+  cancelScheduledSyncContinuation = cancel;
+  timer = setTimeout(() => {
+    timer = null;
+    const continuation = isStorageGenerationCurrent(generation)
+      ? syncPendingOperations()
+      : Promise.resolve();
+    void continuation.then(finish, finish);
+  }, 0);
+}
+
 function nextStorageGeneration(): number {
   storageGeneration += 1;
   return storageGeneration;
@@ -267,6 +316,7 @@ export function resumeAuthenticationPausedMutations(): Promise<void> {
       inFlightAuthenticationResumeGeneration = null;
     }
   });
+  trackStorageTaskForTests(resumePromise);
   inFlightAuthenticationResume = resumePromise;
   inFlightAuthenticationResumeUserId = userId;
   inFlightAuthenticationResumeGeneration = generation;
@@ -649,7 +699,7 @@ export function initializeStorage(): void {
 
   // Try to sync if we have pending operations
   if (!isGuestMode() && isOnline) {
-    void resumeAuthenticationPausedMutations().then(() => {
+    const resumeTask = resumeAuthenticationPausedMutations().then(() => {
       const optimisticSessions = getOptimisticSessions(getLocalStorageCache());
       commitLocalSessions(optimisticSessions);
       dispatchStorageSync(optimisticSessions);
@@ -664,6 +714,7 @@ export function initializeStorage(): void {
         errorName: error instanceof Error ? error.name : 'UnknownError',
       });
     });
+    trackStorageTaskForTests(resumeTask);
     return;
   }
 
@@ -677,6 +728,7 @@ export function initializeStorage(): void {
  */
 export function teardownStorageListeners(): void {
   clearScheduledRefresh();
+  clearScheduledSyncContinuation();
 
   if (typeof window === 'undefined' || !listenersInitialized) return;
 
@@ -1636,6 +1688,7 @@ async function refreshSessionsFromAPI(options?: {
   dispatchStorageSync(sessionCache ?? getLocalStorageCache());
 
   const refresh = executeSessionListRefresh(context);
+  trackStorageTaskForTests(refresh);
   inFlightRefresh = refresh;
   void refresh.then(resolveRefreshGate, rejectRefreshGate);
   return refresh;
@@ -1856,11 +1909,7 @@ async function syncPendingOperations(
         isOnline &&
         !isGuestMode()
       ) {
-        setTimeout(() => {
-          if (isStorageGenerationCurrent(generation)) {
-            void syncPendingOperations();
-          }
-        }, 0);
+        scheduleSyncContinuation(generation);
       }
     }
   })().finally(() => {
@@ -1870,6 +1919,7 @@ async function syncPendingOperations(
       inFlightSyncGeneration = null;
     }
   });
+  trackStorageTaskForTests(syncPromise);
   inFlightSync = syncPromise;
   inFlightSyncUserId = getActiveUserId();
   inFlightSyncGeneration = storageGeneration;
@@ -1877,6 +1927,8 @@ async function syncPendingOperations(
 }
 
 export function __resetStorageStateForTests(): void {
+  clearScheduledSyncContinuation();
+  clearScheduledRefresh();
   storageGeneration += 1;
   sessionCache = null;
   sessionFileIssuesCache = [];
@@ -1892,7 +1944,6 @@ export function __resetStorageStateForTests(): void {
   inFlightRefresh = null;
   inFlightRefreshForce = false;
   queuedForcedRefresh = false;
-  clearScheduledRefresh();
   sessionListRefreshMetadata.clear();
   listenersInitialized = false;
   refreshSeq = 0;
@@ -1923,6 +1974,12 @@ export function __resetStorageStateForTests(): void {
   getSessionRefreshAuthHeaders = getAuthHeaders;
   if (typeof window !== 'undefined') {
     localStorage.removeItem(getSyncLockStorageKey());
+  }
+}
+
+export async function __waitForStorageTasksForTests(): Promise<void> {
+  while (pendingStorageTasksForTests.size > 0) {
+    await Promise.allSettled([...pendingStorageTasksForTests]);
   }
 }
 

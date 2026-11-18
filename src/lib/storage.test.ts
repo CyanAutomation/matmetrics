@@ -8,6 +8,7 @@ import {
   __setSyncLeaseTimingForTests,
   __setStorageDependencyOverridesForTests,
   __resetStorageStateForTests as resetStorageStateForTests,
+  __waitForStorageTasksForTests,
   __tryAcquireSyncLeaseForTests,
   clearAllData,
   getSessionFileIssues,
@@ -75,7 +76,15 @@ Object.defineProperty(globalThis, 'fetch', {
 });
 
 function serialTest(name: string, fn: any): ReturnType<typeof test> {
-  return test(name, { concurrency: false }, fn);
+  return test(name, { concurrency: false }, async (context: any) => {
+    try {
+      await fn(context);
+    } finally {
+      teardownStorageListeners();
+      resetStorageStateForTests();
+      await __waitForStorageTasksForTests();
+    }
+  });
 }
 
 function __resetStorageStateForTests(): void {
@@ -460,9 +469,7 @@ async function flushAsyncWork(): Promise<void> {
 }
 
 async function flushSyncLoopWork(): Promise<void> {
-  await flushAsyncWork();
-  await delay(25);
-  await flushAsyncWork();
+  await __waitForStorageTasksForTests();
 }
 
 function installGitHubPreferencesOverride() {
@@ -755,7 +762,7 @@ serialTest(
     setActiveUserId('user-1');
     __resetStorageStateForTests();
     installGitHubPreferencesOverride();
-    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 100 });
 
     let createRequests = 0;
     let listRequests = 0;
@@ -785,7 +792,7 @@ serialTest(
       assert.equal(createRequests, 2);
       assert.equal(listRequests, 0);
 
-      await delay(40);
+      await delay(120);
       await flushAsyncWork();
 
       assert.equal(listRequests, 1);
@@ -804,7 +811,7 @@ serialTest(
     setActiveUserId('user-1');
     __resetStorageStateForTests();
     installGitHubPreferencesOverride();
-    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 100 });
 
     const session = makeSession('session-deferred-update');
     let updateRequests = 0;
@@ -831,7 +838,7 @@ serialTest(
       assert.equal(updateRequests, 1);
       assert.equal(listUrls.length, 0);
 
-      await delay(40);
+      await delay(120);
       await flushAsyncWork();
 
       assert.equal(listUrls.length, 1);
@@ -851,7 +858,7 @@ serialTest(
     setActiveUserId('user-1');
     __resetStorageStateForTests();
     installGitHubPreferencesOverride();
-    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 100 });
 
     const session = makeSession('session-deferred-delete');
     let deleteRequests = 0;
@@ -878,7 +885,7 @@ serialTest(
       assert.equal(deleteRequests, 1);
       assert.equal(listUrls.length, 0);
 
-      await delay(40);
+      await delay(120);
       await flushAsyncWork();
 
       assert.equal(listUrls.length, 1);
@@ -950,7 +957,7 @@ serialTest(
     setActiveUserId('user-1');
     __resetStorageStateForTests();
     installGitHubPreferencesOverride();
-    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 20 });
+    __setGitHubRefreshTimingForTests({ cooldownMs: 0, debounceMs: 100 });
 
     let createRequests = 0;
     let listRequests = 0;
@@ -976,7 +983,7 @@ serialTest(
       assert.equal(listRequests, 0);
 
       teardownStorageListeners();
-      await delay(40);
+      await delay(120);
       await flushAsyncWork();
 
       assert.equal(listRequests, 0);
@@ -1989,6 +1996,70 @@ serialTest(
       assert.deepEqual(failedCreate.syncIssue, { type: 'rejected', status: 400 });
       assert.deepEqual(getSessions(), [queuedSession]);
     } finally {
+      teardownStorageListeners();
+      __resetStorageStateForTests();
+      global.fetch = originalFetch;
+    }
+  }
+);
+
+serialTest(
+  'storage test teardown waits for an in-flight background sync',
+  async () => {
+    const { localStorage } = installBrowserEnv();
+    setActiveUserId('user-1');
+    __resetStorageStateForTests();
+
+    const session = makeSession('session-background-teardown');
+    localStorage.setItem(
+      getSyncQueueStorageKey(),
+      JSON.stringify([{ type: 'CREATE', session, queuedAt: 1 }])
+    );
+
+    let signalCreateStarted!: () => void;
+    const createStarted = new Promise<void>((resolve) => {
+      signalCreateStarted = resolve;
+    });
+    let releaseCreateResponse!: () => void;
+    const delayedCreateResponse = new Promise<Response>((resolve) => {
+      releaseCreateResponse = () =>
+        resolve(Response.json(session, { status: 201 }));
+    });
+    let createResponseFinished = false;
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/api/sessions/create')) {
+        signalCreateStarted();
+        const response = await delayedCreateResponse;
+        createResponseFinished = true;
+        return response;
+      }
+
+      if (url.endsWith('/api/sessions/list')) {
+        return Response.json([]);
+      }
+
+      throw new Error('Unexpected fetch: ' + url);
+    }) as typeof fetch;
+
+    try {
+      retryCloudSync();
+      await createStarted;
+
+      __resetStorageStateForTests();
+      let teardownFinished = false;
+      const teardown = __waitForStorageTasksForTests().then(() => {
+        teardownFinished = true;
+      });
+      await Promise.resolve();
+      assert.equal(teardownFinished, false);
+
+      releaseCreateResponse();
+      await teardown;
+      assert.equal(createResponseFinished, true);
+    } finally {
+      releaseCreateResponse();
       teardownStorageListeners();
       __resetStorageStateForTests();
       global.fetch = originalFetch;
