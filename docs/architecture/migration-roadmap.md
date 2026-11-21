@@ -194,25 +194,27 @@ read-only Cloudflare/Vercel inspection.
 
 | Dependency | Status | Evidence and remaining work |
 | --- | --- | --- |
-| MatMetrics CI | Complete and verified | Current `main` commit `43c746e0de0e6400a99008c050a126e66d9f99be` includes PR #945. `npm run test:all`, typecheck, lint, build, and Keiko API pin check pass locally. The test suite includes 74 storage tests and the task-draining teardown regression. Production Vercel is READY on this same commit. |
-| Keiko CI | Complete and verified locally | Required security audit, tests, typecheck, generated Worker types, OpenAPI contract, and local migrations pass on reviewed `main` `aa5ee1bc61254b93abe8d431844d1da031035dd`. The existing 2026-11-18 deployment run passed those checks before failing at the remote D1 request. |
-| Keiko production migration | Complete and verified | Read-only production D1 inspection confirms ledger entries `0001`–`0008` and migration 0008's table schema/unique composite key match the checked-in migration. No production migration was run. |
-| Keiko production runtime | Blocked | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` is still at 100% traffic and predates current main. Run 44420316195 failed with Cloudflare 7403 during D1 access; owner must verify the GitHub environment token's account/resource scope and D1/Worker permissions before approved deployment. |
-| Idempotency | Implemented but not deployed | Local Keiko tests and MatMetrics recovery tests pass. Production smoke evidence is pending a compatible Keiko deployment and an approved dedicated test account. No session mutation was sent. |
-| Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Its metadata confirms production env, MatMetrics frontend/public URL, RP ID, issuer/audience, and expected D1 binding. PR #945's read-only preflight passed health and same-origin JWKS GETs; a current JWKS GET returned a public EdDSA key. Cloudflare version metadata contains no source commit SHA, so the deployed bundle is not tied to an exact reviewed repository revision. |
-| MatMetrics create recovery | Complete and verified | `npm run test:all` passes, including write-ahead create persistence, durable queue restart and recovery classification coverage; PR #945's deterministic storage-task teardown remains green. |
-| Companion API contract | Complete and verified | MatMetrics' pinned OpenAPI file is byte-identical to Keiko `main` OpenAPI; `npm run keiko-api:check` passes. |
+| MatMetrics CI | Complete and verified | Current `main` is `e2ff33018930bc5b6f88874941955ace982c0102`; the CI, security-analysis, and release-readiness workflows passed. Vercel Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P` is READY on this commit. |
+| Keiko CI | Complete and verified | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`; CI, workflow-quality, and CodeQL checks passed. |
+| Keiko production migration | Complete and verified | Read-only production D1 inspection confirms applied migrations `0001`–`0008`; the `session_create_idempotency` table has the expected `(user_id, idempotency_key)` primary key and constraints. No production migration was run. |
+| Keiko production runtime | Blocked | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` remains at 100% traffic and predates current `main`. Workflow run 44420316195 failed at the first remote D1 request with Cloudflare 7403 (service authorization failure); its deployment step was skipped. The exact token cause is not visible to repository automation. The owner must confirm the GitHub environment account ID matches the production account, and inspect the token's account/resource restrictions and D1/Worker permissions before an approved deployment. |
+| Idempotency | Implemented but not deployed | Keiko and MatMetrics main checks pass. Production keyed-create smoke evidence is pending a compatible Keiko deployment and an approved dedicated test account. No session mutation was sent. |
+| Auth Worker | Blocked pending source provenance and live smoke | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Read-only settings confirm production environment, MatMetrics origin, RP ID, issuer/audience, and the expected D1 binding. The deployed version metadata has no source commit SHA. Health and same-origin JWKS GETs were not re-run in this assessment; PR #945 recorded earlier successful probes. |
+| MatMetrics create recovery | Complete and verified by CI | Current MatMetrics CI passed, including write-ahead create persistence, durable queue restart, recovery classification, and deterministic storage-task teardown checks. |
+| Companion API contract | Complete and verified | MatMetrics' pinned OpenAPI file blob is identical to Keiko `main` (`b86eadb2bc63c894e38c3a428b4849aa3c950a45`); the latest MatMetrics CI passed. |
 | Domain ownership | Awaiting owner approval | No durable domain or DNS owner decision is recorded. |
 | Routing architecture | Awaiting owner approval | The ADR recommends shared-origin path routing as an assumption for the first release. Topology and routing owner are not approved. |
 | Passkey migration | Deferred to Phase 3A or later | Existing RP ID and issuer remain unchanged. Domain ownership, staged rehearsal, recovery, and explicit approval are required first. |
 | Release rollback | Blocked | Keiko's documented rollback is traffic restoration to a recorded Worker version while retaining forward-only migrations. The production rollout and rollback procedure have not been rehearsed against the current release. |
 
-The verified Vercel production values keep rollout closed: the
-`KEIKO_SESSION_CUTOVER_USER_IDS` variable is empty, and
-`KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent (the application treats anything
-other than exact `true` as disabled). These settings were read through the
-authorized Vercel deployment interface on 2026-11-21. Do not change them as
-part of Keiko deployment.
+The read-only Vercel Production environment inventory on 2026-11-21 contains a
+sensitive `KEIKO_SESSION_CUTOVER_USER_IDS` variable with the comment “Only the
+existing account in the Keiko staging pilot.” Its value was not disclosed by
+the authorized query, so allowlist membership and account routing cannot be
+confirmed here. `KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent; keyed create is
+therefore not enabled. If a production identity is allowlisted, its create mode
+fails closed as `keiko-unavailable` until the flag is explicitly enabled. Do
+not change either setting as part of Keiko deployment.
 
 ### Phase 3A scope
 
@@ -233,9 +235,10 @@ Requires operational approval or completed release evidence:
 
 **Readiness verdict:** Phase 3A offline-only development can proceed. Production
 Companion authentication, writes, and routing remain blocked until the Keiko
-token permissions are corrected, the reviewed runtime is deployed and
-verified, and the relevant domain/routing decisions are approved. Phase 2C.1
-is implemented but not operationally complete.
+token/account configuration is resolved, the reviewed Worker is deployed and
+verified, the Vercel allowlist membership is checked, keyed create is enabled
+only under a reviewed rollout, and the relevant domain/routing decisions are
+approved. Phase 2C.1 is implemented but not operationally complete.
 
 ## Explicitly out of scope
 
