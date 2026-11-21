@@ -24,10 +24,10 @@ for tenant checks, validation, and conditional persistence.
 
 | Component | Current responsibility and boundary | Evidence and production status |
 | --- | --- | --- |
-| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | Production deployment `dpl_D3rZC7XpjU8j8q7riKGrjFfdHSN4`, READY, branch `main`, commit `43c746e0de0e6400a99008c050a126e66d9f99be` (PR #945). |
-| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | Active Worker `matmetrics-auth-production`, deployment `c5982317-c5c0-48f5-8c55-43c30764cd43`, version `16358726-666b-456f-913c-dcbea199e884` at 100% traffic since 2026-11-18. Version metadata confirms production environment, current MatMetrics origin, RP ID, issuer/audience, and the expected `matmetrics-data` D1 binding. PR #945's read-only Auth preflight passed both health and same-origin JWKS GET checks; a separate current JWKS GET returned a public EdDSA key. Cloudflare version metadata does not include a source commit SHA, so exact code revision provenance is not established. |
+| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P`, READY, branch `main`, commit `e2ff33018930bc5b6f88874941955ace982c0102` (PR #946). |
+| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | Active Worker `matmetrics-auth-production`, deployment `c5982317-c5c0-48f5-8c55-43c30764cd43`, version `16358726-666b-456f-913c-dcbea199e884` at 100% traffic since 2026-11-18. Read-only settings confirm production environment, current MatMetrics origin, RP ID, issuer/audience, and the expected `matmetrics-data` D1 binding. Version metadata has no source commit SHA, so code provenance is not established. Health and same-origin JWKS GETs were not re-run in this assessment; PR #945 recorded earlier successful probes. |
 | MatMetrics Data Worker | Signed per-user preference and plugin-override API; persisted `log-doctor-scan` and `github-health` jobs. | `workers/matmetrics-data/src/index.ts`, `wrangler.jsonc`, `migrations/`. Source config names `matmetrics-data`; live status was not queried. |
-| Keiko Dojo Worker | Versioned REST API, session domain service, analytics, GitHub App integration and jobs, read-only MCP endpoint. | Current `main` is `aa5ee1bc61254b93abe8d431844d1da031035dd`. Production Worker `keiko-dojo` remains at deployment `5303f76c-8a56-4151-bdd9-b6b0d69c8c03`, version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` at 100% traffic, created 2026-10-25; runtime predates idempotency. |
+| Keiko Dojo Worker | Versioned REST API, session domain service, analytics, GitHub App integration and jobs, read-only MCP endpoint. | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`. Production Worker `keiko-dojo` remains at deployment `5303f76c-8a56-4151-bdd9-b6b0d69c8c03`, version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` at 100% traffic, created 2026-10-25; runtime predates idempotency. |
 | Keiko D1 | Authoritative session records for Keiko-routed accounts; revisioned rows and GitHub sync state. | Production D1 `keiko-dojo`, ID `750315f8-ef51-4d6e-86ea-41b076ec9de8`. Read-only verification confirmed migrations `0001`–`0008` and that `session_create_idempotency` matches migration 0008 with `(user_id, idempotency_key)` primary-key uniqueness. |
 | MatMetrics D1 | Better Auth tables, user preferences, plugin overrides, and legacy background-job records. Auth and Data Worker configs point to the same D1 ID. | `workers/matmetrics-auth/wrangler.jsonc`, `workers/matmetrics-data/wrangler.jsonc`, `workers/matmetrics-data/migrations/`. Live Auth/Data Worker bindings and migration state were not queried. |
 | GitHub Markdown | User-selected, portable copy. For Keiko accounts it is asynchronously derived from D1; for legacy accounts it remains the session persistence path. | Keiko `src/http/github-sync.ts`; MatMetrics `src/lib/session-storage.ts`, `src/lib/github-storage.ts`. It is not a transactional database or a D1 restore source. |
@@ -42,20 +42,23 @@ this assessment.
 
 ## Phase 2B production compatibility
 
-The latest production MatMetrics deployment is commit
-`43c746e0de0e6400a99008c050a126e66d9f99be`, which includes merged PR #945's
-storage task tracking and deterministic test teardown. Keiko `main` contains
-Phase 2B idempotency, and the generated API contract still pins Keiko revision
-`fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`; `npm run keiko-api:check` passes.
-The production Keiko Worker is older than that source and does not yet
-implement the idempotency request header or ledger replay.
+The latest production MatMetrics deployment is `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P`,
+READY on `main` commit `e2ff33018930bc5b6f88874941955ace982c0102` (PR #946).
+Keiko `main` contains Phase 2B idempotency, and the generated API contract pins
+Keiko revision `fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`; its OpenAPI blob is
+byte-identical to current Keiko `main` and the latest MatMetrics CI passed the
+contract check. The production Keiko Worker is older than that source and does
+not yet implement the idempotency request header or ledger replay.
 
-On 2026-11-21, Vercel Production settings showed an empty
-`KEIKO_SESSION_CUTOVER_USER_IDS` value and no
-`KEIKO_IDEMPOTENT_CREATE_ENABLED` variable. The create route remains
-fail-closed unless the latter is exactly `true`; no account is currently routed
-to Keiko. Deploy and verify the compatible Worker before considering either
-setting for a reviewed rollout. The controlled deployment sequence is in
+On 2026-11-21, the Vercel Production environment inventory included a sensitive
+`KEIKO_SESSION_CUTOVER_USER_IDS` variable with a comment identifying the
+existing account in the Keiko staging pilot. Its value was not disclosed by the
+authorized query, so allowlist membership and account routing could not be
+confirmed. `KEIKO_IDEMPOTENT_CREATE_ENABLED` was absent. The create route remains
+fail-closed unless that flag is exactly `true`; an allowlisted identity would
+receive `keiko-unavailable` from the create-mode route while the flag is absent.
+Deploy and verify the compatible Worker, then independently confirm allowlist
+membership before a reviewed rollout. The controlled deployment sequence is in
 [`idempotent-create-replay.md`](./idempotent-create-replay.md) and Keiko's
 [`operations.md`](https://github.com/CyanAutomation/keiko-dojo/blob/main/docs/operations.md).
 
