@@ -186,6 +186,57 @@ Markdown commit as a D1 snapshot.
   [`passkey-domain-migration.md`](./passkey-domain-migration.md) after domain
   and routing ownership are approved.
 
+## Phase 2C.1 — Production release readiness (2026-11-21)
+
+This is the current evidence gate for Phase 3A. Repository documentation is
+not deployment proof; status below is based on current repository checks and
+read-only Cloudflare/Vercel inspection.
+
+| Dependency | Status | Evidence and remaining work |
+| --- | --- | --- |
+| MatMetrics CI | Complete and verified | Current `main` commit `43c746e0de0e6400a99008c050a126e66d9f99be` includes PR #945. `npm run test:all`, typecheck, lint, build, and Keiko API pin check pass locally. The test suite includes 74 storage tests and the task-draining teardown regression. Production Vercel is READY on this same commit. |
+| Keiko CI | Complete and verified locally | Required security audit, tests, typecheck, generated Worker types, OpenAPI contract, and local migrations pass on reviewed `main` `aa5ee1bc61254b93abe8d431844d1da031035dd`. The existing 2026-11-18 deployment run passed those checks before failing at the remote D1 request. |
+| Keiko production migration | Complete and verified | Read-only production D1 inspection confirms ledger entries `0001`–`0008` and migration 0008's table schema/unique composite key match the checked-in migration. No production migration was run. |
+| Keiko production runtime | Blocked | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` is still at 100% traffic and predates current main. Run 44420316195 failed with Cloudflare 7403 during D1 access; owner must verify the GitHub environment token's account/resource scope and D1/Worker permissions before approved deployment. |
+| Idempotency | Implemented but not deployed | Local Keiko tests and MatMetrics recovery tests pass. Production smoke evidence is pending a compatible Keiko deployment and an approved dedicated test account. No session mutation was sent. |
+| Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Its metadata confirms production env, MatMetrics frontend/public URL, RP ID, issuer/audience, and expected D1 binding. PR #945's read-only preflight passed health and same-origin JWKS GETs; a current JWKS GET returned a public EdDSA key. Cloudflare version metadata contains no source commit SHA, so the deployed bundle is not tied to an exact reviewed repository revision. |
+| MatMetrics create recovery | Complete and verified | `npm run test:all` passes, including write-ahead create persistence, durable queue restart and recovery classification coverage; PR #945's deterministic storage-task teardown remains green. |
+| Companion API contract | Complete and verified | MatMetrics' pinned OpenAPI file is byte-identical to Keiko `main` OpenAPI; `npm run keiko-api:check` passes. |
+| Domain ownership | Awaiting owner approval | No durable domain or DNS owner decision is recorded. |
+| Routing architecture | Awaiting owner approval | The ADR recommends shared-origin path routing as an assumption for the first release. Topology and routing owner are not approved. |
+| Passkey migration | Deferred to Phase 3A or later | Existing RP ID and issuer remain unchanged. Domain ownership, staged rehearsal, recovery, and explicit approval are required first. |
+| Release rollback | Blocked | Keiko's documented rollback is traffic restoration to a recorded Worker version while retaining forward-only migrations. The production rollout and rollback procedure have not been rehearsed against the current release. |
+
+The verified Vercel production values keep rollout closed: the
+`KEIKO_SESSION_CUTOVER_USER_IDS` variable is empty, and
+`KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent (the application treats anything
+other than exact `true` as disabled). These settings were read through the
+authorized Vercel deployment interface on 2026-11-21. Do not change them as
+part of Keiko deployment.
+
+### Phase 3A scope
+
+Safe to begin before production deployment or domain approval:
+
+- Create a separate Companion project and TypeScript/PWA shell.
+- Build IndexedDB draft and outbox behavior in an isolated implementation.
+- Use a mock Keiko client and contract compatibility tests.
+- Develop local-only training capture, offline restart/recovery tests,
+  manifest checks, and service-worker scope checks.
+
+Requires operational approval or completed release evidence:
+
+- Production account authentication and real Keiko writes.
+- Account cutover or new trusted frontend origins.
+- Production Companion routing or a new public domain.
+- New-domain passkey enrollment or an Auth issuer/RP ID migration.
+
+**Readiness verdict:** Phase 3A offline-only development can proceed. Production
+Companion authentication, writes, and routing remain blocked until the Keiko
+token permissions are corrected, the reviewed runtime is deployed and
+verified, and the relevant domain/routing decisions are approved. Phase 2C.1
+is implemented but not operationally complete.
+
 ## Explicitly out of scope
 
 Creating Companion, changing UI frameworks, changing auth providers or RP IDs,
