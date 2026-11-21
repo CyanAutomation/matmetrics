@@ -71,25 +71,31 @@ Recovery export retains a code when recognized and retains the operation key
 only in the export payload. The dashboard does not display raw idempotency
 keys. Existing copy/download and explicit discard confirmation remain.
 
-## Production compatibility verification (2026-11-17)
+## Production compatibility verification (2026-11-21)
 
 Read-only verification established:
 
-- MatMetrics production Vercel deployment `dpl_A6YFhtYrQPzeDhzHcihnDRZhzzms`
-  is READY at commit `c5a0377cebdcb157adfe5935044de61d6ae2ed50`.
+- MatMetrics production Vercel deployment `dpl_D3rZC7XpjU8j8q7riKGrjFfdHSN4`
+  is READY at commit `43c746e0de0e6400a99008c050a126e66d9f99be`, which includes
+  merged PR #945.
 - Production Keiko Worker `keiko-dojo` is still at deployment
   `5303f76c-8a56-4151-bdd9-b6b0d69c8c03`, version
   `a7c66220-8a1d-4326-b7e0-0366b87e68c3`, created 2026-10-25. Its deployed
   bundle does not contain the idempotency request/ledger handling.
 - Keiko production D1 migration `0008_session_create_idempotency.sql` is
-  applied. The `session_create_idempotency` table has a unique primary key on
-  `(user_id, idempotency_key)`. This does not prove Worker compatibility.
+  applied. Read-only inspection confirmed the recorded schema matches the
+  repository migration and uses `(user_id, idempotency_key)` as its primary
+  key. This does not prove Worker compatibility.
 - Keiko `main` source implements the Phase 2B idempotency feature. MatMetrics'
   generated API contract pins Keiko revision
   `fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`.
-- Production Vercel `KEIKO_SESSION_CUTOVER_USER_IDS` was empty at inspection,
-  so authenticated production users were not routed to the incompatible
-  Worker.
+- Production `KEIKO_SESSION_CUTOVER_USER_IDS` is empty, and
+  `KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent. The route remains fail-closed;
+  authenticated production users are not routed to the incompatible Worker.
+- The Keiko deployment run passed dependency, test, generated type, TypeScript,
+  and local migration checks, then failed on a remote D1 request with Cloudflare
+  code 7403. Its Worker deployment step was skipped. The API token was present
+  but its policy is owner-controlled and not visible through the repository.
 
 This is a deployment blocker for enabling Keiko cutover traffic. No production
 session mutation was sent during the verification.
@@ -99,28 +105,32 @@ session mutation was sent during the verification.
 Do not apply migration 0008 again: it is already present. Do not enable the
 MatMetrics rollout switch before the compatible Worker is deployed.
 
-1. In the Keiko repository, identify and review the merged source revision that
-   contains the idempotency implementation and confirm it is the intended
-   production release. Run `npm test`, `npm run typecheck`,
-   `npm run contract:check`, and `npm run check:migrations` there.
-2. Confirm the production D1 migration history still shows migration 0008 and
-   the expected unique key. Do not run `npm run migrate:production` as part of
-   this release because the migration is already applied.
-3. After an approved production release, run the Keiko repository's
-   `npm run deploy:production` command from its reviewed release checkout.
-   This deployment is intentionally not performed by this MatMetrics change.
-4. Read the Cloudflare deployment/version status and confirm 100% traffic is
-   on the intended revision. Inspect the deployed Worker source or equivalent
-   deployment artifact to confirm the `Idempotency-Key` path is live; do not
-   infer compatibility from D1 schema state.
-5. In a controlled non-production environment, verify same-key/same-payload
-   replay, key reuse with different content, concurrent duplicates, and
-   replay after update/delete. Do not test against production user sessions.
-6. Deploy the MatMetrics application with
-   `KEIKO_IDEMPOTENT_CREATE_ENABLED=false`. After route, auth, queue, and
-   non-production replay checks pass, enable only the reviewed account
-   allowlist and feature flag through the normal approved Vercel release
-   process.
+1. Have the GitHub environment owner verify its `CLOUDFLARE_ACCOUNT_ID` and
+   account-scoped token resource restrictions. The minimum token policy is
+   D1 Edit for migration access and Workers Scripts Edit for deployment, both
+   scoped to the Keiko account. The workflow's read-only checks do not prove
+   either write permission.
+2. Review the current Keiko `main` commit and confirm CI is green. Dispatch the
+   protected **Deploy Production** workflow from `main`; it checks the expected
+   account resources, migration prefix, migration 0008 schema, Worker status,
+   and release SHA before writing.
+3. Let the workflow apply only pending forward-only migrations, verify the full
+   ledger, upload the Worker with the source SHA in its version annotation,
+   and confirm the independent Cloudflare deployment read reports that version
+   at 100% traffic. Never reapply migration 0008 manually or reset the ledger.
+4. In a controlled non-production environment, verify first keyed create;
+   same-key/same-payload replay without duplication; changed payload returns
+   `409 idempotency_key_reuse`; concurrent identical creates make one session;
+   replay after update and after delete returns the original result; failed
+   requests leave no ledger row; keyless requests remain compatible; user
+   isolation holds; and replay does not enqueue duplicate GitHub sync work.
+5. After review, use a dedicated approved production test account for only the
+   smoke cases explicitly authorized by the owner. Do not use real user
+   training sessions or create a production passkey.
+6. Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED` off and the cutover allowlist empty
+   until runtime compatibility, approved smoke evidence, and rollback
+   readiness are reviewed. A later account cutover requires its own rollout
+   decision through Vercel; it is not part of Keiko deployment.
 
 ## Rollback
 
