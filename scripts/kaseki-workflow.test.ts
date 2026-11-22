@@ -57,7 +57,7 @@ test("keeps both Kaseki workflows on main and uses a normal PR publish mode", ()
 
 test("pins the Kaseki health action to a commit in upstream main history", () => {
   const action =
-    "CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@0400e036f8bd03d3c6a8ad1dd68ee74d85ac0aa6";
+    "CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@18aac6c87c76f58effee224b5f2f9105d93307f9";
 
   for (const workflow of [dryWorkflow, docsWorkflow]) {
     assert.ok(workflow.includes(action));
