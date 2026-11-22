@@ -197,7 +197,7 @@ read-only Cloudflare/Vercel inspection.
 | MatMetrics CI | Complete and verified | Current `main` is `e2ff33018930bc5b6f88874941955ace982c0102`; the CI, security-analysis, and release-readiness workflows passed. Vercel Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P` is READY on this commit. |
 | Keiko CI | Complete and verified | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`; CI, workflow-quality, and CodeQL checks passed. |
 | Keiko production migration | Complete and verified | Read-only production D1 inspection confirms applied migrations `0001`–`0008`; the `session_create_idempotency` table has the expected `(user_id, idempotency_key)` primary key and constraints. No production migration was run. |
-| Keiko production runtime | Read access verified; production release pending | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` remains at 100% traffic and predates current `main`. The earlier workflow run 44420316195 failed with Cloudflare 7403 before the permission update. On 2026-11-22, GitHub Actions preflight run 44966233035 passed: the `cloudflare` environment account ID matches production, and the configured token can read production D1 `keiko-dojo` and Worker deployment metadata. The Cloudflare UI shows D1 Read/Write at the account level and Individual Workers Editor scoped to `keiko-dojo`. The preflight is read-only; it does not prove D1 migration/write or Worker deployment access. No production migration or deployment has run. Next, follow the reviewed deployment procedure and verify the deployed version, traffic, and rollback path. |
+| Keiko production runtime | Blocked at read-only release preflight | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` remains at 100% traffic and predates current `main`. Read-only credential preflight run [44966233035](https://github.com/CyanAutomation/keiko-dojo/actions/runs/44966233035) confirms the GitHub environment account matches production and can read Keiko D1 and Worker metadata. The subsequent protected [Deploy Production run 45003918971](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45003918971) passed local checks but failed at the read-only Cloudflare release preflight with code 10000 because production Queue resources were inaccessible. The inspected token policy has account-level D1 Read/Write and Individual Workers Editor scoped to `keiko-dojo`, but no Queues Read. The migration and Worker deploy steps did not run; production was not changed. Add account-scoped `Queues Read`, rerun the protected workflow, then verify the migration ledger, deployed version, traffic, and rollback path. |
 | Idempotency | Implemented but not deployed | Keiko and MatMetrics main checks pass. Production keyed-create smoke evidence is pending a compatible Keiko deployment and an approved dedicated test account. No session mutation was sent. |
 | Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Read-only settings confirm production environment, MatMetrics origin, RP ID, issuer/audience, and the expected D1 binding. The deployed version metadata has no source commit SHA. Follow-up read-only GETs on 2026-11-21 returned `{"ok":true}` from `/healthz` and a JWKS containing a public EdDSA key. |
 | MatMetrics create recovery | Complete and verified by CI | Current MatMetrics CI passed, including write-ahead create persistence, durable queue restart, recovery classification, and deterministic storage-task teardown checks. |
@@ -233,12 +233,13 @@ Requires operational approval or completed release evidence:
 - Production Companion routing or a new public domain.
 - New-domain passkey enrollment or an Auth issuer/RP ID migration.
 
-**Readiness verdict:** Phase 3A offline-only development can proceed. The Keiko
-production account and read access are verified, but production writes and
-Companion authentication/routing remain blocked until an approved Keiko release
-is deployed and verified, the Vercel allowlist membership is checked, keyed
-create is enabled only under a reviewed rollout, and the relevant domain/routing
-decisions are approved. Phase 2C.1 is implemented but not operationally complete.
+**Readiness verdict:** Phase 3A offline-only development can proceed. The
+Keiko production account and D1/Worker read access are verified. Production
+release is currently blocked at its read-only preflight by missing Queue read
+access; after the narrow permission is added, a successful deployment and
+runtime verification, Vercel allowlist review, separately reviewed keyed-create
+rollout, and domain/routing decisions are still required. Phase 2C.1 is
+implemented but not operationally complete.
 
 ## Explicitly out of scope
 
