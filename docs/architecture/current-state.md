@@ -1,6 +1,6 @@
 # Current architecture
 
-Assessment date: 2026-11-21. This describes the repository code and the
+Assessment date: 2026-11-22. This describes the repository code and the
 production checks recorded below; source configuration is not treated as proof
 that a component is deployed.
 
@@ -24,10 +24,10 @@ for tenant checks, validation, and conditional persistence.
 
 | Component | Current responsibility and boundary | Evidence and production status |
 | --- | --- | --- |
-| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | Production deployment `dpl_D3rZC7XpjU8j8q7riKGrjFfdHSN4`, READY, branch `main`, commit `43c746e0de0e6400a99008c050a126e66d9f99be` (PR #945). |
-| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | Active Worker `matmetrics-auth-production`, deployment `c5982317-c5c0-48f5-8c55-43c30764cd43`, version `16358726-666b-456f-913c-dcbea199e884` at 100% traffic since 2026-11-18. Version metadata confirms production environment, current MatMetrics origin, RP ID, issuer/audience, and the expected `matmetrics-data` D1 binding. PR #945's read-only Auth preflight passed both health and same-origin JWKS GET checks; a separate current JWKS GET returned a public EdDSA key. Cloudflare version metadata does not include a source commit SHA, so exact code revision provenance is not established. |
+| MatMetrics Web | Next.js UI, same-origin API handlers, auth token verification, session form/history, preferences and plugin clients. Hosted configuration is Vercel-oriented. | Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P`, READY, branch `main`, commit `e2ff33018930bc5b6f88874941955ace982c0102` (PR #946). |
+| MatMetrics Auth Worker | Better Auth email/password and passkey endpoints, JWT/JWKS, short-lived Keiko token exchange, auth email dispatch. | Active Worker `matmetrics-auth-production`, deployment `c5982317-c5c0-48f5-8c55-43c30764cd43`, version `16358726-666b-456f-913c-dcbea199e884` at 100% traffic since 2026-11-18. Read-only settings confirm production environment, current MatMetrics origin, RP ID, issuer/audience, and the expected `matmetrics-data` D1 binding. Version metadata has no source commit SHA, so code provenance is not established. Follow-up read-only GETs on 2026-11-21 returned `{"ok":true}` from `/healthz` and a JWKS containing a public EdDSA key. |
 | MatMetrics Data Worker | Signed per-user preference and plugin-override API; persisted `log-doctor-scan` and `github-health` jobs. | `workers/matmetrics-data/src/index.ts`, `wrangler.jsonc`, `migrations/`. Source config names `matmetrics-data`; live status was not queried. |
-| Keiko Dojo Worker | Versioned REST API, session domain service, analytics, GitHub App integration and jobs, read-only MCP endpoint. | Current `main` is `aa5ee1bc61254b93abe8d431844d1da031035dd`. Production Worker `keiko-dojo` remains at deployment `5303f76c-8a56-4151-bdd9-b6b0d69c8c03`, version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` at 100% traffic, created 2026-10-25; runtime predates idempotency. |
+| Keiko Dojo Worker | Versioned REST API, session domain service, analytics, GitHub App integration and jobs, read-only MCP endpoint. | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`. Protected Deploy Production run [45024675179](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45024675179) succeeded on 2026-11-22. Production version `16ed3285-0a4e-4e82-aa48-1aa27a77dcce` is at 100% traffic for release SHA `f4918e966bec8ad911cb570a02a9b4f4a88c10be`; Queue consumer reconciliation and post-deploy verification passed. |
 | Keiko D1 | Authoritative session records for Keiko-routed accounts; revisioned rows and GitHub sync state. | Production D1 `keiko-dojo`, ID `750315f8-ef51-4d6e-86ea-41b076ec9de8`. Read-only verification confirmed migrations `0001`–`0008` and that `session_create_idempotency` matches migration 0008 with `(user_id, idempotency_key)` primary-key uniqueness. |
 | MatMetrics D1 | Better Auth tables, user preferences, plugin overrides, and legacy background-job records. Auth and Data Worker configs point to the same D1 ID. | `workers/matmetrics-auth/wrangler.jsonc`, `workers/matmetrics-data/wrangler.jsonc`, `workers/matmetrics-data/migrations/`. Live Auth/Data Worker bindings and migration state were not queried. |
 | GitHub Markdown | User-selected, portable copy. For Keiko accounts it is asynchronously derived from D1; for legacy accounts it remains the session persistence path. | Keiko `src/http/github-sync.ts`; MatMetrics `src/lib/session-storage.ts`, `src/lib/github-storage.ts`. It is not a transactional database or a D1 restore source. |
@@ -42,23 +42,51 @@ this assessment.
 
 ## Phase 2B production compatibility
 
-The latest production MatMetrics deployment is commit
-`43c746e0de0e6400a99008c050a126e66d9f99be`, which includes merged PR #945's
-storage task tracking and deterministic test teardown. Keiko `main` contains
-Phase 2B idempotency, and the generated API contract still pins Keiko revision
-`fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`; `npm run keiko-api:check` passes.
-The production Keiko Worker is older than that source and does not yet
-implement the idempotency request header or ledger replay.
+The latest production MatMetrics deployment is `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P`,
+READY on `main` commit `e2ff33018930bc5b6f88874941955ace982c0102` (PR #946).
+Keiko `main` contains Phase 2B idempotency, and the generated API contract pins
+Keiko revision `fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`; its OpenAPI blob is
+byte-identical to current Keiko `main` and the latest MatMetrics CI passed the
+contract check. Protected Keiko Deploy Production run
+[45024675179](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45024675179)
+completed successfully. It deployed Worker version
+`16ed3285-0a4e-4e82-aa48-1aa27a77dcce` at 100% traffic for release SHA
+`f4918e966bec8ad911cb570a02a9b4f4a88c10be`. Queue consumer reconciliation and
+the workflow's final deployment verification passed. Production
+`/healthz` returned `{"status":"ok"}` and `/readyz` returned
+`{"status":"ready"}`.
 
-On 2026-11-21, Vercel Production settings showed an empty
-`KEIKO_SESSION_CUTOVER_USER_IDS` value and no
-`KEIKO_IDEMPOTENT_CREATE_ENABLED` variable. The create route remains
-fail-closed unless the latter is exactly `true`; no account is currently routed
-to Keiko. Deploy and verify the compatible Worker before considering either
-setting for a reviewed rollout. The controlled deployment sequence is in
+On 2026-11-21, the Vercel Production environment inventory included a sensitive
+`KEIKO_SESSION_CUTOVER_USER_IDS` variable with a comment identifying the
+existing account in the Keiko staging pilot. Its value was not disclosed by the
+authorized query, so allowlist membership and account routing could not be
+confirmed. `KEIKO_IDEMPOTENT_CREATE_ENABLED` was absent. The create route
+remains fail-closed unless that flag is exactly `true`; before enabling keyed
+create, independently confirm allowlist membership, review the rollout, and run
+the approved keyed-create smoke test on a dedicated account. The controlled
+deployment sequence is in
 [`idempotent-create-replay.md`](./idempotent-create-replay.md) and Keiko's
 [`operations.md`](https://github.com/CyanAutomation/keiko-dojo/blob/main/docs/operations.md).
 
+On 2026-11-22, Keiko's GitHub Actions read-only Cloudflare credential preflight
+confirmed that the GitHub `cloudflare` environment account ID matches the
+production account and can read production Keiko D1 and Worker deployment
+metadata. The Cloudflare token policy now has account-level D1 Read/Write and
+Queues Read/Write plus Individual Workers Editor scoped to `keiko-dojo`. The
+policy was updated in place; the GitHub secret value was not changed.
+
+The first protected Deploy Production run
+[45003918971](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45003918971)
+failed at read-only Queue preflight before production writes. After adding
+Queues Read, [run 45015833575](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45015833575)
+passed preflight and migration verification, then published version
+`e47c9756-6f05-481c-9259-5fa5fd5f7584` at 100% traffic. It failed while updating
+the Queue consumer because the token lacked Queue write access. After the
+approved Queues Edit addition, run 45024675179 completed successfully and
+reconciled the consumer. Production already had migrations `0001`–`0008`
+with zero pending, so the successful run applied no D1 migration. The production
+health and readiness checks passed. No session mutation or keyed-create smoke
+write was performed.
 ## Runtime topology
 
 ```mermaid
@@ -186,9 +214,8 @@ legacy path, where selected repository config plus MatMetrics' `GITHUB_TOKEN`
 is authorized and forwarded to the Go or TypeScript GitHub implementation.
 Keiko uses D1 revision/generation bookkeeping and a selected-repository
 Markdown manifest. Keiko `main` source now implements the Phase 2B
-`Idempotency-Key` contract backed by D1, while the production Worker bundle
-has not yet been deployed with that implementation; see the compatibility
-assessment above.
+`Idempotency-Key` contract backed by D1, and the production Worker now runs the deployed idempotency-capable
+version at 100% traffic; see the compatibility assessment above.
 
 The current full GitHub reconciliation query loads at most 501 session rows
 before enforcing `MAX_FULL_SYNC_SESSIONS = 500`. Over the cap, the sync or
