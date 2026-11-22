@@ -102,41 +102,42 @@ persistent account cutover is separately approved.
 
 ## Approved rollout procedure
 
-Do not apply migration 0008 again: it is already present. Do not enable the
-MatMetrics rollout switch before the compatible Worker is deployed.
+Migrations 0008 and 0009 are already applied in Production. Do not reapply
+or roll back either migration. Keep the MatMetrics rollout switch false until
+the Production replay/conflict checks and a separate account-cutover decision
+are complete.
 
-1. Have the GitHub environment owner verify its `CLOUDFLARE_ACCOUNT_ID` and
-   account-scoped token resource restrictions. The minimum token policy is
-   D1 Edit for migration access and Workers Scripts Edit for deployment, both
-   scoped to the Keiko account. The workflow's read-only checks do not prove
-   either write permission.
+1. Before any future Keiko release, verify the GitHub environment's
+   `CLOUDFLARE_ACCOUNT_ID` and account-scoped token restrictions. The protected
+   workflow preflights the expected resources and permissions before writes.
 2. Review the current Keiko `main` commit and confirm CI is green. Dispatch the
-   protected **Deploy Production** workflow from `main`; it checks the expected
-   account resources, migration prefix, migration 0008 schema, Worker status,
-   and release SHA before writing.
-3. Let the workflow apply only pending forward-only migrations, verify the full
-   ledger, upload the Worker with the source SHA in its version annotation,
-   and confirm the independent Cloudflare deployment read reports that version
-   at 100% traffic. Never reapply migration 0008 manually or reset the ledger.
-4. In a controlled non-production environment, verify first keyed create;
-   same-key/same-payload replay without duplication; changed payload returns
-   `409 idempotency_key_reuse`; concurrent identical creates make one session;
-   replay after update and after delete returns the original result; failed
-   requests leave no ledger row; keyless requests remain compatible; user
-   isolation holds; and replay does not enqueue duplicate GitHub sync work.
-5. After review, use a dedicated approved production test account for only the
-   smoke cases explicitly authorized by the owner. Do not use real user
-   training sessions or create a production passkey.
-6. Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED=false` until the remaining
-   production replay/conflict checks and rollback readiness are reviewed. Do
-   not change the existing sensitive cutover allowlist as part of the smoke.
-   A persistent account cutover requires its own rollout decision through
+   protected **Deploy Production** workflow from `main` when a release is
+   needed. It applies only pending forward-only migrations and annotates the
+   Worker with the release SHA.
+3. Verify the migration ledger and independently confirm the intended Worker
+   version is at 100% traffic. Current Production is on release
+   `8688ccbc953dc74b825a3820cf9ebbb942825bed`, Worker version
+   `f766d86b-6831-431e-88bf-49732902af1d`, with migrations `0001`–`0009`.
+4. Keep the contract and integration tests for same-key/same-payload replay
+   without duplication; changed payload returning `409 idempotency_key_reuse`;
+   concurrent identical creates producing one session; replay after update and
+   delete returning the original result; failed requests leaving no ledger row;
+   keyless compatibility; user isolation; and no duplicate GitHub sync work.
+5. The approved Production first-create smoke succeeded using one synthetic
+   record, which was deleted after verification. Same-key replay and changed-
+   payload conflict still need Production verification using only a synthetic
+   record and the authorized account. Do not use real training sessions or
+   create a Production passkey.
+6. Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED=false` until the remaining Production
+   replay/conflict checks and rollback readiness are reviewed. The existing
+   sensitive cutover allowlist was not changed during the first-create smoke.
+   A persistent account cutover requires its own owner decision through
    Vercel; it is not part of Keiko deployment.
 
 ## Rollback
 
 Roll back the MatMetrics frontend through the normal Vercel deployment
-mechanism if its client behavior regresses. Keep migration 0008 and ledger rows;
+mechanism if its client behavior regresses. Keep migrations 0008–0009 and ledger rows;
 never roll back the schema or delete records while clients may retry. Disable
 new account cutover only after coordinating queue and user recovery. Keep the
 compatible Keiko Worker deployed unless a reviewed backend rollback proves
