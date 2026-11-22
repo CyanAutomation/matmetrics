@@ -54,7 +54,7 @@ jobs:
           command -v jq >/dev/null
 
       - name: Verify controller health
-        uses: CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@0400e036f8bd03d3c6a8ad1dd68ee74d85ac0aa6
+        uses: CyanAutomation/kaseki-agent/.github/actions/verify-controller-health@18aac6c87c76f58effee224b5f2f9105d93307f9
         with:
           base-url: ${{ vars.KASEKI_BASE_URL }}
 
