@@ -71,34 +71,34 @@ Recovery export retains a code when recognized and retains the operation key
 only in the export payload. The dashboard does not display raw idempotency
 keys. Existing copy/download and explicit discard confirmation remain.
 
-## Production compatibility verification (2026-11-21)
+## Production verification (2026-11-22)
 
-Read-only verification established:
+- Keiko Deploy Production run
+  [45049729823](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45049729823)
+  applied migration 0009 and deployed version
+  `f766d86b-6831-431e-88bf-49732902af1d` at 100% traffic for release SHA
+  `8688ccbc953dc74b825a3820cf9ebbb942825bed`.
+- Production D1 `keiko-dojo` has migrations `0001`–`0009` applied and 39
+  sessions. The GitHub Markdown sync is clean at generation 9:
+  `completed_generation = 9`, `full_sync_required = 0`, no dirty items,
+  39 manifest entries, and no orphan paths.
+- MatMetrics Production deployment
+  `dpl_CmjbW2qhzuU3oVopVf4CKVqorsdB` is READY on `main` commit
+  `1d96ae8a8871374a9f5bd4b35e76c836d463d987`. The temporary
+  `KEIKO_IDEMPOTENT_CREATE_ENABLED` setting is now `false`. The existing
+  sensitive `KEIKO_SESSION_CUTOVER_USER_IDS` variable was not changed; its
+  value remains undisclosed in this record.
+- The approved Production first-create smoke succeeded through Keiko and wrote
+  an idempotency ledger row. Its synthetic session was then deleted; the row
+  remains by design and the resulting sync completed. Same-key replay and a
+  changed-payload `409 idempotency_key_reuse` remain unverified in Production.
+- At 17:57 UTC the primary Queue had zero backlog and the DLQ had 732 messages.
+  No DLQ messages were pulled, purged, or redriven. Recovery needs a reviewed
+  deduplication plan.
 
-- MatMetrics production Vercel deployment `dpl_D3rZC7XpjU8j8q7riKGrjFfdHSN4`
-  is READY at commit `43c746e0de0e6400a99008c050a126e66d9f99be`, which includes
-  merged PR #945.
-- Production Keiko Worker `keiko-dojo` is still at deployment
-  `5303f76c-8a56-4151-bdd9-b6b0d69c8c03`, version
-  `a7c66220-8a1d-4326-b7e0-0366b87e68c3`, created 2026-10-25. Its deployed
-  bundle does not contain the idempotency request/ledger handling.
-- Keiko production D1 migration `0008_session_create_idempotency.sql` is
-  applied. Read-only inspection confirmed the recorded schema matches the
-  repository migration and uses `(user_id, idempotency_key)` as its primary
-  key. This does not prove Worker compatibility.
-- Keiko `main` source implements the Phase 2B idempotency feature. MatMetrics'
-  generated API contract pins Keiko revision
-  `fa4f723028fc78cad8cafdf497ffd43a7eb9f3f5`.
-- Production `KEIKO_SESSION_CUTOVER_USER_IDS` is empty, and
-  `KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent. The route remains fail-closed;
-  authenticated production users are not routed to the incompatible Worker.
-- The Keiko deployment run passed dependency, test, generated type, TypeScript,
-  and local migration checks, then failed on a remote D1 request with Cloudflare
-  code 7403. Its Worker deployment step was skipped. The API token was present
-  but its policy is owner-controlled and not visible through the repository.
-
-This is a deployment blocker for enabling Keiko cutover traffic. No production
-session mutation was sent during the verification.
+The compatible Worker and first keyed create are verified. Keep the rollout
+flag false until replay and changed-payload conflict are verified and any
+persistent account cutover is separately approved.
 
 ## Approved rollout procedure
 
@@ -127,10 +127,11 @@ MatMetrics rollout switch before the compatible Worker is deployed.
 5. After review, use a dedicated approved production test account for only the
    smoke cases explicitly authorized by the owner. Do not use real user
    training sessions or create a production passkey.
-6. Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED` off and the cutover allowlist empty
-   until runtime compatibility, approved smoke evidence, and rollback
-   readiness are reviewed. A later account cutover requires its own rollout
-   decision through Vercel; it is not part of Keiko deployment.
+6. Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED=false` until the remaining
+   production replay/conflict checks and rollback readiness are reviewed. Do
+   not change the existing sensitive cutover allowlist as part of the smoke.
+   A persistent account cutover requires its own rollout decision through
+   Vercel; it is not part of Keiko deployment.
 
 ## Rollback
 
