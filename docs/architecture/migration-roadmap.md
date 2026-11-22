@@ -25,9 +25,9 @@ the account-scoped browser queue with a typed issue, original payload, and
 original Keiko revision. The dashboard provides status, recovery export, safe
 pending retry, and confirmed discard. Storage failures do not claim that work
 was queued. The repeatable production smoke-test plan is documented in
-[`offline-mutation-safety.md`](./offline-mutation-safety.md); production
-verification remains outstanding and must use a dedicated authorised test
-account.
+[`offline-mutation-safety.md`](./offline-mutation-safety.md). The keyed-create
+first-write smoke has been completed and cleaned up; other production mutation
+and recovery scenarios remain separate verification work.
 
 **Follow-up dependencies:** the Companion offline foundation should evaluate
 IndexedDB for drafts and quota resilience. Phase 2B now defines the Keiko
@@ -62,11 +62,13 @@ offline creates can absorb edits; after the first send is persisted, later edits
 stay separate operations. Details and rollout checks are in
 [`idempotent-create-replay.md`](./idempotent-create-replay.md).
 
-**Rollout:** apply Keiko migration 0008 and deploy the Worker before enabling
-MatMetrics code that sends idempotency keys. Keep MatMetrics cutover disabled
-until Keiko is live. Rollback MatMetrics while retaining the additive ledger;
-never roll back the database schema or delete ledger rows while old clients may
-retry.
+**Rollout:** Keiko migrations 0008 (idempotency ledger) and 0009 (bounded GitHub
+sync) are applied, and the compatible Worker is deployed. The first keyed
+Production create was verified and its synthetic session removed. Keep
+`KEIKO_IDEMPOTENT_CREATE_ENABLED=false` until same-key replay and changed-payload
+conflict are verified and a separate account-cutover decision is approved.
+Rollback MatMetrics while retaining both forward-only migrations and ledger
+rows; never delete ledger rows while old clients may retry.
 
 **Production check (2026-11-22):** protected Keiko Deploy Production run
 [45049729823](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45049729823)
@@ -173,19 +175,20 @@ Markdown commit as a D1 snapshot.
 
 ## Deployment and rollback for Phases 2B.1 and 2C
 
-- This MatMetrics change does not deploy production code, apply remote
-  migrations, change authentication identity settings, alter DNS, or enable
-  account cutover.
-- Keiko production migration 0008 is already applied. Deploy the reviewed
-  Keiko Worker version that implements the pinned idempotency contract before
-  enabling `KEIKO_IDEMPOTENT_CREATE_ENABLED` or adding a cutover account. The
-  production procedure is in [`idempotent-create-replay.md`](./idempotent-create-replay.md).
-- Keep the production allowlist empty and the create feature switch false
-  until the Keiko deployment is verified. Existing production accounts
-  continue to use legacy routes under the current allowlist state.
-- After review and merge, deploy MatMetrics through the normal Vercel release
-  process. Roll back the frontend normally if queue or Recovery behavior
-  regresses; retain Keiko migration 0008 and all idempotency ledger rows.
+- This documentation update changes no production code, database, identity
+  settings, DNS, or rollout flags. The Keiko release and first keyed-create
+  smoke described above have already occurred.
+- Keiko migrations 0001–0009 are applied and the compatible Worker is at 100%
+  traffic. Future Keiko releases should use the protected deployment procedure
+  in [`idempotent-create-replay.md`](./idempotent-create-replay.md).
+- Keep `KEIKO_IDEMPOTENT_CREATE_ENABLED=false` until Production same-key replay
+  and changed-payload conflict are verified and the owner separately approves
+  account cutover. The existing sensitive allowlist was not changed during the
+  smoke; its value is not recorded here.
+- MatMetrics is already redeployed from `main`. Use the normal Vercel release
+  process for future code changes. If frontend behavior regresses, roll back
+  MatMetrics while retaining Keiko migrations 0008–0009 and all idempotency
+  ledger rows.
 - Do not activate additional Auth Worker origins or change RP ID, issuer,
   cookie scope, secrets, or production identity configuration as part of this
   release. Follow the staged plan in
@@ -198,29 +201,34 @@ This is the current evidence gate for Phase 3A. Repository documentation is
 not deployment proof; status below is based on current repository checks and
 read-only Cloudflare/Vercel inspection.
 
+## Phase 2C.1 — Production release readiness (2026-11-22)
+
+This is the evidence gate for production Companion rollout and Phase 3A. The
+status below combines repository CI, read-only Cloudflare/Vercel inspection,
+and the explicitly authorized release and first-create smoke.
+
 | Dependency | Status | Evidence and remaining work |
 | --- | --- | --- |
-| MatMetrics CI | Complete and verified | Current `main` is `e2ff33018930bc5b6f88874941955ace982c0102`; the CI, security-analysis, and release-readiness workflows passed. Vercel Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P` is READY on this commit. |
-| Keiko CI | Complete and verified | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`; CI, workflow-quality, and CodeQL checks passed. |
-| Keiko production migration | Complete and verified | Read-only production D1 inspection confirms applied migrations `0001`–`0008`; the `session_create_idempotency` table has the expected `(user_id, idempotency_key)` primary key and constraints. No production migration was run. |
-| Keiko production runtime | Deployment workflow complete and verified; production smoke pending | After the approved account-scoped `Queues Edit` (`Queues Write`) addition, protected [Deploy Production run 45024675179](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45024675179) completed successfully. It reconciled the Queue consumer, confirmed migrations `0001`–`0008` with 0 pending, and deployed version `16ed3285-0a4e-4e82-aa48-1aa27a77dcce` at 100% traffic for release SHA `f4918e966bec8ad911cb570a02a9b4f4a88c10be`. Post-deploy verification passed; production `/healthz` returned `{"status":"ok"}` and `/readyz` returned `{"status":"ready"}`. The token policy now includes account-level D1 Read/Write and Queues Read/Write plus Individual Workers Editor scoped to `keiko-dojo`. The GitHub secret value was not changed. No D1 migration or session mutation occurred. |
-| Idempotency | Deployed; production smoke pending | Keiko release `f4918e966bec8ad911cb570a02a9b4f4a88c10be` is at 100% traffic in version `16ed3285-0a4e-4e82-aa48-1aa27a77dcce`; production migrations `0001`–`0008` are applied with 0 pending. Deployment and health/readiness verification passed. Keyed-create smoke evidence remains pending an approved dedicated test account; no session mutation was sent. |
-| Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Read-only settings confirm production environment, MatMetrics origin, RP ID, issuer/audience, and the expected D1 binding. The deployed version metadata has no source commit SHA. Follow-up read-only GETs on 2026-11-21 returned `{"ok":true}` from `/healthz` and a JWKS containing a public EdDSA key. |
+| MatMetrics CI | Complete and verified | Current Production source commit is `1d96ae8a8871374a9f5bd4b35e76c836d463d987` (PR #947); CI, security-analysis, and release-readiness workflows passed. Vercel Production deployment `dpl_CmjbW2qhzuU3oVopVf4CKVqorsdB` is READY on this commit. |
+| Keiko CI | Complete and verified | Keiko release commit `8688ccbc953dc74b825a3820cf9ebbb942825bed` passed CI, workflow-quality, and CodeQL checks before merge. |
+| Keiko production migration | Complete and verified | Protected Deploy Production run [45049729823](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45049729823) applied migrations `0001`–`0009`; the idempotency ledger is present with its expected `(user_id, idempotency_key)` key and constraints. |
+| Keiko production runtime | Complete and verified | The same protected run reconciled the Queue consumer and deployed Worker version `f766d86b-6831-431e-88bf-49732902af1d` at 100% traffic for release SHA `8688ccbc953dc74b825a3820cf9ebbb942825bed`. |
+| GitHub Markdown sync | Complete and verified | Production has 39 sessions, 39 manifest entries, no dirty items or orphan paths, and completed sync generation 9. The primary Queue backlog is 0. The DLQ backlog was 732 at the latest read; it has not been replayed or purged. |
+| Idempotency | First-create smoke complete; replay/conflict outstanding | The authorized Production first-keyed-create smoke succeeded through Keiko. Its synthetic session was deleted and its ledger row remains by design. Same-key replay and changed-payload `409 idempotency_key_reuse` have not been verified in Production. The temporary rollout flag is now `false`; the existing sensitive allowlist was not changed. |
+| Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Read-only settings confirm the production environment, MatMetrics origin, RP ID, issuer/audience, and expected D1 binding. The deployed version metadata has no source commit SHA. Follow-up read-only GETs on 2026-11-21 returned `{"ok":true}` from `/healthz` and a JWKS containing a public EdDSA key. |
 | MatMetrics create recovery | Complete and verified by CI | Current MatMetrics CI passed, including write-ahead create persistence, durable queue restart, recovery classification, and deterministic storage-task teardown checks. |
 | Companion API contract | Complete and verified | MatMetrics' pinned OpenAPI file blob is identical to Keiko `main` (`b86eadb2bc63c894e38c3a428b4849aa3c950a45`); the latest MatMetrics CI passed. |
 | Domain ownership | Awaiting owner approval | No durable domain or DNS owner decision is recorded. |
 | Routing architecture | Awaiting owner approval | The ADR recommends shared-origin path routing as an assumption for the first release. Topology and routing owner are not approved. |
 | Passkey migration | Deferred to Phase 3A or later | Existing RP ID and issuer remain unchanged. Domain ownership, staged rehearsal, recovery, and explicit approval are required first. |
-| Release rollback | Blocked | Keiko's documented rollback is traffic restoration to a recorded Worker version while retaining forward-only migrations. The production rollout and rollback procedure have not been rehearsed against the current release. |
+| Release rollback | Rehearsal outstanding | The documented rollback restores traffic to a recorded Worker version while retaining forward-only migrations. Rehearse the procedure against the current release before relying on it as a cutover control. |
 
-The read-only Vercel Production environment inventory on 2026-11-21 contains a
-sensitive `KEIKO_SESSION_CUTOVER_USER_IDS` variable with the comment “Only the
-existing account in the Keiko staging pilot.” Its value was not disclosed by
-the authorized query, so allowlist membership and account routing cannot be
-confirmed here. `KEIKO_IDEMPOTENT_CREATE_ENABLED` is absent; keyed create is
-therefore not enabled. If a production identity is allowlisted, its create mode
-fails closed as `keiko-unavailable` until the flag is explicitly enabled. Do
-not change either setting as part of Keiko deployment.
+The 2026-11-22 Vercel Production inventory shows
+`KEIKO_IDEMPOTENT_CREATE_ENABLED=false`. The existing sensitive
+`KEIKO_SESSION_CUTOVER_USER_IDS` variable was not changed during the authorized
+smoke; its value is not recorded here. Keep the rollout flag fail-closed and do
+not change the allowlist or enable persistent keyed traffic without a separate
+reviewed cutover decision.
 
 ### Phase 3A scope
 
@@ -239,16 +247,16 @@ Requires operational approval or completed release evidence:
 - Production Companion routing or a new public domain.
 - New-domain passkey enrollment or an Auth issuer/RP ID migration.
 
-**Readiness verdict:** Phase 3A offline-only development can proceed. The
-protected Keiko production workflow completed after the approved Queue write
-scope was added. Version `16ed3285-0a4e-4e82-aa48-1aa27a77dcce` is at 100%
-traffic for release SHA `f4918e966bec8ad911cb570a02a9b4f4a88c10be`; all eight
-D1 migrations are applied, with none pending, and `/healthz` and `/readyz`
-passed post-deploy verification. The remaining Keiko check is a keyed-create
-smoke test on an approved dedicated account. Production Companion
-authentication/writes/routing still require that smoke test, a Vercel allowlist
-review, a separately reviewed keyed-create rollout, and approved domain/routing
-decisions. Phase 2C.1 remains operationally incomplete.
+**Readiness verdict:** Phase 3A offline-only development can proceed. Keiko
+Production runs migrations `0001`–`0009`, the Worker is at 100% traffic for
+release SHA `8688ccbc953dc74b825a3820cf9ebbb942825bed`, and the D1 sync is
+clean at generation 9. The authorized first-keyed-create smoke succeeded and
+its synthetic row was removed. Production same-key replay and changed-payload
+conflict, a reviewed account-cutover decision, and a rollback rehearsal remain
+outstanding. The primary Queue is empty; the DLQ backlog (732 at the latest
+read) has not been replayed or purged. Domain/routing ownership and Auth Worker
+source provenance also remain unresolved. Phase 2C.1 is not complete for
+Production Companion authentication, writes, or routing.
 
 ## Explicitly out of scope
 
