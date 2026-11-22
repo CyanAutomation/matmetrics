@@ -31,9 +31,7 @@ account.
 
 **Follow-up dependencies:** the Companion offline foundation should evaluate
 IndexedDB for drafts and quota resilience. Phase 2B now defines the Keiko
-idempotency contract; its production migration and Worker are deployed. Keyed
-traffic remains disabled pending the separately reviewed rollout and a
-dedicated-account smoke test.
+idempotency contract; its production migration and Worker are deployed. Keyed traffic remains disabled after the Production first-create smoke; the same-key replay and changed-payload conflict still need Production verification before a separately reviewed account cutover.
 
 ## Phase 2A — Canonical Keiko contract and Web integration
 
@@ -48,9 +46,11 @@ operations to retry.
 
 **Implementation complete.** Phase 2B adds the Keiko create idempotency
 contract and the MatMetrics keyed create/replay flow. Its coordinated changes
-are in the Keiko and MatMetrics branches. The Keiko migration and Worker have since been deployed. Keyed create remains
-disabled pending the separately reviewed rollout and a dedicated-account
-smoke test; this documentation change does not enable production traffic.
+are in the Keiko and MatMetrics branches. Keiko migration 0009 and the bounded
+GitHub sync Worker are deployed. A Production first-keyed-create smoke
+succeeded and its synthetic record was removed; same-key replay and changed-
+payload conflict remain unverified. The Production create flag is false, and
+this documentation change does not enable production traffic.
 
 ## Phase 2B — Idempotent Session Creation & Safe Offline Replay
 
@@ -68,15 +68,19 @@ until Keiko is live. Rollback MatMetrics while retaining the additive ledger;
 never roll back the database schema or delete ledger rows while old clients may
 retry.
 
-**Production check (2026-11-17):** migration 0008 and the unique
-`(user_id, idempotency_key)` table exist in production D1. MatMetrics production
-is at commit `c5a0377cebdcb157adfe5935044de61d6ae2ed50`, but active Keiko
-deployment `a7c66220-8a1d-4326-b7e0-0366b87e68c3` predates the contract and
-does not implement it. Production cutover allowlist is empty, so current users
-are not routed to that unsupported Worker. See
-[`idempotent-create-replay.md`](./idempotent-create-replay.md) for the approved
-Keiko deployment and verification procedure.
-
+**Production check (2026-11-22):** protected Keiko Deploy Production run
+[45049729823](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45049729823)
+applied migration 0009 and deployed Worker version
+`f766d86b-6831-431e-88bf-49732902af1d` at 100% traffic for release SHA
+`8688ccbc953dc74b825a3820cf9ebbb942825bed`. Production D1 contains 39
+sessions; sync generation 9 completed with 39 manifest entries, no dirty
+items, and no orphans. The authorized Production first-keyed-create smoke
+created and then removed one synthetic session; its ledger row remains by
+design. Same-key replay and changed-payload conflict remain unverified.
+MatMetrics Production is back on a READY deployment with
+`KEIKO_IDEMPOTENT_CREATE_ENABLED=false`; the existing sensitive cutover
+allowlist was left unchanged. The primary Queue is empty; the DLQ backlog is
+732 and has not been replayed or purged.
 ## Phase 2B.1 — Durable mutation recovery
 
 Authenticated create operations are persisted before the server create-mode
@@ -87,8 +91,9 @@ and server rollout flag. Legacy ambiguous creates are held for review instead
 of replayed as if the legacy backend were idempotent. Recognized bounded
 Keiko error codes are preserved and rendered distinctly in Recovery.
 
-The feature switch remains off by default. The Keiko deployment blocker above
-must be resolved before any cutover account is enabled.
+The feature switch remains off by default. The Worker deployment blocker is
+resolved, but Production replay/conflict verification and a separate account
+cutover decision remain before any persistent cutover is enabled.
 
 ## Phase 2C — Contract and auth-domain readiness
 
