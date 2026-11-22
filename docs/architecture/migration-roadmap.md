@@ -197,8 +197,8 @@ read-only Cloudflare/Vercel inspection.
 | MatMetrics CI | Complete and verified | Current `main` is `e2ff33018930bc5b6f88874941955ace982c0102`; the CI, security-analysis, and release-readiness workflows passed. Vercel Production deployment `dpl_BLc3ssQrGKMAt4GrgLKQQDBBKi3P` is READY on this commit. |
 | Keiko CI | Complete and verified | Current `main` is `84dc3e26a990217059e3571dc2ca29ee7694206b`; CI, workflow-quality, and CodeQL checks passed. |
 | Keiko production migration | Complete and verified | Read-only production D1 inspection confirms applied migrations `0001`–`0008`; the `session_create_idempotency` table has the expected `(user_id, idempotency_key)` primary key and constraints. No production migration was run. |
-| Keiko production runtime | Blocked at read-only release preflight | Version `a7c66220-8a1d-4326-b7e0-0366b87e68c3` remains at 100% traffic and predates current `main`. Read-only credential preflight run [44966233035](https://github.com/CyanAutomation/keiko-dojo/actions/runs/44966233035) confirms the GitHub environment account matches production and can read Keiko D1 and Worker metadata. The subsequent protected [Deploy Production run 45003918971](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45003918971) passed local checks but failed at the read-only Cloudflare release preflight with code 10000 because production Queue resources were inaccessible. The inspected token policy has account-level D1 Read/Write and Individual Workers Editor scoped to `keiko-dojo`, but no Queues Read. The migration and Worker deploy steps did not run; production was not changed. Add account-scoped `Queues Read`, rerun the protected workflow, then verify the migration ledger, deployed version, traffic, and rollback path. |
-| Idempotency | Implemented but not deployed | Keiko and MatMetrics main checks pass. Production keyed-create smoke evidence is pending a compatible Keiko deployment and an approved dedicated test account. No session mutation was sent. |
+| Keiko production runtime | Worker deployed at 100%; workflow verification incomplete | The prior protected [Deploy Production run 45003918971](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45003918971) stopped at read-only preflight because Queue metadata was inaccessible. After the approved account-scoped `Queues Read` addition, [run 45015833575](https://github.com/CyanAutomation/keiko-dojo/actions/runs/45015833575) passed preflight and migration verification; production already had all 8 migrations applied and 0 pending. Wrangler created deployment `0f68a285-cc00-46f2-9108-c28ff1bec614`, version `e47c9756-6f05-481c-9259-5fa5fd5f7584`, at 100% traffic with release SHA `f4918e966bec8ad911cb570a02a9b4f4a88c10be`. The workflow then failed with Cloudflare code 10000 while updating the Queue consumer; its post-deploy verification step was skipped. Read-only Cloudflare inspection confirms the consumer remains attached to `keiko-dojo` with the expected production Queue and dead-letter settings. The current token has `Queues Read` but not Queue write access; completing the workflow requires account-scoped `Queues Edit` (`Queues Write`). No session mutation was made. |
+| Idempotency | Deployed; production smoke pending | Keiko release `f4918e966bec8ad911cb570a02a9b4f4a88c10be` is now at 100% traffic in version `e47c9756-6f05-481c-9259-5fa5fd5f7584`; migration 0008 was already applied. Keyed-create smoke evidence remains pending an approved dedicated test account and completed post-deploy verification. No session mutation was sent. |
 | Auth Worker | Blocked pending source provenance | Production version `16358726-666b-456f-913c-dcbea199e884` is at 100%. Read-only settings confirm production environment, MatMetrics origin, RP ID, issuer/audience, and the expected D1 binding. The deployed version metadata has no source commit SHA. Follow-up read-only GETs on 2026-11-21 returned `{"ok":true}` from `/healthz` and a JWKS containing a public EdDSA key. |
 | MatMetrics create recovery | Complete and verified by CI | Current MatMetrics CI passed, including write-ahead create persistence, durable queue restart, recovery classification, and deterministic storage-task teardown checks. |
 | Companion API contract | Complete and verified | MatMetrics' pinned OpenAPI file blob is identical to Keiko `main` (`b86eadb2bc63c894e38c3a428b4849aa3c950a45`); the latest MatMetrics CI passed. |
@@ -234,12 +234,14 @@ Requires operational approval or completed release evidence:
 - New-domain passkey enrollment or an Auth issuer/RP ID migration.
 
 **Readiness verdict:** Phase 3A offline-only development can proceed. The
-Keiko production account and D1/Worker read access are verified. Production
-release is currently blocked at its read-only preflight by missing Queue read
-access; after the narrow permission is added, a successful deployment and
-runtime verification, Vercel allowlist review, separately reviewed keyed-create
-rollout, and domain/routing decisions are still required. Phase 2C.1 is
-implemented but not operationally complete.
+idempotency-capable Keiko Worker is at 100% traffic and migration 0008 is
+verified, but the production workflow failed while reconciling its Queue
+consumer and skipped its final deployment verification. Complete that workflow
+with the required Queue write permission, then run the approved dedicated
+account smoke tests. Production Companion authentication/writes/routing still
+require this verification, a Vercel allowlist review, a separately reviewed
+keyed-create rollout, and approved domain/routing decisions. Phase 2C.1 remains
+operationally incomplete.
 
 ## Explicitly out of scope
 
