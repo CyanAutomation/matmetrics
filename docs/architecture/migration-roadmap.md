@@ -197,12 +197,6 @@ Markdown commit as a D1 snapshot.
 
 ## Phase 2C.1 — Production release readiness (2026-11-22)
 
-This is the current evidence gate for Phase 3A. Repository documentation is
-not deployment proof; status below is based on current repository checks and
-read-only Cloudflare/Vercel inspection.
-
-## Phase 2C.1 — Production release readiness (2026-11-22)
-
 This is the evidence gate for production Companion rollout and Phase 3A. The
 status below combines repository CI, read-only Cloudflare/Vercel inspection,
 and the explicitly authorized release and first-create smoke.
