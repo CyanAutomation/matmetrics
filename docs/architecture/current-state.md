@@ -1,6 +1,6 @@
 # Current architecture
 
-Assessment date: 2026-11-21. This describes the repository code and the
+Assessment date: 2026-11-22. This describes the repository code and the
 production checks recorded below; source configuration is not treated as proof
 that a component is deployed.
 
@@ -61,6 +61,8 @@ Deploy and verify the compatible Worker, then independently confirm allowlist
 membership before a reviewed rollout. The controlled deployment sequence is in
 [`idempotent-create-replay.md`](./idempotent-create-replay.md) and Keiko's
 [`operations.md`](https://github.com/CyanAutomation/keiko-dojo/blob/main/docs/operations.md).
+
+On 2026-11-22, Keiko's GitHub Actions [read-only Cloudflare credential preflight](https://github.com/CyanAutomation/keiko-dojo/actions/runs/44966233035) passed. It confirmed that the GitHub `cloudflare` environment account ID matches the production account and that its configured token can read production Keiko D1 and Worker deployment metadata. The Cloudflare dashboard policy shows D1 Read/Write at the account level and Individual Workers Editor scoped to `keiko-dojo`. The permission policy was updated in place; the GitHub secret value was not changed. This preflight performed reads only: it did not exercise migration/write access or deploy the Worker. The production Worker therefore remains at the pre-idempotency version until the reviewed release procedure is run.
 
 ## Runtime topology
 
