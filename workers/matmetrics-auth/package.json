@@ -15,17 +15,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.7.23",
-    "better-auth": "1.7.23",
-    "jose": "6.2.17",
-    "resend": "^6.38.1"
+    "@better-auth/passkey": "1.7.27",
+    "better-auth": "1.7.27",
+    "jose": "6.2.18",
+    "resend": "^6.39.0"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.8.2",
-    "@cloudflare/workers-types": "^5.20261030.1",
+    "@cloudflare/vitest-plugin": "^1.9.0",
+    "@cloudflare/workers-types": "^5.20261120.1",
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0",
-    "wrangler": "^4.143.1"
+    "vitest": "^5.1.1",
+    "wrangler": "^4.166.0"
   }
 }
